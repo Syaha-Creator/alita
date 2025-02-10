@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'theme/theme.dart';
+
+import 'themes/app_theme.dart';
 
 void main() {
   runApp(MyApp());
@@ -66,7 +67,7 @@ class MyHomePage extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
                       Icon(
-                        Icons.palette,
+                        Icons.favorite,
                         size: 40,
                         color: theme.colorScheme.primary,
                       ),
