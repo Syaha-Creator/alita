@@ -15,7 +15,7 @@ class MyApp extends StatelessWidget {
       title: 'Flutter Theme Example',
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system, // Mengikuti tema sistem
+      themeMode: ThemeMode.system,
       home: MyHomePage(),
     );
   }

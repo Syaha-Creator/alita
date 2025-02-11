@@ -1,25 +1,26 @@
 import 'package:flutter/material.dart';
 
 class CustomLoading {
-  static void showLoadingDialog(BuildContext context) {
+  static void showLoadingDialog(BuildContext context,
+      {String message = "Loading...", bool dismissible = false}) {
     showDialog(
       context: context,
-      barrierDismissible: false, // Tidak bisa ditutup dengan klik di luar
+      barrierDismissible: dismissible,
       builder: (BuildContext context) {
         return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           child: Padding(
             padding: const EdgeInsets.all(20.0),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: const [
-                CircularProgressIndicator(color: Colors.blue),
-                SizedBox(height: 15),
+              children: [
+                const CircularProgressIndicator(color: Colors.blue),
+                const SizedBox(height: 15),
                 Text(
-                  "Loading...",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  message,
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -30,6 +31,8 @@ class CustomLoading {
   }
 
   static void hideLoadingDialog(BuildContext context) {
-    Navigator.of(context, rootNavigator: true).pop(); // Tutup dialog
+    if (Navigator.canPop(context)) {
+      Navigator.of(context, rootNavigator: true).pop();
+    }
   }
 }

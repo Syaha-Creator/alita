@@ -6,12 +6,11 @@ class AppTheme {
   static ThemeData lightTheme = ThemeData(
     brightness: Brightness.light,
     primaryColor: AppColors.primaryLight,
-    scaffoldBackgroundColor:
-        AppColors.backgroundLight, // Menggunakan ini sebagai background utama
+    scaffoldBackgroundColor: AppColors.backgroundLight,
     colorScheme: ColorScheme.light(
       primary: AppColors.primaryLight,
       secondary: AppColors.secondaryLight,
-      surface: AppColors.surfaceLight, // Surface tetap untuk Card, Button, dll.
+      surface: AppColors.surfaceLight,
     ),
     textTheme: TextTheme(
       bodyLarge: TextStyle(color: AppColors.textPrimaryLight),
@@ -33,13 +32,11 @@ class AppTheme {
   static ThemeData darkTheme = ThemeData(
     brightness: Brightness.dark,
     primaryColor: AppColors.primaryDark,
-    scaffoldBackgroundColor:
-        AppColors.backgroundDark, // Gunakan ini sebagai background utama
+    scaffoldBackgroundColor: AppColors.backgroundDark,
     colorScheme: ColorScheme.dark(
       primary: AppColors.primaryDark,
       secondary: AppColors.secondaryDark,
-      surface: AppColors
-          .surfaceDark, // Surface tetap digunakan untuk Card, Button, dll.
+      surface: AppColors.surfaceDark,
     ),
     textTheme: TextTheme(
       bodyLarge: TextStyle(color: AppColors.textPrimaryDark),

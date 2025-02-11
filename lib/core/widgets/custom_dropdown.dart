@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:dropdown_search/dropdown_search.dart';
 
-class CustomDropdown extends StatelessWidget {
+class CustomDropdown<T> extends StatelessWidget {
   final String title;
-  final List<String> items;
-  final String? selectedValue;
-  final Function(String?) onChanged;
+  final List<T> items;
+  final T? selectedValue;
+  final Function(T?) onChanged;
+  final bool isSearchable;
+  final String? hintText;
 
   const CustomDropdown({
     super.key,
@@ -13,6 +15,8 @@ class CustomDropdown extends StatelessWidget {
     required this.items,
     required this.selectedValue,
     required this.onChanged,
+    this.isSearchable = true,
+    this.hintText,
   });
 
   @override
@@ -23,19 +27,21 @@ class CustomDropdown extends StatelessWidget {
         Text(title,
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
         const SizedBox(height: 4),
-        DropdownSearch<String>(
+        DropdownSearch<T>(
           items: items,
           selectedItem: selectedValue,
           onChanged: onChanged,
-          dropdownDecoratorProps: const DropDownDecoratorProps(
-            dropdownSearchDecoration: InputDecoration(
-              border: OutlineInputBorder(),
-              contentPadding:
-                  EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-            ),
+          popupProps: PopupProps.menu(
+            showSearchBox: isSearchable,
           ),
-          popupProps: const PopupProps.menu(
-            showSearchBox: true,
+          dropdownDecoratorProps: DropDownDecoratorProps(
+            dropdownSearchDecoration: InputDecoration(
+              hintText: hintText,
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              contentPadding:
+                  const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+            ),
           ),
         ),
       ],
