@@ -1,15 +1,35 @@
+import 'package:shared_preferences/shared_preferences.dart';
+
 class AuthService {
-  static bool _isLoggedIn = false;
+  static const String _isLoggedInKey = "is_logged_in";
+  static const String _loginTimestampKey = "login_timestamp";
+  static const int _sessionDuration = 24 * 60 * 60 * 1000;
 
-  static bool isLoggedIn() {
-    return _isLoggedIn;
+  static Future<bool> isLoggedIn() async {
+    final prefs = await SharedPreferences.getInstance();
+    bool isLoggedIn = prefs.getBool(_isLoggedInKey) ?? false;
+    int? loginTimestamp = prefs.getInt(_loginTimestampKey);
+
+    if (isLoggedIn) {
+      int currentTime = DateTime.now().millisecondsSinceEpoch;
+      if (currentTime - loginTimestamp! > _sessionDuration) {
+        await logout();
+        return false;
+      }
+    }
+    return isLoggedIn;
   }
 
-  static void login() {
-    _isLoggedIn = true;
+  static Future<void> login() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_isLoggedInKey, true);
+    await prefs.setInt(
+        _loginTimestampKey, DateTime.now().millisecondsSinceEpoch);
   }
 
-  static void logout() {
-    _isLoggedIn = false;
+  static Future<void> logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_isLoggedInKey);
+    await prefs.remove(_loginTimestampKey);
   }
 }

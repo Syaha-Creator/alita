@@ -7,7 +7,8 @@ import 'services/auth_service.dart';
 class RouterGuard {
   static Future<String?> redirect(
       BuildContext context, GoRouterState state) async {
-    bool isAuthenticated = AuthService.isLoggedIn();
+    bool isAuthenticated = await AuthService.isLoggedIn();
+
     if (!isAuthenticated && state.matchedLocation != RoutePaths.login) {
       return RoutePaths.login;
     }
