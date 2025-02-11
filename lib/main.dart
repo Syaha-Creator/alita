@@ -1,14 +1,21 @@
 import 'package:flutter/material.dart';
 
 import 'navigation/app_router.dart';
+import 'navigation/services/auth_service.dart';
 import 'theme/app_theme.dart';
 
-void main() {
-  runApp(MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  bool isLoggedIn = await AuthService.isLoggedIn();
+  runApp(MyApp(
+    isLoggedIn: isLoggedIn,
+  ));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final bool isLoggedIn;
+
+  const MyApp({super.key, required this.isLoggedIn});
 
   @override
   Widget build(BuildContext context) {
