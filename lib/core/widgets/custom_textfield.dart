@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 
-class CustomTextField extends StatelessWidget {
+class CustomTextField extends StatefulWidget {
   final TextEditingController controller;
   final String labelText;
   final String? hintText;
   final String? errorText;
   final IconData? prefixIcon;
-  final Widget? suffixIcon;
   final bool isPassword;
   final TextInputType keyboardType;
   final Function(String)? onChanged;
@@ -19,7 +18,6 @@ class CustomTextField extends StatelessWidget {
     this.hintText,
     this.errorText,
     this.prefixIcon,
-    this.suffixIcon,
     this.isPassword = false,
     this.keyboardType = TextInputType.text,
     this.onChanged,
@@ -27,24 +25,51 @@ class CustomTextField extends StatelessWidget {
   });
 
   @override
+  State<CustomTextField> createState() => _CustomTextFieldState();
+}
+
+class _CustomTextFieldState extends State<CustomTextField> {
+  bool _obscureText = true;
+
+  @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return TextFormField(
-      controller: controller,
-      obscureText: isPassword,
-      keyboardType: keyboardType,
-      onChanged: onChanged,
-      validator: validator,
+      controller: widget.controller,
+      obscureText: widget.isPassword ? _obscureText : false,
+      keyboardType: widget.keyboardType,
+      onChanged: widget.onChanged,
+      validator: widget.validator,
       decoration: InputDecoration(
-        labelText: labelText,
-        hintText: hintText,
-        errorText: errorText,
-        labelStyle: const TextStyle(fontSize: 14),
+        labelText: widget.labelText,
+        hintText: widget.hintText,
+        errorText: widget.errorText,
+        labelStyle:
+            TextStyle(fontSize: 14, color: theme.textTheme.bodyMedium?.color),
+        hintStyle: TextStyle(color: theme.textTheme.bodyMedium?.color),
         filled: true,
-        fillColor: Colors.white,
-        prefixIcon:
-            prefixIcon != null ? Icon(prefixIcon, color: Colors.grey) : null,
-        suffixIcon: suffixIcon,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        fillColor: theme.inputDecorationTheme.fillColor,
+        prefixIcon: widget.prefixIcon != null
+            ? Icon(widget.prefixIcon, color: theme.iconTheme.color)
+            : null,
+        suffixIcon: widget.isPassword
+            ? IconButton(
+                icon: Icon(
+                  _obscureText ? Icons.visibility_off : Icons.visibility,
+                  color: theme.iconTheme.color,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _obscureText = !_obscureText;
+                  });
+                },
+              )
+            : null,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: theme.colorScheme.primary),
+        ),
         enabledBorder:
             OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
         focusedBorder: OutlineInputBorder(

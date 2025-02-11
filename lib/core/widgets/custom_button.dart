@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 class CustomButton extends StatelessWidget {
   final String text;
   final VoidCallback onPressed;
-  final Color color;
   final double? width;
   final double? height;
   final double borderRadius;
@@ -14,7 +13,6 @@ class CustomButton extends StatelessWidget {
     super.key,
     required this.text,
     required this.onPressed,
-    this.color = Colors.blueAccent,
     this.width,
     this.height = 50,
     this.borderRadius = 10,
@@ -24,23 +22,26 @@ class CustomButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return SizedBox(
       width: width ?? double.infinity,
       height: height,
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: color,
+          backgroundColor: theme.colorScheme.primary,
+          foregroundColor: theme.colorScheme.onPrimary,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(borderRadius),
           ),
         ),
         child: isLoading
-            ? const CircularProgressIndicator(color: Colors.white)
+            ? CircularProgressIndicator(color: theme.colorScheme.onPrimary)
             : Text(
                 text,
                 style: textStyle ??
-                    const TextStyle(fontSize: 16, color: Colors.white),
+                    TextStyle(fontSize: 16, color: theme.colorScheme.onPrimary),
               ),
       ),
     );

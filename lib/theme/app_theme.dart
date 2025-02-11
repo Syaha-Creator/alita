@@ -9,6 +9,7 @@ class AppTheme {
     scaffoldBackgroundColor: AppColors.backgroundLight,
     colorScheme: ColorScheme.light(
       primary: AppColors.primaryLight,
+      onPrimary: Colors.white,
       secondary: AppColors.secondaryLight,
       surface: AppColors.surfaceLight,
     ),
@@ -26,6 +27,13 @@ class AppTheme {
         foregroundColor: Colors.white,
       ),
     ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: AppColors.inputBackgroundLight,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+      ),
+    ),
   );
 
   // Dark Theme
@@ -35,6 +43,7 @@ class AppTheme {
     scaffoldBackgroundColor: AppColors.backgroundDark,
     colorScheme: ColorScheme.dark(
       primary: AppColors.primaryDark,
+      onPrimary: Colors.white,
       secondary: AppColors.secondaryDark,
       surface: AppColors.surfaceDark,
     ),
@@ -50,6 +59,16 @@ class AppTheme {
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.primaryDark,
         foregroundColor: Colors.white,
+      ),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: AppColors.inputBackgroundDark, // Perbaikan Warna Input Field
+      labelStyle: TextStyle(color: AppColors.textSecondaryDark), // Warna Label
+      hintStyle: TextStyle(color: AppColors.textSecondaryDark), // Warna Hint
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: AppColors.textSecondaryDark),
       ),
     ),
   );

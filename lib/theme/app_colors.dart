@@ -8,12 +8,14 @@ class AppColors {
   static const Color surfaceLight = Color(0xFFFFFFFF);
   static const Color textPrimaryLight = Color(0xFF2D2D2D);
   static const Color textSecondaryLight = Color(0xFF6D6D6D);
+  static const Color inputBackgroundLight = Colors.white;
 
   // Dark Theme Colors
   static const Color primaryDark = Color(0xFF2563EB);
   static const Color secondaryDark = Color(0xFF14B8A6);
   static const Color backgroundDark = Color(0xFF121212);
-  static const Color surfaceDark = Color(0xFF1F2937);
+  static const Color surfaceDark = Color(0xFF1F1F1F);
   static const Color textPrimaryDark = Color(0xFFE5E7EB);
   static const Color textSecondaryDark = Color(0xFF9CA3AF);
+  static const Color inputBackgroundDark = Color(0xFF2A2A2A);
 }
