@@ -18,15 +18,18 @@ class RouterGuard {
     }
 
     _authCheckTimer?.cancel();
-    _authCheckTimer = Timer.periodic(const Duration(minutes: 5), (timer) async {
-      if (!await AuthService.isLoggedIn()) {
-        timer.cancel();
+    _authCheckTimer = Timer.periodic(
+      const Duration(minutes: 5),
+      (timer) async {
+        if (!await AuthService.isLoggedIn()) {
+          timer.cancel();
 
-        if (context.mounted) {
-          GoRouter.of(context).go(RoutePaths.login);
+          if (context.mounted) {
+            GoRouter.of(context).go(RoutePaths.login);
+          }
         }
-      }
-    });
+      },
+    );
 
     return null;
   }
