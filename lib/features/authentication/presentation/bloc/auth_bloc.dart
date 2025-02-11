@@ -1,13 +1,37 @@
-import 'package:bloc/bloc.dart';
-import 'package:equatable/equatable.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-part 'event/auth_event.dart';
-part 'state/auth_state.dart';
+import '../../../../services/auth_service.dart';
+import '../../domain/usecases/login_usecase.dart';
+import 'event/auth_event.dart';
+import 'state/auth_state.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
-  AuthBloc() : super(AuthInitial()) {
-    on<AuthEvent>((event, emit) {
-      // TODO: implement event handler
+  final LoginUseCase loginUseCase;
+
+  AuthBloc(this.loginUseCase) : super(AuthInitial()) {
+    on<AuthLoginRequested>((event, emit) async {
+      print("🔹 Event: AuthLoginRequested received");
+      emit(AuthLoading());
+
+      try {
+        final auth = await loginUseCase(event.email, event.password);
+
+        if (auth.accessToken.isEmpty) {
+          throw Exception("Login gagal: Token tidak ditemukan.");
+        }
+
+        await AuthService.login(auth.accessToken, auth.refreshToken);
+        print("✅ Login successful, token saved.");
+        emit(AuthSuccess(auth.accessToken));
+      } catch (e) {
+        print("❌ Login failed: $e");
+        emit(AuthFailure(e.toString()));
+      }
+    });
+
+    on<AuthLogoutRequested>((event, emit) async {
+      await AuthService.logout();
+      emit(AuthInitial());
     });
   }
 }
