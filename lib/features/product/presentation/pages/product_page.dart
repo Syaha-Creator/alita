@@ -30,19 +30,55 @@ class _ProductPageState extends State<ProductPage> {
   Future<bool> _showLogoutDialog() async {
     if (!mounted) return false;
 
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDarkMode = theme.brightness == Brightness.dark;
+
     return await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
-            title: const Text("Konfirmasi Logout"),
-            content: const Text("Apakah Anda yakin ingin keluar?"),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            backgroundColor:
+                colorScheme.surface, // Menggunakan warna sesuai theme
+            title: Text(
+              "Konfirmasi Logout",
+              style: theme.textTheme.bodyLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: colorScheme.onSurface,
+              ),
+            ),
+            content: Text(
+              "Apakah Anda yakin ingin keluar?",
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, false),
+                style: TextButton.styleFrom(
+                  foregroundColor: isDarkMode
+                      ? Colors.cyanAccent // Lebih terang di Dark Mode
+                      : colorScheme.secondary,
+                ),
                 child: const Text("Batal"),
               ),
-              TextButton(
+              ElevatedButton(
                 onPressed: () => Navigator.pop(dialogContext, true),
-                child: const Text("Logout"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      isDarkMode ? Colors.red.shade700 : colorScheme.error,
+                  foregroundColor: colorScheme.onError,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text(
+                  "Logout",
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
             ],
           ),

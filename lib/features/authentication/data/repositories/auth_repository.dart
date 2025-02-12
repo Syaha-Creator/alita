@@ -1,3 +1,5 @@
+import 'package:dio/dio.dart';
+
 import '../../../../config/api_config.dart';
 import '../../../../services/api_client.dart';
 import '../models/auth_model.dart';
@@ -15,7 +17,7 @@ class AuthRepository {
 
       final response = await apiClient.post(
         "/oauth/token",
-        queryParameters: {
+        data: {
           "grant_type": "password",
           "email": email,
           "password": password,
@@ -24,12 +26,18 @@ class AuthRepository {
         },
       );
 
-      print("✅ Response: ${response.data}");
-
-      return AuthModel.fromJson(response.data);
+      if (response.statusCode == 200 && response.data != null) {
+        print("✅ Response: ${response.data}");
+        return AuthModel.fromJson(response.data);
+      } else {
+        throw Exception("Login gagal: Respon tidak valid.");
+      }
+    } on DioException catch (e) {
+      print("❌ Error: ${e.response?.data ?? e.message}");
+      throw Exception("Login gagal: ${e.response?.data ?? e.message}");
     } catch (e) {
-      print("❌ Error: $e");
-      throw Exception("Login gagal: ${e.toString()}");
+      print("❌ Unexpected Error: $e");
+      throw Exception("Terjadi kesalahan saat login.");
     }
   }
 }

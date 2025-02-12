@@ -14,7 +14,6 @@ class ApiClient {
   void setupInterceptors() {
     dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
-        // ✅ Ambil token sebelum mengirim request
         final token = await AuthService.getToken();
         if (token != null) {
           options.headers["Authorization"] = "Bearer $token";
@@ -30,7 +29,6 @@ class ApiClient {
       onError: (DioException e, handler) async {
         print("❌ API Error: ${e.response?.statusCode}");
 
-        // ✅ Jika token expired (401), coba refresh token
         if (e.response?.statusCode == 401) {
           final newToken = await AuthService.refreshToken();
           if (newToken != null) {

@@ -11,7 +11,7 @@ class LoginUseCase {
     return AuthEntity(
       accessToken: authModel.accessToken,
       refreshToken: authModel.refreshToken,
-      expiresIn: authModel.createdAt ?? 0,
+      expiresIn: authModel.createdAt ?? DateTime.now().millisecondsSinceEpoch,
     );
   }
 }
