@@ -217,7 +217,7 @@ class _ProductPageState extends State<ProductPage> {
                       }
                     },
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 10),
 
                   // ✅ Tampilkan daftar produk setelah tombol ditekan
                   ElevatedButton(
@@ -253,7 +253,7 @@ class _ProductPageState extends State<ProductPage> {
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 10),
 
                   // ✅ Tampilkan hasil produk yang telah difilter
                   if (state.filteredProducts.isNotEmpty)
