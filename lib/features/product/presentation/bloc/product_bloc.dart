@@ -25,9 +25,8 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
 
         // Emit state baru dengan produk yang sudah di-fetch
         emit(ProductState(
-          products: products, // ✅ Pastikan products terupdate
-          availableAreas:
-              areas, // ✅ Gunakan availableAreas, bukan availableChannels
+          products: products,
+          availableAreas: areas,
         ));
 
         final setProducts = products.where((p) => p.isSet == true).toList();
