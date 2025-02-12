@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-
 import '../../../../core/widgets/custom_dropdown.dart';
 
 class ProductDropdown extends StatelessWidget {
+  final bool isSetActive;
+  final Function(bool) onSetChanged;
+
   final List<String> areas;
   final String? selectedArea;
   final Function(String?) onAreaChanged;
@@ -37,6 +39,8 @@ class ProductDropdown extends StatelessWidget {
 
   const ProductDropdown({
     super.key,
+    required this.isSetActive,
+    required this.onSetChanged,
     required this.areas,
     required this.selectedArea,
     required this.onAreaChanged,
@@ -67,70 +71,110 @@ class ProductDropdown extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        CustomDropdown<String>(
-          labelText: "Area",
-          items: areas,
-          selectedValue: selectedArea,
-          onChanged: onAreaChanged,
-          hintText: "Pilih Area",
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                "Gunakan Set",
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+              ),
+              Switch(
+                value: isSetActive,
+                onChanged: onSetChanged,
+                activeColor: Colors.blue,
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 10),
-        CustomDropdown<String>(
-          labelText: "Channel",
-          items: channels,
-          selectedValue: selectedChannel,
-          onChanged: onChannelChanged,
-          hintText: "Pilih Channel",
+
+        // ✅ Baris pertama (Area & Channel)
+        _buildRow(
+          CustomDropdown<String>(
+            labelText: "Area",
+            items: areas,
+            selectedValue: selectedArea,
+            onChanged: onAreaChanged,
+            hintText: "Pilih Area",
+          ),
+          CustomDropdown<String>(
+            labelText: "Channel",
+            items: channels,
+            selectedValue: selectedChannel,
+            onChanged: onChannelChanged,
+            hintText: "Pilih Channel",
+          ),
         ),
-        const SizedBox(height: 10),
-        CustomDropdown<String>(
-          labelText: "Brand",
-          items: brands,
-          selectedValue: selectedBrand,
-          onChanged: onBrandChanged,
-          hintText: "Pilih Brand",
+
+        // ✅ Baris kedua (Brand & Kasur)
+        _buildRow(
+          CustomDropdown<String>(
+            labelText: "Brand",
+            items: brands,
+            selectedValue: selectedBrand,
+            onChanged: onBrandChanged,
+            hintText: "Pilih Brand",
+          ),
+          CustomDropdown<String>(
+            labelText: "Kasur",
+            items: kasurs,
+            selectedValue: selectedKasur,
+            onChanged: onKasurChanged,
+            hintText: "Pilih Kasur",
+          ),
         ),
-        const SizedBox(height: 10),
-        CustomDropdown<String>(
-          labelText: "Kasur",
-          items: kasurs,
-          selectedValue: selectedKasur,
-          onChanged: onKasurChanged,
-          hintText: "Pilih Kasur",
+
+        // ✅ Baris ketiga (Divan & Headboard)
+        _buildRow(
+          CustomDropdown<String>(
+            labelText: "Divan",
+            items: divans,
+            selectedValue: selectedDivan,
+            onChanged: onDivanChanged,
+            hintText: "Pilih Divan",
+          ),
+          CustomDropdown<String>(
+            labelText: "Headboard",
+            items: headboards,
+            selectedValue: selectedHeadboard,
+            onChanged: onHeadboardChanged,
+            hintText: "Pilih Headboard",
+          ),
         ),
-        const SizedBox(height: 10),
-        CustomDropdown<String>(
-          labelText: "Divan",
-          items: divans,
-          selectedValue: selectedDivan,
-          onChanged: onDivanChanged,
-          hintText: "Pilih Divan",
-        ),
-        const SizedBox(height: 10),
-        CustomDropdown<String>(
-          labelText: "Headboard",
-          items: headboards,
-          selectedValue: selectedHeadboard,
-          onChanged: onHeadboardChanged,
-          hintText: "Pilih Headboard",
-        ),
-        const SizedBox(height: 10),
-        CustomDropdown<String>(
-          labelText: "Sorong",
-          items: sorongs,
-          selectedValue: selectedSorong,
-          onChanged: onSorongChanged,
-          hintText: "Pilih Sorong",
-        ),
-        const SizedBox(height: 10),
-        CustomDropdown<String>(
-          labelText: "Ukuran",
-          items: sizes,
-          selectedValue: selectedSize,
-          onChanged: onSizeChanged,
-          hintText: "Pilih Ukuran",
+
+        // ✅ Baris keempat (Sorong & Ukuran)
+        _buildRow(
+          CustomDropdown<String>(
+            labelText: "Sorong",
+            items: sorongs,
+            selectedValue: selectedSorong,
+            onChanged: onSorongChanged,
+            hintText: "Pilih Sorong",
+          ),
+          CustomDropdown<String>(
+            labelText: "Ukuran",
+            items: sizes,
+            selectedValue: selectedSize,
+            onChanged: onSizeChanged,
+            hintText: "Pilih Ukuran",
+          ),
         ),
       ],
+    );
+  }
+
+  /// 🔹 **Helper untuk membuat baris dropdown (2 dropdown dalam 1 row)**
+  Widget _buildRow(Widget firstDropdown, Widget secondDropdown) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10), // Jarak antar baris dropdown
+      child: Row(
+        children: [
+          Expanded(child: firstDropdown),
+          const SizedBox(width: 8), // Jarak antar dropdown dalam row
+          Expanded(child: secondDropdown),
+        ],
+      ),
     );
   }
 }

@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../domain/entities/product_entity.dart';
+
 abstract class ProductEvent extends Equatable {
   const ProductEvent();
 
@@ -8,6 +10,14 @@ abstract class ProductEvent extends Equatable {
 }
 
 class FetchProducts extends ProductEvent {}
+
+class ToggleSet extends ProductEvent {
+  final bool isSetActive;
+  const ToggleSet(this.isSetActive);
+
+  @override
+  List<Object?> get props => [isSetActive];
+}
 
 class UpdateSelectedArea extends ProductEvent {
   final String area;
@@ -71,4 +81,46 @@ class UpdateSelectedUkuran extends ProductEvent {
 
   @override
   List<Object?> get props => [ukuran];
+}
+
+class FilterProducts extends ProductEvent {
+  final List<ProductEntity> filteredProducts;
+  const FilterProducts(this.filteredProducts);
+
+  @override
+  List<Object?> get props => [filteredProducts];
+}
+
+class ApplyFilters extends ProductEvent {
+  final String? selectedArea;
+  final String? selectedChannel;
+  final String? selectedBrand;
+  final String? selectedKasur;
+  final String? selectedDivan;
+  final String? selectedHeadboard;
+  final String? selectedSorong;
+  final String? selectedSize;
+
+  const ApplyFilters({
+    this.selectedArea,
+    this.selectedChannel,
+    this.selectedBrand,
+    this.selectedKasur,
+    this.selectedDivan,
+    this.selectedHeadboard,
+    this.selectedSorong,
+    this.selectedSize,
+  });
+
+  @override
+  List<Object?> get props => [
+        selectedArea,
+        selectedChannel,
+        selectedBrand,
+        selectedKasur,
+        selectedDivan,
+        selectedHeadboard,
+        selectedSorong,
+        selectedSize,
+      ];
 }

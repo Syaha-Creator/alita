@@ -4,6 +4,7 @@ import '../../../domain/entities/product_entity.dart';
 
 class ProductState extends Equatable {
   final List<ProductEntity> products;
+  final bool isSetActive;
   final List<String> availableAreas;
   final String? selectedArea;
   final List<String> availableChannels;
@@ -24,6 +25,7 @@ class ProductState extends Equatable {
 
   const ProductState({
     this.products = const [],
+    this.isSetActive = false,
     this.availableAreas = const [],
     this.selectedArea,
     this.availableChannels = const [],
@@ -44,6 +46,7 @@ class ProductState extends Equatable {
   });
   ProductState copyWith({
     List<ProductEntity>? products,
+    bool? isSetActive,
     List<String>? availableAreas,
     String? selectedArea,
     List<String>? availableChannels,
@@ -64,6 +67,7 @@ class ProductState extends Equatable {
   }) {
     return ProductState(
       products: products ?? this.products,
+      isSetActive: isSetActive ?? this.isSetActive,
       availableAreas: availableAreas ?? this.availableAreas,
       selectedArea: selectedArea ?? this.selectedArea,
       availableChannels: availableChannels ?? this.availableChannels,
@@ -87,6 +91,7 @@ class ProductState extends Equatable {
   @override
   List<Object?> get props => [
         products,
+        isSetActive,
         availableAreas,
         selectedArea,
         availableChannels,

@@ -10,6 +10,7 @@ import '../../../authentication/presentation/bloc/state/auth_state.dart';
 import '../bloc/event/product_event.dart';
 import '../bloc/product_bloc.dart';
 import '../bloc/state/product_state.dart';
+import '../widgets/product_card.dart';
 import '../widgets/product_dropdown.dart';
 
 class ProductPage extends StatefulWidget {
@@ -135,9 +136,14 @@ class _ProductPageState extends State<ProductPage> {
               }
 
               return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   /// ✅ Gunakan `ProductDropdown`
                   ProductDropdown(
+                    isSetActive: state.isSetActive,
+                    onSetChanged: (value) {
+                      context.read<ProductBloc>().add(ToggleSet(value));
+                    },
                     areas: state.availableAreas,
                     selectedArea: state.selectedArea,
                     onAreaChanged: (value) {
@@ -213,15 +219,26 @@ class _ProductPageState extends State<ProductPage> {
                   ),
                   const SizedBox(height: 20),
 
-                  /// Tombol untuk menampilkan produk
+                  // ✅ Tampilkan daftar produk setelah tombol ditekan
                   ElevatedButton(
-                    onPressed: state.selectedSize != null
+                    onPressed: state.selectedChannel != null
                         ? () {
-                            print("Produk ditampilkan berdasarkan filter");
+                            context.read<ProductBloc>().add(ApplyFilters(
+                                  selectedArea: state.selectedArea,
+                                  selectedChannel: state.selectedChannel,
+                                  selectedBrand: state.selectedBrand,
+                                  selectedKasur: state.selectedKasur,
+                                  selectedDivan: state.selectedDivan,
+                                  selectedHeadboard: state.selectedHeadboard,
+                                  selectedSorong: state.selectedSorong,
+                                  selectedSize: state.selectedSize,
+                                ));
                           }
                         : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      backgroundColor: state.selectedChannel != null
+                          ? Theme.of(context).colorScheme.primary
+                          : Colors.grey,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -235,6 +252,30 @@ class _ProductPageState extends State<ProductPage> {
                       ),
                     ),
                   ),
+
+                  const SizedBox(height: 20),
+
+                  // ✅ Tampilkan hasil produk yang telah difilter
+                  if (state.filteredProducts.isNotEmpty)
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: state.filteredProducts.length,
+                        itemBuilder: (context, index) {
+                          return ProductCard(
+                              product: state.filteredProducts[index]);
+                        },
+                      ),
+                    )
+                  else if (state is ProductFiltered)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 20),
+                      child: Center(
+                        child: Text(
+                          "Tidak ada produk yang cocok dengan filter.",
+                          style: TextStyle(color: Colors.grey, fontSize: 16),
+                        ),
+                      ),
+                    ),
                 ],
               );
             },
