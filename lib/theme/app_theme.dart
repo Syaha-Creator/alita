@@ -12,7 +12,7 @@ class AppTheme {
       onPrimary: Colors.white,
       secondary: AppColors.secondaryLight,
       surface: AppColors.surfaceLight,
-      onSurface: AppColors.textPrimaryLight, // Kontras teks di atas permukaan
+      onSurface: AppColors.textPrimaryLight,
     ),
     textTheme: TextTheme(
       bodyLarge: TextStyle(color: AppColors.textPrimaryLight),
@@ -34,9 +34,9 @@ class AppTheme {
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: AppColors.surfaceLight, // Warna latar input
-      labelStyle: TextStyle(color: AppColors.textSecondaryLight), // Warna Label
-      hintStyle: TextStyle(color: AppColors.textSecondaryLight), // Warna Hint
+      fillColor: AppColors.surfaceLight,
+      labelStyle: TextStyle(color: AppColors.textSecondaryLight),
+      hintStyle: TextStyle(color: AppColors.textSecondaryLight),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
         borderSide: BorderSide(color: AppColors.borderLight),
@@ -62,7 +62,7 @@ class AppTheme {
       onPrimary: Colors.white,
       secondary: AppColors.secondaryDark,
       surface: AppColors.surfaceDark,
-      onSurface: AppColors.textPrimaryDark, // Kontras teks di atas permukaan
+      onSurface: AppColors.textPrimaryDark,
     ),
     textTheme: TextTheme(
       bodyLarge: TextStyle(color: AppColors.textPrimaryDark),
@@ -84,9 +84,9 @@ class AppTheme {
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: AppColors.surfaceDark, // Warna latar input lebih gelap
-      labelStyle: TextStyle(color: AppColors.textSecondaryDark), // Warna Label
-      hintStyle: TextStyle(color: AppColors.textSecondaryDark), // Warna Hint
+      fillColor: AppColors.surfaceDark,
+      labelStyle: TextStyle(color: AppColors.textSecondaryDark),
+      hintStyle: TextStyle(color: AppColors.textSecondaryDark),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
         borderSide: BorderSide(color: AppColors.borderDark),
