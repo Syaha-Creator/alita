@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'config/dependency_injection.dart';
 import 'features/authentication/presentation/bloc/auth_bloc.dart';
+import 'features/product/presentation/bloc/product_bloc.dart';
 import 'navigation/app_router.dart';
 import 'services/auth_service.dart';
 import 'theme/app_theme.dart';
@@ -20,8 +21,15 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider<AuthBloc>(
-      create: (context) => locator<AuthBloc>(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<AuthBloc>(
+          create: (context) => locator<AuthBloc>(),
+        ),
+        BlocProvider<ProductBloc>(
+          create: (context) => locator<ProductBloc>(),
+        ),
+      ],
       child: ValueListenableBuilder<bool>(
         valueListenable: AuthService.authChangeNotifier,
         builder: (context, isLoggedIn, child) {

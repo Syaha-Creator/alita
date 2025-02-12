@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:dropdown_search/dropdown_search.dart';
 
 class CustomDropdown<T> extends StatelessWidget {
-  final String title;
+  final String labelText;
   final List<T> items;
   final T? selectedValue;
   final Function(T?) onChanged;
@@ -11,7 +11,7 @@ class CustomDropdown<T> extends StatelessWidget {
 
   const CustomDropdown({
     super.key,
-    required this.title,
+    required this.labelText,
     required this.items,
     required this.selectedValue,
     required this.onChanged,
@@ -24,9 +24,6 @@ class CustomDropdown<T> extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-        const SizedBox(height: 4),
         DropdownSearch<T>(
           items: items,
           selectedItem: selectedValue,
@@ -36,6 +33,7 @@ class CustomDropdown<T> extends StatelessWidget {
           ),
           dropdownDecoratorProps: DropDownDecoratorProps(
             dropdownSearchDecoration: InputDecoration(
+              labelText: labelText,
               hintText: hintText,
               border:
                   OutlineInputBorder(borderRadius: BorderRadius.circular(10)),

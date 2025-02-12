@@ -7,6 +7,10 @@ import '../../../../services/auth_service.dart';
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/event/auth_event.dart';
 import '../../../authentication/presentation/bloc/state/auth_state.dart';
+import '../bloc/event/product_event.dart';
+import '../bloc/product_bloc.dart';
+import '../bloc/state/product_state.dart';
+import '../widgets/product_dropdown.dart';
 
 class ProductPage extends StatefulWidget {
   const ProductPage({super.key});
@@ -16,6 +20,12 @@ class ProductPage extends StatefulWidget {
 }
 
 class _ProductPageState extends State<ProductPage> {
+  @override
+  void initState() {
+    super.initState();
+    context.read<ProductBloc>().add(FetchProducts());
+  }
+
   Future<void> _logout() async {
     bool confirmLogout = await _showLogoutDialog();
     if (!confirmLogout || !mounted) return;
@@ -105,10 +115,129 @@ class _ProductPageState extends State<ProductPage> {
             ),
           ],
         ),
-        body: const Center(
-          child: Text(
-            "Selamat Datang di Product Page!",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        body: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: BlocBuilder<ProductBloc, ProductState>(
+            builder: (context, state) {
+              if (state is ProductLoading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (state is ProductError) {
+                return Center(
+                  child: Text(
+                    state.message,
+                    style: TextStyle(color: Colors.red),
+                  ),
+                );
+              }
+              if (state.availableAreas.isEmpty) {
+                return const Center(child: Text("Data tidak ditemukan"));
+              }
+
+              return Column(
+                children: [
+                  /// ✅ Gunakan `ProductDropdown`
+                  ProductDropdown(
+                    areas: state.availableAreas,
+                    selectedArea: state.selectedArea,
+                    onAreaChanged: (value) {
+                      if (value != null) {
+                        context
+                            .read<ProductBloc>()
+                            .add(UpdateSelectedArea(value));
+                      }
+                    },
+                    channels: state.availableChannels,
+                    selectedChannel: state.selectedChannel,
+                    onChannelChanged: (value) {
+                      if (value != null) {
+                        context
+                            .read<ProductBloc>()
+                            .add(UpdateSelectedChannel(value));
+                      }
+                    },
+                    brands: state.availableBrands,
+                    selectedBrand: state.selectedBrand,
+                    onBrandChanged: (value) {
+                      if (value != null) {
+                        context
+                            .read<ProductBloc>()
+                            .add(UpdateSelectedBrand(value));
+                      }
+                    },
+                    kasurs: state.availableKasurs,
+                    selectedKasur: state.selectedKasur,
+                    onKasurChanged: (value) {
+                      if (value != null) {
+                        context
+                            .read<ProductBloc>()
+                            .add(UpdateSelectedKasur(value));
+                      }
+                    },
+                    divans: state.availableDivans,
+                    selectedDivan: state.selectedDivan,
+                    onDivanChanged: (value) {
+                      if (value != null) {
+                        context
+                            .read<ProductBloc>()
+                            .add(UpdateSelectedDivan(value));
+                      }
+                    },
+                    headboards: state.availableHeadboards,
+                    selectedHeadboard: state.selectedHeadboard,
+                    onHeadboardChanged: (value) {
+                      if (value != null) {
+                        context
+                            .read<ProductBloc>()
+                            .add(UpdateSelectedHeadboard(value));
+                      }
+                    },
+                    sorongs: state.availableSorongs,
+                    selectedSorong: state.selectedSorong,
+                    onSorongChanged: (value) {
+                      if (value != null) {
+                        context
+                            .read<ProductBloc>()
+                            .add(UpdateSelectedSorong(value));
+                      }
+                    },
+                    sizes: state.availableSizes,
+                    selectedSize: state.selectedSize,
+                    onSizeChanged: (value) {
+                      if (value != null) {
+                        context
+                            .read<ProductBloc>()
+                            .add(UpdateSelectedUkuran(value));
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 20),
+
+                  /// Tombol untuk menampilkan produk
+                  ElevatedButton(
+                    onPressed: state.selectedSize != null
+                        ? () {
+                            print("Produk ditampilkan berdasarkan filter");
+                          }
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Center(
+                      child: Text(
+                        "Tampilkan Produk",
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),
