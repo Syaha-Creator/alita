@@ -12,6 +12,7 @@ class AppTheme {
       onPrimary: Colors.white,
       secondary: AppColors.secondaryLight,
       surface: AppColors.surfaceLight,
+      onSurface: AppColors.textPrimaryLight, // Kontras teks di atas permukaan
     ),
     textTheme: TextTheme(
       bodyLarge: TextStyle(color: AppColors.textPrimaryLight),
@@ -20,18 +21,33 @@ class AppTheme {
     appBarTheme: AppBarTheme(
       backgroundColor: AppColors.primaryLight,
       foregroundColor: Colors.white,
+      elevation: 0,
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.primaryLight,
+        backgroundColor: AppColors.buttonLight,
         foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: AppColors.inputBackgroundLight,
+      fillColor: AppColors.surfaceLight, // Warna latar input
+      labelStyle: TextStyle(color: AppColors.textSecondaryLight), // Warna Label
+      hintStyle: TextStyle(color: AppColors.textSecondaryLight), // Warna Hint
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: AppColors.borderLight),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: AppColors.borderLight),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: AppColors.primaryLight, width: 2),
       ),
     ),
   );
@@ -46,6 +62,7 @@ class AppTheme {
       onPrimary: Colors.white,
       secondary: AppColors.secondaryDark,
       surface: AppColors.surfaceDark,
+      onSurface: AppColors.textPrimaryDark, // Kontras teks di atas permukaan
     ),
     textTheme: TextTheme(
       bodyLarge: TextStyle(color: AppColors.textPrimaryDark),
@@ -54,21 +71,33 @@ class AppTheme {
     appBarTheme: AppBarTheme(
       backgroundColor: AppColors.primaryDark,
       foregroundColor: Colors.white,
+      elevation: 0,
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.primaryDark,
+        backgroundColor: AppColors.buttonDark,
         foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: AppColors.inputBackgroundDark, // Perbaikan Warna Input Field
+      fillColor: AppColors.surfaceDark, // Warna latar input lebih gelap
       labelStyle: TextStyle(color: AppColors.textSecondaryDark), // Warna Label
       hintStyle: TextStyle(color: AppColors.textSecondaryDark), // Warna Hint
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: AppColors.textSecondaryDark),
+        borderSide: BorderSide(color: AppColors.borderDark),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: AppColors.borderDark),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: AppColors.primaryDark, width: 2),
       ),
     ),
   );
