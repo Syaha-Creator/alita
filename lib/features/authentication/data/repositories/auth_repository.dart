@@ -13,7 +13,6 @@ class AuthRepository {
     try {
       print("🔵 Sending login request...");
       print("📩 Email: $email");
-      print("📩 Password: $password");
 
       final response = await apiClient.post(
         "/oauth/token",
@@ -26,14 +25,18 @@ class AuthRepository {
         },
       );
 
-      if (response.statusCode == 200 && response.data != null) {
-        print("✅ Response: ${response.data}");
-        return AuthModel.fromJson(response.data);
-      } else {
+      if (response.statusCode != 200 || response.data == null) {
         throw Exception("Login gagal: Respon tidak valid.");
       }
+
+      if (response.data is! Map<String, dynamic>) {
+        throw Exception("Format JSON tidak sesuai.");
+      }
+
+      print("✅ Response: ${response.data}");
+      return AuthModel.fromJson(response.data);
     } on DioException catch (e) {
-      print("❌ Error: ${e.response?.data ?? e.message}");
+      print("❌ API Error: ${e.response?.data ?? e.message}");
       throw Exception("Login gagal: ${e.response?.data ?? e.message}");
     } catch (e) {
       print("❌ Unexpected Error: $e");

@@ -20,18 +20,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           throw Exception("Login gagal: Token tidak ditemukan.");
         }
 
-        await AuthService.login(auth.accessToken, auth.refreshToken);
+        final success =
+            await AuthService.login(auth.accessToken, auth.refreshToken);
+        if (!success) {
+          throw Exception("Gagal menyimpan token.");
+        }
+
         print("✅ Login successful, token saved.");
         emit(AuthSuccess(auth.accessToken));
       } catch (e) {
         print("❌ Login failed: $e");
         emit(AuthFailure(e.toString()));
       }
-    });
-
-    on<AuthLogoutRequested>((event, emit) async {
-      await AuthService.logout();
-      emit(AuthInitial());
     });
   }
 }

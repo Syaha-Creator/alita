@@ -30,16 +30,22 @@ class AuthService {
     return isLoggedIn;
   }
 
-  static Future<void> login(String token, String refreshToken) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_isLoggedInKey, true);
-    await prefs.setInt(
-        _loginTimestampKey, DateTime.now().millisecondsSinceEpoch);
-    await prefs.setString(_tokenKey, token);
-    await prefs.setString(_refreshTokenKey, refreshToken);
+  static Future<bool> login(String token, String refreshToken) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_isLoggedInKey, true);
+      await prefs.setInt(
+          _loginTimestampKey, DateTime.now().millisecondsSinceEpoch);
+      await prefs.setString(_tokenKey, token);
+      await prefs.setString(_refreshTokenKey, refreshToken);
 
-    print("🔐 Token saved: $token");
-    authChangeNotifier.value = true;
+      print("🔐 Token saved successfully!");
+      authChangeNotifier.value = true;
+      return true;
+    } catch (e) {
+      print("❌ Failed to save token: $e");
+      return false;
+    }
   }
 
   static Future<String?> getToken() async {
@@ -71,6 +77,8 @@ class AuthService {
         data: {
           "grant_type": "refresh_token",
           "refresh_token": refreshToken,
+          "client_id": ApiConfig.clientId,
+          "client_secret": ApiConfig.clientSecret,
         },
         options: Options(headers: {"Content-Type": "application/json"}),
       );
@@ -78,24 +86,35 @@ class AuthService {
       if (response.statusCode == 200) {
         final newToken = response.data["access_token"];
         final newRefreshToken = response.data["refresh_token"];
-        await login(newToken, newRefreshToken);
+
+        final success = await login(newToken, newRefreshToken);
+        if (!success) throw Exception("Failed to store new token.");
+
         return newToken;
+      } else {
+        throw Exception("Invalid response: ${response.data}");
       }
     } catch (e) {
       print("❌ Refresh token failed, logging out...");
       await logout();
+      return null;
     }
-    return null;
   }
 
-  static Future<void> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_isLoggedInKey);
-    await prefs.remove(_loginTimestampKey);
-    await prefs.remove(_tokenKey);
-    await prefs.remove(_refreshTokenKey);
+  static Future<bool> logout() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_isLoggedInKey);
+      await prefs.remove(_loginTimestampKey);
+      await prefs.remove(_tokenKey);
+      await prefs.remove(_refreshTokenKey);
 
-    print("🚪 User logged out");
-    authChangeNotifier.value = false;
+      print("🚪 User logged out successfully!");
+      authChangeNotifier.value = false;
+      return true;
+    } catch (e) {
+      print("❌ Failed to log out: $e");
+      return false;
+    }
   }
 }

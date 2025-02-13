@@ -14,27 +14,41 @@ class ApiClient {
   void setupInterceptors() {
     dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
-        final token = await AuthService.getToken();
-        if (token != null) {
-          options.headers["Authorization"] = "Bearer $token";
+        try {
+          final token = await AuthService.getToken();
+          if (token != null && token.isNotEmpty) {
+            options.headers["Authorization"] = "Bearer $token";
+          }
+          print("🌍 API Request: ${options.method} ${options.path}");
+          print("📦 Request Headers: ${options.headers}");
+          return handler.next(options);
+        } catch (e) {
+          print("❌ Error in Request Interceptor: $e");
+          return handler.reject(DioException(
+            requestOptions: options,
+            error: "Gagal mendapatkan token",
+            type: DioExceptionType.unknown,
+          ));
         }
-        print("🌍 API Request: ${options.method} ${options.path}");
-        print("📦 Request Headers: ${options.headers}");
-        return handler.next(options);
       },
       onResponse: (response, handler) {
         print("✅ API Response: ${response.statusCode}");
         return handler.next(response);
       },
       onError: (DioException e, handler) async {
-        print("❌ API Error: ${e.response?.statusCode}");
+        print("❌ API Error: ${e.response?.statusCode} - ${e.message}");
 
         if (e.response?.statusCode == 401) {
-          final newToken = await AuthService.refreshToken();
-          if (newToken != null) {
-            e.requestOptions.headers["Authorization"] = "Bearer $newToken";
-            final newResponse = await dio.fetch(e.requestOptions);
-            return handler.resolve(newResponse);
+          try {
+            print("🔄 Refreshing token...");
+            final newToken = await AuthService.refreshToken();
+            if (newToken != null) {
+              e.requestOptions.headers["Authorization"] = "Bearer $newToken";
+              final newResponse = await dio.fetch(e.requestOptions);
+              return handler.resolve(newResponse);
+            }
+          } catch (refreshError) {
+            print("❌ Failed to refresh token: $refreshError");
           }
         }
 

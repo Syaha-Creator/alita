@@ -11,7 +11,7 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
     on<FetchProducts>((event, emit) async {
       emit(ProductLoading());
       try {
-        print("📡 Fetching products from API...");
+        print("📡 Fetching products from API on Product Bloc...");
         final products = await getProductUseCase();
 
         if (products.isEmpty) {

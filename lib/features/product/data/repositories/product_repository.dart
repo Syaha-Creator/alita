@@ -12,41 +12,29 @@ class ProductRepository {
     try {
       print("📡 Fetching products from API...");
 
-      // ✅ Ambil token dari AuthService
       final token = await AuthService.getToken();
-      if (token == null) {
+      if (token == null || token.isEmpty) {
         throw Exception("Token tidak tersedia. Harap login ulang.");
       }
 
-      // 🔹 Panggil API dengan token
-      final response = await apiClient.get(
-        ApiConfig.rawdataPriceLists,
-        params: {
-          "access_token": token,
-          "client_id": ApiConfig.clientId,
-          "client_secret": ApiConfig.clientSecret,
-        },
-      );
+      final response = await apiClient.get(ApiConfig.rawdataPriceLists);
 
-      print("✅ API Response: ${response.data}");
+      if (response.statusCode != 200) {
+        throw Exception("API Error: ${response.statusCode}");
+      }
 
-      // 🔹 Pastikan `response.data` adalah Map<String, dynamic>
-      if (response.data is Map<String, dynamic> &&
-          response.data.containsKey("result")) {
-        final rawData = response.data["result"];
-
-        // 🔹 Pastikan "result" berupa List sebelum parsing
-        if (rawData is List) {
-          return rawData
-              .map(
-                  (item) => ProductModel.fromJson(item as Map<String, dynamic>))
-              .toList();
-        } else {
-          throw Exception("Format JSON tidak sesuai: result bukan List.");
-        }
-      } else {
+      if (response.data is! Map<String, dynamic>) {
         throw Exception("Format JSON tidak sesuai: Data utama bukan Map.");
       }
+
+      final rawData = response.data["result"];
+      if (rawData is! List) {
+        throw Exception("Format JSON tidak sesuai: result bukan List.");
+      }
+
+      return rawData
+          .map((item) => ProductModel.fromJson(item as Map<String, dynamic>))
+          .toList();
     } catch (e) {
       print("❌ Error fetching products: $e");
       throw Exception("Gagal mengambil data produk: ${e.toString()}");
