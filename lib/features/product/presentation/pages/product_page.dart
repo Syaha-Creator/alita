@@ -154,7 +154,9 @@ class _ProductPageState extends State<ProductPage> {
                       }
                     },
                     channels: state.availableChannels,
-                    selectedChannel: state.selectedChannel,
+                    selectedChannel: state.selectedChannel?.isEmpty ?? true
+                        ? null
+                        : state.selectedChannel,
                     onChannelChanged: (value) {
                       if (value != null) {
                         context
@@ -163,7 +165,9 @@ class _ProductPageState extends State<ProductPage> {
                       }
                     },
                     brands: state.availableBrands,
-                    selectedBrand: state.selectedBrand,
+                    selectedBrand: state.selectedBrand?.isEmpty ?? true
+                        ? null
+                        : state.selectedBrand,
                     onBrandChanged: (value) {
                       if (value != null) {
                         context
@@ -172,7 +176,9 @@ class _ProductPageState extends State<ProductPage> {
                       }
                     },
                     kasurs: state.availableKasurs,
-                    selectedKasur: state.selectedKasur,
+                    selectedKasur: state.selectedKasur?.isEmpty ?? true
+                        ? null
+                        : state.selectedKasur,
                     onKasurChanged: (value) {
                       if (value != null) {
                         context
@@ -181,7 +187,9 @@ class _ProductPageState extends State<ProductPage> {
                       }
                     },
                     divans: state.availableDivans,
-                    selectedDivan: state.selectedDivan,
+                    selectedDivan: state.selectedDivan?.isEmpty ?? true
+                        ? null
+                        : state.selectedDivan,
                     onDivanChanged: (value) {
                       if (value != null) {
                         context
@@ -190,7 +198,9 @@ class _ProductPageState extends State<ProductPage> {
                       }
                     },
                     headboards: state.availableHeadboards,
-                    selectedHeadboard: state.selectedHeadboard,
+                    selectedHeadboard: state.selectedHeadboard?.isEmpty ?? true
+                        ? null
+                        : state.selectedHeadboard,
                     onHeadboardChanged: (value) {
                       if (value != null) {
                         context
@@ -199,7 +209,9 @@ class _ProductPageState extends State<ProductPage> {
                       }
                     },
                     sorongs: state.availableSorongs,
-                    selectedSorong: state.selectedSorong,
+                    selectedSorong: state.selectedSorong?.isEmpty ?? true
+                        ? null
+                        : state.selectedSorong,
                     onSorongChanged: (value) {
                       if (value != null) {
                         context
@@ -208,7 +220,9 @@ class _ProductPageState extends State<ProductPage> {
                       }
                     },
                     sizes: state.availableSizes,
-                    selectedSize: state.selectedSize,
+                    selectedSize: state.selectedSize?.isEmpty ?? true
+                        ? null
+                        : state.selectedSize,
                     onSizeChanged: (value) {
                       if (value != null) {
                         context
@@ -221,17 +235,43 @@ class _ProductPageState extends State<ProductPage> {
 
                   // ✅ Tampilkan daftar produk setelah tombol ditekan
                   ElevatedButton(
-                    onPressed: state.selectedChannel != null
+                    onPressed: (state.selectedChannel != null &&
+                            state.selectedChannel!.isNotEmpty)
                         ? () {
+                            print("🔄 Menerapkan Filter...");
                             context.read<ProductBloc>().add(ApplyFilters(
-                                  selectedArea: state.selectedArea,
-                                  selectedChannel: state.selectedChannel,
-                                  selectedBrand: state.selectedBrand,
-                                  selectedKasur: state.selectedKasur,
-                                  selectedDivan: state.selectedDivan,
-                                  selectedHeadboard: state.selectedHeadboard,
-                                  selectedSorong: state.selectedSorong,
-                                  selectedSize: state.selectedSize,
+                                  selectedArea:
+                                      state.selectedArea?.isEmpty ?? true
+                                          ? null
+                                          : state.selectedArea,
+                                  selectedChannel:
+                                      state.selectedChannel?.isEmpty ?? true
+                                          ? null
+                                          : state.selectedChannel,
+                                  selectedBrand:
+                                      state.selectedBrand?.isEmpty ?? true
+                                          ? null
+                                          : state.selectedBrand,
+                                  selectedKasur:
+                                      state.selectedKasur?.isEmpty ?? true
+                                          ? null
+                                          : state.selectedKasur,
+                                  selectedDivan:
+                                      state.selectedDivan?.isEmpty ?? true
+                                          ? null
+                                          : state.selectedDivan,
+                                  selectedHeadboard:
+                                      state.selectedHeadboard?.isEmpty ?? true
+                                          ? null
+                                          : state.selectedHeadboard,
+                                  selectedSorong:
+                                      state.selectedSorong?.isEmpty ?? true
+                                          ? null
+                                          : state.selectedSorong,
+                                  selectedSize:
+                                      state.selectedSize?.isEmpty ?? true
+                                          ? null
+                                          : state.selectedSize,
                                 ));
                           }
                         : null,

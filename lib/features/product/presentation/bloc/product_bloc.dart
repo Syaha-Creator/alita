@@ -20,19 +20,10 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
           return;
         }
 
-        // Mengambil area yang unik dari produk
         final areas = products.map((e) => e.area).toSet().toList();
-
-        // Emit state baru dengan produk yang sudah di-fetch
-        emit(ProductState(
-          products: products,
-          availableAreas: areas,
-        ));
-
-        final setProducts = products.where((p) => p.isSet == true).toList();
+        emit(ProductState(products: products, availableAreas: areas));
 
         print("✅ Produk berhasil dimuat: ${products.length} items.");
-        print("🔥 Total produk dengan Set aktif: ${setProducts.length} items");
       } catch (e) {
         print("❌ Error fetching products: $e");
         emit(ProductError("Gagal mengambil data produk: ${e.toString()}"));
@@ -40,181 +31,38 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
     });
 
     on<ToggleSet>((event, emit) {
-      emit(state.copyWith(isSetActive: event.isSetActive));
+      final isSetActive = event.isSetActive;
+      final filteredProducts = isSetActive
+          ? state.products.where((p) => p.isSet == true).toList()
+          : state.products;
 
-      if (event.isSetActive) {
-        // ✅ Hanya tampilkan kasur yang memiliki `set == true`
-        final filteredKasurs = state.products
-            .where((p) =>
-                p.isSet == true &&
-                (state.selectedArea == null || p.area == state.selectedArea) &&
-                (state.selectedChannel == null ||
-                    p.channel == state.selectedChannel) &&
-                (state.selectedBrand == null || p.brand == state.selectedBrand))
-            .map((p) => p.kasur)
-            .toSet()
-            .toList();
+      final kasurs = filteredProducts.map((p) => p.kasur).toSet().toList()
+        ..sort();
+      final selectedKasur =
+          kasurs.length == 1 ? kasurs.first : state.selectedKasur;
 
-        // ✅ Pertahankan kasur yang sudah dipilih jika masih valid
-        final validSelectedKasur = state.selectedKasur != null &&
-                filteredKasurs.contains(state.selectedKasur)
-            ? state.selectedKasur
-            : null;
+      final filteredByKasur =
+          filteredProducts.where((p) => p.kasur == selectedKasur).toList();
 
-        // 🔹 Jika kasur valid, update opsi Divan, Headboard, Sorong, dan Ukuran
-        final filteredProducts = state.products
-            .where((p) =>
-                p.kasur == validSelectedKasur &&
-                p.isSet == true &&
-                (state.selectedArea == null || p.area == state.selectedArea) &&
-                (state.selectedChannel == null ||
-                    p.channel == state.selectedChannel) &&
-                (state.selectedBrand == null || p.brand == state.selectedBrand))
-            .toList();
+      final divans = filteredByKasur.map((p) => p.divan).toSet().toList();
+      final selectedDivan =
+          divans.length == 1 ? divans.first : state.selectedDivan;
 
-        final divans = filteredProducts.map((p) => p.divan).toSet().toList();
-        final headboards =
-            filteredProducts.map((p) => p.headboard).toSet().toList();
-        final sorongs = filteredProducts.map((p) => p.sorong).toSet().toList();
-        final sizes = filteredProducts.map((p) => p.ukuran).toSet().toList();
-
-        emit(state.copyWith(
-          availableKasurs: filteredKasurs,
-          selectedKasur: validSelectedKasur,
-          availableDivans: divans,
-          selectedDivan:
-              divans.contains(state.selectedDivan) ? state.selectedDivan : null,
-          availableHeadboards: headboards,
-          selectedHeadboard: headboards.contains(state.selectedHeadboard)
-              ? state.selectedHeadboard
-              : null,
-          availableSorongs: sorongs,
-          selectedSorong: sorongs.contains(state.selectedSorong)
-              ? state.selectedSorong
-              : null,
-          availableSizes: sizes,
-          selectedSize:
-              sizes.contains(state.selectedSize) ? state.selectedSize : null,
-        ));
-      } else {
-        // ✅ Jika Set tidak aktif, tampilkan semua kasur sesuai area, channel, dan brand
-        final allKasurs = state.products
-            .where((p) =>
-                (state.selectedArea == null || p.area == state.selectedArea) &&
-                (state.selectedChannel == null ||
-                    p.channel == state.selectedChannel) &&
-                (state.selectedBrand == null || p.brand == state.selectedBrand))
-            .map((p) => p.kasur)
-            .toSet()
-            .toList();
-
-        // ✅ Pertahankan kasur yang sudah dipilih jika masih valid
-        final validSelectedKasur = state.selectedKasur != null &&
-                allKasurs.contains(state.selectedKasur)
-            ? state.selectedKasur
-            : null;
-
-        // 🔹 Jika kasur valid, update opsi Divan, Headboard, Sorong, dan Ukuran
-        final filteredProducts = state.products
-            .where((p) =>
-                p.kasur == validSelectedKasur &&
-                (state.selectedArea == null || p.area == state.selectedArea) &&
-                (state.selectedChannel == null ||
-                    p.channel == state.selectedChannel) &&
-                (state.selectedBrand == null || p.brand == state.selectedBrand))
-            .toList();
-
-        final divans = filteredProducts.map((p) => p.divan).toSet().toList();
-        final headboards =
-            filteredProducts.map((p) => p.headboard).toSet().toList();
-        final sorongs = filteredProducts.map((p) => p.sorong).toSet().toList();
-        final sizes = filteredProducts.map((p) => p.ukuran).toSet().toList();
-
-        emit(state.copyWith(
-          availableKasurs: allKasurs,
-          selectedKasur: validSelectedKasur,
-          availableDivans: divans,
-          selectedDivan:
-              divans.contains(state.selectedDivan) ? state.selectedDivan : null,
-          availableHeadboards: headboards,
-          selectedHeadboard: headboards.contains(state.selectedHeadboard)
-              ? state.selectedHeadboard
-              : null,
-          availableSorongs: sorongs,
-          selectedSorong: sorongs.contains(state.selectedSorong)
-              ? state.selectedSorong
-              : null,
-          availableSizes: sizes,
-          selectedSize:
-              sizes.contains(state.selectedSize) ? state.selectedSize : null,
-        ));
-      }
-    });
-
-    on<UpdateSelectedArea>((event, emit) {
-      final filteredProducts =
-          state.products.where((p) => p.area == event.area).toList();
-      final channels = filteredProducts.map((p) => p.channel).toSet().toList();
-      emit(state.copyWith(
-        selectedArea: event.area,
-        availableChannels: channels,
-        selectedChannel: null,
-      ));
-    });
-
-    on<UpdateSelectedChannel>((event, emit) {
-      final filteredProducts = state.products
-          .where(
-              (p) => p.area == state.selectedArea && p.channel == event.channel)
-          .toList();
-      final brands = filteredProducts.map((p) => p.brand).toSet().toList();
-      emit(state.copyWith(
-        selectedChannel: event.channel,
-        availableBrands: brands,
-        selectedBrand: null,
-      ));
-    });
-
-    on<UpdateSelectedBrand>((event, emit) {
-      final isSetActive = state.isSetActive;
-
-      final filteredKasurs = state.products
-          .where((p) =>
-              (!isSetActive || p.isSet == true) && // Hanya Set jika aktif
-              (state.selectedArea == null || p.area == state.selectedArea) &&
-              (state.selectedChannel == null ||
-                  p.channel == state.selectedChannel) &&
-              (p.brand == event.brand))
-          .toList();
-
-      final kasurOptions = filteredKasurs.map((p) => p.kasur).toSet().toList();
-
-      // ✅ Pilih otomatis jika hanya ada satu opsi
-      final selectedKasur = kasurOptions.length == 1
-          ? kasurOptions.first
-          : (kasurOptions.contains(state.selectedKasur)
-              ? state.selectedKasur
-              : null);
-
-      // 🔹 Update opsi dropdown lainnya
-      final filteredProducts =
-          filteredKasurs.where((p) => p.kasur == selectedKasur).toList();
-
-      final divans = filteredProducts.map((p) => p.divan).toSet().toList();
       final headboards =
-          filteredProducts.map((p) => p.headboard).toSet().toList();
-      final sorongs = filteredProducts.map((p) => p.sorong).toSet().toList();
-      final sizes = filteredProducts.map((p) => p.ukuran).toSet().toList();
-
-      final selectedDivan = divans.length == 1 ? divans.first : null;
+          filteredByKasur.map((p) => p.headboard).toSet().toList();
       final selectedHeadboard =
-          headboards.length == 1 ? headboards.first : null;
-      final selectedSorong = sorongs.length == 1 ? sorongs.first : null;
-      final selectedSize = sizes.length == 1 ? sizes.first : null;
+          headboards.length == 1 ? headboards.first : state.selectedHeadboard;
+
+      final sorongs = filteredByKasur.map((p) => p.sorong).toSet().toList();
+      final selectedSorong =
+          sorongs.length == 1 ? sorongs.first : state.selectedSorong;
+
+      final sizes = filteredByKasur.map((p) => p.ukuran).toSet().toList();
+      final selectedSize = sizes.length == 1 ? sizes.first : state.selectedSize;
 
       emit(state.copyWith(
-        selectedBrand: event.brand,
-        availableKasurs: kasurOptions,
+        isSetActive: isSetActive,
+        availableKasurs: kasurs,
         selectedKasur: selectedKasur,
         availableDivans: divans,
         selectedDivan: selectedDivan,
@@ -227,46 +75,122 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       ));
     });
 
+    on<UpdateSelectedArea>((event, emit) {
+      final filteredProducts = state.products
+          .where((p) =>
+              p.area == event.area && (!state.isSetActive || p.isSet == true))
+          .toList();
+      final channels = filteredProducts.map((p) => p.channel).toSet().toList();
+      final selectedChannel = channels.length == 1 ? channels.first : "";
+
+      emit(state.copyWith(
+        selectedArea: event.area,
+        availableChannels: channels,
+        selectedChannel: selectedChannel,
+        availableBrands: [],
+        selectedBrand: "",
+        availableKasurs: [],
+        selectedKasur: "",
+        availableDivans: [],
+        selectedDivan: "",
+        availableHeadboards: [],
+        selectedHeadboard: "",
+        availableSorongs: [],
+        selectedSorong: "",
+        availableSizes: [],
+        selectedSize: "",
+      ));
+      if (selectedChannel.isNotEmpty) {}
+    });
+
+    on<UpdateSelectedChannel>((event, emit) {
+      final filteredProducts = state.products
+          .where((p) =>
+              p.area == state.selectedArea &&
+              p.channel == event.channel &&
+              (!state.isSetActive || p.isSet == true))
+          .toList();
+      final brands = filteredProducts.map((p) => p.brand).toSet().toList();
+      final selectedBrand = brands.length == 1 ? brands.first : "";
+
+      emit(state.copyWith(
+        selectedChannel: event.channel,
+        availableBrands: brands,
+        selectedBrand: selectedBrand,
+        availableKasurs: [],
+        selectedKasur: "",
+        availableDivans: [],
+        selectedDivan: "",
+        availableHeadboards: [],
+        selectedHeadboard: "",
+        availableSorongs: [],
+        selectedSorong: "",
+        availableSizes: [],
+        selectedSize: "",
+      ));
+      if (selectedBrand.isNotEmpty) {
+        add(UpdateSelectedBrand(selectedBrand));
+      }
+    });
+
+    on<UpdateSelectedBrand>((event, emit) {
+      final filteredKasurs = state.products
+          .where((p) =>
+              p.area == state.selectedArea &&
+              p.channel == state.selectedChannel &&
+              p.brand == event.brand &&
+              (!state.isSetActive || p.isSet == true))
+          .map((p) => p.kasur)
+          .toSet()
+          .toList();
+      final selectedKasur =
+          filteredKasurs.length == 1 ? filteredKasurs.first : "";
+
+      emit(state.copyWith(
+        selectedBrand: event.brand,
+        availableKasurs: filteredKasurs,
+        selectedKasur: selectedKasur,
+        availableDivans: [],
+        selectedDivan: "",
+        availableHeadboards: [],
+        selectedHeadboard: "",
+        availableSorongs: [],
+        selectedSorong: "",
+        availableSizes: [],
+        selectedSize: "",
+      ));
+      if (selectedKasur.isNotEmpty) {
+        add(UpdateSelectedKasur(selectedKasur));
+      }
+    });
+
     on<UpdateSelectedKasur>((event, emit) {
       final filteredProducts = state.products
           .where((p) =>
+              p.area == state.selectedArea &&
+              p.channel == state.selectedChannel &&
+              p.brand == state.selectedBrand &&
               p.kasur == event.kasur &&
-              (state.selectedArea == null || p.area == state.selectedArea) &&
-              (state.selectedChannel == null ||
-                  p.channel == state.selectedChannel) &&
-              (state.selectedBrand == null || p.brand == state.selectedBrand))
+              (!state.isSetActive || p.isSet == true))
           .toList();
 
-      // 🔹 Ambil daftar unik untuk masing-masing opsi
       final divans = filteredProducts.map((p) => p.divan).toSet().toList();
-      final headboards =
-          filteredProducts.map((p) => p.headboard).toSet().toList();
-      final sorongs = filteredProducts.map((p) => p.sorong).toSet().toList();
-      final sizes = filteredProducts.map((p) => p.ukuran).toSet().toList();
+      final selectedDivan = divans.length == 1 ? divans.first : "";
 
-      // 🔹 Cek apakah pilihan sebelumnya masih valid
-      final selectedDivan =
-          divans.contains(state.selectedDivan) ? state.selectedDivan : null;
-      final selectedHeadboard = headboards.contains(state.selectedHeadboard)
-          ? state.selectedHeadboard
-          : null;
-      final selectedSorong =
-          sorongs.contains(state.selectedSorong) ? state.selectedSorong : null;
-      final selectedSize =
-          sizes.contains(state.selectedSize) ? state.selectedSize : null;
-
-      // 🔹 Emit state baru dengan data yang diperbarui
       emit(state.copyWith(
         selectedKasur: event.kasur,
         availableDivans: divans,
         selectedDivan: selectedDivan,
-        availableHeadboards: headboards,
-        selectedHeadboard: selectedHeadboard,
-        availableSorongs: sorongs,
-        selectedSorong: selectedSorong,
-        availableSizes: sizes,
-        selectedSize: selectedSize,
+        availableHeadboards: [],
+        selectedHeadboard: "",
+        availableSorongs: [],
+        selectedSorong: "",
+        availableSizes: [],
+        selectedSize: "",
       ));
+      if (selectedDivan.isNotEmpty) {
+        add(UpdateSelectedDivan(selectedDivan));
+      }
     });
 
     on<UpdateSelectedDivan>((event, emit) {
@@ -276,15 +200,26 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
               p.channel == state.selectedChannel &&
               p.brand == state.selectedBrand &&
               p.kasur == state.selectedKasur &&
-              p.divan == event.divan)
+              p.divan == event.divan &&
+              (!state.isSetActive || p.isSet == true))
           .toList();
+
       final headboards =
           filteredProducts.map((p) => p.headboard).toSet().toList();
+      final selectedHeadboard = headboards.length == 1 ? headboards.first : "";
+
       emit(state.copyWith(
         selectedDivan: event.divan,
         availableHeadboards: headboards,
-        selectedHeadboard: null,
+        selectedHeadboard: selectedHeadboard,
+        availableSorongs: [],
+        selectedSorong: "",
+        availableSizes: [],
+        selectedSize: "",
       ));
+      if (selectedHeadboard.isNotEmpty) {
+        add(UpdateSelectedHeadboard(selectedHeadboard));
+      }
     });
 
     on<UpdateSelectedHeadboard>((event, emit) {
@@ -295,14 +230,23 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
               p.brand == state.selectedBrand &&
               p.kasur == state.selectedKasur &&
               p.divan == state.selectedDivan &&
-              p.headboard == event.headboard)
+              p.headboard == event.headboard &&
+              (!state.isSetActive || p.isSet == true))
           .toList();
+
       final sorongs = filteredProducts.map((p) => p.sorong).toSet().toList();
+      final selectedSorong = sorongs.length == 1 ? sorongs.first : "";
+
       emit(state.copyWith(
         selectedHeadboard: event.headboard,
         availableSorongs: sorongs,
-        selectedSorong: null,
+        selectedSorong: selectedSorong,
+        availableSizes: [],
+        selectedSize: "",
       ));
+      if (selectedSorong.isNotEmpty) {
+        add(UpdateSelectedSorong(selectedSorong));
+      }
     });
 
     on<UpdateSelectedSorong>((event, emit) {
@@ -314,13 +258,17 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
               p.kasur == state.selectedKasur &&
               p.divan == state.selectedDivan &&
               p.headboard == state.selectedHeadboard &&
-              p.sorong == event.sorong)
+              p.sorong == event.sorong &&
+              (!state.isSetActive || p.isSet == true))
           .toList();
+
       final sizes = filteredProducts.map((p) => p.ukuran).toSet().toList();
+      final selectedSize = sizes.length == 1 ? sizes.first : "";
+
       emit(state.copyWith(
         selectedSorong: event.sorong,
         availableSizes: sizes,
-        selectedSize: null,
+        selectedSize: selectedSize,
       ));
     });
 
@@ -334,24 +282,31 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
 
     on<ApplyFilters>((event, emit) {
       final filteredProducts = state.products.where((p) {
-        final matchesArea =
-            event.selectedArea == null || p.area == event.selectedArea;
-        final matchesChannel =
-            event.selectedChannel == null || p.channel == event.selectedChannel;
-        final matchesBrand =
-            event.selectedBrand == null || p.brand == event.selectedBrand;
-        final matchesKasur =
-            event.selectedKasur == null || p.kasur == event.selectedKasur;
-        final matchesDivan =
-            event.selectedDivan == null || p.divan == event.selectedDivan;
+        final matchesArea = event.selectedArea == null ||
+            event.selectedArea!.isEmpty ||
+            p.area == event.selectedArea;
+        final matchesChannel = event.selectedChannel == null ||
+            event.selectedChannel!.isEmpty ||
+            p.channel == event.selectedChannel;
+        final matchesBrand = event.selectedBrand == null ||
+            event.selectedBrand!.isEmpty ||
+            p.brand == event.selectedBrand;
+        final matchesKasur = event.selectedKasur == null ||
+            event.selectedKasur!.isEmpty ||
+            p.kasur == event.selectedKasur;
+        final matchesDivan = event.selectedDivan == null ||
+            event.selectedDivan!.isEmpty ||
+            p.divan == event.selectedDivan;
         final matchesHeadboard = event.selectedHeadboard == null ||
+            event.selectedHeadboard!.isEmpty ||
             p.headboard == event.selectedHeadboard;
-        final matchesSorong =
-            event.selectedSorong == null || p.sorong == event.selectedSorong;
-        final matchesSize =
-            event.selectedSize == null || p.ukuran == event.selectedSize;
+        final matchesSorong = event.selectedSorong == null ||
+            event.selectedSorong!.isEmpty ||
+            p.sorong == event.selectedSorong;
+        final matchesSize = event.selectedSize == null ||
+            event.selectedSize!.isEmpty ||
+            p.ukuran == event.selectedSize;
 
-        // ✅ Tambahkan filter untuk hanya menampilkan produk dengan set jika set aktif
         final matchesSet = !state.isSetActive || p.isSet == true;
 
         return matchesArea &&
@@ -364,6 +319,8 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
             matchesSize &&
             matchesSet;
       }).toList();
+
+      print("🔍 Filtered Products Count: ${filteredProducts.length}");
 
       emit(state.copyWith(filteredProducts: filteredProducts));
     });
