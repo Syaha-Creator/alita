@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
 class AppTheme {
@@ -14,14 +15,25 @@ class AppTheme {
       surface: AppColors.surfaceLight,
       onSurface: AppColors.textPrimaryLight,
     ),
-    textTheme: TextTheme(
-      bodyLarge: TextStyle(color: AppColors.textPrimaryLight),
-      bodyMedium: TextStyle(color: AppColors.textSecondaryLight),
+    textTheme: GoogleFonts.montserratTextTheme().copyWith(
+      bodyLarge: GoogleFonts.montserrat(
+        color: AppColors.textPrimaryLight,
+        fontSize: 16,
+      ),
+      bodyMedium: GoogleFonts.montserrat(
+        color: AppColors.textSecondaryLight,
+        fontSize: 14,
+      ),
     ),
     appBarTheme: AppBarTheme(
       backgroundColor: AppColors.primaryLight,
       foregroundColor: Colors.white,
       elevation: 0,
+      titleTextStyle: GoogleFonts.montserrat(
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+        color: Colors.white,
+      ),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
@@ -30,13 +42,15 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
         ),
+        textStyle:
+            GoogleFonts.montserrat(fontSize: 16, fontWeight: FontWeight.w600),
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: AppColors.surfaceLight,
-      labelStyle: TextStyle(color: AppColors.textSecondaryLight),
-      hintStyle: TextStyle(color: AppColors.textSecondaryLight),
+      labelStyle: GoogleFonts.montserrat(color: AppColors.textSecondaryLight),
+      hintStyle: GoogleFonts.montserrat(color: AppColors.textSecondaryLight),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
         borderSide: BorderSide(color: AppColors.borderLight),
@@ -64,14 +78,25 @@ class AppTheme {
       surface: AppColors.surfaceDark,
       onSurface: AppColors.textPrimaryDark,
     ),
-    textTheme: TextTheme(
-      bodyLarge: TextStyle(color: AppColors.textPrimaryDark),
-      bodyMedium: TextStyle(color: AppColors.textSecondaryDark),
+    textTheme: GoogleFonts.montserratTextTheme().copyWith(
+      bodyLarge: GoogleFonts.montserrat(
+        color: AppColors.textPrimaryDark,
+        fontSize: 16,
+      ),
+      bodyMedium: GoogleFonts.montserrat(
+        color: AppColors.textSecondaryDark,
+        fontSize: 14,
+      ),
     ),
     appBarTheme: AppBarTheme(
       backgroundColor: AppColors.primaryDark,
       foregroundColor: Colors.white,
       elevation: 0,
+      titleTextStyle: GoogleFonts.montserrat(
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+        color: Colors.white,
+      ),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
@@ -80,13 +105,15 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
         ),
+        textStyle:
+            GoogleFonts.montserrat(fontSize: 16, fontWeight: FontWeight.w600),
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: AppColors.surfaceDark,
-      labelStyle: TextStyle(color: AppColors.textSecondaryDark),
-      hintStyle: TextStyle(color: AppColors.textSecondaryDark),
+      labelStyle: GoogleFonts.montserrat(color: AppColors.textSecondaryDark),
+      hintStyle: GoogleFonts.montserrat(color: AppColors.textSecondaryDark),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
         borderSide: BorderSide(color: AppColors.borderDark),
