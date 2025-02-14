@@ -33,5 +33,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         emit(AuthFailure(e.toString()));
       }
     });
+
+    on<AuthLogoutRequested>((event, emit) async {
+      print("🚪 Logging out...");
+
+      await AuthService.logout();
+      emit(AuthInitial());
+
+      print("✅ Logout successful.");
+    });
   }
 }
