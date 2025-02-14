@@ -3,13 +3,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../navigation/navigation_service.dart';
 import '../../../../navigation/route_path.dart';
-import '../../../../services/auth_service.dart';
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
-import '../../../authentication/presentation/bloc/event/auth_event.dart';
 import '../../../authentication/presentation/bloc/state/auth_state.dart';
 import '../bloc/event/product_event.dart';
 import '../bloc/product_bloc.dart';
 import '../bloc/state/product_state.dart';
+import '../widgets/logout_button.dart';
 import '../widgets/product_card.dart';
 import '../widgets/product_dropdown.dart';
 
@@ -21,82 +20,6 @@ class ProductPage extends StatefulWidget {
 }
 
 class _ProductPageState extends State<ProductPage> {
-  @override
-  void initState() {
-    super.initState();
-    context.read<ProductBloc>().add(FetchProducts());
-  }
-
-  Future<void> _logout() async {
-    bool confirmLogout = await _showLogoutDialog();
-    if (!confirmLogout || !mounted) return;
-
-    context.read<AuthBloc>().add(AuthLogoutRequested());
-    await AuthService.logout();
-
-    if (!mounted) return;
-    NavigationService.navigateAndReplace(RoutePaths.login);
-  }
-
-  Future<bool> _showLogoutDialog() async {
-    if (!mounted) return false;
-
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final isDarkMode = theme.brightness == Brightness.dark;
-
-    return await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            backgroundColor:
-                colorScheme.surface, // Menggunakan warna sesuai theme
-            title: Text(
-              "Konfirmasi Logout",
-              style: theme.textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
-              ),
-            ),
-            content: Text(
-              "Apakah Anda yakin ingin keluar?",
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
-                style: TextButton.styleFrom(
-                  foregroundColor: isDarkMode
-                      ? Colors.cyanAccent // Lebih terang di Dark Mode
-                      : colorScheme.secondary,
-                ),
-                child: const Text("Batal"),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(dialogContext, true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      isDarkMode ? Colors.red.shade700 : colorScheme.error,
-                  foregroundColor: colorScheme.onError,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: const Text(
-                  "Logout",
-                  style: TextStyle(color: Colors.white),
-                ),
-              ),
-            ],
-          ),
-        ) ??
-        false;
-  }
-
   @override
   Widget build(BuildContext context) {
     return BlocListener<AuthBloc, AuthState>(
@@ -110,10 +33,7 @@ class _ProductPageState extends State<ProductPage> {
         appBar: AppBar(
           title: const Text("Product Page"),
           actions: [
-            IconButton(
-              icon: const Icon(Icons.logout),
-              onPressed: _logout,
-            ),
+            LogoutButton(),
           ],
         ),
         body: Padding(

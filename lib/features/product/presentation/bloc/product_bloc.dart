@@ -32,9 +32,14 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
 
     on<ToggleSet>((event, emit) {
       final isSetActive = event.isSetActive;
-      final filteredProducts = isSetActive
-          ? state.products.where((p) => p.isSet == true).toList()
-          : state.products;
+      final filteredProducts = state.products
+          .where((p) =>
+              (state.selectedArea == null || p.area == state.selectedArea) &&
+              (state.selectedChannel == null ||
+                  p.channel == state.selectedChannel) &&
+              (state.selectedBrand == null || p.brand == state.selectedBrand) &&
+              (!isSetActive || p.isSet == true))
+          .toList();
 
       final kasurs = filteredProducts.map((p) => p.kasur).toSet().toList()
         ..sort();

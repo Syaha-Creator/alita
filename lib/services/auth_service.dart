@@ -109,7 +109,7 @@ class AuthService {
       await prefs.remove(_tokenKey);
       await prefs.remove(_refreshTokenKey);
 
-      print("🚪 User logged out successfully!");
+      print("🚪 User logged out successfully and Remove Token!");
       authChangeNotifier.value = false;
       return true;
     } catch (e) {

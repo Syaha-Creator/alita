@@ -1,3 +1,4 @@
+import 'package:alita_pricelist/features/product/presentation/bloc/event/product_event.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -11,13 +12,16 @@ import 'theme/app_theme.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   setupLocator();
-  await AuthService.isLoggedIn();
+  bool isLoggedIn = await AuthService.isLoggedIn();
 
-  runApp(MyApp());
+  runApp(MyApp(
+    isLoggedIn: isLoggedIn,
+  ));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final bool isLoggedIn;
+  const MyApp({super.key, required this.isLoggedIn});
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +31,7 @@ class MyApp extends StatelessWidget {
           create: (context) => locator<AuthBloc>(),
         ),
         BlocProvider<ProductBloc>(
-          create: (context) => locator<ProductBloc>(),
+          create: (context) => locator<ProductBloc>()..add(FetchProducts()),
         ),
       ],
       child: ValueListenableBuilder<bool>(
