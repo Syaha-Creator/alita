@@ -227,14 +227,19 @@ class ProductCard extends StatelessWidget {
                 fontWeight: FontWeight.w600,
                 fontFamily: GoogleFonts.montserrat().fontFamily),
           ),
-          Text(
-            value,
-            style: TextStyle(
-                fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-                fontFamily: GoogleFonts.montserrat().fontFamily,
-                color: color,
-                decoration:
-                    isStrikethrough ? TextDecoration.lineThrough : null),
+          Expanded(
+            child: Text(
+              value,
+              softWrap: true,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+                  fontFamily: GoogleFonts.montserrat().fontFamily,
+                  color: color,
+                  decoration:
+                      isStrikethrough ? TextDecoration.lineThrough : null),
+            ),
           ),
         ],
       ),
