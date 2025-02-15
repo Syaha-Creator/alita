@@ -363,5 +363,40 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         installmentPerMonth: updatedInstallmentPerMonth,
       ));
     });
+
+    on<RemoveInstallment>((event, emit) {
+      final updatedInstallmentMonths =
+          Map<int, int>.from(state.installmentMonths);
+      final updatedInstallmentPerMonth =
+          Map<int, double>.from(state.installmentPerMonth);
+
+      // Hapus cicilan dari state
+      updatedInstallmentMonths.remove(event.productId);
+      updatedInstallmentPerMonth.remove(event.productId);
+
+      emit(state.copyWith(
+        installmentMonths: updatedInstallmentMonths,
+        installmentPerMonth: updatedInstallmentPerMonth,
+      ));
+    });
+
+    on<UpdateRoundedPrice>((event, emit) {
+      final updatedPrices = Map<int, double>.from(state.roundedPrices)
+        ..[event.productId] = event.newPrice;
+
+      final updatedPercentages =
+          Map<int, double>.from(state.priceChangePercentages);
+
+      if (event.percentageChange == 0.0) {
+        updatedPercentages.remove(event.productId);
+      } else {
+        updatedPercentages[event.productId] = event.percentageChange;
+      }
+
+      emit(state.copyWith(
+        roundedPrices: updatedPrices,
+        priceChangePercentages: updatedPercentages,
+      ));
+    });
   }
 }

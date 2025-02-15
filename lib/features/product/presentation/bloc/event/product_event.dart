@@ -97,6 +97,24 @@ class SaveInstallment extends ProductEvent {
   const SaveInstallment(this.productId, this.months, this.perMonth);
 }
 
+class RemoveInstallment extends ProductEvent {
+  final int productId;
+
+  const RemoveInstallment(this.productId);
+
+  @override
+  List<Object> get props => [productId];
+}
+
+class UpdateRoundedPrice extends ProductEvent {
+  final int productId;
+  final double newPrice;
+  final double percentageChange;
+
+  const UpdateRoundedPrice(
+      this.productId, this.newPrice, this.percentageChange);
+}
+
 class FilterProducts extends ProductEvent {
   final List<ProductEntity> filteredProducts;
   const FilterProducts(this.filteredProducts);

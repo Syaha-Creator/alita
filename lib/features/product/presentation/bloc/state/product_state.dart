@@ -25,6 +25,8 @@ class ProductState extends Equatable {
   final List<ProductEntity> filteredProducts;
   final Map<int, int> installmentMonths;
   final Map<int, double> installmentPerMonth;
+  final Map<int, double> roundedPrices;
+  final Map<int, double> priceChangePercentages;
 
   const ProductState({
     this.products = const [],
@@ -49,6 +51,8 @@ class ProductState extends Equatable {
     this.filteredProducts = const [],
     this.installmentMonths = const {},
     this.installmentPerMonth = const {},
+    this.roundedPrices = const {},
+    this.priceChangePercentages = const {},
   });
   ProductState copyWith({
     List<ProductEntity>? products,
@@ -73,6 +77,8 @@ class ProductState extends Equatable {
     List<ProductEntity>? filteredProducts,
     Map<int, int>? installmentMonths,
     Map<int, double>? installmentPerMonth,
+    Map<int, double>? roundedPrices,
+    Map<int, double>? priceChangePercentages,
   }) {
     return ProductState(
       products: products ?? this.products,
@@ -97,6 +103,9 @@ class ProductState extends Equatable {
       filteredProducts: filteredProducts ?? this.filteredProducts,
       installmentMonths: installmentMonths ?? this.installmentMonths,
       installmentPerMonth: installmentPerMonth ?? this.installmentPerMonth,
+      roundedPrices: roundedPrices ?? this.roundedPrices,
+      priceChangePercentages:
+          priceChangePercentages ?? this.priceChangePercentages,
     );
   }
 
@@ -123,7 +132,9 @@ class ProductState extends Equatable {
         selectedSize,
         filteredProducts,
         installmentMonths,
-        installmentPerMonth
+        installmentPerMonth,
+        roundedPrices,
+        priceChangePercentages
       ];
 }
 
