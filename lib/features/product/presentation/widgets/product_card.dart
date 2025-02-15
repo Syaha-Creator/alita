@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/utils/format_helper.dart';
 import '../../domain/entities/product_entity.dart';
 
@@ -71,13 +72,13 @@ class ProductCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildDetailRow(
-            "Harga Asli", FormatHelper.formatCurrency(product.pricelist),
+            "Pricelist", FormatHelper.formatCurrency(product.pricelist),
             isStrikethrough: true, color: Colors.red.shade700),
         _buildDetailRow("Total Diskon",
-            "-${FormatHelper.formatCurrency(product.pricelist - product.endUserPrice)}",
+            "- ${FormatHelper.formatCurrency(product.pricelist - product.endUserPrice)}",
             color: Colors.orange),
         _buildDetailRow(
-            "Harga Diskon", FormatHelper.formatCurrency(product.endUserPrice),
+            "Harga Net", FormatHelper.formatCurrency(product.endUserPrice),
             isBold: true, color: Colors.green),
       ],
     );
@@ -88,37 +89,35 @@ class ProductCard extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        _buildActionButton(Icons.credit_card, "Credit", Colors.green, () {
+        _buildIconButton(Icons.credit_card, "Credit", Colors.green, () {
           print("Credit Card Clicked");
         }),
-        _buildActionButton(Icons.edit, "Edit", Colors.blue, () {
+        _buildIconButton(Icons.edit, "Edit", Colors.blue, () {
           print("Edit Clicked");
         }),
-        _buildActionButton(Icons.help_outline, "Info", Colors.orange, () {
+        _buildIconButton(Icons.help_outline, "Info", Colors.orange, () {
           print("Info Clicked");
         }),
-        _buildActionButton(Icons.share, "Share", Colors.teal, () {
+        _buildIconButton(Icons.share, "Share", Colors.teal, () {
           print("Share Clicked");
         }),
       ],
     );
   }
 
-  // 🔹 Widget untuk setiap tombol aksi
-  Widget _buildActionButton(
-      IconData icon, String label, Color color, VoidCallback onPressed) {
-    return Expanded(
-      child: ElevatedButton.icon(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+  Widget _buildIconButton(
+      IconData icon, String tooltip, Color color, VoidCallback onPressed) {
+    return Flexible(
+      child: Tooltip(
+        message: tooltip,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: onPressed,
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Icon(icon, size: 30, color: color),
           ),
         ),
-        icon: Icon(icon, size: 18),
-        label: Text(label, style: const TextStyle(fontSize: 12)),
       ),
     );
   }
@@ -129,21 +128,33 @@ class ProductCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Text("$title: ",
-                style: const TextStyle(fontWeight: FontWeight.w600)),
+          SizedBox(
+            width: 120,
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontFamily: GoogleFonts.montserrat().fontFamily),
+            ),
+          ),
+          Text(
+            ": ",
+            style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontFamily: GoogleFonts.montserrat().fontFamily),
           ),
           Text(
             value,
             style: TextStyle(
-              fontSize: 14,
-              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-              color: color,
-              decoration: isStrikethrough
-                  ? TextDecoration.lineThrough
-                  : TextDecoration.none,
-            ),
+                fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+                fontFamily: GoogleFonts.montserrat().fontFamily,
+                color: color,
+                decoration:
+                    isStrikethrough ? TextDecoration.lineThrough : null),
           ),
         ],
       ),
