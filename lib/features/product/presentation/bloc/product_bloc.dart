@@ -345,5 +345,23 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
 
       emit(state.copyWith(filteredProducts: filteredProducts));
     });
+
+    on<SelectProduct>((event, emit) {
+      emit(state.copyWith(selectProduct: event.product));
+    });
+
+    on<SaveInstallment>((event, emit) {
+      final updatedInstallmentMonths =
+          Map<int, int>.from(state.installmentMonths)
+            ..[event.productId] = event.months;
+      final updatedInstallmentPerMonth =
+          Map<int, double>.from(state.installmentPerMonth)
+            ..[event.productId] = event.perMonth;
+
+      emit(state.copyWith(
+        installmentMonths: updatedInstallmentMonths,
+        installmentPerMonth: updatedInstallmentPerMonth,
+      ));
+    });
   }
 }

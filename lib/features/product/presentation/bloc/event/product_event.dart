@@ -83,6 +83,20 @@ class UpdateSelectedUkuran extends ProductEvent {
   List<Object?> get props => [ukuran];
 }
 
+class SelectProduct extends ProductEvent {
+  final ProductEntity product;
+
+  const SelectProduct(this.product);
+}
+
+class SaveInstallment extends ProductEvent {
+  final int productId;
+  final int months;
+  final double perMonth;
+
+  const SaveInstallment(this.productId, this.months, this.perMonth);
+}
+
 class FilterProducts extends ProductEvent {
   final List<ProductEntity> filteredProducts;
   const FilterProducts(this.filteredProducts);

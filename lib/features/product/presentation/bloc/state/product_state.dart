@@ -4,6 +4,7 @@ import '../../../domain/entities/product_entity.dart';
 
 class ProductState extends Equatable {
   final List<ProductEntity> products;
+  final ProductEntity? selectProduct;
   final bool isSetActive;
   final List<String> availableAreas;
   final String? selectedArea;
@@ -22,9 +23,12 @@ class ProductState extends Equatable {
   final List<String> availableSizes;
   final String? selectedSize;
   final List<ProductEntity> filteredProducts;
+  final Map<int, int> installmentMonths;
+  final Map<int, double> installmentPerMonth;
 
   const ProductState({
     this.products = const [],
+    this.selectProduct,
     this.isSetActive = false,
     this.availableAreas = const [],
     this.selectedArea,
@@ -43,9 +47,12 @@ class ProductState extends Equatable {
     this.availableSizes = const [],
     this.selectedSize,
     this.filteredProducts = const [],
+    this.installmentMonths = const {},
+    this.installmentPerMonth = const {},
   });
   ProductState copyWith({
     List<ProductEntity>? products,
+    ProductEntity? selectProduct,
     bool? isSetActive,
     List<String>? availableAreas,
     String? selectedArea,
@@ -64,9 +71,12 @@ class ProductState extends Equatable {
     List<String>? availableSizes,
     String? selectedSize,
     List<ProductEntity>? filteredProducts,
+    Map<int, int>? installmentMonths,
+    Map<int, double>? installmentPerMonth,
   }) {
     return ProductState(
       products: products ?? this.products,
+      selectProduct: selectProduct ?? this.selectProduct,
       isSetActive: isSetActive ?? this.isSetActive,
       availableAreas: availableAreas ?? this.availableAreas,
       selectedArea: selectedArea ?? this.selectedArea,
@@ -85,12 +95,15 @@ class ProductState extends Equatable {
       availableSizes: availableSizes ?? this.availableSizes,
       selectedSize: selectedSize ?? this.selectedSize,
       filteredProducts: filteredProducts ?? this.filteredProducts,
+      installmentMonths: installmentMonths ?? this.installmentMonths,
+      installmentPerMonth: installmentPerMonth ?? this.installmentPerMonth,
     );
   }
 
   @override
   List<Object?> get props => [
         products,
+        selectProduct,
         isSetActive,
         availableAreas,
         selectedArea,
@@ -109,6 +122,8 @@ class ProductState extends Equatable {
         availableSizes,
         selectedSize,
         filteredProducts,
+        installmentMonths,
+        installmentPerMonth
       ];
 }
 

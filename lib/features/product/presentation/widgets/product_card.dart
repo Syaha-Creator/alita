@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/utils/format_helper.dart';
 import '../../domain/entities/product_entity.dart';
+import '../bloc/event/product_event.dart';
+import '../bloc/product_bloc.dart';
+import '../bloc/state/product_state.dart';
+import 'product_action.dart';
 
 class ProductCard extends StatelessWidget {
   final ProductEntity product;
@@ -10,25 +15,30 @@ class ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 3,
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildProductDetail(),
-            const SizedBox(height: 12),
-            _buildBonusInfo(),
-            const SizedBox(height: 12),
-            _buildPriceInfo(),
-            const SizedBox(height: 16),
-            _buildFooterButtons(context),
-          ],
-        ),
-      ),
+    return BlocBuilder<ProductBloc, ProductState>(
+      builder: (context, state) {
+        return Card(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          elevation: 3,
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildProductDetail(),
+                const SizedBox(height: 12),
+                _buildBonusInfo(),
+                const SizedBox(height: 12),
+                _buildPriceInfo(context, state), // <-- Pastikan ini diperbarui
+                const SizedBox(height: 16),
+                _buildFooterButtons(context, state),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -67,39 +77,59 @@ class ProductCard extends StatelessWidget {
   }
 
   // 🔹 Widget untuk menampilkan harga dan diskon
-  Widget _buildPriceInfo() {
+  Widget _buildPriceInfo(BuildContext context, ProductState state) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildDetailRow(
-            "Pricelist", FormatHelper.formatCurrency(product.pricelist),
-            isStrikethrough: true, color: Colors.red.shade700),
-        _buildDetailRow("Total Diskon",
-            "- ${FormatHelper.formatCurrency(product.pricelist - product.endUserPrice)}",
-            color: Colors.orange),
+          "Pricelist",
+          FormatHelper.formatCurrency(product.pricelist),
+          isStrikethrough: true,
+          color: Colors.red.shade700,
+        ),
         _buildDetailRow(
-            "Harga Net", FormatHelper.formatCurrency(product.endUserPrice),
-            isBold: true, color: Colors.green),
+          "Total Diskon",
+          "- ${FormatHelper.formatCurrency(product.pricelist - product.endUserPrice)}",
+          color: Colors.orange,
+        ),
+        _buildDetailRow(
+          "Harga Net",
+          FormatHelper.formatCurrency(product.endUserPrice),
+          isBold: true,
+          color: Colors.green,
+        ),
+        if (state.installmentMonths.containsKey(product.id)) ...[
+          _buildDetailRow(
+            "Cicilan",
+            "${state.installmentMonths[product.id]} bulan x ${FormatHelper.formatCurrency(state.installmentPerMonth[product.id] ?? 0.0)}",
+            isBold: true,
+            color: Colors.blue,
+          ),
+        ],
       ],
     );
   }
 
   // 🔹 Widget untuk menampilkan tombol di footer
-  Widget _buildFooterButtons(BuildContext context) {
+  Widget _buildFooterButtons(BuildContext context, ProductState state) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         _buildIconButton(Icons.credit_card, "Credit", Colors.green, () {
-          print("Credit Card Clicked");
+          context.read<ProductBloc>().add(SelectProduct(product));
+          ProductActions.showCreditPopup(context, product);
         }),
         _buildIconButton(Icons.edit, "Edit", Colors.blue, () {
-          print("Edit Clicked");
+          context.read<ProductBloc>().add(SelectProduct(product));
+          ProductActions.showEditPopup(context, product);
         }),
         _buildIconButton(Icons.help_outline, "Info", Colors.orange, () {
-          print("Info Clicked");
+          context.read<ProductBloc>().add(SelectProduct(product));
+          ProductActions.showInfoPopup(context, product);
         }),
         _buildIconButton(Icons.share, "Share", Colors.teal, () {
-          print("Share Clicked");
+          context.read<ProductBloc>().add(SelectProduct(product));
+          ProductActions.showSharePopup(context, product);
         }),
       ],
     );
@@ -122,7 +152,7 @@ class ProductCard extends StatelessWidget {
     );
   }
 
-  // 🔹 Helper untuk membuat row detail
+// 🔹 Helper untuk membuat row detail
   Widget _buildDetailRow(String title, String value,
       {bool isStrikethrough = false, bool isBold = false, Color? color}) {
     return Padding(
