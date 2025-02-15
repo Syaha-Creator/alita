@@ -23,6 +23,19 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         final areas = products.map((e) => e.area).toSet().toList();
         emit(ProductState(products: products, availableAreas: areas));
 
+        emit(ProductState(
+          products: products,
+          availableAreas: areas,
+          availableKasurs: [],
+          availableDivans: [],
+          availableHeadboards: [],
+          availableSorongs: [],
+          selectedKasur: "Tanpa Kasur",
+          selectedDivan: "Tanpa Divan",
+          selectedHeadboard: "Tanpa Headboard",
+          selectedSorong: "Tanpa Sorong",
+        ));
+
         print("✅ Produk berhasil dimuat: ${products.length} items.");
       } catch (e) {
         print("❌ Error fetching products: $e");
@@ -95,13 +108,13 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         availableBrands: [],
         selectedBrand: "",
         availableKasurs: [],
-        selectedKasur: "",
         availableDivans: [],
-        selectedDivan: "",
         availableHeadboards: [],
-        selectedHeadboard: "",
         availableSorongs: [],
-        selectedSorong: "",
+        selectedKasur: "Tanpa Kasur",
+        selectedDivan: "Tanpa Divan",
+        selectedHeadboard: "Tanpa Headboard",
+        selectedSorong: "Tanpa Sorong",
         availableSizes: [],
         selectedSize: "",
       ));
@@ -123,13 +136,13 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         availableBrands: brands,
         selectedBrand: selectedBrand,
         availableKasurs: [],
-        selectedKasur: "",
         availableDivans: [],
-        selectedDivan: "",
         availableHeadboards: [],
-        selectedHeadboard: "",
         availableSorongs: [],
-        selectedSorong: "",
+        selectedKasur: "Tanpa Kasur",
+        selectedDivan: "Tanpa Divan",
+        selectedHeadboard: "Tanpa Headboard",
+        selectedSorong: "Tanpa Sorong",
         availableSizes: [],
         selectedSize: "",
       ));
@@ -139,34 +152,59 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
     });
 
     on<UpdateSelectedBrand>((event, emit) {
+      print("📌 Brand Changed: ${event.brand}");
+
       final filteredKasurs = state.products
-          .where((p) =>
-              p.area == state.selectedArea &&
-              p.channel == state.selectedChannel &&
-              p.brand == event.brand &&
-              (!state.isSetActive || p.isSet == true))
+          .where((p) => p.brand == event.brand)
           .map((p) => p.kasur)
           .toSet()
           .toList();
-      final selectedKasur =
-          filteredKasurs.length == 1 ? filteredKasurs.first : "";
+
+      if (!filteredKasurs.contains("Tanpa Kasur")) {
+        filteredKasurs.insert(0, "Tanpa Kasur");
+      }
+
+      final filteredDivans = state.products
+          .where((p) => p.brand == event.brand)
+          .map((p) => p.divan)
+          .toSet()
+          .toList();
+
+      if (!filteredDivans.contains("Tanpa Divan")) {
+        filteredDivans.insert(0, "Tanpa Divan");
+      }
+
+      final filteredHeadboards = state.products
+          .where((p) => p.brand == event.brand)
+          .map((p) => p.headboard)
+          .toSet()
+          .toList();
+
+      if (!filteredHeadboards.contains("Tanpa Headboard")) {
+        filteredHeadboards.insert(0, "Tanpa Headboard");
+      }
+
+      final filteredSorongs = state.products
+          .where((p) => p.brand == event.brand)
+          .map((p) => p.sorong)
+          .toSet()
+          .toList();
+
+      if (!filteredSorongs.contains("Tanpa Sorong")) {
+        filteredSorongs.insert(0, "Tanpa Sorong");
+      }
 
       emit(state.copyWith(
         selectedBrand: event.brand,
         availableKasurs: filteredKasurs,
-        selectedKasur: selectedKasur,
-        availableDivans: [],
-        selectedDivan: "",
-        availableHeadboards: [],
-        selectedHeadboard: "",
-        availableSorongs: [],
-        selectedSorong: "",
-        availableSizes: [],
-        selectedSize: "",
+        selectedKasur: "Tanpa Kasur",
+        availableDivans: filteredDivans,
+        selectedDivan: "Tanpa Divan",
+        availableHeadboards: filteredHeadboards,
+        selectedHeadboard: "Tanpa Headboard",
+        availableSorongs: filteredSorongs,
+        selectedSorong: "Tanpa Sorong",
       ));
-      if (selectedKasur.isNotEmpty) {
-        add(UpdateSelectedKasur(selectedKasur));
-      }
     });
 
     on<UpdateSelectedKasur>((event, emit) {
@@ -180,22 +218,25 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
           .toList();
 
       final divans = filteredProducts.map((p) => p.divan).toSet().toList();
-      final selectedDivan = divans.length == 1 ? divans.first : "";
+      divans.insert(0, "Tanpa Divan"); // Selalu ada opsi "Tanpa Divan"
+
+      final headboards =
+          filteredProducts.map((p) => p.headboard).toSet().toList();
+      headboards.insert(0, "Tanpa Headboard");
+
+      final sorongs = filteredProducts.map((p) => p.sorong).toSet().toList();
+      sorongs.insert(0, "Tanpa Sorong");
 
       emit(state.copyWith(
         selectedKasur: event.kasur,
         availableDivans: divans,
-        selectedDivan: selectedDivan,
-        availableHeadboards: [],
-        selectedHeadboard: "",
-        availableSorongs: [],
-        selectedSorong: "",
-        availableSizes: [],
-        selectedSize: "",
+        selectedDivan: divans.length == 2 ? divans[1] : "Tanpa Divan",
+        availableHeadboards: headboards,
+        selectedHeadboard:
+            headboards.length == 2 ? headboards[1] : "Tanpa Headboard",
+        availableSorongs: sorongs,
+        selectedSorong: sorongs.length == 2 ? sorongs[1] : "Tanpa Sorong",
       ));
-      if (selectedDivan.isNotEmpty) {
-        add(UpdateSelectedDivan(selectedDivan));
-      }
     });
 
     on<UpdateSelectedDivan>((event, emit) {
@@ -211,20 +252,19 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
 
       final headboards =
           filteredProducts.map((p) => p.headboard).toSet().toList();
-      final selectedHeadboard = headboards.length == 1 ? headboards.first : "";
+      headboards.insert(0, "Tanpa Headboard");
+
+      final sorongs = filteredProducts.map((p) => p.sorong).toSet().toList();
+      sorongs.insert(0, "Tanpa Sorong");
 
       emit(state.copyWith(
         selectedDivan: event.divan,
         availableHeadboards: headboards,
-        selectedHeadboard: selectedHeadboard,
-        availableSorongs: [],
-        selectedSorong: "",
-        availableSizes: [],
-        selectedSize: "",
+        selectedHeadboard:
+            headboards.length == 2 ? headboards[1] : "Tanpa Headboard",
+        availableSorongs: sorongs,
+        selectedSorong: sorongs.length == 2 ? sorongs[1] : "Tanpa Sorong",
       ));
-      if (selectedHeadboard.isNotEmpty) {
-        add(UpdateSelectedHeadboard(selectedHeadboard));
-      }
     });
 
     on<UpdateSelectedHeadboard>((event, emit) {
@@ -240,41 +280,17 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
           .toList();
 
       final sorongs = filteredProducts.map((p) => p.sorong).toSet().toList();
-      final selectedSorong = sorongs.length == 1 ? sorongs.first : "";
+      sorongs.insert(0, "Tanpa Sorong");
 
       emit(state.copyWith(
         selectedHeadboard: event.headboard,
         availableSorongs: sorongs,
-        selectedSorong: selectedSorong,
-        availableSizes: [],
-        selectedSize: "",
+        selectedSorong: sorongs.length == 2 ? sorongs[1] : "Tanpa Sorong",
       ));
-      if (selectedSorong.isNotEmpty) {
-        add(UpdateSelectedSorong(selectedSorong));
-      }
     });
 
     on<UpdateSelectedSorong>((event, emit) {
-      final filteredProducts = state.products
-          .where((p) =>
-              p.area == state.selectedArea &&
-              p.channel == state.selectedChannel &&
-              p.brand == state.selectedBrand &&
-              p.kasur == state.selectedKasur &&
-              p.divan == state.selectedDivan &&
-              p.headboard == state.selectedHeadboard &&
-              p.sorong == event.sorong &&
-              (!state.isSetActive || p.isSet == true))
-          .toList();
-
-      final sizes = filteredProducts.map((p) => p.ukuran).toSet().toList();
-      final selectedSize = sizes.length == 1 ? sizes.first : "";
-
-      emit(state.copyWith(
-        selectedSorong: event.sorong,
-        availableSizes: sizes,
-        selectedSize: selectedSize,
-      ));
+      emit(state.copyWith(selectedSorong: event.sorong));
     });
 
     on<UpdateSelectedUkuran>((event, emit) {

@@ -38,6 +38,7 @@ class MyApp extends StatelessWidget {
         valueListenable: AuthService.authChangeNotifier,
         builder: (context, isLoggedIn, child) {
           return MaterialApp.router(
+            debugShowCheckedModeBanner: false,
             title: 'Alita Pricelist',
             routerConfig: AppRouter.router,
             theme: AppTheme.lightTheme,
