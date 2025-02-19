@@ -31,7 +31,7 @@ class ProductCard extends StatelessWidget {
                 const SizedBox(height: 12),
                 _buildBonusInfo(),
                 const SizedBox(height: 12),
-                _buildPriceInfo(context, state), // <-- Pastikan ini diperbarui
+                _buildPriceInfo(context, state),
                 const SizedBox(height: 16),
                 _buildFooterButtons(context, state),
               ],
