@@ -1,10 +1,17 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:screenshot/screenshot.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../../core/utils/format_helper.dart';
 import '../../domain/entities/product_entity.dart';
 import '../bloc/event/product_event.dart';
 import '../bloc/product_bloc.dart';
+import 'product_card.dart';
 
 class ProductActions {
   static void showCreditPopup(BuildContext context, ProductEntity product) {
@@ -303,23 +310,55 @@ class ProductActions {
   }
 
   static void showSharePopup(BuildContext context, ProductEntity product) {
+    ScreenshotController screenshotController = ScreenshotController();
+
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: const Text("Bagikan Produk"),
-          content: const Text("Bagikan produk ini ke teman atau media sosial."),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text("Bagikan produk ini ke teman atau media sosial."),
+              const SizedBox(height: 10),
+              Screenshot(
+                controller: screenshotController,
+                child: ProductCard(product: product, hideButtons: true),
+              ),
+            ],
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text("Tutup"),
             ),
             ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Produk berhasil dibagikan!")),
-                );
+              onPressed: () async {
+                try {
+                  final directory = await getTemporaryDirectory();
+                  String filePath = '${directory.path}/product.png';
+
+                  await screenshotController.captureAndSave(
+                    directory.path,
+                    fileName: "product.png",
+                  );
+
+                  File file = File(filePath);
+                  if (kIsWeb) {
+                    await Share.share('Lihat produk ini!');
+                  } else {
+                    await Share.shareXFiles([XFile(file.path)],
+                        text: 'Lihat produk ini!');
+                  }
+                  if (!context.mounted) return;
+                  Navigator.pop(context);
+                } catch (e) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Gagal membagikan produk: $e")),
+                  );
+                }
               },
               child: const Text("Bagikan"),
             ),

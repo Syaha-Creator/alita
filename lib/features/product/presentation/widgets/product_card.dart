@@ -10,8 +10,10 @@ import 'product_action.dart';
 
 class ProductCard extends StatelessWidget {
   final ProductEntity product;
+  final bool hideButtons;
 
-  const ProductCard({super.key, required this.product});
+  const ProductCard(
+      {super.key, required this.product, this.hideButtons = false});
 
   @override
   Widget build(BuildContext context) {
@@ -32,8 +34,8 @@ class ProductCard extends StatelessWidget {
                 _buildBonusInfo(),
                 const SizedBox(height: 12),
                 _buildPriceInfo(context, state),
-                const SizedBox(height: 16),
-                _buildFooterButtons(context, state),
+                if (!hideButtons) const SizedBox(height: 16),
+                if (!hideButtons) _buildFooterButtons(context, state),
               ],
             ),
           ),
@@ -211,7 +213,7 @@ class ProductCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 170,
+            width: 160,
             child: Text(
               title,
               maxLines: 1,
