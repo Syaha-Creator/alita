@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/widgets/custom_toast.dart';
 import '../../domain/usecases/get_product_usecase.dart';
 import 'event/product_event.dart';
 import 'state/product_state.dart';
@@ -155,7 +156,10 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       print("📌 Brand Changed: ${event.brand}");
 
       final filteredKasurs = state.products
-          .where((p) => p.brand == event.brand)
+          .where((p) =>
+              p.area == state.selectedArea &&
+              p.channel == state.selectedChannel &&
+              p.brand == event.brand)
           .map((p) => p.kasur)
           .toSet()
           .toList();
@@ -219,7 +223,7 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         availableSorongs: sorongs,
         selectedSorong: sorongs.isNotEmpty ? sorongs.first : "Tanpa Sorong",
         availableSizes: sizes,
-        selectedSize: sizes.isNotEmpty ? "" : sizes.first,
+        selectedSize: "",
       ));
     });
 
@@ -324,7 +328,15 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
 
       print("🔍 Filtered Products Count: ${filteredProducts.length}");
 
-      emit(state.copyWith(filteredProducts: filteredProducts));
+      emit(state.copyWith(
+          filteredProducts: filteredProducts, isFilterApplied: true));
+
+      if (filteredProducts.isEmpty) {
+        CustomToast.showToast(
+          "Produk tidak ditemukan.",
+          ToastType.warning,
+        );
+      }
     });
 
     on<SelectProduct>((event, emit) {
@@ -351,7 +363,6 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       final updatedInstallmentPerMonth =
           Map<int, double>.from(state.installmentPerMonth);
 
-      // Hapus cicilan dari state
       updatedInstallmentMonths.remove(event.productId);
       updatedInstallmentPerMonth.remove(event.productId);
 

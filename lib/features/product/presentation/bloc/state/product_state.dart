@@ -3,6 +3,7 @@ import 'package:equatable/equatable.dart';
 import '../../../domain/entities/product_entity.dart';
 
 class ProductState extends Equatable {
+  final bool isFilterApplied;
   final List<ProductEntity> products;
   final ProductEntity? selectProduct;
   final bool isSetActive;
@@ -31,6 +32,7 @@ class ProductState extends Equatable {
   final Map<int, List<double>> productDiscountsNominal;
 
   const ProductState({
+    this.isFilterApplied = false,
     this.products = const [],
     this.selectProduct,
     this.isSetActive = false,
@@ -59,6 +61,7 @@ class ProductState extends Equatable {
     this.productDiscountsNominal = const {},
   });
   ProductState copyWith({
+    bool? isFilterApplied,
     List<ProductEntity>? products,
     ProductEntity? selectProduct,
     bool? isSetActive,
@@ -87,6 +90,7 @@ class ProductState extends Equatable {
     Map<int, List<double>>? productDiscountsNominal,
   }) {
     return ProductState(
+      isFilterApplied: isFilterApplied ?? this.isFilterApplied,
       products: products ?? this.products,
       selectProduct: selectProduct ?? this.selectProduct,
       isSetActive: isSetActive ?? this.isSetActive,

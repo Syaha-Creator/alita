@@ -215,27 +215,39 @@ class _ProductPageState extends State<ProductPage> {
 
                   const SizedBox(height: 10),
 
-                  // ✅ Tampilkan hasil produk yang telah difilter
-                  if (state.filteredProducts.isNotEmpty)
-                    Expanded(
-                      child: ListView.builder(
-                        itemCount: state.filteredProducts.length,
-                        itemBuilder: (context, index) {
-                          return ProductCard(
-                              product: state.filteredProducts[index]);
-                        },
-                      ),
-                    )
-                  else if (state is ProductFiltered)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 20),
-                      child: Center(
-                        child: Text(
-                          "Tidak ada produk yang cocok dengan filter.",
-                          style: TextStyle(color: Colors.grey, fontSize: 16),
-                        ),
-                      ),
+                  Expanded(
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      child: state.filteredProducts.isNotEmpty
+                          ? ListView.builder(
+                              key: ValueKey(state.filteredProducts.length),
+                              itemCount: state.filteredProducts.length,
+                              itemBuilder: (context, index) {
+                                return ProductCard(
+                                    product: state.filteredProducts[index]);
+                              },
+                            )
+                          : state.isFilterApplied
+                              ? Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.search_off,
+                                          size: 80, color: Colors.grey),
+                                      const SizedBox(height: 10),
+                                      Text(
+                                        "Tidak ada produk yang cocok dengan filter.",
+                                        style: TextStyle(
+                                            color: Colors.grey,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : const SizedBox(),
                     ),
+                  ),
                 ],
               );
             },
