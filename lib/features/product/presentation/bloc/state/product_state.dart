@@ -27,6 +27,8 @@ class ProductState extends Equatable {
   final Map<int, double> installmentPerMonth;
   final Map<int, double> roundedPrices;
   final Map<int, double> priceChangePercentages;
+  final Map<int, List<double>> productDiscountsPercentage;
+  final Map<int, List<double>> productDiscountsNominal;
 
   const ProductState({
     this.products = const [],
@@ -51,8 +53,10 @@ class ProductState extends Equatable {
     this.filteredProducts = const [],
     this.installmentMonths = const {},
     this.installmentPerMonth = const {},
-    this.roundedPrices = const {},
     this.priceChangePercentages = const {},
+    this.roundedPrices = const {},
+    this.productDiscountsPercentage = const {},
+    this.productDiscountsNominal = const {},
   });
   ProductState copyWith({
     List<ProductEntity>? products,
@@ -77,8 +81,10 @@ class ProductState extends Equatable {
     List<ProductEntity>? filteredProducts,
     Map<int, int>? installmentMonths,
     Map<int, double>? installmentPerMonth,
-    Map<int, double>? roundedPrices,
     Map<int, double>? priceChangePercentages,
+    Map<int, double>? roundedPrices,
+    Map<int, List<double>>? productDiscountsPercentage,
+    Map<int, List<double>>? productDiscountsNominal,
   }) {
     return ProductState(
       products: products ?? this.products,
@@ -103,9 +109,13 @@ class ProductState extends Equatable {
       filteredProducts: filteredProducts ?? this.filteredProducts,
       installmentMonths: installmentMonths ?? this.installmentMonths,
       installmentPerMonth: installmentPerMonth ?? this.installmentPerMonth,
-      roundedPrices: roundedPrices ?? this.roundedPrices,
       priceChangePercentages:
           priceChangePercentages ?? this.priceChangePercentages,
+      roundedPrices: roundedPrices ?? this.roundedPrices,
+      productDiscountsPercentage:
+          productDiscountsPercentage ?? this.productDiscountsPercentage,
+      productDiscountsNominal:
+          productDiscountsNominal ?? this.productDiscountsNominal,
     );
   }
 
@@ -133,8 +143,10 @@ class ProductState extends Equatable {
         filteredProducts,
         installmentMonths,
         installmentPerMonth,
+        priceChangePercentages,
         roundedPrices,
-        priceChangePercentages
+        productDiscountsPercentage,
+        productDiscountsNominal
       ];
 }
 

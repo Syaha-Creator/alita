@@ -398,5 +398,38 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         priceChangePercentages: updatedPercentages,
       ));
     });
+
+    on<UpdateProductDiscounts>((event, emit) {
+      final currentState = state;
+
+      Map<int, List<double>> updatedDiscountsPercentage =
+          Map.from(currentState.productDiscountsPercentage);
+      Map<int, List<double>> updatedDiscountsNominal =
+          Map.from(currentState.productDiscountsNominal);
+      Map<int, double> updatedRoundedPrices =
+          Map.from(currentState.roundedPrices);
+
+      updatedDiscountsPercentage[event.productId] =
+          List.from(event.discountPercentages);
+      updatedDiscountsNominal[event.productId] =
+          List.from(event.discountNominals);
+
+      double originalPrice =
+          currentState.roundedPrices[event.productId] ?? event.originalPrice;
+
+      double totalDiscount =
+          event.discountNominals.fold(0, (prev, curr) => prev + curr);
+
+      double newNetPrice =
+          (originalPrice - totalDiscount).clamp(0, originalPrice);
+
+      updatedRoundedPrices[event.productId] = newNetPrice;
+
+      emit(currentState.copyWith(
+        roundedPrices: updatedRoundedPrices,
+        productDiscountsPercentage: updatedDiscountsPercentage,
+        productDiscountsNominal: updatedDiscountsNominal,
+      ));
+    });
   }
 }

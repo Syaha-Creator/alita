@@ -83,39 +83,24 @@ class ProductCard extends StatelessWidget {
     double netPrice = state.roundedPrices[product.id] ?? product.endUserPrice;
     double totalDiscount = product.pricelist - netPrice;
 
-    bool hasDiscountReceived =
-        state.priceChangePercentages.containsKey(product.id) &&
-            state.priceChangePercentages[product.id]! > 0;
+    List<double> discountPercentages =
+        state.productDiscountsPercentage[product.id] ?? [];
+    double editPopupDiscount = state.priceChangePercentages[product.id] ?? 0.0;
+
+    List<String> discountList = discountPercentages
+        .where((d) => d > 0.0)
+        .map((d) => "${d.toStringAsFixed(2)}%")
+        .toList();
+    if (editPopupDiscount > 0) {
+      discountList.add("${editPopupDiscount.toStringAsFixed(2)}%");
+    }
+    String formattedDiscounts =
+        discountList.isNotEmpty ? discountList.join(" + ") : "-";
+
+    bool hasDiscountReceived = discountList.isNotEmpty;
     bool hasInstallment = state.installmentMonths.containsKey(product.id) &&
         state.installmentMonths[product.id]! > 0;
 
-    // Jika tidak ada diskon yang diterima dan tidak ada cicilan, tampilkan default
-    if (!hasDiscountReceived && !hasInstallment) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildDetailRow(
-            "Pricelist",
-            FormatHelper.formatCurrency(product.pricelist),
-            isStrikethrough: true,
-            color: Colors.red.shade700,
-          ),
-          _buildDetailRow(
-            "Total Diskon",
-            "- ${FormatHelper.formatCurrency(totalDiscount)}",
-            color: Colors.orange,
-          ),
-          _buildDetailRow(
-            "Harga Net",
-            FormatHelper.formatCurrency(netPrice),
-            isBold: true,
-            color: Colors.green,
-          ),
-        ],
-      );
-    }
-
-    // Jika ada cicilan atau diskon yang diterima, tampilkan tambahan informasinya
     List<Widget> details = [
       _buildDetailRow(
         "Pricelist",
@@ -131,29 +116,35 @@ class ProductCard extends StatelessWidget {
     ];
 
     if (hasDiscountReceived) {
-      details.add(_buildDetailRow(
-        "Diskon yang diterima",
-        "${state.priceChangePercentages[product.id]!.toStringAsFixed(2)}%",
-        color: Colors.blue,
-      ));
+      details.add(
+        _buildDetailRow(
+          "Diskon yang diterima",
+          formattedDiscounts,
+          color: Colors.blue,
+        ),
+      );
     }
 
-    details.add(_buildDetailRow(
-      "Harga Net",
-      FormatHelper.formatCurrency(netPrice),
-      isBold: true,
-      color: Colors.green,
-    ));
+    details.add(
+      _buildDetailRow(
+        "Harga Net",
+        FormatHelper.formatCurrency(netPrice),
+        isBold: true,
+        color: Colors.green,
+      ),
+    );
 
     if (hasInstallment) {
       double monthlyInstallment =
           netPrice / state.installmentMonths[product.id]!;
-      details.add(_buildDetailRow(
-        "Cicilan",
-        "${state.installmentMonths[product.id]} bulan x ${FormatHelper.formatCurrency(monthlyInstallment)}",
-        isBold: true,
-        color: Colors.blue,
-      ));
+      details.add(
+        _buildDetailRow(
+          "Cicilan",
+          "${state.installmentMonths[product.id]} bulan x ${FormatHelper.formatCurrency(monthlyInstallment)}",
+          isBold: true,
+          color: Colors.blue,
+        ),
+      );
     }
 
     return Column(
