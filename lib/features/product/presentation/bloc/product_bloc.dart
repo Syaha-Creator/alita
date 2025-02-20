@@ -207,16 +207,19 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
           filteredProducts.map((p) => p.headboard).toSet().toList();
 
       final sorongs = filteredProducts.map((p) => p.sorong).toSet().toList();
+      final sizes = filteredProducts.map((p) => p.ukuran).toSet().toList();
 
       emit(state.copyWith(
         selectedKasur: event.kasur,
         availableDivans: divans,
-        selectedDivan: divans.length == 2 ? divans[1] : "Tanpa Divan",
+        selectedDivan: divans.isNotEmpty ? divans.first : "Tanpa Divan",
         availableHeadboards: headboards,
         selectedHeadboard:
-            headboards.length == 2 ? headboards[1] : "Tanpa Headboard",
+            headboards.isNotEmpty ? headboards.first : "Tanpa Headboard",
         availableSorongs: sorongs,
-        selectedSorong: sorongs.length == 2 ? sorongs[1] : "Tanpa Sorong",
+        selectedSorong: sorongs.isNotEmpty ? sorongs.first : "Tanpa Sorong",
+        availableSizes: sizes,
+        selectedSize: sizes.isNotEmpty ? "" : sizes.first,
       ));
     });
 
@@ -240,9 +243,9 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         selectedDivan: event.divan,
         availableHeadboards: headboards,
         selectedHeadboard:
-            headboards.length == 2 ? headboards[1] : "Tanpa Headboard",
+            headboards.isNotEmpty ? headboards.first : "Tanpa Headboard",
         availableSorongs: sorongs,
-        selectedSorong: sorongs.length == 2 ? sorongs[1] : "Tanpa Sorong",
+        selectedSorong: sorongs.isNotEmpty ? sorongs.first : "Tanpa Sorong",
       ));
     });
 
@@ -263,7 +266,7 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       emit(state.copyWith(
         selectedHeadboard: event.headboard,
         availableSorongs: sorongs,
-        selectedSorong: sorongs.length == 2 ? sorongs[1] : "Tanpa Sorong",
+        selectedSorong: sorongs.isNotEmpty ? sorongs.first : "Tanpa Sorong",
       ));
     });
 

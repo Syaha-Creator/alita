@@ -401,6 +401,7 @@ class ProductActions {
                                 controller: nominalControllers[i],
                                 keyboardType: TextInputType.number,
                                 decoration: InputDecoration(
+                                  hintText: "Nominal",
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),

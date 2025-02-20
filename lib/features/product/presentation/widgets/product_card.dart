@@ -89,10 +89,12 @@ class ProductCard extends StatelessWidget {
 
     List<String> discountList = discountPercentages
         .where((d) => d > 0.0)
-        .map((d) => "${d.toStringAsFixed(2)}%")
+        .map((d) => d % 1 == 0 ? "${d.toInt()}%" : "${d.toStringAsFixed(2)}%")
         .toList();
     if (editPopupDiscount > 0) {
-      discountList.add("${editPopupDiscount.toStringAsFixed(2)}%");
+      discountList.add(editPopupDiscount % 1 == 0
+          ? "${editPopupDiscount.toInt()}%"
+          : "${editPopupDiscount.toStringAsFixed(2)}%");
     }
     String formattedDiscounts =
         discountList.isNotEmpty ? discountList.join(" + ") : "-";
