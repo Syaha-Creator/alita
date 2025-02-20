@@ -160,19 +160,11 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
           .toSet()
           .toList();
 
-      if (!filteredKasurs.contains("Tanpa Kasur")) {
-        filteredKasurs.insert(0, "Tanpa Kasur");
-      }
-
       final filteredDivans = state.products
           .where((p) => p.brand == event.brand)
           .map((p) => p.divan)
           .toSet()
           .toList();
-
-      if (!filteredDivans.contains("Tanpa Divan")) {
-        filteredDivans.insert(0, "Tanpa Divan");
-      }
 
       final filteredHeadboards = state.products
           .where((p) => p.brand == event.brand)
@@ -180,19 +172,11 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
           .toSet()
           .toList();
 
-      if (!filteredHeadboards.contains("Tanpa Headboard")) {
-        filteredHeadboards.insert(0, "Tanpa Headboard");
-      }
-
       final filteredSorongs = state.products
           .where((p) => p.brand == event.brand)
           .map((p) => p.sorong)
           .toSet()
           .toList();
-
-      if (!filteredSorongs.contains("Tanpa Sorong")) {
-        filteredSorongs.insert(0, "Tanpa Sorong");
-      }
 
       emit(state.copyWith(
         selectedBrand: event.brand,
@@ -218,14 +202,11 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
           .toList();
 
       final divans = filteredProducts.map((p) => p.divan).toSet().toList();
-      divans.insert(0, "Tanpa Divan"); // Selalu ada opsi "Tanpa Divan"
 
       final headboards =
           filteredProducts.map((p) => p.headboard).toSet().toList();
-      headboards.insert(0, "Tanpa Headboard");
 
       final sorongs = filteredProducts.map((p) => p.sorong).toSet().toList();
-      sorongs.insert(0, "Tanpa Sorong");
 
       emit(state.copyWith(
         selectedKasur: event.kasur,
@@ -252,10 +233,8 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
 
       final headboards =
           filteredProducts.map((p) => p.headboard).toSet().toList();
-      headboards.insert(0, "Tanpa Headboard");
 
       final sorongs = filteredProducts.map((p) => p.sorong).toSet().toList();
-      sorongs.insert(0, "Tanpa Sorong");
 
       emit(state.copyWith(
         selectedDivan: event.divan,
@@ -280,7 +259,6 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
           .toList();
 
       final sorongs = filteredProducts.map((p) => p.sorong).toSet().toList();
-      sorongs.insert(0, "Tanpa Sorong");
 
       emit(state.copyWith(
         selectedHeadboard: event.headboard,
