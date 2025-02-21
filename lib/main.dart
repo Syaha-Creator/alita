@@ -1,3 +1,4 @@
+import 'package:alita_pricelist/features/product/presentation/bloc/event/product_event.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -29,7 +30,9 @@ class MyApp extends StatelessWidget {
         BlocProvider<AuthBloc>(
           create: (context) => locator<AuthBloc>(),
         ),
-        BlocProvider<ProductBloc>(create: (context) => locator<ProductBloc>()),
+        BlocProvider<ProductBloc>(
+          create: (context) => locator<ProductBloc>()..add(AppStarted()),
+        ),
       ],
       child: ValueListenableBuilder<bool>(
         valueListenable: AuthService.authChangeNotifier,

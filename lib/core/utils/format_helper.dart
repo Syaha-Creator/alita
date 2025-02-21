@@ -31,4 +31,22 @@ class FormatHelper {
     double value = double.parse(cleaned);
     return "Rp ${NumberFormat('#,###', 'id_ID').format(value)}";
   }
+
+  static String getMonthName(int month) {
+    List<String> months = [
+      "Januari",
+      "Februari",
+      "Maret",
+      "April",
+      "Mei",
+      "Juni",
+      "Juli",
+      "Agustus",
+      "September",
+      "Oktober",
+      "November",
+      "Desember"
+    ];
+    return (month >= 1 && month <= 12) ? months[month - 1] : "Tidak Valid";
+  }
 }

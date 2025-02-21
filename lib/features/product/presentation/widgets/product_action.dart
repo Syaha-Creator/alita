@@ -1,9 +1,11 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
+import 'package:alita_pricelist/core/widgets/custom_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -20,7 +22,6 @@ class ProductActions {
 
     TextEditingController monthController = TextEditingController();
 
-    // Ambil harga net terbaru yang sudah diperbarui
     double latestNetPrice =
         state.roundedPrices[product.id] ?? product.endUserPrice;
 
@@ -240,6 +241,7 @@ class ProductActions {
                       originalNetPrice,
                       0.0,
                     ));
+                CustomToast.showToast("Reset Berhasil", ToastType.success);
                 Navigator.pop(context);
               },
               child: Text(
@@ -294,7 +296,8 @@ class ProductActions {
   static void showInfoPopup(BuildContext context, ProductEntity product) {
     final theme = Theme.of(context);
     final state = context.read<ProductBloc>().state;
-    double originalPrice = product.endUserPrice;
+    double originalPrice =
+        state.roundedPrices[product.id] ?? product.endUserPrice;
 
     List<double> savedPercentages = List.from(
         state.productDiscountsPercentage[product.id] ?? List.filled(5, 0.0));
@@ -320,17 +323,31 @@ class ProductActions {
     );
 
     void updateNominal(int index) {
+      double remainingPrice = originalPrice;
+      for (int i = 0; i < index; i++) {
+        double prevDiscount = double.tryParse(
+                nominalControllers[i].text.replaceAll(RegExp(r'[^0-9]'), '')) ??
+            0.0;
+        remainingPrice -= prevDiscount;
+      }
       double percentage =
           double.tryParse(percentageControllers[index].text) ?? 0.0;
-      double nominal = (originalPrice * (percentage / 100)).roundToDouble();
+      double nominal = (remainingPrice * (percentage / 100)).roundToDouble();
       nominalControllers[index].text = FormatHelper.formatCurrency(nominal);
     }
 
     void updatePercentage(int index) {
+      double remainingPrice = originalPrice;
+      for (int i = 0; i < index; i++) {
+        double prevDiscount = double.tryParse(
+                nominalControllers[i].text.replaceAll(RegExp(r'[^0-9]'), '')) ??
+            0.0;
+        remainingPrice -= prevDiscount;
+      }
       String rawText =
           nominalControllers[index].text.replaceAll(RegExp(r'[^0-9]'), '');
       double nominal = double.tryParse(rawText) ?? 0.0;
-      double percentage = (nominal / originalPrice) * 100;
+      double percentage = (nominal / remainingPrice) * 100;
       percentageControllers[index].text =
           percentage > 0 ? percentage.toStringAsFixed(2) : "";
     }
@@ -434,6 +451,10 @@ class ProductActions {
             TextButton(
               onPressed: () {
                 resetValues();
+                CustomToast.showToast(
+                  "Diskon berhasil direset",
+                  ToastType.success,
+                );
               },
               child: Text(
                 "Reset",
@@ -472,13 +493,21 @@ class ProductActions {
   }
 
   static void showSharePopup(BuildContext context, ProductEntity product) {
+    final theme = Theme.of(context);
+    final state = context.read<ProductBloc>().state;
     ScreenshotController screenshotController = ScreenshotController();
 
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text("Bagikan Produk"),
+          title: Text(
+            "Bagikan Produk",
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -493,33 +522,99 @@ class ProductActions {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Tutup"),
+              child: Text(
+                "Tutup",
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
             ),
             ElevatedButton(
               onPressed: () async {
                 try {
-                  final directory = await getTemporaryDirectory();
-                  String filePath = '${directory.path}/product.png';
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (context) =>
+                        Center(child: CircularProgressIndicator()),
+                  );
+
+                  if (Platform.isAndroid) {
+                    var status = await Permission.storage.request();
+                    if (!status.isGranted) {
+                      Navigator.pop(context);
+                      CustomToast.showToast(
+                        "Izin penyimpanan diperlukan",
+                        ToastType.error,
+                      );
+                      return;
+                    }
+                  }
+                  Directory? directory;
+                  if (Platform.isAndroid) {
+                    directory = Directory('/storage/emulated/0/Download');
+                  } else if (Platform.isIOS) {
+                    directory = await getApplicationDocumentsDirectory();
+                  }
+
+                  if (!await directory!.exists()) {
+                    await directory.create(recursive: true);
+                  }
+
+                  String formattedKasur = product.kasur.replaceAll(' ', '_');
+                  String timestamp = DateTime.now()
+                      .toLocal()
+                      .toString()
+                      .replaceAll(':', '-')
+                      .split('.')[0]
+                      .replaceAll(' ', '_');
+                  String fileName = "${formattedKasur}_$timestamp.png";
+                  String filePath = '${directory.path}/$fileName';
 
                   await screenshotController.captureAndSave(
                     directory.path,
-                    fileName: "product.png",
+                    fileName: fileName,
                   );
 
                   File file = File(filePath);
-                  if (kIsWeb) {
-                    await Share.share('Lihat produk ini!');
-                  } else {
-                    await Share.shareXFiles([XFile(file.path)],
-                        text: 'Lihat produk ini!');
+                  if (!await file.exists()) {
+                    throw Exception("Gagal menangkap layar");
                   }
-                  if (!context.mounted) return;
-                  Navigator.pop(context);
+
+                  await ImageGallerySaver.saveFile(filePath);
+
+                  DateTime now = DateTime.now();
+                  String formattedPricelist =
+                      FormatHelper.formatCurrency(product.pricelist);
+                  double netPrice =
+                      state.roundedPrices[product.id] ?? product.endUserPrice;
+                  String formattedNetPrice =
+                      FormatHelper.formatCurrency(netPrice);
+
+                  String monthName = FormatHelper.getMonthName(now.month);
+                  String year = now.year.toString();
+
+                  String shareText =
+                      "Matras ${product.brand} ${product.kasur} (${product.ukuran})\n"
+                      "Harga Pricelist : $formattedPricelist\n"
+                      "Harga After Disc : $formattedNetPrice\n"
+                      "Hanya berlaku di bulan $monthName $year";
+
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    await Share.shareXFiles([XFile(file.path)],
+                        text: shareText);
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                    }
+                  }
                 } catch (e) {
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Gagal membagikan produk: $e")),
-                  );
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    CustomToast.showToast(
+                        "Gagal menangkap layar", ToastType.error);
+                  }
                 }
               },
               child: const Text("Bagikan"),

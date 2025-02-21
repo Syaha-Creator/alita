@@ -9,6 +9,10 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
   final GetProductUseCase getProductUseCase;
 
   ProductBloc(this.getProductUseCase) : super(ProductInitial()) {
+    on<AppStarted>((event, emit) {
+      add(FetchProducts());
+    });
+
     on<FetchProducts>((event, emit) async {
       emit(ProductLoading());
       try {
@@ -362,6 +366,11 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         installmentMonths: updatedInstallmentMonths,
         installmentPerMonth: updatedInstallmentPerMonth,
       ));
+
+      CustomToast.showToast(
+        "Cicilan berhasil disimpan.",
+        ToastType.success,
+      );
     });
 
     on<RemoveInstallment>((event, emit) {
@@ -377,6 +386,11 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         installmentMonths: updatedInstallmentMonths,
         installmentPerMonth: updatedInstallmentPerMonth,
       ));
+
+      CustomToast.showToast(
+        "Cicilan berhasil dihapus.",
+        ToastType.success,
+      );
     });
 
     on<UpdateRoundedPrice>((event, emit) {
@@ -396,6 +410,13 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         roundedPrices: updatedPrices,
         priceChangePercentages: updatedPercentages,
       ));
+
+      if (event.percentageChange != 0.0) {
+        CustomToast.showToast(
+          "Harga berhasil diubah.",
+          ToastType.success,
+        );
+      }
     });
 
     on<UpdateProductDiscounts>((event, emit) {
@@ -413,22 +434,24 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       updatedDiscountsNominal[event.productId] =
           List.from(event.discountNominals);
 
-      double originalPrice =
+      double basePrice =
           currentState.roundedPrices[event.productId] ?? event.originalPrice;
-
-      double totalDiscount =
-          event.discountNominals.fold(0, (prev, curr) => prev + curr);
-
-      double newNetPrice =
-          (originalPrice - totalDiscount).clamp(0, originalPrice);
-
-      updatedRoundedPrices[event.productId] = newNetPrice;
+      for (var discount in event.discountNominals) {
+        basePrice -= discount;
+      }
+      basePrice = basePrice.clamp(0, event.originalPrice);
+      updatedRoundedPrices[event.productId] = basePrice;
 
       emit(currentState.copyWith(
         roundedPrices: updatedRoundedPrices,
         productDiscountsPercentage: updatedDiscountsPercentage,
         productDiscountsNominal: updatedDiscountsNominal,
       ));
+
+      CustomToast.showToast(
+        "Diskon berhasil diterapkan.",
+        ToastType.success,
+      );
     });
 
     on<ResetProductState>((event, emit) {
