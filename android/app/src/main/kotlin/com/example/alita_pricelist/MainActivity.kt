@@ -1,4 +1,4 @@
-package com.example.alita_pricelist
+package com.syahrul.alita_pricelist
 
 import io.flutter.embedding.android.FlutterActivity
 
