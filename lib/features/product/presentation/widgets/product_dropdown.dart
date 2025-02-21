@@ -88,8 +88,6 @@ class ProductDropdown extends StatelessWidget {
             ],
           ),
         ),
-
-        // ✅ Baris pertama (Area & Channel)
         _buildRow(
           CustomDropdown<String>(
             labelText: "Area",
@@ -106,8 +104,6 @@ class ProductDropdown extends StatelessWidget {
             hintText: "Pilih Channel",
           ),
         ),
-
-        // ✅ Baris kedua (Brand & Kasur)
         _buildRow(
           CustomDropdown<String>(
             labelText: "Brand",
@@ -124,8 +120,6 @@ class ProductDropdown extends StatelessWidget {
             hintText: "Pilih Kasur",
           ),
         ),
-
-        // ✅ Baris ketiga (Divan & Headboard)
         _buildRow(
           CustomDropdown<String>(
             labelText: "Divan",
@@ -142,8 +136,6 @@ class ProductDropdown extends StatelessWidget {
             hintText: "Pilih Headboard",
           ),
         ),
-
-        // ✅ Baris keempat (Sorong & Ukuran)
         _buildRow(
           CustomDropdown<String>(
             labelText: "Sorong",
@@ -164,14 +156,13 @@ class ProductDropdown extends StatelessWidget {
     );
   }
 
-  /// 🔹 **Helper untuk membuat baris dropdown (2 dropdown dalam 1 row)**
   Widget _buildRow(Widget firstDropdown, Widget secondDropdown) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10), // Jarak antar baris dropdown
+      padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         children: [
           Expanded(child: firstDropdown),
-          const SizedBox(width: 8), // Jarak antar dropdown dalam row
+          const SizedBox(width: 8),
           Expanded(child: secondDropdown),
         ],
       ),

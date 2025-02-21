@@ -40,7 +40,7 @@ class CustomDropdown<T> extends StatelessWidget {
           hintText: hintText,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
           contentPadding:
-              const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+              const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
         ),
       ),
     );

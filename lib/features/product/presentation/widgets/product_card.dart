@@ -44,7 +44,6 @@ class ProductCard extends StatelessWidget {
     );
   }
 
-  // 🔹 Widget untuk menampilkan detail produk
   Widget _buildProductDetail() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -60,7 +59,6 @@ class ProductCard extends StatelessWidget {
     );
   }
 
-  // 🔹 Widget untuk menampilkan informasi bonus
   Widget _buildBonusInfo() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -78,7 +76,6 @@ class ProductCard extends StatelessWidget {
     );
   }
 
-  // 🔹 Widget untuk menampilkan harga dan diskon
   Widget _buildPriceInfo(BuildContext context, ProductState state) {
     double netPrice = state.roundedPrices[product.id] ?? product.endUserPrice;
     double totalDiscount = product.pricelist - netPrice;
@@ -155,7 +152,6 @@ class ProductCard extends StatelessWidget {
     );
   }
 
-  // 🔹 Widget untuk menampilkan tombol di footer
   Widget _buildFooterButtons(BuildContext context, ProductState state) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -197,7 +193,6 @@ class ProductCard extends StatelessWidget {
     );
   }
 
-// 🔹 Helper untuk membuat row detail
   Widget _buildDetailRow(String title, String value,
       {bool isStrikethrough = false, bool isBold = false, Color? color}) {
     return Padding(

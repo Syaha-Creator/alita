@@ -331,10 +331,17 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       emit(state.copyWith(
           filteredProducts: filteredProducts, isFilterApplied: true));
 
+      if (filteredProducts.isNotEmpty) {
+        CustomToast.showToast(
+          "Berikut adalah produk yang cocok.",
+          ToastType.success,
+        );
+      }
+
       if (filteredProducts.isEmpty) {
         CustomToast.showToast(
           "Produk tidak ditemukan.",
-          ToastType.warning,
+          ToastType.error,
         );
       }
     });
