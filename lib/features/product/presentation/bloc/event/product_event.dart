@@ -173,3 +173,5 @@ class ApplyFilters extends ProductEvent {
         selectedSize,
       ];
 }
+
+class ResetProductState extends ProductEvent {}

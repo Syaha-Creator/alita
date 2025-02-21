@@ -430,5 +430,10 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         productDiscountsNominal: updatedDiscountsNominal,
       ));
     });
+
+    on<ResetProductState>((event, emit) {
+      print("🔄 Resetting Product State...");
+      emit(ProductState());
+    });
   }
 }

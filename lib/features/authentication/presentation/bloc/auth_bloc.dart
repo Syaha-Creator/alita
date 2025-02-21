@@ -1,6 +1,9 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../config/dependency_injection.dart';
 import '../../../../services/auth_service.dart';
+import '../../../product/presentation/bloc/event/product_event.dart';
+import '../../../product/presentation/bloc/product_bloc.dart';
 import '../../domain/usecases/login_usecase.dart';
 import 'event/auth_event.dart';
 import 'state/auth_state.dart';
@@ -28,6 +31,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
         print("✅ Login successful, token saved.");
         emit(AuthSuccess(auth.accessToken));
+        locator<ProductBloc>().add(FetchProducts());
       } catch (e) {
         print("❌ Login failed: $e");
         emit(AuthFailure(e.toString()));
@@ -39,6 +43,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       await AuthService.logout();
       emit(AuthInitial());
+
+      locator<ProductBloc>().add(ResetProductState());
 
       print("✅ Logout successful.");
     });
