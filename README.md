@@ -1,16 +1,16 @@
-# alita_pricelist
+# Alitapricelist
 
-A new Flutter project.
+This Flutter-based application provides a dynamic interface for viewing and filtering price list data. Users can search, filter, and manage detailed information on items with features like discount calculation and installment options.
 
-## Getting Started
+## Features
 
-This project is a starting point for a Flutter application.
+- Dynamic Filtering: Filter items by area, brand, channel, bed type, headboard, divan, and more.
+- Discount Calculation: Apply discounts, view total discounts, and net prices.
+- Installment Options: Display available installment plans for selected items.
+- Clean Filters: Reset all filters to default settings with eas
 
-A few resources to get you started if this is your first Flutter project:
+## Usage
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- Search: Use the dropdown menus to apply filters, then click Search to view matching results.
+- Discount: Click on the discount icon within a card to apply and view calculated discounts.
+- Installment: View installment options by clicking the "Cicilan" button.

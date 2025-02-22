@@ -1,15 +1,14 @@
 import 'dart:io';
 
-import 'package:alita_pricelist/core/widgets/custom_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../../core/utils/format_helper.dart';
+import '../../../../core/widgets/custom_toast.dart';
 import '../../domain/entities/product_entity.dart';
 import '../bloc/event/product_event.dart';
 import '../bloc/product_bloc.dart';
@@ -492,6 +491,29 @@ class ProductActions {
     );
   }
 
+  static Future<bool> requestStoragePermission() async {
+    if (Platform.isAndroid) {
+      if (await Permission.manageExternalStorage.isGranted ||
+          await Permission.storage.isGranted) {
+        return true;
+      }
+
+      var status = await Permission.manageExternalStorage.request();
+      if (status.isGranted) {
+        return true;
+      }
+
+      // Jika ditolak secara permanen, arahkan ke Pengaturan
+      if (status.isPermanentlyDenied) {
+        await openAppSettings();
+        return false;
+      }
+
+      return false;
+    }
+    return true; // iOS tidak perlu izin penyimpanan
+  }
+
   static void showSharePopup(BuildContext context, ProductEntity product) {
     final theme = Theme.of(context);
     final state = context.read<ProductBloc>().state;
@@ -537,31 +559,39 @@ class ProductActions {
                     context: context,
                     barrierDismissible: false,
                     builder: (context) =>
-                        Center(child: CircularProgressIndicator()),
+                        const Center(child: CircularProgressIndicator()),
                   );
 
-                  if (Platform.isAndroid) {
-                    var status = await Permission.storage.request();
-                    if (!status.isGranted) {
+                  // **1. Minta izin penyimpanan**
+                  bool isPermissionGranted = await requestStoragePermission();
+                  if (!isPermissionGranted) {
+                    if (context.mounted) {
                       Navigator.pop(context);
                       CustomToast.showToast(
-                        "Izin penyimpanan diperlukan",
-                        ToastType.error,
-                      );
-                      return;
+                          "Izin penyimpanan diperlukan", ToastType.error);
                     }
+                    return;
                   }
+
+                  // **2. Tentukan direktori penyimpanan**
                   Directory? directory;
                   if (Platform.isAndroid) {
-                    directory = Directory('/storage/emulated/0/Download');
+                    directory = await getExternalStorageDirectory();
                   } else if (Platform.isIOS) {
                     directory = await getApplicationDocumentsDirectory();
                   }
 
-                  if (!await directory!.exists()) {
-                    await directory.create(recursive: true);
+                  if (directory == null) {
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      CustomToast.showToast(
+                          "Gagal menemukan direktori penyimpanan",
+                          ToastType.error);
+                    }
+                    return;
                   }
 
+                  // **3. Simpan gambar**
                   String formattedKasur = product.kasur.replaceAll(' ', '_');
                   String timestamp = DateTime.now()
                       .toLocal()
@@ -579,11 +609,15 @@ class ProductActions {
 
                   File file = File(filePath);
                   if (!await file.exists()) {
-                    throw Exception("Gagal menangkap layar");
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      CustomToast.showToast(
+                          "Gagal menangkap layar", ToastType.error);
+                    }
+                    return;
                   }
 
-                  await ImageGallerySaver.saveFile(filePath);
-
+                  // **4. Persiapkan teks berbagi**
                   DateTime now = DateTime.now();
                   String formattedPricelist =
                       FormatHelper.formatCurrency(product.pricelist);
@@ -591,7 +625,6 @@ class ProductActions {
                       state.roundedPrices[product.id] ?? product.endUserPrice;
                   String formattedNetPrice =
                       FormatHelper.formatCurrency(netPrice);
-
                   String monthName = FormatHelper.getMonthName(now.month);
                   String year = now.year.toString();
 
@@ -605,9 +638,6 @@ class ProductActions {
                     Navigator.pop(context);
                     await Share.shareXFiles([XFile(file.path)],
                         text: shareText);
-                    if (context.mounted) {
-                      Navigator.pop(context);
-                    }
                   }
                 } catch (e) {
                   if (context.mounted) {

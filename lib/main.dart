@@ -1,9 +1,9 @@
-import 'package:alita_pricelist/features/product/presentation/bloc/event/product_event.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'config/dependency_injection.dart';
 import 'features/authentication/presentation/bloc/auth_bloc.dart';
+import 'features/product/presentation/bloc/event/product_event.dart';
 import 'features/product/presentation/bloc/product_bloc.dart';
 import 'navigation/app_router.dart';
 import 'services/auth_service.dart';

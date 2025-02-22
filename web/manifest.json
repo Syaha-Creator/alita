@@ -1,6 +1,6 @@
 {
-    "name": "alita_pricelist",
-    "short_name": "alita_pricelist",
+    "name": "alitapricelist",
+    "short_name": "alitapricelist",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
