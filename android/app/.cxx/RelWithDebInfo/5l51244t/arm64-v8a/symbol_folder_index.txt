@@ -1,0 +1,1 @@
+/Users/syahrulazhar/StudioProjects/alita_pricelist/build/app/intermediates/cxx/RelWithDebInfo/5l51244t/obj/arm64-v8a

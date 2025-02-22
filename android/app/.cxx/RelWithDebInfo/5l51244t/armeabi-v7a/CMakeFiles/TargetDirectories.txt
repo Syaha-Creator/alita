@@ -1,0 +1,2 @@
+/Users/syahrulazhar/StudioProjects/alita_pricelist/android/app/.cxx/RelWithDebInfo/5l51244t/armeabi-v7a/CMakeFiles/edit_cache.dir
+/Users/syahrulazhar/StudioProjects/alita_pricelist/android/app/.cxx/RelWithDebInfo/5l51244t/armeabi-v7a/CMakeFiles/rebuild_cache.dir

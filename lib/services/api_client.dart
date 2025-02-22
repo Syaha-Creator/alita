@@ -1,7 +1,7 @@
-import 'package:alitapricelist/services/auth_service.dart';
 import 'package:dio/dio.dart';
 
 import '../config/api_config.dart';
+import 'auth_service.dart';
 
 class ApiClient {
   final Dio dio;
