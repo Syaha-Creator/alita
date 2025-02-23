@@ -399,21 +399,31 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
 
       final updatedPercentages =
           Map<int, double>.from(state.priceChangePercentages);
+      final updatedDiscounts =
+          Map<int, List<double>>.from(state.productDiscountsPercentage);
 
       if (event.percentageChange == 0.0) {
         updatedPercentages.remove(event.productId);
+        updatedDiscounts[event.productId]
+            ?.removeWhere((d) => d == event.percentageChange);
       } else {
         updatedPercentages[event.productId] = event.percentageChange;
+
+        if (!updatedDiscounts.containsKey(event.productId)) {
+          updatedDiscounts[event.productId] = [];
+        }
+        updatedDiscounts[event.productId]?.add(event.percentageChange);
       }
 
       emit(state.copyWith(
         roundedPrices: updatedPrices,
         priceChangePercentages: updatedPercentages,
+        productDiscountsPercentage: updatedDiscounts,
       ));
 
       if (event.percentageChange != 0.0) {
         CustomToast.showToast(
-          "Harga berhasil diubah.",
+          "Harga berhasil diubah dan diskon diperbarui.",
           ToastType.success,
         );
       }

@@ -157,21 +157,25 @@ class ProductActions {
   static void showEditPopup(BuildContext context, ProductEntity product) {
     final theme = Theme.of(context);
     final state = context.read<ProductBloc>().state;
-    double originalNetPrice = product.endUserPrice;
+
     double latestNetPrice =
         state.roundedPrices[product.id] ?? product.endUserPrice;
+
+    double priceBeforeEdit = latestNetPrice;
+
     TextEditingController priceController = TextEditingController(
       text: FormatHelper.formatCurrency(latestNetPrice),
     );
+
     ValueNotifier<double> percentageChange = ValueNotifier(
       state.priceChangePercentages[product.id] ?? 0.0,
     );
 
     void calculatePercentage() {
       String rawText = priceController.text.replaceAll(RegExp(r'[^0-9]'), '');
-      double newPrice = double.tryParse(rawText) ?? product.endUserPrice;
-      double originalPrice = product.endUserPrice;
-      double diff = ((originalPrice - newPrice) / originalPrice) * 100;
+      double newPrice = double.tryParse(rawText) ?? latestNetPrice;
+
+      double diff = ((priceBeforeEdit - newPrice) / priceBeforeEdit) * 100;
       percentageChange.value = diff;
     }
 
@@ -232,15 +236,24 @@ class ProductActions {
           actions: [
             TextButton(
               onPressed: () {
-                priceController.text =
-                    FormatHelper.formatCurrency(originalNetPrice);
-                percentageChange.value = 0.0;
+                final state = context.read<ProductBloc>().state;
+                double originalPrice = product.endUserPrice;
+
+                List<double> savedNominals =
+                    state.productDiscountsNominal[product.id] ?? [];
+
+                double recalculatedNetPrice = originalPrice;
+                for (var discount in savedNominals) {
+                  recalculatedNetPrice -= discount;
+                }
                 context.read<ProductBloc>().add(UpdateRoundedPrice(
                       product.id,
-                      originalNetPrice,
+                      recalculatedNetPrice,
                       0.0,
                     ));
-                CustomToast.showToast("Reset Berhasil", ToastType.success);
+
+                CustomToast.showToast(
+                    "Harga edit direset dan dihitung ulang", ToastType.success);
                 Navigator.pop(context);
               },
               child: Text(
@@ -252,23 +265,19 @@ class ProductActions {
             ),
             ElevatedButton(
               onPressed: () {
-                // Pastikan input angka tidak ada pemisah ribuan sebelum di-convert ke double
                 String rawText =
                     priceController.text.replaceAll(RegExp(r'[^0-9]'), '');
-                double newPrice =
-                    double.tryParse(rawText) ?? product.endUserPrice;
-                double percentage =
-                    ((product.endUserPrice - newPrice) / product.endUserPrice) *
-                        100;
+                double newPrice = double.tryParse(rawText) ?? latestNetPrice;
 
-                // Simpan harga baru ke dalam state
+                double percentage =
+                    ((priceBeforeEdit - newPrice) / priceBeforeEdit) * 100;
+
                 context.read<ProductBloc>().add(UpdateRoundedPrice(
                       product.id,
                       newPrice,
                       percentage,
                     ));
 
-                // Setelah simpan, pastikan cicilan juga diperbarui
                 int savedMonths = state.installmentMonths[product.id] ?? 0;
                 if (savedMonths > 0) {
                   double newInstallment = newPrice / savedMonths;
@@ -295,18 +304,27 @@ class ProductActions {
   static void showInfoPopup(BuildContext context, ProductEntity product) {
     final theme = Theme.of(context);
     final state = context.read<ProductBloc>().state;
-    double originalPrice =
-        state.roundedPrices[product.id] ?? product.endUserPrice;
+
+    double basePrice = product.endUserPrice;
+    // ignore: unused_local_variable
+    double netPriceBeforeEdit = state.roundedPrices[product.id] ?? basePrice;
 
     List<double> savedPercentages = List.from(
         state.productDiscountsPercentage[product.id] ?? List.filled(5, 0.0));
     List<double> savedNominals = List.from(
         state.productDiscountsNominal[product.id] ?? List.filled(5, 0.0));
 
+    double recalculatedNetPrice = basePrice;
+    for (var discount in savedNominals) {
+      recalculatedNetPrice -= discount;
+    }
+
+    netPriceBeforeEdit = recalculatedNetPrice;
+
     List<TextEditingController> percentageControllers = List.generate(
       5,
       (i) => TextEditingController(
-        text: savedPercentages[i] > 0
+        text: (i < savedPercentages.length && savedPercentages[i] > 0)
             ? savedPercentages[i].toStringAsFixed(2)
             : "",
       ),
@@ -315,14 +333,14 @@ class ProductActions {
     List<TextEditingController> nominalControllers = List.generate(
       5,
       (i) => TextEditingController(
-        text: savedNominals[i] > 0
+        text: (i < savedNominals.length && savedNominals[i] > 0)
             ? FormatHelper.formatCurrency(savedNominals[i])
             : "",
       ),
     );
 
     void updateNominal(int index) {
-      double remainingPrice = originalPrice;
+      double remainingPrice = basePrice;
       for (int i = 0; i < index; i++) {
         double prevDiscount = double.tryParse(
                 nominalControllers[i].text.replaceAll(RegExp(r'[^0-9]'), '')) ??
@@ -336,7 +354,7 @@ class ProductActions {
     }
 
     void updatePercentage(int index) {
-      double remainingPrice = originalPrice;
+      double remainingPrice = basePrice;
       for (int i = 0; i < index; i++) {
         double prevDiscount = double.tryParse(
                 nominalControllers[i].text.replaceAll(RegExp(r'[^0-9]'), '')) ??
@@ -472,12 +490,25 @@ class ProductActions {
                   return double.tryParse(rawText) ?? 0.0;
                 }).toList();
 
+                double finalNetPrice = product.endUserPrice;
+                for (var discount in updatedNominals) {
+                  finalNetPrice -= discount;
+                }
+
                 context.read<ProductBloc>().add(
                       UpdateProductDiscounts(
                         productId: product.id,
                         discountPercentages: updatedPercentages,
                         discountNominals: updatedNominals,
                         originalPrice: product.endUserPrice,
+                      ),
+                    );
+
+                context.read<ProductBloc>().add(
+                      UpdateRoundedPrice(
+                        product.id,
+                        finalNetPrice,
+                        0.0,
                       ),
                     );
 

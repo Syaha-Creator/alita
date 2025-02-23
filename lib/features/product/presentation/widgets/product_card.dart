@@ -88,13 +88,14 @@ class ProductCard extends StatelessWidget {
         .where((d) => d > 0.0)
         .map((d) => d % 1 == 0 ? "${d.toInt()}%" : "${d.toStringAsFixed(2)}%")
         .toList();
-    if (editPopupDiscount > 0) {
+
+    if (editPopupDiscount != 0.0) {
       discountList.add(editPopupDiscount % 1 == 0
           ? "${editPopupDiscount.toInt()}%"
           : "${editPopupDiscount.toStringAsFixed(2)}%");
     }
     String formattedDiscounts =
-        discountList.isNotEmpty ? discountList.join(" + ") : "-";
+        discountList.isNotEmpty ? discountList.join(" + ") : "( -)";
 
     bool hasDiscountReceived = discountList.isNotEmpty;
     bool hasInstallment = state.installmentMonths.containsKey(product.id) &&
@@ -123,7 +124,6 @@ class ProductCard extends StatelessWidget {
         ),
       );
     }
-
     details.add(
       _buildDetailRow(
         "Harga Net",
