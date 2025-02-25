@@ -118,7 +118,7 @@ class ProductCard extends StatelessWidget {
     if (hasDiscountReceived) {
       details.add(
         _buildDetailRow(
-          "Diskon yang diterima",
+          "Plus Diskon",
           formattedDiscounts,
           color: Colors.blue,
         ),
@@ -201,7 +201,7 @@ class ProductCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 160,
+            width: 130,
             child: Text(
               title,
               maxLines: 1,
