@@ -402,17 +402,11 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       final updatedDiscounts =
           Map<int, List<double>>.from(state.productDiscountsPercentage);
 
-      if (event.percentageChange == 0.0) {
-        updatedPercentages.remove(event.productId);
-        updatedDiscounts[event.productId]
-            ?.removeWhere((d) => d == event.percentageChange);
-      } else {
-        updatedPercentages[event.productId] = event.percentageChange;
+      updatedPercentages[event.productId] = event.percentageChange;
 
-        if (!updatedDiscounts.containsKey(event.productId)) {
-          updatedDiscounts[event.productId] = [];
-        }
-        updatedDiscounts[event.productId]?.add(event.percentageChange);
+      if (updatedDiscounts.containsKey(event.productId)) {
+        updatedDiscounts[event.productId]?.removeWhere(
+            (d) => d == state.priceChangePercentages[event.productId]);
       }
 
       emit(state.copyWith(

@@ -1,8 +1,8 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
@@ -593,88 +593,56 @@ class ProductActions {
                         const Center(child: CircularProgressIndicator()),
                   );
 
-                  // **1. Minta izin penyimpanan**
-                  bool isPermissionGranted = await requestStoragePermission();
-                  if (!isPermissionGranted) {
+                  Uint8List? imageBytes = await screenshotController.capture();
+
+                  if (imageBytes == null) {
                     if (context.mounted) {
                       Navigator.pop(context);
-                      CustomToast.showToast(
-                          "Izin penyimpanan diperlukan", ToastType.error);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Gagal menangkap layar"),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
                     }
                     return;
                   }
 
-                  // **2. Tentukan direktori penyimpanan**
-                  Directory? directory;
-                  if (Platform.isAndroid) {
-                    directory = await getExternalStorageDirectory();
-                  } else if (Platform.isIOS) {
-                    directory = await getApplicationDocumentsDirectory();
-                  }
-
-                  if (directory == null) {
-                    if (context.mounted) {
-                      Navigator.pop(context);
-                      CustomToast.showToast(
-                          "Gagal menemukan direktori penyimpanan",
-                          ToastType.error);
-                    }
-                    return;
-                  }
-
-                  // **3. Simpan gambar**
-                  String formattedKasur = product.kasur.replaceAll(' ', '_');
-                  String timestamp = DateTime.now()
-                      .toLocal()
-                      .toString()
-                      .replaceAll(':', '-')
-                      .split('.')[0]
-                      .replaceAll(' ', '_');
-                  String fileName = "${formattedKasur}_$timestamp.png";
-                  String filePath = '${directory.path}/$fileName';
-
-                  await screenshotController.captureAndSave(
-                    directory.path,
-                    fileName: fileName,
-                  );
-
-                  File file = File(filePath);
-                  if (!await file.exists()) {
-                    if (context.mounted) {
-                      Navigator.pop(context);
-                      CustomToast.showToast(
-                          "Gagal menangkap layar", ToastType.error);
-                    }
-                    return;
-                  }
-
-                  // **4. Persiapkan teks berbagi**
-                  DateTime now = DateTime.now();
                   String formattedPricelist =
                       FormatHelper.formatCurrency(product.pricelist);
                   double netPrice =
                       state.roundedPrices[product.id] ?? product.endUserPrice;
                   String formattedNetPrice =
                       FormatHelper.formatCurrency(netPrice);
+                  DateTime now = DateTime.now();
                   String monthName = FormatHelper.getMonthName(now.month);
                   String year = now.year.toString();
 
                   String shareText =
-                      "Matras ${product.brand} ${product.kasur} (${product.ukuran})\n"
+                      "Matras ${product.brand} ${product.kasur}, ${product.headboard}, ${product.divan}, ${product.sorong} (${product.ukuran})\n"
                       "Harga Pricelist : $formattedPricelist\n"
                       "Harga After Disc : $formattedNetPrice\n"
                       "Hanya berlaku di bulan $monthName $year";
 
+                  final XFile xfile = XFile.fromData(
+                    imageBytes,
+                    mimeType: 'image/png',
+                    name: "product_screenshot.png",
+                  );
+
                   if (context.mounted) {
                     Navigator.pop(context);
-                    await Share.shareXFiles([XFile(file.path)],
-                        text: shareText);
+                    await Share.shareXFiles([xfile], text: shareText);
                   }
                 } catch (e) {
                   if (context.mounted) {
                     Navigator.pop(context);
-                    CustomToast.showToast(
-                        "Gagal menangkap layar", ToastType.error);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text("Gagal menangkap layar: $e"),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
                   }
                 }
               },
