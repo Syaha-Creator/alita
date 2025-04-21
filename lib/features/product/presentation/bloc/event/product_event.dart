@@ -177,3 +177,13 @@ class ApplyFilters extends ProductEvent {
 }
 
 class ResetProductState extends ProductEvent {}
+
+class SaveProductNote extends ProductEvent {
+  final int productId;
+  final String note;
+
+  const SaveProductNote(this.productId, this.note);
+
+  @override
+  List<Object?> get props => [productId, note];
+}

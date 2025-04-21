@@ -167,6 +167,10 @@ class ProductActions {
       text: FormatHelper.formatCurrency(latestNetPrice),
     );
 
+    TextEditingController noteController = TextEditingController(
+      text: state.productNotes[product.id] ?? "",
+    );
+
     ValueNotifier<double> percentageChange = ValueNotifier(
       state.priceChangePercentages[product.id] ?? 0.0,
     );
@@ -193,6 +197,7 @@ class ProductActions {
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text("Masukkan harga net baru:",
                   style: theme.textTheme.bodyMedium),
@@ -230,6 +235,20 @@ class ProductActions {
                     ),
                   );
                 },
+              ),
+              const SizedBox(height: 8),
+              Text("Catatan:", style: theme.textTheme.bodyMedium),
+              TextField(
+                controller: noteController,
+                decoration: InputDecoration(
+                  hintText: "Masukkan catatan...",
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurface,
+                ),
               ),
             ],
           ),
@@ -287,6 +306,11 @@ class ProductActions {
                         newInstallment,
                       ));
                 }
+
+                String note = noteController.text;
+                context
+                    .read<ProductBloc>()
+                    .add(SaveProductNote(product.id, note));
 
                 Navigator.pop(context);
               },

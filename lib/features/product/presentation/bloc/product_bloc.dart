@@ -462,5 +462,11 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       print("🔄 Resetting Product State...");
       emit(ProductState());
     });
+
+    on<SaveProductNote>((event, emit) {
+      final updatedNotes = Map<int, String>.from(state.productNotes)
+        ..[event.productId] = event.note;
+      emit(state.copyWith(productNotes: updatedNotes));
+    });
   }
 }

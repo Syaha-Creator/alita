@@ -30,6 +30,7 @@ class ProductState extends Equatable {
   final Map<int, double> priceChangePercentages;
   final Map<int, List<double>> productDiscountsPercentage;
   final Map<int, List<double>> productDiscountsNominal;
+  final Map<int, String> productNotes;
 
   const ProductState({
     this.isFilterApplied = false,
@@ -59,7 +60,9 @@ class ProductState extends Equatable {
     this.roundedPrices = const {},
     this.productDiscountsPercentage = const {},
     this.productDiscountsNominal = const {},
+    this.productNotes = const {},
   });
+
   ProductState copyWith({
     bool? isFilterApplied,
     List<ProductEntity>? products,
@@ -88,6 +91,7 @@ class ProductState extends Equatable {
     Map<int, double>? roundedPrices,
     Map<int, List<double>>? productDiscountsPercentage,
     Map<int, List<double>>? productDiscountsNominal,
+    Map<int, String>? productNotes,
   }) {
     return ProductState(
       isFilterApplied: isFilterApplied ?? this.isFilterApplied,
@@ -120,6 +124,7 @@ class ProductState extends Equatable {
           productDiscountsPercentage ?? this.productDiscountsPercentage,
       productDiscountsNominal:
           productDiscountsNominal ?? this.productDiscountsNominal,
+      productNotes: productNotes ?? this.productNotes,
     );
   }
 
@@ -150,7 +155,8 @@ class ProductState extends Equatable {
         priceChangePercentages,
         roundedPrices,
         productDiscountsPercentage,
-        productDiscountsNominal
+        productDiscountsNominal,
+        productNotes,
       ];
 }
 

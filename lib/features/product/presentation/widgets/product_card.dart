@@ -31,7 +31,7 @@ class ProductCard extends StatelessWidget {
               children: [
                 _buildProductDetail(),
                 const SizedBox(height: 12),
-                _buildBonusInfo(),
+                _buildBonusInfo(state),
                 const SizedBox(height: 12),
                 _buildPriceInfo(context, state),
                 if (!hideButtons) const SizedBox(height: 16),
@@ -59,7 +59,7 @@ class ProductCard extends StatelessWidget {
     );
   }
 
-  Widget _buildBonusInfo() {
+  Widget _buildBonusInfo(ProductState state) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -72,6 +72,13 @@ class ProductCard extends StatelessWidget {
         if (product.bonus.isEmpty)
           const Text("Tidak ada bonus.",
               style: TextStyle(fontSize: 14, color: Colors.grey)),
+        const SizedBox(height: 8),
+        if (state.productNotes.containsKey(product.id) &&
+            state.productNotes[product.id]!.isNotEmpty)
+          Text(
+            "Catatan: ${state.productNotes[product.id]}",
+            style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic),
+          ),
       ],
     );
   }
