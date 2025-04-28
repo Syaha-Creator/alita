@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/utils/format_helper.dart';
+import '../../../cart/presentation/bloc/cart_bloc.dart';
+import '../../../cart/presentation/bloc/event/cart_event.dart';
 import '../../domain/entities/product_entity.dart';
 import '../bloc/event/product_event.dart';
 import '../bloc/product_bloc.dart';
@@ -160,6 +162,15 @@ class ProductCard extends StatelessWidget {
   }
 
   Widget _buildFooterButtons(BuildContext context, ProductState state) {
+    double netPrice = state.roundedPrices[product.id] ?? product.endUserPrice;
+    List<double> discountPercentages =
+        state.productDiscountsPercentage[product.id] ?? [];
+    double editPopupDiscount = state.priceChangePercentages[product.id] ?? 0.0;
+    int? installmentMonths = state.installmentMonths[product.id];
+    double? installmentPerMonth =
+        installmentMonths != null && installmentMonths > 0
+            ? netPrice / installmentMonths
+            : null;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -178,6 +189,18 @@ class ProductCard extends StatelessWidget {
         _buildIconButton(Icons.share, "Share", Colors.teal, () {
           context.read<ProductBloc>().add(SelectProduct(product));
           ProductActions.showSharePopup(context, product);
+        }),
+        _buildIconButton(Icons.add_shopping_cart, "Add to Cart", Colors.purple,
+            () {
+          context.read<CartBloc>().add(AddToCart(
+                product: product,
+                quantity: 1,
+                netPrice: netPrice,
+                discountPercentages: discountPercentages,
+                editPopupDiscount: editPopupDiscount,
+                installmentMonths: installmentMonths,
+                installmentPerMonth: installmentPerMonth,
+              ));
         }),
       ],
     );

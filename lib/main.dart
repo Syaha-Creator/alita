@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'config/dependency_injection.dart';
 import 'features/authentication/presentation/bloc/auth_bloc.dart';
+import 'features/cart/presentation/bloc/cart_bloc.dart';
 import 'features/product/presentation/bloc/event/product_event.dart';
 import 'features/product/presentation/bloc/product_bloc.dart';
 import 'navigation/app_router.dart';
@@ -33,6 +34,7 @@ class MyApp extends StatelessWidget {
         BlocProvider<ProductBloc>(
           create: (context) => locator<ProductBloc>()..add(AppStarted()),
         ),
+        BlocProvider(create: (context) => CartBloc()),
       ],
       child: ValueListenableBuilder<bool>(
         valueListenable: AuthService.authChangeNotifier,

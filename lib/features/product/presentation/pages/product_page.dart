@@ -5,6 +5,7 @@ import '../../../../navigation/navigation_service.dart';
 import '../../../../navigation/route_path.dart';
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/state/auth_state.dart';
+import '../../../cart/presentation/pages/cart_page.dart';
 import '../bloc/event/product_event.dart';
 import '../bloc/product_bloc.dart';
 import '../bloc/state/product_state.dart';
@@ -33,6 +34,15 @@ class _ProductPageState extends State<ProductPage> {
         appBar: AppBar(
           title: const Text("Product Page"),
           actions: [
+            IconButton(
+              icon: const Icon(Icons.shopping_cart),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const CartPage()),
+                );
+              },
+            ),
             LogoutButton(),
           ],
         ),
