@@ -2,52 +2,83 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/utils/format_helper.dart';
+import '../../../product/presentation/bloc/event/product_event.dart';
 import '../../../product/presentation/bloc/product_bloc.dart';
 import '../../../product/presentation/bloc/state/product_state.dart';
 import '../../domain/entities/cart_entity.dart';
 import '../bloc/cart_bloc.dart';
 import '../bloc/event/cart_event.dart';
 
-class CartItemWidget extends StatelessWidget {
+class CartItemWidget extends StatefulWidget {
   final CartEntity item;
 
   const CartItemWidget({super.key, required this.item});
 
-  static const double _padding = 16.0;
+  @override
+  State<CartItemWidget> createState() => _CartItemWidgetState();
+}
+
+class _CartItemWidgetState extends State<CartItemWidget> {
+  bool isExpanded = true;
+  late TextEditingController _noteController;
+
+  static const double _padding = 10.0;
   static const double _avatarSize = 40.0;
   static const radius = Radius.circular(12);
+
+  @override
+  void initState() {
+    super.initState();
+    _noteController = TextEditingController(
+        text: context
+                .read<ProductBloc>()
+                .state
+                .productNotes[widget.item.product.id] ??
+            '');
+  }
+
+  @override
+  void dispose() {
+    _noteController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ProductBloc, ProductState>(
       builder: (context, productState) {
-        final netPrice = item.netPrice;
-        final totalDiscount = item.product.pricelist - netPrice;
-        final discounts = _formatDiscounts(item);
-        final hasInstallment = (item.installmentMonths ?? 0) > 0;
+        final netPrice = widget.item.netPrice;
+        final totalDiscount = widget.item.product.pricelist - netPrice;
+        final discounts = _formatDiscounts(widget.item);
+        final hasInstallment = (widget.item.installmentMonths ?? 0) > 0;
 
-        return Card(
-          margin: const EdgeInsets.symmetric(
-              horizontal: _padding, vertical: _padding / 2),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          elevation: 4,
-          child: Padding(
-            padding: const EdgeInsets.all(_padding),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(context),
-                const SizedBox(height: _padding),
-                _buildProductDetails(context),
-                const SizedBox(height: _padding),
-                _buildBonusAndNotes(context, productState),
-                const SizedBox(height: _padding),
-                _buildPriceInfo(context, netPrice, totalDiscount, discounts,
-                    hasInstallment),
-                const SizedBox(height: _padding),
-                _buildTotalPrice(context, netPrice),
-              ],
+        return InkWell(
+          onTap: () => setState(() => isExpanded = !isExpanded),
+          child: Card(
+            margin: const EdgeInsets.symmetric(
+                horizontal: _padding, vertical: _padding / 2),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            elevation: 4,
+            child: Padding(
+              padding: const EdgeInsets.all(_padding),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(context),
+                  if (isExpanded) ...[
+                    const SizedBox(height: _padding),
+                    _buildProductDetails(context),
+                    const SizedBox(height: _padding),
+                    _buildBonusAndNotes(context, productState),
+                    const SizedBox(height: _padding),
+                    _buildPriceInfo(context, netPrice, totalDiscount, discounts,
+                        hasInstallment),
+                  ],
+                  const SizedBox(height: _padding),
+                  _buildTotalPrice(context, netPrice),
+                ],
+              ),
             ),
           ),
         );
@@ -67,7 +98,7 @@ class CartItemWidget extends StatelessWidget {
         const SizedBox(width: _padding),
         Expanded(
           child: Text(
-            '${item.product.kasur} - ${item.product.ukuran}',
+            '${widget.item.product.kasur} - ${widget.item.product.ukuran}',
             style: GoogleFonts.montserrat(
               fontSize: 20,
               fontWeight: FontWeight.w700,
@@ -75,7 +106,7 @@ class CartItemWidget extends StatelessWidget {
             ),
           ),
         ),
-        _QuantityControl(item: item),
+        _QuantityControl(item: widget.item)
       ],
     );
   }
@@ -90,11 +121,11 @@ class CartItemWidget extends StatelessWidget {
   }
 
   Widget _buildProductDetails(BuildContext context) {
-    final p = item.product;
+    final p = widget.item.product;
     final styleLabel =
-        GoogleFonts.montserrat(fontSize: 15, fontWeight: FontWeight.w600);
+        GoogleFonts.montserrat(fontSize: 14, fontWeight: FontWeight.w600);
     final styleValue =
-        GoogleFonts.montserrat(fontSize: 15, fontWeight: FontWeight.w500);
+        GoogleFonts.montserrat(fontSize: 14, fontWeight: FontWeight.w500);
 
     return Container(
       padding: const EdgeInsets.all(_padding),
@@ -105,7 +136,7 @@ class CartItemWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Detail Produk', style: styleLabel.copyWith(fontSize: 18)),
+          Text('Detail Produk', style: styleLabel.copyWith(fontSize: 15)),
           const SizedBox(height: _padding / 2),
           _detailRow(
               Icons.table_chart, 'Divan', p.divan, styleLabel, styleValue),
@@ -139,27 +170,25 @@ class CartItemWidget extends StatelessWidget {
   }
 
   Widget _buildBonusAndNotes(BuildContext context, ProductState state) {
-    final bonusList = item.product.bonus;
+    final bonusList = widget.item.product.bonus;
     final hasBonus = bonusList.isNotEmpty;
-    final note = state.productNotes[item.product.id] ?? '';
+    final note = state.productNotes[widget.item.product.id] ?? '';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         hasBonus
-            ? _infoBox(context, Icons.card_giftcard, 'Bonus',
+            ? _bonusBox(context, Icons.card_giftcard, 'Bonus',
                 bonusList.map((b) => '• ${b.quantity}x ${b.name}').join('\n'))
             : Text('Bonus: Tidak ada bonus',
                 style: TextStyle(color: Colors.grey.shade600)),
-        if (note.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          _infoBox(context, Icons.note, 'Catatan', note),
-        ],
+        const SizedBox(height: 8),
+        _infoBox(context, Icons.note, 'Catatan', note),
       ],
     );
   }
 
-  Widget _infoBox(
+  Widget _bonusBox(
       BuildContext context, IconData icon, String title, String content) {
     return Container(
       width: double.infinity,
@@ -176,10 +205,55 @@ class CartItemWidget extends StatelessWidget {
             const SizedBox(width: 8),
             Text(title,
                 style: GoogleFonts.montserrat(
-                    fontSize: 16, fontWeight: FontWeight.w600))
+                    fontSize: 15, fontWeight: FontWeight.w600))
           ]),
           const SizedBox(height: 4),
           Text(content, style: GoogleFonts.montserrat(fontSize: 14)),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoBox(
+      BuildContext context, IconData icon, String title, String content) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(_padding),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.all(radius),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 20, color: Colors.black),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: GoogleFonts.montserrat(
+                    fontSize: 15, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  content,
+                  style: GoogleFonts.montserrat(fontSize: 14),
+                ),
+              ),
+              IconButton(
+                onPressed: () => _showEditNoteDialog(context),
+                icon: const Icon(Icons.edit),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -193,8 +267,8 @@ class CartItemWidget extends StatelessWidget {
     bool hasInstallment,
   ) {
     final styleLabel =
-        GoogleFonts.montserrat(fontSize: 15, fontWeight: FontWeight.w600);
-    final styleValue = GoogleFonts.montserrat(fontSize: 15);
+        GoogleFonts.montserrat(fontSize: 14, fontWeight: FontWeight.w600);
+    final styleValue = GoogleFonts.montserrat(fontSize: 14);
 
     return Container(
       padding: const EdgeInsets.all(_padding),
@@ -205,11 +279,11 @@ class CartItemWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Informasi Harga', style: styleLabel.copyWith(fontSize: 18)),
+          Text('Informasi Harga', style: styleLabel.copyWith(fontSize: 16)),
           const SizedBox(height: _padding / 2),
           _priceRow(
               'Pricelist',
-              FormatHelper.formatCurrency(item.product.pricelist),
+              FormatHelper.formatCurrency(widget.item.product.pricelist),
               styleLabel.copyWith(
                   decoration: TextDecoration.lineThrough, color: Colors.red)),
           _priceRow(
@@ -222,7 +296,7 @@ class CartItemWidget extends StatelessWidget {
           if (hasInstallment)
             _priceRow(
                 'Cicilan',
-                '${item.installmentMonths} bulan x ${FormatHelper.formatCurrency(item.installmentPerMonth ?? 0)}',
+                '${widget.item.installmentMonths} bulan x ${FormatHelper.formatCurrency(widget.item.installmentPerMonth ?? 0)}',
                 styleValue.copyWith(color: Colors.teal.shade700)),
           _priceRow(
               'Harga Net',
@@ -242,7 +316,7 @@ class CartItemWidget extends StatelessWidget {
         children: [
           Text(label,
               style: GoogleFonts.montserrat(
-                  fontSize: 15, fontWeight: FontWeight.w600)),
+                  fontSize: 14, fontWeight: FontWeight.w600)),
           Text(value, style: valueStyle)
         ],
       ),
@@ -250,7 +324,7 @@ class CartItemWidget extends StatelessWidget {
   }
 
   Widget _buildTotalPrice(BuildContext context, double netPrice) {
-    final total = netPrice * item.quantity;
+    final total = netPrice * widget.item.quantity;
     return Container(
       padding: const EdgeInsets.symmetric(
           vertical: _padding / 2, horizontal: _padding),
@@ -273,6 +347,39 @@ class CartItemWidget extends StatelessWidget {
       ),
     );
   }
+
+  void _showEditNoteDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Edit Catatan', style: GoogleFonts.montserrat()),
+        content: TextField(
+          controller: _noteController,
+          decoration: InputDecoration(
+            hintText: 'Masukkan catatan',
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              context.read<ProductBloc>().add(UpdateProductNote(
+                    productId: widget.item.product.id,
+                    note: _noteController.text,
+                  ));
+              Navigator.pop(ctx);
+            },
+            child: Text('Simpan'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _QuantityControl extends StatelessWidget {
@@ -288,7 +395,7 @@ class _QuantityControl extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8.0),
           child: Text(item.quantity.toString(),
-              style: GoogleFonts.montserrat(fontSize: 16)),
+              style: GoogleFonts.montserrat(fontSize: 15)),
         ),
         _buildIconButton(
             context,

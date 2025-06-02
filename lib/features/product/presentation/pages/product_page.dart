@@ -68,7 +68,6 @@ class _ProductPageState extends State<ProductPage> {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  /// ✅ Gunakan `ProductDropdown`
                   ProductDropdown(
                     isSetActive: state.isSetActive,
                     onSetChanged: (value) {
@@ -162,8 +161,6 @@ class _ProductPageState extends State<ProductPage> {
                     },
                   ),
                   const SizedBox(height: 10),
-
-                  // ✅ Tampilkan daftar produk setelah tombol ditekan
                   ElevatedButton(
                     onPressed: (state.selectedChannel != null &&
                             state.selectedChannel!.isNotEmpty)
@@ -222,9 +219,7 @@ class _ProductPageState extends State<ProductPage> {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 10),
-
                   Expanded(
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 300),

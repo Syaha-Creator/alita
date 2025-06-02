@@ -33,9 +33,9 @@ class ProductCard extends StatelessWidget {
               children: [
                 _buildProductDetail(),
                 const SizedBox(height: 12),
-                _buildBonusInfo(state),
-                const SizedBox(height: 12),
                 _buildPriceInfo(context, state),
+                const SizedBox(height: 12),
+                _buildBonusInfo(state),
                 if (!hideButtons) const SizedBox(height: 16),
                 if (!hideButtons) _buildFooterButtons(context, state),
               ],
@@ -55,8 +55,6 @@ class ProductCard extends StatelessWidget {
         _buildDetailRow("Headboard", product.headboard),
         _buildDetailRow("Sorong", product.sorong),
         _buildDetailRow("Ukuran", product.ukuran),
-        _buildDetailRow("Program",
-            product.program.isNotEmpty ? product.program : "Tidak ada promo"),
       ],
     );
   }
@@ -65,7 +63,8 @@ class ProductCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("Bonus:", style: TextStyle(fontWeight: FontWeight.bold)),
+        const Text("Complimentary :",
+            style: TextStyle(fontWeight: FontWeight.bold)),
         if (product.bonus.isNotEmpty)
           ...product.bonus.map(
             (bonus) => Text("• ${bonus.quantity}x ${bonus.name}",
@@ -117,11 +116,8 @@ class ProductCard extends StatelessWidget {
         isStrikethrough: true,
         color: Colors.red.shade700,
       ),
-      _buildDetailRow(
-        "Total Diskon",
-        "- ${FormatHelper.formatCurrency(totalDiscount)}",
-        color: Colors.orange,
-      ),
+      _buildDetailRow("Program",
+          product.program.isNotEmpty ? product.program : "Tidak ada promo"),
     ];
 
     if (hasDiscountReceived) {
@@ -133,6 +129,7 @@ class ProductCard extends StatelessWidget {
         ),
       );
     }
+
     details.add(
       _buildDetailRow(
         "Harga Net",
@@ -154,6 +151,14 @@ class ProductCard extends StatelessWidget {
         ),
       );
     }
+
+    details.add(
+      _buildDetailRow(
+        "Total Diskon",
+        "- ${FormatHelper.formatCurrency(totalDiscount)}",
+        color: Colors.orange,
+      ),
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

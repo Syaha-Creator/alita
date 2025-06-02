@@ -187,3 +187,13 @@ class SaveProductNote extends ProductEvent {
   @override
   List<Object?> get props => [productId, note];
 }
+
+class UpdateProductNote extends ProductEvent {
+  final int productId;
+  final String note;
+
+  const UpdateProductNote({required this.productId, required this.note});
+
+  @override
+  List<Object?> get props => [productId, note];
+}

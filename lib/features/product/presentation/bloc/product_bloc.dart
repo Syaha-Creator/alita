@@ -468,5 +468,11 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         ..[event.productId] = event.note;
       emit(state.copyWith(productNotes: updatedNotes));
     });
+
+    on<UpdateProductNote>((event, emit) {
+      final updatedNotes = Map<int, String>.from(state.productNotes);
+      updatedNotes[event.productId] = event.note;
+      emit(state.copyWith(productNotes: updatedNotes));
+    });
   }
 }

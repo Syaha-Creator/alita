@@ -68,3 +68,21 @@ class UpdateCartQuantity extends CartEvent {
 }
 
 class ClearCart extends CartEvent {}
+
+class Checkout extends CartEvent {
+  final double totalPrice;
+  final String promoCode;
+  final String paymentMethod;
+  final String shippingAddress;
+
+  const Checkout({
+    required this.totalPrice,
+    required this.promoCode,
+    required this.paymentMethod,
+    required this.shippingAddress,
+  });
+
+  @override
+  List<Object?> get props =>
+      [totalPrice, promoCode, paymentMethod, shippingAddress];
+}

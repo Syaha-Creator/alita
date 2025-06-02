@@ -101,7 +101,6 @@ class ProductModel {
     );
   }
 
-  // ✅ Perbaikan metode dariJsonList
   static List<ProductModel> fromJsonList(Map<String, dynamic> jsonMap) {
     if (jsonMap["result"] is List) {
       return (jsonMap["result"] as List)

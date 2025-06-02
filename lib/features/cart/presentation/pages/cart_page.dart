@@ -6,6 +6,7 @@ import '../bloc/cart_bloc.dart';
 import '../bloc/event/cart_event.dart';
 import '../bloc/state/cart_state.dart';
 import '../widgets/cart_item.dart';
+import 'checkout_pages.dart';
 
 class CartPage extends StatelessWidget {
   const CartPage({super.key});
@@ -13,39 +14,12 @@ class CartPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: Text('Keranjang Belanja'),
+      ),
       body: SafeArea(
         child: Column(
           children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.blue.shade700, Colors.blue.shade400],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                  Expanded(
-                    child: Text(
-                      'Keranjang Belanja',
-                      style: GoogleFonts.montserrat(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  const SizedBox(width: 48),
-                ],
-              ),
-            ),
             Expanded(
               child: BlocBuilder<CartBloc, CartState>(
                 builder: (context, state) {
@@ -129,7 +103,12 @@ class CartPage extends StatelessWidget {
                             ),
                             child: ElevatedButton(
                               onPressed: () {
-                                // Implementasi checkout
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const CheckoutPages(),
+                                  ),
+                                );
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.blue.shade700,
@@ -185,13 +164,13 @@ class CartPage extends StatelessWidget {
           actions: <Widget>[
             TextButton(
               child: const Text('Iya'),
-              onPressed: () => Navigator.of(context).pop(false),
+              onPressed: () => Navigator.of(context).pop(true),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red.shade700),
               child: const Text('Batal', style: TextStyle(color: Colors.white)),
-              onPressed: () => Navigator.of(context).pop(true),
+              onPressed: () => Navigator.of(context).pop(false),
             ),
           ],
         );

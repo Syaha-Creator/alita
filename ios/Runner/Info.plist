@@ -28,6 +28,8 @@
 	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Aplikasi ini memerlukan akses jaringan lokal untuk debugging dan fitur pengembangan.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Kami memerlukan izin untuk menyimpan gambar produk ke galeri.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

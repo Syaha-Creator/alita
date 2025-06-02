@@ -8,8 +8,6 @@ abstract class CartState extends Equatable {
   List<Object?> get props => [];
 }
 
-class CartInitial extends CartState {}
-
 class CartLoaded extends CartState {
   final List<CartEntity> cartItems;
 

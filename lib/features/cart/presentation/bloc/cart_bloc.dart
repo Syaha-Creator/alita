@@ -5,7 +5,7 @@ import 'event/cart_event.dart';
 import 'state/cart_state.dart';
 
 class CartBloc extends Bloc<CartEvent, CartState> {
-  CartBloc() : super(CartInitial()) {
+  CartBloc() : super(CartLoaded([])) {
     on<AddToCart>((event, emit) {
       if (state is CartLoaded) {
         final currentState = state as CartLoaded;
