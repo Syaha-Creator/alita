@@ -3,11 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/utils/format_helper.dart';
 import '../../../cart/presentation/bloc/cart_bloc.dart';
-import '../../../cart/presentation/bloc/event/cart_event.dart';
+import '../../../cart/presentation/bloc/cart_event.dart';
 import '../../domain/entities/product_entity.dart';
-import '../bloc/event/product_event.dart';
+import '../bloc/product_event.dart';
 import '../bloc/product_bloc.dart';
-import '../bloc/state/product_state.dart';
+import '../bloc/product_state.dart';
 import 'product_action.dart';
 
 class ProductCard extends StatelessWidget {
