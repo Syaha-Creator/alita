@@ -1,7 +1,9 @@
+// lib/features/authentication/presentation/widgets/login_form.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/utils/controller_disposal_mixin.dart';
 import '../../../../core/utils/validation.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_loading.dart';
@@ -9,9 +11,12 @@ import '../../../../core/widgets/custom_textfield.dart';
 import '../../../../core/widgets/custom_toast.dart';
 import '../../../../navigation/navigation_service.dart';
 import '../../../../navigation/route_path.dart';
+import '../../../../services/auth_service.dart';
+import '../../../product/presentation/bloc/product_bloc.dart';
+import '../../../product/presentation/bloc/product_event.dart';
 import '../bloc/auth_bloc.dart';
-import '../bloc/event/auth_event.dart';
-import '../bloc/state/auth_state.dart';
+import '../bloc/auth_event.dart';
+import '../bloc/auth_state.dart';
 
 class LoginForm extends StatefulWidget {
   const LoginForm({super.key});
@@ -20,25 +25,45 @@ class LoginForm extends StatefulWidget {
   State<LoginForm> createState() => _LoginFormState();
 }
 
-class _LoginFormState extends State<LoginForm> {
+class _LoginFormState extends State<LoginForm> with ControllerDisposalMixin {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
-  final FocusNode emailFocus = FocusNode();
-  final FocusNode passwordFocus = FocusNode();
+
+  late final TextEditingController emailController;
+  late final TextEditingController passwordController;
+  late final FocusNode emailFocus;
+  late final FocusNode passwordFocus;
+
   bool isLoading = false;
+  bool _rememberMe = false;
 
   @override
-  void dispose() {
-    emailController.dispose();
-    passwordController.dispose();
-    emailFocus.dispose();
-    passwordFocus.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    emailController = registerController();
+    passwordController = registerController();
+    emailFocus = registerFocusNode();
+    passwordFocus = registerFocusNode();
+    _loadSavedEmail();
   }
 
-  void _submitLogin() {
+  void _loadSavedEmail() async {
+    final savedEmail = await AuthService.getSavedEmail();
+    if (savedEmail != null && mounted) {
+      setState(() {
+        emailController.text = savedEmail;
+        _rememberMe = true;
+      });
+    }
+  }
+
+  void _submitLogin() async {
     if (_formKey.currentState!.validate()) {
+      if (_rememberMe) {
+        await AuthService.saveEmail(emailController.text);
+      } else {
+        await AuthService.clearSavedEmail();
+      }
+
       setState(() => isLoading = true);
       context.read<AuthBloc>().add(
             AuthLoginRequested(emailController.text, passwordController.text),
@@ -55,7 +80,6 @@ class _LoginFormState extends State<LoginForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Email Input
           Text(
             "Email",
             style: GoogleFonts.montserrat(
@@ -69,7 +93,6 @@ class _LoginFormState extends State<LoginForm> {
             controller: emailController,
             labelText: "Enter your email",
             prefixIcon: Icons.email_outlined,
-            isPassword: false,
             validator: ValidationHelper.validateEmail,
             focusNode: emailFocus,
             onFieldSubmitted: (_) {
@@ -77,8 +100,6 @@ class _LoginFormState extends State<LoginForm> {
             },
           ),
           const SizedBox(height: 15),
-
-          // Password Input
           Text(
             "Password",
             style: GoogleFonts.montserrat(
@@ -96,9 +117,23 @@ class _LoginFormState extends State<LoginForm> {
             validator: ValidationHelper.validatePassword,
             focusNode: passwordFocus,
           ),
-          const SizedBox(height: 20),
-
-          // Login Button
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Row(
+              children: [
+                Checkbox(
+                  value: _rememberMe,
+                  onChanged: (value) {
+                    setState(() {
+                      _rememberMe = value ?? false;
+                    });
+                  },
+                ),
+                const Text("Remember Me"),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
           BlocListener<AuthBloc, AuthState>(
             listener: (context, state) {
               if (!mounted) return;
@@ -110,6 +145,8 @@ class _LoginFormState extends State<LoginForm> {
               }
 
               if (state is AuthSuccess) {
+                context.read<ProductBloc>().add(FetchProducts());
+
                 setState(() => isLoading = false);
                 CustomToast.showToast("Login Berhasil!", ToastType.success);
                 NavigationService.navigateAndReplace(RoutePaths.product);
@@ -120,41 +157,10 @@ class _LoginFormState extends State<LoginForm> {
                 CustomToast.showToast(state.error, ToastType.error);
               }
             },
-            child: Column(
-              children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                  child: CustomButton(
-                    text: "Login",
-                    onPressed: isLoading ? () {} : _submitLogin,
-                    isLoading: isLoading,
-                  ),
-                ),
-                const SizedBox(height: 15),
-
-                // Forgot Password Button
-                Center(
-                  child: TextButton(
-                    onPressed: () {
-                      // Tambahkan navigasi ke halaman reset password jika ada
-                    },
-                    style: TextButton.styleFrom(
-                      padding: EdgeInsets.zero,
-                    ),
-                    child: Text(
-                      "Forgot password?",
-                      style: GoogleFonts.montserrat(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: theme.brightness == Brightness.dark
-                            ? const Color(0xFFADD8E6)
-                            : theme.colorScheme.primary,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+            child: CustomButton(
+              text: "Login",
+              onPressed: isLoading ? () {} : _submitLogin,
+              isLoading: isLoading,
             ),
           ),
         ],

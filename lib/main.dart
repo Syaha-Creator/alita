@@ -1,10 +1,10 @@
+// lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'config/dependency_injection.dart';
 import 'features/authentication/presentation/bloc/auth_bloc.dart';
 import 'features/cart/presentation/bloc/cart_bloc.dart';
-import 'features/product/presentation/bloc/event/product_event.dart';
 import 'features/product/presentation/bloc/product_bloc.dart';
 import 'navigation/app_router.dart';
 import 'services/auth_service.dart';
@@ -13,16 +13,14 @@ import 'theme/app_theme.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   setupLocator();
-  bool isLoggedIn = await AuthService.isLoggedIn();
 
-  runApp(MyApp(
-    isLoggedIn: isLoggedIn,
-  ));
+  await AuthService.isLoggedIn();
+
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  final bool isLoggedIn;
-  const MyApp({super.key, required this.isLoggedIn});
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -32,9 +30,11 @@ class MyApp extends StatelessWidget {
           create: (context) => locator<AuthBloc>(),
         ),
         BlocProvider<ProductBloc>(
-          create: (context) => locator<ProductBloc>()..add(AppStarted()),
+          create: (context) => locator<ProductBloc>(),
         ),
-        BlocProvider(create: (context) => CartBloc()),
+        BlocProvider(
+          create: (context) => CartBloc(),
+        ),
       ],
       child: ValueListenableBuilder<bool>(
         valueListenable: AuthService.authChangeNotifier,

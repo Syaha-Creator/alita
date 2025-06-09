@@ -9,6 +9,7 @@ class LoginUseCase {
   Future<AuthEntity> call(String email, String password) async {
     final authModel = await repository.login(email, password);
     return AuthEntity(
+      id: authModel.id,
       accessToken: authModel.accessToken,
       refreshToken: authModel.refreshToken,
       expiresIn: authModel.createdAt ?? DateTime.now().millisecondsSinceEpoch,
