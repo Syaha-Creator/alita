@@ -1,10 +1,17 @@
+// File: lib/features/cart/presentation/pages/checkout_pages.dart
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+
+import '../../../../core/utils/controller_disposal_mixin.dart';
 import '../../../../core/utils/format_helper.dart';
+import '../../../../core/widgets/custom_toast.dart';
+import '../../../../services/pdf_services.dart';
+import '../../domain/entities/cart_entity.dart';
 import '../bloc/cart_bloc.dart';
-import '../bloc/event/cart_event.dart';
-import '../bloc/state/cart_state.dart';
+import '../bloc/cart_event.dart';
+import '../bloc/cart_state.dart';
 
 class CheckoutPages extends StatefulWidget {
   const CheckoutPages({super.key});
@@ -13,12 +20,19 @@ class CheckoutPages extends StatefulWidget {
   State<CheckoutPages> createState() => _CheckoutPagesState();
 }
 
-class _CheckoutPagesState extends State<CheckoutPages> {
+class _CheckoutPagesState extends State<CheckoutPages>
+    with ControllerDisposalMixin {
   final _formKey = GlobalKey<FormState>();
-  final _addressController = TextEditingController();
-  final _promoCodeController = TextEditingController();
-  final _notesController = TextEditingController();
+
+  // Using mixin for automatic disposal
+  late final TextEditingController _addressController;
+  late final TextEditingController _promoCodeController;
+  late final TextEditingController _notesController;
+  late final TextEditingController _customerNameController;
+
   String _selectedPaymentMethod = 'Transfer Bank';
+  bool _isGeneratingPDF = false;
+
   final List<Map<String, dynamic>> _paymentMethods = [
     {
       'name': 'Transfer Bank',
@@ -39,11 +53,133 @@ class _CheckoutPagesState extends State<CheckoutPages> {
   ];
 
   @override
-  void dispose() {
-    _addressController.dispose();
-    _promoCodeController.dispose();
-    _notesController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+
+    // Register controllers for auto-disposal
+    _addressController = registerController();
+    _promoCodeController = registerController();
+    _notesController = registerController();
+    _customerNameController = registerController();
+  }
+
+  Future<void> _generateAndSharePDF(
+      List<CartEntity> selectedItems, double totalPrice) async {
+    try {
+      setState(() => _isGeneratingPDF = true);
+
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Dialog(
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(width: 16),
+                Text('Membuat PDF...'),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      // Generate PDF
+      final Uint8List pdfBytes = await PDFService.generateCheckoutPDF(
+        cartItems: selectedItems,
+        totalPrice: totalPrice,
+        customerInfo: _customerNameController.text,
+        paymentMethod: _selectedPaymentMethod,
+        shippingAddress: _addressController.text,
+        promoCode: _promoCodeController.text,
+        notes: _notesController.text,
+      );
+
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+
+      // Show PDF options dialog
+      _showPDFOptionsDialog(pdfBytes);
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        CustomToast.showToast(
+          'Gagal membuat PDF: $e',
+          ToastType.error,
+        );
+      }
+    } finally {
+      setState(() => _isGeneratingPDF = false);
+    }
+  }
+
+  void _showPDFOptionsDialog(Uint8List pdfBytes) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          'PDF Berhasil Dibuat',
+          style: GoogleFonts.montserrat(fontWeight: FontWeight.w600),
+        ),
+        content: Text(
+          'Invoice checkout telah dibuat dalam format PDF. Pilih aksi yang ingin dilakukan:',
+          style: GoogleFonts.montserrat(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Tutup'),
+          ),
+          TextButton(
+            onPressed: () async {
+              try {
+                Navigator.pop(ctx);
+                final filePath = await PDFService.savePDFToDevice(pdfBytes);
+                CustomToast.showToast(
+                  'PDF disimpan di: ${filePath.split('/').last}',
+                  ToastType.success,
+                );
+              } catch (e) {
+                CustomToast.showToast(
+                  'Gagal menyimpan PDF: $e',
+                  ToastType.error,
+                );
+              }
+            },
+            child: Text('Simpan'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                Navigator.pop(ctx);
+                final fileName =
+                    'invoice_${DateTime.now().millisecondsSinceEpoch}.pdf';
+                await PDFService.sharePDF(pdfBytes, fileName);
+                CustomToast.showToast(
+                  'PDF siap dibagikan',
+                  ToastType.success,
+                );
+              } catch (e) {
+                CustomToast.showToast(
+                  'Gagal membagikan PDF: $e',
+                  ToastType.error,
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue.shade700,
+            ),
+            child: Text(
+              'Bagikan',
+              style: GoogleFonts.montserrat(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -65,7 +201,8 @@ class _CheckoutPagesState extends State<CheckoutPages> {
               child: BlocBuilder<CartBloc, CartState>(
                 builder: (context, state) {
                   if (state is CartLoaded) {
-                    final totalPrice = state.cartItems.fold(
+                    final selectedItems = state.selectedItems;
+                    final totalPrice = selectedItems.fold(
                       0.0,
                       (sum, item) => sum + (item.netPrice * item.quantity),
                     );
@@ -76,6 +213,9 @@ class _CheckoutPagesState extends State<CheckoutPages> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            _buildSectionTitle('Informasi Pelanggan'),
+                            _buildCustomerNameInput(),
+                            const SizedBox(height: 16),
                             _buildSectionTitle('Alamat Pengiriman'),
                             _buildAddressInput(),
                             const SizedBox(height: 16),
@@ -89,7 +229,7 @@ class _CheckoutPagesState extends State<CheckoutPages> {
                             _buildNotesInput(),
                             const SizedBox(height: 16),
                             _buildSectionTitle('Ringkasan Pesanan'),
-                            _buildOrderSummary(state, totalPrice),
+                            _buildOrderSummary(selectedItems, totalPrice),
                             const SizedBox(height: 16),
                           ],
                         ),
@@ -114,6 +254,32 @@ class _CheckoutPagesState extends State<CheckoutPages> {
         fontSize: 18,
         fontWeight: FontWeight.w600,
         color: Colors.grey.shade800,
+      ),
+    );
+  }
+
+  Widget _buildCustomerNameInput() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: TextFormField(
+        controller: _customerNameController,
+        decoration: InputDecoration(
+          labelText: 'Nama Pelanggan',
+          hintText: 'Masukkan nama pelanggan',
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+        validator: (value) {
+          if (value == null || value.isEmpty) {
+            return 'Nama pelanggan tidak boleh kosong';
+          }
+          return null;
+        },
       ),
     );
   }
@@ -164,39 +330,38 @@ class _CheckoutPagesState extends State<CheckoutPages> {
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(8),
             ),
-
-            // child: RadioListTile<String>(
-            //   value: method['name'],
-            //   groupValue: _selectedPaymentMethod,
-            //   onChanged: (value) {
-            //     setState(() {
-            //       _selectedPaymentMethod = value!;
-            //     });
-            //   },
-            //   activeColor: Colors.blue.shade700,
-            //   title: Row(
-            //     children: [
-            //       Icon(
-            //         method['icon'],
-            //         size: 24,
-            //         color: _selectedPaymentMethod == method['name']
-            //             ? Colors.blue.shade700
-            //             : Colors.grey.shade600,
-            //       ),
-            //       const SizedBox(width: 12),
-            //       Text(
-            //         method['name'],
-            //         style: GoogleFonts.montserrat(
-            //           fontSize: 16,
-            //           fontWeight: FontWeight.w500,
-            //           color: _selectedPaymentMethod == method['name']
-            //               ? Colors.blue.shade700
-            //               : Colors.grey.shade800,
-            //         ),
-            //       ),
-            //     ],
-            //   ),
-            // ),
+            child: RadioListTile<String>(
+              value: method['name'],
+              groupValue: _selectedPaymentMethod,
+              onChanged: (value) {
+                setState(() {
+                  _selectedPaymentMethod = value!;
+                });
+              },
+              activeColor: Colors.blue.shade700,
+              title: Row(
+                children: [
+                  Icon(
+                    method['icon'],
+                    size: 24,
+                    color: _selectedPaymentMethod == method['name']
+                        ? Colors.blue.shade700
+                        : Colors.grey.shade600,
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    method['name'],
+                    style: GoogleFonts.montserrat(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: _selectedPaymentMethod == method['name']
+                          ? Colors.blue.shade700
+                          : Colors.grey.shade800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           );
         }).toList(),
       ),
@@ -260,7 +425,7 @@ class _CheckoutPagesState extends State<CheckoutPages> {
     );
   }
 
-  Widget _buildOrderSummary(CartLoaded state, double totalPrice) {
+  Widget _buildOrderSummary(List<CartEntity> selectedItems, double totalPrice) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -271,7 +436,7 @@ class _CheckoutPagesState extends State<CheckoutPages> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ...state.cartItems.asMap().entries.map((entry) {
+          ...selectedItems.asMap().entries.map((entry) {
             final item = entry.value;
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
@@ -343,33 +508,54 @@ class _CheckoutPagesState extends State<CheckoutPages> {
               ],
             ),
             child: ElevatedButton(
-              onPressed: () {
-                if (_formKey.currentState!.validate()) {
-                  context.read<CartBloc>().add(Checkout(
-                        totalPrice: totalPrice,
-                        promoCode: _promoCodeController.text,
-                        paymentMethod: _selectedPaymentMethod,
-                        shippingAddress: _addressController.text,
-                      ));
-                  _showSuccessDialog(context);
-                }
-              },
+              onPressed: _isGeneratingPDF
+                  ? null
+                  : () {
+                      if (_formKey.currentState!.validate()) {
+                        _showCheckoutConfirmationDialog(
+                            context, state, totalPrice);
+                      }
+                    },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue.shade700,
+                backgroundColor:
+                    _isGeneratingPDF ? Colors.grey : Colors.blue.shade700,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
                 minimumSize: const Size(double.infinity, 56),
                 elevation: 8,
               ),
-              child: Text(
-                'Konfirmasi Pesanan',
-                style: GoogleFonts.montserrat(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
-              ),
+              child: _isGeneratingPDF
+                  ? Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          'Memproses...',
+                          style: GoogleFonts.montserrat(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    )
+                  : Text(
+                      'Konfirmasi Pesanan',
+                      style: GoogleFonts.montserrat(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
             ),
           );
         }
@@ -378,7 +564,80 @@ class _CheckoutPagesState extends State<CheckoutPages> {
     );
   }
 
-  void _showSuccessDialog(BuildContext context) {
+  void _showCheckoutConfirmationDialog(
+      BuildContext context, CartLoaded state, double totalPrice) {
+    final selectedItems = state.selectedItems;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          'Konfirmasi Checkout',
+          style: GoogleFonts.montserrat(fontWeight: FontWeight.w600),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Total: ${FormatHelper.formatCurrency(totalPrice)}',
+              style: GoogleFonts.montserrat(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.green.shade700,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Apakah Anda ingin melanjutkan checkout dan membuat invoice PDF?',
+              style: GoogleFonts.montserrat(),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () {
+              // Checkout without PDF
+              Navigator.pop(ctx);
+              context.read<CartBloc>().add(Checkout(
+                    totalPrice: totalPrice,
+                    promoCode: _promoCodeController.text,
+                    paymentMethod: _selectedPaymentMethod,
+                    shippingAddress: _addressController.text,
+                  ));
+              _showSuccessDialog(context, false);
+            },
+            child: Text('Checkout Saja'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // Checkout with PDF
+              Navigator.pop(ctx);
+              context.read<CartBloc>().add(Checkout(
+                    totalPrice: totalPrice,
+                    promoCode: _promoCodeController.text,
+                    paymentMethod: _selectedPaymentMethod,
+                    shippingAddress: _addressController.text,
+                  ));
+              _generateAndSharePDF(selectedItems, totalPrice);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue.shade700,
+            ),
+            child: Text(
+              'Checkout + PDF',
+              style: GoogleFonts.montserrat(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSuccessDialog(BuildContext context, bool withPDF) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -387,13 +646,14 @@ class _CheckoutPagesState extends State<CheckoutPages> {
           style: GoogleFonts.montserrat(fontWeight: FontWeight.w600),
         ),
         content: Text(
-          'Pesanan Anda telah diterima. Kami akan mengirimkan konfirmasi melalui email.',
+          withPDF
+              ? 'Pesanan Anda telah diterima dan invoice PDF telah dibuat.'
+              : 'Pesanan Anda telah diterima. Kami akan mengirimkan konfirmasi melalui email.',
           style: GoogleFonts.montserrat(),
         ),
         actions: [
           ElevatedButton(
             onPressed: () {
-              context.read<CartBloc>().add(ClearCart());
               Navigator.pop(ctx);
               Navigator.popUntil(context, (route) => route.isFirst);
             },

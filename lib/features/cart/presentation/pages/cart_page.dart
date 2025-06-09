@@ -3,8 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/utils/format_helper.dart';
 import '../bloc/cart_bloc.dart';
-import '../bloc/event/cart_event.dart';
-import '../bloc/state/cart_state.dart';
+import '../bloc/cart_event.dart';
+import '../bloc/cart_state.dart';
 import '../widgets/cart_item.dart';
 import 'checkout_pages.dart';
 
@@ -50,7 +50,10 @@ class CartPage extends StatelessWidget {
                         ),
                       );
                     } else {
-                      double totalPrice = state.cartItems.fold(
+                      final selectedItems = state.cartItems
+                          .where((item) => item.isSelected)
+                          .toList();
+                      double totalPrice = selectedItems.fold(
                         0.0,
                         (sum, item) => sum + (item.netPrice * item.quantity),
                       );
@@ -102,14 +105,17 @@ class CartPage extends StatelessWidget {
                               ],
                             ),
                             child: ElevatedButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const CheckoutPages(),
-                                  ),
-                                );
-                              },
+                              onPressed: selectedItems.isEmpty
+                                  ? null
+                                  : () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const CheckoutPages(),
+                                        ),
+                                      );
+                                    },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.blue.shade700,
                                 shape: RoundedRectangleBorder(

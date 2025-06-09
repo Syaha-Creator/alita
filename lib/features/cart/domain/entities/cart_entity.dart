@@ -8,6 +8,29 @@ class CartEntity {
   final double editPopupDiscount;
   final int? installmentMonths;
   final double? installmentPerMonth;
+  final bool isSelected;
+
+  CartEntity copyWith({
+    ProductEntity? product,
+    int? quantity,
+    double? netPrice,
+    List<double>? discountPercentages,
+    double? editPopupDiscount,
+    int? installmentMonths,
+    double? installmentPerMonth,
+    bool? isSelected,
+  }) {
+    return CartEntity(
+      product: product ?? this.product,
+      quantity: quantity ?? this.quantity,
+      netPrice: netPrice ?? this.netPrice,
+      discountPercentages: discountPercentages ?? this.discountPercentages,
+      editPopupDiscount: editPopupDiscount ?? this.editPopupDiscount,
+      installmentMonths: installmentMonths ?? this.installmentMonths,
+      installmentPerMonth: installmentPerMonth ?? this.installmentPerMonth,
+      isSelected: isSelected ?? this.isSelected,
+    );
+  }
 
   const CartEntity({
     required this.product,
@@ -17,6 +40,7 @@ class CartEntity {
     required this.editPopupDiscount,
     this.installmentMonths,
     this.installmentPerMonth,
+    this.isSelected = true,
   });
 
   List<Object?> get props => [
@@ -27,5 +51,6 @@ class CartEntity {
         editPopupDiscount,
         installmentMonths,
         installmentPerMonth,
+        isSelected,
       ];
 }

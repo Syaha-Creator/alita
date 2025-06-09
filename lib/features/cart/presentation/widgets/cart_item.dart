@@ -1,13 +1,16 @@
+// File: lib/features/cart/presentation/widgets/cart_item.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+
+import '../../../../core/utils/controller_disposal_mixin.dart';
 import '../../../../core/utils/format_helper.dart';
-import '../../../product/presentation/bloc/event/product_event.dart';
 import '../../../product/presentation/bloc/product_bloc.dart';
-import '../../../product/presentation/bloc/state/product_state.dart';
+import '../../../product/presentation/bloc/product_event.dart';
+import '../../../product/presentation/bloc/product_state.dart';
 import '../../domain/entities/cart_entity.dart';
 import '../bloc/cart_bloc.dart';
-import '../bloc/event/cart_event.dart';
+import '../bloc/cart_event.dart';
 
 class CartItemWidget extends StatefulWidget {
   final CartEntity item;
@@ -18,9 +21,10 @@ class CartItemWidget extends StatefulWidget {
   State<CartItemWidget> createState() => _CartItemWidgetState();
 }
 
-class _CartItemWidgetState extends State<CartItemWidget> {
+class _CartItemWidgetState extends State<CartItemWidget>
+    with ControllerDisposalMixin {
   bool isExpanded = true;
-  late TextEditingController _noteController;
+  late final TextEditingController _noteController;
 
   static const double _padding = 10.0;
   static const double _avatarSize = 40.0;
@@ -29,18 +33,13 @@ class _CartItemWidgetState extends State<CartItemWidget> {
   @override
   void initState() {
     super.initState();
-    _noteController = TextEditingController(
-        text: context
-                .read<ProductBloc>()
-                .state
-                .productNotes[widget.item.product.id] ??
-            '');
-  }
 
-  @override
-  void dispose() {
-    _noteController.dispose();
-    super.dispose();
+    // Register controller for auto-disposal
+    _noteController = registerController(context
+            .read<ProductBloc>()
+            .state
+            .productNotes[widget.item.product.id] ??
+        '');
   }
 
   @override
@@ -89,6 +88,15 @@ class _CartItemWidgetState extends State<CartItemWidget> {
   Widget _buildHeader(BuildContext context) {
     return Row(
       children: [
+        Checkbox(
+          value: widget.item.isSelected,
+          onChanged: (value) {
+            context.read<CartBloc>().add(ToggleCartItemSelection(
+                  productId: widget.item.product.id,
+                  netPrice: widget.item.netPrice,
+                ));
+          },
+        ),
         CircleAvatar(
           radius: _avatarSize / 2,
           backgroundColor: Theme.of(context).primaryColorLight,

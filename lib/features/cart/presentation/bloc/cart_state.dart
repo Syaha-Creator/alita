@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import '../../../domain/entities/cart_entity.dart';
+import '../../domain/entities/cart_entity.dart';
 
 abstract class CartState extends Equatable {
   const CartState();
@@ -10,8 +10,10 @@ abstract class CartState extends Equatable {
 
 class CartLoaded extends CartState {
   final List<CartEntity> cartItems;
-
   const CartLoaded(this.cartItems);
+
+  List<CartEntity> get selectedItems =>
+      cartItems.where((item) => item.isSelected).toList();
 
   @override
   List<Object?> get props => [cartItems];
