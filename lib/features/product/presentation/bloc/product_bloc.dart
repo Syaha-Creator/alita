@@ -2,8 +2,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/widgets/custom_toast.dart';
 import '../../domain/usecases/get_product_usecase.dart';
-import 'event/product_event.dart';
-import 'state/product_state.dart';
+import 'product_event.dart';
+import 'product_state.dart';
 
 class ProductBloc extends Bloc<ProductEvent, ProductState> {
   final GetProductUseCase getProductUseCase;

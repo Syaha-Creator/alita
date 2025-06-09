@@ -4,11 +4,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../navigation/navigation_service.dart';
 import '../../../../navigation/route_path.dart';
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
-import '../../../authentication/presentation/bloc/state/auth_state.dart';
+import '../../../authentication/presentation/bloc/auth_state.dart';
 import '../../../cart/presentation/pages/cart_page.dart';
-import '../bloc/event/product_event.dart';
 import '../bloc/product_bloc.dart';
-import '../bloc/state/product_state.dart';
+import '../bloc/product_event.dart';
+import '../bloc/product_state.dart';
 import '../widgets/logout_button.dart';
 import '../widgets/product_card.dart';
 import '../widgets/product_dropdown.dart';
@@ -21,6 +21,15 @@ class ProductPage extends StatefulWidget {
 }
 
 class _ProductPageState extends State<ProductPage> {
+  @override
+  void initState() {
+    super.initState();
+    final productState = context.read<ProductBloc>().state;
+    if (productState.products.isEmpty && productState is! ProductLoading) {
+      context.read<ProductBloc>().add(FetchProducts());
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocListener<AuthBloc, AuthState>(
@@ -61,8 +70,9 @@ class _ProductPageState extends State<ProductPage> {
                   ),
                 );
               }
-              if (state.availableAreas.isEmpty) {
-                return const Center(child: Text("Data tidak ditemukan"));
+              if (state.products.isEmpty) {
+                return const Center(
+                    child: Text("Data produk tidak ditemukan dari server."));
               }
 
               return Column(
