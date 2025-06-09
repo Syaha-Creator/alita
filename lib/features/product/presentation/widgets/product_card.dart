@@ -1,9 +1,8 @@
-// lib/features/product/presentation/widgets/product_card.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/utils/format_helper.dart';
 import '../../../../core/widgets/custom_toast.dart';
+import '../../../../core/widgets/detail_info_row.dart';
 import '../../../cart/presentation/bloc/cart_bloc.dart';
 import '../../../cart/presentation/bloc/cart_event.dart';
 import '../../domain/entities/product_entity.dart';
@@ -15,58 +14,30 @@ class ProductCard extends StatelessWidget {
   final ProductEntity product;
   final bool hideButtons;
 
-  const ProductCard(
-      {super.key, required this.product, this.hideButtons = false});
+  const ProductCard({
+    super.key,
+    required this.product,
+    this.hideButtons = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // ---- PENINGKATAN PERFORMA ----
-    // BlocBuilder ini sekarang hanya akan membangun ulang widget ProductCard
-    // jika data yang relevan untuk produk INI SAJA yang berubah.
     return BlocBuilder<ProductBloc, ProductState>(
       buildWhen: (previous, current) {
-        // Bandingkan hanya data yang relevan untuk produk dengan ID ini
         final id = product.id;
-        final priceChanged =
-            previous.roundedPrices[id] != current.roundedPrices[id];
-        final discountChanged = previous.productDiscountsPercentage[id] !=
-            current.productDiscountsPercentage[id];
-        final noteChanged =
-            previous.productNotes[id] != current.productNotes[id];
-        final installmentChanged =
+        return previous.roundedPrices[id] != current.roundedPrices[id] ||
+            previous.productDiscountsPercentage[id] !=
+                current.productDiscountsPercentage[id] ||
+            previous.productNotes[id] != current.productNotes[id] ||
             previous.installmentMonths[id] != current.installmentMonths[id];
-
-        return priceChanged ||
-            discountChanged ||
-            noteChanged ||
-            installmentChanged;
       },
       builder: (context, state) {
-        // Logika untuk menampilkan data, tidak ada yang berubah di sini
         final netPrice =
             state.roundedPrices[product.id] ?? product.endUserPrice;
-        final totalDiscount = product.pricelist - netPrice;
-
-        List<double> discountPercentages =
+        final discountPercentages =
             state.productDiscountsPercentage[product.id] ?? [];
-        double editPopupDiscount =
+        final editPopupDiscount =
             state.priceChangePercentages[product.id] ?? 0.0;
-
-        List<String> discountList = discountPercentages
-            .where((d) => d > 0.0)
-            .map((d) =>
-                d % 1 == 0 ? "${d.toInt()}%" : "${d.toStringAsFixed(2)}%")
-            .toList();
-
-        if (editPopupDiscount != 0.0) {
-          discountList.add(editPopupDiscount % 1 == 0
-              ? "${editPopupDiscount.toInt()}%"
-              : "${editPopupDiscount.toStringAsFixed(2)}%");
-        }
-        String formattedDiscounts =
-            discountList.isNotEmpty ? discountList.join(" + ") : "( -)";
-        bool hasDiscountReceived = discountList.isNotEmpty;
-
         return Card(
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -79,8 +50,7 @@ class ProductCard extends StatelessWidget {
               children: [
                 _buildProductDetail(),
                 const SizedBox(height: 12),
-                _buildPriceInfo(context, state, netPrice, totalDiscount,
-                    formattedDiscounts, hasDiscountReceived),
+                _buildPriceInfo(context, state),
                 const SizedBox(height: 12),
                 _buildBonusInfo(state),
                 if (!hideButtons) ...[
@@ -96,19 +66,76 @@ class ProductCard extends StatelessWidget {
     );
   }
 
-  // Semua fungsi helper di bawah ini tidak ada perubahan.
-  // ... (sisa kode _buildProductDetail, _buildPriceInfo, _buildBonusInfo, _buildFooterButtons, dll)
+  // Fungsi _buildDetailRow sekarang sudah tidak ada, digantikan oleh widget DetailInfoRow
   Widget _buildProductDetail() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildDetailRow("Kasur", product.kasur),
-        if (product.divan.isNotEmpty) _buildDetailRow("Divan", product.divan),
-        if (product.headboard.isNotEmpty)
-          _buildDetailRow("Headboard", product.headboard),
-        if (product.sorong.isNotEmpty)
-          _buildDetailRow("Sorong", product.sorong),
-        _buildDetailRow("Ukuran", product.ukuran),
+        DetailInfoRow(title: "Kasur", value: product.kasur),
+        DetailInfoRow(title: "Divan", value: product.divan),
+        DetailInfoRow(title: "Headboard", value: product.headboard),
+        DetailInfoRow(title: "Sorong", value: product.sorong),
+        DetailInfoRow(title: "Ukuran", value: product.ukuran),
+      ],
+    );
+  }
+
+  Widget _buildPriceInfo(BuildContext context, ProductState state) {
+    final netPrice = state.roundedPrices[product.id] ?? product.endUserPrice;
+    final totalDiscount = product.pricelist - netPrice;
+
+    List<double> discountPercentages =
+        state.productDiscountsPercentage[product.id] ?? [];
+    double editPopupDiscount = state.priceChangePercentages[product.id] ?? 0.0;
+
+    List<String> discountList = discountPercentages
+        .where((d) => d > 0.0)
+        .map((d) => "${d.toStringAsFixed(d.truncateToDouble() == d ? 0 : 2)}%")
+        .toList();
+    if (editPopupDiscount != 0.0) {
+      discountList.add(
+          "${editPopupDiscount.toStringAsFixed(editPopupDiscount.truncateToDouble() == editPopupDiscount ? 0 : 2)}%");
+    }
+    String formattedDiscounts =
+        discountList.isNotEmpty ? discountList.join(" + ") : "( -)";
+    bool hasDiscountReceived = discountList.isNotEmpty;
+    bool hasInstallment = state.installmentMonths.containsKey(product.id) &&
+        state.installmentMonths[product.id]! > 0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        DetailInfoRow(
+            title: "Pricelist",
+            value: FormatHelper.formatCurrency(product.pricelist),
+            isStrikethrough: true,
+            valueColor: Colors.red.shade700),
+        DetailInfoRow(
+            title: "Program",
+            value: product.program.isNotEmpty
+                ? product.program
+                : "Tidak ada promo"),
+        if (hasDiscountReceived)
+          DetailInfoRow(
+              title: "Plus Diskon",
+              value: formattedDiscounts,
+              valueColor: Colors.blue),
+        DetailInfoRow(
+            title: "Harga Net",
+            value: FormatHelper.formatCurrency(netPrice),
+            isBoldValue: true,
+            valueColor: Colors.green),
+        if (hasInstallment)
+          DetailInfoRow(
+              title: "Cicilan",
+              value:
+                  "${state.installmentMonths[product.id]} bulan x ${FormatHelper.formatCurrency(netPrice / state.installmentMonths[product.id]!)}",
+              isBoldValue: true,
+              valueColor: Colors.blue),
+        DetailInfoRow(
+            title: "Total Diskon",
+            value: "- ${FormatHelper.formatCurrency(totalDiscount)}",
+            valueColor: Colors.orange),
       ],
     );
   }
@@ -139,49 +166,6 @@ class ProductCard extends StatelessWidget {
           ),
       ],
     );
-  }
-
-  Widget _buildPriceInfo(
-      BuildContext context,
-      ProductState state,
-      double netPrice,
-      double totalDiscount,
-      String formattedDiscounts,
-      bool hasDiscountReceived) {
-    bool hasInstallment = state.installmentMonths.containsKey(product.id) &&
-        state.installmentMonths[product.id]! > 0;
-
-    List<Widget> details = [
-      _buildDetailRow(
-          "Pricelist", FormatHelper.formatCurrency(product.pricelist),
-          isStrikethrough: true, color: Colors.red.shade700),
-      _buildDetailRow("Program",
-          product.program.isNotEmpty ? product.program : "Tidak ada promo"),
-    ];
-
-    if (hasDiscountReceived) {
-      details.add(_buildDetailRow("Plus Diskon", formattedDiscounts,
-          color: Colors.blue));
-    }
-
-    details.add(_buildDetailRow(
-        "Harga Net", FormatHelper.formatCurrency(netPrice),
-        isBold: true, color: Colors.green));
-
-    if (hasInstallment) {
-      double monthlyInstallment =
-          netPrice / state.installmentMonths[product.id]!;
-      details.add(_buildDetailRow("Cicilan",
-          "${state.installmentMonths[product.id]} bulan x ${FormatHelper.formatCurrency(monthlyInstallment)}",
-          isBold: true, color: Colors.blue));
-    }
-
-    details.add(_buildDetailRow(
-        "Total Diskon", "- ${FormatHelper.formatCurrency(totalDiscount)}",
-        color: Colors.orange));
-
-    return Column(
-        crossAxisAlignment: CrossAxisAlignment.start, children: details);
   }
 
   Widget _buildFooterButtons(
@@ -242,42 +226,6 @@ class ProductCard extends StatelessWidget {
             child: Icon(icon, size: 30, color: color),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildDetailRow(String title, String value,
-      {bool isStrikethrough = false, bool isBold = false, Color? color}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-              width: 130,
-              child: Text(title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontFamily: GoogleFonts.montserrat().fontFamily))),
-          Text(": ",
-              style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontFamily: GoogleFonts.montserrat().fontFamily)),
-          Expanded(
-              child: Text(value,
-                  softWrap: true,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-                      fontFamily: GoogleFonts.montserrat().fontFamily,
-                      color: color,
-                      decoration: isStrikethrough
-                          ? TextDecoration.lineThrough
-                          : null))),
-        ],
       ),
     );
   }
