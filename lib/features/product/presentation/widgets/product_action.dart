@@ -1,594 +1,49 @@
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../../core/utils/format_helper.dart';
 import '../../../../core/widgets/custom_toast.dart';
 import '../../domain/entities/product_entity.dart';
-import '../bloc/event/product_event.dart';
 import '../bloc/product_bloc.dart';
+import '../bloc/product_event.dart';
 import 'product_card.dart';
 
 class ProductActions {
   static void showCreditPopup(BuildContext context, ProductEntity product) {
-    final theme = Theme.of(context);
-    final state = context.read<ProductBloc>().state;
-
-    TextEditingController monthController = TextEditingController();
-
-    double latestNetPrice =
-        state.roundedPrices[product.id] ?? product.endUserPrice;
-
-    int savedMonths = state.installmentMonths[product.id] ?? 0;
-    double savedInstallment =
-        state.installmentPerMonth[product.id] ?? latestNetPrice;
-
-    monthController.text = savedMonths > 0 ? savedMonths.toString() : "";
-
-    ValueNotifier<double> monthlyInstallment = ValueNotifier(savedInstallment);
-
-    void calculateInstallment() {
-      int months = int.tryParse(monthController.text) ?? 0;
-      if (months > 0) {
-        monthlyInstallment.value = latestNetPrice / months;
-      } else {
-        monthlyInstallment.value = latestNetPrice;
-      }
-    }
-
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: theme.colorScheme.surface,
-          title: Text(
-            "Hitung Cicilan",
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("Jumlah Bulan", style: theme.textTheme.bodyMedium),
-                        const SizedBox(height: 5),
-                        TextField(
-                          controller: monthController,
-                          keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
-                            hintText: "Masukkan bulan...",
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          onChanged: (value) => calculateInstallment(),
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            color: theme.colorScheme.onSurface,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("Cicilan per Bulan",
-                            style: theme.textTheme.bodyMedium),
-                        const SizedBox(height: 5),
-                        ValueListenableBuilder<double>(
-                          valueListenable: monthlyInstallment,
-                          builder: (context, value, _) {
-                            return TextField(
-                              readOnly: true,
-                              decoration: InputDecoration(
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                hintText: FormatHelper.formatCurrency(value),
-                              ),
-                              style: theme.textTheme.bodyLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: theme.colorScheme.primary,
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                "Batal",
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.error,
-                ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                int months = int.tryParse(monthController.text) ?? 0;
-                double perMonth = monthlyInstallment.value;
-
-                if (months > 0) {
-                  context.read<ProductBloc>().add(SaveInstallment(
-                        product.id,
-                        months,
-                        perMonth,
-                      ));
-                } else {
-                  context
-                      .read<ProductBloc>()
-                      .add(RemoveInstallment(product.id));
-                }
-
-                Navigator.pop(context);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary,
-              ),
-              child: const Text("Simpan"),
-            ),
-          ],
-        );
-      },
+      builder: (dialogContext) => _CreditPopupDialog(product: product),
     );
   }
 
   static void showEditPopup(BuildContext context, ProductEntity product) {
-    final theme = Theme.of(context);
-    final state = context.read<ProductBloc>().state;
-
-    double latestNetPrice =
-        state.roundedPrices[product.id] ?? product.endUserPrice;
-
-    double priceBeforeEdit = latestNetPrice;
-
-    TextEditingController priceController = TextEditingController(
-      text: FormatHelper.formatCurrency(latestNetPrice),
-    );
-
-    TextEditingController noteController = TextEditingController(
-      text: state.productNotes[product.id] ?? "",
-    );
-
-    ValueNotifier<double> percentageChange = ValueNotifier(
-      state.priceChangePercentages[product.id] ?? 0.0,
-    );
-
-    void calculatePercentage() {
-      String rawText = priceController.text.replaceAll(RegExp(r'[^0-9]'), '');
-      double newPrice = double.tryParse(rawText) ?? latestNetPrice;
-
-      double diff = ((priceBeforeEdit - newPrice) / priceBeforeEdit) * 100;
-      percentageChange.value = diff;
-    }
-
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: theme.colorScheme.surface,
-          title: Text(
-            "Edit Harga Net",
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text("Masukkan harga net baru:",
-                  style: theme.textTheme.bodyMedium),
-              const SizedBox(height: 8),
-              TextField(
-                controller: priceController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                onChanged: (value) {
-                  priceController.value = TextEditingValue(
-                    text: FormatHelper.formatTextFieldCurrency(value),
-                    selection: TextSelection.collapsed(
-                        offset:
-                            FormatHelper.formatTextFieldCurrency(value).length),
-                  );
-                  calculatePercentage();
-                },
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 8),
-              ValueListenableBuilder<double>(
-                valueListenable: percentageChange,
-                builder: (context, value, _) {
-                  return Text(
-                    "Perubahan: ${value.toStringAsFixed(2)}%",
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: value < 0 ? Colors.green : Colors.red,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 8),
-              Text("Catatan:", style: theme.textTheme.bodyMedium),
-              TextField(
-                controller: noteController,
-                decoration: InputDecoration(
-                  hintText: "Masukkan catatan...",
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                final state = context.read<ProductBloc>().state;
-                double originalPrice = product.endUserPrice;
-
-                List<double> savedNominals =
-                    state.productDiscountsNominal[product.id] ?? [];
-
-                double recalculatedNetPrice = originalPrice;
-                for (var discount in savedNominals) {
-                  recalculatedNetPrice -= discount;
-                }
-                context.read<ProductBloc>().add(UpdateRoundedPrice(
-                      product.id,
-                      recalculatedNetPrice,
-                      0.0,
-                    ));
-
-                CustomToast.showToast(
-                    "Harga edit direset dan dihitung ulang", ToastType.success);
-                Navigator.pop(context);
-              },
-              child: Text(
-                "Reset",
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.error,
-                ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                String rawText =
-                    priceController.text.replaceAll(RegExp(r'[^0-9]'), '');
-                double newPrice = double.tryParse(rawText) ?? latestNetPrice;
-
-                double percentage =
-                    ((priceBeforeEdit - newPrice) / priceBeforeEdit) * 100;
-
-                context.read<ProductBloc>().add(UpdateRoundedPrice(
-                      product.id,
-                      newPrice,
-                      percentage,
-                    ));
-
-                int savedMonths = state.installmentMonths[product.id] ?? 0;
-                if (savedMonths > 0) {
-                  double newInstallment = newPrice / savedMonths;
-                  context.read<ProductBloc>().add(SaveInstallment(
-                        product.id,
-                        savedMonths,
-                        newInstallment,
-                      ));
-                }
-
-                String note = noteController.text;
-                context
-                    .read<ProductBloc>()
-                    .add(SaveProductNote(product.id, note));
-
-                Navigator.pop(context);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary,
-              ),
-              child: const Text("Simpan"),
-            ),
-          ],
-        );
-      },
+      builder: (dialogContext) => _EditPopupDialog(product: product),
     );
   }
 
   static void showInfoPopup(BuildContext context, ProductEntity product) {
-    final theme = Theme.of(context);
-    final state = context.read<ProductBloc>().state;
-
-    double basePrice = product.endUserPrice;
-    // ignore: unused_local_variable
-    double netPriceBeforeEdit = state.roundedPrices[product.id] ?? basePrice;
-
-    List<double> savedPercentages = List.from(
-        state.productDiscountsPercentage[product.id] ?? List.filled(5, 0.0));
-    List<double> savedNominals = List.from(
-        state.productDiscountsNominal[product.id] ?? List.filled(5, 0.0));
-
-    double recalculatedNetPrice = basePrice;
-    for (var discount in savedNominals) {
-      recalculatedNetPrice -= discount;
-    }
-
-    netPriceBeforeEdit = recalculatedNetPrice;
-
-    List<TextEditingController> percentageControllers = List.generate(
-      5,
-      (i) => TextEditingController(
-        text: (i < savedPercentages.length && savedPercentages[i] > 0)
-            ? savedPercentages[i].toStringAsFixed(2)
-            : "",
-      ),
-    );
-
-    List<TextEditingController> nominalControllers = List.generate(
-      5,
-      (i) => TextEditingController(
-        text: (i < savedNominals.length && savedNominals[i] > 0)
-            ? FormatHelper.formatCurrency(savedNominals[i])
-            : "",
-      ),
-    );
-
-    void updateNominal(int index) {
-      double remainingPrice = basePrice;
-      for (int i = 0; i < index; i++) {
-        double prevDiscount = double.tryParse(
-                nominalControllers[i].text.replaceAll(RegExp(r'[^0-9]'), '')) ??
-            0.0;
-        remainingPrice -= prevDiscount;
-      }
-      double percentage =
-          double.tryParse(percentageControllers[index].text) ?? 0.0;
-      double nominal = (remainingPrice * (percentage / 100)).roundToDouble();
-      nominalControllers[index].text = FormatHelper.formatCurrency(nominal);
-    }
-
-    void updatePercentage(int index) {
-      double remainingPrice = basePrice;
-      for (int i = 0; i < index; i++) {
-        double prevDiscount = double.tryParse(
-                nominalControllers[i].text.replaceAll(RegExp(r'[^0-9]'), '')) ??
-            0.0;
-        remainingPrice -= prevDiscount;
-      }
-      String rawText =
-          nominalControllers[index].text.replaceAll(RegExp(r'[^0-9]'), '');
-      double nominal = double.tryParse(rawText) ?? 0.0;
-      double percentage = (nominal / remainingPrice) * 100;
-      percentageControllers[index].text =
-          percentage > 0 ? percentage.toStringAsFixed(2) : "";
-    }
-
-    void resetValues() {
-      for (int i = 0; i < 5; i++) {
-        percentageControllers[i].text = "";
-        nominalControllers[i].text = "";
-      }
-    }
-
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: theme.colorScheme.surface,
-          title: Text(
-            "Input Diskon",
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (int i = 0; i < 5; i++)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 5),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text("Diskon ${i + 1} (%)",
-                                  style: theme.textTheme.bodyMedium),
-                              TextField(
-                                controller: percentageControllers[i],
-                                keyboardType:
-                                    const TextInputType.numberWithOptions(
-                                        decimal: true),
-                                decoration: InputDecoration(
-                                  hintText: "Persentase",
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                onChanged: (val) {
-                                  updateNominal(i);
-                                },
-                                style: theme.textTheme.bodyLarge?.copyWith(
-                                  color: theme.colorScheme.onSurface,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text("Diskon ${i + 1} (Rp)",
-                                  style: theme.textTheme.bodyMedium),
-                              TextField(
-                                controller: nominalControllers[i],
-                                keyboardType: TextInputType.number,
-                                decoration: InputDecoration(
-                                  hintText: "Nominal",
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                onChanged: (val) {
-                                  String formattedValue =
-                                      FormatHelper.formatTextFieldCurrency(val);
-                                  nominalControllers[i].value =
-                                      TextEditingValue(
-                                    text: formattedValue,
-                                    selection: TextSelection.collapsed(
-                                        offset: formattedValue.length),
-                                  );
-                                  updatePercentage(i);
-                                },
-                                style: theme.textTheme.bodyLarge?.copyWith(
-                                  color: theme.colorScheme.onSurface,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                resetValues();
-                CustomToast.showToast(
-                  "Diskon berhasil direset",
-                  ToastType.success,
-                );
-              },
-              child: Text(
-                "Reset",
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.error,
-                ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                List<double> updatedPercentages = percentageControllers
-                    .map((e) => double.tryParse(e.text) ?? 0.0)
-                    .toList();
-                List<double> updatedNominals = nominalControllers.map((e) {
-                  String rawText = e.text.replaceAll(RegExp(r'[^0-9]'), '');
-                  return double.tryParse(rawText) ?? 0.0;
-                }).toList();
-
-                double finalNetPrice = product.endUserPrice;
-                for (var discount in updatedNominals) {
-                  finalNetPrice -= discount;
-                }
-
-                context.read<ProductBloc>().add(
-                      UpdateProductDiscounts(
-                        productId: product.id,
-                        discountPercentages: updatedPercentages,
-                        discountNominals: updatedNominals,
-                        originalPrice: product.endUserPrice,
-                      ),
-                    );
-
-                context.read<ProductBloc>().add(
-                      UpdateRoundedPrice(
-                        product.id,
-                        finalNetPrice,
-                        0.0,
-                      ),
-                    );
-
-                Navigator.pop(context);
-              },
-              child: const Text("Simpan"),
-            ),
-          ],
-        );
-      },
+      builder: (dialogContext) => _InfoPopupDialog(product: product),
     );
-  }
-
-  static Future<bool> requestStoragePermission() async {
-    if (Platform.isAndroid) {
-      if (await Permission.manageExternalStorage.isGranted ||
-          await Permission.storage.isGranted) {
-        return true;
-      }
-
-      var status = await Permission.manageExternalStorage.request();
-      if (status.isGranted) {
-        return true;
-      }
-
-      // Jika ditolak secara permanen, arahkan ke Pengaturan
-      if (status.isPermanentlyDenied) {
-        await openAppSettings();
-        return false;
-      }
-
-      return false;
-    }
-    return true; // iOS tidak perlu izin penyimpanan
   }
 
   static void showSharePopup(BuildContext context, ProductEntity product) {
-    final theme = Theme.of(context);
     final state = context.read<ProductBloc>().state;
     ScreenshotController screenshotController = ScreenshotController();
-
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
-          title: Text(
-            "Bagikan Produk",
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
+          title: const Text("Bagikan Produk"),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text("Bagikan produk ini ke teman atau media sosial."),
+              const Text("Bagikan produk ini ke teman atau media sosial."),
               const SizedBox(height: 10),
               Screenshot(
                 controller: screenshotController,
@@ -598,76 +53,44 @@ class ProductActions {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                "Tutup",
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text("Tutup"),
             ),
             ElevatedButton(
               onPressed: () async {
                 try {
                   showDialog(
-                    context: context,
+                    context: dialogContext,
                     barrierDismissible: false,
                     builder: (context) =>
                         const Center(child: CircularProgressIndicator()),
                   );
 
-                  Uint8List? imageBytes = await screenshotController.capture();
+                  final imageBytes = await screenshotController.capture();
+                  Navigator.pop(dialogContext);
 
                   if (imageBytes == null) {
-                    if (context.mounted) {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Gagal menangkap layar"),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
+                    CustomToast.showToast(
+                        "Gagal mengambil gambar produk", ToastType.error);
                     return;
                   }
 
-                  String formattedPricelist =
-                      FormatHelper.formatCurrency(product.pricelist);
                   double netPrice =
                       state.roundedPrices[product.id] ?? product.endUserPrice;
-                  String formattedNetPrice =
-                      FormatHelper.formatCurrency(netPrice);
-                  DateTime now = DateTime.now();
-                  String monthName = FormatHelper.getMonthName(now.month);
-                  String year = now.year.toString();
-
                   String shareText =
-                      "Matras ${product.brand} ${product.kasur}, ${product.headboard}, ${product.divan}, ${product.sorong} (${product.ukuran})\n"
-                      "Harga Pricelist : $formattedPricelist\n"
-                      "Harga After Disc : $formattedNetPrice\n"
-                      "Hanya berlaku di bulan $monthName $year";
+                      "Produk: ${product.kasur} (${product.ukuran})\n"
+                      "Harga Pricelist: ${FormatHelper.formatCurrency(product.pricelist)}\n"
+                      "Harga Net: ${FormatHelper.formatCurrency(netPrice)}";
 
-                  final XFile xfile = XFile.fromData(
-                    imageBytes,
-                    mimeType: 'image/png',
-                    name: "product_screenshot.png",
-                  );
+                  final imageFile = XFile.fromData(imageBytes,
+                      mimeType: 'image/png', name: 'product.png');
 
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                    await Share.shareXFiles([xfile], text: shareText);
-                  }
+                  await Share.shareXFiles([imageFile], text: shareText);
+                  Navigator.pop(dialogContext);
                 } catch (e) {
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text("Gagal menangkap layar: $e"),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
+                  if (context.mounted) Navigator.pop(context);
+                  CustomToast.showToast(
+                      "Gagal membagikan: $e", ToastType.error);
                 }
               },
               child: const Text("Bagikan"),
@@ -675,6 +98,394 @@ class ProductActions {
           ],
         );
       },
+    );
+  }
+}
+
+class _CreditPopupDialog extends StatefulWidget {
+  final ProductEntity product;
+  const _CreditPopupDialog({required this.product});
+
+  @override
+  _CreditPopupDialogState createState() => _CreditPopupDialogState();
+}
+
+class _CreditPopupDialogState extends State<_CreditPopupDialog> {
+  late final TextEditingController _monthController;
+  late final TextEditingController _installmentController;
+  late double _latestNetPrice;
+
+  @override
+  void initState() {
+    super.initState();
+    final state = context.read<ProductBloc>().state;
+    _latestNetPrice =
+        state.roundedPrices[widget.product.id] ?? widget.product.endUserPrice;
+
+    int savedMonths = state.installmentMonths[widget.product.id] ?? 0;
+
+    _monthController = TextEditingController(
+        text: savedMonths > 0 ? savedMonths.toString() : "");
+
+    _installmentController =
+        TextEditingController(text: FormatHelper.formatCurrency(0.0));
+
+    _monthController.addListener(_calculateAndDisplayInstallment);
+
+    if (savedMonths > 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _calculateAndDisplayInstallment();
+      });
+    }
+  }
+
+  void _calculateAndDisplayInstallment() {
+    final months = int.tryParse(_monthController.text) ?? 0;
+    double installmentValue = 0.0;
+    if (months > 0) {
+      installmentValue = _latestNetPrice / months;
+    }
+
+    _installmentController.text = FormatHelper.formatCurrency(installmentValue);
+  }
+
+  @override
+  void dispose() {
+    _monthController.removeListener(_calculateAndDisplayInstallment);
+    _monthController.dispose();
+    _installmentController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text("Hitung Cicilan"),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _monthController,
+            keyboardType: TextInputType.number,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: "Jumlah Bulan",
+              hintText: "Contoh: 12",
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            readOnly: true,
+            controller: _installmentController,
+            decoration: const InputDecoration(
+              labelText: "Cicilan per Bulan",
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Batal")),
+        ElevatedButton(
+          onPressed: () {
+            final months = int.tryParse(_monthController.text) ?? 0;
+            final installment =
+                FormatHelper.parseCurrencyToDouble(_installmentController.text);
+
+            if (months > 0) {
+              context
+                  .read<ProductBloc>()
+                  .add(SaveInstallment(widget.product.id, months, installment));
+            } else {
+              context
+                  .read<ProductBloc>()
+                  .add(RemoveInstallment(widget.product.id));
+            }
+            Navigator.pop(context);
+          },
+          child: const Text("Simpan"),
+        ),
+      ],
+    );
+  }
+}
+
+class _EditPopupDialog extends StatefulWidget {
+  final ProductEntity product;
+  const _EditPopupDialog({required this.product});
+
+  @override
+  _EditPopupDialogState createState() => _EditPopupDialogState();
+}
+
+class _EditPopupDialogState extends State<_EditPopupDialog> {
+  late final TextEditingController _priceController;
+  late final TextEditingController _noteController;
+  late final ValueNotifier<double> _percentageChange;
+  late final double _priceBeforeEdit;
+
+  @override
+  void initState() {
+    super.initState();
+    final state = context.read<ProductBloc>().state;
+    _priceBeforeEdit =
+        state.roundedPrices[widget.product.id] ?? widget.product.endUserPrice;
+
+    _priceController = TextEditingController(
+        text: FormatHelper.formatCurrency(_priceBeforeEdit));
+    _noteController = TextEditingController(
+        text: state.productNotes[widget.product.id] ?? "");
+    _percentageChange =
+        ValueNotifier(state.priceChangePercentages[widget.product.id] ?? 0.0);
+  }
+
+  void _calculatePercentage() {
+    final newPrice = FormatHelper.parseCurrencyToDouble(_priceController.text);
+    if (_priceBeforeEdit > 0) {
+      final diff = ((_priceBeforeEdit - newPrice) / _priceBeforeEdit) * 100;
+      _percentageChange.value = diff;
+    }
+  }
+
+  @override
+  void dispose() {
+    _priceController.dispose();
+    _noteController.dispose();
+    _percentageChange.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text("Edit Harga & Catatan"),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _priceController,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: "Harga Net Baru"),
+            onChanged: (value) {
+              final formatted = FormatHelper.formatTextFieldCurrency(value);
+              _priceController.value = TextEditingValue(
+                text: formatted,
+                selection: TextSelection.collapsed(offset: formatted.length),
+              );
+              _calculatePercentage();
+            },
+          ),
+          ValueListenableBuilder<double>(
+            valueListenable: _percentageChange,
+            builder: (context, value, _) =>
+                Text("Perubahan: ${value.toStringAsFixed(2)}%"),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _noteController,
+            decoration: const InputDecoration(labelText: "Catatan"),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Batal")),
+        ElevatedButton(
+          onPressed: () {
+            final newPrice =
+                FormatHelper.parseCurrencyToDouble(_priceController.text);
+            context.read<ProductBloc>().add(UpdateRoundedPrice(
+                widget.product.id, newPrice, _percentageChange.value));
+            context
+                .read<ProductBloc>()
+                .add(SaveProductNote(widget.product.id, _noteController.text));
+            Navigator.pop(context);
+          },
+          child: const Text("Simpan"),
+        ),
+      ],
+    );
+  }
+}
+
+class _InfoPopupDialog extends StatefulWidget {
+  final ProductEntity product;
+  const _InfoPopupDialog({required this.product});
+
+  @override
+  _InfoPopupDialogState createState() => _InfoPopupDialogState();
+}
+
+class _InfoPopupDialogState extends State<_InfoPopupDialog> {
+  late final List<TextEditingController> _percentageControllers;
+  late final List<TextEditingController> _nominalControllers;
+  late final double _basePrice;
+
+  @override
+  void initState() {
+    super.initState();
+    final state = context.read<ProductBloc>().state;
+    _basePrice = widget.product.endUserPrice;
+
+    final savedPercentages =
+        state.productDiscountsPercentage[widget.product.id] ?? [];
+    final savedNominals =
+        state.productDiscountsNominal[widget.product.id] ?? [];
+
+    _percentageControllers = List.generate(
+        5,
+        (i) => TextEditingController(
+            text: i < savedPercentages.length && savedPercentages[i] > 0
+                ? savedPercentages[i].toStringAsFixed(2)
+                : ""));
+    _nominalControllers = List.generate(
+        5,
+        (i) => TextEditingController(
+            text: i < savedNominals.length && savedNominals[i] > 0
+                ? FormatHelper.formatCurrency(savedNominals[i])
+                : ""));
+  }
+
+  @override
+  void dispose() {
+    for (var c in _percentageControllers) {
+      c.dispose();
+    }
+    for (var c in _nominalControllers) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  void _updateNominal(int index) {
+    setState(() {
+      double remainingPrice = _basePrice;
+      for (int i = 0; i < index; i++) {
+        remainingPrice -=
+            FormatHelper.parseCurrencyToDouble(_nominalControllers[i].text);
+      }
+      double percentage =
+          double.tryParse(_percentageControllers[index].text) ?? 0.0;
+      double nominal = (remainingPrice * percentage / 100).roundToDouble();
+      _nominalControllers[index].text = FormatHelper.formatCurrency(nominal);
+    });
+  }
+
+  void _updatePercentage(int index) {
+    setState(() {
+      double remainingPrice = _basePrice;
+      for (int i = 0; i < index; i++) {
+        remainingPrice -=
+            FormatHelper.parseCurrencyToDouble(_nominalControllers[i].text);
+      }
+      double nominal =
+          FormatHelper.parseCurrencyToDouble(_nominalControllers[index].text);
+      if (remainingPrice > 0) {
+        double percentage = (nominal / remainingPrice) * 100;
+        _percentageControllers[index].text =
+            percentage > 0 ? percentage.toStringAsFixed(2) : "";
+      }
+    });
+  }
+
+  void _resetValues() {
+    setState(() {
+      for (int i = 0; i < 5; i++) {
+        _percentageControllers[i].clear();
+        _nominalControllers[i].clear();
+      }
+    });
+    CustomToast.showToast("Diskon berhasil direset", ToastType.info);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text("Input Diskon"),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(5, (i) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _percentageControllers[i],
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      decoration:
+                          InputDecoration(labelText: "Diskon ${i + 1} (%)"),
+                      onChanged: (val) => _updateNominal(i),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: _nominalControllers[i],
+                      keyboardType: TextInputType.number,
+                      decoration:
+                          InputDecoration(labelText: "Diskon ${i + 1} (Rp)"),
+                      onChanged: (val) {
+                        final formatted =
+                            FormatHelper.formatTextFieldCurrency(val);
+                        _nominalControllers[i].value = TextEditingValue(
+                          text: formatted,
+                          selection:
+                              TextSelection.collapsed(offset: formatted.length),
+                        );
+                        _updatePercentage(i);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ),
+      ),
+      actions: [
+        TextButton(
+            onPressed: _resetValues,
+            child: const Text("Reset", style: TextStyle(color: Colors.orange))),
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Batal")),
+        ElevatedButton(
+          onPressed: () {
+            final percentages = _percentageControllers
+                .map((c) => double.tryParse(c.text) ?? 0.0)
+                .toList();
+            final nominals = _nominalControllers
+                .map((c) => FormatHelper.parseCurrencyToDouble(c.text))
+                .toList();
+
+            double finalNetPrice = _basePrice;
+            for (var nominal in nominals) {
+              finalNetPrice -= nominal;
+            }
+
+            context.read<ProductBloc>().add(
+                  UpdateProductDiscounts(
+                    productId: widget.product.id,
+                    discountPercentages: percentages,
+                    discountNominals: nominals,
+                    originalPrice: _basePrice,
+                  ),
+                );
+
+            context
+                .read<ProductBloc>()
+                .add(UpdateRoundedPrice(widget.product.id, finalNetPrice, 0.0));
+
+            Navigator.pop(context);
+          },
+          child: const Text("Simpan"),
+        ),
+      ],
     );
   }
 }
