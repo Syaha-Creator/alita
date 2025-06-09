@@ -1,9 +1,11 @@
+// File: lib/config/dependency_injection.dart
 import 'package:get_it/get_it.dart';
 
 import '../features/product/data/repositories/product_repository.dart';
 import '../features/product/domain/usecases/get_product_usecase.dart';
 import '../features/product/presentation/bloc/product_bloc.dart';
 import '../services/api_client.dart';
+import '../services/cart_storage_service.dart';
 import '../features/authentication/data/repositories/auth_repository.dart';
 import '../features/authentication/domain/usecases/login_usecase.dart';
 import '../features/authentication/presentation/bloc/auth_bloc.dart';
@@ -11,8 +13,9 @@ import '../features/authentication/presentation/bloc/auth_bloc.dart';
 final locator = GetIt.instance;
 
 void setupLocator() {
-  // Register API Client
+  // Register Services
   locator.registerLazySingleton<ApiClient>(() => ApiClient());
+  locator.registerLazySingleton<CartStorageService>(() => CartStorageService());
 
   // Register Auth Dependencies
   locator.registerLazySingleton<AuthRepository>(
