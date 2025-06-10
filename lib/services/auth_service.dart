@@ -1,24 +1,18 @@
-// lib/services/auth_service.dart
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import '../config/api_config.dart';
+import '../config/app_constant.dart';
 
 class AuthService {
   static final ValueNotifier<bool> authChangeNotifier = ValueNotifier(false);
-  static const String _isLoggedInKey = "is_logged_in";
-  static const String _loginTimestampKey = "login_timestamp";
-  static const String _tokenKey = "auth_token";
-  static const String _refreshTokenKey = "refresh_token";
-  static const String _userIdKey = "current_user_id";
-  static const String _rememberedEmailKey = "remembered_email";
   static const int _sessionDuration = 24 * 60 * 60 * 1000;
 
   static Future<bool> isLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
-    bool isLoggedIn = prefs.getBool(_isLoggedInKey) ?? false;
-    int? loginTimestamp = prefs.getInt(_loginTimestampKey);
-    String? token = prefs.getString(_tokenKey);
+    bool isLoggedIn = prefs.getBool(StorageKeys.isLoggedIn) ?? false;
+    int? loginTimestamp = prefs.getInt(StorageKeys.loginTimestamp);
+    String? token = prefs.getString(StorageKeys.authToken);
 
     if (isLoggedIn && loginTimestamp != null) {
       int currentTime = DateTime.now().millisecondsSinceEpoch;
@@ -37,12 +31,12 @@ class AuthService {
       String token, String refreshToken, int userId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_isLoggedInKey, true);
+      await prefs.setBool(StorageKeys.isLoggedIn, true);
       await prefs.setInt(
-          _loginTimestampKey, DateTime.now().millisecondsSinceEpoch);
-      await prefs.setString(_tokenKey, token);
-      await prefs.setString(_refreshTokenKey, refreshToken);
-      await prefs.setInt(_userIdKey, userId);
+          StorageKeys.loginTimestamp, DateTime.now().millisecondsSinceEpoch);
+      await prefs.setString(StorageKeys.authToken, token);
+      await prefs.setString(StorageKeys.refreshToken, refreshToken);
+      await prefs.setInt(StorageKeys.currentUserId, userId);
 
       print("🔐 User $userId logged in. Token saved successfully!");
       authChangeNotifier.value = true;
@@ -55,38 +49,38 @@ class AuthService {
 
   static Future<void> saveEmail(String email) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_rememberedEmailKey, email);
+    await prefs.setString(StorageKeys.rememberedEmail, email);
   }
 
   static Future<String?> getSavedEmail() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_rememberedEmailKey);
+    return prefs.getString(StorageKeys.rememberedEmail);
   }
 
   static Future<void> clearSavedEmail() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_rememberedEmailKey);
+    await prefs.remove(StorageKeys.rememberedEmail);
     print("🔑 Remembered email cleared.");
   }
 
   static Future<int?> getCurrentUserId() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt(_userIdKey);
+    return prefs.getInt(StorageKeys.currentUserId);
   }
 
   static Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_tokenKey);
+    return prefs.getString(StorageKeys.authToken);
   }
 
   static Future<String?> getRefreshToken() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_refreshTokenKey);
+    return prefs.getString(StorageKeys.refreshToken);
   }
 
   static Future<String?> refreshToken() async {
     final prefs = await SharedPreferences.getInstance();
-    String? refreshToken = prefs.getString(_refreshTokenKey);
+    String? refreshToken = prefs.getString(StorageKeys.refreshToken);
 
     if (refreshToken == null) {
       print("⚠️ No refresh token found, logging out...");
@@ -135,11 +129,11 @@ class AuthService {
   static Future<bool> logout() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_isLoggedInKey);
-      await prefs.remove(_loginTimestampKey);
-      await prefs.remove(_tokenKey);
-      await prefs.remove(_refreshTokenKey);
-      await prefs.remove(_userIdKey);
+      await prefs.remove(StorageKeys.isLoggedIn);
+      await prefs.remove(StorageKeys.loginTimestamp);
+      await prefs.remove(StorageKeys.authToken);
+      await prefs.remove(StorageKeys.refreshToken);
+      await prefs.remove(StorageKeys.currentUserId);
 
       print("🚪 User logged out successfully and session data removed!");
       authChangeNotifier.value = false;

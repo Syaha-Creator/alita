@@ -1,14 +1,13 @@
 // lib/services/cart_storage_service.dart
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config/app_constant.dart';
 import '../features/cart/domain/entities/cart_entity.dart';
 import '../features/product/domain/entities/product_entity.dart';
 import 'auth_service.dart';
 
 class CartStorageService {
-  static const String _cartKeyBase = "cart_items_for_user_";
-
-  static String _getCartKey(int userId) => '$_cartKeyBase$userId';
+  static String _getCartKey(int userId) => '${StorageKeys.cartKeyBase}$userId';
 
   static Future<bool> saveCartItems(List<CartEntity> cartItems) async {
     try {
