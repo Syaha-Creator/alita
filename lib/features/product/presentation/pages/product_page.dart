@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../config/app_constant.dart';
 import '../../../../core/widgets/empty_widget.dart';
 import '../../../../navigation/navigation_service.dart';
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/auth_state.dart';
-import '../../../cart/presentation/pages/cart_page.dart';
+import '../../../cart/presentation/widgets/cart_badge.dart';
 import '../bloc/product_bloc.dart';
 import '../bloc/product_event.dart';
 import '../bloc/product_state.dart';
@@ -44,14 +45,14 @@ class _ProductPageState extends State<ProductPage> {
         appBar: AppBar(
           title: const Text("Product Page"),
           actions: [
-            IconButton(
-              icon: const Icon(Icons.shopping_cart),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const CartPage()),
-                );
+            CartBadge(
+              onTap: () {
+                context.push(RoutePaths.cart);
               },
+              child: Icon(
+                Icons.shopping_cart_outlined,
+                size: 28,
+              ),
             ),
             LogoutButton(),
           ],

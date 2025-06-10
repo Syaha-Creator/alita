@@ -26,7 +26,7 @@ class AppColors {
   static const Color borderDark = Color(0xFF486581);
 
   static const Color success = Color(0xFF28A745);
-  static const Color error = Color(0xFFDC3545);
+  static const Color error = Color(0xFFFF0019);
   static const Color warning = Color(0xFFFF9800);
   static const Color info = Color(0xFF17A2B8);
   static const Color purple = Colors.purple;

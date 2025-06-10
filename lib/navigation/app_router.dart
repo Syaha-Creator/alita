@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../config/app_constant.dart';
 import '../features/authentication/presentation/pages/login_page.dart';
 import '../features/cart/presentation/pages/cart_page.dart';
+import '../features/cart/presentation/pages/checkout_pages.dart';
 import '../features/product/presentation/pages/product_page.dart';
 import '../services/auth_service.dart';
 import 'navigation_service.dart';
@@ -18,7 +19,7 @@ class AppRouter {
     routes: [
       GoRoute(
         path: RoutePaths.login,
-        builder: (context, state) => LoginPage(),
+        builder: (context, state) => const LoginPage(),
       ),
       GoRoute(
         path: RoutePaths.product,
@@ -26,7 +27,6 @@ class AppRouter {
       ),
       GoRoute(
         path: RoutePaths.cart,
-        builder: (context, state) => const CartPage(),
         pageBuilder: (context, state) => CustomTransitionPage(
           key: state.pageKey,
           child: const CartPage(),
@@ -35,15 +35,24 @@ class AppRouter {
           },
         ),
       ),
+      GoRoute(
+        path: RoutePaths.checkout,
+        builder: (context, state) => const CheckoutPages(),
+      )
     ],
     redirect: (context, state) {
-      bool isAuthenticated = AuthService.authChangeNotifier.value;
+      final isLoggedIn = AuthService.authChangeNotifier.value;
+      final isLoggingIn = state.matchedLocation == RoutePaths.login;
 
-      if (isAuthenticated) {
-        return RoutePaths.product;
-      } else {
+      if (!isLoggedIn && !isLoggingIn) {
         return RoutePaths.login;
       }
+
+      if (isLoggedIn && isLoggingIn) {
+        return RoutePaths.product;
+      }
+
+      return null;
     },
   );
 }
