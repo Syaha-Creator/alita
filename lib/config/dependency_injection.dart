@@ -1,4 +1,5 @@
 // File: lib/config/dependency_injection.dart
+import 'package:dio/dio.dart';
 import 'package:get_it/get_it.dart';
 
 import '../features/product/data/repositories/product_repository.dart';
@@ -9,12 +10,25 @@ import '../services/cart_storage_service.dart';
 import '../features/authentication/data/repositories/auth_repository.dart';
 import '../features/authentication/domain/usecases/login_usecase.dart';
 import '../features/authentication/presentation/bloc/auth_bloc.dart';
+import 'api_config.dart';
 
 final locator = GetIt.instance;
 
 void setupLocator() {
+  locator.registerLazySingleton<Dio>(() {
+    final options = BaseOptions(
+      baseUrl: ApiConfig.baseUrl,
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 15),
+      headers: {
+        'Accept': 'application/json',
+      },
+    );
+    return Dio(options);
+  });
+
   // Register Services
-  locator.registerLazySingleton<ApiClient>(() => ApiClient());
+  locator.registerLazySingleton<ApiClient>(() => ApiClient(locator<Dio>()));
   locator.registerLazySingleton<CartStorageService>(() => CartStorageService());
 
   // Register Auth Dependencies
