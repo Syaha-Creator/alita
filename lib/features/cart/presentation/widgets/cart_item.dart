@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/utils/controller_disposal_mixin.dart';
 import '../../../../core/utils/format_helper.dart';
+import '../../../../core/widgets/quantity_control.dart';
 import '../../../product/presentation/bloc/product_bloc.dart';
 import '../../../product/presentation/bloc/product_event.dart';
 import '../../../product/presentation/bloc/product_state.dart';
@@ -33,8 +34,6 @@ class _CartItemWidgetState extends State<CartItemWidget>
   @override
   void initState() {
     super.initState();
-
-    // Register controller for auto-disposal
     _noteController = registerController(context
             .read<ProductBloc>()
             .state
@@ -45,7 +44,14 @@ class _CartItemWidgetState extends State<CartItemWidget>
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ProductBloc, ProductState>(
+      buildWhen: (previous, current) {
+        return previous.productNotes[widget.item.product.id] !=
+            current.productNotes[widget.item.product.id];
+      },
       builder: (context, productState) {
+        _noteController.text =
+            productState.productNotes[widget.item.product.id] ?? '';
+
         final netPrice = widget.item.netPrice;
         final totalDiscount = widget.item.product.pricelist - netPrice;
         final discounts = _formatDiscounts(widget.item);
@@ -114,7 +120,21 @@ class _CartItemWidgetState extends State<CartItemWidget>
             ),
           ),
         ),
-        _QuantityControl(item: widget.item)
+        QuantityControl(
+          quantity: widget.item.quantity,
+          onIncrement: () {
+            context.read<CartBloc>().add(
+                  UpdateCartQuantity(
+                    productId: widget.item.product.id,
+                    netPrice: widget.item.netPrice,
+                    quantity: widget.item.quantity + 1,
+                  ),
+                );
+          },
+          onDecrement: () {
+            _decrement(context);
+          },
+        ),
       ],
     );
   }
@@ -388,59 +408,13 @@ class _CartItemWidgetState extends State<CartItemWidget>
       ),
     );
   }
-}
-
-class _QuantityControl extends StatelessWidget {
-  final CartEntity item;
-  const _QuantityControl({required this.item});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        _buildIconButton(
-            context, Icons.remove, Colors.redAccent, () => _decrement(context)),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8.0),
-          child: Text(item.quantity.toString(),
-              style: GoogleFonts.montserrat(fontSize: 15)),
-        ),
-        _buildIconButton(
-            context,
-            Icons.add,
-            Colors.green,
-            () => context.read<CartBloc>().add(
-                  UpdateCartQuantity(
-                      productId: item.product.id,
-                      netPrice: item.netPrice,
-                      quantity: item.quantity + 1),
-                )),
-      ],
-    );
-  }
-
-  Widget _buildIconButton(
-      BuildContext context, IconData icon, Color color, VoidCallback onTap) {
-    return Material(
-      shape: const CircleBorder(),
-      color: color.withOpacity(0.1),
-      child: InkResponse(
-        onTap: onTap,
-        radius: 20,
-        child: Padding(
-          padding: const EdgeInsets.all(6.0),
-          child: Icon(icon, size: 20, color: color),
-        ),
-      ),
-    );
-  }
 
   void _decrement(BuildContext context) async {
-    if (item.quantity > 1) {
+    if (widget.item.quantity > 1) {
       context.read<CartBloc>().add(UpdateCartQuantity(
-            productId: item.product.id,
-            netPrice: item.netPrice,
-            quantity: item.quantity - 1,
+            productId: widget.item.product.id,
+            netPrice: widget.item.netPrice,
+            quantity: widget.item.quantity - 1,
           ));
     } else {
       final confirm = await showDialog<bool>(
@@ -452,15 +426,15 @@ class _QuantityControl extends StatelessWidget {
                 actions: [
                   TextButton(
                       onPressed: () => Navigator.pop(ctx, false),
-                      child: Text('Batal')),
+                      child: const Text('Batal')),
                   ElevatedButton(
                       onPressed: () => Navigator.pop(ctx, true),
-                      child: Text('Hapus'))
+                      child: const Text('Hapus'))
                 ],
               ));
       if (confirm == true) {
         context.read<CartBloc>().add(RemoveFromCart(
-            productId: item.product.id, netPrice: item.netPrice));
+            productId: widget.item.product.id, netPrice: widget.item.netPrice));
       }
     }
   }
