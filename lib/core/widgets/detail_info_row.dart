@@ -21,12 +21,11 @@ class DetailInfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (value.isEmpty ||
-        value == "Tanpa Divan" ||
-        value == "Tanpa Headboard" ||
-        value == "Tanpa Sorong") {
-      return const SizedBox
-          .shrink(); // Jangan tampilkan apapun jika value kosong
+    if (value.isEmpty) {
+      //    || value == "Tanpa Divan" ||
+      //     value == "Tanpa Headboard" ||
+      //     value == "Tanpa Sorong") {
+      return const SizedBox.shrink();
     }
 
     return Padding(

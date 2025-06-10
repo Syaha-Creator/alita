@@ -66,7 +66,6 @@ class ProductCard extends StatelessWidget {
     );
   }
 
-  // Fungsi _buildDetailRow sekarang sudah tidak ada, digantikan oleh widget DetailInfoRow
   Widget _buildProductDetail() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
