@@ -25,15 +25,33 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           throw Exception("Gagal menyimpan sesi login.");
         }
 
+        print("✅ Login successful, token saved.");
         emit(AuthSuccess(auth.accessToken));
       } catch (e) {
-        emit(AuthFailure(e.toString()));
+        print("❌ Login failed: $e");
+        String errorMessage = "Terjadi kesalahan. Silakan coba lagi.";
+        final errorString = e.toString().toLowerCase();
+
+        if (errorString.contains('401') ||
+            errorString.contains('invalid credentials')) {
+          errorMessage = "Email atau password yang Anda masukkan salah.";
+        } else if (errorString.contains('socketexception') ||
+            errorString.contains('network is unreachable')) {
+          errorMessage =
+              "Gagal terhubung ke server. Periksa koneksi internet Anda.";
+        }
+
+        emit(AuthFailure(errorMessage));
       }
     });
 
     on<AuthLogoutRequested>((event, emit) async {
+      print("🚪 Logging out...");
+
       await AuthService.logout();
       emit(AuthInitial());
+
+      print("✅ Logout successful.");
     });
   }
 }
