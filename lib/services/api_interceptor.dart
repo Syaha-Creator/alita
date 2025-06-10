@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 
+import '../core/utils/logger.dart';
 import 'auth_service.dart';
 
 class ApiInterceptor extends InterceptorsWrapper {
@@ -15,23 +16,23 @@ class ApiInterceptor extends InterceptorsWrapper {
       options.headers['Authorization'] = 'Bearer $token';
     }
     options.headers['Accept'] = 'application/json';
-    print(
+    logger.i(
         'REQUEST[${options.method}] => PATH: ${options.path} | DATA: ${options.data}');
     return handler.next(options);
   }
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
-    print(
+    logger.e(
         'ERROR[${err.response?.statusCode}] => PATH: ${err.requestOptions.path} | MESSAGE: ${err.message}');
 
     if (err.response?.statusCode == 401) {
-      print('INTERCEPTOR: Token expired or invalid. Refreshing token...');
+      logger.e('INTERCEPTOR: Token expired or invalid. Refreshing token...');
       try {
         String? newToken = await AuthService.refreshToken();
 
         if (newToken != null) {
-          print(
+          logger.e(
               'INTERCEPTOR: Token refreshed successfully. Retrying original request...');
 
           err.requestOptions.headers['Authorization'] = 'Bearer $newToken';

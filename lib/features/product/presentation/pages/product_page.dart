@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../config/app_constant.dart';
+import '../../../../core/utils/logger.dart';
 import '../../../../core/widgets/empty_widget.dart';
 import '../../../../navigation/navigation_service.dart';
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
@@ -177,7 +178,7 @@ class _ProductPageState extends State<ProductPage> {
                     onPressed: (state.selectedChannel != null &&
                             state.selectedChannel!.isNotEmpty)
                         ? () {
-                            print("🔄 Menerapkan Filter...");
+                            logger.i("🔄 Menerapkan Filter...");
                             context.read<ProductBloc>().add(ApplyFilters(
                                   selectedArea:
                                       state.selectedArea?.isEmpty ?? true

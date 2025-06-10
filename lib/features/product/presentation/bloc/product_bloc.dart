@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../config/app_constant.dart';
+import '../../../../core/utils/logger.dart';
 import '../../../../core/widgets/custom_toast.dart';
 import '../../domain/usecases/get_product_usecase.dart';
 import 'product_event.dart';
@@ -17,11 +18,11 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
     on<FetchProducts>((event, emit) async {
       emit(ProductLoading());
       try {
-        print("📡 Fetching products from API on Product Bloc...");
+        logger.i("📡 Fetching products from API on Product Bloc...");
         final products = await getProductUseCase();
 
         if (products.isEmpty) {
-          print("⚠️ Tidak ada produk yang ditemukan dari API.");
+          logger.w("⚠️ Tidak ada produk yang ditemukan dari API.");
           emit(ProductError("Produk tidak ditemukan."));
           return;
         }
@@ -42,9 +43,9 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
           selectedSorong: AppStrings.noSorong,
         ));
 
-        print("✅ Produk berhasil dimuat: ${products.length} items.");
+        logger.i("✅ Produk berhasil dimuat: ${products.length} items.");
       } catch (e) {
-        print("❌ Error fetching products: $e");
+        logger.e("❌ Error fetching products: $e");
         emit(ProductError("Gagal mengambil data produk: ${e.toString()}"));
       }
     });
@@ -158,7 +159,7 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
     });
 
     on<UpdateSelectedBrand>((event, emit) {
-      print("📌 Brand Changed: ${event.brand}");
+      logger.i("📌 Brand Changed: ${event.brand}");
 
       final filteredKasurs = state.products
           .where((p) =>
@@ -333,7 +334,7 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
             matchesSet;
       }).toList();
 
-      print("🔍 Filtered Products Count: ${filteredProducts.length}");
+      logger.i("🔍 Filtered Products Count: ${filteredProducts.length}");
 
       emit(state.copyWith(
           filteredProducts: filteredProducts, isFilterApplied: true));
@@ -462,7 +463,7 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
     });
 
     on<ResetProductState>((event, emit) {
-      print("🔄 Resetting Product State...");
+      logger.i("🔄 Resetting Product State...");
       emit(ProductState());
     });
 

@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../../../../config/api_config.dart';
 import '../../../../core/error/exceptions.dart';
+import '../../../../core/utils/logger.dart';
 import '../../../../services/api_client.dart';
 import '../models/auth_model.dart';
 
@@ -12,8 +13,8 @@ class AuthRepository {
 
   Future<AuthModel> login(String email, String password) async {
     try {
-      print("🔵 Sending login request...");
-      print("📩 Email: $email");
+      logger.i("🔵 Sending login request...");
+      logger.i("📩 Email: $email");
 
       final response = await apiClient.post(
         "/oauth/token",
@@ -34,7 +35,7 @@ class AuthRepository {
         throw Exception("Format JSON tidak sesuai.");
       }
 
-      print("✅ Response: ${response.data}");
+      logger.i("✅ Response: ${response.data}");
       return AuthModel.fromJson(response.data);
     } on DioException catch (e) {
       if (e.type == DioExceptionType.connectionTimeout ||

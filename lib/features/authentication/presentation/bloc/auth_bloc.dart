@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/utils/logger.dart';
 import '../../../../services/auth_service.dart';
 import '../../domain/usecases/login_usecase.dart';
 import 'auth_event.dart';
@@ -25,10 +26,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           throw Exception("Gagal menyimpan sesi login.");
         }
 
-        print("✅ Login successful, token saved.");
+        logger.i("✅ Login successful, token saved.");
         emit(AuthSuccess(auth.accessToken));
       } catch (e) {
-        print("❌ Login failed: $e");
+        logger.e("❌ Login failed: $e");
         String errorMessage = "Terjadi kesalahan. Silakan coba lagi.";
         final errorString = e.toString().toLowerCase();
 
@@ -46,12 +47,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     });
 
     on<AuthLogoutRequested>((event, emit) async {
-      print("🚪 Logging out...");
+      logger.i("🚪 Logging out...");
 
       await AuthService.logout();
       emit(AuthInitial());
 
-      print("✅ Logout successful.");
+      logger.i("✅ Logout successful.");
     });
   }
 }

@@ -1,4 +1,5 @@
 import '../../../../config/api_config.dart';
+import '../../../../core/utils/logger.dart';
 import '../../../../services/api_client.dart';
 import '../../../../services/auth_service.dart';
 import '../models/product_model.dart';
@@ -10,7 +11,7 @@ class ProductRepository {
 
   Future<List<ProductModel>> fetchProducts() async {
     try {
-      print("📡 Fetching products from API...");
+      logger.i("📡 Fetching products from API...");
 
       final token = await AuthService.getToken();
       if (token == null || token.isEmpty) {
@@ -36,7 +37,7 @@ class ProductRepository {
           .map((item) => ProductModel.fromJson(item as Map<String, dynamic>))
           .toList();
     } catch (e) {
-      print("❌ Error fetching products: $e");
+      logger.e("❌ Error fetching products: $e");
       throw Exception("Gagal mengambil data produk: ${e.toString()}");
     }
   }

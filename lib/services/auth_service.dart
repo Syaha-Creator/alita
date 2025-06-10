@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import '../config/api_config.dart';
 import '../config/app_constant.dart';
+import '../core/utils/logger.dart';
 
 class AuthService {
   static final ValueNotifier<bool> authChangeNotifier = ValueNotifier(false);
@@ -17,7 +18,7 @@ class AuthService {
     if (isLoggedIn && loginTimestamp != null) {
       int currentTime = DateTime.now().millisecondsSinceEpoch;
       if (currentTime - loginTimestamp > _sessionDuration || token == null) {
-        print("⏳ Session expired, logging out...");
+        logger.i("⏳ Session expired, logging out...");
         await logout();
         return false;
       }
@@ -38,11 +39,11 @@ class AuthService {
       await prefs.setString(StorageKeys.refreshToken, refreshToken);
       await prefs.setInt(StorageKeys.currentUserId, userId);
 
-      print("🔐 User $userId logged in. Token saved successfully!");
+      logger.i("🔐 User $userId logged in. Token saved successfully!");
       authChangeNotifier.value = true;
       return true;
     } catch (e) {
-      print("❌ Failed to save session: $e");
+      logger.e("❌ Failed to save session: $e");
       return false;
     }
   }
@@ -60,7 +61,7 @@ class AuthService {
   static Future<void> clearSavedEmail() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(StorageKeys.rememberedEmail);
-    print("🔑 Remembered email cleared.");
+    logger.i("🔑 Remembered email cleared.");
   }
 
   static Future<int?> getCurrentUserId() async {
@@ -83,7 +84,7 @@ class AuthService {
     String? refreshToken = prefs.getString(StorageKeys.refreshToken);
 
     if (refreshToken == null) {
-      print("⚠️ No refresh token found, logging out...");
+      logger.i("⚠️ No refresh token found, logging out...");
       await logout();
       return null;
     }
@@ -120,7 +121,7 @@ class AuthService {
         throw Exception("Invalid response: ${response.data}");
       }
     } catch (e) {
-      print("❌ Refresh token failed, logging out...");
+      logger.e("❌ Refresh token failed, logging out...");
       await logout();
       return null;
     }
@@ -135,11 +136,11 @@ class AuthService {
       await prefs.remove(StorageKeys.refreshToken);
       await prefs.remove(StorageKeys.currentUserId);
 
-      print("🚪 User logged out successfully and session data removed!");
+      logger.i("🚪 User logged out successfully and session data removed!");
       authChangeNotifier.value = false;
       return true;
     } catch (e) {
-      print("❌ Failed to log out: $e");
+      logger.e("❌ Failed to log out: $e");
       return false;
     }
   }
