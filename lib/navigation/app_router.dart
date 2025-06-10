@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../config/app_constant.dart';
 import '../features/authentication/presentation/pages/login_page.dart';
 import '../features/cart/presentation/pages/cart_page.dart';
 import '../features/product/presentation/pages/product_page.dart';
 import '../services/auth_service.dart';
 import 'navigation_service.dart';
-import 'route_path.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(

@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import 'route_path.dart';
+import '../config/app_constant.dart';
 import '../services/auth_service.dart';
 
 class RouterGuard {

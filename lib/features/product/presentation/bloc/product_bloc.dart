@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../config/app_constant.dart';
 import '../../../../core/widgets/custom_toast.dart';
 import '../../domain/usecases/get_product_usecase.dart';
 import 'product_event.dart';
@@ -35,10 +36,10 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
           availableDivans: [],
           availableHeadboards: [],
           availableSorongs: [],
-          selectedKasur: "Tanpa Kasur",
-          selectedDivan: "Tanpa Divan",
-          selectedHeadboard: "Tanpa Headboard",
-          selectedSorong: "Tanpa Sorong",
+          selectedKasur: AppStrings.noKasur,
+          selectedDivan: AppStrings.noDivan,
+          selectedHeadboard: AppStrings.noHeadboard,
+          selectedSorong: AppStrings.noSorong,
         ));
 
         print("✅ Produk berhasil dimuat: ${products.length} items.");
@@ -116,10 +117,10 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         availableDivans: [],
         availableHeadboards: [],
         availableSorongs: [],
-        selectedKasur: "Tanpa Kasur",
-        selectedDivan: "Tanpa Divan",
-        selectedHeadboard: "Tanpa Headboard",
-        selectedSorong: "Tanpa Sorong",
+        selectedKasur: AppStrings.noKasur,
+        selectedDivan: AppStrings.noDivan,
+        selectedHeadboard: AppStrings.noHeadboard,
+        selectedSorong: AppStrings.noSorong,
         availableSizes: [],
         selectedSize: "",
       ));
@@ -144,10 +145,10 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         availableDivans: [],
         availableHeadboards: [],
         availableSorongs: [],
-        selectedKasur: "Tanpa Kasur",
-        selectedDivan: "Tanpa Divan",
-        selectedHeadboard: "Tanpa Headboard",
-        selectedSorong: "Tanpa Sorong",
+        selectedKasur: AppStrings.noKasur,
+        selectedDivan: AppStrings.noDivan,
+        selectedHeadboard: AppStrings.noHeadboard,
+        selectedSorong: AppStrings.noSorong,
         availableSizes: [],
         selectedSize: "",
       ));
@@ -189,13 +190,13 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       emit(state.copyWith(
         selectedBrand: event.brand,
         availableKasurs: filteredKasurs,
-        selectedKasur: "Tanpa Kasur",
         availableDivans: filteredDivans,
-        selectedDivan: "Tanpa Divan",
         availableHeadboards: filteredHeadboards,
-        selectedHeadboard: "Tanpa Headboard",
         availableSorongs: filteredSorongs,
-        selectedSorong: "Tanpa Sorong",
+        selectedKasur: AppStrings.noKasur,
+        selectedDivan: AppStrings.noDivan,
+        selectedHeadboard: AppStrings.noHeadboard,
+        selectedSorong: AppStrings.noSorong,
       ));
     });
 
@@ -220,12 +221,13 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       emit(state.copyWith(
         selectedKasur: event.kasur,
         availableDivans: divans,
-        selectedDivan: divans.isNotEmpty ? divans.first : "Tanpa Divan",
+        selectedDivan: divans.isNotEmpty ? divans.first : AppStrings.noDivan,
         availableHeadboards: headboards,
         selectedHeadboard:
-            headboards.isNotEmpty ? headboards.first : "Tanpa Headboard",
+            headboards.isNotEmpty ? headboards.first : AppStrings.noHeadboard,
         availableSorongs: sorongs,
-        selectedSorong: sorongs.isNotEmpty ? sorongs.first : "Tanpa Sorong",
+        selectedSorong:
+            sorongs.isNotEmpty ? sorongs.first : AppStrings.noSorong,
         availableSizes: sizes,
         selectedSize: "",
       ));
@@ -251,9 +253,10 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         selectedDivan: event.divan,
         availableHeadboards: headboards,
         selectedHeadboard:
-            headboards.isNotEmpty ? headboards.first : "Tanpa Headboard",
+            headboards.isNotEmpty ? headboards.first : AppStrings.noHeadboard,
         availableSorongs: sorongs,
-        selectedSorong: sorongs.isNotEmpty ? sorongs.first : "Tanpa Sorong",
+        selectedSorong:
+            sorongs.isNotEmpty ? sorongs.first : AppStrings.noSorong,
       ));
     });
 

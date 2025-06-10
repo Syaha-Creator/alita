@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../config/app_constant.dart';
 import '../../../../core/utils/controller_disposal_mixin.dart';
 import '../../../../core/utils/validation.dart';
 import '../../../../core/widgets/custom_button.dart';
@@ -10,7 +11,7 @@ import '../../../../core/widgets/custom_loading.dart';
 import '../../../../core/widgets/custom_textfield.dart';
 import '../../../../core/widgets/custom_toast.dart';
 import '../../../../navigation/navigation_service.dart';
-import '../../../../navigation/route_path.dart';
+
 import '../../../../services/auth_service.dart';
 import '../../../product/presentation/bloc/product_bloc.dart';
 import '../../../product/presentation/bloc/product_event.dart';

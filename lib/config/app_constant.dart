@@ -17,3 +17,21 @@ class StorageKeys {
   // Kunci untuk Keranjang Belanja
   static const String cartKeyBase = "cart_items_for_user_";
 }
+
+class RoutePaths {
+  RoutePaths._();
+
+  static const String login = '/login';
+  static const String product = '/product';
+  static const String cart = '/cart';
+  static const String checkout = '/checkout';
+}
+
+class AppStrings {
+  AppStrings._();
+
+  static const String noKasur = "Tanpa Kasur";
+  static const String noDivan = "Tanpa Divan";
+  static const String noHeadboard = "Tanpa Headboard";
+  static const String noSorong = "Tanpa Sorong";
+}

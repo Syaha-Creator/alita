@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../config/app_constant.dart';
 import '../../../../navigation/navigation_service.dart';
-import '../../../../navigation/route_path.dart';
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/auth_state.dart';
 import '../../../cart/presentation/pages/cart_page.dart';
