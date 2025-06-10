@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../config/app_constant.dart';
 import '../widgets/login_form.dart';
 
 class LoginPage extends StatelessWidget {
@@ -44,7 +45,8 @@ class LoginPage extends StatelessWidget {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppPadding.p24, vertical: AppPadding.p20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -68,7 +70,7 @@ class LoginPage extends StatelessWidget {
 
               // Login Form dengan Card dan Shadow
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(AppPadding.p20),
                 decoration: BoxDecoration(
                   color: theme.cardColor,
                   borderRadius: BorderRadius.circular(16),

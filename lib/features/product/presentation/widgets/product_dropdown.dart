@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../config/app_constant.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
 
 class ProductDropdown extends StatelessWidget {
@@ -72,7 +73,7 @@ class ProductDropdown extends StatelessWidget {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(vertical: AppPadding.p8),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -158,7 +159,7 @@ class ProductDropdown extends StatelessWidget {
 
   Widget _buildRow(Widget firstDropdown, Widget secondDropdown) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: AppPadding.p10),
       child: Row(
         children: [
           Expanded(child: firstDropdown),

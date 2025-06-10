@@ -119,7 +119,7 @@ class _LoginFormState extends State<LoginForm> with ControllerDisposalMixin {
             focusNode: passwordFocus,
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            padding: const EdgeInsets.symmetric(vertical: AppPadding.p8),
             child: Row(
               children: [
                 Checkbox(

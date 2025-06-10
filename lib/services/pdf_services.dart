@@ -7,6 +7,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../config/app_constant.dart';
 import '../core/utils/format_helper.dart';
 import '../features/cart/domain/entities/cart_entity.dart';
 
@@ -67,7 +68,7 @@ class PDFService {
   /// Build PDF header
   static pw.Widget _buildHeader() {
     return pw.Container(
-      padding: const pw.EdgeInsets.all(16),
+      padding: const pw.EdgeInsets.all(AppPadding.p16),
       decoration: pw.BoxDecoration(
         color: PdfColors.blue100,
         borderRadius: pw.BorderRadius.circular(8),
@@ -118,7 +119,7 @@ class PDFService {
   static pw.Widget _buildCustomerInfo(
       String customerInfo, String shippingAddress) {
     return pw.Container(
-      padding: const pw.EdgeInsets.all(16),
+      padding: const pw.EdgeInsets.all(AppPadding.p16),
       decoration: pw.BoxDecoration(
         border: pw.Border.all(color: PdfColors.grey300),
         borderRadius: pw.BorderRadius.circular(8),
@@ -395,7 +396,7 @@ class PDFService {
   static pw.Widget _buildTableCell(String text,
       {bool isHeader = false, bool isAmount = false}) {
     return pw.Padding(
-      padding: const pw.EdgeInsets.all(8),
+      padding: const pw.EdgeInsets.all(AppPadding.p8),
       child: pw.Text(
         text,
         style: pw.TextStyle(
@@ -417,7 +418,7 @@ class PDFService {
         pw.Expanded(
           flex: 1,
           child: pw.Container(
-            padding: const pw.EdgeInsets.all(16),
+            padding: const pw.EdgeInsets.all(AppPadding.p16),
             decoration: pw.BoxDecoration(
               color: PdfColors.green50,
               border: pw.Border.all(color: PdfColors.green300),
@@ -485,7 +486,7 @@ class PDFService {
   static pw.Widget _buildNotes(String notes) {
     return pw.Container(
       width: double.infinity,
-      padding: const pw.EdgeInsets.all(16),
+      padding: const pw.EdgeInsets.all(AppPadding.p16),
       decoration: pw.BoxDecoration(
         color: PdfColors.grey50,
         border: pw.Border.all(color: PdfColors.grey300),
@@ -515,7 +516,7 @@ class PDFService {
         // Contact info box
         pw.Container(
           width: 200,
-          padding: const pw.EdgeInsets.all(12),
+          padding: const pw.EdgeInsets.all(AppPadding.p12),
           decoration: pw.BoxDecoration(
             border: pw.Border.all(color: PdfColors.grey300),
             borderRadius: pw.BorderRadius.circular(8),
@@ -537,7 +538,7 @@ class PDFService {
         // Thank you section
         pw.Container(
           width: double.infinity,
-          padding: const pw.EdgeInsets.all(16),
+          padding: const pw.EdgeInsets.all(AppPadding.p16),
           decoration: pw.BoxDecoration(
             color: PdfColors.blue50,
             borderRadius: pw.BorderRadius.circular(8),

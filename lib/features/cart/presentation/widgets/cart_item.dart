@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../config/app_constant.dart';
 import '../../../../core/utils/controller_disposal_mixin.dart';
 import '../../../../core/utils/format_helper.dart';
 import '../../../../core/widgets/quantity_control.dart';
@@ -27,7 +28,6 @@ class _CartItemWidgetState extends State<CartItemWidget>
   bool isExpanded = true;
   late final TextEditingController _noteController;
 
-  static const double _padding = 10.0;
   static const double _avatarSize = 40.0;
   static const radius = Radius.circular(12);
 
@@ -61,26 +61,26 @@ class _CartItemWidgetState extends State<CartItemWidget>
           onTap: () => setState(() => isExpanded = !isExpanded),
           child: Card(
             margin: const EdgeInsets.symmetric(
-                horizontal: _padding, vertical: _padding / 2),
+                horizontal: AppPadding.p10, vertical: AppPadding.p10 / 2),
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             elevation: 4,
             child: Padding(
-              padding: const EdgeInsets.all(_padding),
+              padding: const EdgeInsets.all(AppPadding.p10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildHeader(context),
                   if (isExpanded) ...[
-                    const SizedBox(height: _padding),
+                    const SizedBox(height: AppPadding.p10),
                     _buildProductDetails(context),
-                    const SizedBox(height: _padding),
+                    const SizedBox(height: AppPadding.p10),
                     _buildBonusAndNotes(context, productState),
-                    const SizedBox(height: _padding),
+                    const SizedBox(height: AppPadding.p10),
                     _buildPriceInfo(context, netPrice, totalDiscount, discounts,
                         hasInstallment),
                   ],
-                  const SizedBox(height: _padding),
+                  const SizedBox(height: AppPadding.p10),
                   _buildTotalPrice(context, netPrice),
                 ],
               ),
@@ -109,7 +109,7 @@ class _CartItemWidgetState extends State<CartItemWidget>
           child: Icon(Icons.bed,
               color: Theme.of(context).primaryColor, size: _avatarSize * 0.5),
         ),
-        const SizedBox(width: _padding),
+        const SizedBox(width: AppPadding.p10),
         Expanded(
           child: Text(
             '${widget.item.product.kasur} - ${widget.item.product.ukuran}',
@@ -156,7 +156,7 @@ class _CartItemWidgetState extends State<CartItemWidget>
         GoogleFonts.montserrat(fontSize: 14, fontWeight: FontWeight.w500);
 
     return Container(
-      padding: const EdgeInsets.all(_padding),
+      padding: const EdgeInsets.all(AppPadding.p10),
       decoration: BoxDecoration(
         color: Colors.grey.shade50,
         borderRadius: BorderRadius.all(radius),
@@ -165,7 +165,7 @@ class _CartItemWidgetState extends State<CartItemWidget>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Detail Produk', style: styleLabel.copyWith(fontSize: 15)),
-          const SizedBox(height: _padding / 2),
+          const SizedBox(height: AppPadding.p10 / 2),
           _detailRow(
               Icons.table_chart, 'Divan', p.divan, styleLabel, styleValue),
           _detailRow(Icons.view_headline, 'Headboard', p.headboard, styleLabel,
@@ -185,7 +185,7 @@ class _CartItemWidgetState extends State<CartItemWidget>
   Widget _detailRow(IconData icon, String label, String value,
       TextStyle labelStyle, TextStyle valueStyle) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      padding: const EdgeInsets.symmetric(vertical: AppPadding.p4),
       child: Row(
         children: [
           Icon(icon, size: 20, color: Colors.grey.shade600),
@@ -220,7 +220,7 @@ class _CartItemWidgetState extends State<CartItemWidget>
       BuildContext context, IconData icon, String title, String content) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(_padding),
+      padding: const EdgeInsets.all(AppPadding.p10),
       decoration: BoxDecoration(
         color: Colors.purple.shade50,
         borderRadius: BorderRadius.all(radius),
@@ -246,7 +246,7 @@ class _CartItemWidgetState extends State<CartItemWidget>
       BuildContext context, IconData icon, String title, String content) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(_padding),
+      padding: const EdgeInsets.all(AppPadding.p10),
       decoration: BoxDecoration(
         color: Colors.grey.shade100,
         borderRadius: BorderRadius.all(radius),
@@ -299,7 +299,7 @@ class _CartItemWidgetState extends State<CartItemWidget>
     final styleValue = GoogleFonts.montserrat(fontSize: 14);
 
     return Container(
-      padding: const EdgeInsets.all(_padding),
+      padding: const EdgeInsets.all(AppPadding.p10),
       decoration: BoxDecoration(
         color: Colors.grey.shade100,
         borderRadius: BorderRadius.all(radius),
@@ -308,7 +308,7 @@ class _CartItemWidgetState extends State<CartItemWidget>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Informasi Harga', style: styleLabel.copyWith(fontSize: 16)),
-          const SizedBox(height: _padding / 2),
+          const SizedBox(height: AppPadding.p10 / 2),
           _priceRow(
               'Pricelist',
               FormatHelper.formatCurrency(widget.item.product.pricelist),
@@ -338,7 +338,7 @@ class _CartItemWidgetState extends State<CartItemWidget>
 
   Widget _priceRow(String label, String value, TextStyle valueStyle) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      padding: const EdgeInsets.symmetric(vertical: AppPadding.p4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -355,7 +355,7 @@ class _CartItemWidgetState extends State<CartItemWidget>
     final total = netPrice * widget.item.quantity;
     return Container(
       padding: const EdgeInsets.symmetric(
-          vertical: _padding / 2, horizontal: _padding),
+          vertical: AppPadding.p10 / 2, horizontal: AppPadding.p10),
       decoration: BoxDecoration(
         color: Colors.green.shade50,
         borderRadius: BorderRadius.all(radius),

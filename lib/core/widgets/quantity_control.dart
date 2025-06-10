@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../config/app_constant.dart';
+
 class QuantityControl extends StatelessWidget {
   final int quantity;
   final VoidCallback onIncrement;
@@ -24,7 +26,7 @@ class QuantityControl extends StatelessWidget {
           onDecrement,
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+          padding: const EdgeInsets.symmetric(horizontal: AppPadding.p8),
           child: Text(
             quantity.toString(),
             style: GoogleFonts.montserrat(
@@ -50,7 +52,7 @@ class QuantityControl extends StatelessWidget {
         onTap: onTap,
         radius: 20,
         child: Padding(
-          padding: const EdgeInsets.all(6.0),
+          padding: const EdgeInsets.all(AppPadding.p8),
           child: Icon(icon, size: 20, color: color),
         ),
       ),

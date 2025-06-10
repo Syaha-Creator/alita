@@ -1,8 +1,8 @@
-// File: lib/features/cart/presentation/widgets/cart_badge.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../config/app_constant.dart';
 import '../bloc/cart_bloc.dart';
 import '../bloc/cart_state.dart';
 
@@ -35,7 +35,7 @@ class CartBadge extends StatelessWidget {
               onTap: onTap,
               borderRadius: BorderRadius.circular(8),
               child: Padding(
-                padding: const EdgeInsets.all(8.0),
+                padding: const EdgeInsets.all(AppPadding.p8),
                 child: child,
               ),
             ),
@@ -44,7 +44,7 @@ class CartBadge extends StatelessWidget {
                 right: 0,
                 top: 0,
                 child: Container(
-                  padding: const EdgeInsets.all(4),
+                  padding: const EdgeInsets.all(AppPadding.p4),
                   decoration: BoxDecoration(
                     color: Colors.red,
                     borderRadius: BorderRadius.circular(12),

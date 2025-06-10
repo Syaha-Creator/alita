@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../../config/app_constant.dart';
 import '../../../../core/utils/format_helper.dart';
 import '../../../../core/widgets/custom_toast.dart';
 import '../../../../core/widgets/detail_info_row.dart';
+import '../../../../theme/app_colors.dart';
 import '../../../cart/presentation/bloc/cart_bloc.dart';
 import '../../../cart/presentation/bloc/cart_event.dart';
 import '../../domain/entities/product_entity.dart';
@@ -44,13 +47,14 @@ class ProductCard extends StatelessWidget {
           elevation: 3,
           margin: const EdgeInsets.symmetric(vertical: 8),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppPadding.p16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildProductDetail(),
                 const SizedBox(height: 12),
-                _buildPriceInfo(context, state),
+                _buildPriceInfo(context, state, netPrice, discountPercentages,
+                    editPopupDiscount),
                 const SizedBox(height: 12),
                 _buildBonusInfo(state),
                 if (!hideButtons) ...[
@@ -79,27 +83,32 @@ class ProductCard extends StatelessWidget {
     );
   }
 
-  Widget _buildPriceInfo(BuildContext context, ProductState state) {
-    final netPrice = state.roundedPrices[product.id] ?? product.endUserPrice;
+  Widget _buildPriceInfo(
+      BuildContext context,
+      ProductState state,
+      double netPrice,
+      List<double> discountPercentages,
+      double editPopupDiscount) {
+    final theme = Theme.of(context);
     final totalDiscount = product.pricelist - netPrice;
 
-    List<double> discountPercentages =
-        state.productDiscountsPercentage[product.id] ?? [];
-    double editPopupDiscount = state.priceChangePercentages[product.id] ?? 0.0;
+    final int? installmentMonths = state.installmentMonths[product.id];
+    final bool hasInstallment =
+        installmentMonths != null && installmentMonths > 0;
 
     List<String> discountList = discountPercentages
         .where((d) => d > 0.0)
-        .map((d) => "${d.toStringAsFixed(d.truncateToDouble() == d ? 0 : 2)}%")
+        .map((d) => d % 1 == 0 ? "${d.toInt()}%" : "${d.toStringAsFixed(2)}%")
         .toList();
+
     if (editPopupDiscount != 0.0) {
-      discountList.add(
-          "${editPopupDiscount.toStringAsFixed(editPopupDiscount.truncateToDouble() == editPopupDiscount ? 0 : 2)}%");
+      discountList.add(editPopupDiscount % 1 == 0
+          ? "${editPopupDiscount.toInt()}%"
+          : "${editPopupDiscount.toStringAsFixed(2)}%");
     }
     String formattedDiscounts =
         discountList.isNotEmpty ? discountList.join(" + ") : "( -)";
     bool hasDiscountReceived = discountList.isNotEmpty;
-    bool hasInstallment = state.installmentMonths.containsKey(product.id) &&
-        state.installmentMonths[product.id]! > 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -108,7 +117,7 @@ class ProductCard extends StatelessWidget {
             title: "Pricelist",
             value: FormatHelper.formatCurrency(product.pricelist),
             isStrikethrough: true,
-            valueColor: Colors.red.shade700),
+            valueColor: AppColors.error),
         DetailInfoRow(
             title: "Program",
             value: product.program.isNotEmpty
@@ -118,23 +127,23 @@ class ProductCard extends StatelessWidget {
           DetailInfoRow(
               title: "Plus Diskon",
               value: formattedDiscounts,
-              valueColor: Colors.blue),
+              valueColor: theme.colorScheme.primary),
         DetailInfoRow(
             title: "Harga Net",
             value: FormatHelper.formatCurrency(netPrice),
             isBoldValue: true,
-            valueColor: Colors.green),
+            valueColor: AppColors.success),
         if (hasInstallment)
           DetailInfoRow(
               title: "Cicilan",
               value:
-                  "${state.installmentMonths[product.id]} bulan x ${FormatHelper.formatCurrency(netPrice / state.installmentMonths[product.id]!)}",
+                  "$installmentMonths bulan x ${FormatHelper.formatCurrency(netPrice / installmentMonths)}",
               isBoldValue: true,
-              valueColor: Colors.blue),
+              valueColor: theme.colorScheme.primary),
         DetailInfoRow(
             title: "Total Diskon",
             value: "- ${FormatHelper.formatCurrency(totalDiscount)}",
-            valueColor: Colors.orange),
+            valueColor: AppColors.warning),
       ],
     );
   }
@@ -182,20 +191,16 @@ class ProductCard extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        _buildIconButton(Icons.credit_card, "Credit", Colors.green, () {
-          ProductActions.showCreditPopup(context, product);
-        }),
-        _buildIconButton(Icons.edit, "Edit", Colors.blue, () {
-          ProductActions.showEditPopup(context, product);
-        }),
-        _buildIconButton(Icons.info_outline, "Info", Colors.orange, () {
-          ProductActions.showInfoPopup(context, product);
-        }),
-        _buildIconButton(Icons.share, "Share", Colors.teal, () {
-          ProductActions.showSharePopup(context, product);
-        }),
-        _buildIconButton(Icons.add_shopping_cart, "Add to Cart", Colors.purple,
-            () {
+        _buildIconButton(Icons.credit_card, "Credit", AppColors.success,
+            () => ProductActions.showCreditPopup(context, product)),
+        _buildIconButton(Icons.edit, "Edit", AppColors.primaryLight,
+            () => ProductActions.showEditPopup(context, product)),
+        _buildIconButton(Icons.info_outline, "Info", AppColors.warning,
+            () => ProductActions.showInfoPopup(context, product)),
+        _buildIconButton(Icons.share, "Share", AppColors.info,
+            () => ProductActions.showSharePopup(context, product)),
+        _buildIconButton(
+            Icons.add_shopping_cart, "Add to Cart", AppColors.purple, () {
           context.read<CartBloc>().add(AddToCart(
                 product: product,
                 quantity: 1,
@@ -221,7 +226,7 @@ class ProductCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           onTap: onPressed,
           child: Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: const EdgeInsets.all(AppPadding.p8),
             child: Icon(icon, size: 30, color: color),
           ),
         ),

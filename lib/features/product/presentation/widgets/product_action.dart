@@ -9,30 +9,43 @@ import '../../domain/entities/product_entity.dart';
 import '../bloc/product_bloc.dart';
 import 'product_card.dart';
 
-// Import dialog-dialog yang baru
 import 'dialogs/credit_dialog.dart';
 import 'dialogs/edit_price_dialog.dart';
 import 'dialogs/info_dialog.dart';
 
 class ProductActions {
   static void showCreditPopup(BuildContext context, ProductEntity product) {
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (dialogContext) => CreditDialog(product: product),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) {
+        return CreditDialog(product: product);
+      },
     );
   }
 
   static void showEditPopup(BuildContext context, ProductEntity product) {
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (dialogContext) => EditPriceDialog(product: product),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => EditPriceDialog(product: product),
     );
   }
 
   static void showInfoPopup(BuildContext context, ProductEntity product) {
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (dialogContext) => InfoDialog(product: product),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => InfoDialog(product: product),
     );
   }
 

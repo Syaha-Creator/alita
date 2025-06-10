@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../config/app_constant.dart';
+import '../../../../core/widgets/empty_widget.dart';
 import '../../../../navigation/navigation_service.dart';
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/auth_state.dart';
@@ -56,7 +57,7 @@ class _ProductPageState extends State<ProductPage> {
           ],
         ),
         body: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(AppPadding.p16),
           child: BlocBuilder<ProductBloc, ProductState>(
             builder: (context, state) {
               if (state is ProductLoading) {
@@ -170,7 +171,7 @@ class _ProductPageState extends State<ProductPage> {
                       }
                     },
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: AppPadding.p10),
                   ElevatedButton(
                     onPressed: (state.selectedChannel != null &&
                             state.selectedChannel!.isNotEmpty)
@@ -220,7 +221,8 @@ class _ProductPageState extends State<ProductPage> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      padding:
+                          const EdgeInsets.symmetric(vertical: AppPadding.p12),
                     ),
                     child: const Center(
                       child: Text(
@@ -229,7 +231,7 @@ class _ProductPageState extends State<ProductPage> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: AppPadding.p10),
                   Expanded(
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 300),
@@ -243,22 +245,11 @@ class _ProductPageState extends State<ProductPage> {
                               },
                             )
                           : state.isFilterApplied
-                              ? Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.search_off,
-                                          size: 80, color: Colors.grey),
-                                      const SizedBox(height: 10),
-                                      Text(
-                                        AppStrings.noProductFound,
-                                        style: TextStyle(
-                                            color: Colors.grey,
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold),
-                                      ),
-                                    ],
-                                  ),
+                              ? const EmptyStateWidget(
+                                  icon: Icons.search_off,
+                                  title: "Produk Tidak Ditemukan",
+                                  message:
+                                      "Coba ubah kriteria filter Anda untuk menemukan produk yang lain.",
                                 )
                               : const SizedBox(),
                     ),

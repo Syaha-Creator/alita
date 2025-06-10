@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../config/app_constant.dart';
 import '../../../../core/utils/controller_disposal_mixin.dart';
 import '../../../../core/utils/format_helper.dart';
 import '../../../../core/widgets/custom_toast.dart';
@@ -74,7 +75,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
         barrierDismissible: false,
         builder: (context) => const Dialog(
           child: Padding(
-            padding: EdgeInsets.all(20),
+            padding: EdgeInsets.all(AppPadding.p20),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -209,7 +210,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
                     return Form(
                       key: _formKey,
                       child: SingleChildScrollView(
-                        padding: const EdgeInsets.all(16.0),
+                        padding: const EdgeInsets.all(AppPadding.p16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -313,7 +314,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
 
   Widget _buildPaymentMethodSelector() {
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(AppPadding.p8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -370,7 +371,8 @@ class _CheckoutPagesState extends State<CheckoutPages>
 
   Widget _buildPromoCodeInput() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppPadding.p8, vertical: AppPadding.p8),
       decoration: BoxDecoration(
         color: Colors.grey.shade50,
         borderRadius: BorderRadius.circular(12),
@@ -427,7 +429,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
 
   Widget _buildOrderSummary(List<CartEntity> selectedItems, double totalPrice) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppPadding.p16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -439,7 +441,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
           ...selectedItems.asMap().entries.map((entry) {
             final item = entry.value;
             return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.symmetric(vertical: AppPadding.p8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -495,7 +497,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
             (sum, item) => sum + (item.netPrice * item.quantity),
           );
           return Container(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(AppPadding.p16),
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [

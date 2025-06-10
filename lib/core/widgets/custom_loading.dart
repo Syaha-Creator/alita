@@ -1,3 +1,4 @@
+import 'package:alitapricelist/config/app_constant.dart';
 import 'package:flutter/material.dart';
 
 class CustomLoading {
@@ -11,12 +12,12 @@ class CustomLoading {
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           child: Padding(
-            padding: const EdgeInsets.all(20.0),
+            padding: const EdgeInsets.all(AppPadding.p20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 const CircularProgressIndicator(color: Colors.blue),
-                const SizedBox(height: 15),
+                const SizedBox(height: AppPadding.p16),
                 Text(
                   message,
                   style: const TextStyle(

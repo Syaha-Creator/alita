@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../../config/app_constant.dart';
 import '../../../../core/utils/format_helper.dart';
 import '../bloc/cart_bloc.dart';
 import '../bloc/cart_event.dart';
@@ -61,7 +62,8 @@ class CartPage extends StatelessWidget {
                         children: [
                           Expanded(
                             child: ListView.builder(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: AppPadding.p12),
                               itemCount: state.cartItems.length,
                               itemBuilder: (context, index) {
                                 final cartItem = state.cartItems[index];
@@ -72,7 +74,8 @@ class CartPage extends StatelessWidget {
                                   background: Container(
                                     color: Colors.red.shade700,
                                     alignment: Alignment.centerRight,
-                                    padding: const EdgeInsets.only(right: 20.0),
+                                    padding: const EdgeInsets.only(
+                                        right: AppPadding.p20),
                                     child: const Icon(Icons.delete,
                                         color: Colors.white),
                                   ),
@@ -92,7 +95,7 @@ class CartPage extends StatelessWidget {
                             ),
                           ),
                           Container(
-                            padding: const EdgeInsets.all(16.0),
+                            padding: const EdgeInsets.all(AppPadding.p16),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               boxShadow: [

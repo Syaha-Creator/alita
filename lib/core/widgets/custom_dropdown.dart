@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:dropdown_search/dropdown_search.dart';
 
+import '../../config/app_constant.dart';
+
 class CustomDropdown<T> extends StatelessWidget {
   final String labelText;
   final List<T> items;
@@ -39,8 +41,8 @@ class CustomDropdown<T> extends StatelessWidget {
           labelText: labelText,
           hintText: hintText,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-          contentPadding:
-              const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+          contentPadding: const EdgeInsets.symmetric(
+              vertical: AppPadding.p12, horizontal: AppPadding.p10),
         ),
       ),
     );
