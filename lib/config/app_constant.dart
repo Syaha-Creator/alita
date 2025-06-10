@@ -34,4 +34,8 @@ class AppStrings {
   static const String noDivan = "Tanpa Divan";
   static const String noHeadboard = "Tanpa Headboard";
   static const String noSorong = "Tanpa Sorong";
+
+  static const String setToggleLabel = "Gunakan Set";
+  static const String showProductButton = "Tampilkan Produk";
+  static const String noProductFound = "Tidak ada produk yang cocok.";
 }

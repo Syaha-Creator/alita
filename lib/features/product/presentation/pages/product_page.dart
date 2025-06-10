@@ -224,7 +224,7 @@ class _ProductPageState extends State<ProductPage> {
                     ),
                     child: const Center(
                       child: Text(
-                        "Tampilkan Produk",
+                        AppStrings.showProductButton,
                         style: TextStyle(fontSize: 16),
                       ),
                     ),
@@ -251,7 +251,7 @@ class _ProductPageState extends State<ProductPage> {
                                           size: 80, color: Colors.grey),
                                       const SizedBox(height: 10),
                                       Text(
-                                        "Tidak ada produk yang cocok dengan filter.",
+                                        AppStrings.noProductFound,
                                         style: TextStyle(
                                             color: Colors.grey,
                                             fontSize: 16,
