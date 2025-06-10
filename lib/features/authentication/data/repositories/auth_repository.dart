@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../../../../config/api_config.dart';
+import '../../../../core/error/exceptions.dart';
 import '../../../../services/api_client.dart';
 import '../models/auth_model.dart';
 
@@ -36,11 +37,17 @@ class AuthRepository {
       print("✅ Response: ${response.data}");
       return AuthModel.fromJson(response.data);
     } on DioException catch (e) {
-      print("❌ API Error: ${e.response?.data ?? e.message}");
-      throw Exception("Login gagal: ${e.response?.data ?? e.message}");
-    } catch (e) {
-      print("❌ Unexpected Error: $e");
-      throw Exception("Terjadi kesalahan saat login.");
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.sendTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.connectionError) {
+        throw NetworkException(
+            "Gagal terhubung ke server. Periksa koneksi Anda.");
+      } else if (e.response != null) {
+        throw ServerException("Email atau password salah. Silakan coba lagi.");
+      } else {
+        throw ServerException("Terjadi kesalahan yang tidak diketahui.");
+      }
     }
   }
 }
