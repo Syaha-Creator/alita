@@ -30,6 +30,11 @@ class ProductModel {
   final double disc3;
   final double disc4;
   final double disc5;
+  final double plKasur;
+  final double plDivan;
+  final double plHeadboard;
+  final double plSorong;
+  final double eupSorong;
 
   ProductModel({
     required this.id,
@@ -63,6 +68,11 @@ class ProductModel {
     required this.disc3,
     required this.disc4,
     required this.disc5,
+    required this.plKasur,
+    required this.plDivan,
+    required this.plHeadboard,
+    required this.plSorong,
+    required this.eupSorong,
   });
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
@@ -84,30 +94,25 @@ class ProductModel {
       eupHeadboard: (json["eup_headboard"] ?? 0).toDouble(),
       endUserPrice: (json["end_user_price"] ?? 0).toDouble(),
       bonus1: json["bonus_1"],
-      qtyBonus1: json["qty_bonus1"] ?? 0,
+      qtyBonus1: json["qty_bonus1"],
       bonus2: json["bonus_2"],
-      qtyBonus2: json["qty_bonus2"] ?? 0,
+      qtyBonus2: json["qty_bonus2"],
       bonus3: json["bonus_3"],
-      qtyBonus3: json["qty_bonus3"] ?? 0,
+      qtyBonus3: json["qty_bonus3"],
       bonus4: json["bonus_4"],
-      qtyBonus4: json["qty_bonus4"] ?? 0,
+      qtyBonus4: json["qty_bonus4"],
       bonus5: json["bonus_5"],
-      qtyBonus5: json["qty_bonus5"] ?? 0,
+      qtyBonus5: json["qty_bonus5"],
       disc1: (json["disc1"] ?? 0).toDouble(),
       disc2: (json["disc2"] ?? 0).toDouble(),
       disc3: (json["disc3"] ?? 0).toDouble(),
       disc4: (json["disc4"] ?? 0).toDouble(),
       disc5: (json["disc5"] ?? 0).toDouble(),
+      plKasur: (json["pl_kasur"] ?? 0).toDouble(),
+      plDivan: (json["pl_divan"] ?? 0).toDouble(),
+      plHeadboard: (json["pl_headboard"] ?? 0).toDouble(),
+      plSorong: (json["pl_sorong"] ?? 0).toDouble(),
+      eupSorong: (json["eup_sorong"] ?? 0).toDouble(),
     );
-  }
-
-  static List<ProductModel> fromJsonList(Map<String, dynamic> jsonMap) {
-    if (jsonMap["result"] is List) {
-      return (jsonMap["result"] as List)
-          .map((item) => ProductModel.fromJson(item as Map<String, dynamic>))
-          .toList();
-    } else {
-      return [];
-    }
   }
 }

@@ -11,6 +11,18 @@ class FormatHelper {
     return formatter.format(amount);
   }
 
+  static String formatSimpleDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  }
+
+  static DateTime? parseSimpleDate(String dateStr) {
+    try {
+      return DateFormat('dd/MM/yyyy').parseStrict(dateStr);
+    } catch (e) {
+      return null;
+    }
+  }
+
   /// Format angka hanya dengan pemisah ribuan tanpa simbol mata uang
   static String formatNumber(double amount) {
     final formatter = NumberFormat('#,###', 'id_ID');

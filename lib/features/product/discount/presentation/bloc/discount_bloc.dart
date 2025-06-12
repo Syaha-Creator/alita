@@ -6,8 +6,6 @@ part 'state/discount_state.dart';
 
 class DiscountBloc extends Bloc<DiscountEvent, DiscountState> {
   DiscountBloc() : super(DiscountInitial()) {
-    on<DiscountEvent>((event, emit) {
-      // TODO: implement event handler
-    });
+    on<DiscountEvent>((event, emit) {});
   }
 }

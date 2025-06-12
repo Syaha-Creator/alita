@@ -48,20 +48,37 @@ class AppTheme {
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: AppColors.surfaceLight,
-      labelStyle: GoogleFonts.montserrat(color: AppColors.textSecondaryLight),
-      hintStyle: GoogleFonts.montserrat(color: AppColors.textSecondaryLight),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: AppColors.borderLight),
+      fillColor: AppColors.cardLight, // Warna latar belakang input
+      labelStyle: GoogleFonts.montserrat(
+        fontSize: 14,
+        color: AppColors.textSecondaryLight,
       ),
+      hintStyle: GoogleFonts.montserrat(
+        fontSize: 14,
+        color: AppColors.textSecondaryLight.withOpacity(0.7),
+      ),
+      // Border saat tidak di-klik
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: AppColors.borderLight),
+        borderSide: const BorderSide(color: AppColors.borderLight, width: 1.5),
       ),
+      // Border saat di-klik
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: AppColors.primaryLight, width: 2),
+        borderSide: const BorderSide(color: AppColors.primaryLight, width: 2.0),
+      ),
+      // Border saat terjadi error validasi
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: AppColors.error, width: 2.0),
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: AppColors.borderLight),
       ),
     ),
   );
@@ -112,19 +129,33 @@ class AppTheme {
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: AppColors.surfaceDark,
-      labelStyle: GoogleFonts.montserrat(color: AppColors.textSecondaryDark),
-      hintStyle: GoogleFonts.montserrat(color: AppColors.textSecondaryDark),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: AppColors.borderDark),
+      labelStyle: GoogleFonts.montserrat(
+        fontSize: 14,
+        color: AppColors.textSecondaryDark,
+      ),
+      hintStyle: GoogleFonts.montserrat(
+        fontSize: 14,
+        color: AppColors.textSecondaryDark.withOpacity(0.7),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: AppColors.borderDark),
+        borderSide: const BorderSide(color: AppColors.borderDark, width: 1.5),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: AppColors.primaryDark, width: 2),
+        borderSide: const BorderSide(color: AppColors.buttonDark, width: 2.0),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: AppColors.error, width: 2.0),
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: AppColors.borderDark),
       ),
     ),
   );

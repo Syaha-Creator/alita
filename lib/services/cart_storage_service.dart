@@ -13,14 +13,11 @@ class CartStorageService {
     try {
       final userId = await AuthService.getCurrentUserId();
       if (userId == null) return false;
-
       final prefs = await SharedPreferences.getInstance();
       final cartKey = _getCartKey(userId);
       final List<Map<String, dynamic>> cartJson =
           cartItems.map((item) => _cartEntityToJson(item)).toList();
-
       await prefs.setString(cartKey, jsonEncode(cartJson));
-
       logger.i("🛒 Cart for user $userId saved successfully.");
       return true;
     } catch (e) {
@@ -33,18 +30,13 @@ class CartStorageService {
     try {
       final userId = await AuthService.getCurrentUserId();
       if (userId == null) return [];
-
       final prefs = await SharedPreferences.getInstance();
       final cartKey = _getCartKey(userId);
-
       final String? cartData = prefs.getString(cartKey);
-
       if (cartData == null) return [];
-
       final List<dynamic> cartJson = jsonDecode(cartData);
       final List<CartEntity> cartItems =
           cartJson.map((item) => _cartEntityFromJson(item)).toList();
-
       logger.i("🛒 Cart for user $userId loaded successfully (no expiration).");
       return cartItems;
     } catch (e) {
@@ -58,10 +50,8 @@ class CartStorageService {
     try {
       final userId = await AuthService.getCurrentUserId();
       if (userId == null) return false;
-
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_getCartKey(userId));
-
       logger.i("🛒 Cart for user $userId cleared successfully");
       return true;
     } catch (e) {
@@ -79,6 +69,7 @@ class CartStorageService {
       'editPopupDiscount': item.editPopupDiscount,
       'installmentMonths': item.installmentMonths,
       'installmentPerMonth': item.installmentPerMonth,
+      'isSelected': item.isSelected,
     };
   }
 
@@ -91,6 +82,7 @@ class CartStorageService {
       editPopupDiscount: (json['editPopupDiscount'] ?? 0.0).toDouble(),
       installmentMonths: json['installmentMonths'],
       installmentPerMonth: json['installmentPerMonth']?.toDouble(),
+      isSelected: json['isSelected'] ?? true,
     );
   }
 
@@ -111,17 +103,22 @@ class CartStorageService {
       'eupDivan': product.eupDivan,
       'eupHeadboard': product.eupHeadboard,
       'endUserPrice': product.endUserPrice,
+      'isSet': product.isSet,
       'bonus': product.bonus
           .map((b) => {'name': b.name, 'quantity': b.quantity})
           .toList(),
       'discounts': product.discounts,
-      'isSet': product.isSet,
+      'plKasur': product.plKasur,
+      'plDivan': product.plDivan,
+      'plHeadboard': product.plHeadboard,
+      'plSorong': product.plSorong,
+      'eupSorong': product.eupSorong,
     };
   }
 
   static ProductEntity _productFromJson(Map<String, dynamic> json) {
     return ProductEntity(
-      id: json['id'],
+      id: json['id'] ?? 0,
       area: json['area'] ?? '',
       channel: json['channel'] ?? '',
       brand: json['brand'] ?? '',
@@ -142,6 +139,11 @@ class CartStorageService {
           .toList(),
       discounts: List<double>.from(json['discounts'] ?? []),
       isSet: json['isSet'] ?? false,
+      plKasur: (json['plKasur'] ?? 0.0).toDouble(),
+      plDivan: (json['plDivan'] ?? 0.0).toDouble(),
+      plHeadboard: (json['plHeadboard'] ?? 0.0).toDouble(),
+      plSorong: (json['plSorong'] ?? 0.0).toDouble(),
+      eupSorong: (json['eupSorong'] ?? 0.0).toDouble(),
     );
   }
 }

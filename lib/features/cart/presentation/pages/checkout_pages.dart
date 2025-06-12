@@ -1,4 +1,4 @@
-// File: lib/features/cart/presentation/pages/checkout_pages.dart
+// lib/features/cart/presentation/pages/checkout_pages.dart
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -7,11 +7,14 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../config/app_constant.dart';
 import '../../../../core/utils/controller_disposal_mixin.dart';
 import '../../../../core/utils/format_helper.dart';
+import '../../../../core/utils/logger.dart';
+import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/widgets/custom_textfield.dart';
 import '../../../../core/widgets/custom_toast.dart';
+import '../../../../services/auth_service.dart';
 import '../../../../services/pdf_services.dart';
 import '../../domain/entities/cart_entity.dart';
 import '../bloc/cart_bloc.dart';
-import '../bloc/cart_event.dart';
 import '../bloc/cart_state.dart';
 
 class CheckoutPages extends StatefulWidget {
@@ -25,95 +28,90 @@ class _CheckoutPagesState extends State<CheckoutPages>
     with ControllerDisposalMixin {
   final _formKey = GlobalKey<FormState>();
 
-  // Using mixin for automatic disposal
-  late final TextEditingController _addressController;
-  late final TextEditingController _promoCodeController;
-  late final TextEditingController _notesController;
   late final TextEditingController _customerNameController;
+  late final TextEditingController _customerPhoneController;
+  late final TextEditingController _shippingAddressController;
+  late final TextEditingController _showroomController;
+  late final TextEditingController _notesController;
+  late final TextEditingController _deliveryDateController;
+  late final TextEditingController _emailController;
+  late final TextEditingController _paymentAmountController;
+  late final TextEditingController _repaymentDateController;
 
-  String _selectedPaymentMethod = 'Transfer Bank';
   bool _isGeneratingPDF = false;
-
-  final List<Map<String, dynamic>> _paymentMethods = [
-    {
-      'name': 'Transfer Bank',
-      'icon': Icons.account_balance,
-    },
-    {
-      'name': 'Kartu Kredit',
-      'icon': Icons.credit_card,
-    },
-    {
-      'name': 'E-Wallet',
-      'icon': Icons.mobile_friendly,
-    },
-    {
-      'name': 'COD',
-      'icon': Icons.local_shipping,
-    },
-  ];
+  String _selectedPaymentMethod = 'Tunai';
 
   @override
   void initState() {
     super.initState();
-
-    // Register controllers for auto-disposal
-    _addressController = registerController();
-    _promoCodeController = registerController();
-    _notesController = registerController();
     _customerNameController = registerController();
+    _customerPhoneController = registerController();
+    _shippingAddressController = registerController();
+    _showroomController = registerController();
+    _notesController = registerController();
+    _deliveryDateController = registerController();
+    _emailController = registerController();
+    _paymentAmountController = registerController();
+    _repaymentDateController = registerController();
   }
 
-  Future<void> _generateAndSharePDF(
-      List<CartEntity> selectedItems, double totalPrice) async {
-    try {
-      setState(() => _isGeneratingPDF = true);
+  Future<void> _generateAndSharePDF(List<CartEntity> selectedItems) async {
+    if (!_formKey.currentState!.validate()) {
+      CustomToast.showToast(
+          "Harap isi semua kolom yang wajib diisi dan perbaiki error",
+          ToastType.error);
+      return;
+    }
 
-      // Show loading dialog
+    setState(() => _isGeneratingPDF = true);
+
+    try {
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (context) => const Dialog(
           child: Padding(
-            padding: EdgeInsets.all(AppPadding.p20),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(width: 16),
-                Text('Membuat PDF...'),
-              ],
-            ),
+            padding: EdgeInsets.all(20.0),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Text('Membuat PDF...'),
+            ]),
           ),
         ),
       );
+      final String? salesName = await AuthService.getCurrentUserName();
+      final double paymentAmount =
+          FormatHelper.parseCurrencyToDouble(_paymentAmountController.text);
 
-      // Generate PDF
       final Uint8List pdfBytes = await PDFService.generateCheckoutPDF(
         cartItems: selectedItems,
-        totalPrice: totalPrice,
-        customerInfo: _customerNameController.text,
+        customerName: _customerNameController.text,
+        phoneNumber: _customerPhoneController.text,
+        shippingAddress: _shippingAddressController.text,
+        showroom: _showroomController.text,
+        keterangan: _notesController.text,
+        salesName: salesName ?? "Sales",
+        deliveryDate: _deliveryDateController.text,
+        email: _emailController.text,
         paymentMethod: _selectedPaymentMethod,
-        shippingAddress: _addressController.text,
-        promoCode: _promoCodeController.text,
-        notes: _notesController.text,
+        paymentAmount: paymentAmount,
+        repaymentDate: _repaymentDateController.text,
       );
 
-      // Close loading dialog
       if (mounted) Navigator.pop(context);
 
-      // Show PDF options dialog
       _showPDFOptionsDialog(pdfBytes);
-    } catch (e) {
+    } catch (e, s) {
+      logger.e("Gagal membuat PDF", error: e, stackTrace: s);
       if (mounted) {
-        Navigator.pop(context); // Close loading dialog
-        CustomToast.showToast(
-          'Gagal membuat PDF: $e',
-          ToastType.error,
-        );
+        Navigator.pop(context);
+        CustomToast.showToast('Gagal membuat PDF: $e', ToastType.error);
       }
     } finally {
-      setState(() => _isGeneratingPDF = false);
+      if (mounted) {
+        setState(() => _isGeneratingPDF = false);
+      }
     }
   }
 
@@ -121,33 +119,21 @@ class _CheckoutPagesState extends State<CheckoutPages>
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(
-          'PDF Berhasil Dibuat',
-          style: GoogleFonts.montserrat(fontWeight: FontWeight.w600),
-        ),
-        content: Text(
-          'Invoice checkout telah dibuat dalam format PDF. Pilih aksi yang ingin dilakukan:',
-          style: GoogleFonts.montserrat(),
-        ),
+        title: Text('PDF Berhasil Dibuat'),
+        content: Text('Pilih aksi yang ingin dilakukan:'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Tutup'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Tutup')),
           TextButton(
             onPressed: () async {
               try {
                 Navigator.pop(ctx);
                 final filePath = await PDFService.savePDFToDevice(pdfBytes);
                 CustomToast.showToast(
-                  'PDF disimpan di: ${filePath.split('/').last}',
-                  ToastType.success,
-                );
+                    'PDF disimpan di: ${filePath.split('/').last}',
+                    ToastType.success);
               } catch (e) {
                 CustomToast.showToast(
-                  'Gagal menyimpan PDF: $e',
-                  ToastType.error,
-                );
+                    'Gagal menyimpan PDF: $e', ToastType.error);
               }
             },
             child: Text('Simpan'),
@@ -156,27 +142,14 @@ class _CheckoutPagesState extends State<CheckoutPages>
             onPressed: () async {
               try {
                 Navigator.pop(ctx);
-                final fileName =
-                    'invoice_${DateTime.now().millisecondsSinceEpoch}.pdf';
-                await PDFService.sharePDF(pdfBytes, fileName);
-                CustomToast.showToast(
-                  'PDF siap dibagikan',
-                  ToastType.success,
-                );
+                await PDFService.sharePDF(pdfBytes,
+                    'invoice_${DateTime.now().millisecondsSinceEpoch}.pdf');
               } catch (e) {
                 CustomToast.showToast(
-                  'Gagal membagikan PDF: $e',
-                  ToastType.error,
-                );
+                    'Gagal membagikan PDF: $e', ToastType.error);
               }
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue.shade700,
-            ),
-            child: Text(
-              'Bagikan',
-              style: GoogleFonts.montserrat(color: Colors.white),
-            ),
+            child: Text('Bagikan'),
           ),
         ],
       ),
@@ -186,15 +159,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Checkout',
-          style: GoogleFonts.montserrat(
-            fontWeight: FontWeight.w600,
-            fontSize: 20,
-          ),
-        ),
-      ),
+      appBar: AppBar(title: const Text('Checkout')),
       body: SafeArea(
         child: Column(
           children: [
@@ -203,10 +168,11 @@ class _CheckoutPagesState extends State<CheckoutPages>
                 builder: (context, state) {
                   if (state is CartLoaded) {
                     final selectedItems = state.selectedItems;
-                    final totalPrice = selectedItems.fold(
-                      0.0,
-                      (sum, item) => sum + (item.netPrice * item.quantity),
-                    );
+                    final subtotal = selectedItems.fold(0.0,
+                        (sum, item) => sum + (item.netPrice * item.quantity));
+                    final ppn = subtotal * 0.11;
+                    final grandTotal = subtotal + ppn;
+
                     return Form(
                       key: _formKey,
                       child: SingleChildScrollView(
@@ -215,23 +181,86 @@ class _CheckoutPagesState extends State<CheckoutPages>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _buildSectionTitle('Informasi Pelanggan'),
-                            _buildCustomerNameInput(),
-                            const SizedBox(height: 16),
-                            _buildSectionTitle('Alamat Pengiriman'),
-                            _buildAddressInput(),
-                            const SizedBox(height: 16),
-                            _buildSectionTitle('Metode Pembayaran'),
+                            CustomTextField(
+                                controller: _customerNameController,
+                                labelText: 'Nama Pelanggan',
+                                validator: (val) =>
+                                    val!.isEmpty ? 'Wajib diisi' : null),
+                            const SizedBox(height: 12),
+                            CustomTextField(
+                                controller: _customerPhoneController,
+                                labelText: 'Nomor Telepon',
+                                keyboardType: TextInputType.phone,
+                                validator: (val) =>
+                                    val!.isEmpty ? 'Wajib diisi' : null),
+                            const SizedBox(height: 12),
+                            CustomTextField(
+                                controller: _emailController,
+                                labelText: 'Email Pelanggan (Opsional)',
+                                keyboardType: TextInputType.emailAddress),
+                            const SizedBox(height: 24),
+                            _buildSectionTitle('Informasi Pengiriman'),
+                            CustomTextField(
+                                controller: _shippingAddressController,
+                                labelText: 'Alamat Pengiriman',
+                                maxLines: 3,
+                                validator: (val) =>
+                                    val!.isEmpty ? 'Wajib diisi' : null),
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _deliveryDateController,
+                              decoration: const InputDecoration(
+                                labelText: 'Tanggal Kirim',
+                                hintText: 'Pilih Tanggal (Min. H+3)',
+                                border: OutlineInputBorder(),
+                                suffixIcon: Icon(Icons.calendar_today),
+                              ),
+                              readOnly: true,
+                              onTap: () async {
+                                FocusScope.of(context)
+                                    .requestFocus(FocusNode());
+                                final DateTime firstSelectableDate =
+                                    DateTime.now().add(const Duration(days: 3));
+
+                                DateTime? picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: firstSelectableDate,
+                                    firstDate: firstSelectableDate,
+                                    lastDate: DateTime(2100));
+                                if (picked != null) {
+                                  _deliveryDateController.text =
+                                      FormatHelper.formatSimpleDate(picked);
+                                  _formKey.currentState?.validate();
+                                }
+                              },
+                              validator: (val) {
+                                if (val == null || val.isEmpty) {
+                                  return 'Tanggal kirim wajib diisi';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 24),
+                            _buildSectionTitle('Informasi Tambahan'),
+                            CustomTextField(
+                                controller: _showroomController,
+                                labelText: 'Showroom / Pameran (Opsional)'),
+                            const SizedBox(height: 12),
+                            CustomTextField(
+                                controller: _notesController,
+                                labelText: 'Keterangan / Catatan (Opsional)',
+                                maxLines: 3),
+                            const SizedBox(height: 24),
+                            _buildSectionTitle('Informasi Pembayaran'),
                             _buildPaymentMethodSelector(),
                             const SizedBox(height: 16),
-                            _buildSectionTitle('Lokasi Penjualan'),
-                            _buildPromoCodeInput(),
-                            const SizedBox(height: 16),
-                            _buildSectionTitle('Catatan Tambahan'),
-                            _buildNotesInput(),
-                            const SizedBox(height: 16),
+                            _buildPaymentAmountInput(grandTotal),
+                            const SizedBox(height: 12),
+                            _buildRepaymentDateInput(),
+                            const SizedBox(height: 24),
                             _buildSectionTitle('Ringkasan Pesanan'),
-                            _buildOrderSummary(selectedItems, totalPrice),
-                            const SizedBox(height: 16),
+                            _buildOrderSummary(
+                                selectedItems, subtotal, ppn, grandTotal),
                           ],
                         ),
                       ),
@@ -248,426 +277,247 @@ class _CheckoutPagesState extends State<CheckoutPages>
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: GoogleFonts.montserrat(
-        fontSize: 18,
-        fontWeight: FontWeight.w600,
-        color: Colors.grey.shade800,
-      ),
-    );
-  }
-
-  Widget _buildCustomerNameInput() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: TextFormField(
-        controller: _customerNameController,
-        decoration: InputDecoration(
-          labelText: 'Nama Pelanggan',
-          hintText: 'Masukkan nama pelanggan',
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
-        validator: (value) {
-          if (value == null || value.isEmpty) {
-            return 'Nama pelanggan tidak boleh kosong';
-          }
-          return null;
-        },
-      ),
-    );
-  }
-
-  Widget _buildAddressInput() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: TextFormField(
-        controller: _addressController,
-        decoration: InputDecoration(
-          labelText: 'Alamat Lengkap',
-          hintText: 'Masukkan alamat pengiriman',
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
-        maxLines: 3,
-        validator: (value) {
-          if (value == null || value.isEmpty) {
-            return 'Alamat tidak boleh kosong';
-          }
-          return null;
-        },
-      ),
-    );
-  }
-
   Widget _buildPaymentMethodSelector() {
-    return Container(
-      padding: const EdgeInsets.all(AppPadding.p8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Column(
-        children: _paymentMethods.map((method) {
-          return AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            margin: const EdgeInsets.symmetric(vertical: 4),
-            decoration: BoxDecoration(
-              color: _selectedPaymentMethod == method['name']
-                  ? Colors.blue.shade50
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: RadioListTile<String>(
-              value: method['name'],
-              groupValue: _selectedPaymentMethod,
-              onChanged: (value) {
-                setState(() {
-                  _selectedPaymentMethod = value!;
-                });
-              },
-              activeColor: Colors.blue.shade700,
-              title: Row(
-                children: [
-                  Icon(
-                    method['icon'],
-                    size: 24,
-                    color: _selectedPaymentMethod == method['name']
-                        ? Colors.blue.shade700
-                        : Colors.grey.shade600,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    method['name'],
-                    style: GoogleFonts.montserrat(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: _selectedPaymentMethod == method['name']
-                          ? Colors.blue.shade700
-                          : Colors.grey.shade800,
-                    ),
-                  ),
-                ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Metode Pembayaran',
+          style:
+              GoogleFonts.montserrat(fontSize: 16, fontWeight: FontWeight.w500),
+        ),
+        Row(
+          children: [
+            Expanded(
+              child: RadioListTile<String>(
+                title: const Text('Tunai'),
+                value: 'Tunai',
+                groupValue: _selectedPaymentMethod,
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _selectedPaymentMethod = value);
+                  }
+                },
               ),
             ),
-          );
-        }).toList(),
-      ),
+            Expanded(
+              child: RadioListTile<String>(
+                title: const Text('Credit Card'),
+                value: 'Credit Card',
+                groupValue: _selectedPaymentMethod,
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _selectedPaymentMethod = value);
+                  }
+                },
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
-  Widget _buildPromoCodeInput() {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-          horizontal: AppPadding.p8, vertical: AppPadding.p8),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextFormField(
-              controller: _promoCodeController,
-              decoration: InputDecoration(
-                hintText: 'Masukkan nama lokasi',
-                border: InputBorder.none,
+  Widget _buildPaymentAmountInput(double grandTotal) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: TextFormField(
+            controller: _paymentAmountController,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              labelText: 'Jumlah Pembayaran',
+              hintText: 'Masukkan jumlah yang dibayar',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
               ),
+              prefixText: 'Rp ',
             ),
-          ),
-          TextButton(
-            onPressed: () {
-              // Implement promo code validation logic here
+            onChanged: (value) {
+              String cleaned = value.replaceAll(RegExp(r'[^0-9]'), '');
+              if (cleaned.isNotEmpty) {
+                double parsedValue = double.parse(cleaned);
+                String formatted = FormatHelper.formatNumber(parsedValue);
+                _paymentAmountController.value = TextEditingValue(
+                  text: formatted,
+                  selection: TextSelection.fromPosition(
+                    TextPosition(offset: formatted.length),
+                  ),
+                );
+              } else {
+                _paymentAmountController.clear();
+              }
             },
-            child: Text(
-              'Terapkan',
-              style: GoogleFonts.montserrat(
-                color: Colors.blue.shade700,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNotesInput() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: TextFormField(
-        controller: _notesController,
-        decoration: InputDecoration(
-          labelText: 'Catatan Tambahan',
-          hintText: 'Masukkan catatan untuk pesanan (opsional)',
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Jumlah pembayaran wajib diisi';
+              }
+              return null;
+            },
           ),
         ),
-        maxLines: 3,
+        const SizedBox(width: 8),
+        Padding(
+          padding: const EdgeInsets.only(top: 4.0),
+          child: TextButton(
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              side: BorderSide(color: Theme.of(context).primaryColor),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text('Lunas'),
+            onPressed: () {
+              final formattedGrandTotal = FormatHelper.formatNumber(grandTotal);
+              _paymentAmountController.value = TextEditingValue(
+                text: formattedGrandTotal,
+                selection: TextSelection.fromPosition(
+                  TextPosition(offset: formattedGrandTotal.length),
+                ),
+              );
+
+              final formattedToday =
+                  FormatHelper.formatSimpleDate(DateTime.now());
+              _repaymentDateController.text = formattedToday;
+
+              _formKey.currentState?.validate();
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRepaymentDateInput() {
+    return TextFormField(
+      controller: _repaymentDateController,
+      decoration: const InputDecoration(
+        labelText: 'Tanggal Pelunasan',
+        hintText: 'Pilih Tanggal',
+        border: OutlineInputBorder(),
+        suffixIcon: Icon(Icons.calendar_today),
+      ),
+      readOnly: true,
+      onTap: () async {
+        FocusScope.of(context).requestFocus(FocusNode());
+        DateTime? picked = await showDatePicker(
+            context: context,
+            initialDate: DateTime.now(),
+            firstDate: DateTime.now(),
+            lastDate: DateTime(2100));
+        if (picked != null) {
+          _repaymentDateController.text = FormatHelper.formatSimpleDate(picked);
+          _formKey.currentState?.validate();
+        }
+      },
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return 'Tanggal pelunasan wajib diisi';
+        }
+
+        if (_deliveryDateController.text.isEmpty) {
+          return null;
+        }
+
+        final deliveryDate =
+            FormatHelper.parseSimpleDate(_deliveryDateController.text);
+        final repaymentDate = FormatHelper.parseSimpleDate(value);
+
+        if (deliveryDate == null || repaymentDate == null) {
+          return 'Format tanggal tidak valid';
+        }
+        final deadline = deliveryDate.subtract(const Duration(days: 3));
+
+        if (repaymentDate.isAfter(deadline)) {
+          return 'Pelunasan maks. H-3 sebelum Tgl Kirim';
+        }
+
+        return null;
+      },
+    );
+  }
+
+  Widget _buildSectionTitle(String title) => Padding(
+        padding: const EdgeInsets.only(bottom: 8.0, top: 8.0),
+        child: Text(title,
+            style: GoogleFonts.montserrat(
+                fontSize: 18, fontWeight: FontWeight.w600)),
+      );
+
+  Widget _buildOrderSummary(List<CartEntity> selectedItems, double subtotal,
+      double ppn, double grandTotal) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            ...selectedItems.map((item) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                          child: Text(
+                              '${item.product.kasur} (x${item.quantity})')),
+                      Text(FormatHelper.formatCurrency(
+                          item.netPrice * item.quantity)),
+                    ],
+                  ),
+                )),
+            const Divider(height: 24, thickness: 0.5),
+            _buildSummaryRow('Subtotal', subtotal),
+            _buildSummaryRow('PPN (11%)', ppn),
+            const Divider(height: 16, thickness: 1.5),
+            _buildSummaryRow('Grand Total', grandTotal, isGrandTotal: true),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildOrderSummary(List<CartEntity> selectedItems, double totalPrice) {
-    return Container(
-      padding: const EdgeInsets.all(AppPadding.p16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildSummaryRow(String label, double value,
+      {bool isGrandTotal = false}) {
+    final style = TextStyle(
+      fontWeight: isGrandTotal ? FontWeight.bold : FontWeight.normal,
+      fontSize: isGrandTotal ? 16 : 14,
+      color: isGrandTotal ? Theme.of(context).primaryColor : null,
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          ...selectedItems.asMap().entries.map((entry) {
-            final item = entry.value;
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: AppPadding.p8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      '${item.product.kasur} - ${item.product.ukuran} (x${item.quantity})',
-                      style: GoogleFonts.montserrat(fontSize: 14),
-                    ),
-                  ),
-                  Text(
-                    FormatHelper.formatCurrency(item.netPrice * item.quantity),
-                    style: GoogleFonts.montserrat(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
-          const Divider(),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Total Pembayaran',
-                style: GoogleFonts.montserrat(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              Text(
-                FormatHelper.formatCurrency(totalPrice),
-                style: GoogleFonts.montserrat(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.green.shade700,
-                ),
-              ),
-            ],
-          ),
+          Text(label,
+              style: style.copyWith(
+                  fontWeight: FontWeight.normal,
+                  fontSize: 14,
+                  color: Colors.black)),
+          Text(FormatHelper.formatCurrency(value), style: style),
         ],
       ),
     );
   }
 
   Widget _buildConfirmButton(BuildContext context) {
-    return BlocBuilder<CartBloc, CartState>(
-      builder: (context, state) {
-        if (state is CartLoaded) {
-          final totalPrice = state.cartItems.fold(
-            0.0,
-            (sum, item) => sum + (item.netPrice * item.quantity),
-          );
-          return Container(
-            padding: const EdgeInsets.all(AppPadding.p16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.2),
-                  spreadRadius: 2,
-                  blurRadius: 10,
-                  offset: const Offset(0, -5),
-                ),
-              ],
-            ),
-            child: ElevatedButton(
-              onPressed: _isGeneratingPDF
-                  ? null
-                  : () {
-                      if (_formKey.currentState!.validate()) {
-                        _showCheckoutConfirmationDialog(
-                            context, state, totalPrice);
-                      }
-                    },
-              style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    _isGeneratingPDF ? Colors.grey : Colors.blue.shade700,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                minimumSize: const Size(double.infinity, 56),
-                elevation: 8,
-              ),
-              child: _isGeneratingPDF
-                  ? Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          'Memproses...',
-                          style: GoogleFonts.montserrat(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    )
-                  : Text(
-                      'Konfirmasi Pesanan',
-                      style: GoogleFonts.montserrat(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
-                    ),
-            ),
-          );
-        }
-        return const SizedBox.shrink();
-      },
-    );
-  }
-
-  void _showCheckoutConfirmationDialog(
-      BuildContext context, CartLoaded state, double totalPrice) {
-    final selectedItems = state.selectedItems;
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(
-          'Konfirmasi Checkout',
-          style: GoogleFonts.montserrat(fontWeight: FontWeight.w600),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Total: ${FormatHelper.formatCurrency(totalPrice)}',
-              style: GoogleFonts.montserrat(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.green.shade700,
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Apakah Anda ingin melanjutkan checkout dan membuat invoice PDF?',
-              style: GoogleFonts.montserrat(),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Batal'),
-          ),
-          TextButton(
-            onPressed: () {
-              // Checkout without PDF
-              Navigator.pop(ctx);
-              context.read<CartBloc>().add(Checkout(
-                    totalPrice: totalPrice,
-                    promoCode: _promoCodeController.text,
-                    paymentMethod: _selectedPaymentMethod,
-                    shippingAddress: _addressController.text,
-                  ));
-              _showSuccessDialog(context, false);
-            },
-            child: Text('Checkout Saja'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              // Checkout with PDF
-              Navigator.pop(ctx);
-              context.read<CartBloc>().add(Checkout(
-                    totalPrice: totalPrice,
-                    promoCode: _promoCodeController.text,
-                    paymentMethod: _selectedPaymentMethod,
-                    shippingAddress: _addressController.text,
-                  ));
-              _generateAndSharePDF(selectedItems, totalPrice);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue.shade700,
-            ),
-            child: Text(
-              'Checkout + PDF',
-              style: GoogleFonts.montserrat(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showSuccessDialog(BuildContext context, bool withPDF) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(
-          'Pesanan Berhasil',
-          style: GoogleFonts.montserrat(fontWeight: FontWeight.w600),
-        ),
-        content: Text(
-          withPDF
-              ? 'Pesanan Anda telah diterima dan invoice PDF telah dibuat.'
-              : 'Pesanan Anda telah diterima. Kami akan mengirimkan konfirmasi melalui email.',
-          style: GoogleFonts.montserrat(),
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              Navigator.popUntil(context, (route) => route.isFirst);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue.shade700,
-            ),
-            child: Text(
-              'Kembali ke Beranda',
-              style: GoogleFonts.montserrat(color: Colors.white),
-            ),
-          ),
-        ],
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: BlocBuilder<CartBloc, CartState>(
+        builder: (context, state) {
+          if (state is CartLoaded) {
+            return CustomButton(
+              text: _isGeneratingPDF
+                  ? 'Memproses...'
+                  : 'Buat & Bagikan Surat Pesanan',
+              onPressed: () => _generateAndSharePDF(state.selectedItems),
+              isLoading: _isGeneratingPDF,
+            );
+          }
+          return const SizedBox.shrink();
+        },
       ),
     );
   }

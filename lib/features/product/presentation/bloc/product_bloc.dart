@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../config/app_constant.dart';
+import '../../../../core/error/exceptions.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../../core/widgets/custom_toast.dart';
 import '../../domain/usecases/get_product_usecase.dart';
@@ -44,9 +45,15 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         ));
 
         logger.i("✅ Produk berhasil dimuat: ${products.length} items.");
-      } catch (e) {
-        logger.e("❌ Error fetching products: $e");
-        emit(ProductError("Gagal mengambil data produk: ${e.toString()}"));
+      } on ServerException catch (e) {
+        logger.e("Server error in ProductBloc", error: e);
+        emit(ProductError(e.message));
+      } on NetworkException catch (e) {
+        logger.e("Network error in ProductBloc", error: e);
+        emit(ProductError(e.message));
+      } catch (e, s) {
+        logger.e("Unexpected error in ProductBloc", error: e, stackTrace: s);
+        emit(const ProductError("Terjadi kesalahan yang tidak terduga."));
       }
     });
 

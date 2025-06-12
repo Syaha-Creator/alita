@@ -8,6 +8,7 @@ class CustomTextField extends StatefulWidget {
   final IconData? prefixIcon;
   final bool isPassword;
   final TextInputType keyboardType;
+  final int? maxLines;
   final Function(String)? onChanged;
   final String? Function(String?)? validator;
   final FocusNode? focusNode;
@@ -22,6 +23,7 @@ class CustomTextField extends StatefulWidget {
     this.prefixIcon,
     this.isPassword = false,
     this.keyboardType = TextInputType.text,
+    this.maxLines = 1,
     this.onChanged,
     this.validator,
     this.focusNode,
@@ -37,12 +39,11 @@ class _CustomTextFieldState extends State<CustomTextField> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return TextFormField(
       controller: widget.controller,
       obscureText: widget.isPassword ? _obscureText : false,
       keyboardType: widget.keyboardType,
+      maxLines: widget.isPassword ? 1 : widget.maxLines,
       focusNode: widget.focusNode,
       onFieldSubmitted: widget.onFieldSubmitted,
       onChanged: widget.onChanged,
@@ -51,19 +52,11 @@ class _CustomTextFieldState extends State<CustomTextField> {
         labelText: widget.labelText,
         hintText: widget.hintText,
         errorText: widget.errorText,
-        labelStyle:
-            TextStyle(fontSize: 14, color: theme.textTheme.bodyMedium?.color),
-        hintStyle: TextStyle(color: theme.textTheme.bodyMedium?.color),
-        filled: true,
-        fillColor: theme.inputDecorationTheme.fillColor,
-        prefixIcon: widget.prefixIcon != null
-            ? Icon(widget.prefixIcon, color: theme.iconTheme.color)
-            : null,
+        prefixIcon: widget.prefixIcon != null ? Icon(widget.prefixIcon) : null,
         suffixIcon: widget.isPassword
             ? IconButton(
                 icon: Icon(
                   _obscureText ? Icons.visibility_off : Icons.visibility,
-                  color: theme.iconTheme.color,
                 ),
                 onPressed: () {
                   setState(() {
@@ -72,16 +65,6 @@ class _CustomTextFieldState extends State<CustomTextField> {
                 },
               )
             : null,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: theme.colorScheme.primary),
-        ),
-        enabledBorder:
-            OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Colors.blue),
-        ),
       ),
     );
   }

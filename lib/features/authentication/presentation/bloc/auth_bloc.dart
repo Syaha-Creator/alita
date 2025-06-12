@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/error/exceptions.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../../services/auth_service.dart';
 import '../../domain/usecases/login_usecase.dart';
@@ -20,7 +21,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         }
 
         final success = await AuthService.login(
-            auth.accessToken, auth.refreshToken, auth.id);
+            auth.accessToken, auth.refreshToken, auth.id, auth.name);
 
         if (!success) {
           throw Exception("Gagal menyimpan sesi login.");
@@ -28,21 +29,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
         logger.i("✅ Login successful, token saved.");
         emit(AuthSuccess(auth.accessToken));
-      } catch (e) {
-        logger.e("❌ Login failed: $e");
-        String errorMessage = "Terjadi kesalahan. Silakan coba lagi.";
-        final errorString = e.toString().toLowerCase();
-
-        if (errorString.contains('401') ||
-            errorString.contains('invalid credentials')) {
-          errorMessage = "Email atau password yang Anda masukkan salah.";
-        } else if (errorString.contains('socketexception') ||
-            errorString.contains('network is unreachable')) {
-          errorMessage =
-              "Gagal terhubung ke server. Periksa koneksi internet Anda.";
-        }
-
-        emit(AuthFailure(errorMessage));
+      } on ServerException catch (e) {
+        logger.e('Server-side login failed', error: e);
+        emit(AuthFailure(e.message));
+      } on NetworkException catch (e) {
+        logger.e('Network-side login failed', error: e);
+        emit(AuthFailure(e.message));
+      } catch (e, s) {
+        logger.e('An unexpected login error occurred', error: e, stackTrace: s);
+        emit(AuthFailure('Terjadi kesalahan yang tidak terduga.'));
       }
     });
 

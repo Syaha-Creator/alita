@@ -1,4 +1,7 @@
+import 'package:dio/dio.dart';
+
 import '../../../../config/api_config.dart';
+import '../../../../core/error/exceptions.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../../services/api_client.dart';
 import '../../../../services/auth_service.dart';
@@ -36,9 +39,20 @@ class ProductRepository {
       return rawData
           .map((item) => ProductModel.fromJson(item as Map<String, dynamic>))
           .toList();
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.sendTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.connectionError) {
+        throw NetworkException(
+            "Gagal terhubung ke server. Periksa koneksi Anda.");
+      } else {
+        throw ServerException("Gagal mengambil data produk dari server.");
+      }
     } catch (e) {
-      logger.e("❌ Error fetching products: $e");
-      throw Exception("Gagal mengambil data produk: ${e.toString()}");
+      logger.e("❌ Unexpected error in ProductRepository: $e");
+      throw ServerException(
+          "Terjadi kesalahan yang tidak diketahui saat memproses data.");
     }
   }
 }

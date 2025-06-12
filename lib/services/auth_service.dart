@@ -8,6 +8,7 @@ import '../core/utils/logger.dart';
 class AuthService {
   static final ValueNotifier<bool> authChangeNotifier = ValueNotifier(false);
   static const int _sessionDuration = 24 * 60 * 60 * 1000;
+  static const String _userNameKey = "current_user_name";
 
   static Future<bool> isLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
@@ -29,7 +30,7 @@ class AuthService {
   }
 
   static Future<bool> login(
-      String token, String refreshToken, int userId) async {
+      String token, String refreshToken, int userId, String userName) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(StorageKeys.isLoggedIn, true);
@@ -38,6 +39,7 @@ class AuthService {
       await prefs.setString(StorageKeys.authToken, token);
       await prefs.setString(StorageKeys.refreshToken, refreshToken);
       await prefs.setInt(StorageKeys.currentUserId, userId);
+      await prefs.setString(_userNameKey, userName);
 
       logger.i("🔐 User $userId logged in. Token saved successfully!");
       authChangeNotifier.value = true;
@@ -46,6 +48,11 @@ class AuthService {
       logger.e("❌ Failed to save session: $e");
       return false;
     }
+  }
+
+  static Future<String?> getCurrentUserName() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_userNameKey);
   }
 
   static Future<void> saveEmail(String email) async {
@@ -105,14 +112,15 @@ class AuthService {
       if (response.statusCode == 200) {
         final newToken = response.data["access_token"];
         final newRefreshToken = response.data["refresh_token"];
-
+        final userName = response.data["name"];
         final userId = response.data["id"];
 
         if (userId == null) {
           throw Exception("User ID not found in refresh token response.");
         }
 
-        final success = await login(newToken, newRefreshToken, userId as int);
+        final success = await login(
+            newToken, newRefreshToken, userId as int, userName as String);
 
         if (!success) throw Exception("Failed to store new token.");
 
@@ -135,6 +143,7 @@ class AuthService {
       await prefs.remove(StorageKeys.authToken);
       await prefs.remove(StorageKeys.refreshToken);
       await prefs.remove(StorageKeys.currentUserId);
+      await prefs.remove(_userNameKey);
 
       logger.i("🚪 User logged out successfully and session data removed!");
       authChangeNotifier.value = false;
