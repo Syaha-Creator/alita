@@ -64,7 +64,7 @@ class ProductActions {
               const SizedBox(height: 10),
               Screenshot(
                 controller: screenshotController,
-                child: ProductCard(product: product, hideButtons: true),
+                child: ProductCard(product: product),
               ),
             ],
           ),

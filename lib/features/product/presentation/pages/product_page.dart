@@ -28,7 +28,7 @@ class _ProductPageState extends State<ProductPage> {
   void initState() {
     super.initState();
     final productState = context.read<ProductBloc>().state;
-    if (productState.products.isEmpty && productState is! ProductLoading) {
+    if (productState.products.isEmpty) {
       context.read<ProductBloc>().add(FetchProducts());
     }
   }
@@ -62,21 +62,22 @@ class _ProductPageState extends State<ProductPage> {
           padding: const EdgeInsets.all(AppPadding.p16),
           child: BlocBuilder<ProductBloc, ProductState>(
             builder: (context, state) {
-              if (state is ProductLoading) {
+              if (state is ProductLoading ||
+                  (state.products.isEmpty && state is! ProductError)) {
                 return const Center(child: CircularProgressIndicator());
               }
               if (state is ProductError) {
                 return Center(
                   child: Text(
                     state.message,
-                    style: TextStyle(color: Colors.red),
+                    style: const TextStyle(color: Colors.red),
                   ),
                 );
               }
-              if (state.products.isEmpty) {
-                return const Center(
-                    child: Text("Data produk tidak ditemukan dari server."));
-              }
+
+              final productsToShow = state.isFilterApplied
+                  ? state.filteredProducts
+                  : state.products;
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

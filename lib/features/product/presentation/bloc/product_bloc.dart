@@ -444,23 +444,27 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       Map<int, double> updatedRoundedPrices =
           Map.from(currentState.roundedPrices);
 
+      Map<int, double> updatedPriceChangePercentages =
+          Map.from(currentState.priceChangePercentages);
+      updatedPriceChangePercentages.remove(event.productId);
+
       updatedDiscountsPercentage[event.productId] =
           List.from(event.discountPercentages);
       updatedDiscountsNominal[event.productId] =
           List.from(event.discountNominals);
 
-      double basePrice =
-          currentState.roundedPrices[event.productId] ?? event.originalPrice;
-      for (var discount in event.discountNominals) {
-        basePrice -= discount;
+      double finalPrice = event.originalPrice;
+      for (var discount in event.discountPercentages) {
+        finalPrice -= finalPrice * (discount / 100);
       }
-      basePrice = basePrice.clamp(0, event.originalPrice);
-      updatedRoundedPrices[event.productId] = basePrice;
+      finalPrice = finalPrice.clamp(0, event.originalPrice);
+      updatedRoundedPrices[event.productId] = finalPrice;
 
       emit(currentState.copyWith(
         roundedPrices: updatedRoundedPrices,
         productDiscountsPercentage: updatedDiscountsPercentage,
         productDiscountsNominal: updatedDiscountsNominal,
+        priceChangePercentages: updatedPriceChangePercentages,
       ));
 
       CustomToast.showToast(

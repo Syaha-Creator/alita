@@ -114,11 +114,11 @@ class ProductDropdown extends StatelessWidget {
             hintText: "Pilih Brand",
           ),
           CustomDropdown<String>(
-            labelText: "Kasur",
+            labelText: "Kasur/Accessories",
             items: kasurs,
             selectedValue: selectedKasur,
             onChanged: onKasurChanged,
-            hintText: "Pilih Kasur",
+            hintText: "Pilih Kasur/Accessories",
           ),
         ),
         _buildRow(

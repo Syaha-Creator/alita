@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../../core/utils/format_helper.dart';
-import '../../../../../core/widgets/custom_toast.dart';
 import '../../../domain/entities/product_entity.dart';
 import '../../bloc/product_bloc.dart';
 import '../../bloc/product_event.dart';
@@ -26,23 +25,39 @@ class _EditPriceDialogState extends State<EditPriceDialog> {
   void initState() {
     super.initState();
     final state = context.read<ProductBloc>().state;
+    final hasProgrammaticDiscount =
+        (state.productDiscountsPercentage[widget.product.id]?.isNotEmpty ??
+            false);
     priceBeforeEdit =
         state.roundedPrices[widget.product.id] ?? widget.product.endUserPrice;
 
+    if (hasProgrammaticDiscount &&
+        state.roundedPrices[widget.product.id] == null) {
+      double currentPrice = widget.product.pricelist;
+      for (var disc in state.productDiscountsPercentage[widget.product.id]!) {
+        currentPrice -= currentPrice * (disc / 100);
+      }
+      priceBeforeEdit = currentPrice;
+    }
     priceController = TextEditingController(
         text: FormatHelper.formatCurrency(priceBeforeEdit));
     noteController = TextEditingController(
         text: state.productNotes[widget.product.id] ?? "");
     percentageChange =
         ValueNotifier(state.priceChangePercentages[widget.product.id] ?? 0.0);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _calculatePercentage();
+    });
   }
 
   void _calculatePercentage() {
     String rawText = priceController.text.replaceAll(RegExp(r'[^0-9]'), '');
     double newPrice = double.tryParse(rawText) ?? priceBeforeEdit;
-    if (priceBeforeEdit > 0) {
+    if (priceBeforeEdit > 0 && newPrice > 0) {
       double diff = ((priceBeforeEdit - newPrice) / priceBeforeEdit) * 100;
       percentageChange.value = diff;
+    } else {
+      percentageChange.value = 0.0;
     }
   }
 
@@ -108,18 +123,6 @@ class _EditPriceDialogState extends State<EditPriceDialog> {
               TextButton(
                   onPressed: () => Navigator.pop(context),
                   child: const Text("Batal")),
-              const SizedBox(width: 8),
-              TextButton(
-                onPressed: () {
-                  context.read<ProductBloc>().add(UpdateRoundedPrice(
-                      widget.product.id, widget.product.endUserPrice, 0.0));
-                  CustomToast.showToast("Harga edit direset", ToastType.info);
-                  Navigator.pop(context);
-                },
-                child: Text("Reset Harga",
-                    style:
-                        TextStyle(color: Theme.of(context).colorScheme.error)),
-              ),
               const SizedBox(width: 8),
               ElevatedButton(
                 onPressed: () {

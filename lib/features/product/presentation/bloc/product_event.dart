@@ -89,6 +89,9 @@ class SelectProduct extends ProductEvent {
   final ProductEntity product;
 
   const SelectProduct(this.product);
+
+  @override
+  List<Object?> get props => [product];
 }
 
 class SaveInstallment extends ProductEvent {
@@ -197,3 +200,5 @@ class UpdateProductNote extends ProductEvent {
   @override
   List<Object?> get props => [productId, note];
 }
+
+class ClearFilters extends ProductEvent {}

@@ -160,6 +160,8 @@ class _InfoDialogState extends State<InfoDialog> {
                         nominalControllers[i].clear();
                       }
                     });
+                    context.read<ProductBloc>().add(UpdateRoundedPrice(
+                        widget.product.id, widget.product.endUserPrice, 0.0));
                     CustomToast.showToast("Diskon direset", ToastType.info);
                   },
                   child: Text("Reset",

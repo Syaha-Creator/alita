@@ -5,12 +5,14 @@ class EmptyStateWidget extends StatelessWidget {
   final IconData icon;
   final String title;
   final String? message;
+  final Widget? child;
 
   const EmptyStateWidget({
     super.key,
     required this.icon,
     required this.title,
     this.message,
+    this.child,
   });
 
   @override

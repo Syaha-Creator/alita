@@ -1,68 +1,98 @@
+// lib/features/product/presentation/widgets/product_card.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../config/app_constant.dart';
 import '../../../../core/utils/format_helper.dart';
-import '../../../../core/widgets/custom_toast.dart';
 import '../../../../core/widgets/detail_info_row.dart';
 import '../../../../theme/app_colors.dart';
-import '../../../cart/presentation/bloc/cart_bloc.dart';
-import '../../../cart/presentation/bloc/cart_event.dart';
 import '../../domain/entities/product_entity.dart';
 import '../bloc/product_bloc.dart';
+import '../bloc/product_event.dart';
 import '../bloc/product_state.dart';
-import 'product_action.dart';
 
 class ProductCard extends StatelessWidget {
   final ProductEntity product;
-  final bool hideButtons;
 
   const ProductCard({
     super.key,
     required this.product,
-    this.hideButtons = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ProductBloc, ProductState>(
       buildWhen: (previous, current) {
-        final id = product.id;
-        return previous.roundedPrices[id] != current.roundedPrices[id] ||
-            previous.productDiscountsPercentage[id] !=
-                current.productDiscountsPercentage[id] ||
-            previous.productNotes[id] != current.productNotes[id] ||
-            previous.installmentMonths[id] != current.installmentMonths[id];
+        // Hanya rebuild jika ada perubahan pada harga produk ini
+        return previous.roundedPrices[product.id] !=
+            current.roundedPrices[product.id];
       },
       builder: (context, state) {
         final netPrice =
             state.roundedPrices[product.id] ?? product.endUserPrice;
-        final discountPercentages =
-            state.productDiscountsPercentage[product.id] ?? [];
-        final editPopupDiscount =
-            state.priceChangePercentages[product.id] ?? 0.0;
+        final totalDiscount = product.pricelist - netPrice;
+
         return Card(
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           elevation: 3,
           margin: const EdgeInsets.symmetric(vertical: 8),
-          child: Padding(
-            padding: const EdgeInsets.all(AppPadding.p16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildProductDetail(),
-                const SizedBox(height: 12),
-                _buildPriceInfo(context, state, netPrice, discountPercentages,
-                    editPopupDiscount),
-                const SizedBox(height: 12),
-                _buildBonusInfo(state),
-                if (!hideButtons) ...[
-                  const SizedBox(height: 16),
-                  _buildFooterButtons(context, state, netPrice,
-                      discountPercentages, editPopupDiscount),
+          child: InkWell(
+            onTap: () {
+              // Simpan produk yang dipilih di BLoC sebelum navigasi
+              context.read<ProductBloc>().add(SelectProduct(product));
+              // Navigasi ke halaman detail
+              context.pushNamed(
+                RoutePaths.productDetail,
+                extra: product,
+              );
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(AppPadding.p16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // --- Informasi Utama Produk ---
+                  DetailInfoRow(title: "Kasur", value: product.kasur),
+                  DetailInfoRow(title: "Divan", value: product.divan),
+                  DetailInfoRow(title: "Headboard", value: product.headboard),
+                  DetailInfoRow(title: "Sorong", value: product.sorong),
+                  DetailInfoRow(title: "Ukuran", value: product.ukuran),
+                  const SizedBox(height: 12),
+
+                  // --- Informasi Harga ---
+                  DetailInfoRow(
+                    title: "Pricelist",
+                    value: FormatHelper.formatCurrency(product.pricelist),
+                    isStrikethrough: true,
+                    valueColor: AppColors.error,
+                  ),
+                  DetailInfoRow(
+                    title: "Program",
+                    value: product.program.isNotEmpty
+                        ? product.program
+                        : "Tidak ada promo",
+                  ),
+                  DetailInfoRow(
+                    title: "Harga Net",
+                    value: FormatHelper.formatCurrency(netPrice),
+                    isBoldValue: true,
+                    valueColor: AppColors.success,
+                  ),
+                  DetailInfoRow(
+                    title: "Total Diskon",
+                    value: "- ${FormatHelper.formatCurrency(totalDiscount)}",
+                    valueColor: AppColors.warning,
+                  ),
+                  const SizedBox(height: 12),
+
+                  // --- Informasi Bonus ---
+                  _buildBonusInfo(),
                 ],
-              ],
+              ),
             ),
           ),
         );
@@ -70,167 +100,25 @@ class ProductCard extends StatelessWidget {
     );
   }
 
-  Widget _buildProductDetail() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        DetailInfoRow(title: "Kasur", value: product.kasur),
-        DetailInfoRow(title: "Divan", value: product.divan),
-        DetailInfoRow(title: "Headboard", value: product.headboard),
-        DetailInfoRow(title: "Sorong", value: product.sorong),
-        DetailInfoRow(title: "Ukuran", value: product.ukuran),
-      ],
-    );
-  }
-
-  Widget _buildPriceInfo(
-      BuildContext context,
-      ProductState state,
-      double netPrice,
-      List<double> discountPercentages,
-      double editPopupDiscount) {
-    final theme = Theme.of(context);
-    final totalDiscount = product.pricelist - netPrice;
-
-    final int? installmentMonths = state.installmentMonths[product.id];
-    final bool hasInstallment =
-        installmentMonths != null && installmentMonths > 0;
-
-    List<String> discountList = discountPercentages
-        .where((d) => d > 0.0)
-        .map((d) => d % 1 == 0 ? "${d.toInt()}%" : "${d.toStringAsFixed(2)}%")
-        .toList();
-
-    if (editPopupDiscount != 0.0) {
-      discountList.add(editPopupDiscount % 1 == 0
-          ? "${editPopupDiscount.toInt()}%"
-          : "${editPopupDiscount.toStringAsFixed(2)}%");
-    }
-    String formattedDiscounts =
-        discountList.isNotEmpty ? discountList.join(" + ") : "( -)";
-    bool hasDiscountReceived = discountList.isNotEmpty;
+  Widget _buildBonusInfo() {
+    final hasBonus =
+        product.bonus.isNotEmpty && product.bonus.any((b) => b.name.isNotEmpty);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        DetailInfoRow(
-            title: "Pricelist",
-            value: FormatHelper.formatCurrency(product.pricelist),
-            isStrikethrough: true,
-            valueColor: AppColors.error),
-        DetailInfoRow(
-            title: "Program",
-            value: product.program.isNotEmpty
-                ? product.program
-                : "Tidak ada promo"),
-        if (hasDiscountReceived)
-          DetailInfoRow(
-              title: "Plus Diskon",
-              value: formattedDiscounts,
-              valueColor: theme.colorScheme.primary),
-        DetailInfoRow(
-            title: "Harga Net",
-            value: FormatHelper.formatCurrency(netPrice),
-            isBoldValue: true,
-            valueColor: AppColors.success),
-        if (hasInstallment)
-          DetailInfoRow(
-              title: "Cicilan",
-              value:
-                  "$installmentMonths bulan x ${FormatHelper.formatCurrency(netPrice / installmentMonths)}",
-              isBoldValue: true,
-              valueColor: theme.colorScheme.primary),
-        DetailInfoRow(
-            title: "Total Diskon",
-            value: "- ${FormatHelper.formatCurrency(totalDiscount)}",
-            valueColor: AppColors.warning),
-      ],
-    );
-  }
-
-  Widget _buildBonusInfo(ProductState state) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text("Complimentary :",
+        const Text("Complimentary:",
             style: TextStyle(fontWeight: FontWeight.bold)),
-        if (product.bonus.isNotEmpty)
+        const SizedBox(height: 4),
+        if (hasBonus)
           ...product.bonus.where((b) => b.name.isNotEmpty).map(
                 (bonus) => Text("• ${bonus.quantity}x ${bonus.name}",
                     style: const TextStyle(fontSize: 14)),
-              ),
-        if (product.bonus.isEmpty || product.bonus.every((b) => b.name.isEmpty))
+              )
+        else
           const Text("Tidak ada bonus.",
               style: TextStyle(fontSize: 14, color: Colors.grey)),
-        const SizedBox(height: 8),
-        if (state.productNotes.containsKey(product.id) &&
-            state.productNotes[product.id]!.isNotEmpty)
-          Text(
-            "Catatan: ${state.productNotes[product.id]}",
-            style: const TextStyle(
-                fontSize: 14,
-                fontStyle: FontStyle.italic,
-                color: Colors.blueAccent),
-          ),
       ],
-    );
-  }
-
-  Widget _buildFooterButtons(
-      BuildContext context,
-      ProductState state,
-      double netPrice,
-      List<double> discountPercentages,
-      double editPopupDiscount) {
-    int? installmentMonths = state.installmentMonths[product.id];
-    double? installmentPerMonth =
-        installmentMonths != null && installmentMonths > 0
-            ? netPrice / installmentMonths
-            : null;
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        _buildIconButton(Icons.credit_card, "Credit", AppColors.success,
-            () => ProductActions.showCreditPopup(context, product)),
-        _buildIconButton(Icons.edit, "Edit", AppColors.primaryLight,
-            () => ProductActions.showEditPopup(context, product)),
-        _buildIconButton(Icons.info_outline, "Info", AppColors.warning,
-            () => ProductActions.showInfoPopup(context, product)),
-        _buildIconButton(Icons.share, "Share", AppColors.info,
-            () => ProductActions.showSharePopup(context, product)),
-        _buildIconButton(
-            Icons.add_shopping_cart, "Add to Cart", AppColors.purple, () {
-          context.read<CartBloc>().add(AddToCart(
-                product: product,
-                quantity: 1,
-                netPrice: netPrice,
-                discountPercentages: discountPercentages,
-                editPopupDiscount: editPopupDiscount,
-                installmentMonths: installmentMonths,
-                installmentPerMonth: installmentPerMonth,
-              ));
-          CustomToast.showToast(
-              "${product.kasur} ditambahkan ke keranjang", ToastType.success);
-        }),
-      ],
-    );
-  }
-
-  Widget _buildIconButton(
-      IconData icon, String tooltip, Color color, VoidCallback onPressed) {
-    return Flexible(
-      child: Tooltip(
-        message: tooltip,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(8),
-          onTap: onPressed,
-          child: Padding(
-            padding: const EdgeInsets.all(AppPadding.p8),
-            child: Icon(icon, size: 30, color: color),
-          ),
-        ),
-      ),
     );
   }
 }

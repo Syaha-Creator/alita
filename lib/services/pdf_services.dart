@@ -14,6 +14,7 @@ import '../core/utils/logger.dart';
 import '../features/cart/domain/entities/cart_entity.dart';
 
 class PDFService {
+  // Ganti seluruh fungsi ini di pdf_services.dart
   static Future<Uint8List> generateCheckoutPDF({
     required List<CartEntity> cartItems,
     required String customerName,
@@ -30,11 +31,12 @@ class PDFService {
   }) async {
     final pdf = pw.Document();
 
-    // Menggunakan versi gambar yang sudah di-resize (_sm.png) untuk performa
+    // Load semua logo seperti sebelumnya
     final sleepCenterLogo =
         await _loadImageProvider('assets/logo/sleepcenter_logo.png');
     final sleepSpaLogo =
         await _loadImageProvider('assets/logo/sleepspa_logo.png');
+    // ... (lanjutan load logo lainnya)
     final springAirLogo =
         await _loadImageProvider('assets/logo/springair_logo.png');
     final therapedicLogo =
@@ -43,7 +45,6 @@ class PDFService {
         await _loadImageProvider('assets/logo/comforta_logo.png');
     final superfitLogo =
         await _loadImageProvider('assets/logo/superfit_logo.png');
-
     final isleepLogo = await _loadImageProvider('assets/logo/isleep_logo.png');
 
     final List<pw.ImageProvider?> otherLogos = [
@@ -55,23 +56,40 @@ class PDFService {
       isleepLogo,
     ];
 
+    // Hitung total dan sisa bayar
     final selectedItems = cartItems.where((item) => item.isSelected).toList();
     double subtotal = 0;
     for (var item in selectedItems) {
       subtotal += item.netPrice * item.quantity;
     }
-
     double ppn = subtotal * 0.11;
     double grandTotal = subtotal + ppn;
+    final double sisaPembayaran = grandTotal - paymentAmount;
+
+    // --- PERUBAHAN 1: Tentukan kondisi lunas ---
+    final bool isPaid = sisaPembayaran <= 0;
 
     final font = await PdfGoogleFonts.poppinsRegular();
     final boldFont = await PdfGoogleFonts.poppinsBold();
 
     pdf.addPage(
       pw.MultiPage(
-        theme: pw.ThemeData.withFont(base: font, bold: boldFont),
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.fromLTRB(36, 28, 36, 28),
+        // --- PERUBAHAN 2: Tambahkan `pageTheme` untuk background ---
+        pageTheme: pw.PageTheme(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.fromLTRB(36, 28, 36, 28),
+          theme: pw.ThemeData.withFont(base: font, bold: boldFont),
+          buildBackground: (pw.Context context) {
+            // Tampilkan watermark hanya jika sudah lunas
+            if (isPaid) {
+              return _buildLunasWatermark();
+            }
+            // Jika tidak, kembalikan widget kosong
+            return pw.SizedBox();
+          },
+        ),
+        // --- Akhir Perubahan ---
+
         header: (pw.Context context) {
           if (context.pageNumber == 1) {
             return _buildHeader(sleepCenterLogo, otherLogos, showroom ?? "-");
@@ -87,7 +105,6 @@ class PDFService {
             ),
           );
         },
-        // --- INI ADALAH STRUKTUR BUILD YANG BENAR UNTUK MULTIPAGE ---
         build: (pw.Context context) => [
           _buildCustomerAndOrderInfo(
             customerName: customerName,
@@ -112,11 +129,7 @@ class PDFService {
           ),
           pw.SizedBox(height: 10),
           _buildSignatureSection(customerName, salesName ?? "NAMA SALES"),
-
-          // Gunakan pw.Spacer() untuk mendorong konten berikutnya ke bawah JIKA ada ruang.
-          // Jika tidak ada ruang, ia akan membiarkan MultiPage pindah halaman.
           pw.Spacer(),
-
           _buildTermsAndConditions(),
           pw.SizedBox(height: 5),
           pw.Align(
@@ -130,6 +143,27 @@ class PDFService {
       ),
     );
     return pdf.save();
+  }
+
+  static pw.Widget _buildLunasWatermark() {
+    return pw.Center(
+      child: pw.Transform.rotate(
+        angle: 0.785,
+        child: pw.Text(
+          'LUNAS',
+          style: pw.TextStyle(
+            fontSize: 120,
+            color: PdfColor(
+              PdfColors.green300.red,
+              PdfColors.green300.green,
+              PdfColors.green300.blue,
+              0.3,
+            ),
+            fontWeight: pw.FontWeight.bold,
+          ),
+        ),
+      ),
+    );
   }
 
   static Future<pw.ImageProvider?> _loadImageProvider(String path) async {
