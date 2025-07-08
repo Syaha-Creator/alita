@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:collection/collection.dart';
 
 import '../../../../../core/utils/format_helper.dart';
 import '../../../../../core/widgets/custom_toast.dart';
@@ -20,29 +21,31 @@ class _InfoDialogState extends State<InfoDialog> {
   late List<TextEditingController> percentageControllers;
   late List<TextEditingController> nominalControllers;
   late double basePrice;
+  late List<double> _initialPercentages;
+  late List<double> _initialNominals;
 
   @override
   void initState() {
     super.initState();
     final state = context.read<ProductBloc>().state;
     basePrice = widget.product.endUserPrice;
-    List<double> savedPercentages = List.from(
+    _initialPercentages = List.from(
         state.productDiscountsPercentage[widget.product.id] ??
             List.filled(5, 0.0));
-    List<double> savedNominals = List.from(
+    _initialNominals = List.from(
         state.productDiscountsNominal[widget.product.id] ??
             List.filled(5, 0.0));
     percentageControllers = List.generate(
         5,
         (i) => TextEditingController(
-            text: (i < savedPercentages.length && savedPercentages[i] > 0)
-                ? savedPercentages[i].toStringAsFixed(2)
+            text: (i < _initialPercentages.length && _initialPercentages[i] > 0)
+                ? _initialPercentages[i].toStringAsFixed(2)
                 : ""));
     nominalControllers = List.generate(
         5,
         (i) => TextEditingController(
-            text: (i < savedNominals.length && savedNominals[i] > 0)
-                ? FormatHelper.formatCurrency(savedNominals[i])
+            text: (i < _initialNominals.length && _initialNominals[i] > 0)
+                ? FormatHelper.formatCurrency(_initialNominals[i])
                 : ""));
   }
 
@@ -174,17 +177,34 @@ class _InfoDialogState extends State<InfoDialog> {
               const SizedBox(width: 8),
               ElevatedButton(
                 onPressed: () {
-                  final percentages = percentageControllers
+                  // 1. Ambil nilai saat ini dari controllers
+                  final currentPercentages = percentageControllers
                       .map((c) => double.tryParse(c.text) ?? 0.0)
                       .toList();
-                  final nominals = nominalControllers
+                  final currentNominals = nominalControllers
                       .map((c) => FormatHelper.parseCurrencyToDouble(c.text))
                       .toList();
-                  context.read<ProductBloc>().add(UpdateProductDiscounts(
-                      productId: widget.product.id,
-                      discountPercentages: percentages,
-                      discountNominals: nominals,
-                      originalPrice: basePrice));
+
+                  // 2. Bandingkan nilai saat ini dengan nilai awal
+                  final listEquals = const ListEquality().equals;
+                  final bool hasChanged =
+                      !listEquals(currentPercentages, _initialPercentages) ||
+                          !listEquals(currentNominals, _initialNominals);
+
+                  // 3. Hanya update jika ada perubahan
+                  if (hasChanged) {
+                    context.read<ProductBloc>().add(UpdateProductDiscounts(
+                          productId: widget.product.id,
+                          discountPercentages: currentPercentages,
+                          discountNominals: currentNominals,
+                          originalPrice: basePrice,
+                        ));
+                  } else {
+                    // Opsional: beritahu pengguna tidak ada perubahan
+                    print("Tidak ada perubahan diskon yang perlu disimpan.");
+                  }
+
+                  // 4. Tutup dialog
                   Navigator.pop(context);
                 },
                 child: const Text("Simpan"),
