@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../config/app_constant.dart';
 import '../../../../core/utils/format_helper.dart';
+import '../../../../theme/app_colors.dart';
 import '../bloc/cart_bloc.dart';
 import '../bloc/cart_event.dart';
 import '../bloc/cart_state.dart';
@@ -14,6 +15,9 @@ class CartPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Keranjang Belanja'),
@@ -30,14 +34,21 @@ class CartPage extends StatelessWidget {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.shopping_cart_outlined,
-                                size: 120, color: Colors.grey.shade300),
+                            Icon(
+                              Icons.shopping_cart_outlined,
+                              size: 120,
+                              color: isDark
+                                  ? AppColors.textSecondaryDark
+                                  : Colors.grey.shade300,
+                            ),
                             const SizedBox(height: 16),
                             Text(
                               'Keranjang Anda kosong',
                               style: GoogleFonts.montserrat(
                                 fontSize: 20,
-                                color: Colors.grey.shade600,
+                                color: isDark
+                                    ? AppColors.textPrimaryDark
+                                    : Colors.grey.shade600,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -45,7 +56,11 @@ class CartPage extends StatelessWidget {
                             Text(
                               'Tambahkan produk untuk memulai!',
                               style: GoogleFonts.montserrat(
-                                  fontSize: 14, color: Colors.grey),
+                                fontSize: 14,
+                                color: isDark
+                                    ? AppColors.textSecondaryDark
+                                    : Colors.grey,
+                              ),
                             ),
                           ],
                         ),
@@ -72,7 +87,7 @@ class CartPage extends StatelessWidget {
                                       '${cartItem.product.id}-${cartItem.netPrice}'),
                                   direction: DismissDirection.endToStart,
                                   background: Container(
-                                    color: Colors.red.shade700,
+                                    color: AppColors.error,
                                     alignment: Alignment.centerRight,
                                     padding: const EdgeInsets.only(
                                         right: AppPadding.p20),
@@ -81,7 +96,7 @@ class CartPage extends StatelessWidget {
                                   ),
                                   confirmDismiss: (direction) async {
                                     return await _showDeleteConfirmationDialog(
-                                        context);
+                                        context, isDark);
                                   },
                                   onDismissed: (direction) {
                                     context.read<CartBloc>().add(RemoveFromCart(
@@ -97,10 +112,14 @@ class CartPage extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.all(AppPadding.p16),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: isDark
+                                  ? AppColors.surfaceDark
+                                  : AppColors.surfaceLight,
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.grey.withOpacity(0.2),
+                                  color: isDark
+                                      ? Colors.black.withOpacity(0.3)
+                                      : Colors.grey.withOpacity(0.2),
                                   spreadRadius: 2,
                                   blurRadius: 10,
                                   offset: const Offset(0, -5),
@@ -120,7 +139,9 @@ class CartPage extends StatelessWidget {
                                       );
                                     },
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue.shade700,
+                                backgroundColor: isDark
+                                    ? AppColors.buttonDark
+                                    : AppColors.buttonLight,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -142,7 +163,13 @@ class CartPage extends StatelessWidget {
                     }
                   } else if (state is CartError) {
                     return Center(
-                        child: Text('Terjadi kesalahan: ${state.message}'));
+                      child: Text(
+                        'Terjadi kesalahan: ${state.message}',
+                        style: TextStyle(
+                          color: isDark ? AppColors.error : Colors.red,
+                        ),
+                      ),
+                    );
                   } else {
                     return const Center(child: CircularProgressIndicator());
                   }
@@ -155,29 +182,53 @@ class CartPage extends StatelessWidget {
     );
   }
 
-  Future<bool?> _showDeleteConfirmationDialog(BuildContext context) {
+  Future<bool?> _showDeleteConfirmationDialog(BuildContext context, bool isDark) {
     return showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
+          backgroundColor:
+              isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           title: Row(
             children: [
-              Icon(Icons.warning, color: Colors.red.shade700),
+              Icon(Icons.warning, color: AppColors.error),
               const SizedBox(width: 8),
-              const Text('ALERT !'),
+              Text(
+                'ALERT !',
+                style: TextStyle(
+                  color: isDark
+                      ? AppColors.textPrimaryDark
+                      : AppColors.textPrimaryLight,
+                ),
+              ),
             ],
           ),
-          content: const Text('Apakah Anda yakin ingin menghapus item ini?'),
+          content: Text(
+            'Apakah Anda yakin ingin menghapus item ini?',
+            style: TextStyle(
+              color: isDark
+                  ? AppColors.textSecondaryDark
+                  : AppColors.textSecondaryLight,
+            ),
+          ),
           actions: <Widget>[
             TextButton(
-              child: const Text('Iya'),
+              child: Text(
+                'Iya',
+                style: TextStyle(
+                  color: isDark
+                      ? AppColors.textSecondaryDark
+                      : AppColors.textSecondaryLight,
+                ),
+              ),
               onPressed: () => Navigator.of(context).pop(true),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red.shade700),
+                backgroundColor: AppColors.error,
+              ),
               child: const Text('Batal', style: TextStyle(color: Colors.white)),
               onPressed: () => Navigator.of(context).pop(false),
             ),

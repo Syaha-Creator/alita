@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import '../../theme/app_colors.dart';
 
 enum ToastType { success, error, warning, info }
 
@@ -8,16 +9,16 @@ class CustomToast {
     Color bgColor;
     switch (type) {
       case ToastType.success:
-        bgColor = Colors.green;
+        bgColor = AppColors.success;
         break;
       case ToastType.error:
-        bgColor = Colors.red;
+        bgColor = AppColors.error;
         break;
       case ToastType.warning:
-        bgColor = Colors.orange;
+        bgColor = AppColors.warning;
         break;
       case ToastType.info:
-        bgColor = Colors.blue;
+        bgColor = AppColors.info;
         break;
     }
 

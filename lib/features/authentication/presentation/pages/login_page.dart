@@ -17,7 +17,9 @@ class LoginPage extends StatelessWidget {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         elevation: 4,
-        shadowColor: Colors.black.withAlpha(50),
+        shadowColor: theme.brightness == Brightness.dark
+            ? Colors.black.withAlpha(80)
+            : Colors.black.withAlpha(50),
         backgroundColor: theme.primaryColor,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -76,7 +78,9 @@ class LoginPage extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withAlpha(30),
+                      color: theme.brightness == Brightness.dark
+                          ? Colors.black.withAlpha(60)
+                          : Colors.black.withAlpha(30),
                       blurRadius: 8,
                       offset: const Offset(0, 4),
                     ),

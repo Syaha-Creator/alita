@@ -13,8 +13,6 @@ import '../../../../core/widgets/custom_toast.dart';
 import '../../../../navigation/navigation_service.dart';
 
 import '../../../../services/auth_service.dart';
-import '../../../product/presentation/bloc/product_bloc.dart';
-import '../../../product/presentation/bloc/product_event.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
@@ -146,8 +144,6 @@ class _LoginFormState extends State<LoginForm> with ControllerDisposalMixin {
               }
 
               if (state is AuthSuccess) {
-                context.read<ProductBloc>().add(FetchProducts());
-
                 setState(() => isLoading = false);
                 CustomToast.showToast("Login Berhasil!", ToastType.success);
                 NavigationService.navigateAndReplace(RoutePaths.product);

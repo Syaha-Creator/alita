@@ -3,12 +3,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import '../config/api_config.dart';
 import '../config/app_constant.dart';
-import '../core/utils/logger.dart';
 
 class AuthService {
   static final ValueNotifier<bool> authChangeNotifier = ValueNotifier(false);
   static const int _sessionDuration = 24 * 60 * 60 * 1000;
   static const String _userNameKey = "current_user_name";
+  static const String _userAreaIdKey = "current_user_area_id";
 
   static Future<bool> isLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
@@ -19,7 +19,6 @@ class AuthService {
     if (isLoggedIn && loginTimestamp != null) {
       int currentTime = DateTime.now().millisecondsSinceEpoch;
       if (currentTime - loginTimestamp > _sessionDuration || token == null) {
-        logger.i("⏳ Session expired, logging out...");
         await logout();
         return false;
       }
@@ -29,8 +28,8 @@ class AuthService {
     return isLoggedIn;
   }
 
-  static Future<bool> login(
-      String token, String refreshToken, int userId, String userName) async {
+  static Future<bool> login(String token, String refreshToken, int userId,
+      String userName, int? areaId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(StorageKeys.isLoggedIn, true);
@@ -41,11 +40,12 @@ class AuthService {
       await prefs.setInt(StorageKeys.currentUserId, userId);
       await prefs.setString(_userNameKey, userName);
 
-      logger.i("🔐 User $userId logged in. Token saved successfully!");
+      if (areaId != null) {
+        await prefs.setInt(_userAreaIdKey, areaId);
+      }
       authChangeNotifier.value = true;
       return true;
     } catch (e) {
-      logger.e("❌ Failed to save session: $e");
       return false;
     }
   }
@@ -68,12 +68,17 @@ class AuthService {
   static Future<void> clearSavedEmail() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(StorageKeys.rememberedEmail);
-    logger.i("🔑 Remembered email cleared.");
   }
 
   static Future<int?> getCurrentUserId() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getInt(StorageKeys.currentUserId);
+  }
+
+  static Future<int?> getCurrentUserAreaId() async {
+    final prefs = await SharedPreferences.getInstance();
+    final areaId = prefs.getInt(_userAreaIdKey);
+    return areaId;
   }
 
   static Future<String?> getToken() async {
@@ -91,7 +96,6 @@ class AuthService {
     String? refreshToken = prefs.getString(StorageKeys.refreshToken);
 
     if (refreshToken == null) {
-      logger.i("⚠️ No refresh token found, logging out...");
       await logout();
       return null;
     }
@@ -120,7 +124,7 @@ class AuthService {
         }
 
         final success = await login(
-            newToken, newRefreshToken, userId as int, userName as String);
+            newToken, newRefreshToken, userId as int, userName as String, null);
 
         if (!success) throw Exception("Failed to store new token.");
 
@@ -129,7 +133,6 @@ class AuthService {
         throw Exception("Invalid response: ${response.data}");
       }
     } catch (e) {
-      logger.e("❌ Refresh token failed, logging out...");
       await logout();
       return null;
     }
@@ -144,12 +147,11 @@ class AuthService {
       await prefs.remove(StorageKeys.refreshToken);
       await prefs.remove(StorageKeys.currentUserId);
       await prefs.remove(_userNameKey);
+      await prefs.remove(_userAreaIdKey);
 
-      logger.i("🚪 User logged out successfully and session data removed!");
       authChangeNotifier.value = false;
       return true;
     } catch (e) {
-      logger.e("❌ Failed to log out: $e");
       return false;
     }
   }

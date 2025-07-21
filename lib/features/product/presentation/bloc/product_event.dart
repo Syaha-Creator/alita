@@ -11,7 +11,22 @@ abstract class ProductEvent extends Equatable {
 
 class AppStarted extends ProductEvent {}
 
-class FetchProducts extends ProductEvent {}
+class InitializeDropdowns extends ProductEvent {}
+
+class FetchProductsByFilter extends ProductEvent {
+  final String? selectedArea;
+  final String? selectedChannel;
+  final String? selectedBrand;
+
+  const FetchProductsByFilter({
+    this.selectedArea,
+    this.selectedChannel,
+    this.selectedBrand,
+  });
+
+  @override
+  List<Object?> get props => [selectedArea, selectedChannel, selectedBrand];
+}
 
 class ToggleSet extends ProductEvent {
   final bool isSetActive;
@@ -202,3 +217,40 @@ class UpdateProductNote extends ProductEvent {
 }
 
 class ClearFilters extends ProductEvent {}
+
+class ResetFilters extends ProductEvent {}
+
+class ResetUserSelectedArea extends ProductEvent {}
+
+class SetUserArea extends ProductEvent {
+  final int areaId;
+  const SetUserArea(this.areaId);
+
+  @override
+  List<Object?> get props => [areaId];
+}
+
+class ShowAreaNotAvailable extends ProductEvent {
+  final int areaId;
+  const ShowAreaNotAvailable(this.areaId);
+
+  @override
+  List<Object?> get props => [areaId];
+}
+
+class ShowWhatsAppDialog extends ProductEvent {
+  final String brand;
+  final String area;
+  final String channel;
+
+  const ShowWhatsAppDialog({
+    required this.brand,
+    required this.area,
+    required this.channel,
+  });
+
+  @override
+  List<Object?> get props => [brand, area, channel];
+}
+
+class HideWhatsAppDialog extends ProductEvent {}

@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/app_constant.dart';
-import '../core/utils/logger.dart';
 import '../features/cart/domain/entities/cart_entity.dart';
 import '../features/product/domain/entities/product_entity.dart';
 import 'auth_service.dart';
@@ -18,10 +17,8 @@ class CartStorageService {
       final List<Map<String, dynamic>> cartJson =
           cartItems.map((item) => _cartEntityToJson(item)).toList();
       await prefs.setString(cartKey, jsonEncode(cartJson));
-      logger.i("🛒 Cart for user $userId saved successfully.");
       return true;
     } catch (e) {
-      logger.e("❌ Error saving cart: $e");
       return false;
     }
   }
@@ -37,10 +34,8 @@ class CartStorageService {
       final List<dynamic> cartJson = jsonDecode(cartData);
       final List<CartEntity> cartItems =
           cartJson.map((item) => _cartEntityFromJson(item)).toList();
-      logger.i("🛒 Cart for user $userId loaded successfully (no expiration).");
       return cartItems;
     } catch (e) {
-      logger.e("❌ Error loading cart: $e");
       await clearCart();
       return [];
     }
@@ -52,10 +47,8 @@ class CartStorageService {
       if (userId == null) return false;
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_getCartKey(userId));
-      logger.i("🛒 Cart for user $userId cleared successfully");
       return true;
     } catch (e) {
-      logger.e("❌ Error clearing cart: $e");
       return false;
     }
   }

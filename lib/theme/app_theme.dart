@@ -8,12 +8,18 @@ class AppTheme {
     brightness: Brightness.light,
     primaryColor: AppColors.primaryLight,
     scaffoldBackgroundColor: AppColors.backgroundLight,
+    cardColor: AppColors.cardLight,
+    dividerColor: AppColors.borderLight,
     colorScheme: ColorScheme.light(
       primary: AppColors.primaryLight,
       onPrimary: Colors.white,
       secondary: AppColors.secondaryLight,
       surface: AppColors.surfaceLight,
       onSurface: AppColors.textPrimaryLight,
+      background: AppColors.backgroundLight,
+      onBackground: AppColors.textPrimaryLight,
+      error: AppColors.error,
+      onError: Colors.white,
     ),
     textTheme: GoogleFonts.montserratTextTheme().copyWith(
       bodyLarge: GoogleFonts.montserrat(
@@ -81,6 +87,36 @@ class AppTheme {
         borderSide: const BorderSide(color: AppColors.borderLight),
       ),
     ),
+    dialogTheme: DialogTheme(
+      backgroundColor: AppColors.surfaceLight,
+      surfaceTintColor: AppColors.surfaceLight,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      titleTextStyle: GoogleFonts.montserrat(
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+        color: AppColors.textPrimaryLight,
+      ),
+      contentTextStyle: GoogleFonts.montserrat(
+        fontSize: 14,
+        color: AppColors.textSecondaryLight,
+      ),
+    ),
+    popupMenuTheme: PopupMenuThemeData(
+      color: AppColors.surfaceLight,
+      textStyle: GoogleFonts.montserrat(
+        fontSize: 14,
+        color: AppColors.textPrimaryLight,
+      ),
+    ),
+    bottomSheetTheme: BottomSheetThemeData(
+      backgroundColor: AppColors.surfaceLight,
+      surfaceTintColor: AppColors.surfaceLight,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+    ),
   );
 
   // Dark Theme
@@ -88,12 +124,18 @@ class AppTheme {
     brightness: Brightness.dark,
     primaryColor: AppColors.primaryDark,
     scaffoldBackgroundColor: AppColors.backgroundDark,
+    cardColor: AppColors.cardDark,
+    dividerColor: AppColors.borderDark,
     colorScheme: ColorScheme.dark(
       primary: AppColors.primaryDark,
       onPrimary: Colors.white,
       secondary: AppColors.secondaryDark,
       surface: AppColors.surfaceDark,
       onSurface: AppColors.textPrimaryDark,
+      background: AppColors.backgroundDark,
+      onBackground: AppColors.textPrimaryDark,
+      error: AppColors.error,
+      onError: Colors.white,
     ),
     textTheme: GoogleFonts.montserratTextTheme().copyWith(
       bodyLarge: GoogleFonts.montserrat(
@@ -156,6 +198,36 @@ class AppTheme {
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
         borderSide: const BorderSide(color: AppColors.borderDark),
+      ),
+    ),
+    dialogTheme: DialogTheme(
+      backgroundColor: AppColors.surfaceDark,
+      surfaceTintColor: AppColors.surfaceDark,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      titleTextStyle: GoogleFonts.montserrat(
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+        color: AppColors.textPrimaryDark,
+      ),
+      contentTextStyle: GoogleFonts.montserrat(
+        fontSize: 14,
+        color: AppColors.textSecondaryDark,
+      ),
+    ),
+    popupMenuTheme: PopupMenuThemeData(
+      color: AppColors.surfaceDark,
+      textStyle: GoogleFonts.montserrat(
+        fontSize: 14,
+        color: AppColors.textPrimaryDark,
+      ),
+    ),
+    bottomSheetTheme: BottomSheetThemeData(
+      backgroundColor: AppColors.surfaceDark,
+      surfaceTintColor: AppColors.surfaceDark,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
     ),
   );

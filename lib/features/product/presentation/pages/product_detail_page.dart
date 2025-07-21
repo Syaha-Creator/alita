@@ -17,6 +17,9 @@ class ProductDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return BlocBuilder<ProductBloc, ProductState>(
       builder: (context, state) {
         final product = state.selectProduct;
@@ -61,7 +64,8 @@ class ProductDetailPage extends StatelessWidget {
                 expandedHeight: 120,
                 pinned: true,
                 stretch: true,
-                backgroundColor: AppColors.primaryLight,
+                backgroundColor:
+                    isDark ? AppColors.primaryDark : AppColors.primaryLight,
                 flexibleSpace: FlexibleSpaceBar(
                   centerTitle: true,
                   title: Text(
@@ -79,8 +83,13 @@ class ProductDetailPage extends StatelessWidget {
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                               colors: [
-                                AppColors.primaryLight,
-                                AppColors.primaryLight.withOpacity(0.7)
+                                isDark
+                                    ? AppColors.primaryDark
+                                    : AppColors.primaryLight,
+                                (isDark
+                                        ? AppColors.primaryDark
+                                        : AppColors.primaryLight)
+                                    .withOpacity(0.7)
                               ],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight),
@@ -116,16 +125,16 @@ class ProductDetailPage extends StatelessWidget {
                 delegate: SliverChildListDelegate(
                   [
                     _buildPriceCard(product, netPrice, totalDiscount,
-                        combinedDiscounts, installmentMonths),
-                    _buildDetailCard(product),
-                    _buildBonusAndNotesCard(product, note),
+                        combinedDiscounts, installmentMonths, isDark),
+                    _buildDetailCard(product, isDark),
+                    _buildBonusAndNotesCard(product, note, isDark),
                     const SizedBox(height: 75),
                   ],
                 ),
               ),
             ],
           ),
-          bottomSheet: _buildActionButtons(context, product, state),
+          bottomSheet: _buildActionButtons(context, product, state, isDark),
         );
       },
     );
@@ -136,7 +145,8 @@ class ProductDetailPage extends StatelessWidget {
       double netPrice,
       double totalDiscount,
       List<String> combinedDiscounts,
-      int? installmentMonths) {
+      int? installmentMonths,
+      bool isDark) {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -148,29 +158,41 @@ class ProductDetailPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min, // Penting untuk scrolling
           children: [
-            const Text("Rincian Harga",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(
+              "Rincian Harga",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: isDark
+                    ? AppColors.textPrimaryDark
+                    : AppColors.textPrimaryLight,
+              ),
+            ),
             const Divider(height: 18),
             _buildPriceRow(
               "Pricelist",
               FormatHelper.formatCurrency(product.pricelist),
               isStrikethrough: true,
               valueColor: AppColors.error,
+              isDark: isDark,
             ),
             _buildPriceRow(
               "Program",
               product.program.isNotEmpty ? product.program : "Tidak ada promo",
+              isDark: isDark,
             ),
             if (combinedDiscounts.isNotEmpty)
               _buildPriceRow(
                 "Diskon Tambahan",
                 combinedDiscounts.join(' + '),
                 valueColor: AppColors.info,
+                isDark: isDark,
               ),
             _buildPriceRow(
               "Total Diskon",
               "- ${FormatHelper.formatCurrency(totalDiscount)}",
               valueColor: AppColors.warning,
+              isDark: isDark,
             ),
             const Divider(height: 18, thickness: 1.5),
             _buildPriceRow(
@@ -179,6 +201,7 @@ class ProductDetailPage extends StatelessWidget {
               isBold: true,
               valueSize: 20,
               valueColor: AppColors.success,
+              isDark: isDark,
             ),
             if (installmentMonths != null && installmentMonths > 0)
               Padding(
@@ -186,10 +209,11 @@ class ProductDetailPage extends StatelessWidget {
                 child: Center(
                   child: Text(
                     "Cicilan: ${FormatHelper.formatCurrency(netPrice / installmentMonths)} x $installmentMonths bulan",
-                    style: const TextStyle(
-                        fontSize: 14,
-                        fontStyle: FontStyle.italic,
-                        color: AppColors.info),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontStyle: FontStyle.italic,
+                      color: isDark ? AppColors.accentDark : AppColors.info,
+                    ),
                   ),
                 ),
               ),
@@ -199,7 +223,7 @@ class ProductDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildDetailCard(ProductEntity product) {
+  Widget _buildDetailCard(ProductEntity product, bool isDark) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -211,28 +235,37 @@ class ProductDetailPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text("Spesifikasi Set",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(
+              "Spesifikasi Set",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: isDark
+                    ? AppColors.textPrimaryDark
+                    : AppColors.textPrimaryLight,
+              ),
+            ),
             const Divider(height: 24),
-            _buildSpecRow(Icons.king_bed, "Tipe Kasur", product.kasur),
+            _buildSpecRow(Icons.king_bed, "Tipe Kasur", product.kasur, isDark),
             if (product.divan.isNotEmpty && product.divan != AppStrings.noDivan)
-              _buildSpecRow(Icons.layers, "Tipe Divan", product.divan),
+              _buildSpecRow(Icons.layers, "Tipe Divan", product.divan, isDark),
             if (product.headboard.isNotEmpty &&
                 product.headboard != AppStrings.noHeadboard)
-              _buildSpecRow(
-                  Icons.view_headline, "Tipe Headboard", product.headboard),
+              _buildSpecRow(Icons.view_headline, "Tipe Headboard",
+                  product.headboard, isDark),
             if (product.sorong.isNotEmpty &&
                 product.sorong != AppStrings.noSorong)
               _buildSpecRow(
-                  Icons.arrow_downward, "Tipe Sorong", product.sorong),
-            _buildSpecRow(Icons.straighten, "Ukuran", product.ukuran),
+                  Icons.arrow_downward, "Tipe Sorong", product.sorong, isDark),
+            _buildSpecRow(Icons.straighten, "Ukuran", product.ukuran, isDark),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildBonusAndNotesCard(ProductEntity product, String note) {
+  Widget _buildBonusAndNotesCard(
+      ProductEntity product, String note, bool isDark) {
     final hasBonus =
         product.bonus.isNotEmpty && product.bonus.any((b) => b.name.isNotEmpty);
     return Card(
@@ -246,29 +279,62 @@ class ProductDetailPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text("Bonus & Catatan",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(
+              "Bonus & Catatan",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: isDark
+                    ? AppColors.textPrimaryDark
+                    : AppColors.textPrimaryLight,
+              ),
+            ),
             const Divider(height: 24),
-            const Text("Complimentary:",
-                style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(
+              "Complimentary:",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: isDark
+                    ? AppColors.textPrimaryDark
+                    : AppColors.textPrimaryLight,
+              ),
+            ),
             const SizedBox(height: 8),
             if (hasBonus)
               ...product.bonus.where((b) => b.name.isNotEmpty).map(
                     (bonus) => Padding(
                       padding: const EdgeInsets.only(left: 8.0, bottom: 4.0),
-                      child: Text("• ${bonus.quantity}x ${bonus.name}"),
+                      child: Text(
+                        "• ${bonus.quantity}x ${bonus.name}",
+                        style: TextStyle(
+                          color: isDark
+                              ? AppColors.textSecondaryDark
+                              : AppColors.textSecondaryLight,
+                        ),
+                      ),
                     ),
                   )
             else
-              const Padding(
-                padding: EdgeInsets.only(left: 8.0),
-                child: Text("Tidak ada bonus.",
-                    style: TextStyle(color: Colors.grey)),
+              Padding(
+                padding: const EdgeInsets.only(left: 8.0),
+                child: Text(
+                  "Tidak ada bonus.",
+                  style: TextStyle(
+                    color: isDark ? AppColors.textSecondaryDark : Colors.grey,
+                  ),
+                ),
               ),
             if (note.isNotEmpty) ...[
               const Divider(height: 24),
-              const Text("Catatan:",
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              Text(
+                "Catatan:",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: isDark
+                      ? AppColors.textPrimaryDark
+                      : AppColors.textPrimaryLight,
+                ),
+              ),
               const SizedBox(height: 8),
               Container(
                 width: double.infinity,
@@ -278,8 +344,15 @@ class ProductDetailPage extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: AppColors.warning.withOpacity(0.3)),
                 ),
-                child: Text(note,
-                    style: const TextStyle(fontStyle: FontStyle.italic)),
+                child: Text(
+                  note,
+                  style: TextStyle(
+                    fontStyle: FontStyle.italic,
+                    color: isDark
+                        ? AppColors.textPrimaryDark
+                        : AppColors.textPrimaryLight,
+                  ),
+                ),
               ),
             ]
           ],
@@ -288,8 +361,8 @@ class ProductDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildActionButtons(
-      BuildContext context, ProductEntity product, ProductState state) {
+  Widget _buildActionButtons(BuildContext context, ProductEntity product,
+      ProductState state, bool isDark) {
     final netPrice = state.roundedPrices[product.id] ?? product.endUserPrice;
     final discountPercentages =
         state.productDiscountsPercentage[product.id] ?? [];
@@ -304,10 +377,12 @@ class ProductDetailPage extends StatelessWidget {
       padding: const EdgeInsets.symmetric(
           horizontal: AppPadding.p16, vertical: AppPadding.p12),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: isDark
+                ? Colors.black.withOpacity(0.3)
+                : Colors.black.withOpacity(0.1),
             blurRadius: 10,
             offset: const Offset(0, -5),
           ),
@@ -322,14 +397,18 @@ class ProductDetailPage extends StatelessWidget {
         children: [
           Row(
             children: [
-              _actionIconButton(context, Icons.credit_card, "Credit",
-                  () => ProductActions.showCreditPopup(context, product)),
+              _actionIconButton(
+                  context,
+                  Icons.credit_card,
+                  "Credit",
+                  () => ProductActions.showCreditPopup(context, product),
+                  isDark),
               const SizedBox(width: 16),
               _actionIconButton(context, Icons.edit, "Edit",
-                  () => ProductActions.showEditPopup(context, product)),
+                  () => ProductActions.showEditPopup(context, product), isDark),
               const SizedBox(width: 16),
               _actionIconButton(context, Icons.info_outline, "Info",
-                  () => ProductActions.showInfoPopup(context, product)),
+                  () => ProductActions.showInfoPopup(context, product), isDark),
             ],
           ),
           ElevatedButton.icon(
@@ -366,13 +445,22 @@ class ProductDetailPage extends StatelessWidget {
       {Color? valueColor,
       bool isStrikethrough = false,
       bool isBold = false,
-      double valueSize = 16}) {
+      double valueSize = 16,
+      bool isDark = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(title, style: const TextStyle(fontSize: 16)),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 16,
+              color: isDark
+                  ? AppColors.textPrimaryDark
+                  : AppColors.textPrimaryLight,
+            ),
+          ),
           Text(
             value,
             style: TextStyle(
@@ -387,23 +475,43 @@ class ProductDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildSpecRow(IconData icon, String title, String value) {
+  Widget _buildSpecRow(IconData icon, String title, String value, bool isDark) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
         children: [
-          Icon(icon, color: AppColors.primaryLight, size: 20),
+          Icon(
+            icon,
+            color: isDark ? AppColors.accentDark : AppColors.primaryLight,
+            size: 20,
+          ),
           const SizedBox(width: 16),
-          Text("$title:", style: const TextStyle(fontWeight: FontWeight.w500)),
+          Text(
+            "$title:",
+            style: TextStyle(
+              fontWeight: FontWeight.w500,
+              color: isDark
+                  ? AppColors.textPrimaryDark
+                  : AppColors.textPrimaryLight,
+            ),
+          ),
           const Spacer(),
-          Text(value.isNotEmpty ? value : "-", textAlign: TextAlign.end),
+          Text(
+            value.isNotEmpty ? value : "-",
+            textAlign: TextAlign.end,
+            style: TextStyle(
+              color: isDark
+                  ? AppColors.textSecondaryDark
+                  : AppColors.textSecondaryLight,
+            ),
+          ),
         ],
       ),
     );
   }
 
   Widget _actionIconButton(BuildContext context, IconData icon, String tooltip,
-      VoidCallback onPressed) {
+      VoidCallback onPressed, bool isDark) {
     return Tooltip(
       message: tooltip,
       child: InkWell(
@@ -411,8 +519,13 @@ class ProductDetailPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         child: CircleAvatar(
           radius: 22,
-          backgroundColor: Colors.grey.shade200,
-          child: Icon(icon, color: Colors.grey.shade800, size: 24),
+          backgroundColor:
+              isDark ? AppColors.surfaceDark : Colors.grey.shade200,
+          child: Icon(
+            icon,
+            color: isDark ? AppColors.textPrimaryDark : Colors.grey.shade800,
+            size: 24,
+          ),
         ),
       ),
     );

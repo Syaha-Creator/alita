@@ -647,8 +647,7 @@ class PDFService {
       final fileName = 'invoice_$timestamp.pdf';
       final filePath = '${directory.path}/$fileName';
       final file = File(filePath);
-      await file.writeAsBytes(pdfBytes);
-      logger.i("✅ PDF saved to: $filePath");
+          await file.writeAsBytes(pdfBytes);
       return filePath;
     } catch (e) {
       logger.e("❌ Error saving PDF: $e");
@@ -664,7 +663,6 @@ class PDFService {
       await tempFile.writeAsBytes(pdfBytes);
       await Share.shareXFiles([XFile(tempPath)],
           text: 'Invoice Checkout - Alita Pricelist');
-      logger.i("✅ PDF shared successfully");
     } catch (e) {
       logger.e("❌ Error sharing PDF: $e");
       throw Exception('Failed to share PDF: $e');

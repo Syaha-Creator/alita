@@ -13,6 +13,7 @@ import '../../../../core/widgets/custom_textfield.dart';
 import '../../../../core/widgets/custom_toast.dart';
 import '../../../../services/auth_service.dart';
 import '../../../../services/pdf_services.dart';
+import '../../../../theme/app_colors.dart';
 import '../../domain/entities/cart_entity.dart';
 import '../bloc/cart_bloc.dart';
 import '../bloc/cart_state.dart';
@@ -55,7 +56,8 @@ class _CheckoutPagesState extends State<CheckoutPages>
     _repaymentDateController = registerController();
   }
 
-  Future<void> _generateAndSharePDF(List<CartEntity> selectedItems) async {
+  Future<void> _generateAndSharePDF(
+      List<CartEntity> selectedItems, bool isDark) async {
     if (!_formKey.currentState!.validate()) {
       CustomToast.showToast(
           "Harap isi semua kolom yang wajib diisi dan perbaiki error",
@@ -69,14 +71,28 @@ class _CheckoutPagesState extends State<CheckoutPages>
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => const Dialog(
+        builder: (context) => Dialog(
+          backgroundColor:
+              isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
           child: Padding(
-            padding: EdgeInsets.all(20.0),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              CircularProgressIndicator(),
-              SizedBox(width: 16),
-              Text('Membuat PDF...'),
-            ]),
+            padding: const EdgeInsets.all(20.0),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(
+                  color: isDark ? AppColors.accentDark : AppColors.accentLight,
+                ),
+                const SizedBox(width: 16),
+                Text(
+                  'Membuat PDF...',
+                  style: TextStyle(
+                    color: isDark
+                        ? AppColors.textPrimaryDark
+                        : AppColors.textPrimaryLight,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -116,13 +132,41 @@ class _CheckoutPagesState extends State<CheckoutPages>
   }
 
   void _showPDFOptionsDialog(Uint8List pdfBytes) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('PDF Berhasil Dibuat'),
-        content: Text('Pilih aksi yang ingin dilakukan:'),
+        backgroundColor:
+            isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        title: Text(
+          'PDF Berhasil Dibuat',
+          style: TextStyle(
+            color:
+                isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+          ),
+        ),
+        content: Text(
+          'Pilih aksi yang ingin dilakukan:',
+          style: TextStyle(
+            color: isDark
+                ? AppColors.textSecondaryDark
+                : AppColors.textSecondaryLight,
+          ),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Tutup')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              'Tutup',
+              style: TextStyle(
+                color: isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondaryLight,
+              ),
+            ),
+          ),
           TextButton(
             onPressed: () async {
               try {
@@ -136,7 +180,12 @@ class _CheckoutPagesState extends State<CheckoutPages>
                     'Gagal menyimpan PDF: $e', ToastType.error);
               }
             },
-            child: Text('Simpan'),
+            child: Text(
+              'Simpan',
+              style: TextStyle(
+                color: isDark ? AppColors.accentDark : AppColors.accentLight,
+              ),
+            ),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -149,7 +198,11 @@ class _CheckoutPagesState extends State<CheckoutPages>
                     'Gagal membagikan PDF: $e', ToastType.error);
               }
             },
-            child: Text('Bagikan'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor:
+                  isDark ? AppColors.buttonDark : AppColors.buttonLight,
+            ),
+            child: const Text('Bagikan'),
           ),
         ],
       ),
@@ -158,6 +211,9 @@ class _CheckoutPagesState extends State<CheckoutPages>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Checkout')),
       body: SafeArea(
@@ -443,14 +499,21 @@ class _CheckoutPagesState extends State<CheckoutPages>
         padding: const EdgeInsets.only(bottom: 8.0, top: 8.0),
         child: Text(title,
             style: GoogleFonts.montserrat(
-                fontSize: 18, fontWeight: FontWeight.w600)),
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? AppColors.textPrimaryDark
+                    : AppColors.textPrimaryLight)),
       );
 
   Widget _buildOrderSummary(List<CartEntity> selectedItems, double subtotal,
       double ppn, double grandTotal) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -461,18 +524,40 @@ class _CheckoutPagesState extends State<CheckoutPages>
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
-                          child: Text(
-                              '${item.product.kasur} (x${item.quantity})')),
-                      Text(FormatHelper.formatCurrency(
-                          item.netPrice * item.quantity)),
+                          child:
+                              Text('${item.product.kasur} (x${item.quantity})',
+                                  style: TextStyle(
+                                    color: isDark
+                                        ? AppColors.textPrimaryDark
+                                        : AppColors.textPrimaryLight,
+                                  ))),
+                      Text(
+                          FormatHelper.formatCurrency(
+                              item.netPrice * item.quantity),
+                          style: TextStyle(
+                            color: isDark
+                                ? AppColors.textPrimaryDark
+                                : AppColors.textPrimaryLight,
+                          )),
                     ],
                   ),
                 )),
-            const Divider(height: 24, thickness: 0.5),
-            _buildSummaryRow('Subtotal', subtotal),
-            _buildSummaryRow('PPN (11%)', ppn),
-            const Divider(height: 16, thickness: 1.5),
-            _buildSummaryRow('Grand Total', grandTotal, isGrandTotal: true),
+            Divider(
+                height: 24,
+                thickness: 0.5,
+                color: isDark
+                    ? AppColors.textSecondaryDark.withOpacity(0.2)
+                    : AppColors.textSecondaryLight.withOpacity(0.2)),
+            _buildSummaryRow('Subtotal', subtotal, isDark: isDark),
+            _buildSummaryRow('PPN (11%)', ppn, isDark: isDark),
+            Divider(
+                height: 16,
+                thickness: 1.5,
+                color: isDark
+                    ? AppColors.textSecondaryDark.withOpacity(0.3)
+                    : AppColors.textSecondaryLight.withOpacity(0.3)),
+            _buildSummaryRow('Grand Total', grandTotal,
+                isGrandTotal: true, isDark: isDark),
           ],
         ),
       ),
@@ -480,22 +565,20 @@ class _CheckoutPagesState extends State<CheckoutPages>
   }
 
   Widget _buildSummaryRow(String label, double value,
-      {bool isGrandTotal = false}) {
+      {bool isGrandTotal = false, bool isDark = false}) {
     final style = TextStyle(
       fontWeight: isGrandTotal ? FontWeight.bold : FontWeight.normal,
       fontSize: isGrandTotal ? 16 : 14,
-      color: isGrandTotal ? Theme.of(context).primaryColor : null,
+      color: isGrandTotal
+          ? (isDark ? AppColors.accentDark : Theme.of(context).primaryColor)
+          : (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
     );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
-              style: style.copyWith(
-                  fontWeight: FontWeight.normal,
-                  fontSize: 14,
-                  color: Colors.black)),
+          Text(label, style: style),
           Text(FormatHelper.formatCurrency(value), style: style),
         ],
       ),
@@ -503,6 +586,8 @@ class _CheckoutPagesState extends State<CheckoutPages>
   }
 
   Widget _buildConfirmButton(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: BlocBuilder<CartBloc, CartState>(
@@ -512,7 +597,8 @@ class _CheckoutPagesState extends State<CheckoutPages>
               text: _isGeneratingPDF
                   ? 'Memproses...'
                   : 'Buat & Bagikan Surat Pesanan',
-              onPressed: () => _generateAndSharePDF(state.selectedItems),
+              onPressed: () =>
+                  _generateAndSharePDF(state.selectedItems, isDark),
               isLoading: _isGeneratingPDF,
             );
           }

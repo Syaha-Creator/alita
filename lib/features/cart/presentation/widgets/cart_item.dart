@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../config/app_constant.dart';
 import '../../../../core/utils/format_helper.dart';
 import '../../../../core/widgets/quantity_control.dart';
+import '../../../../theme/app_colors.dart';
 import '../../../product/presentation/bloc/product_bloc.dart';
 import '../../../product/presentation/bloc/product_event.dart';
 import '../../../product/presentation/bloc/product_state.dart';
@@ -49,6 +50,9 @@ class _CartItemWidgetState extends State<CartItemWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     // Kita gunakan BlocListener untuk update controller secara aman saat state berubah
     return BlocListener<ProductBloc, ProductState>(
       listener: (context, state) {
@@ -66,23 +70,24 @@ class _CartItemWidgetState extends State<CartItemWidget> {
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           elevation: 4,
+          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
           child: Padding(
             padding: const EdgeInsets.all(AppPadding.p10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildHeader(context),
+                _buildHeader(context, isDark),
                 // Animasi buka-tutup detail
                 AnimatedCrossFade(
                   duration: const Duration(milliseconds: 300),
                   firstChild: const SizedBox.shrink(),
-                  secondChild: _buildDetailsSection(context),
+                  secondChild: _buildDetailsSection(context, isDark),
                   crossFadeState: isExpanded
                       ? CrossFadeState.showSecond
                       : CrossFadeState.showFirst,
                 ),
                 const SizedBox(height: AppPadding.p10),
-                _buildTotalPrice(context),
+                _buildTotalPrice(context, isDark),
               ],
             ),
           ),
@@ -93,21 +98,21 @@ class _CartItemWidgetState extends State<CartItemWidget> {
 
   // --- SEMUA METHOD HELPER DIKEMBALIKAN KE DALAM STATE ---
 
-  Widget _buildDetailsSection(BuildContext context) {
+  Widget _buildDetailsSection(BuildContext context, bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: AppPadding.p10),
-        _buildProductDetails(context),
+        _buildProductDetails(context, isDark),
         const SizedBox(height: AppPadding.p10),
-        _buildBonusAndNotes(context),
+        _buildBonusAndNotes(context, isDark),
         const SizedBox(height: AppPadding.p10),
-        _buildPriceInfo(context),
+        _buildPriceInfo(context, isDark),
       ],
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, bool isDark) {
     return Row(
       children: [
         Checkbox(
@@ -121,18 +126,28 @@ class _CartItemWidgetState extends State<CartItemWidget> {
         ),
         CircleAvatar(
           radius: _avatarSize / 2,
-          backgroundColor: Theme.of(context).primaryColorLight,
-          child: Icon(Icons.bed,
-              color: Theme.of(context).primaryColor, size: _avatarSize * 0.5),
+          backgroundColor: isDark
+              ? AppColors.accentDark
+              : Theme.of(context).primaryColorLight,
+          child: Icon(
+            Icons.bed,
+            color: isDark
+                ? AppColors.textPrimaryDark
+                : Theme.of(context).primaryColor,
+            size: _avatarSize * 0.5,
+          ),
         ),
         const SizedBox(width: AppPadding.p10),
         Expanded(
           child: Text(
             '${widget.item.product.kasur} - ${widget.item.product.ukuran}',
             style: GoogleFonts.montserrat(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: Theme.of(context).primaryColorDark),
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: isDark
+                  ? AppColors.textPrimaryDark
+                  : AppColors.textPrimaryLight,
+            ),
           ),
         ),
         QuantityControl(
@@ -158,18 +173,46 @@ class _CartItemWidgetState extends State<CartItemWidget> {
             quantity: widget.item.quantity - 1,
           ));
     } else {
+      final theme = Theme.of(context);
+      final isDark = theme.brightness == Brightness.dark;
+
       final confirm = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
-                title: Text('Konfirmasi', style: GoogleFonts.montserrat()),
-                content: Text('Yakin ingin menghapus item ini?',
-                    style: GoogleFonts.montserrat()),
+                backgroundColor:
+                    isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                title: Text(
+                  'Konfirmasi',
+                  style: GoogleFonts.montserrat(
+                    color: isDark
+                        ? AppColors.textPrimaryDark
+                        : AppColors.textPrimaryLight,
+                  ),
+                ),
+                content: Text(
+                  'Yakin ingin menghapus item ini?',
+                  style: GoogleFonts.montserrat(
+                    color: isDark
+                        ? AppColors.textSecondaryDark
+                        : AppColors.textSecondaryLight,
+                  ),
+                ),
                 actions: [
                   TextButton(
                       onPressed: () => Navigator.pop(ctx, false),
-                      child: const Text('Batal')),
+                      child: Text(
+                        'Batal',
+                        style: TextStyle(
+                          color: isDark
+                              ? AppColors.textSecondaryDark
+                              : AppColors.textSecondaryLight,
+                        ),
+                      )),
                   ElevatedButton(
                       onPressed: () => Navigator.pop(ctx, true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.error,
+                      ),
                       child: const Text('Hapus'))
                 ],
               ));
@@ -180,7 +223,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
     }
   }
 
-  Widget _buildProductDetails(BuildContext context) {
+  Widget _buildProductDetails(BuildContext context, bool isDark) {
     final p = widget.item.product;
     final styleLabel =
         GoogleFonts.montserrat(fontSize: 14, fontWeight: FontWeight.w600);
@@ -190,46 +233,76 @@ class _CartItemWidgetState extends State<CartItemWidget> {
     return Container(
       padding: const EdgeInsets.all(AppPadding.p10),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: isDark ? AppColors.surfaceDark : Colors.grey.shade50,
         borderRadius: const BorderRadius.all(radius),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Detail Produk', style: styleLabel.copyWith(fontSize: 15)),
+          Text(
+            'Detail Produk',
+            style: styleLabel.copyWith(
+              fontSize: 15,
+              color: isDark
+                  ? AppColors.textPrimaryDark
+                  : AppColors.textPrimaryLight,
+            ),
+          ),
           const SizedBox(height: AppPadding.p10 / 2),
-          _detailRow(
-              Icons.table_chart, 'Divan', p.divan, styleLabel, styleValue),
+          _detailRow(Icons.table_chart, 'Divan', p.divan, styleLabel,
+              styleValue, isDark),
           _detailRow(Icons.view_headline, 'Headboard', p.headboard, styleLabel,
-              styleValue),
-          _detailRow(Icons.storage, 'Sorong', p.sorong, styleLabel, styleValue),
+              styleValue, isDark),
+          _detailRow(Icons.storage, 'Sorong', p.sorong, styleLabel, styleValue,
+              isDark),
           _detailRow(
               Icons.local_offer,
               'Program',
               p.program.isNotEmpty ? p.program : 'Tidak ada promo',
               styleLabel,
-              styleValue),
+              styleValue,
+              isDark),
         ],
       ),
     );
   }
 
   Widget _detailRow(IconData icon, String label, String value,
-      TextStyle labelStyle, TextStyle valueStyle) {
+      TextStyle labelStyle, TextStyle valueStyle, bool isDark) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppPadding.p4),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: Colors.grey.shade600),
+          Icon(
+            icon,
+            size: 20,
+            color: isDark ? AppColors.textSecondaryDark : Colors.grey.shade600,
+          ),
           const SizedBox(width: 8),
-          Expanded(child: Text('$label ', style: labelStyle)),
-          Text(value.isNotEmpty ? value : '-', style: valueStyle),
+          Expanded(
+            child: Text(
+              '$label ',
+              style: labelStyle.copyWith(
+                color: isDark
+                    ? AppColors.textPrimaryDark
+                    : AppColors.textPrimaryLight,
+              ),
+            ),
+          ),
+          Text(
+            value.isNotEmpty ? value : '-',
+            style: valueStyle.copyWith(
+              color: isDark
+                  ? AppColors.textSecondaryDark
+                  : AppColors.textSecondaryLight,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildBonusAndNotes(BuildContext context) {
+  Widget _buildBonusAndNotes(BuildContext context, bool isDark) {
     final bonusList = widget.item.product.bonus;
     final hasBonus = bonusList.any((b) => b.name.isNotEmpty);
 
@@ -244,9 +317,16 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                 bonusList
                     .where((b) => b.name.isNotEmpty)
                     .map((b) => '• ${b.quantity}x ${b.name}')
-                    .join('\n'))
-            : Text('Bonus: Tidak ada bonus',
-                style: TextStyle(color: Colors.grey.shade600)),
+                    .join('\n'),
+                isDark)
+            : Text(
+                'Bonus: Tidak ada bonus',
+                style: TextStyle(
+                  color: isDark
+                      ? AppColors.textSecondaryDark
+                      : Colors.grey.shade600,
+                ),
+              ),
         const SizedBox(height: 8),
 
         BlocBuilder<ProductBloc, ProductState>(
@@ -255,7 +335,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
               current.productNotes[widget.item.product.id],
           builder: (context, state) {
             final note = state.productNotes[widget.item.product.id] ?? '';
-            return _infoBox(context, Icons.note, 'Catatan', note);
+            return _infoBox(context, Icons.note, 'Catatan', note, isDark);
           },
         ),
         // ===================================
@@ -263,48 +343,68 @@ class _CartItemWidgetState extends State<CartItemWidget> {
     );
   }
 
-  Widget _bonusBox(
-      BuildContext context, IconData icon, String title, String content) {
+  Widget _bonusBox(BuildContext context, IconData icon, String title,
+      String content, bool isDark) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppPadding.p10),
       decoration: BoxDecoration(
-          color: Colors.purple.shade50,
+          color: isDark
+              ? AppColors.surfaceDark
+              : AppColors.accentLight.withOpacity(0.1),
           borderRadius: const BorderRadius.all(radius)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            Icon(icon, size: 20, color: Colors.purple.shade700),
+            Icon(icon,
+                size: 20,
+                color: isDark ? AppColors.accentDark : AppColors.accentLight),
             const SizedBox(width: 8),
             Text(title,
                 style: GoogleFonts.montserrat(
-                    fontSize: 15, fontWeight: FontWeight.w600))
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: isDark
+                        ? AppColors.textPrimaryDark
+                        : AppColors.textPrimaryLight))
           ]),
           const SizedBox(height: 4),
-          Text(content, style: GoogleFonts.montserrat(fontSize: 14)),
+          Text(content,
+              style: GoogleFonts.montserrat(
+                  fontSize: 14,
+                  color: isDark
+                      ? AppColors.textSecondaryDark
+                      : AppColors.textSecondaryLight)),
         ],
       ),
     );
   }
 
-  Widget _infoBox(
-      BuildContext context, IconData icon, String title, String content) {
+  Widget _infoBox(BuildContext context, IconData icon, String title,
+      String content, bool isDark) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppPadding.p10),
       decoration: BoxDecoration(
-          color: Colors.grey.shade100,
+          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
           borderRadius: const BorderRadius.all(radius)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            Icon(icon, size: 20, color: Colors.black),
+            Icon(icon,
+                size: 20,
+                color:
+                    isDark ? AppColors.accentDark : AppColors.textPrimaryLight),
             const SizedBox(width: 8),
             Text(title,
                 style: GoogleFonts.montserrat(
-                    fontSize: 15, fontWeight: FontWeight.w600))
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: isDark
+                        ? AppColors.textPrimaryDark
+                        : AppColors.textPrimaryLight))
           ]),
           const SizedBox(height: 4),
           Row(
@@ -314,10 +414,17 @@ class _CartItemWidgetState extends State<CartItemWidget> {
               Expanded(
                   child: Text(
                       content.isNotEmpty ? content : 'Tidak ada catatan',
-                      style: GoogleFonts.montserrat(fontSize: 14))),
+                      style: GoogleFonts.montserrat(
+                          fontSize: 14,
+                          color: isDark
+                              ? AppColors.textSecondaryDark
+                              : AppColors.textSecondaryLight))),
               IconButton(
                   onPressed: () => _showEditNoteDialog(context),
-                  icon: const Icon(Icons.edit)),
+                  icon: Icon(Icons.edit,
+                      color: isDark
+                          ? AppColors.accentDark
+                          : AppColors.textSecondaryLight)),
             ],
           ),
         ],
@@ -325,7 +432,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
     );
   }
 
-  Widget _buildPriceInfo(BuildContext context) {
+  Widget _buildPriceInfo(BuildContext context, bool isDark) {
     final item = widget.item;
     final netPrice = item.netPrice;
     final totalDiscount = item.product.pricelist - netPrice;
@@ -338,14 +445,20 @@ class _CartItemWidgetState extends State<CartItemWidget> {
         .toList();
     final hasInstallment = (item.installmentMonths ?? 0) > 0;
 
-    final styleLabel =
-        GoogleFonts.montserrat(fontSize: 14, fontWeight: FontWeight.w600);
-    final styleValue = GoogleFonts.montserrat(fontSize: 14);
+    final styleLabel = GoogleFonts.montserrat(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight);
+    final styleValue = GoogleFonts.montserrat(
+        fontSize: 14,
+        color: isDark
+            ? AppColors.textSecondaryDark
+            : AppColors.textSecondaryLight);
 
     return Container(
       padding: const EdgeInsets.all(AppPadding.p10),
       decoration: BoxDecoration(
-          color: Colors.grey.shade100,
+          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
           borderRadius: const BorderRadius.all(radius)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -356,30 +469,41 @@ class _CartItemWidgetState extends State<CartItemWidget> {
               'Pricelist',
               FormatHelper.formatCurrency(item.product.pricelist),
               styleLabel.copyWith(
-                  decoration: TextDecoration.lineThrough, color: Colors.red)),
+                  decoration: TextDecoration.lineThrough,
+                  color: AppColors.error),
+              isDark),
           _priceRow(
               'Total Diskon',
               '-${FormatHelper.formatCurrency(totalDiscount)}',
-              styleValue.copyWith(color: Colors.orange.shade700)),
+              styleValue.copyWith(color: AppColors.warning),
+              isDark),
           if (formattedDiscounts.isNotEmpty)
-            _priceRow('Plus Diskon', formattedDiscounts.join(' + '),
-                styleValue.copyWith(color: Theme.of(context).primaryColor)),
+            _priceRow(
+                'Plus Diskon',
+                formattedDiscounts.join(' + '),
+                styleValue.copyWith(
+                    color: isDark ? AppColors.accentDark : AppColors.info),
+                isDark),
           if (hasInstallment)
             _priceRow(
                 'Cicilan',
                 '${item.installmentMonths} bulan x ${FormatHelper.formatCurrency(item.installmentPerMonth ?? 0)}',
-                styleValue.copyWith(color: Colors.teal.shade700)),
+                styleValue.copyWith(
+                    color: isDark ? AppColors.accentDark : AppColors.info),
+                isDark),
           _priceRow(
               'Harga Net',
               FormatHelper.formatCurrency(netPrice),
               styleValue.copyWith(
-                  fontWeight: FontWeight.w700, color: Colors.green.shade700)),
+                  fontWeight: FontWeight.w700, color: AppColors.success),
+              isDark),
         ],
       ),
     );
   }
 
-  Widget _priceRow(String label, String value, TextStyle valueStyle) {
+  Widget _priceRow(
+      String label, String value, TextStyle valueStyle, bool isDark) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppPadding.p4),
       child: Row(
@@ -394,25 +518,34 @@ class _CartItemWidgetState extends State<CartItemWidget> {
     );
   }
 
-  Widget _buildTotalPrice(BuildContext context) {
+  Widget _buildTotalPrice(BuildContext context, bool isDark) {
     final total = widget.item.netPrice * widget.item.quantity;
     return Container(
       padding: const EdgeInsets.symmetric(
           vertical: AppPadding.p10 / 2, horizontal: AppPadding.p10),
       decoration: BoxDecoration(
-          color: Colors.green.shade50,
+          color: isDark
+              ? AppColors.surfaceDark
+              : AppColors.success.withOpacity(0.1),
           borderRadius: const BorderRadius.all(radius)),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text('Total Harga:',
-              style: GoogleFonts.montserrat(
-                  fontSize: 18, fontWeight: FontWeight.w700)),
+          Text(
+            'Total Harga:',
+            style: GoogleFonts.montserrat(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: isDark
+                  ? AppColors.textPrimaryDark
+                  : AppColors.textPrimaryLight,
+            ),
+          ),
           Text(FormatHelper.formatCurrency(total),
               style: GoogleFonts.montserrat(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
-                  color: Colors.green.shade800)),
+                  color: AppColors.success)),
         ],
       ),
     );

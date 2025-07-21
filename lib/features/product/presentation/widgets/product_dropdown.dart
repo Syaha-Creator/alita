@@ -6,17 +6,19 @@ class ProductDropdown extends StatelessWidget {
   final bool isSetActive;
   final Function(bool) onSetChanged;
 
-  final List<String> areas;
   final String? selectedArea;
   final Function(String?) onAreaChanged;
+  final bool isUserAreaSet;
 
   final List<String> channels;
   final String? selectedChannel;
   final Function(String?) onChannelChanged;
+  final List<ChannelEnum> availableChannelEnums;
 
   final List<String> brands;
   final String? selectedBrand;
   final Function(String?) onBrandChanged;
+  final List<BrandEnum> availableBrandEnums;
 
   final List<String> kasurs;
   final String? selectedKasur;
@@ -38,19 +40,23 @@ class ProductDropdown extends StatelessWidget {
   final String? selectedSize;
   final Function(String?) onSizeChanged;
 
+  final bool isLoading;
+
   const ProductDropdown({
     super.key,
     required this.isSetActive,
     required this.onSetChanged,
-    required this.areas,
     required this.selectedArea,
     required this.onAreaChanged,
+    required this.isUserAreaSet,
     required this.channels,
     required this.selectedChannel,
     required this.onChannelChanged,
+    required this.availableChannelEnums,
     required this.brands,
     required this.selectedBrand,
     required this.onBrandChanged,
+    required this.availableBrandEnums,
     required this.kasurs,
     required this.selectedKasur,
     required this.onKasurChanged,
@@ -66,6 +72,7 @@ class ProductDropdown extends StatelessWidget {
     required this.sizes,
     required this.selectedSize,
     required this.onSizeChanged,
+    required this.isLoading,
   });
 
   @override
@@ -89,22 +96,14 @@ class ProductDropdown extends StatelessWidget {
             ],
           ),
         ),
-        _buildRow(
-          CustomDropdown<String>(
-            labelText: "Area",
-            items: areas,
-            selectedValue: selectedArea,
-            onChanged: onAreaChanged,
-            hintText: "Pilih Area",
-          ),
-          CustomDropdown<String>(
-            labelText: "Channel",
-            items: channels,
-            selectedValue: selectedChannel,
-            onChanged: onChannelChanged,
-            hintText: "Pilih Channel",
-          ),
+        CustomDropdown<String>(
+          labelText: "Channel",
+          items: channels,
+          selectedValue: selectedChannel,
+          onChanged: onChannelChanged,
+          hintText: "Pilih Channel",
         ),
+        SizedBox(height: AppPadding.p10),
         _buildRow(
           CustomDropdown<String>(
             labelText: "Brand",
@@ -113,44 +112,76 @@ class ProductDropdown extends StatelessWidget {
             onChanged: onBrandChanged,
             hintText: "Pilih Brand",
           ),
-          CustomDropdown<String>(
-            labelText: "Kasur/Accessories",
-            items: kasurs,
-            selectedValue: selectedKasur,
-            onChanged: onKasurChanged,
-            hintText: "Pilih Kasur/Accessories",
-          ),
+          isLoading
+              ? Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        "Loading Kasur...",
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : CustomDropdown<String>(
+                  labelText: "Kasur/Accessories (${kasurs.length})",
+                  items: kasurs,
+                  selectedValue: selectedKasur,
+                  onChanged: onKasurChanged,
+                  hintText: kasurs.isEmpty
+                      ? "Tidak ada kasur tersedia"
+                      : "Pilih Kasur/Accessories",
+                ),
         ),
         _buildRow(
           CustomDropdown<String>(
-            labelText: "Divan",
+            labelText: "Divan (${divans.length})",
             items: divans,
             selectedValue: selectedDivan,
             onChanged: onDivanChanged,
-            hintText: "Pilih Divan",
+            hintText:
+                divans.isEmpty ? "Tidak ada divan tersedia" : "Pilih Divan",
           ),
           CustomDropdown<String>(
-            labelText: "Headboard",
+            labelText: "Headboard (${headboards.length})",
             items: headboards,
             selectedValue: selectedHeadboard,
             onChanged: onHeadboardChanged,
-            hintText: "Pilih Headboard",
+            hintText: headboards.isEmpty
+                ? "Tidak ada headboard tersedia"
+                : "Pilih Headboard",
           ),
         ),
         _buildRow(
           CustomDropdown<String>(
-            labelText: "Sorong",
+            labelText: "Sorong (${sorongs.length})",
             items: sorongs,
             selectedValue: selectedSorong,
             onChanged: onSorongChanged,
-            hintText: "Pilih Sorong",
+            hintText:
+                sorongs.isEmpty ? "Tidak ada sorong tersedia" : "Pilih Sorong",
           ),
           CustomDropdown<String>(
-            labelText: "Ukuran",
+            labelText: "Ukuran (${sizes.length})",
             items: sizes,
             selectedValue: selectedSize,
             onChanged: onSizeChanged,
-            hintText: "Pilih Ukuran",
+            hintText:
+                sizes.isEmpty ? "Tidak ada ukuran tersedia" : "Pilih Ukuran",
           ),
         ),
       ],

@@ -4,6 +4,7 @@ class AuthEntity {
   final String accessToken;
   final String refreshToken;
   final int expiresIn;
+  final int? areaId;
 
   AuthEntity({
     required this.id,
@@ -11,5 +12,6 @@ class AuthEntity {
     required this.accessToken,
     required this.refreshToken,
     required this.expiresIn,
+    this.areaId,
   });
 }

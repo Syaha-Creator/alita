@@ -4,6 +4,7 @@ import '../../../../config/app_constant.dart';
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../../core/widgets/custom_toast.dart';
+import '../../../../services/auth_service.dart';
 import '../../domain/usecases/get_product_usecase.dart';
 import 'product_event.dart';
 import 'product_state.dart';
@@ -13,89 +14,311 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
 
   ProductBloc(this.getProductUseCase) : super(ProductInitial()) {
     on<AppStarted>((event, emit) {
-      add(FetchProducts());
+      // Don't fetch products automatically - wait for user to select filters
+      add(InitializeDropdowns());
     });
 
-    on<FetchProducts>((event, emit) async {
-      emit(ProductLoading());
+    on<InitializeDropdowns>((event, emit) async {
       try {
-        logger.i("📡 Fetching products from API on Product Bloc...");
-        final products = await getProductUseCase();
+        // Get user area_id from AuthService
+        final userAreaId = await AuthService.getCurrentUserAreaId();
 
-        if (products.isEmpty) {
-          logger.w("⚠️ Tidak ada produk yang ditemukan dari API.");
-          emit(ProductError("Produk tidak ditemukan."));
-          return;
+        // Initialize with empty state and user area if available
+        if (userAreaId != null) {
+          AreaEnum? userAreaEnum = _getAreaEnumFromId(userAreaId);
+          if (userAreaEnum != null) {
+            emit(ProductState(
+              userAreaId: userAreaId,
+              selectedArea: userAreaEnum.value,
+              selectedAreaEnum: userAreaEnum,
+              isUserAreaSet: true,
+              filteredProducts: [],
+              isFilterApplied: false,
+              availableChannels:
+                  ChannelEnum.values.map((e) => e.value).toList(),
+              availableChannelEnums: ChannelEnum.values.toList(),
+              availableBrands: [],
+              availableBrandEnums: [],
+              availableKasurs: [],
+              availableDivans: [],
+              availableHeadboards: [],
+              availableSorongs: [],
+              availableSizes: [],
+              selectedKasur: AppStrings.noKasur, // Default value
+              selectedDivan: AppStrings.noDivan, // Default value
+              selectedHeadboard: AppStrings.noHeadboard, // Default value
+              selectedSorong: AppStrings.noSorong, // Default value
+              selectedSize: "", // Default value
+            ));
+          } else {
+            emit(ProductState(
+              userAreaId: userAreaId,
+              areaNotAvailable: true,
+              availableChannels:
+                  ChannelEnum.values.map((e) => e.value).toList(),
+              availableChannelEnums: ChannelEnum.values.toList(),
+              availableKasurs: [],
+              availableDivans: [],
+              availableHeadboards: [],
+              availableSorongs: [],
+              selectedKasur: AppStrings.noKasur, // Default value
+              selectedDivan: AppStrings.noDivan, // Default value
+              selectedHeadboard: AppStrings.noHeadboard, // Default value
+              selectedSorong: AppStrings.noSorong, // Default value
+              selectedSize: "", // Default value
+            ));
+          }
+        } else {
+          // No user area, show normal state
+          emit(ProductState(
+            userAreaId: userAreaId,
+            availableChannels: ChannelEnum.values.map((e) => e.value).toList(),
+            availableChannelEnums: ChannelEnum.values.toList(),
+            availableKasurs: [],
+            availableDivans: [],
+            availableHeadboards: [],
+            availableSorongs: [],
+            selectedKasur: AppStrings.noKasur, // Default value
+            selectedDivan: AppStrings.noDivan, // Default value
+            selectedHeadboard: AppStrings.noHeadboard, // Default value
+            selectedSorong: AppStrings.noSorong, // Default value
+            selectedSize: "", // Default value
+          ));
         }
-
-        final areas = products.map((e) => e.area).toSet().toList();
-        emit(ProductState(products: products, availableAreas: areas));
-
-        emit(ProductState(
-          products: products,
-          availableAreas: areas,
-          availableKasurs: [],
-          availableDivans: [],
-          availableHeadboards: [],
-          availableSorongs: [],
-          selectedKasur: AppStrings.noKasur,
-          selectedDivan: AppStrings.noDivan,
-          selectedHeadboard: AppStrings.noHeadboard,
-          selectedSorong: AppStrings.noSorong,
-        ));
-
-        logger.i("✅ Produk berhasil dimuat: ${products.length} items.");
-      } on ServerException catch (e) {
-        logger.e("Server error in ProductBloc", error: e);
-        emit(ProductError(e.message));
-      } on NetworkException catch (e) {
-        logger.e("Network error in ProductBloc", error: e);
-        emit(ProductError(e.message));
       } catch (e, s) {
         logger.e("Unexpected error in ProductBloc", error: e, stackTrace: s);
         emit(const ProductError("Terjadi kesalahan yang tidak terduga."));
       }
     });
 
-    on<ToggleSet>((event, emit) {
-      final isSetActive = event.isSetActive;
+    on<FetchProductsByFilter>((event, emit) async {
+      // Set loading state while preserving current selections
+      emit(state.copyWith(isLoading: true));
+      try {
+        // Determine which area to use based on brand selection
+        String areaToUse = event.selectedArea ?? '';
+
+        // If brand is Spring Air or Therapedic, use "nasional" area
+        if (event.selectedBrand == BrandEnum.springair.value ||
+            event.selectedBrand == BrandEnum.therapedic.value) {
+          areaToUse = AreaEnum.nasional.value;
+        }
+
+        final products = await getProductUseCase.callWithFilter(
+          area: areaToUse,
+          channel: event.selectedChannel ?? '',
+          brand: event.selectedBrand ?? '',
+        );
+
+        if (products.isEmpty) {
+          emit(state.copyWith(isLoading: false));
+
+          // Show toast message
+          CustomToast.showToast(
+            "Tidak ada produk yang ditemukan dengan filter yang dipilih. Silakan coba filter lain.",
+            ToastType.warning,
+          );
+
+          // Show WhatsApp dialog for unavailable area/channel
+          emit(state.copyWith(
+            showWhatsAppDialog: true,
+            whatsAppBrand: event.selectedBrand ?? 'Unknown',
+            whatsAppArea: areaToUse,
+            whatsAppChannel: event.selectedChannel ?? 'Unknown',
+          ));
+
+          return;
+        }
+
+        // Update available options based on products (already filtered from API)
+        final availableKasurs = products.map((p) => p.kasur).toSet().toList()
+          ..sort();
+        final availableDivans = products.map((p) => p.divan).toSet().toList()
+          ..sort();
+        final availableHeadboards =
+            products.map((p) => p.headboard).toSet().toList()..sort();
+        final availableSorongs = products.map((p) => p.sorong).toSet().toList()
+          ..sort();
+        final availableSizes = products.map((p) => p.ukuran).toSet().toList()
+          ..sort();
+
+        emit(state.copyWith(
+          products: products,
+          filteredProducts: products, // Products are already filtered
+          availableKasurs: availableKasurs,
+          availableDivans: availableDivans,
+          availableHeadboards: availableHeadboards,
+          availableSorongs: availableSorongs,
+          availableSizes: availableSizes,
+          isLoading: false,
+        ));
+
+        CustomToast.showToast(
+          "Produk berhasil diperbarui berdasarkan filter.",
+          ToastType.success,
+        );
+      } on ServerException catch (e) {
+        logger.e("Server error in ProductBloc", error: e);
+        emit(state.copyWith(isLoading: false));
+        CustomToast.showToast(
+          "Server error: ${e.message}",
+          ToastType.error,
+        );
+      } on NetworkException catch (e) {
+        logger.e("Network error in ProductBloc", error: e);
+        emit(state.copyWith(isLoading: false));
+        CustomToast.showToast(
+          "Network error: ${e.message}",
+          ToastType.error,
+        );
+      } catch (e, s) {
+        logger.e("Unexpected error in ProductBloc", error: e, stackTrace: s);
+        emit(state.copyWith(isLoading: false));
+        CustomToast.showToast(
+          "Terjadi kesalahan yang tidak terduga: $e",
+          ToastType.error,
+        );
+      }
+    });
+
+    on<UpdateSelectedDivan>((event, emit) {
+      // Filter berdasarkan kasur & divan yang dipilih
       final filteredProducts = state.products
           .where((p) =>
-              (state.selectedArea == null || p.area == state.selectedArea) &&
-              (state.selectedChannel == null ||
-                  p.channel == state.selectedChannel) &&
-              (state.selectedBrand == null || p.brand == state.selectedBrand) &&
+              p.kasur == state.selectedKasur &&
+              p.divan == event.divan &&
+              (!state.isSetActive || p.isSet == true))
+          .toList();
+
+      final headboards =
+          filteredProducts.map((p) => p.headboard).toSet().toList();
+      final sorongs = filteredProducts.map((p) => p.sorong).toSet().toList();
+      final sizes = filteredProducts.map((p) => p.ukuran).toSet().toList();
+
+      // Pilih headboard default
+      String selectedHeadboard =
+          headboards.isNotEmpty ? headboards.first : AppStrings.noHeadboard;
+      if (state.isSetActive &&
+          headboards.length == 2 &&
+          headboards.contains(AppStrings.noHeadboard)) {
+        selectedHeadboard =
+            headboards.firstWhere((h) => h != AppStrings.noHeadboard);
+      }
+
+      emit(state.copyWith(
+        selectedDivan: event.divan,
+        availableHeadboards: headboards,
+        selectedHeadboard: selectedHeadboard,
+        availableSorongs: sorongs,
+        selectedSorong:
+            sorongs.isNotEmpty ? sorongs.first : AppStrings.noSorong,
+        availableSizes: sizes,
+        selectedSize: "",
+      ));
+    });
+
+    on<UpdateSelectedHeadboard>((event, emit) {
+      // Filter berdasarkan kasur, divan, headboard yang dipilih
+      final filteredProducts = state.products
+          .where((p) =>
+              p.kasur == state.selectedKasur &&
+              p.divan == state.selectedDivan &&
+              p.headboard == event.headboard &&
+              (!state.isSetActive || p.isSet == true))
+          .toList();
+
+      final sorongs = filteredProducts.map((p) => p.sorong).toSet().toList();
+      final sizes = filteredProducts.map((p) => p.ukuran).toSet().toList();
+
+      // Pilih sorong default
+      String selectedSorong =
+          sorongs.isNotEmpty ? sorongs.first : AppStrings.noSorong;
+      if (state.isSetActive &&
+          sorongs.length == 2 &&
+          sorongs.contains(AppStrings.noSorong)) {
+        selectedSorong = sorongs.firstWhere((s) => s != AppStrings.noSorong);
+      }
+
+      emit(state.copyWith(
+        selectedHeadboard: event.headboard,
+        availableSorongs: sorongs,
+        selectedSorong: selectedSorong,
+        availableSizes: sizes,
+        selectedSize: "",
+      ));
+    });
+
+    on<UpdateSelectedSorong>((event, emit) {
+      // Filter berdasarkan kasur, divan, headboard, sorong yang dipilih
+      final filteredProducts = state.products
+          .where((p) =>
+              p.kasur == state.selectedKasur &&
+              p.divan == state.selectedDivan &&
+              p.headboard == state.selectedHeadboard &&
+              p.sorong == event.sorong &&
+              (!state.isSetActive || p.isSet == true))
+          .toList();
+
+      final sizes = filteredProducts.map((p) => p.ukuran).toSet().toList();
+
+      emit(state.copyWith(
+        selectedSorong: event.sorong,
+        availableSizes: sizes,
+        selectedSize: "",
+      ));
+    });
+
+    on<ToggleSet>((event, emit) {
+      final isSetActive = event.isSetActive;
+      // Filter produk sesuai kasur yang dipilih dan toggle set
+      final filteredProducts = state.products
+          .where((p) =>
+              p.kasur == state.selectedKasur &&
               (!isSetActive || p.isSet == true))
           .toList();
 
-      final kasurs = filteredProducts.map((p) => p.kasur).toSet().toList()
-        ..sort();
-      final selectedKasur =
-          kasurs.length == 1 ? kasurs.first : state.selectedKasur;
+      final divans = filteredProducts.map((p) => p.divan).toSet().toList();
+      String selectedDivan =
+          divans.isNotEmpty ? divans.first : AppStrings.noDivan;
+      if (isSetActive &&
+          divans.length == 2 &&
+          divans.contains(AppStrings.noDivan)) {
+        selectedDivan = divans.firstWhere((d) => d != AppStrings.noDivan);
+      }
 
-      final filteredByKasur =
-          filteredProducts.where((p) => p.kasur == selectedKasur).toList();
-
-      final divans = filteredByKasur.map((p) => p.divan).toSet().toList();
-      final selectedDivan =
-          divans.length == 1 ? divans.first : state.selectedDivan;
-
+      final filteredByDivan =
+          filteredProducts.where((p) => p.divan == selectedDivan).toList();
       final headboards =
-          filteredByKasur.map((p) => p.headboard).toSet().toList();
-      final selectedHeadboard =
-          headboards.length == 1 ? headboards.first : state.selectedHeadboard;
+          filteredByDivan.map((p) => p.headboard).toSet().toList();
+      String selectedHeadboard =
+          headboards.isNotEmpty ? headboards.first : AppStrings.noHeadboard;
+      if (isSetActive &&
+          headboards.length == 2 &&
+          headboards.contains(AppStrings.noHeadboard)) {
+        selectedHeadboard =
+            headboards.firstWhere((h) => h != AppStrings.noHeadboard);
+      }
 
-      final sorongs = filteredByKasur.map((p) => p.sorong).toSet().toList();
-      final selectedSorong =
-          sorongs.length == 1 ? sorongs.first : state.selectedSorong;
+      final filteredByHeadboard = filteredByDivan
+          .where((p) => p.headboard == selectedHeadboard)
+          .toList();
+      final sorongs = filteredByHeadboard.map((p) => p.sorong).toSet().toList();
+      String selectedSorong =
+          sorongs.isNotEmpty ? sorongs.first : AppStrings.noSorong;
+      if (isSetActive &&
+          sorongs.length == 2 &&
+          sorongs.contains(AppStrings.noSorong)) {
+        selectedSorong = sorongs.firstWhere((s) => s != AppStrings.noSorong);
+      }
 
-      final sizes = filteredByKasur.map((p) => p.ukuran).toSet().toList();
-      final selectedSize = sizes.length == 1 ? sizes.first : state.selectedSize;
+      final filteredBySorong =
+          filteredByHeadboard.where((p) => p.sorong == selectedSorong).toList();
+      final sizes = filteredBySorong.map((p) => p.ukuran).toSet().toList();
+      String selectedSize = sizes.isNotEmpty ? sizes.first : "";
 
       emit(state.copyWith(
         isSetActive: isSetActive,
-        availableKasurs: kasurs,
-        selectedKasur: selectedKasur,
+        selectedKasur: state.selectedKasur,
         availableDivans: divans,
         selectedDivan: selectedDivan,
         availableHeadboards: headboards,
@@ -108,189 +331,108 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
     });
 
     on<UpdateSelectedArea>((event, emit) {
-      final filteredProducts = state.products
-          .where((p) =>
-              p.area == event.area && (!state.isSetActive || p.isSet == true))
-          .toList();
-      final channels = filteredProducts.map((p) => p.channel).toSet().toList();
-      final selectedChannel = channels.length == 1 ? channels.first : "";
-
       emit(state.copyWith(
-        selectedArea: event.area,
-        availableChannels: channels,
-        selectedChannel: selectedChannel,
-        availableBrands: [],
-        selectedBrand: "",
-        availableKasurs: [],
-        availableDivans: [],
-        availableHeadboards: [],
-        availableSorongs: [],
-        selectedKasur: AppStrings.noKasur,
-        selectedDivan: AppStrings.noDivan,
-        selectedHeadboard: AppStrings.noHeadboard,
-        selectedSorong: AppStrings.noSorong,
-        availableSizes: [],
-        selectedSize: "",
+        userSelectedArea: event.area, // Store user's manual area selection
+        selectedArea: event.area, // Use for current filter
+        selectedAreaEnum: AreaEnum.fromString(event.area), // Convert to enum
       ));
-      if (selectedChannel.isNotEmpty) {}
     });
 
     on<UpdateSelectedChannel>((event, emit) {
-      final filteredProducts = state.products
-          .where((p) =>
-              p.area == state.selectedArea &&
-              p.channel == event.channel &&
-              (!state.isSetActive || p.isSet == true))
-          .toList();
-      final brands = filteredProducts.map((p) => p.brand).toSet().toList();
-      final selectedBrand = brands.length == 1 ? brands.first : "";
-
       emit(state.copyWith(
-        selectedChannel: event.channel,
-        availableBrands: brands,
-        selectedBrand: selectedBrand,
-        availableKasurs: [],
-        availableDivans: [],
-        availableHeadboards: [],
-        availableSorongs: [],
-        selectedKasur: AppStrings.noKasur,
-        selectedDivan: AppStrings.noDivan,
-        selectedHeadboard: AppStrings.noHeadboard,
-        selectedSorong: AppStrings.noSorong,
-        availableSizes: [],
-        selectedSize: "",
+        selectedChannel: event.channel, // User selected channel
+        selectedChannelEnum:
+            ChannelEnum.fromString(event.channel), // Convert to enum
+        availableBrands: BrandEnum.values.map((e) => e.value).toList(),
+        availableBrandEnums: BrandEnum.values.toList(),
+        selectedBrand: "", // Reset to empty
+        selectedBrandEnum: null,
+        availableKasurs: [], // Will be populated when brand is selected
+        availableDivans: [], // Will be populated when kasur is selected
+        availableHeadboards: [], // Will be populated when divan is selected
+        availableSorongs: [], // Will be populated when headboard is selected
+        availableSizes: [], // Will be populated when sorong is selected
+        selectedKasur: AppStrings.noKasur, // Reset to default
+        selectedDivan: AppStrings.noDivan, // Reset to default
+        selectedHeadboard: AppStrings.noHeadboard, // Reset to default
+        selectedSorong: AppStrings.noSorong, // Reset to default
+        selectedSize: "", // Reset to empty
       ));
-      if (selectedBrand.isNotEmpty) {
-        add(UpdateSelectedBrand(selectedBrand));
-      }
     });
 
     on<UpdateSelectedBrand>((event, emit) {
-      logger.i("📌 Brand Changed: ${event.brand}");
-
-      final filteredKasurs = state.products
-          .where((p) =>
-              p.area == state.selectedArea &&
-              p.channel == state.selectedChannel &&
-              p.brand == event.brand)
-          .map((p) => p.kasur)
-          .toSet()
-          .toList();
-
-      final filteredDivans = state.products
-          .where((p) => p.brand == event.brand)
-          .map((p) => p.divan)
-          .toSet()
-          .toList();
-
-      final filteredHeadboards = state.products
-          .where((p) => p.brand == event.brand)
-          .map((p) => p.headboard)
-          .toSet()
-          .toList();
-
-      final filteredSorongs = state.products
-          .where((p) => p.brand == event.brand)
-          .map((p) => p.sorong)
-          .toSet()
-          .toList();
+      // Show toast for Spring Air and Therapedic brands
+      if (event.brand == BrandEnum.springair.value ||
+          event.brand == BrandEnum.therapedic.value) {
+        CustomToast.showToast(
+          "Brand ${event.brand} akan menggunakan area nasional untuk pencarian produk.",
+          ToastType.info,
+        );
+      }
 
       emit(state.copyWith(
         selectedBrand: event.brand,
-        availableKasurs: filteredKasurs,
-        availableDivans: filteredDivans,
-        availableHeadboards: filteredHeadboards,
-        availableSorongs: filteredSorongs,
-        selectedKasur: AppStrings.noKasur,
-        selectedDivan: AppStrings.noDivan,
-        selectedHeadboard: AppStrings.noHeadboard,
-        selectedSorong: AppStrings.noSorong,
+        selectedBrandEnum: BrandEnum.fromString(event.brand), // Convert to enum
+        availableKasurs: [], // Will be populated after fetch
+        availableDivans: [], // Will be populated when kasur is selected
+        availableHeadboards: [], // Will be populated when divan is selected
+        availableSorongs: [], // Will be populated when headboard is selected
+        availableSizes: [], // Will be populated when sorong is selected
+        selectedKasur: AppStrings.noKasur, // Reset to default
+        selectedDivan: AppStrings.noDivan, // Reset to default
+        selectedHeadboard: AppStrings.noHeadboard, // Reset to default
+        selectedSorong: AppStrings.noSorong, // Reset to default
+        selectedSize: "", // Reset to empty
+      ));
+
+      // Determine which area to use based on brand selection
+      String? areaToUse;
+      if (event.brand == BrandEnum.springair.value ||
+          event.brand == BrandEnum.therapedic.value) {
+        // Use nasional area for Spring Air and Therapedic
+        areaToUse = AreaEnum.nasional.value;
+      } else {
+        // Use user's selected area for other brands
+        areaToUse = state.userSelectedArea ?? state.selectedArea;
+      }
+
+      // Fetch products based on selected filters
+      add(FetchProductsByFilter(
+        selectedArea: areaToUse,
+        selectedChannel: state.selectedChannel,
+        selectedBrand: event.brand, // Pass selected brand to fetch
       ));
     });
 
     on<UpdateSelectedKasur>((event, emit) {
-      final filteredProducts = state.products
-          .where((p) =>
-              p.area == state.selectedArea &&
-              p.channel == state.selectedChannel &&
-              p.brand == state.selectedBrand &&
-              p.kasur == event.kasur &&
-              (!state.isSetActive || p.isSet == true))
-          .toList();
+      // Filter produk berdasarkan kasur yang dipilih dengan pendekatan yang lebih sederhana
+      var filteredProducts =
+          state.products.where((p) => p.kasur == event.kasur).toList();
+
+      // Jika masih kosong, coba filter yang lebih longgar
+      if (filteredProducts.isEmpty) {
+        return; // Jangan update state jika tidak ada produk
+      }
 
       final divans = filteredProducts.map((p) => p.divan).toSet().toList();
-
       final headboards =
           filteredProducts.map((p) => p.headboard).toSet().toList();
-
       final sorongs = filteredProducts.map((p) => p.sorong).toSet().toList();
       final sizes = filteredProducts.map((p) => p.ukuran).toSet().toList();
 
       emit(state.copyWith(
         selectedKasur: event.kasur,
-        availableDivans: divans,
+        availableDivans: divans, // Populate with available divans
         selectedDivan: divans.isNotEmpty ? divans.first : AppStrings.noDivan,
-        availableHeadboards: headboards,
+        availableHeadboards: headboards, // Populate with available headboards
         selectedHeadboard:
             headboards.isNotEmpty ? headboards.first : AppStrings.noHeadboard,
-        availableSorongs: sorongs,
+        availableSorongs: sorongs, // Populate with available sorongs
         selectedSorong:
             sorongs.isNotEmpty ? sorongs.first : AppStrings.noSorong,
         availableSizes: sizes,
         selectedSize: "",
       ));
-    });
-
-    on<UpdateSelectedDivan>((event, emit) {
-      final filteredProducts = state.products
-          .where((p) =>
-              p.area == state.selectedArea &&
-              p.channel == state.selectedChannel &&
-              p.brand == state.selectedBrand &&
-              p.kasur == state.selectedKasur &&
-              p.divan == event.divan &&
-              (!state.isSetActive || p.isSet == true))
-          .toList();
-
-      final headboards =
-          filteredProducts.map((p) => p.headboard).toSet().toList();
-
-      final sorongs = filteredProducts.map((p) => p.sorong).toSet().toList();
-
-      emit(state.copyWith(
-        selectedDivan: event.divan,
-        availableHeadboards: headboards,
-        selectedHeadboard:
-            headboards.isNotEmpty ? headboards.first : AppStrings.noHeadboard,
-        availableSorongs: sorongs,
-        selectedSorong:
-            sorongs.isNotEmpty ? sorongs.first : AppStrings.noSorong,
-      ));
-    });
-
-    on<UpdateSelectedHeadboard>((event, emit) {
-      final filteredProducts = state.products
-          .where((p) =>
-              p.area == state.selectedArea &&
-              p.channel == state.selectedChannel &&
-              p.brand == state.selectedBrand &&
-              p.kasur == state.selectedKasur &&
-              p.divan == state.selectedDivan &&
-              p.headboard == event.headboard &&
-              (!state.isSetActive || p.isSet == true))
-          .toList();
-
-      final sorongs = filteredProducts.map((p) => p.sorong).toSet().toList();
-
-      emit(state.copyWith(
-        selectedHeadboard: event.headboard,
-        availableSorongs: sorongs,
-        selectedSorong: sorongs.isNotEmpty ? sorongs.first : "Tanpa Sorong",
-      ));
-    });
-
-    on<UpdateSelectedSorong>((event, emit) {
-      emit(state.copyWith(selectedSorong: event.sorong));
     });
 
     on<UpdateSelectedUkuran>((event, emit) {
@@ -301,11 +443,28 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       emit(state.copyWith(filteredProducts: event.filteredProducts));
     });
 
-    on<ApplyFilters>((event, emit) {
+    on<ApplyFilters>((event, emit) async {
+      // Determine which area to use based on brand selection
+      String areaToUse = event.selectedArea ?? '';
+
+      // If brand is Spring Air or Therapedic, use "nasional" area
+      if (event.selectedBrand == BrandEnum.springair.value ||
+          event.selectedBrand == BrandEnum.therapedic.value) {
+        // Try usingnasional" first, if it fails, fallback to user's area
+        areaToUse = AreaEnum.nasional.value;
+      } else {
+        // For other brands, use user's selected area or default area
+        areaToUse = state.userSelectedArea ?? state.selectedArea ?? '';
+      }
+
+      // Handle default values for divan, headboard, and sorong
+      String selectedDivan = event.selectedDivan ?? AppStrings.noDivan;
+      String selectedHeadboard =
+          event.selectedHeadboard ?? AppStrings.noHeadboard;
+      String selectedSorong = event.selectedSorong ?? AppStrings.noSorong;
+
       final filteredProducts = state.products.where((p) {
-        final matchesArea = event.selectedArea == null ||
-            event.selectedArea!.isEmpty ||
-            p.area == event.selectedArea;
+        final matchesArea = areaToUse.isEmpty || p.area == areaToUse;
         final matchesChannel = event.selectedChannel == null ||
             event.selectedChannel!.isEmpty ||
             p.channel == event.selectedChannel;
@@ -315,18 +474,14 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         final matchesKasur = event.selectedKasur == null ||
             event.selectedKasur!.isEmpty ||
             p.kasur == event.selectedKasur;
-        final matchesDivan = event.selectedDivan == null ||
-            event.selectedDivan!.isEmpty ||
-            p.divan == event.selectedDivan;
-        final matchesHeadboard = event.selectedHeadboard == null ||
-            event.selectedHeadboard!.isEmpty ||
-            p.headboard == event.selectedHeadboard;
-        final matchesSorong = event.selectedSorong == null ||
-            event.selectedSorong!.isEmpty ||
-            p.sorong == event.selectedSorong;
-        final matchesSize = event.selectedSize == null ||
-            event.selectedSize!.isEmpty ||
-            p.ukuran == event.selectedSize;
+        final matchesDivan = p.divan == selectedDivan;
+        final matchesHeadboard = p.headboard == selectedHeadboard;
+        final matchesSorong = p.sorong == selectedSorong;
+        // Perbaiki: jika user memilih ukuran, harus sama persis
+        final matchesSize =
+            (event.selectedSize != null && event.selectedSize!.isNotEmpty)
+                ? p.ukuran == event.selectedSize
+                : true;
 
         final matchesSet = !state.isSetActive || p.isSet == true;
 
@@ -341,8 +496,6 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
             matchesSet;
       }).toList();
 
-      logger.i("🔍 Filtered Products Count: ${filteredProducts.length}");
-
       emit(state.copyWith(
           filteredProducts: filteredProducts, isFilterApplied: true));
 
@@ -351,13 +504,19 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
           "Berikut adalah produk yang cocok.",
           ToastType.success,
         );
-      }
-
-      if (filteredProducts.isEmpty) {
+      } else {
         CustomToast.showToast(
           "Produk tidak ditemukan.",
           ToastType.error,
         );
+
+        // Show WhatsApp dialog for unavailable area/channel
+        emit(state.copyWith(
+          showWhatsAppDialog: true,
+          whatsAppBrand: event.selectedBrand ?? 'Unknown',
+          whatsAppArea: event.selectedArea ?? 'Unknown',
+          whatsAppChannel: event.selectedChannel ?? 'Unknown',
+        ));
       }
     });
 
@@ -474,8 +633,72 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
     });
 
     on<ResetProductState>((event, emit) {
-      logger.i("🔄 Resetting Product State...");
       emit(ProductState());
+    });
+
+    on<ResetFilters>((event, emit) {
+      emit(state.copyWith(
+        filteredProducts: [],
+        isFilterApplied: false,
+        selectedChannel: "", // Reset to empty
+        selectedBrand: "", // Reset to empty
+        selectedKasur: AppStrings.noKasur, // Reset to default
+        selectedDivan: AppStrings.noDivan, // Reset to default
+        selectedHeadboard: AppStrings.noHeadboard, // Reset to default
+        selectedSorong: AppStrings.noSorong, // Reset to default
+        selectedSize: "", // Reset to empty
+        availableBrands: [], // Reset to empty
+        availableKasurs: [], // Reset to empty
+        availableDivans: [], // Reset to empty
+        availableHeadboards: [], // Reset to empty
+        availableSorongs: [], // Reset to empty
+        availableSizes: [], // Reset to empty
+        // Note: userSelectedArea is NOT reset to preserve user's manual area selection
+      ));
+
+      CustomToast.showToast(
+        "Filter berhasil direset.",
+        ToastType.info,
+      );
+    });
+
+    on<ResetUserSelectedArea>((event, emit) async {
+      // Get user's default area from AuthService
+      final userAreaId = await AuthService.getCurrentUserAreaId();
+
+      if (userAreaId != null) {
+        AreaEnum? userAreaEnum = _getAreaEnumFromId(userAreaId);
+        if (userAreaEnum != null) {
+          final newState = state.copyWith(
+            userSelectedArea: null,
+            selectedArea: userAreaEnum.value,
+            selectedAreaEnum: userAreaEnum,
+          );
+
+          emit(newState);
+
+          CustomToast.showToast(
+            "Area berhasil direset ke area default: ${userAreaEnum.value}",
+            ToastType.success,
+          );
+        } else {
+          emit(state.copyWith(
+            userSelectedArea: null,
+          ));
+          CustomToast.showToast(
+            "Area manual berhasil direset.",
+            ToastType.info,
+          );
+        }
+      } else {
+        emit(state.copyWith(
+          userSelectedArea: null,
+        ));
+        CustomToast.showToast(
+          "Area manual berhasil direset.",
+          ToastType.info,
+        );
+      }
     });
 
     on<SaveProductNote>((event, emit) {
@@ -489,5 +712,63 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       updatedNotes[event.productId] = event.note;
       emit(state.copyWith(productNotes: updatedNotes));
     });
+
+    on<SetUserArea>((event, emit) async {
+      // Map area_id to area enum
+      AreaEnum? userAreaEnum = _getAreaEnumFromId(event.areaId);
+
+      if (userAreaEnum != null &&
+          state.availableAreas.contains(userAreaEnum.value)) {
+        add(UpdateSelectedArea(userAreaEnum.value));
+      } else {
+        // Emit state with area not available message
+        emit(state.copyWith(
+          userAreaId: event.areaId,
+          selectedArea: null,
+          selectedAreaEnum: null,
+          areaNotAvailable: true,
+        ));
+      }
+    });
+
+    on<ShowAreaNotAvailable>((event, emit) {
+      emit(state.copyWith(
+        userAreaId: event.areaId,
+        selectedArea: null,
+        areaNotAvailable: true,
+      ));
+    });
+
+    on<ShowWhatsAppDialog>((event, emit) {
+      emit(state.copyWith(
+        showWhatsAppDialog: true,
+        whatsAppBrand: event.brand,
+        whatsAppArea: event.area,
+        whatsAppChannel: event.channel,
+      ));
+    });
+
+    on<HideWhatsAppDialog>((event, emit) {
+      emit(state.copyWith(
+        showWhatsAppDialog: false,
+        whatsAppBrand: null,
+        whatsAppArea: null,
+        whatsAppChannel: null,
+      ));
+    });
   }
+
+  // Helper method to map area_id to area enum
+  AreaEnum? _getAreaEnumFromId(int areaId) {
+    try {
+      final areaEnum = AreaEnum.values.firstWhere(
+        (area) => AreaEnum.getId(area) == areaId,
+      );
+      return areaEnum;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Helper method to get available channels for a specific area
 }
