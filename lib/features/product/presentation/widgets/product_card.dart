@@ -23,9 +23,19 @@ class ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor = isDark ? AppColors.cardDark : AppColors.cardLight;
+    final accent = isDark ? AppColors.accentDark : AppColors.accentLight;
+    final border = isDark ? AppColors.borderDark : AppColors.borderLight;
+    final textPrimary =
+        isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight;
+    final textSecondary =
+        isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight;
+    final surface = isDark ? AppColors.surfaceDark : AppColors.surfaceLight;
+
     return BlocBuilder<ProductBloc, ProductState>(
       buildWhen: (previous, current) {
-        // Hanya rebuild jika ada perubahan pada harga produk ini
         return previous.roundedPrices[product.id] !=
             current.roundedPrices[product.id];
       },
@@ -33,185 +43,219 @@ class ProductCard extends StatelessWidget {
         final netPrice =
             state.roundedPrices[product.id] ?? product.endUserPrice;
         final totalDiscount = product.pricelist - netPrice;
-
-        // Cari produk set yang sesuai untuk perbandingan
         final setProduct = _findSetProduct(state, product);
-        // Cari produk kasur individual untuk perbandingan (jika ini adalah set)
         final individualKasurProduct =
             _findIndividualKasurProduct(state, product);
 
-        return Card(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          elevation: 4,
-          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-          child: InkWell(
-            onTap: () {
-              // Simpan produk yang dipilih di BLoC sebelum navigasi
-              context.read<ProductBloc>().add(SelectProduct(product));
-              // Navigasi ke halaman detail
-              context.pushNamed(
-                RoutePaths.productDetail,
-                extra: product,
-              );
-            },
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                gradient: product.isSet
-                    ? LinearGradient(
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.topCenter,
-                        colors: [
-                          Colors.white,
-                          AppColors.success.withOpacity(0.05),
-                        ],
-                      )
-                    : null,
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              minWidth: 320,
+              maxWidth: 500,
+            ),
+            child: Card(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(22),
+                side: BorderSide(color: border, width: 1.2),
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(AppPadding.p16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // --- Header dengan Badge Set ---
-                    Row(
+              elevation: 2.5,
+              margin: const EdgeInsets.fromLTRB(4, 8, 4, 12),
+              shadowColor: accent.withOpacity(0.13),
+              color: cardColor,
+              child: InkWell(
+                onTap: () {
+                  context.read<ProductBloc>().add(SelectProduct(product));
+                  context.pushNamed(
+                    RoutePaths.productDetail,
+                    extra: product,
+                  );
+                },
+                borderRadius: BorderRadius.circular(22),
+                splashColor: accent.withOpacity(0.08),
+                highlightColor: accent.withOpacity(0.04),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(22),
+                    color: cardColor,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(18),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
+                        // --- Header ---
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Brand dan program tanpa background, hanya bold dan warna
+                                  Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              product.brand,
+                                              style: TextStyle(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.w900,
+                                                color: accent,
+                                                letterSpacing: 0.5,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 5),
+                                            Text(
+                                              product.program.isNotEmpty
+                                                  ? product.program
+                                                  : "Tidak ada promo",
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: AppColors.secondaryLight,
+                                                fontStyle: FontStyle.italic,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                              maxLines: 2,
+                                              overflow: TextOverflow.visible,
+                                              softWrap: true,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      if (product.isSet)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 16, vertical: 6),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.info,
+                                            borderRadius:
+                                                BorderRadius.circular(24),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: AppColors.info
+                                                    .withOpacity(0.13),
+                                                blurRadius: 8,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: const Text(
+                                            "SET",
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.bold,
+                                              letterSpacing: 1.2,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+
+                        // --- Informasi Utama Produk ---
+                        Container(
+                          padding: const EdgeInsets.all(15),
+                          decoration: BoxDecoration(
+                            color: surface,
+                            borderRadius: BorderRadius.circular(15),
+                            border: Border.all(color: border.withOpacity(0.7)),
+                          ),
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                product.brand,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.primaryLight,
-                                ),
+                              DetailInfoRow(
+                                  title: "Kasur", value: product.kasur),
+                              DetailInfoRow(
+                                  title: "Divan", value: product.divan),
+                              DetailInfoRow(
+                                  title: "Headboard", value: product.headboard),
+                              DetailInfoRow(
+                                  title: "Sorong", value: product.sorong),
+                              DetailInfoRow(
+                                  title: "Ukuran", value: product.ukuran),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // --- Informasi Harga ---
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: surface,
+                            borderRadius: BorderRadius.circular(15),
+                            border: Border.all(color: accent.withOpacity(0.18)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: accent.withOpacity(0.04),
+                                blurRadius: 10,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            children: [
+                              DetailInfoRow(
+                                title: "Pricelist",
+                                value: FormatHelper.formatCurrency(
+                                    product.pricelist),
+                                isStrikethrough: true,
+                                valueColor: accent,
                               ),
                               const SizedBox(height: 4),
-                              Text(
-                                product.program.isNotEmpty
-                                    ? product.program
-                                    : "Tidak ada promo",
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: product.program.isNotEmpty
-                                      ? AppColors.success
-                                      : Colors.grey[600],
-                                  fontStyle: FontStyle.italic,
-                                ),
+                              DetailInfoRow(
+                                title: "Harga Net",
+                                value: FormatHelper.formatCurrency(netPrice),
+                                isBoldValue: true,
+                                valueColor: AppColors.primaryLight,
+                              ),
+                              const SizedBox(height: 2),
+                              DetailInfoRow(
+                                title: "Total Diskon",
+                                value:
+                                    "- ${FormatHelper.formatCurrency(totalDiscount)}",
+                                valueColor: AppColors.error,
+                                isBoldValue: true,
                               ),
                             ],
                           ),
                         ),
-                        if (product.isSet)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: AppColors.success,
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.success.withOpacity(0.3),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: const Text(
-                              "SET",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
+
+                        if (product.isSet) ...[
+                          const SizedBox(height: 15),
+                          _buildIndividualPricingSection(),
+                        ],
+
+                        const SizedBox(height: 15),
+                        _buildBonusInfo(isDark: isDark),
+
+                        if (!product.isSet && setProduct != null) ...[
+                          const SizedBox(height: 15),
+                          _buildSetComparison(setProduct, state,
+                              isDark: isDark),
+                        ],
+
+                        if (product.isSet &&
+                            individualKasurProduct != null) ...[
+                          const SizedBox(height: 15),
+                          _buildIndividualComparison(
+                              individualKasurProduct, state,
+                              isDark: isDark),
+                        ],
                       ],
                     ),
-                    const SizedBox(height: 16),
-
-                    // --- Informasi Utama Produk ---
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[50],
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey[200]!),
-                      ),
-                      child: Column(
-                        children: [
-                          DetailInfoRow(title: "Kasur", value: product.kasur),
-                          DetailInfoRow(title: "Divan", value: product.divan),
-                          DetailInfoRow(
-                              title: "Headboard", value: product.headboard),
-                          DetailInfoRow(title: "Sorong", value: product.sorong),
-                          DetailInfoRow(title: "Ukuran", value: product.ukuran),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // --- Informasi Harga ---
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryLight.withOpacity(0.05),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                            color: AppColors.primaryLight.withOpacity(0.2)),
-                      ),
-                      child: Column(
-                        children: [
-                          DetailInfoRow(
-                            title: "Pricelist",
-                            value:
-                                FormatHelper.formatCurrency(product.pricelist),
-                            isStrikethrough: true,
-                            valueColor: AppColors.primaryLight,
-                          ),
-                          DetailInfoRow(
-                            title: "Harga Net",
-                            value: FormatHelper.formatCurrency(netPrice),
-                            isBoldValue: true,
-                            valueColor: AppColors.success,
-                          ),
-                          DetailInfoRow(
-                            title: "Total Diskon",
-                            value:
-                                "- ${FormatHelper.formatCurrency(totalDiscount)}",
-                            valueColor: AppColors.error,
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // --- Informasi Harga Individual untuk Set ---
-                    if (product.isSet) ...[
-                      const SizedBox(height: 12),
-                      _buildIndividualPricingSection(),
-                    ],
-
-                    // --- Informasi Bonus ---
-                    const SizedBox(height: 12),
-                    _buildBonusInfo(),
-
-                    // --- Informasi Perbandingan Set (jika produk non-set) ---
-                    if (!product.isSet && setProduct != null) ...[
-                      const SizedBox(height: 12),
-                      _buildSetComparison(setProduct, state),
-                    ],
-
-                    // --- Informasi Perbandingan Individual (jika produk set) ---
-                    if (product.isSet && individualKasurProduct != null) ...[
-                      const SizedBox(height: 12),
-                      _buildIndividualComparison(individualKasurProduct, state),
-                    ],
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -268,7 +312,8 @@ class ProductCard extends StatelessWidget {
   }
 
   // Widget untuk menampilkan perbandingan dengan produk set
-  Widget _buildSetComparison(ProductEntity setProduct, ProductState state) {
+  Widget _buildSetComparison(ProductEntity setProduct, ProductState state,
+      {bool isDark = false}) {
     final setNetPrice =
         state.roundedPrices[setProduct.id] ?? setProduct.endUserPrice;
     final currentNetPrice =
@@ -372,7 +417,8 @@ class ProductCard extends StatelessWidget {
 
   // Widget untuk menampilkan perbandingan dengan produk individual
   Widget _buildIndividualComparison(
-      ProductEntity individualProduct, ProductState state) {
+      ProductEntity individualProduct, ProductState state,
+      {bool isDark = false}) {
     final individualNetPrice = state.roundedPrices[individualProduct.id] ??
         individualProduct.endUserPrice;
     final currentNetPrice =
@@ -380,20 +426,19 @@ class ProductCard extends StatelessWidget {
     final priceDifference = currentNetPrice - individualNetPrice;
     final isMoreExpensive = priceDifference > 0;
     final savingsPercentage = ((priceDifference.abs() / currentNetPrice) * 100);
-
+    final cardBg = isDark
+        ? AppColors.primaryDark.withOpacity(0.13)
+        : AppColors.accentLight.withOpacity(0.25);
+    final border = isDark ? AppColors.primaryDark : AppColors.accentLight;
+    final iconColor = isDark ? AppColors.primaryDark : AppColors.primaryLight;
+    final textColor =
+        isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.warning.withOpacity(0.1),
-            AppColors.warning.withOpacity(0.05),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.warning.withOpacity(0.3)),
+        color: cardBg,
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: border.withOpacity(0.7)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -403,7 +448,7 @@ class ProductCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppColors.warning,
+                  color: iconColor,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
@@ -413,12 +458,13 @@ class ProductCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Text(
                   "Perbandingan dengan Kasur Only",
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                    fontSize: 15,
+                    color: textColor,
                   ),
                 ),
               ),
@@ -428,10 +474,10 @@ class ProductCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("Harga Set Kasur:"),
+              Text("Harga Set Kasur:", style: TextStyle(color: textColor)),
               Text(
                 FormatHelper.formatCurrency(currentNetPrice),
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
               ),
             ],
           ),
@@ -439,10 +485,10 @@ class ProductCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("Harga Kasur Only:"),
+              Text("Harga Kasur Only:", style: TextStyle(color: textColor)),
               Text(
                 FormatHelper.formatCurrency(individualNetPrice),
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
               ),
             ],
           ),
@@ -450,7 +496,7 @@ class ProductCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("Selisih:"),
+              Text("Selisih:", style: TextStyle(color: textColor)),
               Text(
                 "${isMoreExpensive ? '+' : '-'}${FormatHelper.formatCurrency(priceDifference.abs())}",
                 style: TextStyle(
@@ -540,16 +586,20 @@ class ProductCard extends StatelessWidget {
     );
   }
 
-  Widget _buildBonusInfo() {
+  Widget _buildBonusInfo({bool isDark = false}) {
     final hasBonus =
         product.bonus.isNotEmpty && product.bonus.any((b) => b.name.isNotEmpty);
-
+    final cardBg = isDark ? AppColors.surfaceDark : Colors.white;
+    final border = isDark ? AppColors.borderDark : AppColors.borderLight;
+    final iconColor = AppColors.warning;
+    final textColor =
+        isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight;
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.orange.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.orange.withOpacity(0.3)),
+        color: cardBg,
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: border.withOpacity(0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -558,20 +608,21 @@ class ProductCard extends StatelessWidget {
             children: [
               Icon(
                 Icons.card_giftcard,
-                color: Colors.orange[700],
-                size: 16,
+                color: iconColor,
+                size: 20,
               ),
-              const SizedBox(width: 8),
-              const Text(
+              const SizedBox(width: 10),
+              Text(
                 "Complimentary:",
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                  fontSize: 15,
+                  color: iconColor,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           if (hasBonus)
             ...product.bonus.where((b) => b.name.isNotEmpty).map(
                   (bonus) => Padding(
@@ -580,14 +631,14 @@ class ProductCard extends StatelessWidget {
                       children: [
                         Icon(
                           Icons.check_circle,
-                          color: Colors.orange[700],
-                          size: 14,
+                          color: iconColor,
+                          size: 16,
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             "${bonus.quantity}x ${bonus.name}",
-                            style: const TextStyle(fontSize: 13),
+                            style: TextStyle(fontSize: 14, color: textColor),
                           ),
                         ),
                       ],
@@ -599,13 +650,13 @@ class ProductCard extends StatelessWidget {
               children: [
                 Icon(
                   Icons.remove_circle,
-                  color: Colors.grey[600],
-                  size: 14,
+                  color: border,
+                  size: 16,
                 ),
                 const SizedBox(width: 8),
-                const Text(
+                Text(
                   "Tidak ada bonus.",
-                  style: TextStyle(fontSize: 13, color: Colors.grey),
+                  style: TextStyle(fontSize: 14, color: border),
                 ),
               ],
             ),
