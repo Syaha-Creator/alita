@@ -1,7 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/error/exceptions.dart';
-import '../../../../core/utils/logger.dart';
 import '../../../../services/auth_service.dart';
 import '../../domain/usecases/login_usecase.dart';
 import 'auth_event.dart';
@@ -29,13 +28,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
         emit(AuthSuccess(auth.accessToken));
       } on ServerException catch (e) {
-        logger.e('Server-side login failed', error: e);
         emit(AuthFailure(e.message));
       } on NetworkException catch (e) {
-        logger.e('Network-side login failed', error: e);
         emit(AuthFailure(e.message));
-      } catch (e, s) {
-        logger.e('An unexpected login error occurred', error: e, stackTrace: s);
+      } catch (e) {
         emit(AuthFailure('Terjadi kesalahan yang tidak terduga.'));
       }
     });

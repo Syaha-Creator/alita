@@ -31,6 +31,18 @@ class AuthService {
   static Future<bool> login(String token, String refreshToken, int userId,
       String userName, int? areaId) async {
     try {
+      print("AuthService: Storing login data...");
+      print(
+          "AuthService: Token: ${token.length >= 10 ? "${token.substring(0, 10)}..." : token}");
+      if (refreshToken.isNotEmpty) {
+        print(
+            "AuthService: Refresh token: ${refreshToken.length >= 10 ? "${refreshToken.substring(0, 10)}..." : refreshToken}");
+      } else {
+        print("AuthService: Refresh token: (empty)");
+      }
+      print("AuthService: User ID: $userId");
+      print("AuthService: User name: $userName");
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(StorageKeys.isLoggedIn, true);
       await prefs.setInt(
@@ -44,8 +56,11 @@ class AuthService {
         await prefs.setInt(_userAreaIdKey, areaId);
       }
       authChangeNotifier.value = true;
+
+      print("AuthService: Login data stored successfully");
       return true;
     } catch (e) {
+      print("AuthService: Error storing login data: $e");
       return false;
     }
   }
@@ -83,7 +98,10 @@ class AuthService {
 
   static Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(StorageKeys.authToken);
+    final token = prefs.getString(StorageKeys.authToken);
+    print(
+        "AuthService: Retrieved token: ${token != null ? '${token.substring(0, 10)}...' : 'null'}");
+    return token;
   }
 
   static Future<String?> getRefreshToken() async {
@@ -96,22 +114,38 @@ class AuthService {
     String? refreshToken = prefs.getString(StorageKeys.refreshToken);
 
     if (refreshToken == null) {
+      print("AuthService: Refresh token is null, logging out user");
       await logout();
       return null;
     }
 
+    print("AuthService: Attempting to refresh token...");
+    print("AuthService: Refresh token: ${refreshToken.substring(0, 10)}...");
+    final url = ApiConfig.signIn;
+
     try {
       Dio dio = Dio();
+      dio.options.connectTimeout = const Duration(seconds: 30);
+      dio.options.receiveTimeout = const Duration(seconds: 30);
+      dio.options.headers['ngrok-skip-browser-warning'] = 'true';
+      dio.options.headers['User-Agent'] = 'AlitaPricelist/1.0';
+
       final response = await dio.post(
-        "${ApiConfig.baseUrl}oauth/token",
+        url,
         data: {
           "grant_type": "refresh_token",
           "refresh_token": refreshToken,
           "client_id": ApiConfig.clientId,
           "client_secret": ApiConfig.clientSecret,
         },
-        options: Options(headers: {"Content-Type": "application/json"}),
+        options: Options(
+          headers: {"Content-Type": "application/json"},
+        ),
       );
+
+      print(
+          "AuthService: Refresh token response status: ${response.statusCode}");
+      print("AuthService: Refresh token response data: ${response.data}");
 
       if (response.statusCode == 200) {
         final newToken = response.data["access_token"];
@@ -120,19 +154,28 @@ class AuthService {
         final userId = response.data["id"];
 
         if (userId == null) {
+          print("AuthService: User ID not found in refresh token response");
           throw Exception("User ID not found in refresh token response.");
         }
 
+        print("AuthService: Storing new token...");
         final success = await login(
             newToken, newRefreshToken, userId as int, userName as String, null);
 
-        if (!success) throw Exception("Failed to store new token.");
+        if (!success) {
+          print("AuthService: Failed to store new token after refresh");
+          throw Exception("Failed to store new token.");
+        }
 
+        print("AuthService: Token refreshed successfully");
         return newToken;
       } else {
+        print(
+            "AuthService: Invalid response from refresh token endpoint: ${response.statusCode}");
         throw Exception("Invalid response: ${response.data}");
       }
     } catch (e) {
+      print("AuthService: Error refreshing token: $e");
       await logout();
       return null;
     }

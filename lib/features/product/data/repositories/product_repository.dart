@@ -13,87 +13,6 @@ class ProductRepository {
 
   ProductRepository({required this.apiClient});
 
-  Future<List<ProductModel>> fetchProducts() async {
-    try {
-      String? token = await AuthService.getToken();
-      if (token == null || token.isEmpty) {
-        throw Exception(
-            "Sesi Anda telah berakhir. Silakan login ulang untuk melanjutkan.");
-      }
-
-      final response = await apiClient.get(ApiConfig.rawdataPriceLists);
-
-      if (response.statusCode == 401) {
-        final newToken = await AuthService.refreshToken();
-        if (newToken != null) {
-          final newResponse = await apiClient.get(ApiConfig.rawdataPriceLists);
-
-          if (newResponse.statusCode != 200) {
-            throw Exception(
-                "Gagal mengambil data setelah memperbarui sesi. Silakan coba lagi.");
-          }
-
-          if (newResponse.data is! Map<String, dynamic>) {
-            throw Exception(
-                "Data cadangan tidak sesuai format. Silakan coba lagi.");
-          }
-
-          final rawData = newResponse.data["result"];
-          if (rawData is! List) {
-            throw Exception("Format JSON tidak sesuai: result bukan List.");
-          }
-
-          return rawData
-              .map(
-                  (item) => ProductModel.fromJson(item as Map<String, dynamic>))
-              .toList();
-        } else {
-          throw Exception(
-              "Sesi Anda telah berakhir. Silakan login ulang untuk melanjutkan.");
-        }
-      }
-
-      if (response.statusCode != 200) {
-        throw Exception("API Error: ${response.statusCode}");
-      }
-
-      if (response.data is! Map<String, dynamic>) {
-        throw Exception("Format JSON tidak sesuai: Data utama bukan Map.");
-      }
-
-      final rawData = response.data["result"];
-      if (rawData is! List) {
-        throw Exception("Format JSON tidak sesuai: result bukan List.");
-      }
-
-      return rawData
-          .map((item) => ProductModel.fromJson(item as Map<String, dynamic>))
-          .toList();
-    } on DioException catch (e) {
-      if (e.response?.statusCode == 401) {
-        final newToken = await AuthService.refreshToken();
-        if (newToken != null) {
-          return await fetchProducts(); // Retry with new token
-        } else {
-          throw Exception(
-              "Sesi Anda telah berakhir. Silakan login ulang untuk melanjutkan.");
-        }
-      } else if (e.type == DioExceptionType.connectionTimeout ||
-          e.type == DioExceptionType.sendTimeout ||
-          e.type == DioExceptionType.receiveTimeout ||
-          e.type == DioExceptionType.connectionError) {
-        throw NetworkException(
-            "Tidak dapat terhubung ke server. Periksa koneksi internet Anda dan coba lagi.");
-      } else {
-        throw ServerException(
-            "Gagal mengambil data produk. Silakan coba lagi dalam beberapa saat.");
-      }
-    } catch (e) {
-      throw ServerException(
-          "Terjadi kesalahan yang tidak terduga. Silakan coba lagi atau hubungi support jika masalah berlanjut.");
-    }
-  }
-
   Future<List<ProductModel>> fetchProductsWithFilter({
     required String area,
     required String channel,
@@ -110,6 +29,13 @@ class ProductRepository {
               "Sesi Anda telah berakhir. Silakan login ulang untuk melanjutkan.");
         }
 
+        int? userId = await AuthService.getCurrentUserId();
+        if (userId == null) {
+          throw Exception(
+              "User ID tidak tersedia. Silakan login ulang untuk melanjutkan.");
+        }
+
+        // Use the main API endpoint instead of ngrok
         final url = ApiConfig.getFilteredProductsUrl(
           token: token,
           area: area,
@@ -119,56 +45,13 @@ class ProductRepository {
 
         final response = await apiClient.get(url);
 
-        if (response.statusCode == 401) {
-          // Try to refresh token
-          final newToken = await AuthService.refreshToken();
-          if (newToken != null) {
-            // Retry with new token
-            final newUrl = ApiConfig.getFilteredProductsUrl(
-              token: newToken,
-              area: area,
-              channel: channel,
-              brand: brand,
-            );
-            final newResponse = await apiClient.get(newUrl);
-
-            if (newResponse.statusCode != 200) {
-              throw Exception(
-                  "Gagal mengambil data setelah memperbarui sesi. Silakan coba lagi.");
-            }
-
-            if (newResponse.data is! Map<String, dynamic>) {
-              throw Exception(
-                  "Format JSON tidak sesuai: Data utama bukan Map.");
-            }
-
-            final rawData = newResponse.data["result"];
-            if (rawData is! List) {
-              throw Exception("Format JSON tidak sesuai: result bukan List.");
-            }
-
-            final products = rawData
-                .map((item) =>
-                    ProductModel.fromJson(item as Map<String, dynamic>))
-                .toList();
-
-            return products;
-          } else {
-            throw Exception("Token refresh failed. Harap login ulang.");
-          }
-        }
-
         if (response.statusCode != 200) {
           throw Exception(
               "Gagal mengambil data produk. Kode error: ${response.statusCode}");
         }
 
-        if (response.data is! Map<String, dynamic>) {
-          throw Exception(
-              "Data yang diterima tidak sesuai format. Silakan coba lagi.");
-        }
-
         final rawData = response.data["result"];
+
         if (rawData is! List) {
           throw Exception("Data produk tidak ditemukan. Silakan coba lagi.");
         }
@@ -181,15 +64,7 @@ class ProductRepository {
       } on DioException catch (e) {
         retryCount++;
 
-        if (e.response?.statusCode == 401) {
-          final newToken = await AuthService.refreshToken();
-          if (newToken != null) {
-            continue; // Retry with new token
-          } else {
-            throw Exception(
-                "Sesi Anda telah berakhir. Silakan login ulang untuk melanjutkan.");
-          }
-        } else if (e.type == DioExceptionType.connectionTimeout ||
+        if (e.type == DioExceptionType.connectionTimeout ||
             e.type == DioExceptionType.sendTimeout ||
             e.type == DioExceptionType.receiveTimeout) {
           if (retryCount < maxRetries) {
@@ -259,14 +134,29 @@ class ProductRepository {
         throw Exception("Token tidak tersedia. Harap login ulang.");
       }
 
-      final url = ApiConfig.getDropdownDataUrl(token);
+      int? userId = await AuthService.getCurrentUserId();
+      if (userId == null) {
+        throw Exception("User ID tidak tersedia. Harap login ulang.");
+      }
+
+      final url = ApiConfig.getFilteredProductsUrl(
+        token: token,
+        area: area,
+        channel: channel,
+        brand: brand,
+      );
 
       final response = await apiClient.get(url);
 
       if (response.statusCode == 401) {
         final newToken = await AuthService.refreshToken();
         if (newToken != null) {
-          final newUrl = ApiConfig.getDropdownDataUrl(newToken);
+          final newUrl = ApiConfig.getFilteredProductsUrl(
+            token: newToken,
+            area: area,
+            channel: channel,
+            brand: brand,
+          );
           final newResponse = await apiClient.get(newUrl);
 
           if (newResponse.statusCode != 200) {

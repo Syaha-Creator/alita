@@ -10,7 +10,6 @@ import 'package:share_plus/share_plus.dart';
 
 import '../config/app_constant.dart';
 import '../core/utils/format_helper.dart';
-import '../core/utils/logger.dart';
 import '../features/cart/domain/entities/cart_entity.dart';
 
 class PDFService {
@@ -171,7 +170,7 @@ class PDFService {
       final ByteData byteData = await rootBundle.load(path);
       return pw.MemoryImage(byteData.buffer.asUint8List());
     } catch (e) {
-      logger.e('Gagal memuat aset gambar: $path. Error: $e');
+      // logger.e('Gagal memuat aset gambar: $path. Error: $e');
       return null;
     }
   }
@@ -647,10 +646,10 @@ class PDFService {
       final fileName = 'invoice_$timestamp.pdf';
       final filePath = '${directory.path}/$fileName';
       final file = File(filePath);
-          await file.writeAsBytes(pdfBytes);
+      await file.writeAsBytes(pdfBytes);
       return filePath;
     } catch (e) {
-      logger.e("❌ Error saving PDF: $e");
+      // logger.e("❌ Error saving PDF: $e");
       throw Exception('Failed to save PDF: $e');
     }
   }
@@ -664,7 +663,7 @@ class PDFService {
       await Share.shareXFiles([XFile(tempPath)],
           text: 'Invoice Checkout - Alita Pricelist');
     } catch (e) {
-      logger.e("❌ Error sharing PDF: $e");
+      // logger.e("❌ Error sharing PDF: $e");
       throw Exception('Failed to share PDF: $e');
     }
   }

@@ -12,8 +12,10 @@ class AuthRepository {
 
   Future<AuthModel> login(String email, String password) async {
     try {
+      final loginUrl = ApiConfig.getLoginUrl();
+
       final response = await apiClient.post(
-        "/api/sign_in",
+        loginUrl,
         data: {
           "email": email,
           "password": password,
@@ -21,8 +23,6 @@ class AuthRepository {
           "client_secret": ApiConfig.clientSecret,
         },
       );
-
-      print(response.data);
 
       if (response.statusCode != 200 || response.data == null) {
         throw Exception("Login gagal: Respon tidak valid.");

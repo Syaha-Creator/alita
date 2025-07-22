@@ -26,6 +26,7 @@ class RoutePaths {
   static const String product = '/product';
   static const String productDetail = 'detail';
   static const String cart = '/cart';
+  static const String approval = '/approval';
   static const String checkout = '/checkout';
 }
 
@@ -131,7 +132,6 @@ enum ChannelEnum {
 enum BrandEnum {
   superfit("Superfit"),
   therapedic("Therapedic"),
-  sleepcenter("Sleepcenter"),
   sleepspa("Sleep Spa"),
   springair("Spring Air"),
   comforta("Comforta"),

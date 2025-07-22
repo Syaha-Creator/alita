@@ -30,6 +30,8 @@ class ProductState extends Equatable {
   final String? selectedSorong;
   final List<String> availableSizes;
   final String? selectedSize;
+  final List<String> availablePrograms;
+  final String? selectedProgram;
   final List<ProductEntity> filteredProducts;
   final Map<int, int> installmentMonths;
   final Map<int, double> installmentPerMonth;
@@ -75,6 +77,8 @@ class ProductState extends Equatable {
     this.selectedSorong,
     this.availableSizes = const [],
     this.selectedSize,
+    this.availablePrograms = const [],
+    this.selectedProgram,
     this.filteredProducts = const [],
     this.installmentMonths = const {},
     this.installmentPerMonth = const {},
@@ -121,6 +125,8 @@ class ProductState extends Equatable {
     String? selectedSorong,
     List<String>? availableSizes,
     String? selectedSize,
+    List<String>? availablePrograms,
+    String? selectedProgram,
     List<ProductEntity>? filteredProducts,
     Map<int, int>? installmentMonths,
     Map<int, double>? installmentPerMonth,
@@ -167,6 +173,8 @@ class ProductState extends Equatable {
       selectedSorong: selectedSorong ?? this.selectedSorong,
       availableSizes: availableSizes ?? this.availableSizes,
       selectedSize: selectedSize ?? this.selectedSize,
+      availablePrograms: availablePrograms ?? this.availablePrograms,
+      selectedProgram: selectedProgram ?? this.selectedProgram,
       filteredProducts: filteredProducts ?? this.filteredProducts,
       installmentMonths: installmentMonths ?? this.installmentMonths,
       installmentPerMonth: installmentPerMonth ?? this.installmentPerMonth,
@@ -217,6 +225,8 @@ class ProductState extends Equatable {
         selectedSorong,
         availableSizes,
         selectedSize,
+        availablePrograms,
+        selectedProgram,
         filteredProducts,
         installmentMonths,
         installmentPerMonth,

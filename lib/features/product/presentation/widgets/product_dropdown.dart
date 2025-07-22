@@ -40,6 +40,10 @@ class ProductDropdown extends StatelessWidget {
   final String? selectedSize;
   final Function(String?) onSizeChanged;
 
+  final List<String> programs;
+  final String? selectedProgram;
+  final Function(String?) onProgramChanged;
+
   final bool isLoading;
 
   const ProductDropdown({
@@ -72,6 +76,9 @@ class ProductDropdown extends StatelessWidget {
     required this.sizes,
     required this.selectedSize,
     required this.onSizeChanged,
+    required this.programs,
+    required this.selectedProgram,
+    required this.onProgramChanged,
     required this.isLoading,
   });
 
@@ -96,15 +103,15 @@ class ProductDropdown extends StatelessWidget {
             ],
           ),
         ),
-        CustomDropdown<String>(
-          labelText: "Channel",
-          items: channels,
-          selectedValue: selectedChannel,
-          onChanged: onChannelChanged,
-          hintText: "Pilih Channel",
-        ),
         SizedBox(height: AppPadding.p10),
         _buildRow(
+          CustomDropdown<String>(
+            labelText: "Channel",
+            items: channels,
+            selectedValue: selectedChannel,
+            onChanged: onChannelChanged,
+            hintText: "Pilih Channel",
+          ),
           CustomDropdown<String>(
             labelText: "Brand",
             items: brands,
@@ -112,6 +119,8 @@ class ProductDropdown extends StatelessWidget {
             onChanged: onBrandChanged,
             hintText: "Pilih Brand",
           ),
+        ),
+        _buildRow(
           isLoading
               ? Container(
                   padding: const EdgeInsets.all(12),
@@ -146,8 +155,6 @@ class ProductDropdown extends StatelessWidget {
                       ? "Tidak ada kasur tersedia"
                       : "Pilih Kasur/Accessories",
                 ),
-        ),
-        _buildRow(
           CustomDropdown<String>(
             labelText: "Divan (${divans.length})",
             items: divans,
@@ -156,6 +163,8 @@ class ProductDropdown extends StatelessWidget {
             hintText:
                 divans.isEmpty ? "Tidak ada divan tersedia" : "Pilih Divan",
           ),
+        ),
+        _buildRow(
           CustomDropdown<String>(
             labelText: "Headboard (${headboards.length})",
             items: headboards,
@@ -165,8 +174,6 @@ class ProductDropdown extends StatelessWidget {
                 ? "Tidak ada headboard tersedia"
                 : "Pilih Headboard",
           ),
-        ),
-        _buildRow(
           CustomDropdown<String>(
             labelText: "Sorong (${sorongs.length})",
             items: sorongs,
@@ -175,6 +182,8 @@ class ProductDropdown extends StatelessWidget {
             hintText:
                 sorongs.isEmpty ? "Tidak ada sorong tersedia" : "Pilih Sorong",
           ),
+        ),
+        _buildRow(
           CustomDropdown<String>(
             labelText: "Ukuran (${sizes.length})",
             items: sizes,
@@ -182,6 +191,15 @@ class ProductDropdown extends StatelessWidget {
             onChanged: onSizeChanged,
             hintText:
                 sizes.isEmpty ? "Tidak ada ukuran tersedia" : "Pilih Ukuran",
+          ),
+          CustomDropdown<String>(
+            labelText: "Program (${programs.length})",
+            items: programs,
+            selectedValue: selectedProgram,
+            onChanged: onProgramChanged,
+            hintText: programs.isEmpty
+                ? "Tidak ada program tersedia"
+                : "Pilih Program",
           ),
         ),
       ],

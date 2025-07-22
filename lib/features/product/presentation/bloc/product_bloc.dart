@@ -2,7 +2,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../config/app_constant.dart';
 import '../../../../core/error/exceptions.dart';
-import '../../../../core/utils/logger.dart';
 import '../../../../core/widgets/custom_toast.dart';
 import '../../../../services/auth_service.dart';
 import '../../domain/usecases/get_product_usecase.dart';
@@ -85,8 +84,7 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
             selectedSize: "", // Default value
           ));
         }
-      } catch (e, s) {
-        logger.e("Unexpected error in ProductBloc", error: e, stackTrace: s);
+      } catch (e) {
         emit(const ProductError("Terjadi kesalahan yang tidak terduga."));
       }
     });
@@ -158,21 +156,18 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
           ToastType.success,
         );
       } on ServerException catch (e) {
-        logger.e("Server error in ProductBloc", error: e);
         emit(state.copyWith(isLoading: false));
         CustomToast.showToast(
           "Server error: ${e.message}",
           ToastType.error,
         );
       } on NetworkException catch (e) {
-        logger.e("Network error in ProductBloc", error: e);
         emit(state.copyWith(isLoading: false));
         CustomToast.showToast(
           "Network error: ${e.message}",
           ToastType.error,
         );
-      } catch (e, s) {
-        logger.e("Unexpected error in ProductBloc", error: e, stackTrace: s);
+      } catch (e) {
         emit(state.copyWith(isLoading: false));
         CustomToast.showToast(
           "Terjadi kesalahan yang tidak terduga: $e",
@@ -245,6 +240,8 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         selectedSorong: selectedSorong,
         availableSizes: sizes,
         selectedSize: "",
+        availablePrograms: [],
+        selectedProgram: "",
       ));
     });
 
@@ -265,6 +262,8 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         selectedSorong: event.sorong,
         availableSizes: sizes,
         selectedSize: "",
+        availablePrograms: [],
+        selectedProgram: "",
       ));
     });
 
@@ -327,6 +326,8 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         selectedSorong: selectedSorong,
         availableSizes: sizes,
         selectedSize: selectedSize,
+        availablePrograms: [],
+        selectedProgram: "",
       ));
     });
 
@@ -352,11 +353,13 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         availableHeadboards: [], // Will be populated when divan is selected
         availableSorongs: [], // Will be populated when headboard is selected
         availableSizes: [], // Will be populated when sorong is selected
+        availablePrograms: [], // Will be populated when kasur is selected
         selectedKasur: AppStrings.noKasur, // Reset to default
         selectedDivan: AppStrings.noDivan, // Reset to default
         selectedHeadboard: AppStrings.noHeadboard, // Reset to default
         selectedSorong: AppStrings.noSorong, // Reset to default
         selectedSize: "", // Reset to empty
+        selectedProgram: "", // Reset to empty
       ));
     });
 
@@ -378,11 +381,13 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         availableHeadboards: [], // Will be populated when divan is selected
         availableSorongs: [], // Will be populated when headboard is selected
         availableSizes: [], // Will be populated when sorong is selected
+        availablePrograms: [], // Will be populated when kasur is selected
         selectedKasur: AppStrings.noKasur, // Reset to default
         selectedDivan: AppStrings.noDivan, // Reset to default
         selectedHeadboard: AppStrings.noHeadboard, // Reset to default
         selectedSorong: AppStrings.noSorong, // Reset to default
         selectedSize: "", // Reset to empty
+        selectedProgram: "", // Reset to empty
       ));
 
       // Determine which area to use based on brand selection
@@ -419,6 +424,7 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
           filteredProducts.map((p) => p.headboard).toSet().toList();
       final sorongs = filteredProducts.map((p) => p.sorong).toSet().toList();
       final sizes = filteredProducts.map((p) => p.ukuran).toSet().toList();
+      final programs = filteredProducts.map((p) => p.program).toSet().toList();
 
       emit(state.copyWith(
         selectedKasur: event.kasur,
@@ -432,11 +438,17 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
             sorongs.isNotEmpty ? sorongs.first : AppStrings.noSorong,
         availableSizes: sizes,
         selectedSize: "",
+        availablePrograms: programs,
+        selectedProgram: programs.isNotEmpty ? programs.first : "",
       ));
     });
 
     on<UpdateSelectedUkuran>((event, emit) {
       emit(state.copyWith(selectedSize: event.ukuran));
+    });
+
+    on<UpdateSelectedProgram>((event, emit) {
+      emit(state.copyWith(selectedProgram: event.program));
     });
 
     on<FilterProducts>((event, emit) {
@@ -483,6 +495,12 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
                 ? p.ukuran == event.selectedSize
                 : true;
 
+        // Filter berdasarkan program yang dipilih
+        final matchesProgram =
+            (event.selectedProgram != null && event.selectedProgram!.isNotEmpty)
+                ? p.program == event.selectedProgram
+                : true;
+
         final matchesSet = !state.isSetActive || p.isSet == true;
 
         return matchesArea &&
@@ -493,6 +511,7 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
             matchesHeadboard &&
             matchesSorong &&
             matchesSize &&
+            matchesProgram &&
             matchesSet;
       }).toList();
 
@@ -574,15 +593,49 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
 
       updatedPercentages[event.productId] = event.percentageChange;
 
-      if (updatedDiscounts.containsKey(event.productId)) {
-        updatedDiscounts[event.productId]?.removeWhere(
-            (d) => d == state.priceChangePercentages[event.productId]);
+      // --- LOGIC: AUTO SPLIT DISKON BERTINGKAT ---
+      final product = state.products.firstWhere((p) => p.id == event.productId,
+          orElse: () => state.selectProduct!);
+      double originalPrice = product.endUserPrice;
+      double targetPrice = event.newPrice;
+      List<double> maxDiscs = [
+        product.disc1,
+        product.disc2,
+        product.disc3,
+        product.disc4,
+        product.disc5,
+      ];
+      List<double> splitDiscs = [];
+      List<double> splitNominals = [];
+      double currentPrice = originalPrice;
+      for (var max in maxDiscs) {
+        if (currentPrice <= targetPrice + 0.01) {
+          splitDiscs.add(0);
+          splitNominals.add(0);
+          continue;
+        }
+        double maxAllowed = max * 100; // persen
+        double needed = (1 - (targetPrice / currentPrice)) * 100;
+        double useDisc = needed > maxAllowed ? maxAllowed : needed;
+        if (useDisc < 0) useDisc = 0;
+        splitDiscs.add(useDisc);
+        double nominal = currentPrice * (useDisc / 100);
+        splitNominals.add(nominal);
+        currentPrice = currentPrice * (1 - useDisc / 100);
       }
+      updatedDiscounts[event.productId] = splitDiscs;
+      // --- END LOGIC ---
+      // --- LOGIC: UPDATE NOMINAL DISKON ---
+      final updatedNominals =
+          Map<int, List<double>>.from(state.productDiscountsNominal);
+      updatedNominals[event.productId] = splitNominals;
+      // --- END LOGIC ---
 
       emit(state.copyWith(
         roundedPrices: updatedPrices,
         priceChangePercentages: updatedPercentages,
         productDiscountsPercentage: updatedDiscounts,
+        productDiscountsNominal: updatedNominals,
       ));
 
       if (event.percentageChange != 0.0) {
@@ -653,7 +706,8 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         availableHeadboards: [], // Reset to empty
         availableSorongs: [], // Reset to empty
         availableSizes: [], // Reset to empty
-        // Note: userSelectedArea is NOT reset to preserve user's manual area selection
+        availablePrograms: [], // Reset to empty
+        selectedProgram: "", // Reset to empty
       ));
 
       CustomToast.showToast(
@@ -754,6 +808,24 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         whatsAppBrand: null,
         whatsAppArea: null,
         whatsAppChannel: null,
+      ));
+    });
+
+    on<ClearFilters>((event, emit) {
+      emit(state.copyWith(
+        filteredProducts: [],
+        isFilterApplied: false,
+        selectedKasur: AppStrings.noKasur,
+        selectedDivan: AppStrings.noDivan,
+        selectedHeadboard: AppStrings.noHeadboard,
+        selectedSorong: AppStrings.noSorong,
+        selectedSize: "",
+        selectedProgram: "",
+        availableDivans: [],
+        availableHeadboards: [],
+        availableSorongs: [],
+        availableSizes: [],
+        availablePrograms: [],
       ));
     });
   }

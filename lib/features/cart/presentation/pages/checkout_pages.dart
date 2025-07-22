@@ -1,4 +1,3 @@
-// lib/features/cart/presentation/pages/checkout_pages.dart
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -7,7 +6,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../config/app_constant.dart';
 import '../../../../core/utils/controller_disposal_mixin.dart';
 import '../../../../core/utils/format_helper.dart';
-import '../../../../core/utils/logger.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_textfield.dart';
 import '../../../../core/widgets/custom_toast.dart';
@@ -118,8 +116,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
       if (mounted) Navigator.pop(context);
 
       _showPDFOptionsDialog(pdfBytes);
-    } catch (e, s) {
-      logger.e("Gagal membuat PDF", error: e, stackTrace: s);
+    } catch (e) {
       if (mounted) {
         Navigator.pop(context);
         CustomToast.showToast('Gagal membuat PDF: $e', ToastType.error);

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../services/whatsapp_service.dart';
-import '../utils/logger.dart';
 import '../../theme/app_colors.dart';
 
 class WhatsAppDialog extends StatelessWidget {
@@ -146,7 +145,6 @@ class WhatsAppDialog extends StatelessWidget {
                     Navigator.of(context).pop(true);
                   }
                 } catch (e) {
-                  logger.e("Failed to send WhatsApp message", error: e);
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(

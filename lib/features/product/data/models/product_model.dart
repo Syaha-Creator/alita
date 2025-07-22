@@ -35,6 +35,18 @@ class ProductModel {
   final double plHeadboard;
   final double plSorong;
   final double eupSorong;
+  final double bottomPriceAnalyst;
+  final String? itemNumber;
+  final String? itemNumberKasur;
+  final String? itemNumberDivan;
+  final String? itemNumberHeadboard;
+  final String? itemNumberSorong;
+  final String? itemNumberAccessories;
+  final String? itemNumberBonus1;
+  final String? itemNumberBonus2;
+  final String? itemNumberBonus3;
+  final String? itemNumberBonus4;
+  final String? itemNumberBonus5;
 
   ProductModel({
     required this.id,
@@ -73,6 +85,18 @@ class ProductModel {
     required this.plHeadboard,
     required this.plSorong,
     required this.eupSorong,
+    required this.bottomPriceAnalyst,
+    this.itemNumber,
+    this.itemNumberKasur,
+    this.itemNumberDivan,
+    this.itemNumberHeadboard,
+    this.itemNumberSorong,
+    this.itemNumberAccessories,
+    this.itemNumberBonus1,
+    this.itemNumberBonus2,
+    this.itemNumberBonus3,
+    this.itemNumberBonus4,
+    this.itemNumberBonus5,
   });
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
@@ -113,6 +137,18 @@ class ProductModel {
       plHeadboard: (json["pl_headboard"] ?? 0).toDouble(),
       plSorong: (json["pl_sorong"] ?? 0).toDouble(),
       eupSorong: (json["eup_sorong"] ?? 0).toDouble(),
+      bottomPriceAnalyst: (json["bottom_price_analyst"] ?? 0).toDouble(),
+      itemNumber: json["item_number"],
+      itemNumberKasur: json["item_number_kasur"],
+      itemNumberDivan: json["item_number_divan"],
+      itemNumberHeadboard: json["item_number_headboard"],
+      itemNumberSorong: json["item_number_sorong"],
+      itemNumberAccessories: json["item_number_accessories"],
+      itemNumberBonus1: json["item_number_bonus1"],
+      itemNumberBonus2: json["item_number_bonus2"],
+      itemNumberBonus3: json["item_number_bonus3"],
+      itemNumberBonus4: json["item_number_bonus4"],
+      itemNumberBonus5: json["item_number_bonus5"],
     );
   }
 }

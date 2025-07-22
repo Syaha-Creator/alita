@@ -22,9 +22,6 @@ class DetailInfoRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (value.isEmpty) {
-      //    || value == "Tanpa Divan" ||
-      //     value == "Tanpa Headboard" ||
-      //     value == "Tanpa Sorong") {
       return const SizedBox.shrink();
     }
 
@@ -40,7 +37,7 @@ class DetailInfoRow extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.bold,
                 fontFamily: GoogleFonts.montserrat().fontFamily,
                 fontSize: 14,
               ),

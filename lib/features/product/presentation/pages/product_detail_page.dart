@@ -3,10 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../config/app_constant.dart';
 import '../../../../core/utils/format_helper.dart';
-import '../../../../core/widgets/custom_toast.dart';
 import '../../../../theme/app_colors.dart';
-import '../../../cart/presentation/bloc/cart_bloc.dart';
-import '../../../cart/presentation/bloc/cart_event.dart';
 import '../../domain/entities/product_entity.dart';
 import '../bloc/product_bloc.dart';
 import '../bloc/product_state.dart';
@@ -49,13 +46,6 @@ class ProductDetailPage extends StatelessWidget {
                 d % 1 == 0 ? "${d.toInt()}%" : "${d.toStringAsFixed(2)}%")
             .toList();
         combinedDiscounts.addAll(programDiscounts);
-
-        if (editPopupDiscount != 0.0) {
-          final manualDiscountString = editPopupDiscount % 1 == 0
-              ? "${editPopupDiscount.toInt()}%"
-              : "${editPopupDiscount.toStringAsFixed(2)}%";
-          combinedDiscounts.add(manualDiscountString);
-        }
 
         return Scaffold(
           body: CustomScrollView(
@@ -173,7 +163,7 @@ class ProductDetailPage extends StatelessWidget {
               "Pricelist",
               FormatHelper.formatCurrency(product.pricelist),
               isStrikethrough: true,
-              valueColor: AppColors.error,
+              valueColor: AppColors.primaryLight,
               isDark: isDark,
             ),
             _buildPriceRow(
@@ -191,7 +181,7 @@ class ProductDetailPage extends StatelessWidget {
             _buildPriceRow(
               "Total Diskon",
               "- ${FormatHelper.formatCurrency(totalDiscount)}",
-              valueColor: AppColors.warning,
+              valueColor: AppColors.error,
               isDark: isDark,
             ),
             const Divider(height: 18, thickness: 1.5),
@@ -411,31 +401,6 @@ class ProductDetailPage extends StatelessWidget {
                   () => ProductActions.showInfoPopup(context, product), isDark),
             ],
           ),
-          ElevatedButton.icon(
-            onPressed: () {
-              context.read<CartBloc>().add(AddToCart(
-                    product: product,
-                    quantity: 1,
-                    netPrice: netPrice,
-                    discountPercentages: discountPercentages,
-                    editPopupDiscount: editPopupDiscount,
-                    installmentMonths: installmentMonths,
-                    installmentPerMonth: installmentPerMonth,
-                  ));
-              CustomToast.showToast(
-                  "${product.kasur} ditambahkan", ToastType.success);
-            },
-            icon: const Icon(Icons.add_shopping_cart, size: 20),
-            label: const Text("Add to Cart"),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.success,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            ),
-          ),
         ],
       ),
     );
@@ -461,13 +426,18 @@ class ProductDetailPage extends StatelessWidget {
                   : AppColors.textPrimaryLight,
             ),
           ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: valueSize,
-              color: valueColor,
-              decoration: isStrikethrough ? TextDecoration.lineThrough : null,
-              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 2,
+              style: TextStyle(
+                fontSize: valueSize,
+                color: valueColor,
+                decoration: isStrikethrough ? TextDecoration.lineThrough : null,
+                fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+              ),
             ),
           ),
         ],

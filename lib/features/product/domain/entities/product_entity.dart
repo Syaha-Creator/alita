@@ -24,6 +24,23 @@ class ProductEntity extends Equatable {
   final double plHeadboard;
   final double plSorong;
   final double eupSorong;
+  final double bottomPriceAnalyst;
+  final double disc1;
+  final double disc2;
+  final double disc3;
+  final double disc4;
+  final double disc5;
+  final String? itemNumber;
+  final String? itemNumberKasur;
+  final String? itemNumberDivan;
+  final String? itemNumberHeadboard;
+  final String? itemNumberSorong;
+  final String? itemNumberAccessories;
+  final String? itemNumberBonus1;
+  final String? itemNumberBonus2;
+  final String? itemNumberBonus3;
+  final String? itemNumberBonus4;
+  final String? itemNumberBonus5;
 
   const ProductEntity({
     required this.id,
@@ -49,6 +66,23 @@ class ProductEntity extends Equatable {
     required this.plHeadboard,
     required this.plSorong,
     required this.eupSorong,
+    required this.bottomPriceAnalyst,
+    required this.disc1,
+    required this.disc2,
+    required this.disc3,
+    required this.disc4,
+    required this.disc5,
+    this.itemNumber,
+    this.itemNumberKasur,
+    this.itemNumberDivan,
+    this.itemNumberHeadboard,
+    this.itemNumberSorong,
+    this.itemNumberAccessories,
+    this.itemNumberBonus1,
+    this.itemNumberBonus2,
+    this.itemNumberBonus3,
+    this.itemNumberBonus4,
+    this.itemNumberBonus5,
   });
 
   @override
@@ -76,6 +110,23 @@ class ProductEntity extends Equatable {
         plHeadboard,
         plSorong,
         eupSorong,
+        bottomPriceAnalyst,
+        disc1,
+        disc2,
+        disc3,
+        disc4,
+        disc5,
+        itemNumber,
+        itemNumberKasur,
+        itemNumberDivan,
+        itemNumberHeadboard,
+        itemNumberSorong,
+        itemNumberAccessories,
+        itemNumberBonus1,
+        itemNumberBonus2,
+        itemNumberBonus3,
+        itemNumberBonus4,
+        itemNumberBonus5,
       ];
 }
 

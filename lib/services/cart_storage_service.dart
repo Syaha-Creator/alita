@@ -106,6 +106,12 @@ class CartStorageService {
       'plHeadboard': product.plHeadboard,
       'plSorong': product.plSorong,
       'eupSorong': product.eupSorong,
+      'bottomPriceAnalyst': product.bottomPriceAnalyst,
+      'disc1': product.disc1,
+      'disc2': product.disc2,
+      'disc3': product.disc3,
+      'disc4': product.disc4,
+      'disc5': product.disc5,
     };
   }
 
@@ -137,6 +143,12 @@ class CartStorageService {
       plHeadboard: (json['plHeadboard'] ?? 0.0).toDouble(),
       plSorong: (json['plSorong'] ?? 0.0).toDouble(),
       eupSorong: (json['eupSorong'] ?? 0.0).toDouble(),
+      bottomPriceAnalyst: (json['bottomPriceAnalyst'] ?? 0.0).toDouble(),
+      disc1: (json['disc1'] ?? 0.0).toDouble(),
+      disc2: (json['disc2'] ?? 0.0).toDouble(),
+      disc3: (json['disc3'] ?? 0.0).toDouble(),
+      disc4: (json['disc4'] ?? 0.0).toDouble(),
+      disc5: (json['disc5'] ?? 0.0).toDouble(),
     );
   }
 }

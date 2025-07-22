@@ -100,6 +100,14 @@ class UpdateSelectedUkuran extends ProductEvent {
   List<Object?> get props => [ukuran];
 }
 
+class UpdateSelectedProgram extends ProductEvent {
+  final String program;
+  const UpdateSelectedProgram(this.program);
+
+  @override
+  List<Object?> get props => [program];
+}
+
 class SelectProduct extends ProductEvent {
   final ProductEntity product;
 
@@ -169,6 +177,7 @@ class ApplyFilters extends ProductEvent {
   final String? selectedHeadboard;
   final String? selectedSorong;
   final String? selectedSize;
+  final String? selectedProgram;
 
   const ApplyFilters({
     this.selectedArea,
@@ -179,6 +188,7 @@ class ApplyFilters extends ProductEvent {
     this.selectedHeadboard,
     this.selectedSorong,
     this.selectedSize,
+    this.selectedProgram,
   });
 
   @override
@@ -191,6 +201,7 @@ class ApplyFilters extends ProductEvent {
         selectedHeadboard,
         selectedSorong,
         selectedSize,
+        selectedProgram,
       ];
 }
 
