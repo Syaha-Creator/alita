@@ -7,7 +7,9 @@ import '../features/product/domain/entities/product_entity.dart';
 import '../features/cart/domain/entities/cart_entity.dart';
 import 'auth_service.dart';
 
+/// Service untuk proses approval order letter dari cart dan produk.
 class ApprovalService {
+  /// Membuat approval dari cart (beberapa item sekaligus).
   static Future<Map<String, dynamic>> createApprovalFromCart({
     required List<CartEntity> cartItems,
     required String customerName,
@@ -193,6 +195,7 @@ class ApprovalService {
     }
   }
 
+  /// Membuat approval dari satu produk (single item).
   static Future<Map<String, dynamic>> createApprovalFromProduct({
     required ProductEntity product,
     required int quantity,

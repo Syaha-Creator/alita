@@ -4,12 +4,14 @@ import 'package:dio/dio.dart';
 import '../config/api_config.dart';
 import '../config/app_constant.dart';
 
+/// Service untuk autentikasi, penyimpanan token, dan session user.
 class AuthService {
   static final ValueNotifier<bool> authChangeNotifier = ValueNotifier(false);
   static const int _sessionDuration = 24 * 60 * 60 * 1000;
   static const String _userNameKey = "current_user_name";
   static const String _userAreaIdKey = "current_user_area_id";
 
+  /// Mengecek apakah user masih login dan session masih valid.
   static Future<bool> isLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
     bool isLoggedIn = prefs.getBool(StorageKeys.isLoggedIn) ?? false;
@@ -28,6 +30,7 @@ class AuthService {
     return isLoggedIn;
   }
 
+  /// Menyimpan data login ke SharedPreferences.
   static Future<bool> login(String token, String refreshToken, int userId,
       String userName, int? areaId) async {
     try {
@@ -65,37 +68,44 @@ class AuthService {
     }
   }
 
+  /// Mengambil nama user yang sedang login.
   static Future<String?> getCurrentUserName() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_userNameKey);
   }
 
+  /// Menyimpan email yang diingat (remember me).
   static Future<void> saveEmail(String email) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(StorageKeys.rememberedEmail, email);
   }
 
+  /// Mengambil email yang diingat (remember me).
   static Future<String?> getSavedEmail() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(StorageKeys.rememberedEmail);
   }
 
+  /// Menghapus email yang diingat (remember me).
   static Future<void> clearSavedEmail() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(StorageKeys.rememberedEmail);
   }
 
+  /// Mengambil user ID yang sedang login.
   static Future<int?> getCurrentUserId() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getInt(StorageKeys.currentUserId);
   }
 
+  /// Mengambil area ID user yang sedang login.
   static Future<int?> getCurrentUserAreaId() async {
     final prefs = await SharedPreferences.getInstance();
     final areaId = prefs.getInt(_userAreaIdKey);
     return areaId;
   }
 
+  /// Mengambil token autentikasi.
   static Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString(StorageKeys.authToken);
@@ -104,11 +114,13 @@ class AuthService {
     return token;
   }
 
+  /// Mengambil refresh token.
   static Future<String?> getRefreshToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(StorageKeys.refreshToken);
   }
 
+  /// Melakukan refresh token dan update session.
   static Future<String?> refreshToken() async {
     final prefs = await SharedPreferences.getInstance();
     String? refreshToken = prefs.getString(StorageKeys.refreshToken);
@@ -181,6 +193,7 @@ class AuthService {
     }
   }
 
+  /// Logout user dan hapus semua data session.
   static Future<bool> logout() async {
     try {
       final prefs = await SharedPreferences.getInstance();

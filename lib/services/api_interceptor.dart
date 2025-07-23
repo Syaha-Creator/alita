@@ -2,11 +2,14 @@ import 'package:dio/dio.dart';
 
 import 'auth_service.dart';
 
+/// Interceptor Dio untuk menambah header, handle auth, dan refresh token otomatis.
 class ApiInterceptor extends InterceptorsWrapper {
   final Dio dio;
 
+  /// Inisialisasi interceptor dengan dependency Dio.
   ApiInterceptor(this.dio);
 
+  /// Menambah header dan auth token pada setiap request.
   @override
   void onRequest(
       RequestOptions options, RequestInterceptorHandler handler) async {
@@ -27,6 +30,7 @@ class ApiInterceptor extends InterceptorsWrapper {
     return handler.next(options);
   }
 
+  /// Handle error 401 (unauthorized) dan refresh token otomatis.
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
     // Only handle 401 errors for token refresh

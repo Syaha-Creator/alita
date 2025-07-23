@@ -5,9 +5,12 @@ import '../features/cart/domain/entities/cart_entity.dart';
 import '../features/product/domain/entities/product_entity.dart';
 import 'auth_service.dart';
 
+/// Service untuk menyimpan, mengambil, dan menghapus cart user di local storage.
 class CartStorageService {
-  static String _getCartKey(int userId) => '${StorageKeys.cartKeyBase}$userId';
+  /// Mendapatkan key cart untuk user tertentu.
+  static String _getCartKey(int userId) => '${StorageKeys.cartKeyBase} $userId';
 
+  /// Menyimpan list cart ke SharedPreferences.
   static Future<bool> saveCartItems(List<CartEntity> cartItems) async {
     try {
       final userId = await AuthService.getCurrentUserId();
@@ -23,6 +26,7 @@ class CartStorageService {
     }
   }
 
+  /// Mengambil list cart dari SharedPreferences.
   static Future<List<CartEntity>> loadCartItems() async {
     try {
       final userId = await AuthService.getCurrentUserId();
@@ -41,6 +45,7 @@ class CartStorageService {
     }
   }
 
+  /// Menghapus cart user dari SharedPreferences.
   static Future<bool> clearCart() async {
     try {
       final userId = await AuthService.getCurrentUserId();
@@ -53,6 +58,7 @@ class CartStorageService {
     }
   }
 
+  /// Konversi CartEntity ke Map untuk disimpan.
   static Map<String, dynamic> _cartEntityToJson(CartEntity item) {
     return {
       'product': _productToJson(item.product),
@@ -66,6 +72,7 @@ class CartStorageService {
     };
   }
 
+  /// Konversi Map ke CartEntity.
   static CartEntity _cartEntityFromJson(Map<String, dynamic> json) {
     return CartEntity(
       product: _productFromJson(json['product']),
@@ -79,6 +86,7 @@ class CartStorageService {
     );
   }
 
+  /// Konversi ProductEntity ke Map untuk disimpan.
   static Map<String, dynamic> _productToJson(ProductEntity product) {
     return {
       'id': product.id,
@@ -115,6 +123,7 @@ class CartStorageService {
     };
   }
 
+  /// Konversi Map ke ProductEntity.
   static ProductEntity _productFromJson(Map<String, dynamic> json) {
     return ProductEntity(
       id: json['id'] ?? 0,

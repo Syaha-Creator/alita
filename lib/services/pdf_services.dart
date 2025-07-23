@@ -12,8 +12,9 @@ import '../config/app_constant.dart';
 import '../core/utils/format_helper.dart';
 import '../features/cart/domain/entities/cart_entity.dart';
 
+/// Service untuk generate, simpan, dan share PDF checkout.
 class PDFService {
-  // Ganti seluruh fungsi ini di pdf_services.dart
+  /// Generate PDF checkout dari cart dan detail customer.
   static Future<Uint8List> generateCheckoutPDF({
     required List<CartEntity> cartItems,
     required String customerName,
@@ -144,6 +145,7 @@ class PDFService {
     return pdf.save();
   }
 
+  /// Membuat watermark LUNAS pada PDF jika sudah lunas.
   static pw.Widget _buildLunasWatermark() {
     return pw.Center(
       child: pw.Transform.rotate(
@@ -165,6 +167,7 @@ class PDFService {
     );
   }
 
+  /// Load image provider dari asset untuk logo.
   static Future<pw.ImageProvider?> _loadImageProvider(String path) async {
     try {
       final ByteData byteData = await rootBundle.load(path);
@@ -175,7 +178,7 @@ class PDFService {
     }
   }
 
-  // --- HEADER FINAL DENGAN UKURAN DAN LAYOUT YANG TEPAT ---
+  /// Build header PDF dengan logo dan showroom.
   static pw.Widget _buildHeader(pw.ImageProvider? sleepCenterLogo,
       List<pw.ImageProvider?> otherLogos, String showroom) {
     return pw.Column(
@@ -225,7 +228,7 @@ class PDFService {
     );
   }
 
-  // Sisa kode di bawah ini sudah benar dan tidak perlu diubah.
+  /// Build info customer dan order.
   static pw.Widget _buildCustomerAndOrderInfo({
     required String customerName,
     required String shippingAddress,
@@ -271,6 +274,7 @@ class PDFService {
     );
   }
 
+  /// Build satu baris info pada tabel info customer/order.
   static pw.TableRow _buildInfoTableRow(String label, String value) {
     return pw.TableRow(
       verticalAlignment: pw.TableCellVerticalAlignment.top,
@@ -295,6 +299,7 @@ class PDFService {
     );
   }
 
+  /// Build tabel item pesanan.
   static pw.Widget _buildItemsTable(List<CartEntity> items) {
     const tableHeaders = [
       'NO',
@@ -437,6 +442,7 @@ class PDFService {
     );
   }
 
+  /// Build satu cell pada tabel item.
   static pw.Widget _buildTableCell(String text,
       {pw.TextAlign align = pw.TextAlign.left}) {
     return pw.Padding(
@@ -449,6 +455,7 @@ class PDFService {
     );
   }
 
+  /// Build tabel keterangan dan total pembayaran.
   static pw.Widget _buildNotesAndTotals({
     required String keterangan,
     required double subtotal,
@@ -511,6 +518,7 @@ class PDFService {
     );
   }
 
+  /// Build satu baris total pada tabel total pembayaran.
   static pw.Widget _buildTotalRow(String label, String value,
       {bool isBold = false}) {
     return pw.Container(
@@ -538,6 +546,7 @@ class PDFService {
     );
   }
 
+  /// Build section tanda tangan pembeli dan sales.
   static pw.Widget _buildSignatureSection(
       String customerName, String salesName) {
     return pw.Container(
@@ -553,6 +562,7 @@ class PDFService {
     );
   }
 
+  /// Build box tanda tangan.
   static pw.Widget _buildSignatureBox(String title, String name,
       {bool borderLeft = false}) {
     return pw.Expanded(
@@ -574,6 +584,7 @@ class PDFService {
     );
   }
 
+  /// Build syarat dan ketentuan pembelian.
   static pw.Widget _buildTermsAndConditions() {
     final List<String> terms = [
       "Konsumen wajib melunasi 100% nilai pesanan sebelum melakukan pengiriman / penyerahan barang pesanan. Pelunasan dilakukan selambat-lambatnya 3 hari kerja sebelum jadwal pengiriman / penyerahan yang dijadwalkan.",
@@ -622,14 +633,17 @@ class PDFService {
     );
   }
 
+  /// Format tanggal dd/MM/yyyy.
   static String _formatSimpleDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 
+  /// Format tanggal dan jam dd/MM/yyyy HH:mm.
   static String _formatDateTime(DateTime date) {
     return '${_formatSimpleDate(date)} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 
+  /// Simpan PDF ke device (Android/iOS).
   static Future<String> savePDFToDevice(Uint8List pdfBytes) async {
     try {
       if (Platform.isAndroid) {
@@ -654,6 +668,7 @@ class PDFService {
     }
   }
 
+  /// Share PDF ke aplikasi lain.
   static Future<void> sharePDF(Uint8List pdfBytes, String fileName) async {
     try {
       final tempDir = await getTemporaryDirectory();
