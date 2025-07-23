@@ -1,5 +1,3 @@
-import '../../domain/entities/product_entity.dart';
-
 class ProductModel {
   final int id;
   final String area;
@@ -151,67 +149,6 @@ class ProductModel {
       itemNumberBonus3: json["item_number_bonus3"],
       itemNumberBonus4: json["item_number_bonus4"],
       itemNumberBonus5: json["item_number_bonus5"],
-    );
-  }
-
-  ProductEntity toEntity() {
-    final List<BonusItem> bonusList = [];
-    if ((bonus1 ?? '').isNotEmpty && (qtyBonus1 ?? 0) > 0) {
-      bonusList.add(BonusItem(name: bonus1!, quantity: qtyBonus1 ?? 0));
-    }
-    if ((bonus2 ?? '').isNotEmpty && (qtyBonus2 ?? 0) > 0) {
-      bonusList.add(BonusItem(name: bonus2!, quantity: qtyBonus2 ?? 0));
-    }
-    if ((bonus3 ?? '').isNotEmpty && (qtyBonus3 ?? 0) > 0) {
-      bonusList.add(BonusItem(name: bonus3!, quantity: qtyBonus3 ?? 0));
-    }
-    if ((bonus4 ?? '').isNotEmpty && (qtyBonus4 ?? 0) > 0) {
-      bonusList.add(BonusItem(name: bonus4!, quantity: qtyBonus4 ?? 0));
-    }
-    if ((bonus5 ?? '').isNotEmpty && (qtyBonus5 ?? 0) > 0) {
-      bonusList.add(BonusItem(name: bonus5!, quantity: qtyBonus5 ?? 0));
-    }
-    return ProductEntity(
-      id: id,
-      area: area,
-      channel: channel,
-      brand: brand,
-      kasur: kasur,
-      divan: divan,
-      headboard: headboard,
-      sorong: sorong,
-      ukuran: ukuran,
-      pricelist: pricelist,
-      program: program,
-      eupKasur: eupKasur,
-      eupDivan: eupDivan,
-      eupHeadboard: eupHeadboard,
-      endUserPrice: endUserPrice,
-      bonus: bonusList,
-      discounts: [], // mapping sesuai kebutuhan
-      isSet: set,
-      plKasur: plKasur,
-      plDivan: plDivan,
-      plHeadboard: plHeadboard,
-      plSorong: plSorong,
-      eupSorong: eupSorong,
-      bottomPriceAnalyst: bottomPriceAnalyst,
-      disc1: disc1,
-      disc2: disc2,
-      disc3: disc3,
-      disc4: disc4,
-      disc5: disc5,
-      itemNumber: itemNumber,
-      itemNumberKasur: itemNumberKasur,
-      itemNumberDivan: itemNumberDivan,
-      itemNumberHeadboard: itemNumberHeadboard,
-      itemNumberSorong: itemNumberSorong,
-      itemNumberAccessories: itemNumberAccessories,
-      itemNumberBonus1: itemNumberBonus1,
-      itemNumberBonus2: itemNumberBonus2,
-      itemNumberBonus3: itemNumberBonus3,
-      itemNumberBonus4: itemNumberBonus4,
-      itemNumberBonus5: itemNumberBonus5,
     );
   }
 }
