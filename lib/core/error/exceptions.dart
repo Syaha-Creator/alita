@@ -8,6 +8,3 @@ class NetworkException implements Exception {
   final String message;
   NetworkException(this.message);
 }
-
-// Exception untuk masalah cache atau penyimpanan lokal
-class CacheException implements Exception {}
