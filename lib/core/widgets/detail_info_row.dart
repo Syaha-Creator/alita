@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+/// Widget untuk menampilkan baris informasi detail dengan label dan value.
 class DetailInfoRow extends StatelessWidget {
   final String title;
   final String value;
@@ -43,11 +44,11 @@ class DetailInfoRow extends StatelessWidget {
               ),
             ),
           ),
-          Text(
+          const Text(
             ": ",
             style: TextStyle(
               fontWeight: FontWeight.w600,
-              fontFamily: GoogleFonts.montserrat().fontFamily,
+              fontFamily: 'Montserrat',
               fontSize: 14,
             ),
           ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+/// Tombol custom reusable dengan loading state dan style konsisten.
 class CustomButton extends StatelessWidget {
   final String text;
   final VoidCallback onPressed;
@@ -37,7 +38,7 @@ class CustomButton extends StatelessWidget {
           ),
         ),
         child: isLoading
-            ? CircularProgressIndicator(color: theme.colorScheme.onPrimary)
+            ? const CircularProgressIndicator()
             : Text(
                 text,
                 style: textStyle ??

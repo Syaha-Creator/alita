@@ -1,15 +1,18 @@
+/// Utility untuk validasi input form (email, password, dsb).
 class ValidationHelper {
+  /// Validasi email, return error message jika tidak valid.
   static String? validateEmail(String? value) {
     if (value == null || value.isEmpty) {
       return 'Email tidak boleh kosong';
     }
-    if (!RegExp(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
-        .hasMatch(value)) {
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}');
+    if (!emailRegex.hasMatch(value)) {
       return 'Format email tidak valid';
     }
     return null;
   }
 
+  /// Validasi password, return error message jika tidak valid.
   static String? validatePassword(String? value) {
     if (value == null || value.isEmpty) {
       return 'Password tidak boleh kosong';

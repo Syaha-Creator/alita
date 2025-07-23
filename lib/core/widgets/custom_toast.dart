@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import '../../theme/app_colors.dart';
 
+/// Jenis toast yang didukung oleh CustomToast.
 enum ToastType { success, error, warning, info }
 
+/// Utility untuk menampilkan toast custom dengan warna sesuai tipe.
 class CustomToast {
   static void showToast(String message, ToastType type, {int duration = 2}) {
     Color bgColor;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+/// Widget untuk menampilkan state kosong (empty state) dengan ikon, judul, dan pesan opsional.
 class EmptyStateWidget extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -47,6 +48,10 @@ class EmptyStateWidget extends StatelessWidget {
                 color: Colors.grey.shade500,
               ),
             ),
+          ],
+          if (child != null) ...[
+            const SizedBox(height: 12),
+            child!,
           ],
         ],
       ),

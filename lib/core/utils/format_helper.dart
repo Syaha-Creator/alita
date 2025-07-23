@@ -1,14 +1,18 @@
 import 'package:intl/intl.dart';
 
+/// Utility untuk membantu format angka, currency, dan string.
 class FormatHelper {
-  /// Format angka ke mata uang Rupiah dengan simbol Rp dan tanpa desimal
-  static String formatCurrency(double amount, {bool includeSymbol = true}) {
-    final formatter = NumberFormat.currency(
-      locale: 'id_ID',
-      symbol: includeSymbol ? 'Rp ' : '',
-      decimalDigits: 0, // Menghilangkan angka di belakang koma
-    );
-    return formatter.format(amount);
+  /// Format angka menjadi currency (IDR) dengan pemisah ribuan.
+  static String formatCurrency(double value) {
+    return value
+        .toStringAsFixed(0)
+        .replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (match) => '.');
+  }
+
+  /// Format string menjadi kapital pada huruf pertama setiap kata.
+  static String capitalizeEachWord(String text) {
+    return text.replaceAllMapped(
+        RegExp(r'\b\w'), (match) => match.group(0)!.toUpperCase());
   }
 
   static String formatSimpleDate(DateTime date) {

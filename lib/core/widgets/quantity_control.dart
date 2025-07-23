@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../config/app_constant.dart';
 
+/// Widget kontrol jumlah (quantity) dengan tombol tambah/kurang.
 class QuantityControl extends StatelessWidget {
   final int quantity;
   final VoidCallback onIncrement;

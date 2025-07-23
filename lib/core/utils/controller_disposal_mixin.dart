@@ -1,8 +1,7 @@
 // File: lib/core/mixins/controller_disposal_mixin.dart
 import 'package:flutter/material.dart';
 
-/// Mixin untuk mengelola disposal TextEditingController dan FocusNode secara otomatis
-/// Gunakan mixin ini pada StatefulWidget untuk mencegah memory leaks
+/// Mixin untuk mengelola disposal TextEditingController dan FocusNode secara otomatis pada StatefulWidget.
 mixin ControllerDisposalMixin<T extends StatefulWidget> on State<T> {
   final List<TextEditingController> _controllers = [];
   final List<FocusNode> _focusNodes = [];

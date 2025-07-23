@@ -3,6 +3,7 @@ import 'package:dropdown_search/dropdown_search.dart';
 
 import '../../config/app_constant.dart';
 
+/// Dropdown custom reusable dengan pencarian dan dekorasi konsisten.
 class CustomDropdown<T> extends StatelessWidget {
   final String labelText;
   final List<T> items;
