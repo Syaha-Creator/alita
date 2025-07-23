@@ -1,0 +1,34 @@
+import 'package:equatable/equatable.dart';
+import '../../data/models/order_letter_model.dart';
+import '../../data/models/order_letter_detail_model.dart';
+
+abstract class ApprovalEvent extends Equatable {
+  const ApprovalEvent();
+
+  @override
+  List<Object?> get props => [];
+}
+
+class CreateApproval extends ApprovalEvent {
+  final OrderLetterModel orderLetter;
+  final List<OrderLetterDetailModel> details;
+
+  const CreateApproval({
+    required this.orderLetter,
+    required this.details,
+  });
+
+  @override
+  List<Object?> get props => [orderLetter, details];
+}
+
+class GetApprovals extends ApprovalEvent {
+  final String? creator;
+
+  const GetApprovals({this.creator});
+
+  @override
+  List<Object?> get props => [creator];
+}
+
+class ClearApprovalState extends ApprovalEvent {}

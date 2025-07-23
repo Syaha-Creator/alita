@@ -1,6 +1,7 @@
 class ApiConfig {
   // Base URLs
-  static const String baseUrl = "https://staging.alitav2.massindo.com/";
+  // static const String baseUrl = "https://staging.alitav2.massindo.com/";
+  static const String baseUrl = "https://ed2a0233aff6.ngrok-free.app/";
 
   // Client credentials (gunakan satu saja untuk semua endpoint)
   static const String clientId = "UjQrHkqRaXgxrMnsuMQis-nbYp_jEbArPHSIN3QVQC8";

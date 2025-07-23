@@ -28,6 +28,7 @@ class RoutePaths {
   static const String cart = '/cart';
   static const String approval = '/approval';
   static const String checkout = '/checkout';
+  static const String approvalMonitoring = '/approval-monitoring';
 }
 
 class AppStrings {

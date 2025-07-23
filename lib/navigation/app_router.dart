@@ -11,6 +11,7 @@ import '../features/product/presentation/bloc/product_bloc.dart';
 import '../features/product/presentation/bloc/product_event.dart';
 import '../features/product/presentation/pages/product_detail_page.dart';
 import '../features/product/presentation/pages/product_page.dart';
+import '../features/approval/presentation/pages/approval_monitoring_page.dart';
 import '../services/auth_service.dart';
 import 'navigation_service.dart';
 
@@ -58,6 +59,10 @@ class AppRouter {
       GoRoute(
         path: RoutePaths.checkout,
         builder: (context, state) => const CheckoutPages(),
+      ),
+      GoRoute(
+        path: RoutePaths.approvalMonitoring,
+        builder: (context, state) => const ApprovalMonitoringPage(),
       )
     ],
     redirect: (context, state) {

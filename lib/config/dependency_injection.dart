@@ -11,6 +11,10 @@ import '../features/authentication/data/repositories/auth_repository.dart';
 import '../features/authentication/domain/usecases/login_usecase.dart';
 import '../features/authentication/presentation/bloc/auth_bloc.dart';
 import 'api_config.dart';
+import '../features/approval/data/repositories/approval_repository.dart';
+import '../features/approval/domain/usecases/create_approval_usecase.dart';
+import '../features/approval/domain/usecases/get_approvals_usecase.dart';
+import '../features/approval/presentation/bloc/approval_bloc.dart';
 
 final locator = GetIt.instance;
 
@@ -46,4 +50,16 @@ void setupLocator() {
       () => GetProductUseCase(locator<ProductRepository>()));
   locator.registerLazySingleton<ProductBloc>(
       () => ProductBloc(locator<GetProductUseCase>()));
+
+  // Approval Feature
+  locator.registerLazySingleton<ApprovalRepository>(
+      () => ApprovalRepositoryImpl(dio: locator<Dio>()));
+  locator.registerLazySingleton<CreateApprovalUseCase>(
+      () => CreateApprovalUseCase(repository: locator<ApprovalRepository>()));
+  locator.registerLazySingleton<GetApprovalsUseCase>(
+      () => GetApprovalsUseCase(repository: locator<ApprovalRepository>()));
+  locator.registerLazySingleton<ApprovalBloc>(() => ApprovalBloc(
+        createApprovalUseCase: locator<CreateApprovalUseCase>(),
+        getApprovalsUseCase: locator<GetApprovalsUseCase>(),
+      ));
 }

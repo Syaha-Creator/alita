@@ -6,6 +6,7 @@ import 'config/dependency_injection.dart';
 import 'features/authentication/presentation/bloc/auth_bloc.dart';
 import 'features/cart/presentation/bloc/cart_bloc.dart';
 import 'features/product/presentation/bloc/product_bloc.dart';
+import 'features/approval/presentation/bloc/approval_bloc.dart';
 import 'navigation/app_router.dart';
 import 'services/auth_service.dart';
 import 'theme/app_theme.dart';
@@ -34,6 +35,9 @@ class MyApp extends StatelessWidget {
         ),
         BlocProvider(
           create: (context) => CartBloc(),
+        ),
+        BlocProvider<ApprovalBloc>(
+          create: (context) => locator<ApprovalBloc>(),
         ),
       ],
       child: ValueListenableBuilder<bool>(
