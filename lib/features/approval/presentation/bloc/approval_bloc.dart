@@ -24,6 +24,7 @@ class ApprovalBloc extends Bloc<ApprovalEvent, ApprovalState> {
       final result = await createApprovalUseCase.execute(
         orderLetter: event.orderLetter,
         details: event.details,
+        discounts: event.discounts,
       );
 
       if (result['success'] == true) {

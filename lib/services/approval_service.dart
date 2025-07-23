@@ -15,19 +15,22 @@ class ApprovalService {
   }) async {
     try {
       final userName = await AuthService.getCurrentUserName() ?? 'Unknown User';
-      final currentDate = DateTime.now().toString().split(' ')[0]; // YYYY-MM-DD
+      final currentDate = DateTime.now().toString().split(' ')[0];
 
       // Calculate total extended amount and discount
       double totalExtendedAmount = 0;
       double totalDiscountPercentage = 0.0;
       int totalHargaAwal = 0;
+      final List<double> tieredDiscounts = [];
 
       for (final item in cartItems) {
         totalExtendedAmount += item.netPrice * item.quantity;
         totalHargaAwal += (item.product.pricelist * item.quantity).toInt();
 
-        // Calculate total discount percentage
+        // Kumpulkan semua diskon berjenjang dari setiap item
         if (item.discountPercentages.isNotEmpty) {
+          tieredDiscounts
+              .addAll(item.discountPercentages.where((d) => d > 0.0));
           totalDiscountPercentage += item.discountPercentages
               .where((d) => d > 0.0)
               .fold(0.0, (sum, d) => sum + d);
@@ -44,6 +47,7 @@ class ApprovalService {
           'ApprovalService: Total discount percentage (cart): $totalDiscountPercentage');
       print(
           'ApprovalService: Discount text (cart accumulated): $totalDiscountText');
+      print('ApprovalService: Tiered discounts: $tieredDiscounts');
 
       // Create Order Letter (header)
       final orderLetter = OrderLetterModel(
@@ -174,6 +178,7 @@ class ApprovalService {
       approvalBloc.add(CreateApproval(
         orderLetter: orderLetter,
         details: details,
+        discounts: tieredDiscounts,
       ));
 
       return {
@@ -195,7 +200,7 @@ class ApprovalService {
     required String customerName,
     required String customerPhone,
     required List<double> discountPercentages,
-    required double editPopupDiscount, // Add editPopupDiscount parameter
+    required double editPopupDiscount,
   }) async {
     try {
       final userName = await AuthService.getCurrentUserName() ?? 'Unknown User';
@@ -203,16 +208,12 @@ class ApprovalService {
 
       print(
           'ApprovalService: discountPercentages from UI: $discountPercentages');
-      print('ApprovalService: editPopupDiscount from UI: $editPopupDiscount');
+      print(
+          'ApprovalService: editPopupDiscount dari UI (diabaikan): $editPopupDiscount');
 
-      final List<double> allDiscounts = [];
-      if (editPopupDiscount > 0.0) {
-        allDiscounts.add(editPopupDiscount);
-      }
-
-      print('ApprovalService: Final allDiscounts to compound: $allDiscounts');
-
-      // Compound discount calculation
+      // Compound discount calculation hanya dari discountPercentages
+      final List<double> allDiscounts =
+          discountPercentages.where((d) => d > 0.0).toList();
       double compound = 1.0;
       for (final d in allDiscounts) {
         compound *= (1 - d / 100);
@@ -220,6 +221,7 @@ class ApprovalService {
       double totalCompoundDiscount = 1 - compound;
       final discountText = (totalCompoundDiscount * 100).toStringAsFixed(2);
 
+      print('ApprovalService: Final allDiscounts to compound: $allDiscounts');
       print(
           'ApprovalService: Compound discount calculation: diskon = $allDiscounts, hasil = $discountText%');
 
@@ -347,6 +349,7 @@ class ApprovalService {
       approvalBloc.add(CreateApproval(
         orderLetter: orderLetter,
         details: details,
+        discounts: allDiscounts,
       ));
 
       return {

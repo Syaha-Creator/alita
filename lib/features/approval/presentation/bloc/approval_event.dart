@@ -12,14 +12,16 @@ abstract class ApprovalEvent extends Equatable {
 class CreateApproval extends ApprovalEvent {
   final OrderLetterModel orderLetter;
   final List<OrderLetterDetailModel> details;
+  final List<double> discounts;
 
   const CreateApproval({
     required this.orderLetter,
     required this.details,
+    required this.discounts,
   });
 
   @override
-  List<Object?> get props => [orderLetter, details];
+  List<Object?> get props => [orderLetter, details, discounts];
 }
 
 class GetApprovals extends ApprovalEvent {

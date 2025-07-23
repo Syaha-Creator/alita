@@ -10,6 +10,7 @@ class CreateApprovalUseCase {
   Future<Map<String, dynamic>> execute({
     required OrderLetterModel orderLetter,
     required List<OrderLetterDetailModel> details,
+    required List<double> discounts,
   }) async {
     try {
       // 1. Create Order Letter (header)
@@ -47,9 +48,28 @@ class CreateApprovalUseCase {
         if (!detailResult['success']) {
           return {
             'success': false,
-            'message': 'Failed to create detail: ${detailResult['message']}',
+            'message': 'Failed to create detail:  [${detailResult['message']}',
             'orderLetterResult': orderLetterResult,
             'detailResults': detailResults,
+          };
+        }
+      }
+
+      // 3. Post tiered discounts if any
+      Map<String, dynamic>? discountResult;
+      if (discounts.isNotEmpty) {
+        discountResult = await repository.postOrderLetterDiscounts(
+          orderLetterId: orderLetterId,
+          discounts: discounts,
+        );
+        if (!(discountResult['success'] ?? false)) {
+          return {
+            'success': false,
+            'message':
+                'Failed to post discounts:  [${discountResult['message']}',
+            'orderLetterResult': orderLetterResult,
+            'detailResults': detailResults,
+            'discountResult': discountResult,
           };
         }
       }
@@ -59,6 +79,7 @@ class CreateApprovalUseCase {
         'message': 'Approval created successfully',
         'orderLetterResult': orderLetterResult,
         'detailResults': detailResults,
+        if (discountResult != null) 'discountResult': discountResult,
       };
     } catch (e) {
       return {
