@@ -1,130 +1,99 @@
 import 'package:dio/dio.dart';
+import '../../../../services/api_client.dart';
 import '../models/order_letter_model.dart';
 import '../models/order_letter_detail_model.dart';
 
-abstract class ApprovalRepository {
-  Future<Map<String, dynamic>> createOrderLetter(OrderLetterModel orderLetter);
-  Future<Map<String, dynamic>> createOrderLetterDetail(
-      OrderLetterDetailModel detail);
-  Future<List<OrderLetterModel>> getOrderLetters({String? creator});
-  Future<List<OrderLetterDetailModel>> getOrderLetterDetails();
-  Future<Map<String, dynamic>> postOrderLetterDiscounts(
-      {required int orderLetterId, required List<double> discounts});
-
-  Future<Map<String, dynamic>> createOrderLetterWithDiscounts(
-      {required OrderLetterModel orderLetter, required List<double> discounts});
-}
-
-class ApprovalRepositoryImpl implements ApprovalRepository {
+class ApprovalRepository {
+  final ApiClient apiClient;
   final Dio dio;
 
-  ApprovalRepositoryImpl({required this.dio});
+  ApprovalRepository(this.apiClient, this.dio);
 
-  @override
-  Future<Map<String, dynamic>> createOrderLetter(
-      OrderLetterModel orderLetter) async {
+  Future<Map<String, dynamic>> createApproval({
+    required OrderLetterModel orderLetter,
+    required List<OrderLetterDetailModel> details,
+    required List<double> discounts,
+  }) async {
     try {
-      final response = await dio.post(
-        'https://alita.massindo.com/api/v1/order_letters?access_token=aRi9lLgtH1FxWWDcW7V9_mw91RrykDOqe3ADRTEffh0&client_id=UjQrHkqRaXgxrMnsuMQis-nbYp_jEbArPHSIN3QVQC8&client_secret=yOEtsL-v5SEg4WMDcCU6Qv7lDBhVpJIfPBpJKU68dV',
+      // Create order letter first
+      final orderLetterResponse = await apiClient.post(
+        '/api/order_letters',
         data: orderLetter.toJson(),
       );
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return {
-          'success': true,
-          'data': response.data,
-          'orderLetterId': response.data['location']['id'],
-          'noSp': response.data['location']['no_sp'],
-        };
-      } else {
-        return {
-          'success': false,
-          'message': 'Failed to create order letter',
-          'statusCode': response.statusCode,
-        };
+      if (orderLetterResponse.statusCode != 201) {
+        throw Exception('Failed to create order letter');
       }
+
+      final orderLetterData = orderLetterResponse.data;
+      final orderLetterId = orderLetterData['id'];
+
+      // Create order letter details
+      for (final detail in details) {
+        final detailData = detail.toJson();
+        detailData['order_letter_id'] = orderLetterId;
+
+        final detailResponse = await apiClient.post(
+          '/api/order_letter_details',
+          data: detailData,
+        );
+
+        if (detailResponse.statusCode != 201) {
+          throw Exception('Failed to create order letter detail');
+        }
+      }
+
+      return {
+        'success': true,
+        'message': 'Approval created successfully',
+        'orderLetterId': orderLetterId,
+      };
     } catch (e) {
       return {
         'success': false,
-        'message': 'Error creating order letter: $e',
+        'message': 'Error creating approval: $e',
       };
     }
   }
 
-  @override
-  Future<Map<String, dynamic>> createOrderLetterDetail(
-      OrderLetterDetailModel detail) async {
+  Future<Map<String, dynamic>> getApprovals({String? creator}) async {
     try {
-      final response = await dio.post(
-        'https://alita.massindo.com/api/v1/order_letter_details?access_token=aRi9lLgtH1FxWWDcW7V9_mw91RrykDOqe3ADRTEffh0&client_id=UjQrHkqRaXgxrMnsuMQis-nbYp_jEbArPHSIN3QVQC8&client_secret=yOEtsL-v5SEg4WMDcCU6Qv7lDBhVpJIfPBpJKU68dV',
-        data: detail.toJson(),
-      );
+      final orderLetters = await getOrderLetters(creator: creator);
+      final orderLetterDetails = await getOrderLetterDetails();
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return {
-          'success': true,
-          'data': response.data,
-        };
-      } else {
-        return {
-          'success': false,
-          'message': 'Failed to create order letter detail',
-          'statusCode': response.statusCode,
-        };
-      }
+      return {
+        'orderLetters': orderLetters,
+        'orderLetterDetails': orderLetterDetails,
+      };
     } catch (e) {
       return {
-        'success': false,
-        'message': 'Error creating order letter detail: $e',
+        'orderLetters': <OrderLetterModel>[],
+        'orderLetterDetails': <OrderLetterDetailModel>[],
       };
     }
   }
 
-  @override
   Future<List<OrderLetterModel>> getOrderLetters({String? creator}) async {
     try {
-      final response = await dio.get(
-        'https://alita.massindo.com/api/v1/order_letters?access_token=aRi9lLgtH1FxWWDcW7V9_mw91RrykDOqe3ADRTEffh0&client_id=UjQrHkqRaXgxrMnsuMQis-nbYp_jEbArPHSIN3QVQC8&client_secret=yOEtsL-v5SEg4WMDcCU6Qv7lDBhVpJIfPBpJKU68dV',
-      );
+      String url = '/api/order_letters';
+      if (creator != null) {
+        url += '?creator=$creator';
+      }
+
+      final response = await apiClient.get(url);
 
       if (response.statusCode == 200) {
-        final List<dynamic> result = response.data['result'];
-        final allOrderLetters =
-            result.map((json) => OrderLetterModel.fromJson(json)).toList();
-
-        // Debug logging
-        print('ApprovalRepository: Raw API response: ${response.data}');
-        print(
-            'ApprovalRepository: First order letter discount: ${allOrderLetters.isNotEmpty ? allOrderLetters.first.discount : 'No data'}');
-
-        // Filter by creator if provided
-        if (creator != null) {
-          final filteredLetters = allOrderLetters
-              .where((orderLetter) =>
-                  orderLetter.creator?.toLowerCase() == creator.toLowerCase())
-              .toList();
-
-          print(
-              'ApprovalRepository: Filtered by creator "$creator": ${filteredLetters.length} items');
-          if (filteredLetters.isNotEmpty) {
-            print(
-                'ApprovalRepository: First filtered order letter discount: ${filteredLetters.first.discount}');
-          }
-
-          return filteredLetters;
-        }
-
-        return allOrderLetters;
-      } else {
-        return [];
+        final List<dynamic> data = response.data;
+        return data.map((json) => OrderLetterModel.fromJson(json)).toList();
       }
+
+      return [];
     } catch (e) {
-      print('ApprovalRepository: Error getting order letters: $e');
+      print('Error fetching order letters: $e');
       return [];
     }
   }
 
-  @override
   Future<List<OrderLetterDetailModel>> getOrderLetterDetails() async {
     try {
       final response = await dio.get(
@@ -132,19 +101,19 @@ class ApprovalRepositoryImpl implements ApprovalRepository {
       );
 
       if (response.statusCode == 200) {
-        final List<dynamic> result = response.data['result'];
-        return result
+        final List<dynamic> data = response.data;
+        return data
             .map((json) => OrderLetterDetailModel.fromJson(json))
             .toList();
       } else {
         return [];
       }
     } catch (e) {
+      print('Error fetching order letter details: $e');
       return [];
     }
   }
 
-  @override
   Future<Map<String, dynamic>> postOrderLetterDiscounts(
       {required int orderLetterId, required List<double> discounts}) async {
     try {
@@ -185,7 +154,6 @@ class ApprovalRepositoryImpl implements ApprovalRepository {
     }
   }
 
-  @override
   Future<Map<String, dynamic>> createOrderLetterWithDiscounts(
       {required OrderLetterModel orderLetter,
       required List<double> discounts}) async {
@@ -198,7 +166,7 @@ class ApprovalRepositoryImpl implements ApprovalRepository {
 
       if (orderLetterResponse.statusCode == 200 ||
           orderLetterResponse.statusCode == 201) {
-        final orderLetterId = orderLetterResponse.data['location']['id'];
+        final orderLetterId = orderLetterResponse.data['id'];
 
         // POST Discounts
         final discountResult = await postOrderLetterDiscounts(

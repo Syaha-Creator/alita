@@ -28,7 +28,6 @@ class CartBloc extends Bloc<CartEvent, CartState> {
               item.netPrice == event.netPrice &&
               _listEquals(
                   item.discountPercentages, event.discountPercentages) &&
-              item.editPopupDiscount == event.editPopupDiscount &&
               item.installmentMonths == event.installmentMonths,
         );
 
@@ -42,7 +41,6 @@ class CartBloc extends Bloc<CartEvent, CartState> {
             quantity: existingItem.quantity + event.quantity,
             netPrice: existingItem.netPrice,
             discountPercentages: existingItem.discountPercentages,
-            editPopupDiscount: existingItem.editPopupDiscount,
             installmentMonths: existingItem.installmentMonths,
             installmentPerMonth: existingItem.installmentPerMonth,
           );
@@ -54,7 +52,6 @@ class CartBloc extends Bloc<CartEvent, CartState> {
               quantity: event.quantity,
               netPrice: event.netPrice,
               discountPercentages: event.discountPercentages,
-              editPopupDiscount: event.editPopupDiscount,
               installmentMonths: event.installmentMonths,
               installmentPerMonth: event.installmentPerMonth,
             ),
@@ -72,7 +69,6 @@ class CartBloc extends Bloc<CartEvent, CartState> {
             quantity: event.quantity,
             netPrice: event.netPrice,
             discountPercentages: event.discountPercentages,
-            editPopupDiscount: event.editPopupDiscount,
             installmentMonths: event.installmentMonths,
             installmentPerMonth: event.installmentPerMonth,
           )
@@ -107,7 +103,6 @@ class CartBloc extends Bloc<CartEvent, CartState> {
               quantity: event.quantity,
               netPrice: item.netPrice,
               discountPercentages: item.discountPercentages,
-              editPopupDiscount: item.editPopupDiscount,
               installmentMonths: item.installmentMonths,
               installmentPerMonth: item.installmentPerMonth,
             );

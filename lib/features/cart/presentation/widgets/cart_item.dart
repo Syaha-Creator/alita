@@ -438,11 +438,10 @@ class _CartItemWidgetState extends State<CartItemWidget> {
     final totalDiscount = item.product.pricelist - netPrice;
 
     final discounts = <double>[...item.discountPercentages];
-    if (item.editPopupDiscount > 0) discounts.add(item.editPopupDiscount);
     final formattedDiscounts = discounts
         .where((d) => d > 0)
         .map((d) => d % 1 == 0 ? '${d.toInt()}%' : '${d.toStringAsFixed(2)}%')
-        .toList();
+        .join(' + ');
     final hasInstallment = (item.installmentMonths ?? 0) > 0;
 
     final styleLabel = GoogleFonts.montserrat(
@@ -480,7 +479,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
           if (formattedDiscounts.isNotEmpty)
             _priceRow(
                 'Plus Diskon',
-                formattedDiscounts.join(' + '),
+                formattedDiscounts,
                 styleValue.copyWith(
                     color: isDark ? AppColors.accentDark : AppColors.info),
                 isDark),

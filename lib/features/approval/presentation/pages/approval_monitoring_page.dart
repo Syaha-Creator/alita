@@ -22,6 +22,8 @@ class ApprovalMonitoringPage extends StatefulWidget {
 class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage> {
   String? currentUser;
   FilterPeriod selectedPeriod = FilterPeriod.all;
+  bool? isManagerLevel;
+  bool isLoadingJobLevel = true;
 
   @override
   void initState() {
@@ -31,13 +33,20 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage> {
 
   Future<void> _loadCurrentUser() async {
     final userName = await AuthService.getCurrentUserName();
+    final isManager = await AuthService.isManagerLevel();
+
     setState(() {
       currentUser = userName;
+      isManagerLevel = isManager;
+      isLoadingJobLevel = false;
     });
 
     // Fetch approvals for current user
     if (userName != null) {
-      context.read<ApprovalBloc>().add(GetApprovals(creator: userName));
+      context.read<ApprovalBloc>().add(GetApprovals(
+            creator: userName,
+            isManager: isManager,
+          ));
     }
   }
 
@@ -46,9 +55,30 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+    // Show loading while determining job level
+    if (isLoadingJobLevel) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Approval Monitoring'),
+        ),
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Loading user permissions...'),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Approval Monitoring'),
+        title: Text(isManagerLevel == true
+            ? 'Approval Monitoring (Manager)'
+            : 'My Approvals'),
         actions: [
           IconButton(
             icon: const Icon(Icons.filter_list),
@@ -59,9 +89,10 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage> {
             icon: const Icon(Icons.refresh),
             onPressed: () {
               if (currentUser != null) {
-                context
-                    .read<ApprovalBloc>()
-                    .add(GetApprovals(creator: currentUser));
+                context.read<ApprovalBloc>().add(GetApprovals(
+                      creator: currentUser!,
+                      isManager: isManagerLevel ?? false,
+                    ));
               }
             },
             tooltip: 'Refresh',
@@ -107,9 +138,10 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage> {
                   ElevatedButton(
                     onPressed: () {
                       if (currentUser != null) {
-                        context
-                            .read<ApprovalBloc>()
-                            .add(GetApprovals(creator: currentUser));
+                        context.read<ApprovalBloc>().add(GetApprovals(
+                              creator: currentUser!,
+                              isManager: isManagerLevel ?? false,
+                            ));
                       }
                     },
                     child: const Text('Retry'),
@@ -172,16 +204,22 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage> {
           Row(
             children: [
               Icon(
-                Icons.analytics_outlined,
+                isManagerLevel == true
+                    ? Icons.admin_panel_settings
+                    : Icons.person,
                 color: isDark ? AppColors.accentDark : AppColors.accentLight,
               ),
               const SizedBox(width: 8),
               Text(
-                'Statistik ${_getPeriodText(selectedPeriod)}',
+                isManagerLevel == true
+                    ? 'Manager Dashboard - ${_getPeriodText(selectedPeriod)}'
+                    : 'My Approval Stats - ${_getPeriodText(selectedPeriod)}',
                 style: GoogleFonts.montserrat(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                  color: isDark
+                      ? AppColors.textPrimaryDark
+                      : AppColors.textPrimaryLight,
                 ),
               ),
             ],
@@ -230,7 +268,10 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage> {
               ),
             ],
           ),
-          if (pendingApprovals > 0) ...[
+          if (isManagerLevel == true) ...[
+            const SizedBox(height: 12),
+            _buildManagerSummary(allApprovals, isDark),
+          ] else if (pendingApprovals > 0) ...[
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(8),
@@ -266,6 +307,72 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage> {
     );
   }
 
+  Widget _buildManagerSummary(
+      List<OrderLetterModel> allApprovals, bool isDark) {
+    final totalAllApprovals = allApprovals.length;
+    final pendingAllApprovals =
+        allApprovals.where((approval) => approval.status == 'Pending').length;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.blue.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.analytics,
+                color: Colors.blue,
+                size: 16,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Team Overview',
+                style: GoogleFonts.montserrat(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Total Team Approvals: $totalAllApprovals',
+                  style: GoogleFonts.montserrat(
+                    fontSize: 12,
+                    color: isDark
+                        ? AppColors.textSecondaryDark
+                        : AppColors.textSecondaryLight,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  'Pending Review: $pendingAllApprovals',
+                  style: GoogleFonts.montserrat(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color:
+                        pendingAllApprovals > 0 ? Colors.orange : Colors.green,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStatCard(
     String title,
     String value,
@@ -296,7 +403,9 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage> {
             title,
             style: GoogleFonts.montserrat(
               fontSize: 10,
-              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+              color: isDark
+                  ? AppColors.textSecondaryDark
+                  : AppColors.textSecondaryLight,
             ),
           ),
         ],
@@ -323,7 +432,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage> {
             ),
             const SizedBox(height: 16),
             Text(
-              selectedPeriod == FilterPeriod.all 
+              selectedPeriod == FilterPeriod.all
                   ? 'No Approvals Found'
                   : 'No Approvals in ${_getPeriodText(selectedPeriod)}',
               style: TextStyle(
@@ -782,3 +891,4 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage> {
     return null;
   }
 }
+ 

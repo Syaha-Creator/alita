@@ -5,6 +5,9 @@ import '../features/approval/presentation/bloc/approval_bloc.dart';
 import '../features/approval/presentation/bloc/approval_event.dart';
 import '../features/product/domain/entities/product_entity.dart';
 import '../features/cart/domain/entities/cart_entity.dart';
+import '../features/product/presentation/bloc/product_bloc.dart';
+import '../features/cart/presentation/bloc/cart_bloc.dart';
+import '../features/cart/presentation/bloc/cart_event.dart';
 import 'auth_service.dart';
 
 /// Service untuk proses approval order letter dari cart dan produk.
@@ -363,6 +366,43 @@ class ApprovalService {
       return {
         'success': false,
         'message': 'Error creating approval: $e',
+      };
+    }
+  }
+
+  /// Menambahkan produk ke keranjang.
+  static Future<Map<String, dynamic>> addToCart({
+    required ProductEntity product,
+    required int quantity,
+    required String customerName,
+    required String customerPhone,
+  }) async {
+    try {
+      // Get current product state to get discounts and net price
+      final productState = locator<ProductBloc>().state;
+      final discountPercentages =
+          productState.productDiscountsPercentage[product.id] ?? [];
+      final netPrice =
+          productState.roundedPrices[product.id] ?? product.endUserPrice;
+      final editPopupDiscount =
+          productState.priceChangePercentages[product.id] ?? 0.0;
+
+      // Add to cart using CartBloc with AddToCart event
+      locator<CartBloc>().add(AddToCart(
+        product: product,
+        quantity: quantity,
+        netPrice: netPrice,
+        discountPercentages: discountPercentages,
+      ));
+
+      return {
+        'success': true,
+        'message': 'Product added to cart successfully',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Error adding to cart: $e',
       };
     }
   }

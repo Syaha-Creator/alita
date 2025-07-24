@@ -120,6 +120,98 @@ class AuthService {
     return prefs.getString(StorageKeys.refreshToken);
   }
 
+  /// Mengambil job level dari contact work experiences API
+  static Future<String?> getJobLevel() async {
+    try {
+      final token = await getToken();
+      final userId = await getCurrentUserId();
+
+      if (token == null || userId == null) {
+        print("AuthService: Token or userId is null");
+        return null;
+      }
+
+      final url = ApiConfig.getContactWorkExperienceUrl(
+        token: token,
+        userId: userId,
+      );
+
+      print("AuthService: Fetching job level from: $url");
+
+      Dio dio = Dio();
+      dio.options.connectTimeout = const Duration(seconds: 30);
+      dio.options.receiveTimeout = const Duration(seconds: 30);
+      dio.options.headers['ngrok-skip-browser-warning'] = 'true';
+      dio.options.headers['User-Agent'] = 'AlitaPricelist/1.0';
+
+      final response = await dio.get(url);
+
+      print("AuthService: Job level response status: ${response.statusCode}");
+      print("AuthService: Job level response data: ${response.data}");
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+
+        // Check if data is a list and has items
+        if (data is List && data.isNotEmpty) {
+          // Get the most recent work experience (first item)
+          final workExp = data.first;
+
+          // Extract job level from the response
+          // Adjust these field names based on actual API response
+          final jobLevel = workExp['job_level'] ??
+              workExp['position'] ??
+              workExp['title'] ??
+              workExp['role'];
+
+          print("AuthService: Job level determined: $jobLevel");
+          return jobLevel?.toString();
+        } else if (data is Map) {
+          // If data is a single object
+          final jobLevel = data['job_level'] ??
+              data['position'] ??
+              data['title'] ??
+              data['role'];
+
+          print("AuthService: Job level determined: $jobLevel");
+          return jobLevel?.toString();
+        }
+      }
+
+      print("AuthService: No job level found in response");
+      return null;
+    } catch (e) {
+      print("AuthService: Error fetching job level: $e");
+      return null;
+    }
+  }
+
+  /// Check if user is manager level (for approval monitoring access)
+  static Future<bool> isManagerLevel() async {
+    final jobLevel = await getJobLevel();
+    if (jobLevel == null) return false;
+
+    // Define manager level keywords (adjust based on your job level naming)
+    final managerKeywords = [
+      'manager',
+      'supervisor',
+      'head',
+      'chief',
+      'director',
+      'vp',
+      'vice president',
+      'senior',
+      'lead',
+      'coordinator'
+    ];
+
+    final isManager = managerKeywords.any(
+        (keyword) => jobLevel.toLowerCase().contains(keyword.toLowerCase()));
+
+    print("AuthService: User job level: $jobLevel, isManager: $isManager");
+    return isManager;
+  }
+
   /// Melakukan refresh token dan update session.
   static Future<String?> refreshToken() async {
     final prefs = await SharedPreferences.getInstance();

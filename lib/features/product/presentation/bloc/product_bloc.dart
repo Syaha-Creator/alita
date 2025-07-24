@@ -176,97 +176,6 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       }
     });
 
-    on<UpdateSelectedDivan>((event, emit) {
-      // Filter berdasarkan kasur & divan yang dipilih
-      final filteredProducts = state.products
-          .where((p) =>
-              p.kasur == state.selectedKasur &&
-              p.divan == event.divan &&
-              (!state.isSetActive || p.isSet == true))
-          .toList();
-
-      final headboards =
-          filteredProducts.map((p) => p.headboard).toSet().toList();
-      final sorongs = filteredProducts.map((p) => p.sorong).toSet().toList();
-      final sizes = filteredProducts.map((p) => p.ukuran).toSet().toList();
-
-      // Pilih headboard default
-      String selectedHeadboard =
-          headboards.isNotEmpty ? headboards.first : AppStrings.noHeadboard;
-      if (state.isSetActive &&
-          headboards.length == 2 &&
-          headboards.contains(AppStrings.noHeadboard)) {
-        selectedHeadboard =
-            headboards.firstWhere((h) => h != AppStrings.noHeadboard);
-      }
-
-      emit(state.copyWith(
-        selectedDivan: event.divan,
-        availableHeadboards: headboards,
-        selectedHeadboard: selectedHeadboard,
-        availableSorongs: sorongs,
-        selectedSorong:
-            sorongs.isNotEmpty ? sorongs.first : AppStrings.noSorong,
-        availableSizes: sizes,
-        selectedSize: "",
-      ));
-    });
-
-    on<UpdateSelectedHeadboard>((event, emit) {
-      // Filter berdasarkan kasur, divan, headboard yang dipilih
-      final filteredProducts = state.products
-          .where((p) =>
-              p.kasur == state.selectedKasur &&
-              p.divan == state.selectedDivan &&
-              p.headboard == event.headboard &&
-              (!state.isSetActive || p.isSet == true))
-          .toList();
-
-      final sorongs = filteredProducts.map((p) => p.sorong).toSet().toList();
-      final sizes = filteredProducts.map((p) => p.ukuran).toSet().toList();
-
-      // Pilih sorong default
-      String selectedSorong =
-          sorongs.isNotEmpty ? sorongs.first : AppStrings.noSorong;
-      if (state.isSetActive &&
-          sorongs.length == 2 &&
-          sorongs.contains(AppStrings.noSorong)) {
-        selectedSorong = sorongs.firstWhere((s) => s != AppStrings.noSorong);
-      }
-
-      emit(state.copyWith(
-        selectedHeadboard: event.headboard,
-        availableSorongs: sorongs,
-        selectedSorong: selectedSorong,
-        availableSizes: sizes,
-        selectedSize: "",
-        availablePrograms: [],
-        selectedProgram: "",
-      ));
-    });
-
-    on<UpdateSelectedSorong>((event, emit) {
-      // Filter berdasarkan kasur, divan, headboard, sorong yang dipilih
-      final filteredProducts = state.products
-          .where((p) =>
-              p.kasur == state.selectedKasur &&
-              p.divan == state.selectedDivan &&
-              p.headboard == state.selectedHeadboard &&
-              p.sorong == event.sorong &&
-              (!state.isSetActive || p.isSet == true))
-          .toList();
-
-      final sizes = filteredProducts.map((p) => p.ukuran).toSet().toList();
-
-      emit(state.copyWith(
-        selectedSorong: event.sorong,
-        availableSizes: sizes,
-        selectedSize: "",
-        availablePrograms: [],
-        selectedProgram: "",
-      ));
-    });
-
     on<ToggleSet>((event, emit) {
       final isSetActive = event.isSetActive;
       // Filter produk sesuai kasur yang dipilih dan toggle set
@@ -277,43 +186,42 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
           .toList();
 
       final divans = filteredProducts.map((p) => p.divan).toSet().toList();
-      String selectedDivan =
-          divans.isNotEmpty ? divans.first : AppStrings.noDivan;
-      if (isSetActive &&
-          divans.length == 2 &&
-          divans.contains(AppStrings.noDivan)) {
-        selectedDivan = divans.firstWhere((d) => d != AppStrings.noDivan);
-      }
+      String selectedDivan = divans.contains(AppStrings.noDivan)
+          ? AppStrings.noDivan
+          : (divans.isNotEmpty ? divans.first : AppStrings.noDivan);
 
       final filteredByDivan =
           filteredProducts.where((p) => p.divan == selectedDivan).toList();
       final headboards =
           filteredByDivan.map((p) => p.headboard).toSet().toList();
-      String selectedHeadboard =
-          headboards.isNotEmpty ? headboards.first : AppStrings.noHeadboard;
-      if (isSetActive &&
-          headboards.length == 2 &&
-          headboards.contains(AppStrings.noHeadboard)) {
-        selectedHeadboard =
-            headboards.firstWhere((h) => h != AppStrings.noHeadboard);
-      }
+      String selectedHeadboard = headboards.contains(AppStrings.noHeadboard)
+          ? AppStrings.noHeadboard
+          : (headboards.isNotEmpty ? headboards.first : AppStrings.noHeadboard);
 
       final filteredByHeadboard = filteredByDivan
           .where((p) => p.headboard == selectedHeadboard)
           .toList();
       final sorongs = filteredByHeadboard.map((p) => p.sorong).toSet().toList();
-      String selectedSorong =
-          sorongs.isNotEmpty ? sorongs.first : AppStrings.noSorong;
-      if (isSetActive &&
-          sorongs.length == 2 &&
-          sorongs.contains(AppStrings.noSorong)) {
-        selectedSorong = sorongs.firstWhere((s) => s != AppStrings.noSorong);
-      }
+      String selectedSorong = sorongs.contains(AppStrings.noSorong)
+          ? AppStrings.noSorong
+          : (sorongs.isNotEmpty ? sorongs.first : AppStrings.noSorong);
 
       final filteredBySorong =
           filteredByHeadboard.where((p) => p.sorong == selectedSorong).toList();
       final sizes = filteredBySorong.map((p) => p.ukuran).toSet().toList();
       String selectedSize = sizes.isNotEmpty ? sizes.first : "";
+
+      // Ambil program unik dari hasil filter terakhir
+      final programs = filteredBySorong.map((p) => p.program).toSet().toList();
+      String selectedProgram = "";
+      if (programs.isNotEmpty) {
+        // Cari program yang bukan set
+        final nonSet = programs.firstWhere(
+          (prog) => !prog.toLowerCase().contains('set'),
+          orElse: () => programs.first,
+        );
+        selectedProgram = nonSet;
+      }
 
       emit(state.copyWith(
         isSetActive: isSetActive,
@@ -326,8 +234,152 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         selectedSorong: selectedSorong,
         availableSizes: sizes,
         selectedSize: selectedSize,
-        availablePrograms: [],
-        selectedProgram: "",
+        availablePrograms: programs,
+        selectedProgram: selectedProgram,
+      ));
+    });
+
+    on<UpdateSelectedKasur>((event, emit) {
+      var filteredProducts =
+          state.products.where((p) => p.kasur == event.kasur).toList();
+      if (filteredProducts.isEmpty) {
+        return;
+      }
+      final divans = filteredProducts.map((p) => p.divan).toSet().toList();
+      final headboards =
+          filteredProducts.map((p) => p.headboard).toSet().toList();
+      final sorongs = filteredProducts.map((p) => p.sorong).toSet().toList();
+      final sizes = filteredProducts.map((p) => p.ukuran).toSet().toList();
+      final programs = filteredProducts.map((p) => p.program).toSet().toList();
+      String selectedDivan = divans.contains(AppStrings.noDivan)
+          ? AppStrings.noDivan
+          : (divans.isNotEmpty ? divans.first : AppStrings.noDivan);
+      String selectedHeadboard = headboards.contains(AppStrings.noHeadboard)
+          ? AppStrings.noHeadboard
+          : (headboards.isNotEmpty ? headboards.first : AppStrings.noHeadboard);
+      String selectedSorong = sorongs.contains(AppStrings.noSorong)
+          ? AppStrings.noSorong
+          : (sorongs.isNotEmpty ? sorongs.first : AppStrings.noSorong);
+      String selectedProgram = "";
+      if (programs.isNotEmpty) {
+        final nonSet = programs.firstWhere(
+          (prog) => !prog.toLowerCase().contains('set'),
+          orElse: () => programs.first,
+        );
+        selectedProgram = nonSet;
+      }
+      emit(state.copyWith(
+        selectedKasur: event.kasur,
+        availableDivans: divans,
+        selectedDivan: selectedDivan,
+        availableHeadboards: headboards,
+        selectedHeadboard: selectedHeadboard,
+        availableSorongs: sorongs,
+        selectedSorong: selectedSorong,
+        availableSizes: sizes,
+        selectedSize: "",
+        availablePrograms: programs,
+        selectedProgram: selectedProgram,
+      ));
+    });
+
+    on<UpdateSelectedDivan>((event, emit) {
+      final filteredProducts = state.products
+          .where((p) =>
+              p.kasur == state.selectedKasur &&
+              p.divan == event.divan &&
+              (!state.isSetActive || p.isSet == true))
+          .toList();
+      final headboards =
+          filteredProducts.map((p) => p.headboard).toSet().toList();
+      final sorongs = filteredProducts.map((p) => p.sorong).toSet().toList();
+      final sizes = filteredProducts.map((p) => p.ukuran).toSet().toList();
+      final programs = filteredProducts.map((p) => p.program).toSet().toList();
+      String selectedHeadboard = headboards.contains(AppStrings.noHeadboard)
+          ? AppStrings.noHeadboard
+          : (headboards.isNotEmpty ? headboards.first : AppStrings.noHeadboard);
+      String selectedSorong = sorongs.contains(AppStrings.noSorong)
+          ? AppStrings.noSorong
+          : (sorongs.isNotEmpty ? sorongs.first : AppStrings.noSorong);
+      String selectedProgram = "";
+      if (programs.isNotEmpty) {
+        final nonSet = programs.firstWhere(
+          (prog) => !prog.toLowerCase().contains('set'),
+          orElse: () => programs.first,
+        );
+        selectedProgram = nonSet;
+      }
+      emit(state.copyWith(
+        selectedDivan: event.divan,
+        availableHeadboards: headboards,
+        selectedHeadboard: selectedHeadboard,
+        availableSorongs: sorongs,
+        selectedSorong: selectedSorong,
+        availableSizes: sizes,
+        selectedSize: "",
+        availablePrograms: programs,
+        selectedProgram: selectedProgram,
+      ));
+    });
+
+    on<UpdateSelectedHeadboard>((event, emit) {
+      final filteredProducts = state.products
+          .where((p) =>
+              p.kasur == state.selectedKasur &&
+              p.divan == state.selectedDivan &&
+              p.headboard == event.headboard &&
+              (!state.isSetActive || p.isSet == true))
+          .toList();
+      final sorongs = filteredProducts.map((p) => p.sorong).toSet().toList();
+      final sizes = filteredProducts.map((p) => p.ukuran).toSet().toList();
+      final programs = filteredProducts.map((p) => p.program).toSet().toList();
+      String selectedSorong = sorongs.contains(AppStrings.noSorong)
+          ? AppStrings.noSorong
+          : (sorongs.isNotEmpty ? sorongs.first : AppStrings.noSorong);
+      String selectedProgram = "";
+      if (programs.isNotEmpty) {
+        final nonSet = programs.firstWhere(
+          (prog) => !prog.toLowerCase().contains('set'),
+          orElse: () => programs.first,
+        );
+        selectedProgram = nonSet;
+      }
+      emit(state.copyWith(
+        selectedHeadboard: event.headboard,
+        availableSorongs: sorongs,
+        selectedSorong: selectedSorong,
+        availableSizes: sizes,
+        selectedSize: "",
+        availablePrograms: programs,
+        selectedProgram: selectedProgram,
+      ));
+    });
+
+    on<UpdateSelectedSorong>((event, emit) {
+      final filteredProducts = state.products
+          .where((p) =>
+              p.kasur == state.selectedKasur &&
+              p.divan == state.selectedDivan &&
+              p.headboard == state.selectedHeadboard &&
+              p.sorong == event.sorong &&
+              (!state.isSetActive || p.isSet == true))
+          .toList();
+      final sizes = filteredProducts.map((p) => p.ukuran).toSet().toList();
+      final programs = filteredProducts.map((p) => p.program).toSet().toList();
+      String selectedProgram = "";
+      if (programs.isNotEmpty) {
+        final nonSet = programs.firstWhere(
+          (prog) => !prog.toLowerCase().contains('set'),
+          orElse: () => programs.first,
+        );
+        selectedProgram = nonSet;
+      }
+      emit(state.copyWith(
+        selectedSorong: event.sorong,
+        availableSizes: sizes,
+        selectedSize: "",
+        availablePrograms: programs,
+        selectedProgram: selectedProgram,
       ));
     });
 
@@ -409,40 +461,6 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       ));
     });
 
-    on<UpdateSelectedKasur>((event, emit) {
-      // Filter produk berdasarkan kasur yang dipilih dengan pendekatan yang lebih sederhana
-      var filteredProducts =
-          state.products.where((p) => p.kasur == event.kasur).toList();
-
-      // Jika masih kosong, coba filter yang lebih longgar
-      if (filteredProducts.isEmpty) {
-        return; // Jangan update state jika tidak ada produk
-      }
-
-      final divans = filteredProducts.map((p) => p.divan).toSet().toList();
-      final headboards =
-          filteredProducts.map((p) => p.headboard).toSet().toList();
-      final sorongs = filteredProducts.map((p) => p.sorong).toSet().toList();
-      final sizes = filteredProducts.map((p) => p.ukuran).toSet().toList();
-      final programs = filteredProducts.map((p) => p.program).toSet().toList();
-
-      emit(state.copyWith(
-        selectedKasur: event.kasur,
-        availableDivans: divans, // Populate with available divans
-        selectedDivan: divans.isNotEmpty ? divans.first : AppStrings.noDivan,
-        availableHeadboards: headboards, // Populate with available headboards
-        selectedHeadboard:
-            headboards.isNotEmpty ? headboards.first : AppStrings.noHeadboard,
-        availableSorongs: sorongs, // Populate with available sorongs
-        selectedSorong:
-            sorongs.isNotEmpty ? sorongs.first : AppStrings.noSorong,
-        availableSizes: sizes,
-        selectedSize: "",
-        availablePrograms: programs,
-        selectedProgram: programs.isNotEmpty ? programs.first : "",
-      ));
-    });
-
     on<UpdateSelectedUkuran>((event, emit) {
       emit(state.copyWith(selectedSize: event.ukuran));
     });
@@ -489,7 +507,6 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         final matchesDivan = p.divan == selectedDivan;
         final matchesHeadboard = p.headboard == selectedHeadboard;
         final matchesSorong = p.sorong == selectedSorong;
-        // Perbaiki: jika user memilih ukuran, harus sama persis
         final matchesSize =
             (event.selectedSize != null && event.selectedSize!.isNotEmpty)
                 ? p.ukuran == event.selectedSize

@@ -1,4 +1,3 @@
-// File: lib/config/dependency_injection.dart
 import 'package:dio/dio.dart';
 import 'package:get_it/get_it.dart';
 
@@ -53,7 +52,7 @@ void setupLocator() {
 
   // Approval Feature
   locator.registerLazySingleton<ApprovalRepository>(
-      () => ApprovalRepositoryImpl(dio: locator<Dio>()));
+      () => ApprovalRepository(locator<ApiClient>(), locator<Dio>()));
   locator.registerLazySingleton<CreateApprovalUseCase>(
       () => CreateApprovalUseCase(repository: locator<ApprovalRepository>()));
   locator.registerLazySingleton<GetApprovalsUseCase>(

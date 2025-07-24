@@ -24,8 +24,8 @@ class PDFService {
     required String paymentMethod,
     required double paymentAmount,
     required String repaymentDate,
+    required double grandTotal,
     String? email,
-    String? showroom,
     String? keterangan,
     String? salesName,
   }) async {
@@ -56,18 +56,16 @@ class PDFService {
       isleepLogo,
     ];
 
-    // Hitung total dan sisa bayar
+    // Hitung subtotal dan PPN dari grandTotal
+    final subtotal = grandTotal * 0.89;
+    final ppn = grandTotal - subtotal;
+    // Hitung total EUP semua item (untuk proporsi harga net)
     final selectedItems = cartItems.where((item) => item.isSelected).toList();
-    double subtotal = 0;
-    for (var item in selectedItems) {
-      subtotal += item.netPrice * item.quantity;
-    }
-    double ppn = subtotal * 0.11;
-    double grandTotal = subtotal + ppn;
-    final double sisaPembayaran = grandTotal - paymentAmount;
+    final totalEup = selectedItems.fold<double>(
+        0.0, (sum, item) => sum + (item.netPrice * item.quantity));
 
     // --- PERUBAHAN 1: Tentukan kondisi lunas ---
-    final bool isPaid = sisaPembayaran <= 0;
+    final bool isPaid = grandTotal - paymentAmount <= 0;
 
     final font = await PdfGoogleFonts.poppinsRegular();
     final boldFont = await PdfGoogleFonts.poppinsBold();
@@ -92,7 +90,7 @@ class PDFService {
 
         header: (pw.Context context) {
           if (context.pageNumber == 1) {
-            return _buildHeader(sleepCenterLogo, otherLogos, showroom ?? "-");
+            return _buildHeader(sleepCenterLogo, otherLogos);
           }
           return pw.Container();
         },
@@ -116,7 +114,7 @@ class PDFService {
             deliveryDate: deliveryDate,
           ),
           pw.SizedBox(height: 12),
-          _buildItemsTable(cartItems),
+          _buildItemsTable(cartItems, subtotal, totalEup),
           pw.SizedBox(height: 8),
           _buildNotesAndTotals(
             keterangan: keterangan ?? '-',
@@ -179,8 +177,8 @@ class PDFService {
   }
 
   /// Build header PDF dengan logo dan showroom.
-  static pw.Widget _buildHeader(pw.ImageProvider? sleepCenterLogo,
-      List<pw.ImageProvider?> otherLogos, String showroom) {
+  static pw.Widget _buildHeader(
+      pw.ImageProvider? sleepCenterLogo, List<pw.ImageProvider?> otherLogos) {
     return pw.Column(
       children: [
         if (sleepCenterLogo != null)
@@ -210,19 +208,13 @@ class PDFService {
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            pw.Text('SHOWROOM/PAMERAN: ${showroom.isNotEmpty ? showroom : "-"}',
+            pw.Text('SHOWROOM/PAMERAN: -',
                 style: const pw.TextStyle(fontSize: 9)),
             pw.Text('TANGGAL PEMBELIAN: ${_formatSimpleDate(DateTime.now())}',
                 style: const pw.TextStyle(fontSize: 9)),
           ],
         ),
         pw.Divider(color: PdfColors.black, thickness: 1.5),
-        pw.SizedBox(height: 5),
-        pw.Text('SURAT PESANAN',
-            style: pw.TextStyle(
-                fontSize: 14,
-                fontWeight: pw.FontWeight.bold,
-                decoration: pw.TextDecoration.underline)),
         pw.SizedBox(height: 5),
       ],
     );
@@ -300,7 +292,8 @@ class PDFService {
   }
 
   /// Build tabel item pesanan.
-  static pw.Widget _buildItemsTable(List<CartEntity> items) {
+  static pw.Widget _buildItemsTable(
+      List<CartEntity> items, double subtotal, double totalEup) {
     const tableHeaders = [
       'NO',
       'QTY',
@@ -334,8 +327,8 @@ class PDFService {
       final product = item.product;
 
       double kasurPricelist = (product.plKasur) * item.quantity;
-      double kasurEUP = (product.eupKasur) * item.quantity;
-      double kasurDiscount = kasurPricelist - kasurEUP;
+      double kasurNet = (item.netPrice * item.quantity) * 0.89;
+      double kasurDiscount = kasurPricelist - kasurNet;
       tableRows.add(pw.TableRow(
         children: [
           _buildTableCell((itemNumber++).toString(),
@@ -346,7 +339,7 @@ class PDFService {
               align: pw.TextAlign.right),
           _buildTableCell(FormatHelper.formatCurrency(kasurDiscount),
               align: pw.TextAlign.right),
-          _buildTableCell(FormatHelper.formatCurrency(kasurEUP),
+          _buildTableCell(FormatHelper.formatCurrency(kasurNet),
               align: pw.TextAlign.right),
         ],
       ));
@@ -354,6 +347,7 @@ class PDFService {
         double divanPricelist = (product.plDivan) * item.quantity;
         double divanEUP = (product.eupDivan) * item.quantity;
         double divanDiscount = divanPricelist - divanEUP;
+        double divanNet = totalEup > 0 ? (divanEUP / totalEup) * subtotal : 0;
         tableRows.add(pw.TableRow(
           children: [
             _buildTableCell(''),
@@ -364,7 +358,7 @@ class PDFService {
                 align: pw.TextAlign.right),
             _buildTableCell(FormatHelper.formatCurrency(divanDiscount),
                 align: pw.TextAlign.right),
-            _buildTableCell(FormatHelper.formatCurrency(divanEUP),
+            _buildTableCell(FormatHelper.formatCurrency(divanNet),
                 align: pw.TextAlign.right),
           ],
         ));
@@ -374,6 +368,8 @@ class PDFService {
         double headboardPricelist = (product.plHeadboard) * item.quantity;
         double headboardEUP = (product.eupHeadboard) * item.quantity;
         double headboardDiscount = headboardPricelist - headboardEUP;
+        double headboardNet =
+            totalEup > 0 ? (headboardEUP / totalEup) * subtotal : 0;
         tableRows.add(pw.TableRow(
           children: [
             _buildTableCell(''),
@@ -384,7 +380,7 @@ class PDFService {
                 align: pw.TextAlign.right),
             _buildTableCell(FormatHelper.formatCurrency(headboardDiscount),
                 align: pw.TextAlign.right),
-            _buildTableCell(FormatHelper.formatCurrency(headboardEUP),
+            _buildTableCell(FormatHelper.formatCurrency(headboardNet),
                 align: pw.TextAlign.right),
           ],
         ));
@@ -393,6 +389,7 @@ class PDFService {
         double sorongPricelist = (product.plSorong) * item.quantity;
         double sorongEUP = (product.eupSorong) * item.quantity;
         double sorongDiscount = sorongPricelist - sorongEUP;
+        double sorongNet = totalEup > 0 ? (sorongEUP / totalEup) * subtotal : 0;
         tableRows.add(pw.TableRow(
           children: [
             _buildTableCell(''),
@@ -403,7 +400,7 @@ class PDFService {
                 align: pw.TextAlign.right),
             _buildTableCell(FormatHelper.formatCurrency(sorongDiscount),
                 align: pw.TextAlign.right),
-            _buildTableCell(FormatHelper.formatCurrency(sorongEUP),
+            _buildTableCell(FormatHelper.formatCurrency(sorongNet),
                 align: pw.TextAlign.right),
           ],
         ));

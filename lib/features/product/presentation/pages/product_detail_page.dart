@@ -8,10 +8,9 @@ import '../../domain/entities/product_entity.dart';
 import '../bloc/product_bloc.dart';
 import '../bloc/product_state.dart';
 import '../widgets/product_action.dart';
-import '../../../../services/approval_service.dart';
 import '../../../../core/widgets/custom_toast.dart';
-import '../../../../features/approval/presentation/bloc/approval_bloc.dart';
-import '../../../../features/approval/presentation/bloc/approval_state.dart';
+import '../../../cart/presentation/bloc/cart_bloc.dart';
+import '../../../cart/presentation/bloc/cart_event.dart';
 
 class ProductDetailPage extends StatelessWidget {
   const ProductDetailPage({super.key});
@@ -21,125 +20,77 @@ class ProductDetailPage extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return BlocListener<ApprovalBloc, ApprovalState>(
-      listener: (context, state) {
-        if (state is ApprovalSuccess) {
-          CustomToast.showToast(state.message, ToastType.success);
-        } else if (state is ApprovalError) {
-          CustomToast.showToast(state.message, ToastType.error);
-        }
-      },
-      child: BlocBuilder<ProductBloc, ProductState>(
-        builder: (context, state) {
-          final product = state.selectProduct;
+    return BlocBuilder<ProductBloc, ProductState>(
+      builder: (context, state) {
+        final product = state.selectProduct;
 
-          if (product == null) {
-            return Scaffold(
-              appBar: AppBar(title: const Text("Error")),
-              body: const Center(
-                  child: Text("Produk tidak ditemukan atau belum dipilih.")),
-            );
-          }
-
-          final netPrice =
-              state.roundedPrices[product.id] ?? product.endUserPrice;
-          final discountPercentages =
-              state.productDiscountsPercentage[product.id] ?? [];
-          final editPopupDiscount =
-              state.priceChangePercentages[product.id] ?? 0.0;
-          final totalDiscount = product.pricelist - netPrice;
-          final installmentMonths = state.installmentMonths[product.id];
-          final note = state.productNotes[product.id] ?? "";
-
-          final List<String> combinedDiscounts = [];
-          final programDiscounts = discountPercentages
-              .where((d) => d > 0.0)
-              .map((d) =>
-                  d % 1 == 0 ? "${d.toInt()}%" : "${d.toStringAsFixed(2)}%")
-              .toList();
-          combinedDiscounts.addAll(programDiscounts);
-
+        if (product == null) {
           return Scaffold(
-            body: CustomScrollView(
-              slivers: [
-                SliverAppBar(
-                  expandedHeight: 120,
-                  pinned: true,
-                  stretch: true,
-                  backgroundColor:
-                      isDark ? AppColors.primaryDark : AppColors.primaryLight,
-                  flexibleSpace: FlexibleSpaceBar(
-                    centerTitle: true,
-                    title: Text(
-                      '${product.kasur} (${product.ukuran})',
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16.0,
-                          fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                    ),
-                    background: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                                colors: [
-                                  isDark
-                                      ? AppColors.primaryDark
-                                      : AppColors.primaryLight,
-                                  (isDark
-                                          ? AppColors.primaryDark
-                                          : AppColors.primaryLight)
-                                      .withOpacity(0.7)
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight),
-                          ),
-                        ),
-                        LayoutBuilder(builder: (context, constraints) {
-                          final top = constraints.biggest.height;
-                          final double opacity =
-                              (top - kToolbarHeight) / (200.0 - kToolbarHeight);
+            appBar: AppBar(title: const Text("Error")),
+            body: const Center(
+                child: Text("Produk tidak ditemukan atau belum dipilih.")),
+          );
+        }
 
-                          return Opacity(
-                            opacity: opacity.clamp(0.0, 1.0),
-                            child: const Icon(
-                              Icons.king_bed_outlined,
-                              size: 100,
-                              color: Colors.white24,
-                            ),
-                          );
-                        }),
-                      ],
-                    ),
+        final netPrice =
+            state.roundedPrices[product.id] ?? product.endUserPrice;
+        final discountPercentages =
+            state.productDiscountsPercentage[product.id] ?? [];
+        final editPopupDiscount =
+            state.priceChangePercentages[product.id] ?? 0.0;
+        final totalDiscount = product.pricelist - netPrice;
+        final installmentMonths = state.installmentMonths[product.id];
+        final note = state.productNotes[product.id] ?? "";
+
+        final List<String> combinedDiscounts = [];
+        final programDiscounts = discountPercentages
+            .where((d) => d > 0.0)
+            .map((d) =>
+                d % 1 == 0 ? "${d.toInt()}%" : "${d.toStringAsFixed(2)}%")
+            .toList();
+        combinedDiscounts.addAll(programDiscounts);
+
+        return Scaffold(
+          body: CustomScrollView(
+            slivers: [
+              SliverAppBar(
+                pinned: true,
+                stretch: false,
+                backgroundColor:
+                    isDark ? AppColors.primaryDark : AppColors.primaryLight,
+                title: Text(
+                  '${product.kasur} (${product.ukuran})',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16.0,
+                      fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.share),
+                    onPressed: () =>
+                        ProductActions.showSharePopup(context, product),
+                    tooltip: 'Bagikan Produk',
                   ),
-                  actions: [
-                    IconButton(
-                      icon: const Icon(Icons.share),
-                      onPressed: () =>
-                          ProductActions.showSharePopup(context, product),
-                      tooltip: 'Bagikan Produk',
-                    ),
+                ],
+              ),
+              SliverList(
+                delegate: SliverChildListDelegate(
+                  [
+                    _buildPriceCard(product, netPrice, totalDiscount,
+                        combinedDiscounts, installmentMonths, isDark),
+                    _buildDetailCard(product, isDark),
+                    _buildBonusAndNotesCard(product, note, isDark),
+                    const SizedBox(height: 75),
                   ],
                 ),
-                SliverList(
-                  delegate: SliverChildListDelegate(
-                    [
-                      _buildPriceCard(product, netPrice, totalDiscount,
-                          combinedDiscounts, installmentMonths, isDark),
-                      _buildDetailCard(product, isDark),
-                      _buildBonusAndNotesCard(product, note, isDark),
-                      const SizedBox(height: 75),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            bottomSheet: _buildActionButtons(context, product, state, isDark),
-          );
-        },
-      ),
+              ),
+            ],
+          ),
+          bottomSheet: _buildActionButtons(context, product, state, isDark),
+        );
+      },
     );
   }
 
@@ -415,11 +366,12 @@ class ProductDetailPage extends StatelessWidget {
             ],
           ),
           ElevatedButton.icon(
-            onPressed: () => _showApprovalDialog(context, product),
-            icon: const Icon(Icons.approval),
-            label: const Text('Send for Approval'),
+            onPressed: () => _addToCart(context, product),
+            icon: const Icon(Icons.shopping_cart, color: Colors.white),
+            label: const Text('Add to Cart',
+                style: TextStyle(color: Colors.white)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.warning,
+              backgroundColor: AppColors.primaryLight,
               foregroundColor: Colors.white,
             ),
           ),
@@ -523,117 +475,29 @@ class ProductDetailPage extends StatelessWidget {
     );
   }
 
-  Future<void> _showApprovalDialog(
-      BuildContext context, ProductEntity product) async {
-    final customerNameController = TextEditingController();
-    final customerPhoneController = TextEditingController();
-    final quantityController =
-        TextEditingController(text: '1'); // Default quantity
+  Future<void> _addToCart(BuildContext context, ProductEntity product) async {
+    try {
+      // Get current product state for discounts and net price
+      final productState = context.read<ProductBloc>().state;
+      final discountPercentages =
+          productState.productDiscountsPercentage[product.id] ?? [];
+      final netPrice =
+          productState.roundedPrices[product.id] ?? product.endUserPrice;
+      final installmentMonths = productState.installmentMonths[product.id];
 
-    return showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Send for Approval'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: customerNameController,
-              decoration: const InputDecoration(
-                labelText: 'Customer Name',
-                hintText: 'Enter customer name',
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: customerPhoneController,
-              decoration: const InputDecoration(
-                labelText: 'Customer Phone',
-                hintText: 'Enter customer phone number',
-              ),
-              keyboardType: TextInputType.phone,
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: quantityController,
-              decoration: const InputDecoration(
-                labelText: 'Quantity',
-                hintText: 'Enter quantity',
-              ),
-              keyboardType: TextInputType.number,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (customerNameController.text.isEmpty ||
-                  customerPhoneController.text.isEmpty ||
-                  quantityController.text.isEmpty) {
-                CustomToast.showToast(
-                    'Please fill in all fields', ToastType.error);
-                return;
-              }
+      // Add to cart using CartBloc directly, hanya gunakan discountPercentages
+      context.read<CartBloc>().add(AddToCart(
+            product: product,
+            quantity: 1,
+            netPrice: netPrice,
+            discountPercentages: discountPercentages,
+            installmentMonths: installmentMonths,
+          ));
 
-              final quantity = int.tryParse(quantityController.text);
-              if (quantity == null || quantity <= 0) {
-                CustomToast.showToast(
-                    'Please enter a valid quantity', ToastType.error);
-                return;
-              }
-
-              Navigator.of(dialogContext).pop();
-
-              // Show loading
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (loadingContext) =>
-                    const Center(child: CircularProgressIndicator()),
-              );
-
-              try {
-                // Get current product state for discount percentages
-                final productState = context.read<ProductBloc>().state;
-                final discountPercentages =
-                    productState.productDiscountsPercentage[product.id] ?? [];
-                final netPrice = productState.roundedPrices[product.id] ??
-                    product.endUserPrice;
-                final editPopupDiscount =
-                    productState.priceChangePercentages[product.id] ?? 0.0;
-
-                final result = await ApprovalService.createApprovalFromProduct(
-                  product: product,
-                  quantity: quantity,
-                  netPrice: netPrice,
-                  customerName: customerNameController.text,
-                  customerPhone: customerPhoneController.text,
-                  discountPercentages: discountPercentages,
-                  editPopupDiscount: editPopupDiscount,
-                );
-
-                Navigator.of(context).pop(); // Close loading
-
-                if (result['success']) {
-                  CustomToast.showToast(
-                      'Approval request sent successfully', ToastType.success);
-                } else {
-                  CustomToast.showToast(result['message'], ToastType.error);
-                }
-              } catch (e) {
-                Navigator.of(context).pop(); // Close loading
-                CustomToast.showToast(
-                    'Error sending approval: $e', ToastType.error);
-              }
-            },
-            child: const Text('Send'),
-          ),
-        ],
-      ),
-    );
+      CustomToast.showToast(
+          'Product added to cart successfully', ToastType.success);
+    } catch (e) {
+      CustomToast.showToast('Error adding to cart: $e', ToastType.error);
+    }
   }
 }

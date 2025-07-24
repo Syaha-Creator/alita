@@ -9,10 +9,8 @@ import '../bloc/cart_event.dart';
 import '../bloc/cart_state.dart';
 import '../widgets/cart_item.dart';
 import 'checkout_pages.dart';
-import '../../../../services/approval_service.dart';
 import '../../../../core/widgets/custom_toast.dart';
-import '../../../../features/approval/presentation/bloc/approval_bloc.dart';
-import '../../../../features/approval/presentation/bloc/approval_state.dart';
+import 'checkout_user_info_dialog.dart';
 
 class CartPage extends StatelessWidget {
   const CartPage({super.key});
@@ -22,11 +20,9 @@ class CartPage extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return BlocListener<ApprovalBloc, ApprovalState>(
+    return BlocListener<CartBloc, CartState>(
       listener: (context, state) {
-        if (state is ApprovalSuccess) {
-          CustomToast.showToast(state.message, ToastType.success);
-        } else if (state is ApprovalError) {
+        if (state is CartError) {
           CustomToast.showToast(state.message, ToastType.error);
         }
       },
@@ -143,14 +139,24 @@ class CartPage extends StatelessWidget {
                               child: ElevatedButton(
                                 onPressed: selectedItems.isEmpty
                                     ? null
-                                    : () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                const CheckoutPages(),
-                                          ),
+                                    : () async {
+                                        final result = await showDialog<CheckoutDialogResult>(
+                                          context: context,
+                                          builder: (context) => CheckoutUserInfoDialog(),
                                         );
+                                        if (result != null) {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) => CheckoutPages(
+                                                userName: result.name,
+                                                userPhone: result.phone,
+                                                userEmail: result.email,
+                                                isTakeAway: result.isTakeAway,
+                                              ),
+                                            ),
+                                          );
+                                        }
                                       },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: isDark
@@ -172,19 +178,6 @@ class CartPage extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            if (state.cartItems.isNotEmpty) ...[
-                              const SizedBox(height: 16),
-                              ElevatedButton.icon(
-                                onPressed: () => _showApprovalDialog(context),
-                                icon: const Icon(Icons.approval),
-                                label: const Text('Send Cart for Approval'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.warning,
-                                  foregroundColor: Colors.white,
-                                  minimumSize: const Size(double.infinity, 50),
-                                ),
-                              ),
-                            ],
                           ],
                         );
                       }
@@ -264,95 +257,6 @@ class CartPage extends StatelessWidget {
           ],
         );
       },
-    );
-  }
-
-  Future<void> _showApprovalDialog(BuildContext context) async {
-    final customerNameController = TextEditingController();
-    final customerPhoneController = TextEditingController();
-
-    return showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Send Cart for Approval'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: customerNameController,
-              decoration: const InputDecoration(
-                labelText: 'Customer Name',
-                hintText: 'Enter customer name',
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: customerPhoneController,
-              decoration: const InputDecoration(
-                labelText: 'Customer Phone',
-                hintText: 'Enter customer phone number',
-              ),
-              keyboardType: TextInputType.phone,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (customerNameController.text.isEmpty ||
-                  customerPhoneController.text.isEmpty) {
-                CustomToast.showToast(
-                    'Please fill in all fields', ToastType.error);
-                return;
-              }
-
-              Navigator.of(dialogContext).pop();
-
-              // Show loading
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (loadingContext) =>
-                    const Center(child: CircularProgressIndicator()),
-              );
-
-              try {
-                final cartState = context.read<CartBloc>().state;
-                if (cartState is CartLoaded) {
-                  final result = await ApprovalService.createApprovalFromCart(
-                    cartItems: cartState.cartItems,
-                    customerName: customerNameController.text,
-                    customerPhone: customerPhoneController.text,
-                  );
-
-                  Navigator.of(context).pop(); // Close loading
-
-                  if (result['success']) {
-                    CustomToast.showToast('Approval request sent successfully',
-                        ToastType.success);
-                    // Clear cart after successful approval
-                    context.read<CartBloc>().add(ClearCart());
-                  } else {
-                    CustomToast.showToast(result['message'], ToastType.error);
-                  }
-                } else {
-                  Navigator.of(context).pop(); // Close loading
-                  CustomToast.showToast('Cart is empty', ToastType.error);
-                }
-              } catch (e) {
-                Navigator.of(context).pop(); // Close loading
-                CustomToast.showToast(
-                    'Error sending approval: $e', ToastType.error);
-              }
-            },
-            child: const Text('Send'),
-          ),
-        ],
-      ),
     );
   }
 }

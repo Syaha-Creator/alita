@@ -15,7 +15,6 @@ class AddToCart extends CartEvent {
   final int quantity;
   final double netPrice;
   final List<double> discountPercentages;
-  final double editPopupDiscount;
   final int? installmentMonths;
   final double? installmentPerMonth;
 
@@ -24,7 +23,6 @@ class AddToCart extends CartEvent {
     required this.quantity,
     required this.netPrice,
     required this.discountPercentages,
-    required this.editPopupDiscount,
     this.installmentMonths,
     this.installmentPerMonth,
   });
@@ -35,7 +33,6 @@ class AddToCart extends CartEvent {
         quantity,
         netPrice,
         discountPercentages,
-        editPopupDiscount,
         installmentMonths,
         installmentPerMonth,
       ];

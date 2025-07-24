@@ -13,74 +13,12 @@ class CreateApprovalUseCase {
     required List<double> discounts,
   }) async {
     try {
-      // 1. Create Order Letter (header)
-      final orderLetterResult = await repository.createOrderLetter(orderLetter);
-
-      if (!orderLetterResult['success']) {
-        return orderLetterResult;
-      }
-
-      final orderLetterId = orderLetterResult['orderLetterId'];
-      final noSp = orderLetterResult['noSp'];
-
-      // 2. Create Order Letter Details (loop per item)
-      final List<Map<String, dynamic>> detailResults = [];
-
-      for (final detail in details) {
-        // Update detail with order letter id and no_sp
-        final updatedDetail = OrderLetterDetailModel(
-          orderLetterId: orderLetterId,
-          noSp: noSp,
-          qty: detail.qty,
-          unitPrice: detail.unitPrice,
-          itemNumber: detail.itemNumber,
-          desc1: detail.desc1,
-          desc2: detail.desc2,
-          brand: detail.brand,
-          itemType: detail.itemType,
-        );
-
-        final detailResult =
-            await repository.createOrderLetterDetail(updatedDetail);
-        detailResults.add(detailResult);
-
-        // If any detail fails, return error
-        if (!detailResult['success']) {
-          return {
-            'success': false,
-            'message': 'Failed to create detail:  [${detailResult['message']}',
-            'orderLetterResult': orderLetterResult,
-            'detailResults': detailResults,
-          };
-        }
-      }
-
-      // 3. Post tiered discounts if any
-      Map<String, dynamic>? discountResult;
-      if (discounts.isNotEmpty) {
-        discountResult = await repository.postOrderLetterDiscounts(
-          orderLetterId: orderLetterId,
-          discounts: discounts,
-        );
-        if (!(discountResult['success'] ?? false)) {
-          return {
-            'success': false,
-            'message':
-                'Failed to post discounts:  [${discountResult['message']}',
-            'orderLetterResult': orderLetterResult,
-            'detailResults': detailResults,
-            'discountResult': discountResult,
-          };
-        }
-      }
-
-      return {
-        'success': true,
-        'message': 'Approval created successfully',
-        'orderLetterResult': orderLetterResult,
-        'detailResults': detailResults,
-        if (discountResult != null) 'discountResult': discountResult,
-      };
+      // Use the new createApproval method that handles everything
+      return await repository.createApproval(
+        orderLetter: orderLetter,
+        details: details,
+        discounts: discounts,
+      );
     } catch (e) {
       return {
         'success': false,
@@ -89,3 +27,4 @@ class CreateApprovalUseCase {
     }
   }
 }
+ 

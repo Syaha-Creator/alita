@@ -45,7 +45,10 @@ class ApprovalBloc extends Bloc<ApprovalEvent, ApprovalState> {
       GetApprovals event, Emitter<ApprovalState> emit) async {
     emit(ApprovalLoading());
     try {
-      final result = await getApprovalsUseCase(creator: event.creator);
+      // If manager, get all approvals, otherwise get only user's approvals
+      final result = await getApprovalsUseCase(
+        creator: event.isManager ? null : event.creator,
+      );
 
       final orderLetters = result['orderLetters'] as List;
       final orderLetterDetails = result['orderLetterDetails'] as List;

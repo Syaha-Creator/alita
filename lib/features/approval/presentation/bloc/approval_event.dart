@@ -25,12 +25,17 @@ class CreateApproval extends ApprovalEvent {
 }
 
 class GetApprovals extends ApprovalEvent {
-  final String? creator;
+  final String creator;
+  final bool isManager;
 
-  const GetApprovals({this.creator});
+  const GetApprovals({
+    required this.creator,
+    this.isManager = false,
+  });
 
   @override
-  List<Object?> get props => [creator];
+  List<Object?> get props => [creator, isManager];
 }
 
 class ClearApprovalState extends ApprovalEvent {}
+ 
