@@ -50,8 +50,29 @@ class ApprovalBloc extends Bloc<ApprovalEvent, ApprovalState> {
       final orderLetters = result['orderLetters'] as List;
       final orderLetterDetails = result['orderLetterDetails'] as List;
 
+      // Sort order letters by creation/update time (newest first)
+      final sortedOrderLetters = List<dynamic>.from(orderLetters);
+      sortedOrderLetters.sort((a, b) {
+        // Try to use updatedAt first (most recent activity), then createdAt, then ID
+        final timeA = a.updatedAt ?? a.createdAt ?? '';
+        final timeB = b.updatedAt ?? b.createdAt ?? '';
+
+        if (timeA.isNotEmpty && timeB.isNotEmpty) {
+          final dateTimeA = DateTime.tryParse(timeA);
+          final dateTimeB = DateTime.tryParse(timeB);
+          if (dateTimeA != null && dateTimeB != null) {
+            return dateTimeB.compareTo(dateTimeA); // Newest first
+          }
+        }
+
+        // Fallback to ID (higher ID = newer)
+        final idA = a.id ?? 0;
+        final idB = b.id ?? 0;
+        return idB.compareTo(idA); // Higher ID first (newer)
+      });
+
       emit(ApprovalsLoaded(
-        orderLetters: orderLetters.cast(),
+        orderLetters: sortedOrderLetters.cast(),
         orderLetterDetails: orderLetterDetails.cast(),
       ));
     } catch (e) {

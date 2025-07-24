@@ -10,6 +10,8 @@ import '../bloc/approval_event.dart';
 import '../bloc/approval_state.dart';
 import '../../../../services/auth_service.dart';
 
+enum FilterPeriod { all, daily, weekly, monthly }
+
 class ApprovalMonitoringPage extends StatefulWidget {
   const ApprovalMonitoringPage({super.key});
 
@@ -19,6 +21,7 @@ class ApprovalMonitoringPage extends StatefulWidget {
 
 class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage> {
   String? currentUser;
+  FilterPeriod selectedPeriod = FilterPeriod.all;
 
   @override
   void initState() {
@@ -47,6 +50,11 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage> {
       appBar: AppBar(
         title: const Text('Approval Monitoring'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.filter_list),
+            onPressed: () => _showFilterDialog(context),
+            tooltip: 'Filter',
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
@@ -112,14 +120,186 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage> {
           }
 
           if (state is ApprovalsLoaded) {
-            return _buildApprovalList(
-                state.orderLetters, state.orderLetterDetails, isDark);
+            final filteredApprovals = _getFilteredApprovals(state.orderLetters);
+            return Column(
+              children: [
+                _buildStatistics(filteredApprovals, state.orderLetters, isDark),
+                Expanded(
+                  child: _buildApprovalList(
+                      filteredApprovals, state.orderLetterDetails, isDark),
+                ),
+              ],
+            );
           }
 
           return const Center(
             child: Text('No approval data available'),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildStatistics(
+    List<OrderLetterModel> filteredApprovals,
+    List<OrderLetterModel> allApprovals,
+    bool isDark,
+  ) {
+    final totalApprovals = filteredApprovals.length;
+    final pendingApprovals = filteredApprovals
+        .where((approval) => approval.status == 'Pending')
+        .length;
+    final approvedApprovals = filteredApprovals
+        .where((approval) => approval.status == 'Approved')
+        .length;
+    final rejectedApprovals = filteredApprovals
+        .where((approval) => approval.status == 'Rejected')
+        .length;
+
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.cardDark : AppColors.cardLight,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.analytics_outlined,
+                color: isDark ? AppColors.accentDark : AppColors.accentLight,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Statistik ${_getPeriodText(selectedPeriod)}',
+                style: GoogleFonts.montserrat(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  'Total',
+                  totalApprovals.toString(),
+                  Icons.list_alt,
+                  isDark ? AppColors.primaryDark : AppColors.primaryLight,
+                  isDark,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildStatCard(
+                  'Pending',
+                  pendingApprovals.toString(),
+                  Icons.pending,
+                  Colors.orange,
+                  isDark,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildStatCard(
+                  'Approved',
+                  approvedApprovals.toString(),
+                  Icons.check_circle,
+                  Colors.green,
+                  isDark,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildStatCard(
+                  'Rejected',
+                  rejectedApprovals.toString(),
+                  Icons.cancel,
+                  Colors.red,
+                  isDark,
+                ),
+              ),
+            ],
+          ),
+          if (pendingApprovals > 0) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.warning_amber,
+                    color: Colors.orange,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '$pendingApprovals approval perlu di-follow up',
+                      style: GoogleFonts.montserrat(
+                        fontSize: 12,
+                        color: Colors.orange,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+    bool isDark,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: GoogleFonts.montserrat(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          Text(
+            title,
+            style: GoogleFonts.montserrat(
+              fontSize: 10,
+              color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -143,7 +323,9 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage> {
             ),
             const SizedBox(height: 16),
             Text(
-              'No Approvals Found',
+              selectedPeriod == FilterPeriod.all 
+                  ? 'No Approvals Found'
+                  : 'No Approvals in ${_getPeriodText(selectedPeriod)}',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -154,7 +336,9 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              'No approval requests have been submitted yet.',
+              selectedPeriod == FilterPeriod.all
+                  ? 'No approval requests have been submitted yet.'
+                  : 'No approval requests found for the selected period.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: isDark
@@ -482,5 +666,119 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage> {
       ),
     );
   }
+
+  void _showFilterDialog(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            'Filter Approval',
+            style: GoogleFonts.montserrat(
+              fontWeight: FontWeight.bold,
+              color: isDark
+                  ? AppColors.textPrimaryDark
+                  : AppColors.textPrimaryLight,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: FilterPeriod.values.map((period) {
+              return RadioListTile<FilterPeriod>(
+                title: Text(
+                  _getPeriodText(period),
+                  style: GoogleFonts.montserrat(
+                    color: isDark
+                        ? AppColors.textPrimaryDark
+                        : AppColors.textPrimaryLight,
+                  ),
+                ),
+                value: period,
+                groupValue: selectedPeriod,
+                onChanged: (FilterPeriod? value) {
+                  setState(() {
+                    selectedPeriod = value!;
+                  });
+                  Navigator.of(context).pop();
+                },
+                activeColor:
+                    isDark ? AppColors.accentDark : AppColors.accentLight,
+              );
+            }).toList(),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.montserrat(
+                  color: isDark
+                      ? AppColors.textSecondaryDark
+                      : AppColors.textSecondaryLight,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  String _getPeriodText(FilterPeriod period) {
+    switch (period) {
+      case FilterPeriod.all:
+        return 'Semua Approval';
+      case FilterPeriod.daily:
+        return 'Hari Ini';
+      case FilterPeriod.weekly:
+        return 'Minggu Ini';
+      case FilterPeriod.monthly:
+        return 'Bulan Ini';
+    }
+  }
+
+  List<OrderLetterModel> _getFilteredApprovals(
+      List<OrderLetterModel> allApprovals) {
+    if (selectedPeriod == FilterPeriod.all) {
+      return allApprovals;
+    }
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    return allApprovals.where((approval) {
+      final approvalDate = _getApprovalDate(approval);
+      if (approvalDate == null) return false;
+
+      switch (selectedPeriod) {
+        case FilterPeriod.daily:
+          return approvalDate.isAfter(today.subtract(const Duration(days: 1)));
+        case FilterPeriod.weekly:
+          final weekAgo = today.subtract(const Duration(days: 7));
+          return approvalDate.isAfter(weekAgo);
+        case FilterPeriod.monthly:
+          final monthAgo = DateTime(now.year, now.month - 1, now.day);
+          return approvalDate.isAfter(monthAgo);
+        case FilterPeriod.all:
+          return true;
+      }
+    }).toList();
+  }
+
+  DateTime? _getApprovalDate(OrderLetterModel approval) {
+    // Try to get the most accurate date
+    if (approval.updatedAt != null) {
+      return DateTime.tryParse(approval.updatedAt!);
+    }
+    if (approval.createdAt != null) {
+      return DateTime.tryParse(approval.createdAt!);
+    }
+    if (approval.orderDate != null) {
+      return DateTime.tryParse(approval.orderDate!);
+    }
+    return null;
+  }
 }
- 
