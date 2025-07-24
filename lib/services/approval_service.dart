@@ -163,7 +163,7 @@ class ApprovalService {
             if (bonusItemNumber != null && bonusItemNumber.isNotEmpty) {
               details.add(OrderLetterDetailModel(
                 qty: bonus.quantity,
-                unitPrice: 0, // Bonus items are free
+                unitPrice: 0,
                 itemNumber: bonusItemNumber,
                 desc1: bonus.name,
                 desc2: 'Bonus',
