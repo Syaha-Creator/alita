@@ -98,3 +98,5 @@ class Checkout extends CartEvent {
   List<Object?> get props =>
       [totalPrice, promoCode, paymentMethod, shippingAddress];
 }
+
+class ReloadCartForUser extends CartEvent {}

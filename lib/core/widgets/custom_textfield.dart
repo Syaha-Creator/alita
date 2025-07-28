@@ -13,6 +13,7 @@ class CustomTextField extends StatefulWidget {
   final String? Function(String?)? validator;
   final FocusNode? focusNode;
   final Function(String)? onFieldSubmitted;
+  final bool? enabled;
 
   const CustomTextField({
     super.key,
@@ -28,6 +29,7 @@ class CustomTextField extends StatefulWidget {
     this.validator,
     this.focusNode,
     this.onFieldSubmitted,
+    this.enabled,
   });
 
   @override
@@ -48,6 +50,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
       onFieldSubmitted: widget.onFieldSubmitted,
       onChanged: widget.onChanged,
       validator: widget.validator,
+      enabled: widget.enabled,
       decoration: InputDecoration(
         labelText: widget.labelText,
         hintText: widget.hintText,

@@ -91,13 +91,6 @@ class _ProductPageState extends State<ProductPage> {
                 size: 28,
               ),
             ),
-            IconButton(
-              icon: const Icon(Icons.approval),
-              onPressed: () {
-                context.push(RoutePaths.approvalMonitoring);
-              },
-              tooltip: 'Approval Monitoring',
-            ),
             LogoutButton(),
           ],
         ),
@@ -175,313 +168,313 @@ class _ProductPageState extends State<ProductPage> {
               return SingleChildScrollView(
                 controller: _scrollController,
                 child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Show area info
-                  if (state.isUserAreaSet ||
-                      (state.selectedBrand == BrandEnum.springair.value ||
-                          state.selectedBrand == BrandEnum.therapedic.value))
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                          color: (state.selectedBrand ==
-                                      BrandEnum.springair.value ||
-                                    state.selectedBrand ==
-                                        BrandEnum.therapedic.value)
-                                ? (theme.brightness == Brightness.dark
-                                    ? AppColors.accentDark.withOpacity(0.1)
-                                    : Colors.blue[50])
-                                : (theme.brightness == Brightness.dark
-                                    ? AppColors.success.withOpacity(0.1)
-                                    : Colors.green[50]),
-                        border: Border.all(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Show area info
+                    if (state.isUserAreaSet ||
+                        (state.selectedBrand == BrandEnum.springair.value ||
+                            state.selectedBrand == BrandEnum.therapedic.value))
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
                           color: (state.selectedBrand ==
                                       BrandEnum.springair.value ||
                                   state.selectedBrand ==
                                       BrandEnum.therapedic.value)
                               ? (theme.brightness == Brightness.dark
-                                  ? AppColors.accentDark.withOpacity(0.3)
-                                  : Colors.blue[200]!)
+                                  ? AppColors.accentDark.withOpacity(0.1)
+                                  : Colors.blue[50])
                               : (theme.brightness == Brightness.dark
-                                  ? AppColors.success.withOpacity(0.3)
-                                  : Colors.green[200]!),
-                        ),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.location_on,
+                                  ? AppColors.success.withOpacity(0.1)
+                                  : Colors.green[50]),
+                          border: Border.all(
                             color: (state.selectedBrand ==
                                         BrandEnum.springair.value ||
                                     state.selectedBrand ==
                                         BrandEnum.therapedic.value)
-                                ? (isDark
-                                    ? AppColors.accentDark
-                                    : Colors.blue[600])
-                                : (isDark
-                                    ? AppColors.success
-                                    : Colors.green[600]),
-                            size: 24,
+                                ? (theme.brightness == Brightness.dark
+                                    ? AppColors.accentDark.withOpacity(0.3)
+                                    : Colors.blue[200]!)
+                                : (theme.brightness == Brightness.dark
+                                    ? AppColors.success.withOpacity(0.3)
+                                    : Colors.green[200]!),
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.location_on,
+                              color: (state.selectedBrand ==
+                                          BrandEnum.springair.value ||
+                                      state.selectedBrand ==
+                                          BrandEnum.therapedic.value)
+                                  ? (isDark
+                                      ? AppColors.accentDark
+                                      : Colors.blue[600])
+                                  : (isDark
+                                      ? AppColors.success
+                                      : Colors.green[600]),
+                              size: 24,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Area Anda",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: (state.selectedBrand ==
+                                                  BrandEnum.springair.value ||
+                                              state.selectedBrand ==
+                                                  BrandEnum.therapedic.value)
+                                          ? (isDark
+                                              ? AppColors.accentDark
+                                              : Colors.blue[600])
+                                          : (isDark
+                                              ? AppColors.success
+                                              : Colors.green[600]),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  // Show dropdown area for non-national brands
+                                  if (state.selectedBrand != null &&
+                                      state.selectedBrand !=
+                                          BrandEnum.springair.value &&
+                                      state.selectedBrand !=
+                                          BrandEnum.therapedic.value) ...[
+                                    DropdownButton<String>(
+                                      key: ValueKey(state.selectedArea),
+                                      value: state.selectedArea,
+                                      underline: Container(),
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w900,
+                                        color: isDark
+                                            ? AppColors.textPrimaryDark
+                                            : AppColors.textPrimaryLight,
+                                      ),
+                                      items: AreaEnum.values.map((area) {
+                                        return DropdownMenuItem<String>(
+                                          value: area.value,
+                                          child: Text(area.value),
+                                        );
+                                      }).toList(),
+                                      onChanged: (String? newValue) {
+                                        if (newValue != null) {
+                                          context.read<ProductBloc>().add(
+                                              UpdateSelectedArea(newValue));
+                                        }
+                                      },
+                                    ),
+                                  ] else ...[
+                                    Text(
+                                      state.selectedArea ?? "Unknown",
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w900,
+                                        color: isDark
+                                            ? AppColors.textPrimaryDark
+                                            : AppColors.textPrimaryLight,
+                                      ),
+                                    ),
+                                  ],
+                                  if (state.selectedBrand ==
+                                          BrandEnum.springair.value ||
+                                      state.selectedBrand ==
+                                          BrandEnum.therapedic.value)
+                                    Text(
+                                      "Brand ${state.selectedBrand} menggunakan Area Nasional untuk pencarian",
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: isDark
+                                            ? AppColors.accentDark
+                                            : Colors.blue[600],
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            Row(
                               children: [
-                                Text(
-                                  "Area Anda",
-                                  style: TextStyle(
-                                    fontSize: 12,
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
                                     color: (state.selectedBrand ==
                                                 BrandEnum.springair.value ||
                                             state.selectedBrand ==
                                                 BrandEnum.therapedic.value)
                                         ? (isDark
                                             ? AppColors.accentDark
-                                            : Colors.blue[600])
+                                                .withOpacity(0.2)
+                                            : Colors.blue[100])
                                         : (isDark
-                                            ? AppColors.success
-                                            : Colors.green[600]),
-                                    fontWeight: FontWeight.w500,
+                                            ? AppColors.success.withOpacity(0.2)
+                                            : Colors.green[100]),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    (state.selectedBrand ==
+                                                BrandEnum.springair.value ||
+                                            state.selectedBrand ==
+                                                BrandEnum.therapedic.value)
+                                        ? "Nasional"
+                                        : "Default",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: (state.selectedBrand ==
+                                                  BrandEnum.springair.value ||
+                                              state.selectedBrand ==
+                                                  BrandEnum.therapedic.value)
+                                          ? (isDark
+                                              ? AppColors.accentDark
+                                              : Colors.blue[700])
+                                          : (isDark
+                                              ? AppColors.success
+                                              : Colors.green[700]),
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                 ),
-                                // Show dropdown area for non-national brands
-                                if (state.selectedBrand != null &&
+
+                                // Show reset area button for non-national brands
+                                if (state.userSelectedArea != null &&
+                                    state.selectedBrand != null &&
                                     state.selectedBrand !=
                                         BrandEnum.springair.value &&
                                     state.selectedBrand !=
                                         BrandEnum.therapedic.value) ...[
-                                  DropdownButton<String>(
-                                    key: ValueKey(state.selectedArea),
-                                    value: state.selectedArea,
-                                    underline: Container(),
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w900,
-                                      color: isDark
-                                          ? AppColors.textPrimaryDark
-                                          : AppColors.textPrimaryLight,
-                                    ),
-                                    items: AreaEnum.values.map((area) {
-                                      return DropdownMenuItem<String>(
-                                        value: area.value,
-                                        child: Text(area.value),
-                                      );
-                                    }).toList(),
-                                    onChanged: (String? newValue) {
-                                      if (newValue != null) {
-                                          context.read<ProductBloc>().add(
-                                              UpdateSelectedArea(newValue));
-                                      }
-                                    },
-                                  ),
-                                ] else ...[
-                                  Text(
-                                    state.selectedArea ?? "Unknown",
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w900,
-                                      color: isDark
-                                          ? AppColors.textPrimaryDark
-                                          : AppColors.textPrimaryLight,
+                                  const SizedBox(width: 8),
+                                  Tooltip(
+                                    message: "Reset ke area default",
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        context
+                                            .read<ProductBloc>()
+                                            .add(ResetUserSelectedArea());
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.orange[100],
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                        ),
+                                        child: Icon(
+                                          Icons.refresh,
+                                          size: 16,
+                                          color: Colors.orange[700],
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ],
-                                if (state.selectedBrand ==
-                                        BrandEnum.springair.value ||
-                                    state.selectedBrand ==
-                                        BrandEnum.therapedic.value)
-                                  Text(
-                                    "Brand ${state.selectedBrand} menggunakan Area Nasional untuk pencarian",
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: isDark
-                                          ? AppColors.accentDark
-                                          : Colors.blue[600],
-                                      fontStyle: FontStyle.italic,
-                                    ),
-                                  ),
                               ],
                             ),
-                          ),
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: (state.selectedBrand ==
-                                              BrandEnum.springair.value ||
-                                          state.selectedBrand ==
-                                              BrandEnum.therapedic.value)
-                                      ? (isDark
-                                          ? AppColors.accentDark
-                                              .withOpacity(0.2)
-                                          : Colors.blue[100])
-                                      : (isDark
-                                          ? AppColors.success.withOpacity(0.2)
-                                          : Colors.green[100]),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  (state.selectedBrand ==
-                                              BrandEnum.springair.value ||
-                                          state.selectedBrand ==
-                                              BrandEnum.therapedic.value)
-                                      ? "Nasional"
-                                      : "Default",
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: (state.selectedBrand ==
-                                                BrandEnum.springair.value ||
-                                            state.selectedBrand ==
-                                                BrandEnum.therapedic.value)
-                                        ? (isDark
-                                            ? AppColors.accentDark
-                                            : Colors.blue[700])
-                                        : (isDark
-                                            ? AppColors.success
-                                            : Colors.green[700]),
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-
-                              // Show reset area button for non-national brands
-                              if (state.userSelectedArea != null &&
-                                  state.selectedBrand != null &&
-                                  state.selectedBrand !=
-                                      BrandEnum.springair.value &&
-                                  state.selectedBrand !=
-                                      BrandEnum.therapedic.value) ...[
-                                const SizedBox(width: 8),
-                                Tooltip(
-                                  message: "Reset ke area default",
-                                  child: GestureDetector(
-                                    onTap: () {
-                                      context
-                                          .read<ProductBloc>()
-                                          .add(ResetUserSelectedArea());
-                                    },
-                                    child: Container(
-                                      padding: const EdgeInsets.all(4),
-                                      decoration: BoxDecoration(
-                                        color: Colors.orange[100],
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                      ),
-                                      child: Icon(
-                                        Icons.refresh,
-                                        size: 16,
-                                        color: Colors.orange[700],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ProductDropdown(
-                    isSetActive: state.isSetActive,
-                    onSetChanged: (value) {
-                      context.read<ProductBloc>().add(ToggleSet(value));
-                    },
-                    selectedArea: state.selectedArea,
-                    onAreaChanged: (value) {
-                      if (value != null) {
-                        context
-                            .read<ProductBloc>()
-                            .add(UpdateSelectedArea(value));
-                      }
-                    },
-                    isUserAreaSet: state.isUserAreaSet,
-                    channels: ChannelEnum.values.map((e) => e.value).toList(),
-                    selectedChannel: state.selectedChannel?.isEmpty ?? true
-                        ? null
-                        : state.selectedChannel,
-                    onChannelChanged: (value) {
-                      if (value != null) {
-                        context
-                            .read<ProductBloc>()
-                            .add(UpdateSelectedChannel(value));
-                      }
-                    },
-                    availableChannelEnums: ChannelEnum.values,
-                    brands: BrandEnum.values.map((e) => e.value).toList(),
-                    selectedBrand: state.selectedBrand?.isEmpty ?? true
-                        ? null
-                        : state.selectedBrand,
-                    onBrandChanged: (value) {
-                      if (value != null) {
-                        context
-                            .read<ProductBloc>()
-                            .add(UpdateSelectedBrand(value));
-                      }
-                    },
-                    availableBrandEnums: BrandEnum.values,
-                    kasurs: state.availableKasurs,
-                    selectedKasur: state.selectedKasur?.isEmpty ?? true
-                        ? null
-                        : state.selectedKasur,
-                    onKasurChanged: (value) {
-                      if (value != null) {
-                        context
-                            .read<ProductBloc>()
-                            .add(UpdateSelectedKasur(value));
-                      }
-                    },
-                    divans: state.availableDivans,
-                    selectedDivan: state.selectedDivan?.isEmpty ?? true
-                        ? null
-                        : state.selectedDivan,
-                    onDivanChanged: (value) {
-                      if (value != null) {
-                        context
-                            .read<ProductBloc>()
-                            .add(UpdateSelectedDivan(value));
-                      }
-                    },
-                    headboards: state.availableHeadboards,
+                    ProductDropdown(
+                      isSetActive: state.isSetActive,
+                      onSetChanged: (value) {
+                        context.read<ProductBloc>().add(ToggleSet(value));
+                      },
+                      selectedArea: state.selectedArea,
+                      onAreaChanged: (value) {
+                        if (value != null) {
+                          context
+                              .read<ProductBloc>()
+                              .add(UpdateSelectedArea(value));
+                        }
+                      },
+                      isUserAreaSet: state.isUserAreaSet,
+                      channels: ChannelEnum.values.map((e) => e.value).toList(),
+                      selectedChannel: state.selectedChannel?.isEmpty ?? true
+                          ? null
+                          : state.selectedChannel,
+                      onChannelChanged: (value) {
+                        if (value != null) {
+                          context
+                              .read<ProductBloc>()
+                              .add(UpdateSelectedChannel(value));
+                        }
+                      },
+                      availableChannelEnums: ChannelEnum.values,
+                      brands: BrandEnum.values.map((e) => e.value).toList(),
+                      selectedBrand: state.selectedBrand?.isEmpty ?? true
+                          ? null
+                          : state.selectedBrand,
+                      onBrandChanged: (value) {
+                        if (value != null) {
+                          context
+                              .read<ProductBloc>()
+                              .add(UpdateSelectedBrand(value));
+                        }
+                      },
+                      availableBrandEnums: BrandEnum.values,
+                      kasurs: state.availableKasurs,
+                      selectedKasur: state.selectedKasur?.isEmpty ?? true
+                          ? null
+                          : state.selectedKasur,
+                      onKasurChanged: (value) {
+                        if (value != null) {
+                          context
+                              .read<ProductBloc>()
+                              .add(UpdateSelectedKasur(value));
+                        }
+                      },
+                      divans: state.availableDivans,
+                      selectedDivan: state.selectedDivan?.isEmpty ?? true
+                          ? null
+                          : state.selectedDivan,
+                      onDivanChanged: (value) {
+                        if (value != null) {
+                          context
+                              .read<ProductBloc>()
+                              .add(UpdateSelectedDivan(value));
+                        }
+                      },
+                      headboards: state.availableHeadboards,
                       selectedHeadboard:
                           state.selectedHeadboard?.isEmpty ?? true
-                        ? null
-                        : state.selectedHeadboard,
-                    onHeadboardChanged: (value) {
-                      if (value != null) {
-                        context
-                            .read<ProductBloc>()
-                            .add(UpdateSelectedHeadboard(value));
-                      }
-                    },
-                    sorongs: state.availableSorongs,
-                    selectedSorong: state.selectedSorong?.isEmpty ?? true
-                        ? null
-                        : state.selectedSorong,
-                    onSorongChanged: (value) {
-                      if (value != null) {
-                        context
-                            .read<ProductBloc>()
-                            .add(UpdateSelectedSorong(value));
-                      }
-                    },
-                    sizes: state.availableSizes,
-                    selectedSize: state.selectedSize?.isEmpty ?? true
-                        ? null
-                        : state.selectedSize,
-                    onSizeChanged: (value) {
-                      if (value != null) {
-                        context
-                            .read<ProductBloc>()
-                            .add(UpdateSelectedUkuran(value));
-                      }
-                    },
+                              ? null
+                              : state.selectedHeadboard,
+                      onHeadboardChanged: (value) {
+                        if (value != null) {
+                          context
+                              .read<ProductBloc>()
+                              .add(UpdateSelectedHeadboard(value));
+                        }
+                      },
+                      sorongs: state.availableSorongs,
+                      selectedSorong: state.selectedSorong?.isEmpty ?? true
+                          ? null
+                          : state.selectedSorong,
+                      onSorongChanged: (value) {
+                        if (value != null) {
+                          context
+                              .read<ProductBloc>()
+                              .add(UpdateSelectedSorong(value));
+                        }
+                      },
+                      sizes: state.availableSizes,
+                      selectedSize: state.selectedSize?.isEmpty ?? true
+                          ? null
+                          : state.selectedSize,
+                      onSizeChanged: (value) {
+                        if (value != null) {
+                          context
+                              .read<ProductBloc>()
+                              .add(UpdateSelectedUkuran(value));
+                        }
+                      },
                       programs: state.availablePrograms,
                       selectedProgram: state.selectedProgram?.isEmpty ?? true
                           ? null
@@ -493,79 +486,79 @@ class _ProductPageState extends State<ProductPage> {
                               .add(UpdateSelectedProgram(value));
                         }
                       },
-                    isLoading: state.isLoading,
-                  ),
-                  const SizedBox(height: AppPadding.p10),
-                  // Show filter buttons
-                  Row(
+                      isLoading: state.isLoading,
+                    ),
+                    const SizedBox(height: AppPadding.p10),
+                    // Show filter buttons
+                    Row(
                       key: _filterButtonKey,
-                    children: [
-                      Expanded(
-                        child: Tooltip(
-                          message: state.isUserAreaSet
-                              ? "Terapkan filter yang dipilih untuk melihat produk"
-                              : "Tampilkan produk berdasarkan filter yang dipilih",
-                          child: ElevatedButton.icon(
-                            onPressed: (state.selectedKasur != null &&
+                      children: [
+                        Expanded(
+                          child: Tooltip(
+                            message: state.isUserAreaSet
+                                ? "Terapkan filter yang dipilih untuk melihat produk"
+                                : "Tampilkan produk berdasarkan filter yang dipilih",
+                            child: ElevatedButton.icon(
+                              onPressed: (state.selectedKasur != null &&
                                       state.selectedKasur !=
                                           AppStrings.noKasur &&
-                                    state.selectedKasur!.isNotEmpty)
+                                      state.selectedKasur!.isNotEmpty)
                                   ? () async {
                                       // Simpan posisi scroll sebelum filter diterapkan
                                       _lastScrollOffset =
                                           _scrollController.offset;
-                                    String? areaToUse =
-                                        state.selectedArea?.isEmpty ?? true
-                                            ? null
-                                            : state.selectedArea;
-                                    if (state.selectedBrand ==
-                                            BrandEnum.springair.value ||
-                                        state.selectedBrand ==
-                                            BrandEnum.therapedic.value) {
-                                      areaToUse = AreaEnum.nasional.value;
-                                    }
-                                    context
-                                        .read<ProductBloc>()
-                                        .add(ApplyFilters(
-                                          selectedArea: areaToUse,
+                                      String? areaToUse =
+                                          state.selectedArea?.isEmpty ?? true
+                                              ? null
+                                              : state.selectedArea;
+                                      if (state.selectedBrand ==
+                                              BrandEnum.springair.value ||
+                                          state.selectedBrand ==
+                                              BrandEnum.therapedic.value) {
+                                        areaToUse = AreaEnum.nasional.value;
+                                      }
+                                      context
+                                          .read<ProductBloc>()
+                                          .add(ApplyFilters(
+                                            selectedArea: areaToUse,
                                             selectedChannel: state
                                                         .selectedChannel
                                                         ?.isEmpty ??
-                                                      true
-                                                  ? null
-                                                  : state.selectedChannel,
-                                          selectedBrand:
-                                              state.selectedBrand?.isEmpty ??
-                                                      true
-                                                  ? null
-                                                  : state.selectedBrand,
-                                          selectedKasur:
-                                              state.selectedKasur?.isEmpty ??
-                                                      true
-                                                  ? null
-                                                  : state.selectedKasur,
-                                          selectedDivan:
-                                              state.selectedDivan?.isEmpty ??
-                                                      true
-                                                  ? null
-                                                  : state.selectedDivan,
-                                          selectedHeadboard: state
-                                                      .selectedHeadboard
-                                                      ?.isEmpty ??
-                                                  true
-                                              ? null
-                                              : state.selectedHeadboard,
-                                          selectedSorong:
-                                              state.selectedSorong?.isEmpty ??
-                                                      true
-                                                  ? null
-                                                  : state.selectedSorong,
-                                          selectedSize:
-                                              state.selectedSize?.isEmpty ??
-                                                      true
-                                                  ? null
-                                                  : state.selectedSize,
-                                        ));
+                                                    true
+                                                ? null
+                                                : state.selectedChannel,
+                                            selectedBrand:
+                                                state.selectedBrand?.isEmpty ??
+                                                        true
+                                                    ? null
+                                                    : state.selectedBrand,
+                                            selectedKasur:
+                                                state.selectedKasur?.isEmpty ??
+                                                        true
+                                                    ? null
+                                                    : state.selectedKasur,
+                                            selectedDivan:
+                                                state.selectedDivan?.isEmpty ??
+                                                        true
+                                                    ? null
+                                                    : state.selectedDivan,
+                                            selectedHeadboard: state
+                                                        .selectedHeadboard
+                                                        ?.isEmpty ??
+                                                    true
+                                                ? null
+                                                : state.selectedHeadboard,
+                                            selectedSorong:
+                                                state.selectedSorong?.isEmpty ??
+                                                        true
+                                                    ? null
+                                                    : state.selectedSorong,
+                                            selectedSize:
+                                                state.selectedSize?.isEmpty ??
+                                                        true
+                                                    ? null
+                                                    : state.selectedSize,
+                                          ));
                                       // Scroll ke tombol filter & reset, pastikan tepat di bawah AppBar
                                       await Future.delayed(
                                           const Duration(milliseconds: 100));
@@ -592,65 +585,65 @@ class _ProductPageState extends State<ProductPage> {
                                           );
                                         }
                                       }
-                                  }
-                                : null,
-                            icon: Icon(
-                              state.isUserAreaSet
-                                  ? Icons.filter_alt
-                                  : Icons.search,
-                              size: 18,
-                            ),
-                            label: state.isLoading
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
+                                    }
+                                  : null,
+                              icon: Icon(
+                                state.isUserAreaSet
+                                    ? Icons.filter_alt
+                                    : Icons.search,
+                                size: 18,
+                              ),
+                              label: state.isLoading
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
                                         valueColor:
                                             AlwaysStoppedAnimation<Color>(
-                                          Colors.white),
+                                                Colors.white),
+                                      ),
+                                    )
+                                  : Text(
+                                      state.isUserAreaSet
+                                          ? "Terapkan Filter"
+                                          : "Tampilkan Produk",
+                                      style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w500),
                                     ),
-                                  )
-                                : Text(
-                                    state.isUserAreaSet
-                                        ? "Terapkan Filter"
-                                        : "Tampilkan Produk",
-                                    style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w500),
-                                  ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: (state.selectedKasur != null &&
-                                      state.selectedKasur !=
-                                          AppStrings.noKasur &&
-                                      state.selectedKasur!.isNotEmpty)
-                                  ? Theme.of(context).colorScheme.primary
-                                  : Colors.grey.shade400,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: (state.selectedKasur != null &&
+                                        state.selectedKasur !=
+                                            AppStrings.noKasur &&
+                                        state.selectedKasur!.isNotEmpty)
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Colors.grey.shade400,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: AppPadding.p16,
+                                    vertical: AppPadding.p12),
+                                elevation: 2,
                               ),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: AppPadding.p16,
-                                  vertical: AppPadding.p12),
-                              elevation: 2,
                             ),
                           ),
                         ),
-                      ),
-                      if ((state.selectedChannel != null &&
-                              state.selectedChannel!.isNotEmpty) ||
-                          state.isFilterApplied) ...[
-                        const SizedBox(width: 12),
-                        Tooltip(
-                          message: "Reset semua filter yang dipilih",
-                          child: ElevatedButton.icon(
-                            onPressed: state.isLoading
-                                ? null
+                        if ((state.selectedChannel != null &&
+                                state.selectedChannel!.isNotEmpty) ||
+                            state.isFilterApplied) ...[
+                          const SizedBox(width: 12),
+                          Tooltip(
+                            message: "Reset semua filter yang dipilih",
+                            child: ElevatedButton.icon(
+                              onPressed: state.isLoading
+                                  ? null
                                   : () async {
-                                    context
-                                        .read<ProductBloc>()
-                                        .add(ResetFilters());
+                                      context
+                                          .read<ProductBloc>()
+                                          .add(ResetFilters());
                                       // Scroll kembali ke posisi sebelum filter diterapkan
                                       await Future.delayed(
                                           const Duration(milliseconds: 100));
@@ -662,61 +655,61 @@ class _ProductPageState extends State<ProductPage> {
                                           curve: Curves.easeInOut,
                                         );
                                       }
-                                  },
-                            icon: const Icon(Icons.refresh,
-                                color: Colors.white, size: 18),
-                            label: const Text("Reset"),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: state.isLoading
-                                  ? Colors.grey.shade400
-                                  : Colors.red.shade600,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
+                                    },
+                              icon: const Icon(Icons.refresh,
+                                  color: Colors.white, size: 18),
+                              label: const Text("Reset"),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: state.isLoading
+                                    ? Colors.grey.shade400
+                                    : Colors.red.shade600,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: AppPadding.p16,
+                                    vertical: AppPadding.p12),
+                                elevation: 2,
                               ),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: AppPadding.p16,
-                                  vertical: AppPadding.p12),
-                              elevation: 2,
                             ),
                           ),
-                        ),
+                        ],
                       ],
-                    ],
-                  ),
-                  const SizedBox(height: AppPadding.p10),
+                    ),
+                    const SizedBox(height: AppPadding.p10),
                     // Show filter buttons
                     SizedBox(
                       height: MediaQuery.of(context).size.height * 0.6,
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      child: state.isFilterApplied
-                          ? (state.filteredProducts.isNotEmpty
-                              ? ListView.builder(
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 300),
+                        child: state.isFilterApplied
+                            ? (state.filteredProducts.isNotEmpty
+                                ? ListView.builder(
                                     key:
                                         ValueKey(state.filteredProducts.length),
-                                  itemCount: state.filteredProducts.length,
-                                  itemBuilder: (context, index) {
-                                    return ProductCard(
+                                    itemCount: state.filteredProducts.length,
+                                    itemBuilder: (context, index) {
+                                      return ProductCard(
                                           product:
                                               state.filteredProducts[index]);
-                                  },
-                                )
-                              : const EmptyStateWidget(
-                                  icon: Icons.search_off,
-                                  title: "Produk Tidak Ditemukan",
-                                  message:
-                                      "Coba ubah kriteria filter Anda untuk menemukan produk yang lain.",
-                                ))
-                          : const EmptyStateWidget(
-                              icon: Icons.filter_list,
-                              title: "Pilih Filter",
-                              message:
-                                  "Silakan pilih kriteria filter dan klik tombol 'Terapkan Filter' untuk melihat produk.",
-                            ),
+                                    },
+                                  )
+                                : const EmptyStateWidget(
+                                    icon: Icons.search_off,
+                                    title: "Produk Tidak Ditemukan",
+                                    message:
+                                        "Coba ubah kriteria filter Anda untuk menemukan produk yang lain.",
+                                  ))
+                            : const EmptyStateWidget(
+                                icon: Icons.filter_list,
+                                title: "Pilih Filter",
+                                message:
+                                    "Silakan pilih kriteria filter dan klik tombol 'Terapkan Filter' untuk melihat produk.",
+                              ),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
                 ),
               );
             },

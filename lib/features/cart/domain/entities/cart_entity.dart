@@ -48,4 +48,48 @@ class CartEntity {
         installmentPerMonth,
         isSelected,
       ];
+
+  Map<String, dynamic> toJson() {
+    return {
+      'product': {
+        'id': product.id,
+        'area': product.area,
+        'channel': product.channel,
+        'brand': product.brand,
+        'kasur': product.kasur,
+        'divan': product.divan,
+        'headboard': product.headboard,
+        'sorong': product.sorong,
+        'ukuran': product.ukuran,
+        'pricelist': product.pricelist,
+        'program': product.program,
+        'eupKasur': product.eupKasur,
+        'eupDivan': product.eupDivan,
+        'eupHeadboard': product.eupHeadboard,
+        'endUserPrice': product.endUserPrice,
+        'isSet': product.isSet,
+        'bonus': product.bonus
+            .map((b) => {'name': b.name, 'quantity': b.quantity})
+            .toList(),
+        'discounts': product.discounts,
+        'plKasur': product.plKasur,
+        'plDivan': product.plDivan,
+        'plHeadboard': product.plHeadboard,
+        'plSorong': product.plSorong,
+        'eupSorong': product.eupSorong,
+        'bottomPriceAnalyst': product.bottomPriceAnalyst,
+        'disc1': product.disc1,
+        'disc2': product.disc2,
+        'disc3': product.disc3,
+        'disc4': product.disc4,
+        'disc5': product.disc5,
+      },
+      'quantity': quantity,
+      'netPrice': netPrice,
+      'discountPercentages': discountPercentages,
+      'installmentMonths': installmentMonths,
+      'installmentPerMonth': installmentPerMonth,
+      'isSelected': isSelected,
+    };
+  }
 }

@@ -8,7 +8,7 @@ import 'auth_service.dart';
 /// Service untuk menyimpan, mengambil, dan menghapus cart user di local storage.
 class CartStorageService {
   /// Mendapatkan key cart untuk user tertentu.
-  static String _getCartKey(int userId) => '${StorageKeys.cartKeyBase} $userId';
+  static String _getCartKey(int userId) => '${StorageKeys.cartKeyBase}$userId';
 
   /// Menyimpan list cart ke SharedPreferences.
   static Future<bool> saveCartItems(List<CartEntity> cartItems) async {

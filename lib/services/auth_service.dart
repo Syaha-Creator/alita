@@ -151,30 +151,14 @@ class AuthService {
 
       if (response.statusCode == 200) {
         final data = response.data;
-
-        // Check if data is a list and has items
-        if (data is List && data.isNotEmpty) {
-          // Get the most recent work experience (first item)
-          final workExp = data.first;
-
-          // Extract job level from the response
-          // Adjust these field names based on actual API response
-          final jobLevel = workExp['job_level'] ??
-              workExp['position'] ??
-              workExp['title'] ??
-              workExp['role'];
-
-          print("AuthService: Job level determined: $jobLevel");
-          return jobLevel?.toString();
-        } else if (data is Map) {
-          // If data is a single object
-          final jobLevel = data['job_level'] ??
-              data['position'] ??
-              data['title'] ??
-              data['role'];
-
-          print("AuthService: Job level determined: $jobLevel");
-          return jobLevel?.toString();
+        final List<dynamic>? resultList = data is Map ? data['result'] : null;
+        if (resultList != null && resultList.isNotEmpty) {
+          final workExp = resultList.first;
+          final jobLevel = workExp['job_level'];
+          final jobLevelName =
+              jobLevel is Map ? jobLevel['name'] : jobLevel?.toString();
+          print("AuthService: Job level determined: $jobLevelName");
+          return jobLevelName;
         }
       }
 
@@ -186,7 +170,7 @@ class AuthService {
     }
   }
 
-  /// Check if user is manager level (for approval monitoring access)
+  /// Check if user is manager level
   static Future<bool> isManagerLevel() async {
     final jobLevel = await getJobLevel();
     if (jobLevel == null) return false;
@@ -301,6 +285,40 @@ class AuthService {
       return true;
     } catch (e) {
       return false;
+    }
+  }
+
+  /// Mengambil direct leader dan indirect leader dari contact work experiences API
+  static Future<Map<String, dynamic>?> getLeaders() async {
+    try {
+      final token = await getToken();
+      final userId = await getCurrentUserId();
+      if (token == null || userId == null) return null;
+      final url =
+          ApiConfig.getContactWorkExperienceUrl(token: token, userId: userId);
+      Dio dio = Dio();
+      dio.options.connectTimeout = const Duration(seconds: 30);
+      dio.options.receiveTimeout = const Duration(seconds: 30);
+      dio.options.headers['ngrok-skip-browser-warning'] = 'true';
+      dio.options.headers['User-Agent'] = 'AlitaPricelist/1.0';
+      final response = await dio.get(url);
+      if (response.statusCode == 200) {
+        final data = response.data;
+        final List<dynamic>? resultList = data is Map ? data['result'] : null;
+        if (resultList != null && resultList.isNotEmpty) {
+          final workExp = resultList.first;
+          final directLeader = workExp['direct_leader'];
+          final indirectLeader = workExp['indirect_leader'];
+          return {
+            'directLeader': directLeader,
+            'indirectLeader': indirectLeader,
+          };
+        }
+      }
+      return null;
+    } catch (e) {
+      print("AuthService: Error fetching leaders: $e");
+      return null;
     }
   }
 }

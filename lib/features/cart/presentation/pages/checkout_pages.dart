@@ -2,15 +2,17 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 import '../../../../config/app_constant.dart';
 import '../../../../core/utils/controller_disposal_mixin.dart';
 import '../../../../core/utils/format_helper.dart';
-import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_textfield.dart';
 import '../../../../core/widgets/custom_toast.dart';
 import '../../../../services/auth_service.dart';
 import '../../../../services/pdf_services.dart';
+
 import '../../../../theme/app_colors.dart';
 import '../../domain/entities/cart_entity.dart';
 import '../bloc/cart_bloc.dart';
@@ -20,6 +22,7 @@ class CheckoutPages extends StatefulWidget {
   final String? userName;
   final String? userPhone;
   final String? userEmail;
+  final String? userAddress;
   final bool isTakeAway;
 
   const CheckoutPages({
@@ -27,6 +30,7 @@ class CheckoutPages extends StatefulWidget {
     this.userName,
     this.userPhone,
     this.userEmail,
+    this.userAddress,
     this.isTakeAway = false,
   });
 
@@ -47,8 +51,9 @@ class _CheckoutPagesState extends State<CheckoutPages>
   late final TextEditingController _emailController;
   late final TextEditingController _paymentAmountController;
   late final TextEditingController _repaymentDateController;
+  late final TextEditingController _customerAddressController;
+  bool _shippingSameAsCustomer = false;
 
-  bool _isGeneratingPDF = false;
   String _selectedPaymentMethod = 'Transfer';
 
   @override
@@ -63,6 +68,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
     _deliveryDateController = registerController();
     _paymentAmountController = registerController();
     _repaymentDateController = registerController();
+    _customerAddressController = registerController();
 
     if (widget.userName != null) {
       _customerNameController.text = widget.userName!;
@@ -71,6 +77,9 @@ class _CheckoutPagesState extends State<CheckoutPages>
       _customerPhoneController.text = widget.userPhone!;
     }
     if (widget.userEmail != null) _emailController.text = widget.userEmail!;
+    if (widget.userAddress != null) {
+      _customerAddressController.text = widget.userAddress!;
+    }
   }
 
   Future<void> _generateAndSharePDF(
@@ -81,8 +90,6 @@ class _CheckoutPagesState extends State<CheckoutPages>
           ToastType.error);
       return;
     }
-
-    setState(() => _isGeneratingPDF = true);
 
     try {
       showDialog(
@@ -100,12 +107,16 @@ class _CheckoutPagesState extends State<CheckoutPages>
                   color: isDark ? AppColors.accentDark : AppColors.accentLight,
                 ),
                 const SizedBox(width: 16),
-                Text(
-                  'Membuat PDF...',
-                  style: TextStyle(
-                    color: isDark
-                        ? AppColors.textPrimaryDark
-                        : AppColors.textPrimaryLight,
+                Expanded(
+                  child: Text(
+                    'Membuat PDF...',
+                    style: TextStyle(
+                      color: isDark
+                          ? AppColors.textPrimaryDark
+                          : AppColors.textPrimaryLight,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
                   ),
                 ),
               ],
@@ -117,10 +128,13 @@ class _CheckoutPagesState extends State<CheckoutPages>
       final double paymentAmount =
           FormatHelper.parseCurrencyToDouble(_paymentAmountController.text);
 
-      final double grandTotal = selectedItems.fold(0.0, (sum, item) => sum + (item.netPrice * item.quantity));
+      final double grandTotal = selectedItems.fold(
+          0.0, (sum, item) => sum + (item.netPrice * item.quantity));
+
       final Uint8List pdfBytes = await PDFService.generateCheckoutPDF(
         cartItems: selectedItems,
         customerName: _customerNameController.text,
+        customerAddress: _customerAddressController.text,
         phoneNumber: _customerPhoneController.text,
         shippingAddress: _shippingAddressController.text,
         keterangan: _notesController.text,
@@ -142,9 +156,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
         CustomToast.showToast('Gagal membuat PDF: $e', ToastType.error);
       }
     } finally {
-      if (mounted) {
-        setState(() => _isGeneratingPDF = false);
-      }
+      if (mounted) {}
     }
   }
 
@@ -192,6 +204,10 @@ class _CheckoutPagesState extends State<CheckoutPages>
                 CustomToast.showToast(
                     'PDF disimpan di: ${filePath.split('/').last}',
                     ToastType.success);
+                if (mounted) {
+                  Navigator.of(context).popUntil((route) =>
+                      route.isFirst || route.settings.name == '/product');
+                }
               } catch (e) {
                 CustomToast.showToast(
                     'Gagal menyimpan PDF: $e', ToastType.error);
@@ -224,6 +240,100 @@ class _CheckoutPagesState extends State<CheckoutPages>
         ],
       ),
     );
+  }
+
+  Widget _buildBottomButtons(
+      BuildContext context, List<CartEntity> selectedItems, double grandTotal) {
+    final isPaymentFilled = _paymentAmountController.text.trim().isNotEmpty;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Row(
+        children: [
+          Expanded(
+            child: ElevatedButton(
+              onPressed: () async {
+                await _saveDraftCheckout(selectedItems, grandTotal);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    isDark ? AppColors.buttonDark : AppColors.buttonLight,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                minimumSize: const Size(double.infinity, 56),
+                elevation: 8,
+              ),
+              child: Text(
+                'Simpan',
+                style: GoogleFonts.montserrat(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: ElevatedButton(
+              onPressed: isPaymentFilled
+                  ? () => _generateAndSharePDF(selectedItems, isDark)
+                  : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    isDark ? AppColors.buttonDark : AppColors.buttonLight,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                minimumSize: const Size(double.infinity, 56),
+                elevation: 8,
+              ),
+              child: Text(
+                'Buat & Bagikan Surat Pesanan',
+                style: GoogleFonts.montserrat(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _saveDraftCheckout(
+      List<CartEntity> selectedItems, double grandTotal) async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = await AuthService.getCurrentUserId();
+    if (userId == null) return;
+    final key = 'checkout_drafts_$userId';
+    final drafts = prefs.getStringList(key) ?? [];
+    final draft = {
+      'customerName': _customerNameController.text,
+      'customerPhone': _customerPhoneController.text,
+      'email': _emailController.text,
+      'customerAddress': _customerAddressController.text,
+      'shippingAddress': _shippingAddressController.text,
+      'notes': _notesController.text,
+      'deliveryDate': _deliveryDateController.text,
+      'paymentAmount': _paymentAmountController.text,
+      'repaymentDate': _repaymentDateController.text,
+      'selectedItems': selectedItems.map((e) => e.toJson()).toList(),
+      'grandTotal': grandTotal,
+      'isTakeAway': widget.isTakeAway,
+      'savedAt': DateTime.now().toIso8601String(),
+    };
+    drafts.add(jsonEncode(draft));
+    await prefs.setStringList(key, drafts);
+    if (mounted) {
+      CustomToast.showToast(
+          'Draft checkout berhasil disimpan', ToastType.success);
+      Navigator.of(context).popUntil(
+          (route) => route.isFirst || route.settings.name == '/product');
+    }
   }
 
   @override
@@ -276,6 +386,44 @@ class _CheckoutPagesState extends State<CheckoutPages>
                                   : null,
                             ),
                             const SizedBox(height: 12),
+                            CustomTextField(
+                              controller: _customerAddressController,
+                              labelText: "Alamat Customer",
+                              maxLines: 3,
+                              validator: (val) => val == null || val.isEmpty
+                                  ? "Wajib diisi"
+                                  : null,
+                              onChanged: (val) {
+                                if (_shippingSameAsCustomer) {
+                                  _shippingAddressController.text = val;
+                                }
+                              },
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Checkbox(
+                                  value: _shippingSameAsCustomer,
+                                  onChanged: (val) {
+                                    setState(() {
+                                      _shippingSameAsCustomer = val ?? false;
+                                      if (_shippingSameAsCustomer) {
+                                        _shippingAddressController.text =
+                                            _customerAddressController.text;
+                                      }
+                                    });
+                                  },
+                                ),
+                                Text(
+                                    'Alamat Pengiriman sama dengan Alamat Customer',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.normal,
+                                        color: isDark
+                                            ? AppColors.textPrimaryDark
+                                            : AppColors.textPrimaryLight)),
+                              ],
+                            ),
                             if (!widget.isTakeAway) ...[
                               _buildSectionTitle('Informasi Pengiriman'),
                               CustomTextField(
@@ -288,6 +436,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
                                 controller: _shippingAddressController,
                                 labelText: "Alamat Pengiriman",
                                 maxLines: 3,
+                                enabled: !_shippingSameAsCustomer,
                                 validator: (val) => val == null || val.isEmpty
                                     ? "Wajib diisi"
                                     : null,
@@ -349,7 +498,18 @@ class _CheckoutPagesState extends State<CheckoutPages>
                 },
               ),
             ),
-            _buildConfirmButton(context),
+            BlocBuilder<CartBloc, CartState>(
+              builder: (context, state) {
+                if (state is CartLoaded) {
+                  final selectedItems = state.selectedItems;
+                  final grandTotal = selectedItems.fold(0.0,
+                      (sum, item) => sum + (item.netPrice * item.quantity));
+                  return _buildBottomButtons(
+                      context, selectedItems, grandTotal);
+                }
+                return const SizedBox.shrink();
+              },
+            ),
           ],
         ),
       ),
@@ -582,29 +742,6 @@ class _CheckoutPagesState extends State<CheckoutPages>
           Text(label, style: style),
           Text(FormatHelper.formatCurrency(value), style: style),
         ],
-      ),
-    );
-  }
-
-  Widget _buildConfirmButton(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: BlocBuilder<CartBloc, CartState>(
-        builder: (context, state) {
-          if (state is CartLoaded) {
-            return CustomButton(
-              text: _isGeneratingPDF
-                  ? 'Memproses...'
-                  : 'Buat & Bagikan Surat Pesanan',
-              onPressed: () =>
-                  _generateAndSharePDF(state.selectedItems, isDark),
-              isLoading: _isGeneratingPDF,
-            );
-          }
-          return const SizedBox.shrink();
-        },
       ),
     );
   }

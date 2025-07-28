@@ -18,6 +18,7 @@ class PDFService {
   static Future<Uint8List> generateCheckoutPDF({
     required List<CartEntity> cartItems,
     required String customerName,
+    required String customerAddress,
     required String shippingAddress,
     required String phoneNumber,
     required String deliveryDate,
@@ -106,6 +107,7 @@ class PDFService {
         build: (pw.Context context) => [
           _buildCustomerAndOrderInfo(
             customerName: customerName,
+            customerAddress: customerAddress,
             shippingAddress: shippingAddress,
             phoneNumber: phoneNumber,
             email: email ?? '-',
@@ -156,7 +158,7 @@ class PDFService {
               PdfColors.green300.red,
               PdfColors.green300.green,
               PdfColors.green300.blue,
-              0.3,
+              0.05, // lebih tipis
             ),
             fontWeight: pw.FontWeight.bold,
           ),
@@ -223,6 +225,7 @@ class PDFService {
   /// Build info customer dan order.
   static pw.Widget _buildCustomerAndOrderInfo({
     required String customerName,
+    required String customerAddress,
     required String shippingAddress,
     required String phoneNumber,
     required String email,
@@ -241,8 +244,9 @@ class PDFService {
             },
             children: [
               _buildInfoTableRow('Nama Pembeli', customerName),
-              _buildInfoTableRow('Alamat Pengiriman', shippingAddress),
+              _buildInfoTableRow('Alamat Customer', customerAddress),
               _buildInfoTableRow('Nama Penerima', customerName),
+              _buildInfoTableRow('Alamat Pengiriman', shippingAddress),
             ],
           ),
         ),

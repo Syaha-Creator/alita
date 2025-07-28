@@ -145,6 +145,10 @@ class CartBloc extends Bloc<CartEvent, CartState> {
       }
     });
 
+    on<ReloadCartForUser>((event, emit) async {
+      add(LoadCart());
+    });
+
     // Auto-load cart when bloc is created
     add(LoadCart());
   }

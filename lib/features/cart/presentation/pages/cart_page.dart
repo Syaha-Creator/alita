@@ -11,6 +11,7 @@ import '../widgets/cart_item.dart';
 import 'checkout_pages.dart';
 import '../../../../core/widgets/custom_toast.dart';
 import 'checkout_user_info_dialog.dart';
+import 'draft_checkout_page.dart';
 
 class CartPage extends StatelessWidget {
   const CartPage({super.key});
@@ -29,6 +30,18 @@ class CartPage extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           title: Text('Keranjang Belanja'),
+          actions: [
+            IconButton(
+              icon: Icon(Icons.drafts),
+              tooltip: 'Draft Checkout',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => DraftCheckoutPage()),
+                );
+              },
+            ),
+          ],
         ),
         body: SafeArea(
           child: Column(
@@ -140,15 +153,18 @@ class CartPage extends StatelessWidget {
                                 onPressed: selectedItems.isEmpty
                                     ? null
                                     : () async {
-                                        final result = await showDialog<CheckoutDialogResult>(
+                                        final result = await showDialog<
+                                            CheckoutDialogResult>(
                                           context: context,
-                                          builder: (context) => CheckoutUserInfoDialog(),
+                                          builder: (context) =>
+                                              CheckoutUserInfoDialog(),
                                         );
                                         if (result != null) {
                                           Navigator.push(
                                             context,
                                             MaterialPageRoute(
-                                              builder: (context) => CheckoutPages(
+                                              builder: (context) =>
+                                                  CheckoutPages(
                                                 userName: result.name,
                                                 userPhone: result.phone,
                                                 userEmail: result.email,

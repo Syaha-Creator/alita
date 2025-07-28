@@ -1,7 +1,7 @@
 class ApiConfig {
   // Base URLs
-  // static const String baseUrl = "https://alitav2.massindo.com/";
-  static const String baseUrl = "https://a3f7d0dbf05a.ngrok-free.app/";
+  static const String baseUrl = "https://alitav2.massindo.com/";
+  // static const String baseUrl = "https://a3f7d0dbf05a.ngrok-free.app/";
 
   // Client credentials
   static const String clientId = "UjQrHkqRaXgxrMnsuMQis-nbYp_jEbArPHSIN3QVQC8";
