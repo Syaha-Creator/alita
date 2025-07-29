@@ -28,8 +28,8 @@ class CartPage extends StatelessWidget {
         }
       },
       child: Scaffold(
-        appBar: AppBar(
-          title: Text('Keranjang Belanja'),
+      appBar: AppBar(
+        title: Text('Keranjang Belanja'),
           actions: [
             IconButton(
               icon: Icon(Icons.drafts),
@@ -42,116 +42,116 @@ class CartPage extends StatelessWidget {
               },
             ),
           ],
-        ),
-        body: SafeArea(
-          child: Column(
-            children: [
-              Expanded(
-                child: BlocBuilder<CartBloc, CartState>(
-                  builder: (context, state) {
-                    if (state is CartLoaded) {
-                      if (state.cartItems.isEmpty) {
-                        return Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.shopping_cart_outlined,
-                                size: 120,
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: BlocBuilder<CartBloc, CartState>(
+                builder: (context, state) {
+                  if (state is CartLoaded) {
+                    if (state.cartItems.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.shopping_cart_outlined,
+                              size: 120,
+                              color: isDark
+                                  ? AppColors.textSecondaryDark
+                                  : Colors.grey.shade300,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Keranjang Anda kosong',
+                              style: GoogleFonts.montserrat(
+                                fontSize: 20,
+                                color: isDark
+                                    ? AppColors.textPrimaryDark
+                                    : Colors.grey.shade600,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Tambahkan produk untuk memulai!',
+                              style: GoogleFonts.montserrat(
+                                fontSize: 14,
                                 color: isDark
                                     ? AppColors.textSecondaryDark
-                                    : Colors.grey.shade300,
+                                    : Colors.grey,
                               ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Keranjang Anda kosong',
-                                style: GoogleFonts.montserrat(
-                                  fontSize: 20,
-                                  color: isDark
-                                      ? AppColors.textPrimaryDark
-                                      : Colors.grey.shade600,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Tambahkan produk untuk memulai!',
-                                style: GoogleFonts.montserrat(
-                                  fontSize: 14,
-                                  color: isDark
-                                      ? AppColors.textSecondaryDark
-                                      : Colors.grey,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      } else {
-                        final selectedItems = state.cartItems
-                            .where((item) => item.isSelected)
-                            .toList();
-                        double totalPrice = selectedItems.fold(
-                          0.0,
-                          (sum, item) => sum + (item.netPrice * item.quantity),
-                        );
-                        return Column(
-                          children: [
-                            Expanded(
-                              child: ListView.builder(
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: AppPadding.p12),
-                                itemCount: state.cartItems.length,
-                                itemBuilder: (context, index) {
-                                  final cartItem = state.cartItems[index];
-                                  return Dismissible(
-                                    key: Key(
-                                        '${cartItem.product.id}-${cartItem.netPrice}'),
-                                    direction: DismissDirection.endToStart,
-                                    background: Container(
-                                      color: AppColors.error,
-                                      alignment: Alignment.centerRight,
-                                      padding: const EdgeInsets.only(
-                                          right: AppPadding.p20),
-                                      child: const Icon(Icons.delete,
-                                          color: Colors.white),
-                                    ),
-                                    confirmDismiss: (direction) async {
-                                      return await _showDeleteConfirmationDialog(
-                                          context, isDark);
-                                    },
-                                    onDismissed: (direction) {
+                            ),
+                          ],
+                        ),
+                      );
+                    } else {
+                      final selectedItems = state.cartItems
+                          .where((item) => item.isSelected)
+                          .toList();
+                      double totalPrice = selectedItems.fold(
+                        0.0,
+                        (sum, item) => sum + (item.netPrice * item.quantity),
+                      );
+                      return Column(
+                        children: [
+                          Expanded(
+                            child: ListView.builder(
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: AppPadding.p12),
+                              itemCount: state.cartItems.length,
+                              itemBuilder: (context, index) {
+                                final cartItem = state.cartItems[index];
+                                return Dismissible(
+                                  key: Key(
+                                      '${cartItem.product.id}-${cartItem.netPrice}'),
+                                  direction: DismissDirection.endToStart,
+                                  background: Container(
+                                    color: AppColors.error,
+                                    alignment: Alignment.centerRight,
+                                    padding: const EdgeInsets.only(
+                                        right: AppPadding.p20),
+                                    child: const Icon(Icons.delete,
+                                        color: Colors.white),
+                                  ),
+                                  confirmDismiss: (direction) async {
+                                    return await _showDeleteConfirmationDialog(
+                                        context, isDark);
+                                  },
+                                  onDismissed: (direction) {
                                       context
                                           .read<CartBloc>()
                                           .add(RemoveFromCart(
-                                            productId: cartItem.product.id,
-                                            netPrice: cartItem.netPrice,
-                                          ));
-                                    },
-                                    child: CartItemWidget(item: cartItem),
-                                  );
-                                },
-                              ),
+                                          productId: cartItem.product.id,
+                                          netPrice: cartItem.netPrice,
+                                        ));
+                                  },
+                                  child: CartItemWidget(item: cartItem),
+                                );
+                              },
                             ),
-                            Container(
-                              padding: const EdgeInsets.all(AppPadding.p16),
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? AppColors.surfaceDark
-                                    : AppColors.surfaceLight,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: isDark
-                                        ? Colors.black.withOpacity(0.3)
-                                        : Colors.grey.withOpacity(0.2),
-                                    spreadRadius: 2,
-                                    blurRadius: 10,
-                                    offset: const Offset(0, -5),
-                                  ),
-                                ],
-                              ),
-                              child: ElevatedButton(
-                                onPressed: selectedItems.isEmpty
-                                    ? null
+                          ),
+                          Container(
+                            padding: const EdgeInsets.all(AppPadding.p16),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? AppColors.surfaceDark
+                                  : AppColors.surfaceLight,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: isDark
+                                      ? Colors.black.withOpacity(0.3)
+                                      : Colors.grey.withOpacity(0.2),
+                                  spreadRadius: 2,
+                                  blurRadius: 10,
+                                  offset: const Offset(0, -5),
+                                ),
+                              ],
+                            ),
+                            child: ElevatedButton(
+                              onPressed: selectedItems.isEmpty
+                                  ? null
                                     : () async {
                                         final result = await showDialog<
                                             CheckoutDialogResult>(
@@ -160,59 +160,59 @@ class CartPage extends StatelessWidget {
                                               CheckoutUserInfoDialog(),
                                         );
                                         if (result != null) {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) =>
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
                                                   CheckoutPages(
                                                 userName: result.name,
                                                 userPhone: result.phone,
                                                 userEmail: result.email,
                                                 isTakeAway: result.isTakeAway,
                                               ),
-                                            ),
-                                          );
+                                        ),
+                                      );
                                         }
-                                      },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: isDark
-                                      ? AppColors.buttonDark
-                                      : AppColors.buttonLight,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  minimumSize: const Size(double.infinity, 56),
-                                  elevation: 8,
+                                    },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isDark
+                                    ? AppColors.buttonDark
+                                    : AppColors.buttonLight,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: Text(
-                                  'Checkout ${FormatHelper.formatCurrency(totalPrice)}',
-                                  style: GoogleFonts.montserrat(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                  ),
+                                minimumSize: const Size(double.infinity, 56),
+                                elevation: 8,
+                              ),
+                              child: Text(
+                                'Checkout ${FormatHelper.formatCurrency(totalPrice)}',
+                                style: GoogleFonts.montserrat(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
                                 ),
                               ),
                             ),
-                          ],
-                        );
-                      }
-                    } else if (state is CartError) {
-                      return Center(
-                        child: Text(
-                          'Terjadi kesalahan: ${state.message}',
-                          style: TextStyle(
-                            color: isDark ? AppColors.error : Colors.red,
                           ),
-                        ),
+                        ],
                       );
-                    } else {
-                      return const Center(child: CircularProgressIndicator());
                     }
-                  },
-                ),
+                  } else if (state is CartError) {
+                    return Center(
+                      child: Text(
+                        'Terjadi kesalahan: ${state.message}',
+                        style: TextStyle(
+                          color: isDark ? AppColors.error : Colors.red,
+                        ),
+                      ),
+                    );
+                  } else {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                },
               ),
-            ],
+            ),
+          ],
           ),
         ),
       ),

@@ -6,12 +6,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
 import '../../../../config/app_constant.dart';
+import '../../../../config/dependency_injection.dart';
 import '../../../../core/utils/controller_disposal_mixin.dart';
 import '../../../../core/utils/format_helper.dart';
 import '../../../../core/widgets/custom_textfield.dart';
 import '../../../../core/widgets/custom_toast.dart';
 import '../../../../services/auth_service.dart';
 import '../../../../services/pdf_services.dart';
+import '../../../../services/checkout_service.dart';
 
 import '../../../../theme/app_colors.dart';
 import '../../domain/entities/cart_entity.dart';
@@ -109,11 +111,11 @@ class _CheckoutPagesState extends State<CheckoutPages>
                 const SizedBox(width: 16),
                 Expanded(
                   child: Text(
-                    'Membuat PDF...',
-                    style: TextStyle(
-                      color: isDark
-                          ? AppColors.textPrimaryDark
-                          : AppColors.textPrimaryLight,
+                    'Membuat surat pesanan dan PDF...',
+                  style: TextStyle(
+                    color: isDark
+                        ? AppColors.textPrimaryDark
+                        : AppColors.textPrimaryLight,
                     ),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 2,
@@ -124,6 +126,32 @@ class _CheckoutPagesState extends State<CheckoutPages>
           ),
         ),
       );
+
+      // Create Order Letter
+      final checkoutService = locator<CheckoutService>();
+      final orderLetterResult = await checkoutService.createOrderLetterFromCart(
+        cartItems: selectedItems,
+        customerName: _customerNameController.text,
+        customerPhone: _customerPhoneController.text,
+        email: _emailController.text,
+        customerAddress: _customerAddressController.text,
+        shipToName: _customerReceiverController.text,
+        addressShipTo: _shippingAddressController.text,
+        requestDate: _deliveryDateController.text,
+        note: _notesController.text,
+      );
+
+      if (orderLetterResult['success'] != true) {
+        if (mounted) {
+          Navigator.pop(context);
+          CustomToast.showToast(
+              'Gagal membuat surat pesanan: ${orderLetterResult['message']}',
+              ToastType.error);
+        }
+        return;
+      }
+
+      // Generate PDF
       final String? salesName = await AuthService.getCurrentUserName();
       final double paymentAmount =
           FormatHelper.parseCurrencyToDouble(_paymentAmountController.text);
@@ -149,11 +177,19 @@ class _CheckoutPagesState extends State<CheckoutPages>
 
       if (mounted) Navigator.pop(context);
 
+      // Show success message with order letter info
+      final orderLetterId = orderLetterResult['orderLetterId'];
+      final noSp = orderLetterResult['noSp'];
+
+      CustomToast.showToast(
+          'Surat pesanan berhasil dibuat! No SP: $noSp', ToastType.success);
+
       _showPDFOptionsDialog(pdfBytes);
     } catch (e) {
       if (mounted) {
         Navigator.pop(context);
-        CustomToast.showToast('Gagal membuat PDF: $e', ToastType.error);
+        CustomToast.showToast(
+            'Gagal membuat surat pesanan: $e', ToastType.error);
       }
     } finally {
       if (mounted) {}
@@ -363,7 +399,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
                           children: [
                             _buildSectionTitle('Informasi Pelanggan'),
                             CustomTextField(
-                              controller: _customerNameController,
+                                controller: _customerNameController,
                               labelText: "Nama Customer",
                               validator: (val) => val == null || val.isEmpty
                                   ? "Wajib diisi"
@@ -371,7 +407,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
                             ),
                             const SizedBox(height: 12),
                             CustomTextField(
-                              controller: _customerPhoneController,
+                                controller: _customerPhoneController,
                               labelText: "Nomor Telepon",
                               validator: (val) => val == null || val.isEmpty
                                   ? "Wajib diisi"
@@ -379,7 +415,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
                             ),
                             const SizedBox(height: 12),
                             CustomTextField(
-                              controller: _emailController,
+                                controller: _emailController,
                               labelText: "Email",
                               validator: (val) => val == null || val.isEmpty
                                   ? "Wajib diisi"
@@ -425,14 +461,14 @@ class _CheckoutPagesState extends State<CheckoutPages>
                               ],
                             ),
                             if (!widget.isTakeAway) ...[
-                              _buildSectionTitle('Informasi Pengiriman'),
-                              CustomTextField(
-                                  controller: _customerReceiverController,
-                                  labelText: 'Nama Penerima',
-                                  validator: (val) =>
-                                      val!.isEmpty ? 'Wajib diisi' : null),
-                              const SizedBox(height: 12),
-                              CustomTextField(
+                            _buildSectionTitle('Informasi Pengiriman'),
+                            CustomTextField(
+                                controller: _customerReceiverController,
+                                labelText: 'Nama Penerima',
+                                validator: (val) =>
+                                    val!.isEmpty ? 'Wajib diisi' : null),
+                            const SizedBox(height: 12),
+                            CustomTextField(
                                 controller: _shippingAddressController,
                                 labelText: "Alamat Pengiriman",
                                 maxLines: 3,
@@ -441,37 +477,37 @@ class _CheckoutPagesState extends State<CheckoutPages>
                                     ? "Wajib diisi"
                                     : null,
                               ),
-                              const SizedBox(height: 12),
-                              TextFormField(
-                                controller: _deliveryDateController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Tanggal Kirim',
-                                  border: OutlineInputBorder(),
-                                  suffixIcon: Icon(Icons.calendar_today),
-                                ),
-                                readOnly: true,
-                                onTap: () async {
-                                  FocusScope.of(context)
-                                      .requestFocus(FocusNode());
-
-                                  DateTime? picked = await showDatePicker(
-                                      context: context,
-                                      initialDate: DateTime.now(),
-                                      firstDate: DateTime.now(),
-                                      lastDate: DateTime(2100));
-                                  if (picked != null) {
-                                    _deliveryDateController.text =
-                                        FormatHelper.formatSimpleDate(picked);
-                                    _formKey.currentState?.validate();
-                                  }
-                                },
-                                validator: (val) {
-                                  if (val == null || val.isEmpty) {
-                                    return 'Tanggal kirim wajib diisi';
-                                  }
-                                  return null;
-                                },
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _deliveryDateController,
+                              decoration: const InputDecoration(
+                                labelText: 'Tanggal Kirim',
+                                border: OutlineInputBorder(),
+                                suffixIcon: Icon(Icons.calendar_today),
                               ),
+                              readOnly: true,
+                              onTap: () async {
+                                FocusScope.of(context)
+                                    .requestFocus(FocusNode());
+
+                                DateTime? picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: DateTime.now(),
+                                    firstDate: DateTime.now(),
+                                    lastDate: DateTime(2100));
+                                if (picked != null) {
+                                  _deliveryDateController.text =
+                                      FormatHelper.formatSimpleDate(picked);
+                                  _formKey.currentState?.validate();
+                                }
+                              },
+                              validator: (val) {
+                                if (val == null || val.isEmpty) {
+                                  return 'Tanggal kirim wajib diisi';
+                                }
+                                return null;
+                              },
+                            ),
                             ],
                             const SizedBox(height: 12),
                             _buildSectionTitle('Informasi Tambahan'),

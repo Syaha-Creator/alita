@@ -6,6 +6,8 @@ import '../features/product/domain/usecases/get_product_usecase.dart';
 import '../features/product/presentation/bloc/product_bloc.dart';
 import '../services/api_client.dart';
 import '../services/cart_storage_service.dart';
+import '../services/order_letter_service.dart';
+import '../services/checkout_service.dart';
 import '../features/authentication/data/repositories/auth_repository.dart';
 import '../features/authentication/domain/usecases/login_usecase.dart';
 import '../features/authentication/presentation/bloc/auth_bloc.dart';
@@ -29,6 +31,9 @@ void setupLocator() {
   // Register Services
   locator.registerLazySingleton<ApiClient>(() => ApiClient(locator<Dio>()));
   locator.registerLazySingleton<CartStorageService>(() => CartStorageService());
+  locator.registerLazySingleton<OrderLetterService>(
+      () => OrderLetterService(locator<Dio>()));
+  locator.registerLazySingleton<CheckoutService>(() => CheckoutService());
 
   // Register Auth Dependencies
   locator.registerLazySingleton<AuthRepository>(

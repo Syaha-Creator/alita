@@ -1,6 +1,6 @@
 class ApiConfig {
   // Base URLs
-  static const String baseUrl = "https://alitav2.massindo.com/";
+  static const String baseUrl = "https://staging.alitav2.massindo.com/";
   // static const String baseUrl = "https://a3f7d0dbf05a.ngrok-free.app/";
 
   // Client credentials
@@ -8,12 +8,24 @@ class ApiConfig {
   static const String clientSecret =
       "yOEtsL-v5SEg4WMDcCU6Qv7lDBhVpJIfPBpJKU68dVo";
 
-  // Endpoints
+  // LoginEndpoints
   static const String signIn =
       "${baseUrl}api/sign_in?client_id=$clientId&client_secret=$clientSecret";
+
+  // Contact Work Experiences Endpoints
   static const String contactWorkExperiences =
       "${baseUrl}api/contact_work_experiences";
+
+  // Products Endpoints
   static const String filteredProducts = "${baseUrl}api/filtered_pl";
+
+  // Approval Endpoints
+  static const String orderLetters = "${baseUrl}api/order_letters";
+  static const String orderLetterDetails = "${baseUrl}api/order_letter_details";
+  static const String orderLetterDiscounts =
+      "${baseUrl}api/order_letter_discounts";
+  static const String orderLetterApproves =
+      "${baseUrl}api/order_letter_approves";
 
   // Helper untuk login (POST ke signIn)
   static String getLoginUrl() {
@@ -39,5 +51,82 @@ class ApiConfig {
     required int userId,
   }) {
     return "$contactWorkExperiences?access_token=$token&client_id=$clientId&client_secret=$clientSecret&user_id=$userId";
+  }
+
+  // Helper untuk Order Letters
+  static String getOrderLettersUrl({
+    required String token,
+    String? creator,
+  }) {
+    final creatorParam = creator != null ? "&creator=$creator" : "";
+    return "$orderLetters?access_token=$token&client_id=$clientId&client_secret=$clientSecret$creatorParam";
+  }
+
+  // Helper untuk Order Letter Details
+  static String getOrderLetterDetailsUrl({
+    required String token,
+    int? orderLetterId,
+  }) {
+    final orderLetterParam =
+        orderLetterId != null ? "&order_letter_id=$orderLetterId" : "";
+    return "$orderLetterDetails?access_token=$token&client_id=$clientId&client_secret=$clientSecret$orderLetterParam";
+  }
+
+  // Helper untuk Order Letter Discounts
+  static String getOrderLetterDiscountsUrl({
+    required String token,
+    int? orderLetterId,
+  }) {
+    final orderLetterParam =
+        orderLetterId != null ? "&order_letter_id=$orderLetterId" : "";
+    return "$orderLetterDiscounts?access_token=$token&client_id=$clientId&client_secret=$clientSecret$orderLetterParam";
+  }
+
+  // Helper untuk POST Order Letters
+  static String getCreateOrderLetterUrl({
+    required String token,
+  }) {
+    return "$orderLetters?access_token=$token&client_id=$clientId&client_secret=$clientSecret";
+  }
+
+  // Helper untuk POST Order Letter Details
+  static String getCreateOrderLetterDetailUrl({
+    required String token,
+  }) {
+    return "$orderLetterDetails?access_token=$token&client_id=$clientId&client_secret=$clientSecret";
+  }
+
+  // Helper untuk POST Order Letter Discounts
+  static String getCreateOrderLetterDiscountUrl({
+    required String token,
+  }) {
+    return "$orderLetterDiscounts?access_token=$token&client_id=$clientId&client_secret=$clientSecret";
+  }
+
+  // Helper untuk Order Letter Approves (GET)
+  static String getOrderLetterApprovesUrl({
+    required String token,
+    int? orderLetterId,
+    String? approverId,
+  }) {
+    final orderLetterParam =
+        orderLetterId != null ? "&order_letter_id=$orderLetterId" : "";
+    final approverParam = approverId != null ? "&approver_id=$approverId" : "";
+    return "$orderLetterApproves?access_token=$token&client_id=$clientId&client_secret=$clientSecret$orderLetterParam$approverParam";
+  }
+
+  // Helper untuk POST Order Letter Approves
+  static String getCreateOrderLetterApproveUrl({
+    required String token,
+  }) {
+    return "$orderLetterApproves?access_token=$token&client_id=$clientId&client_secret=$clientSecret";
+  }
+
+  // Helper untuk PATCH Order Letter Approves (update approval)
+  static String getUpdateOrderLetterApproveUrl({
+    required String token,
+    required int approveId,
+  }) {
+    return "$orderLetterApproves/$approveId?access_token=$token&client_id=$clientId&client_secret=$clientSecret";
   }
 }
