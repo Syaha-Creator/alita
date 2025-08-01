@@ -37,6 +37,6 @@ class WhatsAppService {
   static String _buildWhatsAppUrl(String message) {
     final encodedMessage = Uri.encodeComponent(message);
     final cleanPhoneNumber = _phoneNumber.replaceAll(RegExp(r'[^\d]'), '');
-    return 'https://wa.me/ $cleanPhoneNumber?text=$encodedMessage';
+    return 'https://wa.me/$cleanPhoneNumber?text=$encodedMessage';
   }
 }

@@ -131,6 +131,11 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         // Update available options based on products (already filtered from API)
         final availableKasurs = products.map((p) => p.kasur).toSet().toList()
           ..sort();
+        // Ensure "Tanpa Kasur" option is always available
+        if (!availableKasurs.contains(AppStrings.noKasur)) {
+          availableKasurs.add(AppStrings.noKasur);
+          availableKasurs.sort();
+        }
         final availableDivans = products.map((p) => p.divan).toSet().toList()
           ..sort();
         final availableHeadboards =
@@ -181,7 +186,9 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       // Filter produk sesuai kasur yang dipilih dan toggle set
       final filteredProducts = state.products
           .where((p) =>
-              p.kasur == state.selectedKasur &&
+              (state.selectedKasur == AppStrings.noKasur
+                  ? (p.kasur.isEmpty || p.kasur == AppStrings.noKasur)
+                  : p.kasur == state.selectedKasur) &&
               (!isSetActive || p.isSet == true))
           .toList();
 
@@ -190,24 +197,37 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
           ? AppStrings.noDivan
           : (divans.isNotEmpty ? divans.first : AppStrings.noDivan);
 
-      final filteredByDivan =
-          filteredProducts.where((p) => p.divan == selectedDivan).toList();
+      final filteredByDivan = selectedDivan == AppStrings.noDivan
+          ? filteredProducts
+              .where((p) => p.divan.isEmpty || p.divan == AppStrings.noDivan)
+              .toList()
+          : filteredProducts.where((p) => p.divan == selectedDivan).toList();
       final headboards =
           filteredByDivan.map((p) => p.headboard).toSet().toList();
       String selectedHeadboard = headboards.contains(AppStrings.noHeadboard)
           ? AppStrings.noHeadboard
           : (headboards.isNotEmpty ? headboards.first : AppStrings.noHeadboard);
 
-      final filteredByHeadboard = filteredByDivan
-          .where((p) => p.headboard == selectedHeadboard)
-          .toList();
+      final filteredByHeadboard = selectedHeadboard == AppStrings.noHeadboard
+          ? filteredByDivan
+              .where((p) =>
+                  p.headboard.isEmpty || p.headboard == AppStrings.noHeadboard)
+              .toList()
+          : filteredByDivan
+              .where((p) => p.headboard == selectedHeadboard)
+              .toList();
       final sorongs = filteredByHeadboard.map((p) => p.sorong).toSet().toList();
       String selectedSorong = sorongs.contains(AppStrings.noSorong)
           ? AppStrings.noSorong
           : (sorongs.isNotEmpty ? sorongs.first : AppStrings.noSorong);
 
-      final filteredBySorong =
-          filteredByHeadboard.where((p) => p.sorong == selectedSorong).toList();
+      final filteredBySorong = selectedSorong == AppStrings.noSorong
+          ? filteredByHeadboard
+              .where((p) => p.sorong.isEmpty || p.sorong == AppStrings.noSorong)
+              .toList()
+          : filteredByHeadboard
+              .where((p) => p.sorong == selectedSorong)
+              .toList();
       final sizes = filteredBySorong.map((p) => p.ukuran).toSet().toList();
       String selectedSize = sizes.isNotEmpty ? sizes.first : "";
 
@@ -240,11 +260,33 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
     });
 
     on<UpdateSelectedKasur>((event, emit) {
-      var filteredProducts =
-          state.products.where((p) => p.kasur == event.kasur).toList();
-      if (filteredProducts.isEmpty) {
+      var filteredProducts = event.kasur == AppStrings.noKasur
+          ? state.products
+              .where((p) => p.kasur.isEmpty || p.kasur == AppStrings.noKasur)
+              .toList()
+          : state.products.where((p) => p.kasur == event.kasur).toList();
+      // Allow selection even if no products match (e.g., for "Tanpa Kasur")
+      if (filteredProducts.isEmpty && event.kasur != AppStrings.noKasur) {
         return;
       }
+      // If no products match the selected kasur, use default values
+      if (filteredProducts.isEmpty) {
+        emit(state.copyWith(
+          selectedKasur: event.kasur,
+          availableDivans: [AppStrings.noDivan],
+          selectedDivan: AppStrings.noDivan,
+          availableHeadboards: [AppStrings.noHeadboard],
+          selectedHeadboard: AppStrings.noHeadboard,
+          availableSorongs: [AppStrings.noSorong],
+          selectedSorong: AppStrings.noSorong,
+          availableSizes: [],
+          selectedSize: "",
+          availablePrograms: [],
+          selectedProgram: "",
+        ));
+        return;
+      }
+
       final divans = filteredProducts.map((p) => p.divan).toSet().toList();
       final headboards =
           filteredProducts.map((p) => p.headboard).toSet().toList();
@@ -286,8 +328,12 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
     on<UpdateSelectedDivan>((event, emit) {
       final filteredProducts = state.products
           .where((p) =>
-              p.kasur == state.selectedKasur &&
-              p.divan == event.divan &&
+              (state.selectedKasur == AppStrings.noKasur
+                  ? (p.kasur.isEmpty || p.kasur == AppStrings.noKasur)
+                  : p.kasur == state.selectedKasur) &&
+              (event.divan == AppStrings.noDivan
+                  ? (p.divan.isEmpty || p.divan == AppStrings.noDivan)
+                  : p.divan == event.divan) &&
               (!state.isSetActive || p.isSet == true))
           .toList();
       final headboards =
@@ -325,9 +371,16 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
     on<UpdateSelectedHeadboard>((event, emit) {
       final filteredProducts = state.products
           .where((p) =>
-              p.kasur == state.selectedKasur &&
-              p.divan == state.selectedDivan &&
-              p.headboard == event.headboard &&
+              (state.selectedKasur == AppStrings.noKasur
+                  ? (p.kasur.isEmpty || p.kasur == AppStrings.noKasur)
+                  : p.kasur == state.selectedKasur) &&
+              (state.selectedDivan == AppStrings.noDivan
+                  ? (p.divan.isEmpty || p.divan == AppStrings.noDivan)
+                  : p.divan == state.selectedDivan) &&
+              (event.headboard == AppStrings.noHeadboard
+                  ? (p.headboard.isEmpty ||
+                      p.headboard == AppStrings.noHeadboard)
+                  : p.headboard == event.headboard) &&
               (!state.isSetActive || p.isSet == true))
           .toList();
       final sorongs = filteredProducts.map((p) => p.sorong).toSet().toList();
@@ -358,10 +411,19 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
     on<UpdateSelectedSorong>((event, emit) {
       final filteredProducts = state.products
           .where((p) =>
-              p.kasur == state.selectedKasur &&
-              p.divan == state.selectedDivan &&
-              p.headboard == state.selectedHeadboard &&
-              p.sorong == event.sorong &&
+              (state.selectedKasur == AppStrings.noKasur
+                  ? (p.kasur.isEmpty || p.kasur == AppStrings.noKasur)
+                  : p.kasur == state.selectedKasur) &&
+              (state.selectedDivan == AppStrings.noDivan
+                  ? (p.divan.isEmpty || p.divan == AppStrings.noDivan)
+                  : p.divan == state.selectedDivan) &&
+              (state.selectedHeadboard == AppStrings.noHeadboard
+                  ? (p.headboard.isEmpty ||
+                      p.headboard == AppStrings.noHeadboard)
+                  : p.headboard == state.selectedHeadboard) &&
+              (event.sorong == AppStrings.noSorong
+                  ? (p.sorong.isEmpty || p.sorong == AppStrings.noSorong)
+                  : p.sorong == event.sorong) &&
               (!state.isSetActive || p.isSet == true))
           .toList();
       final sizes = filteredProducts.map((p) => p.ukuran).toSet().toList();
@@ -501,12 +563,28 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         final matchesBrand = event.selectedBrand == null ||
             event.selectedBrand!.isEmpty ||
             p.brand == event.selectedBrand;
+
+        // Fixed logic for kasur filter
         final matchesKasur = event.selectedKasur == null ||
             event.selectedKasur!.isEmpty ||
-            p.kasur == event.selectedKasur;
-        final matchesDivan = p.divan == selectedDivan;
-        final matchesHeadboard = p.headboard == selectedHeadboard;
-        final matchesSorong = p.sorong == selectedSorong;
+            (event.selectedKasur == AppStrings.noKasur
+                ? (p.kasur.isEmpty || p.kasur == AppStrings.noKasur)
+                : p.kasur == event.selectedKasur);
+
+        // Fixed logic for divan filter
+        final matchesDivan = selectedDivan == AppStrings.noDivan
+            ? (p.divan.isEmpty || p.divan == AppStrings.noDivan)
+            : p.divan == selectedDivan;
+
+        // Fixed logic for headboard filter
+        final matchesHeadboard = selectedHeadboard == AppStrings.noHeadboard
+            ? (p.headboard.isEmpty || p.headboard == AppStrings.noHeadboard)
+            : p.headboard == selectedHeadboard;
+
+        // Fixed logic for sorong filter
+        final matchesSorong = selectedSorong == AppStrings.noSorong
+            ? (p.sorong.isEmpty || p.sorong == AppStrings.noSorong)
+            : p.sorong == selectedSorong;
         final matchesSize =
             (event.selectedSize != null && event.selectedSize!.isNotEmpty)
                 ? p.ukuran == event.selectedSize

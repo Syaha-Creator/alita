@@ -8,6 +8,10 @@ import '../services/api_client.dart';
 import '../services/cart_storage_service.dart';
 import '../services/order_letter_service.dart';
 import '../services/checkout_service.dart';
+import '../features/approval/data/repositories/approval_repository.dart';
+import '../features/approval/domain/usecases/get_approvals_usecase.dart';
+import '../features/approval/domain/usecases/create_approval_usecase.dart';
+import '../features/approval/presentation/bloc/approval_bloc.dart';
 import '../features/authentication/data/repositories/auth_repository.dart';
 import '../features/authentication/domain/usecases/login_usecase.dart';
 import '../features/authentication/presentation/bloc/auth_bloc.dart';
@@ -34,6 +38,22 @@ void setupLocator() {
   locator.registerLazySingleton<OrderLetterService>(
       () => OrderLetterService(locator<Dio>()));
   locator.registerLazySingleton<CheckoutService>(() => CheckoutService());
+
+  // Register Approval Dependencies
+  locator.registerLazySingleton<ApprovalRepository>(() => ApprovalRepository());
+  locator.registerLazySingleton<GetApprovalsUseCase>(
+      () => GetApprovalsUseCase(locator()));
+  locator.registerLazySingleton<GetApprovalByIdUseCase>(
+      () => GetApprovalByIdUseCase(locator()));
+  locator.registerLazySingleton<GetPendingApprovalsUseCase>(
+      () => GetPendingApprovalsUseCase(locator()));
+  locator.registerLazySingleton<GetApprovedApprovalsUseCase>(
+      () => GetApprovedApprovalsUseCase(locator()));
+  locator.registerLazySingleton<GetRejectedApprovalsUseCase>(
+      () => GetRejectedApprovalsUseCase(locator()));
+  locator.registerLazySingleton<CreateApprovalUseCase>(
+      () => CreateApprovalUseCase(locator()));
+  locator.registerLazySingleton<ApprovalBloc>(() => ApprovalBloc());
 
   // Register Auth Dependencies
   locator.registerLazySingleton<AuthRepository>(

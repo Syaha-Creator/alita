@@ -6,6 +6,7 @@ import '../config/app_constant.dart';
 import '../features/authentication/presentation/pages/login_page.dart';
 import '../features/cart/presentation/pages/cart_page.dart';
 import '../features/cart/presentation/pages/checkout_pages.dart';
+import '../features/approval/presentation/pages/approval_monitoring_page.dart';
 import '../features/product/domain/entities/product_entity.dart';
 import '../features/product/presentation/bloc/product_bloc.dart';
 import '../features/product/presentation/bloc/product_event.dart';
@@ -59,6 +60,10 @@ class AppRouter {
       GoRoute(
         path: RoutePaths.checkout,
         builder: (context, state) => const CheckoutPages(),
+      ),
+      GoRoute(
+        path: RoutePaths.approvalMonitoring,
+        builder: (context, state) => const ApprovalMonitoringPage(),
       ),
     ],
     redirect: (context, state) {

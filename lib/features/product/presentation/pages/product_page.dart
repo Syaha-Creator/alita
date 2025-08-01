@@ -7,6 +7,7 @@ import '../../../../core/widgets/empty_widget.dart';
 import '../../../../navigation/navigation_service.dart';
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/auth_state.dart';
+import '../../../cart/presentation/pages/draft_checkout_page.dart';
 import '../../../cart/presentation/widgets/cart_badge.dart';
 import '../bloc/product_bloc.dart';
 import '../bloc/product_event.dart';
@@ -82,6 +83,23 @@ class _ProductPageState extends State<ProductPage> {
         appBar: AppBar(
           title: const Text('Product List'),
           actions: [
+            IconButton(
+              icon: const Icon(Icons.approval),
+              onPressed: () {
+                context.go(RoutePaths.approvalMonitoring);
+              },
+              tooltip: 'Approval Monitoring',
+            ),
+            IconButton(
+              icon: Icon(Icons.drafts),
+              tooltip: 'Draft Checkout',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => DraftCheckoutPage()),
+                );
+              },
+            ),
             CartBadge(
               onTap: () {
                 context.push(RoutePaths.cart);
@@ -500,8 +518,6 @@ class _ProductPageState extends State<ProductPage> {
                                 : "Tampilkan produk berdasarkan filter yang dipilih",
                             child: ElevatedButton.icon(
                               onPressed: (state.selectedKasur != null &&
-                                      state.selectedKasur !=
-                                          AppStrings.noKasur &&
                                       state.selectedKasur!.isNotEmpty)
                                   ? () async {
                                       // Simpan posisi scroll sebelum filter diterapkan
@@ -613,10 +629,8 @@ class _ProductPageState extends State<ProductPage> {
                                           fontWeight: FontWeight.w500),
                                     ),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: (state.selectedKasur != null &&
-                                        state.selectedKasur !=
-                                            AppStrings.noKasur &&
-                                        state.selectedKasur!.isNotEmpty)
+                                backgroundColor: (state.selectedBrand != null &&
+                                        state.selectedBrand!.isNotEmpty)
                                     ? Theme.of(context).colorScheme.primary
                                     : Colors.grey.shade400,
                                 foregroundColor: Colors.white,

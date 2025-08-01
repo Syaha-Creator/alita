@@ -413,7 +413,7 @@ class PDFService {
       if (product.bonus.isNotEmpty) {
         for (var bonus in product.bonus) {
           final bonusQuantity = bonus.quantity * item.quantity;
-          const String bonusPrice = "Rp 0";
+          const String bonusPrice = "0";
           tableRows.add(pw.TableRow(
             children: [
               _buildTableCell(''),
@@ -662,6 +662,7 @@ class PDFService {
       final filePath = '${directory.path}/$fileName';
       final file = File(filePath);
       await file.writeAsBytes(pdfBytes);
+      print('filePath: $filePath');
       return filePath;
     } catch (e) {
       // logger.e("❌ Error saving PDF: $e");
@@ -678,6 +679,7 @@ class PDFService {
       await tempFile.writeAsBytes(pdfBytes);
       await Share.shareXFiles([XFile(tempPath)],
           text: 'Invoice Checkout - Alita Pricelist');
+      print('tempPath: $tempPath');
     } catch (e) {
       // logger.e("❌ Error sharing PDF: $e");
       throw Exception('Failed to share PDF: $e');

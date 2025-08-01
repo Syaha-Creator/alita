@@ -112,10 +112,10 @@ class _CheckoutPagesState extends State<CheckoutPages>
                 Expanded(
                   child: Text(
                     'Membuat surat pesanan dan PDF...',
-                  style: TextStyle(
-                    color: isDark
-                        ? AppColors.textPrimaryDark
-                        : AppColors.textPrimaryLight,
+                    style: TextStyle(
+                      color: isDark
+                          ? AppColors.textPrimaryDark
+                          : AppColors.textPrimaryLight,
                     ),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 2,
@@ -399,7 +399,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
                           children: [
                             _buildSectionTitle('Informasi Pelanggan'),
                             CustomTextField(
-                                controller: _customerNameController,
+                              controller: _customerNameController,
                               labelText: "Nama Customer",
                               validator: (val) => val == null || val.isEmpty
                                   ? "Wajib diisi"
@@ -407,7 +407,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
                             ),
                             const SizedBox(height: 12),
                             CustomTextField(
-                                controller: _customerPhoneController,
+                              controller: _customerPhoneController,
                               labelText: "Nomor Telepon",
                               validator: (val) => val == null || val.isEmpty
                                   ? "Wajib diisi"
@@ -415,7 +415,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
                             ),
                             const SizedBox(height: 12),
                             CustomTextField(
-                                controller: _emailController,
+                              controller: _emailController,
                               labelText: "Email",
                               validator: (val) => val == null || val.isEmpty
                                   ? "Wajib diisi"
@@ -461,14 +461,14 @@ class _CheckoutPagesState extends State<CheckoutPages>
                               ],
                             ),
                             if (!widget.isTakeAway) ...[
-                            _buildSectionTitle('Informasi Pengiriman'),
-                            CustomTextField(
-                                controller: _customerReceiverController,
-                                labelText: 'Nama Penerima',
-                                validator: (val) =>
-                                    val!.isEmpty ? 'Wajib diisi' : null),
-                            const SizedBox(height: 12),
-                            CustomTextField(
+                              _buildSectionTitle('Informasi Pengiriman'),
+                              CustomTextField(
+                                  controller: _customerReceiverController,
+                                  labelText: 'Nama Penerima',
+                                  validator: (val) =>
+                                      val!.isEmpty ? 'Wajib diisi' : null),
+                              const SizedBox(height: 12),
+                              CustomTextField(
                                 controller: _shippingAddressController,
                                 labelText: "Alamat Pengiriman",
                                 maxLines: 3,
@@ -477,37 +477,37 @@ class _CheckoutPagesState extends State<CheckoutPages>
                                     ? "Wajib diisi"
                                     : null,
                               ),
-                            const SizedBox(height: 12),
-                            TextFormField(
-                              controller: _deliveryDateController,
-                              decoration: const InputDecoration(
-                                labelText: 'Tanggal Kirim',
-                                border: OutlineInputBorder(),
-                                suffixIcon: Icon(Icons.calendar_today),
-                              ),
-                              readOnly: true,
-                              onTap: () async {
-                                FocusScope.of(context)
-                                    .requestFocus(FocusNode());
+                              const SizedBox(height: 12),
+                              TextFormField(
+                                controller: _deliveryDateController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Tanggal Kirim',
+                                  border: OutlineInputBorder(),
+                                  suffixIcon: Icon(Icons.calendar_today),
+                                ),
+                                readOnly: true,
+                                onTap: () async {
+                                  FocusScope.of(context)
+                                      .requestFocus(FocusNode());
 
-                                DateTime? picked = await showDatePicker(
-                                    context: context,
-                                    initialDate: DateTime.now(),
-                                    firstDate: DateTime.now(),
-                                    lastDate: DateTime(2100));
-                                if (picked != null) {
-                                  _deliveryDateController.text =
-                                      FormatHelper.formatSimpleDate(picked);
-                                  _formKey.currentState?.validate();
-                                }
-                              },
-                              validator: (val) {
-                                if (val == null || val.isEmpty) {
-                                  return 'Tanggal kirim wajib diisi';
-                                }
-                                return null;
-                              },
-                            ),
+                                  DateTime? picked = await showDatePicker(
+                                      context: context,
+                                      initialDate: DateTime.now(),
+                                      firstDate: DateTime.now(),
+                                      lastDate: DateTime(2100));
+                                  if (picked != null) {
+                                    _deliveryDateController.text =
+                                        FormatHelper.formatSimpleDate(picked);
+                                    _formKey.currentState?.validate();
+                                  }
+                                },
+                                validator: (val) {
+                                  if (val == null || val.isEmpty) {
+                                    return 'Tanggal kirim wajib diisi';
+                                  }
+                                  return null;
+                                },
+                              ),
                             ],
                             const SizedBox(height: 12),
                             _buildSectionTitle('Informasi Tambahan'),

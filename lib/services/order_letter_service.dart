@@ -31,9 +31,23 @@ class OrderLetterService {
 
       // Try different possible response formats
       if (responseData is Map<String, dynamic>) {
+        print(
+            'OrderLetterService: Response data is Map, checking direct access...');
         // Try direct access
         orderLetterId = responseData['id'] ?? responseData['order_letter_id'];
         noSp = responseData['no_sp'] ?? responseData['no_sp_number'];
+        print(
+            'OrderLetterService: Direct access - ID: $orderLetterId, No SP: $noSp');
+
+        // If still null, try location object (common in API responses)
+        if (orderLetterId == null &&
+            responseData['location'] is Map<String, dynamic>) {
+          final location = responseData['location'] as Map<String, dynamic>;
+          orderLetterId = location['id'] ?? location['order_letter_id'];
+          noSp = location['no_sp'] ?? location['no_sp_number'];
+          print(
+              'OrderLetterService: Location access - ID: $orderLetterId, No SP: $noSp');
+        }
 
         // If still null, try nested access
         if (orderLetterId == null &&
@@ -41,6 +55,8 @@ class OrderLetterService {
           final result = responseData['result'] as Map<String, dynamic>;
           orderLetterId = result['id'] ?? result['order_letter_id'];
           noSp = result['no_sp'] ?? result['no_sp_number'];
+          print(
+              'OrderLetterService: Result access - ID: $orderLetterId, No SP: $noSp');
         }
 
         // If still null, try array access
@@ -51,6 +67,8 @@ class OrderLetterService {
           if (firstResult is Map<String, dynamic>) {
             orderLetterId = firstResult['id'] ?? firstResult['order_letter_id'];
             noSp = firstResult['no_sp'] ?? firstResult['no_sp_number'];
+            print(
+                'OrderLetterService: Array access - ID: $orderLetterId, No SP: $noSp');
           }
         }
       }
@@ -65,6 +83,14 @@ class OrderLetterService {
         final latestOrderLetters =
             await getOrderLetters(creator: orderLetterData['creator']);
         if (latestOrderLetters.isNotEmpty) {
+          // Sort by created_at to get the most recent one
+          latestOrderLetters.sort((a, b) {
+            final aCreatedAt = a['created_at'] ?? '';
+            final bCreatedAt = b['created_at'] ?? '';
+            return bCreatedAt
+                .compareTo(aCreatedAt); // Descending order (newest first)
+          });
+
           final latestOrder = latestOrderLetters.first;
           orderLetterId = latestOrder['id'] ?? latestOrder['order_letter_id'];
           noSp = latestOrder['no_sp'] ?? latestOrder['no_sp_number'];
@@ -338,15 +364,28 @@ class OrderLetterService {
 
       final url = ApiConfig.getOrderLetterDetailsUrl(
           token: token, orderLetterId: orderLetterId);
+
+      print('OrderLetterService: Getting details with URL: $url');
+      print('OrderLetterService: Order Letter ID filter: $orderLetterId');
+
       final response = await dio.get(url);
 
       if (response.statusCode == 200) {
         final data = response.data;
+        print('OrderLetterService: Response data: $data');
+
         if (data is List) {
-          return List<Map<String, dynamic>>.from(data);
+          final result = List<Map<String, dynamic>>.from(data);
+          print(
+              'OrderLetterService: Returning ${result.length} details from list');
+          return result;
         } else if (data is Map && data['result'] is List) {
-          return List<Map<String, dynamic>>.from(data['result']);
+          final result = List<Map<String, dynamic>>.from(data['result']);
+          print(
+              'OrderLetterService: Returning ${result.length} details from result map');
+          return result;
         }
+        print('OrderLetterService: No valid data found, returning empty list');
         return [];
       } else {
         throw Exception(
