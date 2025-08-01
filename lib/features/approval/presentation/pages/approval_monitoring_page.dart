@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../config/app_constant.dart';
+import '../../../../config/dependency_injection.dart';
+import '../../../../services/auth_service.dart';
+import '../../../../services/contact_work_experience_service.dart';
 import '../../../../theme/app_colors.dart';
 import '../../domain/entities/approval_entity.dart';
 import '../bloc/approval_bloc.dart';
@@ -36,10 +39,16 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
   int _approvedCount = 0;
   int _rejectedCount = 0;
 
+  // --- Add state for user permissions ---
+  bool _isStaffLevel = false;
+  List<Map<String, dynamic>> _directLeaders = [];
+  bool _isLoadingUserInfo = true;
+
   @override
   void initState() {
     super.initState();
     _initializeAnimations();
+    _loadUserInfo();
     _loadApprovals();
   }
 
@@ -72,6 +81,44 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
   void dispose() {
     _mainController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadUserInfo() async {
+    try {
+      final token = await AuthService.getToken();
+      final userId = await AuthService.getCurrentUserId();
+
+      if (token != null && userId != null) {
+        final contactService = locator<ContactWorkExperienceService>();
+
+        // Check if user is staff level
+        final isStaff = await contactService.isUserStaffLevel(
+          token: token,
+          userId: userId,
+        );
+
+        // Get direct leaders
+        final directLeaders = await contactService.getUserDirectLeader(
+          token: token,
+          userId: userId,
+        );
+
+        setState(() {
+          _isStaffLevel = isStaff;
+          _directLeaders = directLeaders;
+          _isLoadingUserInfo = false;
+        });
+      } else {
+        setState(() {
+          _isLoadingUserInfo = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading user info: $e');
+      setState(() {
+        _isLoadingUserInfo = false;
+      });
+    }
   }
 
   void _loadApprovals() {
@@ -547,7 +594,9 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                   }
                 },
                 builder: (context, state) {
-                  if (state is ApprovalLoading) {
+                  if (_isLoadingUserInfo) {
+                    return _buildCompactLoadingState(colorScheme);
+                  } else if (state is ApprovalLoading) {
                     return _buildCompactLoadingState(colorScheme);
                   } else if (state is ApprovalLoaded) {
                     // Calculate stats from API data
@@ -648,9 +697,13 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                               ),
                             ),
                             Text(
-                              'Manage & Review Orders',
+                              _isStaffLevel
+                                  ? 'View Only - Staff Level'
+                                  : 'Manage & Review Orders',
                               style: theme.textTheme.bodySmall?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
+                                color: _isStaffLevel
+                                    ? AppColors.warning
+                                    : colorScheme.onSurfaceVariant,
                                 fontWeight: FontWeight.w400,
                                 fontSize: 11,
                               ),
@@ -892,8 +945,14 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                   padding: const EdgeInsets.only(bottom: 12),
                   child: ApprovalCard(
                     approval: approval,
-                    onTap: () => _showApprovalModal(approval),
-                    onItemsTap: () => _showItemDetailsModal(approval),
+                    onTap: _isStaffLevel
+                        ? () => _showItemDetailsModal(approval)
+                        : () => _showApprovalModal(approval),
+                    onItemsTap: _isStaffLevel
+                        ? null
+                        : () => _showItemDetailsModal(approval),
+                    isStaffLevel: _isStaffLevel,
+                    directLeaders: _directLeaders,
                   ),
                 ),
               ),

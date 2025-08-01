@@ -28,8 +28,15 @@ class CartPage extends StatelessWidget {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text('Keranjang Belanja'),
-          actions: [],
+          backgroundColor: theme.colorScheme.surface,
+          elevation: 0,
+          title: Text(
+            'Keranjang Belanja',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
         ),
         body: SafeArea(
           child: Column(

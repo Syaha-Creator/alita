@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../theme/app_colors.dart';
 import '../../domain/entities/approval_entity.dart';
+import '../../../../config/dependency_injection.dart';
+import '../../../../services/auth_service.dart';
+import '../../../../services/contact_work_experience_service.dart';
 
 class ApprovalModal extends StatefulWidget {
   final ApprovalEntity approval;
@@ -22,6 +25,10 @@ class _ApprovalModalState extends State<ApprovalModal>
   String _selectedAction = '';
   final TextEditingController _commentController = TextEditingController();
 
+  // Add state for user permissions
+  bool _isStaffLevel = false;
+  bool _isLoadingUserInfo = true;
+
   late AnimationController _slideController;
   late AnimationController _fadeController;
   late AnimationController _pulseController;
@@ -35,6 +42,7 @@ class _ApprovalModalState extends State<ApprovalModal>
   void initState() {
     super.initState();
     _initializeAnimations();
+    _loadUserInfo();
   }
 
   void _initializeAnimations() {
@@ -94,6 +102,37 @@ class _ApprovalModalState extends State<ApprovalModal>
     _fadeController.forward();
     _pulseController.repeat(reverse: true);
     _waveController.repeat();
+  }
+
+  Future<void> _loadUserInfo() async {
+    try {
+      final token = await AuthService.getToken();
+      final userId = await AuthService.getCurrentUserId();
+
+      if (token != null && userId != null) {
+        final contactService = locator<ContactWorkExperienceService>();
+
+        // Check if user is staff level
+        final isStaff = await contactService.isUserStaffLevel(
+          token: token,
+          userId: userId,
+        );
+
+        setState(() {
+          _isStaffLevel = isStaff;
+          _isLoadingUserInfo = false;
+        });
+      } else {
+        setState(() {
+          _isLoadingUserInfo = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading user info in modal: $e');
+      setState(() {
+        _isLoadingUserInfo = false;
+      });
+    }
   }
 
   @override
@@ -214,6 +253,13 @@ class _ApprovalModalState extends State<ApprovalModal>
                   ),
                 ),
               ),
+
+              // Loading State for User Info
+              if (_isLoadingUserInfo) _buildLoadingState(theme, colorScheme),
+
+              // Staff Level Warning
+              if (_isStaffLevel && !_isLoadingUserInfo)
+                _buildStaffLevelWarning(theme, colorScheme),
 
               // Action Buttons
               _buildActionButtons(theme, colorScheme),
@@ -755,7 +801,7 @@ class _ApprovalModalState extends State<ApprovalModal>
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'Cancel',
+                      'Close',
                       style: TextStyle(
                         color: colorScheme.onSurfaceVariant,
                         fontWeight: FontWeight.w600,
@@ -767,45 +813,48 @@ class _ApprovalModalState extends State<ApprovalModal>
               ),
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: colorScheme.primary,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: ElevatedButton(
-                onPressed: _submitAction,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  shadowColor: Colors.transparent,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
+          // Only show submit button for non-staff users
+          if (!_isStaffLevel) ...[
+            const SizedBox(width: 12),
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: colorScheme.primary,
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.send_rounded,
-                      color: Colors.white,
-                      size: 18,
+                child: ElevatedButton(
+                  onPressed: _isLoadingUserInfo ? null : _submitAction,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Submit',
-                      style: TextStyle(
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.send_rounded,
                         color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
+                        size: 18,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 8),
+                      Text(
+                        'Submit',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -842,5 +891,79 @@ class _ApprovalModalState extends State<ApprovalModal>
           RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
           (Match m) => '${m[1]},',
         );
+  }
+
+  Widget _buildLoadingState(ThemeData theme, ColorScheme colorScheme) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: colorScheme.primary,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            'Memeriksa permission...',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStaffLevelWarning(ThemeData theme, ColorScheme colorScheme) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.warning.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.warning_rounded,
+            color: AppColors.warning,
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Staff Level - View Only',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: AppColors.warning,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Anda hanya dapat melihat detail approval. Untuk melakukan approve/reject, hubungi atasan Anda.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: AppColors.warning,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

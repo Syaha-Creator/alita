@@ -6,12 +6,16 @@ class ApprovalCard extends StatefulWidget {
   final ApprovalEntity approval;
   final VoidCallback onTap;
   final VoidCallback? onItemsTap;
+  final bool isStaffLevel;
+  final List<Map<String, dynamic>> directLeaders;
 
   const ApprovalCard({
     super.key,
     required this.approval,
     required this.onTap,
     this.onItemsTap,
+    this.isStaffLevel = false,
+    this.directLeaders = const [],
   });
 
   @override
@@ -138,6 +142,10 @@ class _ApprovalCardState extends State<ApprovalCard>
 
                         // Footer
                         _buildFooter(theme, colorScheme),
+
+                        // Approval Info Section (for staff level)
+                        if (widget.isStaffLevel)
+                          _buildApprovalInfoSection(theme, colorScheme),
                       ],
                     ),
                   ),
@@ -295,19 +303,27 @@ class _ApprovalCardState extends State<ApprovalCard>
   Widget _buildOrderDetails(ThemeData theme, ColorScheme colorScheme) {
     return Row(
       children: [
-        // Items Count - Now Tappable
+        // Items Count - Conditional Tappable based on job level
         Expanded(
-          child: GestureDetector(
-            onTap: widget.onItemsTap,
-            child: _buildTappableDetailCard(
-              'Items',
-              '${widget.approval.details.length} items',
-              Icons.inventory_2_rounded,
-              AppColors.info,
-              theme,
-              colorScheme,
-            ),
-          ),
+          child: widget.isStaffLevel || widget.onItemsTap == null
+              ? _buildDetailCard(
+                  'Items',
+                  '${widget.approval.details.length} items',
+                  Icons.inventory_2_rounded,
+                  AppColors.info,
+                  theme,
+                )
+              : GestureDetector(
+                  onTap: widget.onItemsTap,
+                  child: _buildTappableDetailCard(
+                    'Items',
+                    '${widget.approval.details.length} items',
+                    Icons.inventory_2_rounded,
+                    AppColors.info,
+                    theme,
+                    colorScheme,
+                  ),
+                ),
         ),
 
         const SizedBox(width: 8),
@@ -319,7 +335,7 @@ class _ApprovalCardState extends State<ApprovalCard>
               'Discount',
               '${widget.approval.discount}%',
               Icons.discount_rounded,
-              AppColors.warning,
+              AppColors.error,
               theme,
             ),
           ),
@@ -556,5 +572,131 @@ class _ApprovalCardState extends State<ApprovalCard>
     } catch (e) {
       return 'Invalid Date';
     }
+  }
+
+  Widget _buildApprovalInfoSection(ThemeData theme, ColorScheme colorScheme) {
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.info.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.info.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.info_outline_rounded,
+                size: 16,
+                color: AppColors.info,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Informasi Approval',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: AppColors.info,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Status Info
+          Row(
+            children: [
+              Icon(
+                _getStatusIcon(widget.approval.status),
+                size: 14,
+                color: _getStatusColor(widget.approval.status),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Status: ${widget.approval.status}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: _getStatusColor(widget.approval.status),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 8),
+
+          // Direct Leader Info
+          if (widget.directLeaders.isNotEmpty) ...[
+            Row(
+              children: [
+                Icon(
+                  Icons.person_rounded,
+                  size: 14,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Ajukan ke: ${widget.directLeaders.first['name'] ?? 'Unknown'}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (widget.directLeaders.first['email'] != null) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(
+                    Icons.email_rounded,
+                    size: 14,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Email: ${widget.directLeaders.first['email']}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ] else ...[
+            Row(
+              children: [
+                Icon(
+                  Icons.warning_rounded,
+                  size: 14,
+                  color: AppColors.warning,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Tidak ada atasan langsung yang ditemukan',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: AppColors.warning,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }
