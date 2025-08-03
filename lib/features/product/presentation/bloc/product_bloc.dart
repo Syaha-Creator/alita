@@ -128,13 +128,26 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
           return;
         }
 
-        // Update available options based on products (already filtered from API)
-        final availableKasurs = products.map((p) => p.kasur).toSet().toList()
-          ..sort();
-        // Ensure "Tanpa Kasur" option is always available
+        final kasurWithPrices = <String, double>{};
+        for (final product in products) {
+          if (product.kasur.isNotEmpty && product.kasur != AppStrings.noKasur) {
+            // Use the highest pricelist for each kasur type
+            if (!kasurWithPrices.containsKey(product.kasur) ||
+                kasurWithPrices[product.kasur]! < product.pricelist) {
+              kasurWithPrices[product.kasur] = product.pricelist;
+            }
+          }
+        }
+
+        // Sort kasur by pricelist (highest first)
+        final sortedKasurEntries = kasurWithPrices.entries.toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+
+        final availableKasurs = sortedKasurEntries.map((e) => e.key).toList();
+
+        // Ensure "Tanpa Kasur" option is always available and at the end
         if (!availableKasurs.contains(AppStrings.noKasur)) {
           availableKasurs.add(AppStrings.noKasur);
-          availableKasurs.sort();
         }
         final availableDivans = products.map((p) => p.divan).toSet().toList()
           ..sort();

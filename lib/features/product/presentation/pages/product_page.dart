@@ -497,13 +497,6 @@ class _ProductPageState extends State<ProductPage> {
                       selectedProgram: state.selectedProgram?.isEmpty ?? true
                           ? null
                           : state.selectedProgram,
-                      onProgramChanged: (value) {
-                        if (value != null) {
-                          context
-                              .read<ProductBloc>()
-                              .add(UpdateSelectedProgram(value));
-                        }
-                      },
                       isLoading: state.isLoading,
                     ),
                     const SizedBox(height: AppPadding.p10),

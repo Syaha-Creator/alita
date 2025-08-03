@@ -42,7 +42,6 @@ class ProductDropdown extends StatelessWidget {
 
   final List<String> programs;
   final String? selectedProgram;
-  final Function(String?) onProgramChanged;
 
   final bool isLoading;
 
@@ -78,7 +77,6 @@ class ProductDropdown extends StatelessWidget {
     required this.onSizeChanged,
     required this.programs,
     required this.selectedProgram,
-    required this.onProgramChanged,
     required this.isLoading,
   });
 
@@ -192,15 +190,7 @@ class ProductDropdown extends StatelessWidget {
             hintText:
                 sizes.isEmpty ? "Tidak ada ukuran tersedia" : "Pilih Ukuran",
           ),
-          CustomDropdown<String>(
-            labelText: "Program (${programs.length})",
-            items: programs,
-            selectedValue: selectedProgram,
-            onChanged: onProgramChanged,
-            hintText: programs.isEmpty
-                ? "Tidak ada program tersedia"
-                : "Pilih Program",
-          ),
+          _buildReadOnlyProgramField(),
         ),
       ],
     );
@@ -216,6 +206,39 @@ class ProductDropdown extends StatelessWidget {
           Expanded(child: secondDropdown),
         ],
       ),
+    );
+  }
+
+  Widget _buildReadOnlyProgramField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade300),
+            borderRadius: BorderRadius.circular(8),
+            color: Colors.grey.shade50,
+          ),
+          child: Text(
+            selectedProgram?.isNotEmpty == true
+                ? selectedProgram!
+                : (programs.isEmpty
+                    ? "Tidak ada program tersedia"
+                    : "Program akan dipilih otomatis"),
+            style: TextStyle(
+              fontSize: 14,
+              color: selectedProgram?.isNotEmpty == true
+                  ? Colors.black87
+                  : Colors.grey.shade600,
+              fontWeight: selectedProgram?.isNotEmpty == true
+                  ? FontWeight.w500
+                  : FontWeight.normal,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

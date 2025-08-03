@@ -255,7 +255,7 @@ class ProductActions {
                         .map((b) => Padding(
                               padding:
                                   const EdgeInsets.only(left: 8, bottom: 4),
-                              child: Text("• ${b.name}"),
+                              child: Text("• ${b.quantity} ${b.name}"),
                             ))
                   else
                     const Text("Tidak ada bonus",

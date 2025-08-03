@@ -12,6 +12,7 @@ import '../../../product/presentation/bloc/product_state.dart';
 import '../../domain/entities/cart_entity.dart';
 import '../bloc/cart_bloc.dart';
 import '../bloc/cart_event.dart';
+import 'edit_bonus_dialog.dart';
 
 class CartItemWidget extends StatefulWidget {
   final CartEntity item;
@@ -314,10 +315,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                 context,
                 Icons.card_giftcard,
                 'Bonus',
-                bonusList
-                    .where((b) => b.name.isNotEmpty)
-                    .map((b) => '• ${b.quantity}x ${b.name}')
-                    .join('\n'),
+                '', // Content will be handled inside _bonusBox
                 isDark)
             : Text(
                 'Bonus: Tidak ada bonus',
@@ -345,37 +343,167 @@ class _CartItemWidgetState extends State<CartItemWidget> {
 
   Widget _bonusBox(BuildContext context, IconData icon, String title,
       String content, bool isDark) {
+    final bonusList = widget.item.product.bonus;
+    final hasBonus = bonusList.any((b) => b.name.isNotEmpty);
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(AppPadding.p10),
+      padding: const EdgeInsets.all(AppPadding.p8),
       decoration: BoxDecoration(
+        color: isDark
+            ? AppColors.surfaceDark
+            : AppColors.accentLight.withOpacity(0.05),
+        borderRadius: const BorderRadius.all(radius),
+        border: Border.all(
           color: isDark
-              ? AppColors.surfaceDark
-              : AppColors.accentLight.withOpacity(0.1),
-          borderRadius: const BorderRadius.all(radius)),
+              ? AppColors.accentDark.withOpacity(0.2)
+              : AppColors.accentLight.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            Icon(icon,
-                size: 20,
-                color: isDark ? AppColors.accentDark : AppColors.accentLight),
-            const SizedBox(width: 8),
-            Text(title,
-                style: GoogleFonts.montserrat(
-                    fontSize: 15,
+          // Compact header
+          Row(
+            children: [
+              Icon(
+                icon,
+                size: 18,
+                color: isDark ? AppColors.accentDark : AppColors.accentLight,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: GoogleFonts.montserrat(
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: isDark
                         ? AppColors.textPrimaryDark
-                        : AppColors.textPrimaryLight))
-          ]),
-          const SizedBox(height: 4),
-          Text(content,
-              style: GoogleFonts.montserrat(
-                  fontSize: 14,
+                        : AppColors.textPrimaryLight,
+                  ),
+                ),
+              ),
+              // Add bonus button
+              IconButton(
+                onPressed: () => _showAddBonusDialog(context),
+                icon: Icon(
+                  Icons.add_circle_outline,
+                  size: 20,
+                  color: isDark ? AppColors.accentDark : AppColors.accentLight,
+                ),
+                tooltip: 'Tambah Bonus',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(
+                  minWidth: 32,
+                  minHeight: 32,
+                ),
+              ),
+            ],
+          ),
+
+          // Compact bonus items or empty state
+          if (hasBonus) ...[
+            ...bonusList.asMap().entries.map((entry) {
+              final index = entry.key;
+              final bonus = entry.value;
+              if (bonus.name.isEmpty) return const SizedBox.shrink();
+
+              return Row(
+                children: [
+                  // Compact quantity badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color:
+                          isDark ? AppColors.accentDark : AppColors.accentLight,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '${bonus.quantity}x',
+                      style: GoogleFonts.montserrat(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Bonus name
+                  Expanded(
+                    child: Text(
+                      bonus.name,
+                      style: GoogleFonts.montserrat(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: isDark
+                            ? AppColors.textPrimaryDark
+                            : AppColors.textPrimaryLight,
+                      ),
+                    ),
+                  ),
+                  // Edit button
+                  IconButton(
+                    onPressed: () => _showEditBonusDialog(context, index),
+                    icon: Icon(
+                      Icons.edit_outlined,
+                      size: 14,
+                      color:
+                          isDark ? AppColors.accentDark : AppColors.accentLight,
+                    ),
+                    tooltip: 'Edit ${bonus.name}',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 24,
+                      minHeight: 24,
+                    ),
+                  ),
+                  // Delete button
+                  IconButton(
+                    onPressed: () => _removeBonus(context, index),
+                    icon: Icon(
+                      Icons.delete_outline,
+                      size: 14,
+                      color: isDark ? AppColors.error : AppColors.error,
+                    ),
+                    tooltip: 'Hapus ${bonus.name}',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 24,
+                      minHeight: 24,
+                    ),
+                  ),
+                ],
+              );
+            }),
+          ] else ...[
+            // Compact empty state
+            Row(
+              children: [
+                Icon(
+                  Icons.card_giftcard_outlined,
+                  size: 16,
                   color: isDark
                       ? AppColors.textSecondaryDark
-                      : AppColors.textSecondaryLight)),
+                      : AppColors.textSecondaryLight,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Belum ada bonus item',
+                  style: GoogleFonts.montserrat(
+                    fontSize: 13,
+                    color: isDark
+                        ? AppColors.textSecondaryDark
+                        : AppColors.textSecondaryLight,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -572,6 +700,89 @@ class _CartItemWidgetState extends State<CartItemWidget> {
               Navigator.pop(ctx);
             },
             child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditBonusDialog(BuildContext context, [int? bonusIndex]) {
+    final bonusList = widget.item.product.bonus;
+    final index = bonusIndex ?? 0;
+
+    if (index >= bonusList.length) return;
+
+    final bonus = bonusList[index];
+
+    showDialog(
+      context: context,
+      builder: (ctx) => EditBonusDialog(
+        currentBonusName: bonus.name,
+        currentBonusQuantity: bonus.quantity,
+        bonusIndex: index,
+        productId: widget.item.product.id,
+        netPrice: widget.item.netPrice,
+      ),
+    );
+  }
+
+  void _showAddBonusDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => EditBonusDialog(
+        currentBonusName: '',
+        currentBonusQuantity: 1,
+        bonusIndex: -1,
+        productId: widget.item.product.id,
+        netPrice: widget.item.netPrice,
+      ),
+    );
+  }
+
+  void _removeBonus(BuildContext context, int bonusIndex) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          'Hapus Bonus',
+          style: GoogleFonts.montserrat(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: Text(
+          'Apakah Anda yakin ingin menghapus bonus ini?',
+          style: GoogleFonts.montserrat(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              'Batal',
+              style: GoogleFonts.montserrat(
+                color: AppColors.textSecondaryLight,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              context.read<CartBloc>().add(RemoveCartBonus(
+                    productId: widget.item.product.id,
+                    netPrice: widget.item.netPrice,
+                    bonusIndex: bonusIndex,
+                  ));
+              Navigator.pop(ctx);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(
+              'Hapus',
+              style: GoogleFonts.montserrat(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),

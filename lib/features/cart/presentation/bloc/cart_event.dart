@@ -100,3 +100,55 @@ class Checkout extends CartEvent {
 }
 
 class ReloadCartForUser extends CartEvent {}
+
+class UpdateCartBonus extends CartEvent {
+  final int productId;
+  final double netPrice;
+  final int bonusIndex;
+  final String bonusName;
+  final int bonusQuantity;
+
+  const UpdateCartBonus({
+    required this.productId,
+    required this.netPrice,
+    required this.bonusIndex,
+    required this.bonusName,
+    required this.bonusQuantity,
+  });
+
+  @override
+  List<Object?> get props =>
+      [productId, netPrice, bonusIndex, bonusName, bonusQuantity];
+}
+
+class AddCartBonus extends CartEvent {
+  final int productId;
+  final double netPrice;
+  final String bonusName;
+  final int bonusQuantity;
+
+  const AddCartBonus({
+    required this.productId,
+    required this.netPrice,
+    required this.bonusName,
+    required this.bonusQuantity,
+  });
+
+  @override
+  List<Object?> get props => [productId, netPrice, bonusName, bonusQuantity];
+}
+
+class RemoveCartBonus extends CartEvent {
+  final int productId;
+  final double netPrice;
+  final int bonusIndex;
+
+  const RemoveCartBonus({
+    required this.productId,
+    required this.netPrice,
+    required this.bonusIndex,
+  });
+
+  @override
+  List<Object?> get props => [productId, netPrice, bonusIndex];
+}

@@ -232,13 +232,13 @@ class ProductCard extends StatelessWidget {
                           ),
                         ),
 
-                        if (product.isSet) ...[
-                          const SizedBox(height: 15),
-                          _buildIndividualPricingSection(),
-                        ],
-
                         const SizedBox(height: 15),
                         _buildBonusInfo(isDark: isDark),
+
+                        const SizedBox(height: 15),
+                        if (product.isSet) ...[
+                          _buildIndividualPricingSection(),
+                        ],
 
                         if (!product.isSet && setProduct != null) ...[
                           const SizedBox(height: 15),
