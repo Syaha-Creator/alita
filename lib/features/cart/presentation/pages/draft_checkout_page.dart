@@ -7,6 +7,7 @@ import '../../../../core/utils/format_helper.dart';
 import '../../../../core/widgets/custom_toast.dart';
 import '../../../../services/auth_service.dart';
 import '../../../../theme/app_colors.dart';
+import 'draft_detail_page.dart';
 
 class DraftCheckoutPage extends StatefulWidget {
   const DraftCheckoutPage({super.key});
@@ -208,6 +209,36 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
     return buffer.toString();
   }
 
+  // Helper method to get draft status and color
+  Map<String, dynamic> _getDraftStatus(Map<String, dynamic> draft) {
+    final savedAt = DateTime.parse(draft['savedAt'] as String);
+    final now = DateTime.now();
+    final difference = now.difference(savedAt);
+
+    if (difference.inDays > 7) {
+      return {
+        'status': 'Expired',
+        'color': AppColors.error,
+        'icon': Icons.schedule_rounded,
+        'bgColor': AppColors.error.withOpacity(0.1),
+      };
+    } else if (difference.inDays > 3) {
+      return {
+        'status': 'Pending',
+        'color': AppColors.warning,
+        'icon': Icons.pending_rounded,
+        'bgColor': AppColors.warning.withOpacity(0.1),
+      };
+    } else {
+      return {
+        'status': 'Recent',
+        'color': AppColors.success,
+        'icon': Icons.check_circle_rounded,
+        'bgColor': AppColors.success.withOpacity(0.1),
+      };
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -349,252 +380,364 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
     final customerPhone = draft['customerPhone'] as String? ?? '';
     final grandTotal = draft['grandTotal'] as double? ?? 0.0;
     final savedAt = DateTime.parse(draft['savedAt'] as String);
-    final items = (draft['selectedItems'] as List<dynamic>?)?.length ?? 0;
+    final items = (draft['selectedItems'] as List<dynamic>?) ?? [];
+    final status = _getDraftStatus(draft);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: colorScheme.outline.withOpacity(0.1),
-          width: 1,
+    // Get the first item to extract kasur info for title
+    String title = customerName;
+    if (items.isNotEmpty) {
+      final firstItem = items.first as Map<String, dynamic>;
+      final product = firstItem['product'] as Map<String, dynamic>?;
+      if (product != null) {
+        final kasur = product['kasur'] as String? ?? 'Unknown Kasur';
+        final ukuran = product['ukuran'] as String? ?? '';
+        final isSet = product['isSet'] as bool? ?? false;
+        final setStatus = isSet ? 'SET' : 'Tidak SET';
+        title = '$customerName - $kasur $ukuran ($setStatus)';
+      }
+    }
+
+    return Dismissible(
+      key: Key('draft_$index'),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: AppColors.error,
+          borderRadius: BorderRadius.circular(20),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: colorScheme.shadow.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        child: const Icon(
+          Icons.delete_rounded,
+          color: Colors.white,
+          size: 24,
+        ),
       ),
-      child: Column(
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: colorScheme.primary.withOpacity(0.05),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
-              ),
+      confirmDismiss: (direction) async {
+        return await _showDeleteConfirmation(index);
+      },
+      onDismissed: (direction) {
+        _deleteDraft(index);
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: colorScheme.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: status['color'].withOpacity(0.2),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: status['color'].withOpacity(0.1),
+              blurRadius: 15,
+              offset: const Offset(0, 6),
+              spreadRadius: 0,
             ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primary,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.receipt_rounded,
-                    color: Colors.white,
-                    size: 16,
-                  ),
+            BoxShadow(
+              color: colorScheme.shadow.withOpacity(0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+              spreadRadius: 0,
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Header with Status
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: status['bgColor'],
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        customerName,
-                        style: TextStyle(
-                          color: colorScheme.onSurface,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
+              ),
+              child: Row(
+                children: [
+                  // Status Icon
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: status['color'],
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: status['color'].withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      status['icon'],
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Title and Info
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            color: colorScheme.onSurface,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                            height: 1.2,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.phone_rounded,
+                              size: 12,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              customerPhone.isNotEmpty
+                                  ? customerPhone
+                                  : 'No phone',
+                              style: TextStyle(
+                                color: colorScheme.onSurfaceVariant,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: status['color'].withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                status['status'],
+                                style: TextStyle(
+                                  color: status['color'],
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Quick Actions Menu
+                  PopupMenuButton<String>(
+                    icon: Icon(
+                      Icons.more_vert_rounded,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                    onSelected: (value) async {
+                      switch (value) {
+                        case 'delete':
+                          await _showDeleteConfirmation(index);
+                          break;
+                        case 'edit':
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  DraftDetailPage(draft: draft, index: index),
+                            ),
+                          ).then((_) => _loadDrafts());
+                          break;
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit_rounded, size: 16),
+                            const SizedBox(width: 8),
+                            Text('Edit'),
+                          ],
                         ),
                       ),
-                      Text(
-                        customerPhone.isNotEmpty ? customerPhone : 'No phone',
-                        style: TextStyle(
-                          color: colorScheme.onSurfaceVariant,
-                          fontSize: 12,
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete_rounded,
+                                size: 16, color: Colors.red),
+                            const SizedBox(width: 8),
+                            Text('Hapus', style: TextStyle(color: Colors.red)),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                ),
-                PopupMenuButton<String>(
-                  icon: Icon(
-                    Icons.more_vert_rounded,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  onSelected: (value) async {
-                    switch (value) {
-                      case 'delete':
-                        await _showDeleteConfirmation(index);
-                        break;
-                      case 'edit':
-                        // TODO: Implement edit functionality
-                        CustomToast.showToast(
-                            'Fitur edit akan segera hadir', ToastType.info);
-                        break;
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      value: 'edit',
+                ],
+              ),
+            ),
+
+            // Content
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  // Order Summary (Clickable)
+                  GestureDetector(
+                    onTap: () => _showItemsDetail(draft),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceVariant.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: colorScheme.outline.withOpacity(0.1),
+                          width: 1,
+                        ),
+                      ),
                       child: Row(
                         children: [
-                          Icon(Icons.edit_rounded, size: 16),
-                          const SizedBox(width: 8),
-                          Text('Edit'),
+                          Expanded(
+                            child: _buildCompactInfoCard(
+                              'Items',
+                              '${items.length} produk',
+                              Icons.inventory_2_rounded,
+                              AppColors.info,
+                              colorScheme,
+                            ),
+                          ),
+                          Container(
+                            width: 1,
+                            height: 40,
+                            color: colorScheme.outline.withOpacity(0.2),
+                          ),
+                          Expanded(
+                            child: _buildCompactInfoCard(
+                              'Total',
+                              'Rp ${FormatHelper.formatNumber(grandTotal)}',
+                              Icons.attach_money_rounded,
+                              colorScheme.primary,
+                              colorScheme,
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          Icon(Icons.delete_rounded,
-                              size: 16, color: Colors.red),
-                          const SizedBox(width: 8),
-                          Text('Hapus', style: TextStyle(color: Colors.red)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+                  ),
 
-          // Content
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                // Order Summary
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildInfoCard(
-                        'Items',
-                        '$items produk',
-                        Icons.inventory_2_rounded,
-                        AppColors.info,
-                        colorScheme,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildInfoCard(
-                        'Total',
-                        'Rp ${FormatHelper.formatNumber(grandTotal)}',
-                        Icons.attach_money_rounded,
-                        colorScheme.primary,
-                        colorScheme,
-                      ),
-                    ),
-                  ],
-                ),
+                  const SizedBox(height: 12),
 
-                const SizedBox(height: 12),
-
-                // Date Info
-                Row(
-                  children: [
-                    Icon(
-                      Icons.access_time_rounded,
-                      size: 14,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Disimpan: ${FormatHelper.formatSimpleDate(savedAt)}',
-                      style: TextStyle(
-                        color: colorScheme.onSurfaceVariant,
-                        fontSize: 12,
+                  // Date Info with better styling
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: colorScheme.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.edit_rounded,
+                          size: 12,
+                          color: colorScheme.primary,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // Action Buttons
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: colorScheme.surface,
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(16),
-                bottomRight: Radius.circular(16),
-              ),
-              border: Border(
-                top: BorderSide(
-                  color: colorScheme.outline.withOpacity(0.1),
-                  width: 1,
-                ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Terakhir di edit: ${FormatHelper.formatSimpleDate(savedAt)}',
+                        style: TextStyle(
+                          color: colorScheme.onSurfaceVariant,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildActionButton(
-                    'WhatsApp',
-                    Icons.chat_rounded,
-                    AppColors.success,
-                    () => _shareToWhatsApp(draft),
+
+            // Action Buttons with improved design
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: colorScheme.surface,
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(20),
+                  bottomRight: Radius.circular(20),
+                ),
+                border: Border(
+                  top: BorderSide(
+                    color: colorScheme.outline.withOpacity(0.1),
+                    width: 1,
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildActionButton(
-                    'PDF',
-                    Icons.picture_as_pdf_rounded,
-                    AppColors.error,
-                    () => _sharePDF(draft),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _buildModernActionButton(
+                      'WhatsApp',
+                      Icons.chat_rounded,
+                      AppColors.success,
+                      () => _shareToWhatsApp(draft),
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildModernActionButton(
+                      'PDF',
+                      Icons.picture_as_pdf_rounded,
+                      AppColors.error,
+                      () => _sharePDF(draft),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildInfoCard(String label, String value, IconData icon, Color color,
-      ColorScheme colorScheme) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: color.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
+  Widget _buildCompactInfoCard(String label, String value, IconData icon,
+      Color color, ColorScheme colorScheme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: 14, color: color),
+              Icon(icon, size: 16, color: color),
               const SizedBox(width: 6),
               Text(
                 label,
                 style: TextStyle(
                   color: colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
             value,
             style: TextStyle(
               color: colorScheme.onSurface,
-              fontWeight: FontWeight.w600,
-              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
             ),
           ),
         ],
@@ -602,36 +745,53 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
     );
   }
 
-  Widget _buildActionButton(
+  Widget _buildModernActionButton(
       String label, IconData icon, Color color, VoidCallback onPressed) {
     return Container(
       decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: TextButton.icon(
-        onPressed: onPressed,
-        icon: Icon(icon, color: Colors.white, size: 18),
-        label: Text(
-          label,
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-          ),
+        gradient: LinearGradient(
+          colors: [color, color.withOpacity(0.8)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        style: TextButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: Colors.white, size: 18),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Future<void> _showDeleteConfirmation(int index) async {
+  Future<bool?> _showDeleteConfirmation(int index) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -654,5 +814,772 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
     if (confirmed == true) {
       await _deleteDraft(index);
     }
+
+    return confirmed;
+  }
+
+  void _showItemsDetail(Map<String, dynamic> draft) async {
+    final items = (draft['selectedItems'] as List<dynamic>?) ?? [];
+    final customerName = draft['customerName'] as String? ?? 'Unknown';
+    final colorScheme = Theme.of(context).colorScheme;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: colorScheme.surface,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 20,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Enhanced Handle Bar
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 50,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: colorScheme.onSurfaceVariant.withOpacity(0.4),
+                      borderRadius: BorderRadius.circular(3),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Enhanced Header with Status
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    colorScheme.primary.withOpacity(0.08),
+                    colorScheme.primary.withOpacity(0.03),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(24),
+                  topRight: Radius.circular(24),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          colorScheme.primary,
+                          colorScheme.primary.withOpacity(0.8),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colorScheme.primary.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      Icons.inventory_2_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Detail Items',
+                          style:
+                              Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: colorScheme.onSurface,
+                                    fontSize: 20,
+                                  ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.person_rounded,
+                              size: 14,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              customerName,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                            ),
+                            const SizedBox(width: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.success.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: AppColors.success.withOpacity(0.3),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Text(
+                                'Draft',
+                                style: TextStyle(
+                                  color: AppColors.success,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceVariant.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: colorScheme.outline.withOpacity(0.1),
+                        width: 1,
+                      ),
+                    ),
+                    child: IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: Icon(
+                        Icons.close_rounded,
+                        color: colorScheme.onSurfaceVariant,
+                        size: 20,
+                      ),
+                      style: IconButton.styleFrom(
+                        padding: const EdgeInsets.all(8),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Enhanced Items List
+            Flexible(
+              child: ListView.builder(
+                padding: const EdgeInsets.all(20),
+                itemCount: items.length,
+                itemBuilder: (context, index) {
+                  final item = items[index];
+                  final product = item['product'] as Map<String, dynamic>?;
+                  final quantity = item['quantity'] as int? ?? 1;
+                  final netPrice = item['netPrice'] as double? ?? 0.0;
+                  final totalPrice = netPrice * quantity;
+
+                  if (product == null) return const SizedBox.shrink();
+
+                  final kasur = product['kasur'] as String? ?? '';
+                  final ukuran = product['ukuran'] as String? ?? '';
+                  final divan = product['divan'] as String? ?? '';
+                  final headboard = product['headboard'] as String? ?? '';
+                  final sorong = product['sorong'] as String? ?? '';
+                  final bonus = (product['bonus'] as List<dynamic>?) ?? [];
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: colorScheme.outline.withOpacity(0.1),
+                        width: 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        // Item Header with gradient
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                colorScheme.primary.withOpacity(0.05),
+                                colorScheme.primary.withOpacity(0.02),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(16),
+                              topRight: Radius.circular(16),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: colorScheme.primary.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.bed_rounded,
+                                  color: colorScheme.primary,
+                                  size: 16,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Item ${index + 1}',
+                                      style: TextStyle(
+                                        color: colorScheme.onSurfaceVariant,
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      kasur.isNotEmpty ? kasur : 'Tanpa Kasur',
+                                      style: TextStyle(
+                                        color: colorScheme.onSurface,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      colorScheme.primary,
+                                      colorScheme.primary.withOpacity(0.8),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color:
+                                          colorScheme.primary.withOpacity(0.3),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Text(
+                                  'Qty: $quantity',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Item Details
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Specifications
+                              if (ukuran.isNotEmpty) ...[
+                                _buildSpecificationRow('Ukuran', ukuran,
+                                    Icons.straighten_rounded, colorScheme),
+                                const SizedBox(height: 8),
+                              ],
+                              if (divan.isNotEmpty &&
+                                  divan != 'Tanpa Divan') ...[
+                                _buildSpecificationRow('Divan', divan,
+                                    Icons.chair_rounded, colorScheme),
+                                const SizedBox(height: 8),
+                              ],
+                              if (headboard.isNotEmpty &&
+                                  headboard != 'Tanpa Headboard') ...[
+                                _buildSpecificationRow('Headboard', headboard,
+                                    Icons.headset_rounded, colorScheme),
+                                const SizedBox(height: 8),
+                              ],
+                              if (sorong.isNotEmpty &&
+                                  sorong != 'Tanpa Sorong') ...[
+                                _buildSpecificationRow('Sorong', sorong,
+                                    Icons.drag_handle_rounded, colorScheme),
+                                const SizedBox(height: 8),
+                              ],
+
+                              // Price Details with enhanced styling
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: colorScheme.surfaceVariant
+                                      .withOpacity(0.3),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: colorScheme.outline.withOpacity(0.1),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: _buildEnhancedPriceRow(
+                                        'Unit Price',
+                                        'Rp ${FormatHelper.formatNumber(netPrice)}',
+                                        Icons.attach_money_rounded,
+                                        AppColors.info,
+                                        colorScheme,
+                                      ),
+                                    ),
+                                    Container(
+                                      width: 1,
+                                      height: 40,
+                                      color:
+                                          colorScheme.outline.withOpacity(0.2),
+                                    ),
+                                    Expanded(
+                                      child: _buildEnhancedPriceRow(
+                                        'Total',
+                                        'Rp ${FormatHelper.formatNumber(totalPrice)}',
+                                        Icons.calculate_rounded,
+                                        colorScheme.primary,
+                                        colorScheme,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              // Enhanced Bonus Items
+                              if (bonus.isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        colorScheme.secondary.withOpacity(0.1),
+                                        colorScheme.secondary.withOpacity(0.05),
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: colorScheme.secondary
+                                          .withOpacity(0.2),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(6),
+                                            decoration: BoxDecoration(
+                                              color: colorScheme.secondary
+                                                  .withOpacity(0.2),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                            child: Icon(
+                                              Icons.card_giftcard_rounded,
+                                              color: colorScheme.secondary,
+                                              size: 14,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'Bonus Items',
+                                            style: TextStyle(
+                                              color: colorScheme.secondary,
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      ...bonus.map((bonusItem) {
+                                        final name =
+                                            bonusItem['name'] as String? ?? '';
+                                        final qty =
+                                            bonusItem['quantity'] as int? ?? 0;
+                                        if (name.isNotEmpty && qty > 0) {
+                                          return Container(
+                                            margin: const EdgeInsets.only(
+                                                bottom: 4),
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 6),
+                                            decoration: BoxDecoration(
+                                              color: colorScheme.surface,
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color: colorScheme.outline
+                                                    .withOpacity(0.1),
+                                                width: 1,
+                                              ),
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.check_circle_rounded,
+                                                  color: colorScheme.secondary,
+                                                  size: 12,
+                                                ),
+                                                const SizedBox(width: 6),
+                                                Expanded(
+                                                  child: Text(
+                                                    name,
+                                                    style: TextStyle(
+                                                      color:
+                                                          colorScheme.onSurface,
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                      fontSize: 11,
+                                                    ),
+                                                  ),
+                                                ),
+                                                Container(
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                      horizontal: 6,
+                                                      vertical: 2),
+                                                  decoration: BoxDecoration(
+                                                    color: colorScheme.secondary
+                                                        .withOpacity(0.1),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            6),
+                                                  ),
+                                                  child: Text(
+                                                    '${qty}x',
+                                                    style: TextStyle(
+                                                      color:
+                                                          colorScheme.secondary,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      fontSize: 10,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        }
+                                        return const SizedBox.shrink();
+                                      }),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            // Enhanced Summary
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    colorScheme.surface,
+                    colorScheme.surfaceVariant.withOpacity(0.3),
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+                border: Border(
+                  top: BorderSide(
+                    color: colorScheme.outline.withOpacity(0.1),
+                    width: 1,
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: colorScheme.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: colorScheme.outline.withOpacity(0.1),
+                          width: 1,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: AppColors.info.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.inventory_2_rounded,
+                                  color: AppColors.info,
+                                  size: 14,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Total Items',
+                                style: TextStyle(
+                                  color: colorScheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '${items.length} items',
+                            style: TextStyle(
+                              color: colorScheme.onSurface,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            colorScheme.primary,
+                            colorScheme.primary.withOpacity(0.8),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: colorScheme.primary.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.attach_money_rounded,
+                                  color: Colors.white,
+                                  size: 14,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Total Amount',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Rp ${FormatHelper.formatNumber(draft['grandTotal'] as double? ?? 0.0)}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSpecificationRow(
+      String label, String value, IconData icon, ColorScheme colorScheme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceVariant.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: colorScheme.outline.withOpacity(0.1),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: colorScheme.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(
+              icon,
+              color: colorScheme.primary,
+              size: 12,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 10,
+                  ),
+                ),
+                Text(
+                  value,
+                  style: TextStyle(
+                    color: colorScheme.onSurface,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEnhancedPriceRow(String label, String value, IconData icon,
+      Color color, ColorScheme colorScheme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 14, color: color),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: TextStyle(
+              color: colorScheme.onSurface,
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
