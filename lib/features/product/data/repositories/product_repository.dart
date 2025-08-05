@@ -43,6 +43,8 @@ class ProductRepository {
           brand: brand,
         );
 
+        print("Making API request to: $url");
+
         final response = await apiClient.get(url);
 
         if (response.statusCode != 200) {
@@ -50,15 +52,34 @@ class ProductRepository {
               "Gagal mengambil data produk. Kode error: ${response.statusCode}");
         }
 
-        final rawData = response.data["result"];
+        // Debug: Log response structure
+        print("API Response keys: ${response.data.keys.toList()}");
+        print("API Response status: ${response.data['status']}");
+
+        // Check API response status
+        if (response.data['status'] != 'success') {
+          throw Exception(
+              "API mengembalikan status error: ${response.data['status']}");
+        }
+
+        // Check for both "result" and "data" keys in response
+        final rawData = response.data["data"] ?? response.data["result"];
 
         if (rawData is! List) {
+          print("Raw data type: ${rawData.runtimeType}");
+          print("Raw data content: $rawData");
           throw Exception("Data produk tidak ditemukan. Silakan coba lagi.");
         }
 
-        final products = rawData
-            .map((item) => ProductModel.fromJson(item as Map<String, dynamic>))
-            .toList();
+        final products = rawData.map((item) {
+          try {
+            return ProductModel.fromJson(item as Map<String, dynamic>);
+          } catch (e) {
+            print("Error parsing product item: $e");
+            print("Item data: $item");
+            rethrow;
+          }
+        }).toList();
 
         return products;
       } on DioException catch (e) {
@@ -164,20 +185,33 @@ class ProductRepository {
                 "Gagal mengambil data cadangan setelah memperbarui sesi. Silakan coba lagi.");
           }
 
+          // Check API response status
+          if (newResponse.data['status'] != 'success') {
+            throw Exception(
+                "API mengembalikan status error: ${newResponse.data['status']}");
+          }
+
           if (newResponse.data is! Map<String, dynamic>) {
             throw Exception(
                 "Data cadangan tidak sesuai format. Silakan coba lagi.");
           }
 
-          final rawData = newResponse.data["result"];
+          final rawData =
+              newResponse.data["data"] ?? newResponse.data["result"];
           if (rawData is! List) {
-            throw Exception("Format JSON tidak sesuai: result bukan List.");
+            throw Exception(
+                "Format JSON tidak sesuai: data/result bukan List.");
           }
 
-          final allProducts = rawData
-              .map(
-                  (item) => ProductModel.fromJson(item as Map<String, dynamic>))
-              .toList();
+          final allProducts = rawData.map((item) {
+            try {
+              return ProductModel.fromJson(item as Map<String, dynamic>);
+            } catch (e) {
+              print("Error parsing product item in token refresh fallback: $e");
+              print("Item data: $item");
+              rethrow;
+            }
+          }).toList();
 
           // Client-side filtering
           final filteredProducts = allProducts.where((product) {
@@ -211,18 +245,30 @@ class ProductRepository {
             "Gagal mengambil data cadangan. Kode error: ${response.statusCode}");
       }
 
+      // Check API response status
+      if (response.data['status'] != 'success') {
+        throw Exception(
+            "API mengembalikan status error: ${response.data['status']}");
+      }
+
       if (response.data is! Map<String, dynamic>) {
         throw Exception("Format JSON tidak sesuai: Data utama bukan Map.");
       }
 
-      final rawData = response.data["result"];
+      final rawData = response.data["data"] ?? response.data["result"];
       if (rawData is! List) {
-        throw Exception("Format JSON tidak sesuai: result bukan List.");
+        throw Exception("Format JSON tidak sesuai: data/result bukan List.");
       }
 
-      final allProducts = rawData
-          .map((item) => ProductModel.fromJson(item as Map<String, dynamic>))
-          .toList();
+      final allProducts = rawData.map((item) {
+        try {
+          return ProductModel.fromJson(item as Map<String, dynamic>);
+        } catch (e) {
+          print("Error parsing product item in fallback: $e");
+          print("Item data: $item");
+          rethrow;
+        }
+      }).toList();
 
       // Client-side filtering
       final filteredProducts = allProducts.where((product) {

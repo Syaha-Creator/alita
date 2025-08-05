@@ -148,16 +148,24 @@ class UpdateProductDiscounts extends ProductEvent {
   final List<double> discountPercentages;
   final List<double> discountNominals;
   final double originalPrice;
+  final List<int?>? leaderIds;
 
   const UpdateProductDiscounts({
     required this.productId,
     required this.discountPercentages,
     required this.discountNominals,
     required this.originalPrice,
+    this.leaderIds,
   });
 
   @override
-  List<Object> get props => [productId, discountPercentages, discountNominals];
+  List<Object?> get props => [
+        productId,
+        discountPercentages,
+        discountNominals,
+        originalPrice,
+        leaderIds
+      ];
 }
 
 class FilterProducts extends ProductEvent {

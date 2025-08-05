@@ -1,12 +1,15 @@
 import 'package:dio/dio.dart';
+import '../config/api_config.dart';
+import '../core/error/exceptions.dart';
 import 'api_interceptor.dart';
 
 /// Client HTTP untuk komunikasi dengan API backend menggunakan Dio.
 class ApiClient {
-  final Dio _dio;
+  late Dio _dio;
 
   /// Inisialisasi ApiClient dengan interceptor dan timeout.
-  ApiClient(this._dio) {
+  ApiClient() {
+    _dio = Dio();
     _dio.interceptors.add(ApiInterceptor(_dio));
     // Set longer timeout for API calls
     _dio.options.connectTimeout = const Duration(seconds: 60); // 60 seconds
@@ -52,6 +55,26 @@ class ApiClient {
         );
       }
       rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> getLeaderByUser({
+    required String token,
+    required int userId,
+  }) async {
+    try {
+      final url = ApiConfig.getLeaderByUserUrl(token: token, userId: userId);
+      final response = await _dio.get(url);
+
+      if (response.statusCode == 200) {
+        return response.data;
+      } else {
+        throw ServerException('Failed to fetch leader data');
+      }
+    } on DioException catch (e) {
+      throw ServerException('Network error: ${e.message}');
+    } catch (e) {
+      throw ServerException('Unexpected error: $e');
     }
   }
 }

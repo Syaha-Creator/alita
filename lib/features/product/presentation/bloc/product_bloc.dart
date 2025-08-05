@@ -763,6 +763,8 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
           Map.from(currentState.productDiscountsNominal);
       Map<int, double> updatedRoundedPrices =
           Map.from(currentState.roundedPrices);
+      Map<int, List<int?>> updatedLeaderIds =
+          Map.from(currentState.productLeaderIds);
 
       Map<int, double> updatedPriceChangePercentages =
           Map.from(currentState.priceChangePercentages);
@@ -772,6 +774,10 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
           List.from(event.discountPercentages);
       updatedDiscountsNominal[event.productId] =
           List.from(event.discountNominals);
+
+      if (event.leaderIds != null) {
+        updatedLeaderIds[event.productId] = List.from(event.leaderIds!);
+      }
 
       double finalPrice = event.originalPrice;
       for (var discount in event.discountPercentages) {
@@ -784,6 +790,7 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         roundedPrices: updatedRoundedPrices,
         productDiscountsPercentage: updatedDiscountsPercentage,
         productDiscountsNominal: updatedDiscountsNominal,
+        productLeaderIds: updatedLeaderIds,
         priceChangePercentages: updatedPriceChangePercentages,
       ));
 

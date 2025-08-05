@@ -17,7 +17,8 @@ class ApiConfig {
       "${baseUrl}api/contact_work_experiences";
 
   // Products Endpoints
-  static const String filteredProducts = "${baseUrl}api/filtered_pl";
+  static const String filteredProducts =
+      "${baseUrl}api/rawdata_price_lists/filtered_pl";
 
   // Approval Endpoints
   static const String orderLetters = "${baseUrl}api/order_letters";
@@ -26,6 +27,9 @@ class ApiConfig {
       "${baseUrl}api/order_letter_discounts";
   static const String orderLetterApproves =
       "${baseUrl}api/order_letter_approves";
+
+  // Leader Endpoints
+  static const String leaderByUser = "${baseUrl}api/leaderbyuser";
 
   // Helper untuk login (POST ke signIn)
   static String getLoginUrl() {
@@ -42,7 +46,8 @@ class ApiConfig {
     final encodedArea = Uri.encodeComponent(area);
     final encodedChannel = Uri.encodeComponent(channel);
     final encodedBrand = Uri.encodeComponent(brand);
-    return "$filteredProducts?area=$encodedArea&channel=$encodedChannel&brand=$encodedBrand&access_token=$token&client_id=$clientId&client_secret=$clientSecret";
+    final encodedToken = Uri.encodeComponent(token);
+    return "$filteredProducts?area=$encodedArea&channel=$encodedChannel&brand=$encodedBrand&access_token=$encodedToken&client_id=$clientId&client_secret=$clientSecret";
   }
 
   // Helper untuk contact work experience
@@ -128,5 +133,13 @@ class ApiConfig {
     required int approveId,
   }) {
     return "$orderLetterApproves/$approveId?access_token=$token&client_id=$clientId&client_secret=$clientSecret";
+  }
+
+  // Helper untuk Leader by User
+  static String getLeaderByUserUrl({
+    required String token,
+    required int userId,
+  }) {
+    return "$leaderByUser?user_id=$userId&access_token=$token&client_id=$clientId&client_secret=$clientSecret";
   }
 }

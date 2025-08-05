@@ -9,6 +9,7 @@ import '../services/cart_storage_service.dart';
 import '../services/order_letter_service.dart';
 import '../services/checkout_service.dart';
 import '../services/contact_work_experience_service.dart';
+import '../services/leader_service.dart';
 import '../features/approval/data/repositories/approval_repository.dart';
 import '../features/approval/domain/usecases/get_approvals_usecase.dart';
 import '../features/approval/domain/usecases/create_approval_usecase.dart';
@@ -34,13 +35,15 @@ void setupLocator() {
   });
 
   // Register Services
-  locator.registerLazySingleton<ApiClient>(() => ApiClient(locator<Dio>()));
+  locator.registerLazySingleton<ApiClient>(() => ApiClient());
   locator.registerLazySingleton<CartStorageService>(() => CartStorageService());
   locator.registerLazySingleton<OrderLetterService>(
       () => OrderLetterService(locator<Dio>()));
   locator.registerLazySingleton<CheckoutService>(() => CheckoutService());
   locator.registerLazySingleton<ContactWorkExperienceService>(
       () => ContactWorkExperienceService(locator<ApiClient>()));
+  locator.registerLazySingleton<LeaderService>(
+      () => LeaderService(locator<ApiClient>()));
 
   // Register Approval Dependencies
   locator.registerLazySingleton<ApprovalRepository>(() => ApprovalRepository());

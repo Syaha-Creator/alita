@@ -5,6 +5,9 @@ import 'package:collection/collection.dart';
 
 import '../../../../../core/utils/format_helper.dart';
 import '../../../../../core/widgets/custom_toast.dart';
+import '../../../../../config/dependency_injection.dart';
+import '../../../../../services/leader_service.dart';
+import '../../../../../features/approval/data/models/approval_model.dart';
 import '../../../domain/entities/product_entity.dart';
 import '../../bloc/product_bloc.dart';
 import '../../bloc/product_event.dart';
@@ -25,6 +28,8 @@ class _InfoDialogState extends State<InfoDialog> {
   late List<double> _initialPercentages;
   late List<double> _initialNominals;
   bool hasChanged = false;
+  LeaderByUserModel? _leaderData;
+  bool _isLoadingLeader = false;
 
   void _checkHasChanged() {
     final currentPercentages = percentageControllers
@@ -64,6 +69,27 @@ class _InfoDialogState extends State<InfoDialog> {
                 ? FormatHelper.formatCurrency(_initialNominals[i])
                 : ""));
     hasChanged = false;
+    _loadLeaderData();
+  }
+
+  Future<void> _loadLeaderData() async {
+    setState(() {
+      _isLoadingLeader = true;
+    });
+
+    try {
+      final leaderService = locator<LeaderService>();
+      final leaderData = await leaderService.getLeaderByUser();
+
+      setState(() {
+        _leaderData = leaderData;
+        _isLoadingLeader = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingLeader = false;
+      });
+    }
   }
 
   @override
@@ -149,6 +175,129 @@ class _InfoDialogState extends State<InfoDialog> {
     }
   }
 
+  Widget _buildLeaderInfoSection() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Hierarki Approval",
+            style: GoogleFonts.montserrat(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _buildLeaderRow("Diskon 1 (User)", _leaderData!.user.fullName,
+              _leaderData!.user.workTitle),
+          if (_leaderData!.directLeader != null)
+            _buildLeaderRow(
+                "Diskon 2 (Direct Leader)",
+                _leaderData!.directLeader!.fullName,
+                _leaderData!.directLeader!.workTitle),
+          if (_leaderData!.indirectLeader != null)
+            _buildLeaderRow(
+                "Diskon 3 (Indirect Leader)",
+                _leaderData!.indirectLeader!.fullName,
+                _leaderData!.indirectLeader!.workTitle),
+          if (_leaderData!.controller != null)
+            _buildLeaderRow(
+                "Diskon 4 (Controller)",
+                _leaderData!.controller!.fullName,
+                _leaderData!.controller!.workTitle),
+          if (_leaderData!.analyst != null)
+            _buildLeaderRow(
+                "Diskon 5 (Analyst)",
+                _leaderData!.analyst!.fullName,
+                _leaderData!.analyst!.workTitle),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLeaderRow(String title, String name, String workTitle) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              title,
+              style: GoogleFonts.montserrat(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[700],
+              ),
+            ),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: GoogleFonts.montserrat(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  workTitle,
+                  style: GoogleFonts.montserrat(
+                    fontSize: 11,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getDiscountLabel(int discountLevel, bool isPercentage) {
+    String levelText = "Diskon $discountLevel";
+
+    if (_leaderData != null) {
+      switch (discountLevel) {
+        case 1:
+          levelText = "Diskon 1 (User)";
+          break;
+        case 2:
+          if (_leaderData!.directLeader != null) {
+            levelText = "Diskon 2 (Direct Leader)";
+          }
+          break;
+        case 3:
+          if (_leaderData!.indirectLeader != null) {
+            levelText = "Diskon 3 (Indirect Leader)";
+          }
+          break;
+        case 4:
+          if (_leaderData!.controller != null) {
+            levelText = "Diskon 4 (Controller)";
+          }
+          break;
+        case 5:
+          if (_leaderData!.analyst != null) {
+            levelText = "Diskon 5 (Analyst)";
+          }
+          break;
+      }
+    }
+
+    return isPercentage ? "$levelText (%)" : "$levelText (Rp)";
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocListener<ProductBloc, ProductState>(
@@ -184,6 +333,14 @@ class _InfoDialogState extends State<InfoDialog> {
                 style: GoogleFonts.montserrat(
                     fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
+
+            // Leader Information Section
+            if (_isLoadingLeader)
+              const Center(child: CircularProgressIndicator())
+            else if (_leaderData != null)
+              _buildLeaderInfoSection(),
+
+            const SizedBox(height: 16),
             // Konten di dalam SingleChildScrollView agar tidak overflow
             SingleChildScrollView(
               child: Column(
@@ -200,7 +357,7 @@ class _InfoDialogState extends State<InfoDialog> {
                                     const TextInputType.numberWithOptions(
                                         decimal: true),
                                 decoration: InputDecoration(
-                                    labelText: "Diskon ${i + 1} (%)",
+                                    labelText: _getDiscountLabel(i + 1, true),
                                     border: OutlineInputBorder()),
                                 onChanged: (val) {
                                   updateNominal(i);
@@ -212,7 +369,7 @@ class _InfoDialogState extends State<InfoDialog> {
                                 controller: nominalControllers[i],
                                 keyboardType: TextInputType.number,
                                 decoration: InputDecoration(
-                                    labelText: "Diskon ${i + 1} (Rp)",
+                                    labelText: _getDiscountLabel(i + 1, false),
                                     border: OutlineInputBorder()),
                                 onChanged: (val) {
                                   final formatted =
@@ -292,6 +449,17 @@ class _InfoDialogState extends State<InfoDialog> {
 
                           // 5. Hanya update jika ada perubahan
                           if (isManual) {
+                            // Get leader IDs for approval
+                            final leaderService = locator<LeaderService>();
+                            final leaderIds = <int?>[];
+
+                            for (int i = 0; i < 5; i++) {
+                              final leaderId =
+                                  leaderService.getLeaderIdByDiscountLevel(
+                                      _leaderData, i + 1);
+                              leaderIds.add(leaderId);
+                            }
+
                             context
                                 .read<ProductBloc>()
                                 .add(UpdateProductDiscounts(
@@ -299,6 +467,7 @@ class _InfoDialogState extends State<InfoDialog> {
                                   discountPercentages: toSavePercentages,
                                   discountNominals: toSaveNominals,
                                   originalPrice: basePrice,
+                                  leaderIds: leaderIds,
                                 ));
                           } else {
                             // Tidak ada perubahan, tidak perlu update apapun

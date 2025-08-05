@@ -101,54 +101,84 @@ class ProductModel {
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
     return ProductModel(
-      id: json["id"] ?? 0,
-      area: json["area"] ?? "",
-      channel: json["channel"] ?? "",
-      brand: json["brand"] ?? "",
-      kasur: json["kasur"] ?? "",
-      set: json["set"] ?? false,
-      divan: json["divan"] ?? "",
-      headboard: json["headboard"] ?? "",
-      sorong: json["sorong"] ?? "",
-      ukuran: json["ukuran"] ?? "",
-      pricelist: (json["pricelist"] ?? 0).toDouble(),
-      program: json["program"] ?? "",
-      eupKasur: (json["eup_kasur"] ?? 0).toDouble(),
-      eupDivan: (json["eup_divan"] ?? 0).toDouble(),
-      eupHeadboard: (json["eup_headboard"] ?? 0).toDouble(),
-      endUserPrice: (json["end_user_price"] ?? 0).toDouble(),
-      bonus1: json["bonus_1"],
-      qtyBonus1: json["qty_bonus1"],
-      bonus2: json["bonus_2"],
-      qtyBonus2: json["qty_bonus2"],
-      bonus3: json["bonus_3"],
-      qtyBonus3: json["qty_bonus3"],
-      bonus4: json["bonus_4"],
-      qtyBonus4: json["qty_bonus4"],
-      bonus5: json["bonus_5"],
-      qtyBonus5: json["qty_bonus5"],
-      disc1: (json["disc1"] ?? 0).toDouble(),
-      disc2: (json["disc2"] ?? 0).toDouble(),
-      disc3: (json["disc3"] ?? 0).toDouble(),
-      disc4: (json["disc4"] ?? 0).toDouble(),
-      disc5: (json["disc5"] ?? 0).toDouble(),
-      plKasur: (json["pl_kasur"] ?? 0).toDouble(),
-      plDivan: (json["pl_divan"] ?? 0).toDouble(),
-      plHeadboard: (json["pl_headboard"] ?? 0).toDouble(),
-      plSorong: (json["pl_sorong"] ?? 0).toDouble(),
-      eupSorong: (json["eup_sorong"] ?? 0).toDouble(),
-      bottomPriceAnalyst: (json["bottom_price_analyst"] ?? 0).toDouble(),
-      itemNumber: json["item_number"],
-      itemNumberKasur: json["item_number_kasur"],
-      itemNumberDivan: json["item_number_divan"],
-      itemNumberHeadboard: json["item_number_headboard"],
-      itemNumberSorong: json["item_number_sorong"],
-      itemNumberAccessories: json["item_number_accessories"],
-      itemNumberBonus1: json["item_number_bonus1"],
-      itemNumberBonus2: json["item_number_bonus2"],
-      itemNumberBonus3: json["item_number_bonus3"],
-      itemNumberBonus4: json["item_number_bonus4"],
-      itemNumberBonus5: json["item_number_bonus5"],
+      id: json["id"]?.toInt() ?? 0,
+      area: json["area"]?.toString() ?? "",
+      channel: json["channel"]?.toString() ?? "",
+      brand: json["brand"]?.toString() ?? "",
+      kasur: json["kasur"]?.toString() ?? "",
+      set: json["set"] == true,
+      divan: json["divan"]?.toString() ?? "",
+      headboard: json["headboard"]?.toString() ?? "",
+      sorong: json["sorong"]?.toString() ?? "",
+      ukuran: json["ukuran"]?.toString() ?? "",
+      pricelist: _parseDouble(json["pricelist"]),
+      program: json["program"]?.toString() ?? "",
+      eupKasur: _parseDouble(json["eup_kasur"]),
+      eupDivan: _parseDouble(json["eup_divan"]),
+      eupHeadboard: _parseDouble(json["eup_headboard"]),
+      endUserPrice: _parseDouble(json["end_user_price"]),
+      bonus1: json["bonus_1"]?.toString(),
+      qtyBonus1: _parseInt(json["qty_bonus1"]),
+      bonus2: json["bonus_2"]?.toString(),
+      qtyBonus2: _parseInt(json["qty_bonus2"]),
+      bonus3: json["bonus_3"]?.toString(),
+      qtyBonus3: _parseInt(json["qty_bonus3"]),
+      bonus4: json["bonus_4"]?.toString(),
+      qtyBonus4: _parseInt(json["qty_bonus4"]),
+      bonus5: json["bonus_5"]?.toString(),
+      qtyBonus5: _parseInt(json["qty_bonus5"]),
+      disc1: _parseDouble(json["disc1"]),
+      disc2: _parseDouble(json["disc2"]),
+      disc3: _parseDouble(json["disc3"]),
+      disc4: _parseDouble(json["disc4"]),
+      disc5: _parseDouble(json["disc5"]),
+      plKasur: _parseDouble(json["pl_kasur"]),
+      plDivan: _parseDouble(json["pl_divan"]),
+      plHeadboard: _parseDouble(json["pl_headboard"]),
+      plSorong: _parseDouble(json["pl_sorong"]),
+      eupSorong: _parseDouble(json["eup_sorong"]),
+      bottomPriceAnalyst: _parseDouble(json["bottom_price_analyst"]),
+      itemNumber: json["item_number"]?.toString(),
+      itemNumberKasur: json["item_number_kasur"]?.toString(),
+      itemNumberDivan: json["item_number_divan"]?.toString(),
+      itemNumberHeadboard: json["item_number_headboard"]?.toString(),
+      itemNumberSorong: json["item_number_sorong"]?.toString(),
+      itemNumberAccessories: json["item_number_accessories"]?.toString(),
+      itemNumberBonus1: json["item_number_bonus1"]?.toString(),
+      itemNumberBonus2: json["item_number_bonus2"]?.toString(),
+      itemNumberBonus3: json["item_number_bonus3"]?.toString(),
+      itemNumberBonus4: json["item_number_bonus4"]?.toString(),
+      itemNumberBonus5: json["item_number_bonus5"]?.toString(),
     );
+  }
+
+  // Helper method to safely parse double values
+  static double _parseDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is int) return value.toDouble();
+    if (value is double) return value;
+    if (value is String) {
+      try {
+        return double.parse(value);
+      } catch (e) {
+        return 0.0;
+      }
+    }
+    return 0.0;
+  }
+
+  // Helper method to safely parse integer values
+  static int? _parseInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) {
+      try {
+        return int.parse(value);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
   }
 }
