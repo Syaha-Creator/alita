@@ -108,6 +108,14 @@ class ApiConfig {
     return "$orderLetterDiscounts?access_token=$token&client_id=$clientId&client_secret=$clientSecret";
   }
 
+  // Helper untuk PUT Order Letter Discounts (update discount)
+  static String getUpdateOrderLetterDiscountUrl({
+    required String token,
+    required int discountId,
+  }) {
+    return "$orderLetterDiscounts/$discountId?access_token=$token&client_id=$clientId&client_secret=$clientSecret";
+  }
+
   // Helper untuk Order Letter Approves (GET)
   static String getOrderLetterApprovesUrl({
     required String token,
@@ -125,14 +133,6 @@ class ApiConfig {
     required String token,
   }) {
     return "$orderLetterApproves?access_token=$token&client_id=$clientId&client_secret=$clientSecret";
-  }
-
-  // Helper untuk PATCH Order Letter Approves (update approval)
-  static String getUpdateOrderLetterApproveUrl({
-    required String token,
-    required int approveId,
-  }) {
-    return "$orderLetterApproves/$approveId?access_token=$token&client_id=$clientId&client_secret=$clientSecret";
   }
 
   // Helper untuk Leader by User

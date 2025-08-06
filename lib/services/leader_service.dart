@@ -37,6 +37,7 @@ class LeaderService {
       return null;
     } catch (e) {
       print('LeaderService: Error getting leader data: $e');
+      // Don't rethrow the exception, just return null to prevent app crash
       return null;
     }
   }

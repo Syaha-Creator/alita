@@ -1,20 +1,43 @@
 import '../../../../config/dependency_injection.dart';
 import '../../../../services/order_letter_service.dart';
+import '../../../../services/auth_service.dart';
 import '../models/approval_model.dart';
 import '../../domain/entities/approval_entity.dart';
 
 class ApprovalRepository {
   final OrderLetterService _orderLetterService = locator<OrderLetterService>();
 
-  /// Get all order letters (approvals)
+  /// Get all order letters (approvals) filtered by current user's hierarchy
   Future<List<ApprovalEntity>> getApprovals({String? creator}) async {
     try {
-      final orderLetters =
-          await _orderLetterService.getOrderLetters(creator: creator);
+      // Get current user ID only (no need for leader data)
+      final currentUserId = await AuthService.getCurrentUserId();
+      final currentUserName = await AuthService.getCurrentUserName();
+
+      if (currentUserId == null || currentUserName == null) {
+        print('ApprovalRepository: Unable to get current user ID or name');
+        return [];
+      }
+
+      print(
+          'ApprovalRepository: Current user ID: $currentUserId, Name: $currentUserName');
+
+      // Get all order letters (without creator filter to see all orders where current user is approver)
+      final allOrderLetters = await _orderLetterService.getOrderLetters();
+
+      print(
+          'ApprovalRepository: Total order letters received: ${allOrderLetters.length}');
+      if (allOrderLetters.isNotEmpty) {
+        print(
+            'ApprovalRepository: Sample order letter structure: ${allOrderLetters.first}');
+      }
+
+      final filteredOrderLetters = await _filterOrderLettersByCreatorOrApprover(
+          allOrderLetters, currentUserId, currentUserName);
 
       final List<ApprovalEntity> approvals = [];
 
-      for (final orderLetter in orderLetters) {
+      for (final orderLetter in filteredOrderLetters) {
         final orderLetterId = orderLetter['id'];
         final noSp = orderLetter['no_sp'];
 
@@ -73,11 +96,219 @@ class ApprovalRepository {
         approvals.add(approval);
       }
 
+      print('ApprovalRepository: Returning ${approvals.length} approvals');
       return approvals;
     } catch (e) {
       print('ApprovalRepository: Error getting approvals: $e');
       return [];
     }
+  }
+
+  /// Filter order letters based on current user as creator OR approver (SEQUENTIAL)
+  Future<List<Map<String, dynamic>>> _filterOrderLettersByCreatorOrApprover(
+    List<Map<String, dynamic>> orderLetters,
+    int currentUserId,
+    String currentUserName,
+  ) async {
+    final List<Map<String, dynamic>> filteredLetters = [];
+
+    print(
+        'ApprovalRepository: Filtering order letters for current user ID: $currentUserId, name: "$currentUserName"');
+
+    for (final orderLetter in orderLetters) {
+      final orderLetterId = orderLetter['id'];
+      final status = orderLetter['status'] ?? 'Pending';
+      final creator = orderLetter['creator'];
+
+      print(
+          'ApprovalRepository: Checking order letter ID: $orderLetterId, Status: "$status", Creator: "$creator"');
+
+      // Check if current user is the creator
+      bool isCurrentUserCreator = _isNameMatch(creator, currentUserName);
+
+      if (isCurrentUserCreator) {
+        filteredLetters.add(orderLetter);
+        print(
+            'ApprovalRepository: Including order letter ID: $orderLetterId - current user is creator');
+        continue;
+      }
+
+      // Get discounts for this order letter
+      final allDiscounts = await _orderLetterService.getOrderLetterDiscounts(
+          orderLetterId: orderLetterId);
+
+      print(
+          'ApprovalRepository: Found ${allDiscounts.length} total discounts for order letter $orderLetterId');
+      for (final discount in allDiscounts) {
+        print('ApprovalRepository: Raw discount data: $discount');
+      }
+
+      // SEQUENTIAL APPROVAL LOGIC: Check if current user can approve based on previous levels
+      bool canCurrentUserApprove = _canUserApproveSequentially(
+        allDiscounts,
+        currentUserId,
+        currentUserName,
+        orderLetterId,
+      );
+
+      if (canCurrentUserApprove) {
+        filteredLetters.add(orderLetter);
+        print(
+            'ApprovalRepository: Including order letter ID: $orderLetterId - current user can approve (sequential check passed)');
+      } else {
+        print(
+            'ApprovalRepository: Excluding order letter ID: $orderLetterId - current user cannot approve yet (sequential check failed)');
+      }
+    }
+
+    print(
+        'ApprovalRepository: Returning ${filteredLetters.length} filtered approvals');
+    return filteredLetters;
+  }
+
+  /// Check if user can approve based on SEQUENTIAL approval logic
+  bool _canUserApproveSequentially(
+    List<Map<String, dynamic>> discounts,
+    int currentUserId,
+    String currentUserName,
+    int orderLetterId,
+  ) {
+    // Sort discounts by approver_level_id to ensure sequential order
+    final sortedDiscounts = List<Map<String, dynamic>>.from(discounts)
+      ..sort((a, b) {
+        final levelA = a['approver_level_id'] ?? 0;
+        final levelB = b['approver_level_id'] ?? 0;
+        return levelA.compareTo(levelB);
+      });
+
+    print(
+        'ApprovalRepository: Checking sequential approval for user ID: $currentUserId');
+
+    // Find current user's level and check if they have already approved
+    int? currentUserLevel;
+    int? currentUserDiscountId;
+    bool hasUserApproved = false;
+
+    for (final discount in sortedDiscounts) {
+      if (discount['order_letter_id'] == orderLetterId) {
+        final approverId = discount['approver'];
+        final approverName = discount['approver_name'];
+        final level = discount['approver_level_id'];
+        final approved = discount['approved'];
+
+        if (approverId == currentUserId ||
+            _isNameMatch(approverName, currentUserName)) {
+          currentUserLevel = level;
+          currentUserDiscountId = discount['id'];
+          hasUserApproved = approved == true;
+          print(
+              'ApprovalRepository: Found current user at level: $currentUserLevel, discount ID: $currentUserDiscountId, hasApproved: $hasUserApproved');
+          break;
+        }
+      }
+    }
+
+    if (currentUserLevel == null) {
+      print(
+          'ApprovalRepository: Current user is not an approver for this order letter');
+      return false;
+    }
+
+    // If user has already approved, they can always see the approval (for tracking)
+    if (hasUserApproved) {
+      print(
+          'ApprovalRepository: Current user has already approved, allowing to see approval for tracking');
+      return true;
+    }
+
+    // If user hasn't approved yet, check sequential logic
+    // For level 1 (User), always allow (auto-approved)
+    if (currentUserLevel == 1) {
+      print('ApprovalRepository: User level (1) - always allowed to see');
+      return true;
+    }
+
+    // For level 2-5, check if immediate previous level is approved
+    bool foundPreviousLevel = false;
+    for (final discount in sortedDiscounts) {
+      if (discount['order_letter_id'] == orderLetterId) {
+        final level = discount['approver_level_id'];
+        final approved = discount['approved'];
+
+        // Check if this is the immediate previous level
+        if (level != null && level == currentUserLevel - 1) {
+          foundPreviousLevel = true;
+          if (approved != true) {
+            print(
+                'ApprovalRepository: Immediate previous level $level is not approved yet (approved: $approved)');
+            return false;
+          } else {
+            print(
+                'ApprovalRepository: Immediate previous level $level is approved, allowing current user to approve');
+            break;
+          }
+        }
+      }
+    }
+
+    // If no previous level found, allow approval (for new order letters)
+    if (!foundPreviousLevel) {
+      print(
+          'ApprovalRepository: No previous level found, allowing approval for new order letter');
+      return true;
+    }
+
+    // Check if current user's level is pending
+    for (final discount in sortedDiscounts) {
+      if (discount['order_letter_id'] == orderLetterId) {
+        final level = discount['approver_level_id'];
+        final approved = discount['approved'];
+        final approverId = discount['approver'];
+        final approverName = discount['approver_name'];
+
+        if (level != null &&
+            level == currentUserLevel &&
+            (approverId == currentUserId ||
+                _isNameMatch(approverName, currentUserName))) {
+          if (approved == null || approved == false) {
+            print(
+                'ApprovalRepository: Current user level $level is pending approval');
+            return true; // Can approve
+          } else {
+            print(
+                'ApprovalRepository: Current user level $level is already approved');
+            return false; // Already approved
+          }
+        }
+      }
+    }
+
+    print('ApprovalRepository: Current user cannot approve at this time');
+    return false;
+  }
+
+  /// Helper method to check if names match (with various fallbacks)
+  bool _isNameMatch(String? creator, String userFullName) {
+    if (creator == null) return false;
+
+    // Exact match
+    if (creator == userFullName) return true;
+
+    // Trimmed match
+    if (creator.trim() == userFullName.trim()) return true;
+
+    // Case insensitive match
+    if (creator.toLowerCase().trim() == userFullName.toLowerCase().trim()) {
+      return true;
+    }
+
+    // Partial match
+    if (creator.toLowerCase().contains(userFullName.toLowerCase()) ||
+        userFullName.toLowerCase().contains(creator.toLowerCase())) {
+      return true;
+    }
+
+    return false;
   }
 
   /// Get single approval by ID
@@ -108,6 +339,13 @@ class ApprovalRepository {
       final discounts = allDiscounts
           .where((discount) => discount['order_letter_id'] == orderLetterId)
           .toList();
+
+      print(
+          'ApprovalRepository: Found ${allDiscounts.length} total discounts, filtered to ${discounts.length} for order letter $orderLetterId');
+      for (final discount in discounts) {
+        print(
+            'ApprovalRepository: Discount - ID: ${discount['id']}, Order Letter ID: ${discount['order_letter_id']}, Amount: ${discount['discount']}, Approver: ${discount['approver']}, Approver Name: ${discount['approver_name']}');
+      }
 
       // Get approval history for this order letter
       final allApprovalHistory = await _orderLetterService

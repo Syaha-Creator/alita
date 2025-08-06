@@ -64,16 +64,25 @@ class ApiClient {
   }) async {
     try {
       final url = ApiConfig.getLeaderByUserUrl(token: token, userId: userId);
+      print('ApiClient: Making request to: $url');
+
       final response = await _dio.get(url);
+      print('ApiClient: Response status: ${response.statusCode}');
+      print('ApiClient: Response data: ${response.data}');
 
       if (response.statusCode == 200) {
         return response.data;
       } else {
-        throw ServerException('Failed to fetch leader data');
+        print('ApiClient: Non-200 status code: ${response.statusCode}');
+        throw ServerException(
+            'Failed to fetch leader data: ${response.statusCode}');
       }
     } on DioException catch (e) {
+      print('ApiClient: DioException occurred: ${e.type} - ${e.message}');
+      print('ApiClient: DioException response: ${e.response?.data}');
       throw ServerException('Network error: ${e.message}');
     } catch (e) {
+      print('ApiClient: Unexpected error: $e');
       throw ServerException('Unexpected error: $e');
     }
   }

@@ -203,3 +203,93 @@ class ApprovalHistoryModel extends ApprovalHistoryEntity {
     };
   }
 }
+
+class LeaderModel {
+  final int id;
+  final String fullName;
+  final String workTitle;
+  final int? jobLevel;
+  final String? jobLevelName;
+
+  LeaderModel({
+    required this.id,
+    required this.fullName,
+    required this.workTitle,
+    this.jobLevel,
+    this.jobLevelName,
+  });
+
+  factory LeaderModel.fromJson(Map<String, dynamic> json) {
+    return LeaderModel(
+      id: json['id'] ?? 0,
+      fullName: json['full_name'] ?? '',
+      workTitle: json['work_title'] ?? '',
+      jobLevel: json['job_level'],
+      jobLevelName: json['job_level_name'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'full_name': fullName,
+      'work_title': workTitle,
+      'job_level': jobLevel,
+      'job_level_name': jobLevelName,
+    };
+  }
+
+  @override
+  String toString() {
+    return 'LeaderModel{id: $id, fullName: "$fullName", workTitle: "$workTitle", jobLevel: $jobLevel, jobLevelName: "$jobLevelName"}';
+  }
+}
+
+class LeaderByUserModel {
+  final LeaderModel user;
+  final LeaderModel? directLeader;
+  final LeaderModel? indirectLeader;
+  final LeaderModel? controller;
+  final LeaderModel? analyst;
+
+  LeaderByUserModel({
+    required this.user,
+    this.directLeader,
+    this.indirectLeader,
+    this.controller,
+    this.analyst,
+  });
+
+  factory LeaderByUserModel.fromJson(Map<String, dynamic> json) {
+    return LeaderByUserModel(
+      user: LeaderModel.fromJson(json['user'] ?? {}),
+      directLeader: json['direct_leader'] != null
+          ? LeaderModel.fromJson(json['direct_leader'])
+          : null,
+      indirectLeader: json['indirect_leader'] != null
+          ? LeaderModel.fromJson(json['indirect_leader'])
+          : null,
+      controller: json['controller'] != null
+          ? LeaderModel.fromJson(json['controller'])
+          : null,
+      analyst: json['analyst'] != null
+          ? LeaderModel.fromJson(json['analyst'])
+          : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'user': user.toJson(),
+      'direct_leader': directLeader?.toJson(),
+      'indirect_leader': indirectLeader?.toJson(),
+      'controller': controller?.toJson(),
+      'analyst': analyst?.toJson(),
+    };
+  }
+
+  @override
+  String toString() {
+    return 'LeaderByUserModel{user: $user, directLeader: $directLeader, indirectLeader: $indirectLeader, controller: $controller, analyst: $analyst}';
+  }
+}

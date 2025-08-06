@@ -1,5 +1,6 @@
 import '../config/dependency_injection.dart';
 import '../features/cart/domain/entities/cart_entity.dart';
+import '../features/product/presentation/bloc/product_bloc.dart';
 import 'auth_service.dart';
 import 'order_letter_service.dart';
 
@@ -174,11 +175,22 @@ class CheckoutService {
       print(
           'CheckoutService: Details data prepared: ${detailsData.length} items');
 
+      // Get leader IDs from product state
+      final List<int?> leaderIds = [];
+      for (final item in cartItems) {
+        final state = locator<ProductBloc>().state;
+        final productLeaderIds = state.productLeaderIds[item.product.id] ?? [];
+        leaderIds.addAll(productLeaderIds);
+      }
+
+      print('CheckoutService: Leader IDs prepared: $leaderIds');
+
       // Create Order Letter with Details and Discounts
       final result = await _orderLetterService.createOrderLetterWithDetails(
         orderLetterData: orderLetterData,
         detailsData: detailsData,
         discountsData: allDiscounts,
+        leaderIds: leaderIds,
       );
 
       print('CheckoutService: Order letter creation result: $result');

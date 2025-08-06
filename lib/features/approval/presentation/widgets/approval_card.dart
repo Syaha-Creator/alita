@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import '../../../../theme/app_colors.dart';
 import '../../domain/entities/approval_entity.dart';
+import '../../data/models/approval_model.dart';
+import '../../../../config/dependency_injection.dart';
+import '../../../../services/order_letter_service.dart';
 
 class ApprovalCard extends StatefulWidget {
   final ApprovalEntity approval;
   final VoidCallback onTap;
   final VoidCallback? onItemsTap;
   final bool isStaffLevel;
-  final List<Map<String, dynamic>> directLeaders;
+  final LeaderByUserModel? leaderData;
 
   const ApprovalCard({
     super.key,
@@ -15,7 +18,7 @@ class ApprovalCard extends StatefulWidget {
     required this.onTap,
     this.onItemsTap,
     this.isStaffLevel = false,
-    this.directLeaders = const [],
+    this.leaderData,
   });
 
   @override
@@ -29,10 +32,25 @@ class _ApprovalCardState extends State<ApprovalCard>
   late Animation<double> _hoverAnimation;
   late Animation<double> _bounceAnimation;
 
+  // Add state for timeline data
+  List<Map<String, dynamic>>? _cachedDiscountData;
+  bool _isLoadingTimeline = false;
+  String? _timelineError;
+
   @override
   void initState() {
     super.initState();
     _initializeAnimations();
+    _loadTimelineData();
+  }
+
+  @override
+  void didUpdateWidget(ApprovalCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reload timeline data if approval ID changed
+    if (oldWidget.approval.id != widget.approval.id) {
+      _loadTimelineData();
+    }
   }
 
   void _initializeAnimations() {
@@ -142,6 +160,9 @@ class _ApprovalCardState extends State<ApprovalCard>
 
                         // Footer
                         _buildFooter(theme, colorScheme),
+
+                        // Approval Timeline (Horizontal)
+                        _buildHorizontalTimeline(theme, colorScheme),
 
                         // Approval Info Section (for staff level)
                         if (widget.isStaffLevel)
@@ -531,6 +552,253 @@ class _ApprovalCardState extends State<ApprovalCard>
     );
   }
 
+  Widget _buildHorizontalTimeline(ThemeData theme, ColorScheme colorScheme) {
+    if (_isLoadingTimeline) {
+      return SizedBox(
+        height: 45, // Increased height to prevent overflow
+        child: Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+
+    if (_timelineError != null) {
+      return SizedBox(
+        height: 45, // Increased height to prevent overflow
+        child: Center(
+          child: Text(
+            'Error loading timeline',
+            style: TextStyle(color: Colors.red, fontSize: 12),
+          ),
+        ),
+      );
+    }
+
+    if (_cachedDiscountData == null || _cachedDiscountData!.isEmpty) {
+      return SizedBox(
+        height: 45, // Increased height to prevent overflow
+        child: Center(
+          child: Text(
+            'No approval data',
+            style: TextStyle(color: Colors.grey, fontSize: 12),
+          ),
+        ),
+      );
+    }
+
+    // Sort discounts by approver_level_id for sequential display
+    final sortedDiscounts =
+        List<Map<String, dynamic>>.from(_cachedDiscountData!)
+          ..sort((a, b) {
+            final levelA = a['approver_level_id'] ?? 0;
+            final levelB = b['approver_level_id'] ?? 0;
+            return levelA.compareTo(levelB);
+          });
+
+    final Map<int, Map<String, dynamic>> approvalLevelsMap = {};
+
+    // Add creator (User level) as the first level
+    approvalLevelsMap[1] = {
+      'level': 1,
+      'title': 'User',
+      'name': widget.approval.creator,
+      'status': 'completed'
+    };
+
+    // Add levels based on actual discount data with sequential logic
+    bool previousLevelApproved = true; // User level is always approved
+
+    for (final discount in sortedDiscounts) {
+      final approverLevelId = discount['approver_level_id'];
+      final approved = discount['approved'];
+      final approverName = discount['approver_name'];
+      final approverId = discount['approver'];
+
+      if (approverLevelId != null) {
+        String title = '';
+        switch (approverLevelId) {
+          case 1:
+            title = 'User';
+            break;
+          case 2:
+            title = 'Direct';
+            break; // Compact title for horizontal
+          case 3:
+            title = 'Indirect';
+            break;
+          case 4:
+            title = 'Controller';
+            break;
+          case 5:
+            title = 'Analyst';
+            break;
+          default:
+            title = 'Level $approverLevelId';
+        }
+
+        String status = 'pending';
+        if (approved == true) {
+          status = 'completed';
+          previousLevelApproved = true;
+        } else if (approved == false) {
+          status = 'rejected';
+          previousLevelApproved = false;
+        } else if (approverId != null) {
+          // Check if previous level is approved for sequential logic
+          if (previousLevelApproved) {
+            status = 'pending';
+          } else {
+            status =
+                'blocked'; // Cannot approve until previous level is approved
+          }
+        }
+
+        approvalLevelsMap[approverLevelId] = {
+          'level': approverLevelId,
+          'title': title,
+          'name': approverName ?? 'Pending',
+          'status': status
+        };
+      }
+    }
+
+    // Convert map to sorted list
+    final approvalLevels = approvalLevelsMap.values.toList()
+      ..sort((a, b) => (a['level'] as int).compareTo(b['level'] as int));
+
+    // Ensure User level is always completed
+    if (approvalLevels.isNotEmpty) {
+      approvalLevels[0]['status'] = 'completed';
+    }
+
+    return SizedBox(
+      height: 45, // Increased height to prevent overflow
+      child: Row(
+        children: approvalLevels.asMap().entries.map((entry) {
+          final index = entry.key;
+          final level = entry.value;
+          final isLast = index == approvalLevels.length - 1;
+
+          Color dotColor;
+          Color lineColor;
+          IconData iconData;
+
+          switch (level['status']) {
+            case 'completed':
+              dotColor = Colors.green;
+              lineColor = Colors.green;
+              iconData = Icons.check_circle;
+              break;
+            case 'rejected':
+              dotColor = Colors.red;
+              lineColor = Colors.red;
+              iconData = Icons.cancel;
+              break;
+            case 'blocked':
+              dotColor = Colors.grey;
+              lineColor = Colors.grey;
+              iconData = Icons.lock;
+              break;
+            case 'pending':
+            default:
+              dotColor = Colors.orange;
+              lineColor = Colors.orange;
+              iconData = Icons.schedule;
+              break;
+          }
+
+          return Expanded(
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min, // Prevent overflow
+                    children: [
+                      Icon(
+                        iconData,
+                        size: 16,
+                        color: dotColor,
+                      ),
+                      const SizedBox(height: 2),
+                      Flexible(
+                        child: Text(
+                          level['title'],
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: dotColor,
+                          ),
+                          textAlign: TextAlign.center,
+                          overflow:
+                              TextOverflow.ellipsis, // Handle text overflow
+                          maxLines: 1, // Limit to 1 line
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (!isLast)
+                  Expanded(
+                    child: Container(
+                      height: 2,
+                      color: lineColor,
+                    ),
+                  ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Future<void> _loadTimelineData() async {
+    if (!mounted) return;
+
+    setState(() {
+      _isLoadingTimeline = true;
+      _timelineError = null;
+    });
+    try {
+      print(
+          'ApprovalCard: Getting discount data for order letter ID: ${widget.approval.id}');
+      final orderLetterService = locator<OrderLetterService>();
+      final result = await orderLetterService.getOrderLetterDiscounts(
+        orderLetterId: widget.approval.id,
+      );
+      print('ApprovalCard: Got ${result.length} discounts');
+
+      if (mounted) {
+        setState(() {
+          _cachedDiscountData = result;
+        });
+      }
+    } catch (e) {
+      print('ApprovalCard: Error getting discount data: $e');
+      if (mounted) {
+        setState(() {
+          _timelineError = e.toString();
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingTimeline = false;
+        });
+      }
+    }
+  }
+
+  // Public method to refresh timeline data
+  Future<void> refreshTimelineData() async {
+    await _loadTimelineData();
+  }
+
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'pending':
@@ -631,8 +899,8 @@ class _ApprovalCardState extends State<ApprovalCard>
 
           const SizedBox(height: 8),
 
-          // Direct Leader Info
-          if (widget.directLeaders.isNotEmpty) ...[
+          // Leader Info
+          if (widget.leaderData?.directLeader != null) ...[
             Row(
               children: [
                 Icon(
@@ -643,7 +911,7 @@ class _ApprovalCardState extends State<ApprovalCard>
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Ajukan ke: ${widget.directLeaders.first['name'] ?? 'Unknown'}',
+                    'Direct Leader: ${widget.leaderData!.directLeader!.fullName}',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: colorScheme.onSurfaceVariant,
                       fontWeight: FontWeight.w500,
@@ -652,28 +920,26 @@ class _ApprovalCardState extends State<ApprovalCard>
                 ),
               ],
             ),
-            if (widget.directLeaders.first['email'] != null) ...[
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Icon(
-                    Icons.email_rounded,
-                    size: 14,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Email: ${widget.directLeaders.first['email']}',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                        fontSize: 10,
-                      ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(
+                  Icons.work_rounded,
+                  size: 14,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Jabatan: ${widget.leaderData!.directLeader!.workTitle}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontSize: 10,
                     ),
                   ),
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ] else ...[
             Row(
               children: [
