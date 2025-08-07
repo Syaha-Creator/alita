@@ -248,6 +248,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
               discountId: discountIdToApprove,
               leaderId: currentUserId,
               jobLevelId: jobLevelId,
+              orderLetterId: approval.id,
             );
 
             print('Approval result: $result');

@@ -418,6 +418,7 @@ class OrderLetterService {
     required int discountId,
     required int leaderId,
     required int jobLevelId,
+    required int orderLetterId,
   }) async {
     try {
       final token = await AuthService.getToken();
@@ -477,13 +478,96 @@ class OrderLetterService {
 
       print('OrderLetterService: Update response: ${updateResponse.data}');
 
+      // Check if this is the final approval (highest level)
+      final isFinalApproval = await _isFinalApproval(orderLetterId, jobLevelId);
+
+      Map<String, dynamic>? orderLetterUpdateResult;
+      if (isFinalApproval) {
+        print(
+            'OrderLetterService: This is the final approval, updating order letter status');
+        orderLetterUpdateResult =
+            await _updateOrderLetterStatus(orderLetterId, 'Approved');
+      }
+
       return {
         'approve_result': approveResponse.data,
         'update_result': updateResponse.data,
+        'order_letter_update_result': orderLetterUpdateResult,
+        'is_final_approval': isFinalApproval,
       };
     } catch (e) {
       print('OrderLetterService: Error approving discount: $e');
       rethrow;
+    }
+  }
+
+  /// Check if this is the final approval (highest level)
+  Future<bool> _isFinalApproval(
+      int orderLetterId, int currentJobLevelId) async {
+    try {
+      // Get all discounts for this order letter
+      final discounts =
+          await getOrderLetterDiscounts(orderLetterId: orderLetterId);
+
+      if (discounts.isEmpty) {
+        print(
+            'OrderLetterService: No discounts found for order letter $orderLetterId');
+        return false;
+      }
+
+      // Find the highest level
+      int highestLevel = 0;
+      for (final discount in discounts) {
+        final level = discount['approver_level_id'] ?? 0;
+        if (level > highestLevel) {
+          highestLevel = level;
+        }
+      }
+
+      print(
+          'OrderLetterService: Highest level: $highestLevel, Current level: $currentJobLevelId');
+      return currentJobLevelId == highestLevel;
+    } catch (e) {
+      print('OrderLetterService: Error checking final approval: $e');
+      return false;
+    }
+  }
+
+  /// Update order letter status
+  Future<Map<String, dynamic>?> _updateOrderLetterStatus(
+      int orderLetterId, String status) async {
+    try {
+      final token = await AuthService.getToken();
+      if (token == null) {
+        throw Exception('Token not available');
+      }
+
+      final url = ApiConfig.getUpdateOrderLetterUrl(
+          token: token, orderLetterId: orderLetterId);
+      final updateData = {
+        'status': status,
+      };
+
+      print('OrderLetterService: Updating order letter status with URL: $url');
+      print('OrderLetterService: Update data: $updateData');
+
+      final response = await dio.put(
+        url,
+        data: updateData,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
+
+      print(
+          'OrderLetterService: Order letter status update response: ${response.data}');
+      return response.data;
+    } catch (e) {
+      print('OrderLetterService: Error updating order letter status: $e');
+      return null;
     }
   }
 

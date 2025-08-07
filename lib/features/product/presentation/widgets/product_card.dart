@@ -211,14 +211,14 @@ class ProductCard extends StatelessWidget {
                                 value: FormatHelper.formatCurrency(
                                     product.pricelist),
                                 isStrikethrough: true,
-                                valueColor: accent,
+                                valueColor: AppColors.primaryLight,
                               ),
                               const SizedBox(height: 4),
                               DetailInfoRow(
                                 title: "Harga Net",
                                 value: FormatHelper.formatCurrency(netPrice),
                                 isBoldValue: true,
-                                valueColor: AppColors.primaryLight,
+                                valueColor: AppColors.success,
                               ),
                               const SizedBox(height: 2),
                               DetailInfoRow(
