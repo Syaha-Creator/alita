@@ -291,22 +291,32 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                 final index = entry.key;
                 final detail = entry.value;
                 final pricelist = detail.unitPrice * detail.qty;
-                final nett = detail.itemType == 'kasur'
-                    ? _document!.extendedAmount
-                    : detail.unitPrice * detail.qty;
-                final discount = pricelist - nett;
+                final isKasur = detail.itemType == 'kasur';
+                final isBonus = detail.itemType == 'bonus';
+                final isAccessory =
+                    !isKasur && !isBonus; // divan, headboard, sorong
+
+                // Untuk kasur, gunakan extended amount
+                // Untuk aksesoris (divan/headboard/sorong), nett = 0 dan discount = pricelist
+                // Untuk bonus, semua nilai 0
+                final nett = isKasur ? _document!.extendedAmount : 0.0;
+                final discount =
+                    isBonus ? 0.0 : (isKasur ? (pricelist - nett) : pricelist);
+
+                // Qty bonus sudah otomatis sesuai dengan bundling kasur
+                final displayQty = detail.qty;
 
                 return DataRow(
                   cells: [
-                    DataCell(Text('${index + 1}')),
-                    DataCell(Text('${detail.qty}')),
+                    DataCell(Text(isKasur ? '${index + 1}' : '')),
+                    DataCell(Text('$displayQty')),
                     DataCell(
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text('${detail.desc1} ${detail.desc2}'),
-                          if (detail.itemType == 'bonus')
+                          if (isBonus)
                             Text(
                               '(BONUS)',
                               style: TextStyle(
@@ -317,9 +327,12 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                         ],
                       ),
                     ),
-                    DataCell(Text(FormatHelper.formatCurrency(pricelist))),
-                    DataCell(Text(FormatHelper.formatCurrency(discount))),
-                    DataCell(Text(FormatHelper.formatCurrency(nett))),
+                    DataCell(Text(
+                        FormatHelper.formatCurrency(isBonus ? 0 : pricelist))),
+                    DataCell(Text(FormatHelper.formatCurrency(
+                        isBonus ? 0 : (isKasur ? discount : pricelist)))),
+                    DataCell(
+                        Text(FormatHelper.formatCurrency(isKasur ? nett : 0))),
                   ],
                 );
               }).toList(),

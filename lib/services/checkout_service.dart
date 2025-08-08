@@ -165,7 +165,7 @@ class CheckoutService {
               'desc_2': 'Bonus',
               'brand': item.product.brand,
               'unit_price': 0,
-              'qty': bonus.quantity,
+              'qty': bonus.quantity * item.quantity,
               'item_type': 'Bonus',
             });
           }

@@ -424,7 +424,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      '${bonus.quantity}x',
+                      '${bonus.quantity * widget.item.quantity}x',
                       style: GoogleFonts.montserrat(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
