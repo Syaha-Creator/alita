@@ -29,6 +29,13 @@ class PDFService {
     String? email,
     String? keterangan,
     String? salesName,
+    String? orderLetterNo,
+    String? orderLetterStatus,
+    String? orderLetterDate,
+    List<Map<String, dynamic>>? approvalData,
+    double? orderLetterExtendedAmount,
+    double? orderLetterHargaAwal,
+    String? shipToName,
   }) async {
     final pdf = pw.Document();
 
@@ -73,15 +80,19 @@ class PDFService {
 
     pdf.addPage(
       pw.MultiPage(
-        // --- PERUBAHAN 2: Tambahkan `pageTheme` untuk background ---
         pageTheme: pw.PageTheme(
           pageFormat: PdfPageFormat.a4,
           margin: const pw.EdgeInsets.fromLTRB(36, 28, 36, 28),
           theme: pw.ThemeData.withFont(base: font, bold: boldFont),
           buildBackground: (pw.Context context) {
-            // Tampilkan watermark hanya jika sudah lunas
+            // Tampilkan watermark berdasarkan status approval
+            if (approvalData != null) {
+              return _buildLunasWatermark(
+                  isAllApproved: _isAllApproved(approvalData));
+            }
+            // Jika tidak ada approval data, gunakan logic lama
             if (isPaid) {
-              return _buildLunasWatermark();
+              return _buildLunasWatermark(isAllApproved: true);
             }
             // Jika tidak, kembalikan widget kosong
             return pw.SizedBox();
@@ -91,7 +102,8 @@ class PDFService {
 
         header: (pw.Context context) {
           if (context.pageNumber == 1) {
-            return _buildHeader(sleepCenterLogo, otherLogos);
+            return _buildHeader(sleepCenterLogo, otherLogos, orderLetterNo,
+                orderLetterStatus, orderLetterDate);
           }
           return pw.Container();
         },
@@ -111,12 +123,14 @@ class PDFService {
             shippingAddress: shippingAddress,
             phoneNumber: phoneNumber,
             email: email ?? '-',
-            spNumber:
+            spNumber: orderLetterNo ??
                 'SP-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}',
             deliveryDate: deliveryDate,
+            shipToName: shipToName,
           ),
           pw.SizedBox(height: 12),
-          _buildItemsTable(cartItems, subtotal, totalEup),
+          _buildItemsTable(cartItems, subtotal, totalEup,
+              orderLetterExtendedAmount: orderLetterExtendedAmount),
           pw.SizedBox(height: 8),
           _buildNotesAndTotals(
             keterangan: keterangan ?? '-',
@@ -127,6 +141,8 @@ class PDFService {
             paymentAmount: paymentAmount,
             repaymentDate: repaymentDate,
           ),
+          pw.SizedBox(height: 10),
+          _buildApprovalTable(approvalData),
           pw.SizedBox(height: 10),
           _buildSignatureSection(customerName, salesName ?? "NAMA SALES"),
           pw.Spacer(),
@@ -145,19 +161,29 @@ class PDFService {
     return pdf.save();
   }
 
-  /// Membuat watermark LUNAS pada PDF jika sudah lunas.
-  static pw.Widget _buildLunasWatermark() {
+  /// Cek apakah semua approval sudah selesai.
+  static bool _isAllApproved(List<Map<String, dynamic>>? approvalData) {
+    if (approvalData == null || approvalData.isEmpty) return false;
+    return approvalData.every((approval) => approval['approved'] == true);
+  }
+
+  /// Membuat watermark LUNAS atau WAITING TO APPROVAL pada PDF.
+  static pw.Widget _buildLunasWatermark({bool isAllApproved = false}) {
     return pw.Center(
       child: pw.Transform.rotate(
         angle: 0.785,
         child: pw.Text(
-          'LUNAS',
+          isAllApproved ? 'LUNAS' : 'WAITING TO APPROVAL',
           style: pw.TextStyle(
             fontSize: 120,
             color: PdfColor(
-              PdfColors.green300.red,
-              PdfColors.green300.green,
-              PdfColors.green300.blue,
+              isAllApproved ? PdfColors.green300.red : PdfColors.orange300.red,
+              isAllApproved
+                  ? PdfColors.green300.green
+                  : PdfColors.orange300.green,
+              isAllApproved
+                  ? PdfColors.green300.blue
+                  : PdfColors.orange300.blue,
               0.05, // lebih tipis
             ),
             fontWeight: pw.FontWeight.bold,
@@ -180,7 +206,11 @@ class PDFService {
 
   /// Build header PDF dengan logo dan showroom.
   static pw.Widget _buildHeader(
-      pw.ImageProvider? sleepCenterLogo, List<pw.ImageProvider?> otherLogos) {
+      pw.ImageProvider? sleepCenterLogo,
+      List<pw.ImageProvider?> otherLogos,
+      String? orderLetterNo,
+      String? orderLetterStatus,
+      String? orderLetterDate) {
     return pw.Column(
       children: [
         if (sleepCenterLogo != null)
@@ -212,7 +242,8 @@ class PDFService {
           children: [
             pw.Text('SHOWROOM/PAMERAN: -',
                 style: const pw.TextStyle(fontSize: 9)),
-            pw.Text('TANGGAL PEMBELIAN: ${_formatSimpleDate(DateTime.now())}',
+            pw.Text(
+                'TANGGAL PEMBELIAN: ${orderLetterDate ?? _formatSimpleDate(DateTime.now())}',
                 style: const pw.TextStyle(fontSize: 9)),
           ],
         ),
@@ -231,6 +262,7 @@ class PDFService {
     required String email,
     required String spNumber,
     required String deliveryDate,
+    String? shipToName,
   }) {
     return pw.Row(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -243,9 +275,9 @@ class PDFService {
               2: const pw.FlexColumnWidth(),
             },
             children: [
-              _buildInfoTableRow('Nama Pembeli', customerName),
+              _buildInfoTableRow('Nama Customer', customerName),
               _buildInfoTableRow('Alamat Customer', customerAddress),
-              _buildInfoTableRow('Nama Penerima', customerName),
+              _buildInfoTableRow('Nama Penerima', shipToName ?? customerName),
               _buildInfoTableRow('Alamat Pengiriman', shippingAddress),
             ],
           ),
@@ -297,7 +329,8 @@ class PDFService {
 
   /// Build tabel item pesanan.
   static pw.Widget _buildItemsTable(
-      List<CartEntity> items, double subtotal, double totalEup) {
+      List<CartEntity> items, double subtotal, double totalEup,
+      {double? orderLetterExtendedAmount}) {
     const tableHeaders = [
       'NO',
       'QTY',
@@ -330,23 +363,48 @@ class PDFService {
     for (var item in items) {
       final product = item.product;
 
-      double kasurPricelist = (product.plKasur) * item.quantity;
-      double kasurNet = (item.netPrice * item.quantity) * 0.89;
-      double kasurDiscount = kasurPricelist - kasurNet;
-      tableRows.add(pw.TableRow(
-        children: [
-          _buildTableCell((itemNumber++).toString(),
-              align: pw.TextAlign.center),
-          _buildTableCell(item.quantity.toString(), align: pw.TextAlign.center),
-          _buildTableCell('${product.kasur} ${product.ukuran}'),
-          _buildTableCell(FormatHelper.formatCurrency(kasurPricelist),
-              align: pw.TextAlign.right),
-          _buildTableCell(FormatHelper.formatCurrency(kasurDiscount),
-              align: pw.TextAlign.right),
-          _buildTableCell(FormatHelper.formatCurrency(kasurNet),
-              align: pw.TextAlign.right),
-        ],
-      ));
+      // Jika ada order letter extended amount, gunakan perhitungan yang sesuai
+      if (orderLetterExtendedAmount != null) {
+        double kasurPricelist = (product.plKasur) * item.quantity;
+        double kasurNet =
+            item.netPrice * item.quantity; // Gunakan netPrice dari CartEntity
+        double kasurDiscount = kasurPricelist - kasurNet;
+        tableRows.add(pw.TableRow(
+          children: [
+            _buildTableCell((itemNumber++).toString(),
+                align: pw.TextAlign.center),
+            _buildTableCell(item.quantity.toString(),
+                align: pw.TextAlign.center),
+            _buildTableCell('${product.kasur} ${product.ukuran}'),
+            _buildTableCell(FormatHelper.formatCurrency(kasurPricelist),
+                align: pw.TextAlign.right),
+            _buildTableCell(FormatHelper.formatCurrency(kasurDiscount),
+                align: pw.TextAlign.right),
+            _buildTableCell(FormatHelper.formatCurrency(kasurNet),
+                align: pw.TextAlign.right),
+          ],
+        ));
+      } else {
+        // Logic lama untuk cart biasa
+        double kasurPricelist = (product.plKasur) * item.quantity;
+        double kasurNet = (item.netPrice * item.quantity) * 0.89;
+        double kasurDiscount = kasurPricelist - kasurNet;
+        tableRows.add(pw.TableRow(
+          children: [
+            _buildTableCell((itemNumber++).toString(),
+                align: pw.TextAlign.center),
+            _buildTableCell(item.quantity.toString(),
+                align: pw.TextAlign.center),
+            _buildTableCell('${product.kasur} ${product.ukuran}'),
+            _buildTableCell(FormatHelper.formatCurrency(kasurPricelist),
+                align: pw.TextAlign.right),
+            _buildTableCell(FormatHelper.formatCurrency(kasurDiscount),
+                align: pw.TextAlign.right),
+            _buildTableCell(FormatHelper.formatCurrency(kasurNet),
+                align: pw.TextAlign.right),
+          ],
+        ));
+      }
       if (product.divan.isNotEmpty && product.divan != AppStrings.noDivan) {
         double divanPricelist = (product.plDivan) * item.quantity;
         double divanEUP = (product.eupDivan) * item.quantity;
@@ -582,6 +640,143 @@ class PDFService {
           ],
         ),
       ),
+    );
+  }
+
+  /// Build tabel approval.
+  static pw.Widget _buildApprovalTable(
+      List<Map<String, dynamic>>? approvalData) {
+    if (approvalData == null || approvalData.isEmpty) {
+      return pw.Container(); // Return empty container if no approval data
+    }
+
+    // Sort approval data by approver_level_id
+    final sortedApprovals = List<Map<String, dynamic>>.from(approvalData);
+    sortedApprovals.sort((a, b) {
+      final levelA = a['approver_level_id'] ?? 0;
+      final levelB = b['approver_level_id'] ?? 0;
+      return levelA.compareTo(levelB);
+    });
+
+    final List<pw.TableRow> tableRows = [];
+
+    // Header
+    tableRows.add(
+      pw.TableRow(
+        verticalAlignment: pw.TableCellVerticalAlignment.middle,
+        decoration: const pw.BoxDecoration(color: PdfColors.grey300),
+        children: [
+          pw.Padding(
+            padding: const pw.EdgeInsets.all(4),
+            child: pw.Text(
+              'NO',
+              textAlign: pw.TextAlign.center,
+              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+            ),
+          ),
+          pw.Padding(
+            padding: const pw.EdgeInsets.all(4),
+            child: pw.Text(
+              'JABATAN',
+              textAlign: pw.TextAlign.center,
+              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+            ),
+          ),
+          pw.Padding(
+            padding: const pw.EdgeInsets.all(4),
+            child: pw.Text(
+              'NAMA',
+              textAlign: pw.TextAlign.center,
+              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+            ),
+          ),
+          pw.Padding(
+            padding: const pw.EdgeInsets.all(4),
+            child: pw.Text(
+              'STATUS',
+              textAlign: pw.TextAlign.center,
+              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+            ),
+          ),
+          pw.Padding(
+            padding: const pw.EdgeInsets.all(4),
+            child: pw.Text(
+              'TANGGAL',
+              textAlign: pw.TextAlign.center,
+              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    // Data rows
+    int rowNumber = 1;
+    for (var approval in sortedApprovals) {
+      final approverLevel = approval['approver_level'] ?? '';
+      final approverName = approval['approver_name'] ?? '';
+      final approved = approval['approved'];
+      final approvedAt = approval['approved_at'];
+
+      String status = 'Pending';
+      String date = '-';
+
+      if (approved == true) {
+        status = 'Approved';
+        if (approvedAt != null) {
+          try {
+            final dateTime = DateTime.parse(approvedAt);
+            date = _formatSimpleDate(dateTime);
+          } catch (e) {
+            date = approvedAt.toString();
+          }
+        }
+      } else if (approved == false) {
+        status = 'Rejected';
+        if (approvedAt != null) {
+          try {
+            final dateTime = DateTime.parse(approvedAt);
+            date = _formatSimpleDate(dateTime);
+          } catch (e) {
+            date = approvedAt.toString();
+          }
+        }
+      }
+
+      tableRows.add(
+        pw.TableRow(
+          children: [
+            _buildTableCell(rowNumber.toString(), align: pw.TextAlign.center),
+            _buildTableCell(approverLevel, align: pw.TextAlign.center),
+            _buildTableCell(approverName, align: pw.TextAlign.center),
+            _buildTableCell(status, align: pw.TextAlign.center),
+            _buildTableCell(date, align: pw.TextAlign.center),
+          ],
+        ),
+      );
+      rowNumber++;
+    }
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          'APPROVAL',
+          style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+        ),
+        pw.SizedBox(height: 4),
+        pw.Table(
+          border: pw.TableBorder.all(color: PdfColors.black, width: 0.5),
+          columnWidths: {
+            0: const pw.FlexColumnWidth(0.5),
+            1: const pw.FlexColumnWidth(2.0),
+            2: const pw.FlexColumnWidth(2.0),
+            3: const pw.FlexColumnWidth(1.0),
+            4: const pw.FlexColumnWidth(1.5),
+          },
+          children: tableRows,
+        ),
+      ],
     );
   }
 

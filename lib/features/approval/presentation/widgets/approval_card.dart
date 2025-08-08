@@ -4,6 +4,7 @@ import '../../domain/entities/approval_entity.dart';
 import '../../data/models/approval_model.dart';
 import '../../../../config/dependency_injection.dart';
 import '../../../../services/order_letter_service.dart';
+import '../../../order_letter_document/presentation/pages/order_letter_document_page.dart';
 
 class ApprovalCard extends StatefulWidget {
   final ApprovalEntity approval;
@@ -167,6 +168,9 @@ class _ApprovalCardState extends State<ApprovalCard>
                         // Approval Info Section (for staff level)
                         if (widget.isStaffLevel)
                           _buildApprovalInfoSection(theme, colorScheme),
+
+                        // Action Buttons
+                        _buildActionButtons(theme, colorScheme),
                       ],
                     ),
                   ),
@@ -961,6 +965,40 @@ class _ApprovalCardState extends State<ApprovalCard>
               ],
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButtons(ThemeData theme, ColorScheme colorScheme) {
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => OrderLetterDocumentPage(
+                      orderLetterId: widget.approval.id,
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.description, size: 16),
+              label: const Text('Lihat Dokumen'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colorScheme.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );

@@ -17,6 +17,7 @@ import '../features/approval/presentation/bloc/approval_bloc.dart';
 import '../features/authentication/data/repositories/auth_repository.dart';
 import '../features/authentication/domain/usecases/login_usecase.dart';
 import '../features/authentication/presentation/bloc/auth_bloc.dart';
+import '../features/order_letter_document/data/repositories/order_letter_document_repository.dart';
 import 'api_config.dart';
 
 final locator = GetIt.instance;
@@ -76,4 +77,8 @@ void setupLocator() {
       () => GetProductUseCase(locator<ProductRepository>()));
   locator.registerLazySingleton<ProductBloc>(
       () => ProductBloc(locator<GetProductUseCase>()));
+
+  // Register Order Letter Document Dependencies
+  locator.registerLazySingleton<OrderLetterDocumentRepository>(
+      () => OrderLetterDocumentRepository(locator<Dio>()));
 }

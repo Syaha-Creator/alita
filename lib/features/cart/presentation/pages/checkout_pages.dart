@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -12,7 +11,6 @@ import '../../../../core/utils/format_helper.dart';
 import '../../../../core/widgets/custom_textfield.dart';
 import '../../../../core/widgets/custom_toast.dart';
 import '../../../../services/auth_service.dart';
-import '../../../../services/pdf_services.dart';
 import '../../../../services/checkout_service.dart';
 
 import '../../../../theme/app_colors.dart';
@@ -151,30 +149,6 @@ class _CheckoutPagesState extends State<CheckoutPages>
         return;
       }
 
-      // Generate PDF
-      final String? salesName = await AuthService.getCurrentUserName();
-      final double paymentAmount =
-          FormatHelper.parseCurrencyToDouble(_paymentAmountController.text);
-
-      final double grandTotal = selectedItems.fold(
-          0.0, (sum, item) => sum + (item.netPrice * item.quantity));
-
-      final Uint8List pdfBytes = await PDFService.generateCheckoutPDF(
-        cartItems: selectedItems,
-        customerName: _customerNameController.text,
-        customerAddress: _customerAddressController.text,
-        phoneNumber: _customerPhoneController.text,
-        shippingAddress: _shippingAddressController.text,
-        keterangan: _notesController.text,
-        salesName: salesName ?? "Sales",
-        deliveryDate: _deliveryDateController.text,
-        email: _emailController.text,
-        paymentMethod: _selectedPaymentMethod,
-        paymentAmount: paymentAmount,
-        repaymentDate: _repaymentDateController.text,
-        grandTotal: grandTotal,
-      );
-
       if (mounted) Navigator.pop(context);
 
       // Show success message with order letter info
@@ -184,7 +158,11 @@ class _CheckoutPagesState extends State<CheckoutPages>
       CustomToast.showToast(
           'Surat pesanan berhasil dibuat! No SP: $noSp', ToastType.success);
 
-      _showPDFOptionsDialog(pdfBytes);
+      // Navigate back to product page
+      if (mounted) {
+        Navigator.of(context).popUntil(
+            (route) => route.isFirst || route.settings.name == '/product');
+      }
     } catch (e) {
       if (mounted) {
         Navigator.pop(context);
@@ -194,88 +172,6 @@ class _CheckoutPagesState extends State<CheckoutPages>
     } finally {
       if (mounted) {}
     }
-  }
-
-  void _showPDFOptionsDialog(Uint8List pdfBytes) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor:
-            isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-        title: Text(
-          'PDF Berhasil Dibuat',
-          style: TextStyle(
-            color:
-                isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-          ),
-        ),
-        content: Text(
-          'Pilih aksi yang ingin dilakukan:',
-          style: TextStyle(
-            color: isDark
-                ? AppColors.textSecondaryDark
-                : AppColors.textSecondaryLight,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(
-              'Tutup',
-              style: TextStyle(
-                color: isDark
-                    ? AppColors.textSecondaryDark
-                    : AppColors.textSecondaryLight,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () async {
-              try {
-                Navigator.pop(ctx);
-                final filePath = await PDFService.savePDFToDevice(pdfBytes);
-                CustomToast.showToast(
-                    'PDF disimpan di: ${filePath.split('/').last}',
-                    ToastType.success);
-                if (mounted) {
-                  Navigator.of(context).popUntil((route) =>
-                      route.isFirst || route.settings.name == '/product');
-                }
-              } catch (e) {
-                CustomToast.showToast(
-                    'Gagal menyimpan PDF: $e', ToastType.error);
-              }
-            },
-            child: Text(
-              'Simpan',
-              style: TextStyle(
-                color: isDark ? AppColors.accentDark : AppColors.accentLight,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              try {
-                Navigator.pop(ctx);
-                await PDFService.sharePDF(pdfBytes,
-                    'invoice_${DateTime.now().millisecondsSinceEpoch}.pdf');
-              } catch (e) {
-                CustomToast.showToast(
-                    'Gagal membagikan PDF: $e', ToastType.error);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor:
-                  isDark ? AppColors.buttonDark : AppColors.buttonLight,
-            ),
-            child: const Text('Bagikan'),
-          ),
-        ],
-      ),
-    );
   }
 
   Widget _buildBottomButtons(
