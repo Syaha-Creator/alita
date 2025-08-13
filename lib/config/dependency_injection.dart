@@ -10,6 +10,7 @@ import '../services/order_letter_service.dart';
 import '../services/checkout_service.dart';
 import '../services/contact_work_experience_service.dart';
 import '../services/leader_service.dart';
+import '../services/notification_service.dart';
 import '../features/approval/data/repositories/approval_repository.dart';
 import '../features/approval/domain/usecases/get_approvals_usecase.dart';
 import '../features/approval/domain/usecases/create_approval_usecase.dart';
@@ -45,6 +46,7 @@ void setupLocator() {
       () => ContactWorkExperienceService(locator<ApiClient>()));
   locator.registerLazySingleton<LeaderService>(
       () => LeaderService(locator<ApiClient>()));
+  locator.registerLazySingleton<NotificationService>(() => NotificationService());
 
   // Register Approval Dependencies
   locator.registerLazySingleton<ApprovalRepository>(() => ApprovalRepository());
