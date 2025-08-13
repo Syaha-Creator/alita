@@ -91,6 +91,13 @@ class _ProductPageState extends State<ProductPage> {
               tooltip: 'Approval Monitoring',
             ),
             IconButton(
+              icon: const Icon(Icons.notifications),
+              onPressed: () {
+                context.go(RoutePaths.notificationTest);
+              },
+              tooltip: 'Notification Test',
+            ),
+            IconButton(
               icon: Icon(Icons.drafts),
               tooltip: 'Draft Checkout',
               onPressed: () {

@@ -1,6 +1,7 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 import 'config/dependency_injection.dart';
 import 'features/authentication/presentation/bloc/auth_bloc.dart';
@@ -10,10 +11,21 @@ import 'features/approval/presentation/bloc/approval_bloc.dart';
 
 import 'navigation/app_router.dart';
 import 'services/auth_service.dart';
+import 'services/notification_service.dart';
 import 'theme/app_theme.dart';
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Firebase
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  // Initialize Notification Service
+  await NotificationService().initialize();
+
   setupLocator();
 
   await AuthService.isLoggedIn();
