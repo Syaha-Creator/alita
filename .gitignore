@@ -46,3 +46,15 @@ app.*.map.json
 
 # Sensitive credentials
 lib/config/fcm_credentials.dart
+
+# Build artifacts
+android/app/.cxx/
+android/app/build/
+ios/Pods/
+ios/Runner.xcworkspace/xcshareddata/
+ios/Runner.xcworkspace/xcuserdata/
+
+# Firebase generated files (keep these)
+# android/app/google-services.json
+# ios/Runner/GoogleService-Info.plist
+# lib/firebase_options.dart
