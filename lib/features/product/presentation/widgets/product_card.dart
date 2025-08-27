@@ -110,21 +110,21 @@ class ProductCard extends StatelessWidget {
                                                 letterSpacing: 0.5,
                                               ),
                                             ),
-                                            const SizedBox(height: 5),
-                                            Text(
-                                              product.program.isNotEmpty
-                                                  ? product.program
-                                                  : "Tidak ada promo",
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                color: AppColors.secondaryLight,
-                                                fontStyle: FontStyle.italic,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                              maxLines: 2,
-                                              overflow: TextOverflow.visible,
-                                              softWrap: true,
-                                            ),
+                                            // const SizedBox(height: 5),
+                                            // Text(
+                                            //   product.program.isNotEmpty
+                                            //       ? product.program
+                                            //       : "Tidak ada promo",
+                                            //   style: TextStyle(
+                                            //     fontSize: 14,
+                                            //     color: AppColors.secondaryLight,
+                                            //     fontStyle: FontStyle.italic,
+                                            //     fontWeight: FontWeight.w700,
+                                            //   ),
+                                            //   maxLines: 2,
+                                            //   overflow: TextOverflow.visible,
+                                            //   softWrap: true,
+                                            // ),
                                           ],
                                         ),
                                       ),

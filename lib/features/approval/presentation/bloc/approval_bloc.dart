@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../config/dependency_injection.dart';
+import '../../../../services/unified_notification_service.dart';
 import '../../domain/entities/approval_entity.dart';
 import '../../domain/usecases/get_approvals_usecase.dart';
 import '../../domain/usecases/create_approval_usecase.dart';
@@ -13,6 +14,8 @@ class ApprovalBloc extends Bloc<ApprovalEvent, ApprovalState> {
   final GetApprovedApprovalsUseCase _getApprovedApprovalsUseCase;
   final GetRejectedApprovalsUseCase _getRejectedApprovalsUseCase;
   final CreateApprovalUseCase _createApprovalUseCase;
+  // Removed ApprovalNotificationService - using UnifiedNotificationService instead
+  final UnifiedNotificationService _unifiedNotificationService;
 
   ApprovalBloc()
       : _getApprovalsUseCase = locator<GetApprovalsUseCase>(),
@@ -21,6 +24,8 @@ class ApprovalBloc extends Bloc<ApprovalEvent, ApprovalState> {
         _getApprovedApprovalsUseCase = locator<GetApprovedApprovalsUseCase>(),
         _getRejectedApprovalsUseCase = locator<GetRejectedApprovalsUseCase>(),
         _createApprovalUseCase = locator<CreateApprovalUseCase>(),
+        // Removed ApprovalNotificationService initialization
+        _unifiedNotificationService = locator<UnifiedNotificationService>(),
         super(ApprovalInitial()) {
     on<LoadApprovals>(_onLoadApprovals);
     on<LoadPendingApprovals>(_onLoadPendingApprovals);
@@ -135,6 +140,46 @@ class ApprovalBloc extends Bloc<ApprovalEvent, ApprovalState> {
           message: result['message'] ?? 'Approval berhasil dibuat',
           orderLetterId: event.orderLetterId,
         ));
+
+        // Send notification to next level leader
+        try {
+          // Use new approval flow notification service
+          await _unifiedNotificationService.handleApprovalFlow(
+            orderLetterId: event.orderLetterId.toString(),
+            approverUserId: result['approver_user_id'] ?? '',
+            approverName: event.approverName,
+            approvalAction: event.action,
+            approvalLevel: result['approval_level'] ?? 'Current Level',
+            comment: event.comment,
+            orderDetails: result['order_details'] ?? '',
+            customerName: result['customer_name'] ?? '',
+            totalAmount: result['total_amount'] != null
+                ? double.tryParse(result['total_amount'].toString())
+                : null,
+          );
+        } catch (e) {
+          // Log error but don't fail the approval
+          print('Error sending approval flow notification: $e');
+
+          // Fallback to unified notification service
+          try {
+            await _unifiedNotificationService.handleApprovalFlow(
+              orderLetterId: event.orderLetterId.toString(),
+              approverUserId: result['approver_user_id'] ?? '',
+              approverName: event.approverName,
+              approvalAction: event.action,
+              approvalLevel: result['approval_level'] ?? 'Current Level',
+              comment: event.comment,
+              orderDetails: result['order_details'] ?? '',
+              customerName: result['customer_name'] ?? '',
+              totalAmount: result['total_amount'] != null
+                  ? double.tryParse(result['total_amount'].toString())
+                  : null,
+            );
+          } catch (fallbackError) {
+            print('Error sending fallback notification: $fallbackError');
+          }
+        }
 
         // Refresh the approvals list
         add(const RefreshApprovals());

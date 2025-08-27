@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../../config/app_constant.dart';
 import '../../../../config/dependency_injection.dart';
 import '../../../../services/auth_service.dart';
+import '../../../../services/order_letter_service.dart';
+import '../../../../services/unified_notification_service.dart';
 import '../../../../theme/app_colors.dart';
 import '../../domain/entities/approval_entity.dart';
 import '../bloc/approval_bloc.dart';
@@ -11,7 +14,6 @@ import '../bloc/approval_event.dart';
 import '../bloc/approval_state.dart';
 import '../widgets/approval_card.dart';
 import '../widgets/approval_modal.dart';
-import '../../../../services/order_letter_service.dart';
 
 class ApprovalMonitoringPage extends StatefulWidget {
   const ApprovalMonitoringPage({super.key});
@@ -27,7 +29,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
     'All',
     'Pending',
     'Approved',
-    'Rejected'
+    'Rejected',
   ];
 
   late AnimationController _mainController;
@@ -60,21 +62,19 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
       vsync: this,
     );
 
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _mainController,
-      curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
-    ));
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _mainController,
+        curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+      ),
+    );
 
-    _slideAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _mainController,
-      curve: const Interval(0.2, 0.8, curve: Curves.easeOutCubic),
-    ));
+    _slideAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _mainController,
+        curve: const Interval(0.2, 0.8, curve: Curves.easeOutCubic),
+      ),
+    );
 
     _mainController.forward();
   }
@@ -116,8 +116,10 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
     // Check if current user is the creator of this order letter
     final currentUserName = await AuthService.getCurrentUserName() ?? '';
     final currentUserId = await AuthService.getCurrentUserId();
-    final isCurrentUserCreator =
-        _isNameMatch(approval.creator, currentUserName);
+    final isCurrentUserCreator = _isNameMatch(
+      approval.creator,
+      currentUserName,
+    );
 
     if (isCurrentUserCreator) {
       // Show approval timeline instead of modal
@@ -145,7 +147,8 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
               approved == true) {
             hasUserApproved = true;
             print(
-                'ApprovalRepository: User has already approved discount ID: ${discount['id']}');
+              'ApprovalRepository: User has already approved discount ID: ${discount['id']}',
+            );
             break;
           }
         }
@@ -153,7 +156,8 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
         if (hasUserApproved) {
           // User has already approved, show timeline instead of modal
           print(
-              'ApprovalRepository: User has already approved, showing timeline');
+            'ApprovalRepository: User has already approved, showing timeline',
+          );
           _showApprovalTimeline(approval);
           return;
         }
@@ -168,108 +172,141 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => ApprovalModal(
-        approval: approval,
-        onApprovalAction: (action, comment) async {
-          try {
-            // Get the discount that needs approval for current user
-            final currentUserId = await AuthService.getCurrentUserId();
-            final currentUserName =
-                await AuthService.getCurrentUserName() ?? '';
+      builder:
+          (context) => ApprovalModal(
+            approval: approval,
+            onApprovalAction: (action, comment) async {
+              try {
+                // Get the discount that needs approval for current user
+                final currentUserId = await AuthService.getCurrentUserId();
+                final currentUserName =
+                    await AuthService.getCurrentUserName() ?? '';
 
-            if (currentUserId == null) {
-              _showErrorSnackBar('User information not available');
-              return;
-            }
+                if (currentUserId == null) {
+                  _showErrorSnackBar('User information not available');
+                  return;
+                }
 
-            // Get raw discount data from repository to find pending approval
-            final orderLetterService = locator<OrderLetterService>();
-            final rawDiscounts =
-                await orderLetterService.getOrderLetterDiscounts(
-              orderLetterId: approval.id,
-            );
+                // Get raw discount data from repository to find pending approval
+                final orderLetterService = locator<OrderLetterService>();
+                final rawDiscounts = await orderLetterService
+                    .getOrderLetterDiscounts(orderLetterId: approval.id);
 
-            // Find the discount that current user needs to approve (SEQUENTIAL)
-            int? discountIdToApprove;
-            bool canApprove = _canUserApproveSequentially(
-              rawDiscounts,
-              currentUserId,
-              currentUserName,
-            );
+                // Find the discount that current user needs to approve (SEQUENTIAL)
+                int? discountIdToApprove;
+                bool canApprove = _canUserApproveSequentially(
+                  rawDiscounts,
+                  currentUserId,
+                  currentUserName,
+                );
 
-            if (!canApprove) {
-              _showErrorSnackBar(
-                  'Cannot approve: Previous levels must be approved first');
-              return;
-            }
+                if (!canApprove) {
+                  _showErrorSnackBar(
+                    'Cannot approve: Previous levels must be approved first',
+                  );
+                  return;
+                }
 
-            // Find the specific discount for current user
-            for (final discount in rawDiscounts) {
-              final approverId = discount['approver'];
-              final approverName = discount['approver_name'];
-              final approved = discount['approved'];
+                // Find the specific discount for current user
+                for (final discount in rawDiscounts) {
+                  final approverId = discount['approver'];
+                  final approverName = discount['approver_name'];
+                  final approved = discount['approved'];
 
-              // Check if this discount is pending approval from current user
-              if ((approverId == currentUserId ||
-                      _isNameMatch(approverName, currentUserName)) &&
-                  (approved == null || approved == false)) {
-                discountIdToApprove = discount['id'];
-                break;
+                  // Check if this discount is pending approval from current user
+                  if ((approverId == currentUserId ||
+                          _isNameMatch(approverName, currentUserName)) &&
+                      (approved == null || approved == false)) {
+                    discountIdToApprove = discount['id'];
+                    break;
+                  }
+                }
+
+                if (discountIdToApprove == null) {
+                  _showErrorSnackBar('No pending discount found for approval');
+                  return;
+                }
+
+                // Get user's job level from discount data
+                int jobLevelId = 1; // Default to user level
+
+                // Find the discount for current user to get their job level
+                for (final discount in rawDiscounts) {
+                  final approverId = discount['approver'];
+                  final approverName = discount['approver_name'];
+                  final approverLevelId = discount['approver_level_id'];
+
+                  if ((approverId == currentUserId ||
+                          _isNameMatch(approverName, currentUserName)) &&
+                      approverLevelId != null) {
+                    jobLevelId = approverLevelId;
+                    break;
+                  }
+                }
+
+                print(
+                  'ApprovalRepository: Using job level ID: $jobLevelId for user ID: $currentUserId',
+                );
+
+                // Call approval service
+                final result = await orderLetterService
+                    .approveOrderLetterDiscount(
+                      discountId: discountIdToApprove,
+                      leaderId: currentUserId,
+                      jobLevelId: jobLevelId,
+                      orderLetterId: approval.id,
+                    );
+
+                print('Approval result: $result');
+                _showSuccessSnackBar(action);
+
+                                  // Send notification using unified notification service
+                  try {
+                    final unifiedNotificationService =
+                        locator<UnifiedNotificationService>();
+
+                    // Get order details for notification
+                    String? orderDetails;
+                    String? customerName;
+                    double? totalAmount;
+                    
+                    // Try to get order details from approval data
+                    customerName = approval.customerName;
+                    totalAmount = approval.extendedAmount;
+
+                    // Handle approval flow notification
+                    await unifiedNotificationService.handleApprovalFlow(
+                      orderLetterId: approval.id.toString(),
+                      approverUserId: currentUserId.toString(),
+                      approverName: currentUserName,
+                      approvalAction: action,
+                      approvalLevel: 'Level $jobLevelId',
+                      comment: '', // Could be added later if needed
+                      orderDetails: orderDetails,
+                      customerName: customerName,
+                      totalAmount: totalAmount,
+                    );
+                  } catch (e) {
+                    print('Error sending notification: $e');
+                    // Don't fail the approval if notification fails
+                  }
+
+                // Refresh timeline data for this approval card
+                final cardKey = _approvalCardKeys[approval.id];
+                if (cardKey?.currentState != null) {
+                  final cardState = cardKey!.currentState as dynamic;
+                  if (cardState.refreshTimelineData != null) {
+                    await cardState.refreshTimelineData();
+                  }
+                }
+
+                _loadApprovals();
+              } catch (e) {
+                print('Error during approval: $e');
+                _showErrorSnackBar('Failed to process approval: $e');
               }
-            }
-
-            if (discountIdToApprove == null) {
-              _showErrorSnackBar('No pending discount found for approval');
-              return;
-            }
-
-            // Get user's job level from discount data
-            int jobLevelId = 1; // Default to user level
-
-            // Find the discount for current user to get their job level
-            for (final discount in rawDiscounts) {
-              final approverId = discount['approver'];
-              final approverName = discount['approver_name'];
-              final approverLevelId = discount['approver_level_id'];
-
-              if ((approverId == currentUserId ||
-                      _isNameMatch(approverName, currentUserName)) &&
-                  approverLevelId != null) {
-                jobLevelId = approverLevelId;
-                break;
-              }
-            }
-
-            print(
-                'ApprovalRepository: Using job level ID: $jobLevelId for user ID: $currentUserId');
-
-            // Call approval service
-            final result = await orderLetterService.approveOrderLetterDiscount(
-              discountId: discountIdToApprove,
-              leaderId: currentUserId,
-              jobLevelId: jobLevelId,
-              orderLetterId: approval.id,
-            );
-
-            print('Approval result: $result');
-            _showSuccessSnackBar(action);
-
-            // Refresh timeline data for this approval card
-            final cardKey = _approvalCardKeys[approval.id];
-            if (cardKey?.currentState != null) {
-              final cardState = cardKey!.currentState as dynamic;
-              if (cardState.refreshTimelineData != null) {
-                await cardState.refreshTimelineData();
-              }
-            }
-
-            _loadApprovals();
-          } catch (e) {
-            print('Error during approval: $e');
-            _showErrorSnackBar('Failed to process approval: $e');
-          }
-        },
-      ),
+            },
+          ),
     );
   }
 
@@ -283,7 +320,9 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
   }
 
   Widget _buildApprovalTimelineModal(
-      BuildContext context, ApprovalEntity approval) {
+    BuildContext context,
+    ApprovalEntity approval,
+  ) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
@@ -367,8 +406,9 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                     size: 24,
                   ),
                   style: IconButton.styleFrom(
-                    backgroundColor:
-                        colorScheme.surfaceVariant.withOpacity(0.3),
+                    backgroundColor: colorScheme.surfaceVariant.withOpacity(
+                      0.3,
+                    ),
                     padding: const EdgeInsets.all(8),
                   ),
                 ),
@@ -430,7 +470,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
           'level': 1,
           'title': 'User',
           'name': approval.creator,
-          'status': 'completed'
+          'status': 'completed',
         };
 
         // Add levels based on actual discount data with sequential logic
@@ -485,14 +525,16 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
               'level': approverLevelId,
               'title': title,
               'name': approverName ?? 'Pending',
-              'status': status
+              'status': status,
             };
           }
         }
 
         // Convert map to sorted list
-        final approvalLevels = approvalLevelsMap.values.toList()
-          ..sort((a, b) => (a['level'] as int).compareTo(b['level'] as int));
+        final approvalLevels =
+            approvalLevelsMap.values.toList()..sort(
+              (a, b) => (a['level'] as int).compareTo(b['level'] as int),
+            );
 
         // Ensure User level is always completed
         if (approvalLevels.isNotEmpty) {
@@ -507,10 +549,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
               // Header
               Row(
                 children: [
-                  Icon(
-                    Icons.timeline_rounded,
-                    color: colorScheme.primary,
-                  ),
+                  Icon(Icons.timeline_rounded, color: colorScheme.primary),
                   const SizedBox(width: 8),
                   Text(
                     'Approval Timeline',
@@ -569,16 +608,9 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                           decoration: BoxDecoration(
                             color: statusColor.withOpacity(0.1),
                             shape: BoxShape.circle,
-                            border: Border.all(
-                              color: statusColor,
-                              width: 2,
-                            ),
+                            border: Border.all(color: statusColor, width: 2),
                           ),
-                          child: Icon(
-                            statusIcon,
-                            color: statusColor,
-                            size: 20,
-                          ),
+                          child: Icon(statusIcon, color: statusColor, size: 20),
                         ),
                         if (!isLast)
                           Container(
@@ -728,8 +760,9 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                     size: 24,
                   ),
                   style: IconButton.styleFrom(
-                    backgroundColor:
-                        colorScheme.surfaceVariant.withOpacity(0.3),
+                    backgroundColor: colorScheme.surfaceVariant.withOpacity(
+                      0.3,
+                    ),
                     padding: const EdgeInsets.all(8),
                   ),
                 ),
@@ -809,7 +842,9 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                           ),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: colorScheme.primary.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
@@ -857,7 +892,9 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                       const SizedBox(height: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: colorScheme.secondary.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(6),
@@ -952,7 +989,12 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
   }
 
   Widget _buildPriceRow(
-      String label, String value, IconData icon, Color color, ThemeData theme) {
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+    ThemeData theme,
+  ) {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
@@ -964,11 +1006,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
         children: [
           Row(
             children: [
-              Icon(
-                icon,
-                size: 12,
-                color: color,
-              ),
+              Icon(icon, size: 12, color: color),
               const SizedBox(width: 4),
               Text(
                 label,
@@ -996,9 +1034,9 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
 
   String _formatNumber(int number) {
     return number.toString().replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (Match m) => '${m[1]},',
-        );
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]},',
+    );
   }
 
   void _showSuccessSnackBar(String action) {
@@ -1057,8 +1095,10 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
   List<ApprovalEntity> _filterApprovals(List<ApprovalEntity> approvals) {
     if (_selectedFilter == 'All') return approvals;
     return approvals
-        .where((approval) =>
-            approval.status.toLowerCase() == _selectedFilter.toLowerCase())
+        .where(
+          (approval) =>
+              approval.status.toLowerCase() == _selectedFilter.toLowerCase(),
+        )
         .toList();
   }
 
@@ -1074,8 +1114,14 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
         child: Column(
           children: [
             // Compact Header
-            _buildCompactHeader(theme, colorScheme, size, _pendingCount,
-                _approvedCount, _rejectedCount),
+            _buildCompactHeader(
+              theme,
+              colorScheme,
+              size,
+              _pendingCount,
+              _approvedCount,
+              _rejectedCount,
+            ),
 
             // Compact Filter Section
             _buildCompactFilters(colorScheme),
@@ -1095,15 +1141,18 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                     return _buildCompactLoadingState(colorScheme);
                   } else if (state is ApprovalLoaded) {
                     // Calculate stats from API data
-                    final pending = state.approvals
-                        .where((a) => a.status.toLowerCase() == 'pending')
-                        .length;
-                    final approved = state.approvals
-                        .where((a) => a.status.toLowerCase() == 'approved')
-                        .length;
-                    final rejected = state.approvals
-                        .where((a) => a.status.toLowerCase() == 'rejected')
-                        .length;
+                    final pending =
+                        state.approvals
+                            .where((a) => a.status.toLowerCase() == 'pending')
+                            .length;
+                    final approved =
+                        state.approvals
+                            .where((a) => a.status.toLowerCase() == 'approved')
+                            .length;
+                    final rejected =
+                        state.approvals
+                            .where((a) => a.status.toLowerCase() == 'rejected')
+                            .length;
                     // Update state for header
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       if (mounted) {
@@ -1116,10 +1165,16 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                     });
                     final filteredApprovals = _filterApprovals(state.approvals);
                     return _buildCompactContentState(
-                        context, filteredApprovals, colorScheme);
+                      context,
+                      filteredApprovals,
+                      colorScheme,
+                    );
                   } else if (state is ApprovalError) {
                     return _buildCompactErrorState(
-                        context, state.message, colorScheme);
+                      context,
+                      state.message,
+                      colorScheme,
+                    );
                   }
                   return _buildCompactEmptyState(colorScheme);
                 },
@@ -1131,8 +1186,14 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
     );
   }
 
-  Widget _buildCompactHeader(ThemeData theme, ColorScheme colorScheme,
-      Size size, int pending, int approved, int rejected) {
+  Widget _buildCompactHeader(
+    ThemeData theme,
+    ColorScheme colorScheme,
+    Size size,
+    int pending,
+    int approved,
+    int rejected,
+  ) {
     return AnimatedBuilder(
       animation: _mainController,
       builder: (context, child) {
@@ -1196,9 +1257,10 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                                   ? 'View Only - Staff Level'
                                   : 'Manage & Review Orders',
                               style: theme.textTheme.bodySmall?.copyWith(
-                                color: _isStaffLevel
-                                    ? AppColors.warning
-                                    : colorScheme.onSurfaceVariant,
+                                color:
+                                    _isStaffLevel
+                                        ? AppColors.warning
+                                        : colorScheme.onSurfaceVariant,
                                 fontWeight: FontWeight.w400,
                                 fontSize: 11,
                               ),
@@ -1244,7 +1306,11 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
   }
 
   Widget _buildMiniStats(
-      ColorScheme colorScheme, int pending, int approved, int rejected) {
+    ColorScheme colorScheme,
+    int pending,
+    int approved,
+    int rejected,
+  ) {
     return Row(
       children: [
         Expanded(
@@ -1280,8 +1346,13 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
     );
   }
 
-  Widget _buildMiniStatCard(String title, String value, IconData icon,
-      Color color, ColorScheme colorScheme) {
+  Widget _buildMiniStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+    ColorScheme colorScheme,
+  ) {
     return AnimatedBuilder(
       animation: _mainController,
       builder: (context, child) {
@@ -1294,18 +1365,11 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
               decoration: BoxDecoration(
                 color: color.withOpacity(0.06),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: color.withOpacity(0.1),
-                  width: 1,
-                ),
+                border: Border.all(color: color.withOpacity(0.1), width: 1),
               ),
               child: Column(
                 children: [
-                  Icon(
-                    icon,
-                    color: color,
-                    size: 14,
-                  ),
+                  Icon(icon, color: color, size: 14),
                   const SizedBox(height: 2),
                   Text(
                     value,
@@ -1343,58 +1407,67 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
-                children: _filterOptions.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final filter = entry.value;
-                  final isSelected = _selectedFilter == filter;
+                children:
+                    _filterOptions.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final filter = entry.value;
+                      final isSelected = _selectedFilter == filter;
 
-                  return Expanded(
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _selectedFilter = filter;
-                        });
-                      },
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                        margin: const EdgeInsets.symmetric(horizontal: 2),
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 10, horizontal: 6),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? colorScheme.primary
-                              : colorScheme.surfaceVariant.withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Column(
-                          children: [
-                            Icon(
-                              _getFilterIcon(filter),
-                              color: isSelected
-                                  ? Colors.white
-                                  : colorScheme.onSurfaceVariant,
-                              size: 16,
+                      return Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _selectedFilter = filter;
+                            });
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                            margin: const EdgeInsets.symmetric(horizontal: 2),
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 10,
+                              horizontal: 6,
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              filter,
-                              style: TextStyle(
-                                color: isSelected
-                                    ? Colors.white
-                                    : colorScheme.onSurface,
-                                fontWeight: isSelected
-                                    ? FontWeight.w600
-                                    : FontWeight.w500,
-                                fontSize: 11,
-                              ),
+                            decoration: BoxDecoration(
+                              color:
+                                  isSelected
+                                      ? colorScheme.primary
+                                      : colorScheme.surfaceVariant.withOpacity(
+                                        0.3,
+                                      ),
+                              borderRadius: BorderRadius.circular(10),
                             ),
-                          ],
+                            child: Column(
+                              children: [
+                                Icon(
+                                  _getFilterIcon(filter),
+                                  color:
+                                      isSelected
+                                          ? Colors.white
+                                          : colorScheme.onSurfaceVariant,
+                                  size: 16,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  filter,
+                                  style: TextStyle(
+                                    color:
+                                        isSelected
+                                            ? Colors.white
+                                            : colorScheme.onSurface,
+                                    fontWeight:
+                                        isSelected
+                                            ? FontWeight.w600
+                                            : FontWeight.w500,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  );
-                }).toList(),
+                      );
+                    }).toList(),
               ),
             ),
           ),
@@ -1418,8 +1491,11 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
     }
   }
 
-  Widget _buildCompactContentState(BuildContext context,
-      List<ApprovalEntity> approvals, ColorScheme colorScheme) {
+  Widget _buildCompactContentState(
+    BuildContext context,
+    List<ApprovalEntity> approvals,
+    ColorScheme colorScheme,
+  ) {
     if (approvals.isEmpty) {
       return _buildCompactEmptyState(colorScheme);
     }
@@ -1447,12 +1523,14 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                   child: ApprovalCard(
                     key: _approvalCardKeys[approval.id],
                     approval: approval,
-                    onTap: _isStaffLevel
-                        ? () => _showItemDetailsModal(approval)
-                        : () => _showApprovalModal(approval),
-                    onItemsTap: _isStaffLevel
-                        ? null
-                        : () => _showItemDetailsModal(approval),
+                    onTap:
+                        _isStaffLevel
+                            ? () => _showItemDetailsModal(approval)
+                            : () => _showApprovalModal(approval),
+                    onItemsTap:
+                        _isStaffLevel
+                            ? null
+                            : () => _showItemDetailsModal(approval),
                     isStaffLevel: _isStaffLevel,
                   ),
                 ),
@@ -1492,10 +1570,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
           const SizedBox(height: 8),
           Text(
             'Please wait while we fetch your data',
-            style: TextStyle(
-              color: colorScheme.onSurfaceVariant,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 14),
           ),
         ],
       ),
@@ -1503,7 +1578,10 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
   }
 
   Widget _buildCompactErrorState(
-      BuildContext context, String message, ColorScheme colorScheme) {
+    BuildContext context,
+    String message,
+    ColorScheme colorScheme,
+  ) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -1546,8 +1624,10 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
               style: ElevatedButton.styleFrom(
                 backgroundColor: colorScheme.primary,
                 foregroundColor: Colors.white,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -1660,8 +1740,11 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
     );
   }
 
-  bool _canUserApproveSequentially(List<Map<String, dynamic>> rawDiscounts,
-      int currentUserId, String currentUserName) {
+  bool _canUserApproveSequentially(
+    List<Map<String, dynamic>> rawDiscounts,
+    int currentUserId,
+    String currentUserName,
+  ) {
     // Sort discounts by approver_level_id to ensure sequential order
     final sortedDiscounts = List<Map<String, dynamic>>.from(rawDiscounts)
       ..sort((a, b) {
@@ -1671,7 +1754,8 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
       });
 
     print(
-        'ApprovalMonitoringPage: Checking sequential approval for user ID: $currentUserId');
+      'ApprovalMonitoringPage: Checking sequential approval for user ID: $currentUserId',
+    );
 
     // Find current user's level and check if they have already approved
     int? currentUserLevel;
@@ -1688,7 +1772,8 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
         currentUserLevel = level;
         hasUserApproved = approved == true;
         print(
-            'ApprovalMonitoringPage: Found current user at level: $currentUserLevel, hasApproved: $hasUserApproved');
+          'ApprovalMonitoringPage: Found current user at level: $currentUserLevel, hasApproved: $hasUserApproved',
+        );
         break;
       }
     }
@@ -1701,7 +1786,8 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
     // If user has already approved, they can always see the approval (for tracking)
     if (hasUserApproved) {
       print(
-          'ApprovalMonitoringPage: Current user has already approved, allowing to see approval for tracking');
+        'ApprovalMonitoringPage: Current user has already approved, allowing to see approval for tracking',
+      );
       return true;
     }
 
@@ -1722,11 +1808,13 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
         foundPreviousLevel = true;
         if (approved != true) {
           print(
-              'ApprovalMonitoringPage: Immediate previous level $level is not approved yet (approved: $approved)');
+            'ApprovalMonitoringPage: Immediate previous level $level is not approved yet (approved: $approved)',
+          );
           return false;
         } else {
           print(
-              'ApprovalMonitoringPage: Immediate previous level $level is approved, allowing current user to approve');
+            'ApprovalMonitoringPage: Immediate previous level $level is approved, allowing current user to approve',
+          );
           break;
         }
       }
@@ -1735,7 +1823,8 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
     // If no previous level found, allow approval (for new order letters)
     if (!foundPreviousLevel) {
       print(
-          'ApprovalMonitoringPage: No previous level found, allowing approval for new order letter');
+        'ApprovalMonitoringPage: No previous level found, allowing approval for new order letter',
+      );
       return true;
     }
 
@@ -1752,11 +1841,13 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
               _isNameMatch(approverName, currentUserName))) {
         if (approved == null || approved == false) {
           print(
-              'ApprovalMonitoringPage: Current user level $level is pending approval');
+            'ApprovalMonitoringPage: Current user level $level is pending approval',
+          );
           return true;
         } else {
           print(
-              'ApprovalMonitoringPage: Current user level $level is already approved');
+            'ApprovalMonitoringPage: Current user level $level is already approved',
+          );
           return false;
         }
       }

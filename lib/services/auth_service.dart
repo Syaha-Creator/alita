@@ -34,18 +34,6 @@ class AuthService {
   static Future<bool> login(String token, String refreshToken, int userId,
       String userName, int? areaId) async {
     try {
-      print("AuthService: Storing login data...");
-      print(
-          "AuthService: Token: ${token.length >= 10 ? "${token.substring(0, 10)}..." : token}");
-      if (refreshToken.isNotEmpty) {
-        print(
-            "AuthService: Refresh token: ${refreshToken.length >= 10 ? "${refreshToken.substring(0, 10)}..." : refreshToken}");
-      } else {
-        print("AuthService: Refresh token: (empty)");
-      }
-      print("AuthService: User ID: $userId");
-      print("AuthService: User name: $userName");
-
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(StorageKeys.isLoggedIn, true);
       await prefs.setInt(
@@ -60,10 +48,8 @@ class AuthService {
       }
       authChangeNotifier.value = true;
 
-      print("AuthService: Login data stored successfully");
       return true;
     } catch (e) {
-      print("AuthService: Error storing login data: $e");
       return false;
     }
   }
@@ -109,8 +95,6 @@ class AuthService {
   static Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString(StorageKeys.authToken);
-    print(
-        "AuthService: Retrieved token: ${token != null ? '${token.substring(0, 10)}...' : 'null'}");
     return token;
   }
 
@@ -127,7 +111,6 @@ class AuthService {
       final userId = await getCurrentUserId();
 
       if (token == null || userId == null) {
-        print("AuthService: Token or userId is null");
         return null;
       }
 
@@ -135,8 +118,6 @@ class AuthService {
         token: token,
         userId: userId,
       );
-
-      print("AuthService: Fetching job level from: $url");
 
       Dio dio = Dio();
       dio.options.connectTimeout = const Duration(seconds: 30);
@@ -146,9 +127,6 @@ class AuthService {
 
       final response = await dio.get(url);
 
-      print("AuthService: Job level response status: ${response.statusCode}");
-      print("AuthService: Job level response data: ${response.data}");
-
       if (response.statusCode == 200) {
         final data = response.data;
         final List<dynamic>? resultList = data is Map ? data['result'] : null;
@@ -157,15 +135,12 @@ class AuthService {
           final jobLevel = workExp['job_level'];
           final jobLevelName =
               jobLevel is Map ? jobLevel['name'] : jobLevel?.toString();
-          print("AuthService: Job level determined: $jobLevelName");
           return jobLevelName;
         }
       }
 
-      print("AuthService: No job level found in response");
       return null;
     } catch (e) {
-      print("AuthService: Error fetching job level: $e");
       return null;
     }
   }
@@ -192,7 +167,6 @@ class AuthService {
     final isManager = managerKeywords.any(
         (keyword) => jobLevel.toLowerCase().contains(keyword.toLowerCase()));
 
-    print("AuthService: User job level: $jobLevel, isManager: $isManager");
     return isManager;
   }
 
@@ -202,13 +176,10 @@ class AuthService {
     String? refreshToken = prefs.getString(StorageKeys.refreshToken);
 
     if (refreshToken == null) {
-      print("AuthService: Refresh token is null, logging out user");
       await logout();
       return null;
     }
 
-    print("AuthService: Attempting to refresh token...");
-    print("AuthService: Refresh token: ${refreshToken.substring(0, 10)}...");
     final url = ApiConfig.signIn;
 
     try {
@@ -231,10 +202,6 @@ class AuthService {
         ),
       );
 
-      print(
-          "AuthService: Refresh token response status: ${response.statusCode}");
-      print("AuthService: Refresh token response data: ${response.data}");
-
       if (response.statusCode == 200) {
         final newToken = response.data["access_token"];
         final newRefreshToken = response.data["refresh_token"];
@@ -242,28 +209,17 @@ class AuthService {
         final userId = response.data["id"];
 
         if (userId == null) {
-          print("AuthService: User ID not found in refresh token response");
           throw Exception("User ID not found in refresh token response.");
         }
 
-        print("AuthService: Storing new token...");
-        final success = await login(
+        await login(
             newToken, newRefreshToken, userId as int, userName as String, null);
 
-        if (!success) {
-          print("AuthService: Failed to store new token after refresh");
-          throw Exception("Failed to store new token.");
-        }
-
-        print("AuthService: Token refreshed successfully");
         return newToken;
       } else {
-        print(
-            "AuthService: Invalid response from refresh token endpoint: ${response.statusCode}");
         throw Exception("Invalid response: ${response.data}");
       }
     } catch (e) {
-      print("AuthService: Error refreshing token: $e");
       await logout();
       return null;
     }
@@ -317,7 +273,6 @@ class AuthService {
       }
       return null;
     } catch (e) {
-      print("AuthService: Error fetching leaders: $e");
       return null;
     }
   }

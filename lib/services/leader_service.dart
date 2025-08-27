@@ -8,10 +8,11 @@ class LeaderService {
   LeaderService(this._apiClient);
 
   /// Fetch leader data by user ID
-  Future<LeaderByUserModel?> getLeaderByUser({int? userId}) async {
+  Future<LeaderByUserModel?> getLeaderByUser({String? userId}) async {
     try {
       final token = await AuthService.getToken();
-      final currentUserId = userId ?? await AuthService.getCurrentUserId();
+      final currentUserId =
+          userId ?? (await AuthService.getCurrentUserId())?.toString();
 
       if (token == null || currentUserId == null) {
         print('LeaderService: Token or current user ID is null');

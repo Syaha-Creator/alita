@@ -31,6 +31,9 @@ class ApiConfig {
   // Leader Endpoints
   static const String leaderByUser = "${baseUrl}api/leaderbyuser";
 
+  // Device Token Endpoints
+  static const String deviceTokens = "${baseUrl}api/device_tokens";
+
   // Helper untuk login (POST ke signIn)
   static String getLoginUrl() {
     return signIn;
@@ -146,8 +149,23 @@ class ApiConfig {
   // Helper untuk Leader by User
   static String getLeaderByUserUrl({
     required String token,
-    required int userId,
+    required String userId,
   }) {
     return "$leaderByUser?user_id=$userId&access_token=$token&client_id=$clientId&client_secret=$clientSecret";
+  }
+
+  // Helper untuk GET Device Tokens
+  static String getDeviceTokensUrl({
+    required String token,
+    required String userId,
+  }) {
+    return "$deviceTokens?user_id=$userId&access_token=$token&client_id=$clientId&client_secret=$clientSecret";
+  }
+
+  // Helper untuk POST Device Token
+  static String getCreateDeviceTokenUrl({
+    required String token,
+  }) {
+    return "$deviceTokens?access_token=$token&client_id=$clientId&client_secret=$clientSecret";
   }
 }

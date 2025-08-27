@@ -11,6 +11,8 @@ import '../services/checkout_service.dart';
 import '../services/contact_work_experience_service.dart';
 import '../services/leader_service.dart';
 import '../services/notification_service.dart';
+import '../services/local_notification_service.dart';
+import '../services/approval_notification_service.dart';
 import '../features/approval/data/repositories/approval_repository.dart';
 import '../features/approval/domain/usecases/get_approvals_usecase.dart';
 import '../features/approval/domain/usecases/create_approval_usecase.dart';
@@ -20,6 +22,8 @@ import '../features/authentication/domain/usecases/login_usecase.dart';
 import '../features/authentication/presentation/bloc/auth_bloc.dart';
 import '../features/order_letter_document/data/repositories/order_letter_document_repository.dart';
 import 'api_config.dart';
+import '../services/unified_notification_service.dart';
+import '../services/device_token_service.dart';
 
 final locator = GetIt.instance;
 
@@ -29,9 +33,7 @@ void setupLocator() {
       baseUrl: ApiConfig.baseUrl,
       connectTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(seconds: 30),
-      headers: {
-        'Accept': 'application/json',
-      },
+      headers: {'Accept': 'application/json'},
     );
     return Dio(options);
   });
@@ -40,47 +42,75 @@ void setupLocator() {
   locator.registerLazySingleton<ApiClient>(() => ApiClient());
   locator.registerLazySingleton<CartStorageService>(() => CartStorageService());
   locator.registerLazySingleton<OrderLetterService>(
-      () => OrderLetterService(locator<Dio>()));
+    () => OrderLetterService(locator<Dio>()),
+  );
   locator.registerLazySingleton<CheckoutService>(() => CheckoutService());
   locator.registerLazySingleton<ContactWorkExperienceService>(
-      () => ContactWorkExperienceService(locator<ApiClient>()));
+    () => ContactWorkExperienceService(locator<ApiClient>()),
+  );
   locator.registerLazySingleton<LeaderService>(
-      () => LeaderService(locator<ApiClient>()));
-  locator.registerLazySingleton<NotificationService>(() => NotificationService());
+    () => LeaderService(locator<ApiClient>()),
+  );
+  locator.registerLazySingleton<NotificationService>(
+    () => NotificationService(),
+  );
+  locator.registerLazySingleton<LocalNotificationService>(
+    () => LocalNotificationService(),
+  );
+  // Removed ApprovalNotificationService - using UnifiedNotificationService instead
+  locator.registerLazySingleton<UnifiedNotificationService>(
+    () => UnifiedNotificationService(),
+  );
+  locator.registerLazySingleton<DeviceTokenService>(
+    () => DeviceTokenService(),
+  );
 
   // Register Approval Dependencies
   locator.registerLazySingleton<ApprovalRepository>(() => ApprovalRepository());
   locator.registerLazySingleton<GetApprovalsUseCase>(
-      () => GetApprovalsUseCase(locator()));
+    () => GetApprovalsUseCase(locator()),
+  );
   locator.registerLazySingleton<GetApprovalByIdUseCase>(
-      () => GetApprovalByIdUseCase(locator()));
+    () => GetApprovalByIdUseCase(locator()),
+  );
   locator.registerLazySingleton<GetPendingApprovalsUseCase>(
-      () => GetPendingApprovalsUseCase(locator()));
+    () => GetPendingApprovalsUseCase(locator()),
+  );
   locator.registerLazySingleton<GetApprovedApprovalsUseCase>(
-      () => GetApprovedApprovalsUseCase(locator()));
+    () => GetApprovedApprovalsUseCase(locator()),
+  );
   locator.registerLazySingleton<GetRejectedApprovalsUseCase>(
-      () => GetRejectedApprovalsUseCase(locator()));
+    () => GetRejectedApprovalsUseCase(locator()),
+  );
   locator.registerLazySingleton<CreateApprovalUseCase>(
-      () => CreateApprovalUseCase(locator()));
+    () => CreateApprovalUseCase(locator()),
+  );
   locator.registerLazySingleton<ApprovalBloc>(() => ApprovalBloc());
 
   // Register Auth Dependencies
   locator.registerLazySingleton<AuthRepository>(
-      () => AuthRepository(apiClient: locator<ApiClient>()));
+    () => AuthRepository(apiClient: locator<ApiClient>()),
+  );
   locator.registerLazySingleton<LoginUseCase>(
-      () => LoginUseCase(locator<AuthRepository>()));
-  locator
-      .registerLazySingleton<AuthBloc>(() => AuthBloc(locator<LoginUseCase>()));
+    () => LoginUseCase(locator<AuthRepository>()),
+  );
+  locator.registerLazySingleton<AuthBloc>(
+    () => AuthBloc(locator<LoginUseCase>()),
+  );
 
   // Register Product Dependencies
   locator.registerLazySingleton<ProductRepository>(
-      () => ProductRepository(apiClient: locator<ApiClient>()));
+    () => ProductRepository(apiClient: locator<ApiClient>()),
+  );
   locator.registerLazySingleton<GetProductUseCase>(
-      () => GetProductUseCase(locator<ProductRepository>()));
+    () => GetProductUseCase(locator<ProductRepository>()),
+  );
   locator.registerLazySingleton<ProductBloc>(
-      () => ProductBloc(locator<GetProductUseCase>()));
+    () => ProductBloc(locator<GetProductUseCase>()),
+  );
 
   // Register Order Letter Document Dependencies
   locator.registerLazySingleton<OrderLetterDocumentRepository>(
-      () => OrderLetterDocumentRepository(locator<Dio>()));
+    () => OrderLetterDocumentRepository(locator<Dio>()),
+  );
 }

@@ -87,7 +87,7 @@ class AppTheme {
         borderSide: const BorderSide(color: AppColors.borderLight),
       ),
     ),
-    dialogTheme: DialogTheme(
+    dialogTheme: DialogThemeData(
       backgroundColor: AppColors.surfaceLight,
       surfaceTintColor: AppColors.surfaceLight,
       shape: RoundedRectangleBorder(
@@ -200,7 +200,7 @@ class AppTheme {
         borderSide: const BorderSide(color: AppColors.borderDark),
       ),
     ),
-    dialogTheme: DialogTheme(
+    dialogTheme: DialogThemeData(
       backgroundColor: AppColors.surfaceDark,
       surfaceTintColor: AppColors.surfaceDark,
       shape: RoundedRectangleBorder(

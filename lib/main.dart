@@ -12,6 +12,7 @@ import 'features/approval/presentation/bloc/approval_bloc.dart';
 import 'navigation/app_router.dart';
 import 'services/auth_service.dart';
 import 'services/notification_service.dart';
+import 'services/local_notification_service.dart';
 import 'theme/app_theme.dart';
 import 'firebase_options.dart';
 
@@ -23,8 +24,9 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Initialize Notification Service
+  // Initialize Notification Services
   await NotificationService().initialize();
+  await LocalNotificationService().initialize();
 
   setupLocator();
 

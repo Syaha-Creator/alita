@@ -1,11 +1,19 @@
 import '../config/dependency_injection.dart';
 import '../features/cart/domain/entities/cart_entity.dart';
 import '../features/product/presentation/bloc/product_bloc.dart';
-import 'auth_service.dart';
-import 'order_letter_service.dart';
+import '../services/auth_service.dart';
+import '../services/order_letter_service.dart';
+import '../services/unified_notification_service.dart';
 
 class CheckoutService {
-  final OrderLetterService _orderLetterService = locator<OrderLetterService>();
+  late final OrderLetterService _orderLetterService;
+  late final UnifiedNotificationService _notificationService;
+
+  CheckoutService() {
+    // Initialize services without circular dependency
+    _orderLetterService = locator<OrderLetterService>();
+    _notificationService = UnifiedNotificationService();
+  }
 
   /// Create Order Letter from Cart Items
   Future<Map<String, dynamic>> createOrderLetterFromCart({
@@ -41,8 +49,10 @@ class CheckoutService {
         // Collect all discounts from each item
         if (item.discountPercentages.isNotEmpty) {
           allDiscounts.addAll(item.discountPercentages.where((d) => d > 0.0));
-          totalDiscountPercentage +=
-              item.discountPercentages.fold(0.0, (sum, d) => sum + d);
+          totalDiscountPercentage += item.discountPercentages.fold(
+            0.0,
+            (sum, d) => sum + d,
+          );
         }
       }
 
@@ -66,7 +76,8 @@ class CheckoutService {
 
       print('CheckoutService: Order letter data prepared: $orderLetterData');
       print(
-          'CheckoutService: Shipping data - shipToName: "$shipToName", addressShipTo: "$addressShipTo"');
+        'CheckoutService: Shipping data - shipToName: "$shipToName", addressShipTo: "$addressShipTo"',
+      );
 
       // Prepare Details Data
       final List<Map<String, dynamic>> detailsData = [];
@@ -173,7 +184,8 @@ class CheckoutService {
       }
 
       print(
-          'CheckoutService: Details data prepared: ${detailsData.length} items');
+        'CheckoutService: Details data prepared: ${detailsData.length} items',
+      );
 
       // Get leader IDs from product state
       final List<int?> leaderIds = [];
@@ -195,13 +207,45 @@ class CheckoutService {
 
       print('CheckoutService: Order letter creation result: $result');
 
+      // Send notification if order letter created successfully
+      if (result['success'] == true) {
+        try {
+          // Get current user ID for notification
+          final currentUserId = await AuthService.getCurrentUserId();
+
+          if (currentUserId != null) {
+            // Send both local and FCM notifications using new service
+            await _notificationService.handleOrderLetterCreation(
+              creatorUserId: currentUserId.toString(),
+              orderId: result['orderLetterId']?.toString() ?? 'Unknown',
+              orderDetails:
+                  note.isNotEmpty ? note : 'Order letter created from cart',
+              customerName: customerName,
+              totalAmount: totalExtendedAmount,
+            );
+          } else {
+            // Fallback to unified notification service
+            final approvalNotificationService =
+                locator<UnifiedNotificationService>();
+            await approvalNotificationService.handleOrderLetterCreation(
+              creatorUserId: 'unknown',
+              orderId: result['orderLetterId']?.toString() ?? 'Unknown',
+              orderDetails:
+                  note.isNotEmpty ? note : 'Order letter created from cart',
+              customerName: customerName,
+              totalAmount: totalExtendedAmount,
+            );
+          }
+        } catch (e) {
+          print('CheckoutService: Error sending notification: $e');
+          // Don't fail the checkout process if notification fails
+        }
+      }
+
       return result;
     } catch (e) {
       print('CheckoutService: Error creating order letter from cart: $e');
-      return {
-        'success': false,
-        'message': 'Error creating order letter: $e',
-      };
+      return {'success': false, 'message': 'Error creating order letter: $e'};
     }
   }
 }

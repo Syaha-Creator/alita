@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../config/app_constant.dart';
 import '../../../../core/utils/format_helper.dart';
 import '../../../../theme/app_colors.dart';
+import '../../../cart/presentation/widgets/cart_badge.dart';
 import '../../domain/entities/product_entity.dart';
 import '../bloc/product_bloc.dart';
 import '../bloc/product_state.dart';
@@ -67,6 +69,12 @@ class ProductDetailPage extends StatelessWidget {
                   textAlign: TextAlign.center,
                 ),
                 actions: [
+                  CartBadge(
+                    onTap: () {
+                      context.push(RoutePaths.cart);
+                    },
+                    child: Icon(Icons.shopping_cart_outlined, size: 28),
+                  ),
                   IconButton(
                     icon: const Icon(Icons.share),
                     onPressed: () =>

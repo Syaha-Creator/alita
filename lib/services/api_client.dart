@@ -60,7 +60,7 @@ class ApiClient {
 
   Future<Map<String, dynamic>> getLeaderByUser({
     required String token,
-    required int userId,
+    required String userId,
   }) async {
     try {
       final url = ApiConfig.getLeaderByUserUrl(token: token, userId: userId);

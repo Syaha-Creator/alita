@@ -769,13 +769,10 @@ class _ApprovalCardState extends State<ApprovalCard>
       _timelineError = null;
     });
     try {
-      print(
-          'ApprovalCard: Getting discount data for order letter ID: ${widget.approval.id}');
       final orderLetterService = locator<OrderLetterService>();
       final result = await orderLetterService.getOrderLetterDiscounts(
         orderLetterId: widget.approval.id,
       );
-      print('ApprovalCard: Got ${result.length} discounts');
 
       if (mounted) {
         setState(() {
@@ -783,7 +780,6 @@ class _ApprovalCardState extends State<ApprovalCard>
         });
       }
     } catch (e) {
-      print('ApprovalCard: Error getting discount data: $e');
       if (mounted) {
         setState(() {
           _timelineError = e.toString();
