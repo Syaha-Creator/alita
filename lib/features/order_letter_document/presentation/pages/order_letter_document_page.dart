@@ -275,69 +275,874 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
               ),
             ),
           ),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              columnSpacing: 20,
-              columns: const [
-                DataColumn(label: Text('NO')),
-                DataColumn(label: Text('QTY')),
-                DataColumn(label: Text('NAMA BARANG')),
-                DataColumn(label: Text('HARGA\nPRICELIST')),
-                DataColumn(label: Text('DISC/\nPROGRAM')),
-                DataColumn(label: Text('HARGA\nNETT')),
-              ],
-              rows: details.asMap().entries.map((entry) {
-                final index = entry.key;
-                final detail = entry.value;
-                final pricelist = detail.unitPrice * detail.qty;
-                final isKasur = detail.itemType == 'kasur';
-                final isBonus = detail.itemType == 'bonus';
-                final isAccessory =
-                    !isKasur && !isBonus; // divan, headboard, sorong
-
-                // Untuk kasur, gunakan extended amount
-                // Untuk aksesoris (divan/headboard/sorong), nett = 0 dan discount = pricelist
-                // Untuk bonus, semua nilai 0
-                final nett = isKasur ? _document!.extendedAmount : 0.0;
-                final discount =
-                    isBonus ? 0.0 : (isKasur ? (pricelist - nett) : pricelist);
-
-                // Qty bonus sudah otomatis sesuai dengan bundling kasur
-                final displayQty = detail.qty;
-
-                return DataRow(
-                  cells: [
-                    DataCell(Text(isKasur ? '${index + 1}' : '')),
-                    DataCell(Text('$displayQty')),
-                    DataCell(
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text('${detail.desc1} ${detail.desc2}'),
-                          if (isBonus)
-                            Text(
-                              '(BONUS)',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    DataCell(Text(
-                        FormatHelper.formatCurrency(isBonus ? 0 : pricelist))),
-                    DataCell(Text(FormatHelper.formatCurrency(
-                        isBonus ? 0 : (isKasur ? discount : pricelist)))),
-                    DataCell(
-                        Text(FormatHelper.formatCurrency(isKasur ? nett : 0))),
-                  ],
-                );
-              }).toList(),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: _buildOrderItemCards(details),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildOrderItemCards(List<dynamic> details) {
+    final List<Widget> cards = [];
+
+    // Kelompokkan detail berdasarkan kasur utama
+    final kasurDetails = details.where((d) => d.itemType == 'kasur').toList();
+
+    print('Total details: ${details.length}');
+    print('Kasur details: ${kasurDetails.length}');
+
+    // Debug: print all details first to see the structure
+    print('=== ALL DETAILS STRUCTURE ===');
+    for (int j = 0; j < details.length; j++) {
+      final detail = details[j];
+      print(
+          '  $j: itemType=${detail.itemType}, desc1="${detail.desc1}", desc2="${detail.desc2}"');
+      // Print all available fields
+      print('      Fields: ${detail.runtimeType.toString()}');
+      if (detail.runtimeType.toString().contains('Map')) {
+        print('      Map keys: ${(detail as Map).keys.toList()}');
+      }
+    }
+
+    for (int i = 0; i < kasurDetails.length; i++) {
+      final kasurDetail = kasurDetails[i];
+      final kasurIndex = i + 1;
+
+      print('\n=== PROCESSING KASUR $kasurIndex ===');
+      print('Kasur: ${kasurDetail.desc1} - ${kasurDetail.desc2}');
+      print('Kasur desc1: "${kasurDetail.desc1}"');
+      print('Kasur desc2: "${kasurDetail.desc2}"');
+
+      // Coba berbagai cara matching untuk aksesoris
+      List<dynamic> relatedAccessories = [];
+
+      // Method 1: Exact desc1 match
+      var accessories1 = details
+          .where((d) =>
+              d.itemType != 'kasur' &&
+              d.itemType != 'Bonus' &&
+              d.desc1 == kasurDetail.desc1)
+          .toList();
+      print('Method 1 (exact desc1): ${accessories1.length} accessories');
+
+      // Method 2: Partial desc1 match
+      var accessories2 = details
+          .where((d) =>
+              d.itemType != 'kasur' &&
+              d.itemType != 'Bonus' &&
+              d.desc1.toString().contains(kasurDetail.desc1.toString()))
+          .toList();
+      print('Method 2 (partial desc1): ${accessories2.length} accessories');
+
+      // Method 3: Any field match
+      var accessories3 = details
+          .where((d) =>
+              d.itemType != 'kasur' &&
+              d.itemType != 'Bonus' &&
+              (d.desc1.toString().contains(kasurDetail.desc1.toString()) ||
+                  d.desc2.toString().contains(kasurDetail.desc1.toString()) ||
+                  d.desc1.toString().contains(kasurDetail.desc2.toString()) ||
+                  d.desc2.toString().contains(kasurDetail.desc2.toString())))
+          .toList();
+      print('Method 3 (any field): ${accessories3.length} accessories');
+
+      // Method 4: Show all non-kasur, non-bonus items
+      var allAccessories = details
+          .where((d) => d.itemType != 'kasur' && d.itemType != 'Bonus')
+          .toList();
+      print('All non-kasur, non-bonus items: ${allAccessories.length}');
+      for (var acc in allAccessories) {
+        print('  - ${acc.itemType}: "${acc.desc1}" - "${acc.desc2}"');
+      }
+
+      // Gunakan method yang paling banyak hasilnya
+      if (accessories3.isNotEmpty) {
+        relatedAccessories = accessories3;
+        print('Using Method 3: ${relatedAccessories.length} accessories');
+      } else if (accessories2.isNotEmpty) {
+        relatedAccessories = accessories2;
+        print('Using Method 2: ${relatedAccessories.length} accessories');
+      } else if (accessories1.isNotEmpty) {
+        relatedAccessories = accessories1;
+        print('Using Method 1: ${relatedAccessories.length} accessories');
+      } else {
+        print('No accessories found with any method!');
+      }
+
+      // Cari bonus yang terkait dengan kasur ini berdasarkan urutan item
+      var relatedBonus = <dynamic>[];
+
+      // Cari posisi kasur saat ini dalam array details
+      final kasurIndexInDetails = details.indexWhere((d) =>
+          d.itemType == 'kasur' &&
+          d.desc1 == kasurDetail.desc1 &&
+          d.desc2 == kasurDetail.desc2);
+
+      print(
+          'Kasur ${kasurDetail.desc1} - ${kasurDetail.desc2} found at index: $kasurIndexInDetails');
+
+      // Cari posisi kasur berikutnya (jika ada)
+      int nextKasurIndex = -1;
+      for (int i = kasurIndexInDetails + 1; i < details.length; i++) {
+        if (details[i].itemType == 'kasur') {
+          nextKasurIndex = i;
+          break;
+        }
+      }
+
+      if (nextKasurIndex == -1) {
+        nextKasurIndex = details
+            .length; // Jika tidak ada kasur berikutnya, gunakan panjang array
+      }
+
+      print('Next kasur found at index: $nextKasurIndex');
+
+      // Ambil bonus yang berada antara kasur saat ini dan kasur berikutnya
+      for (int i = kasurIndexInDetails + 1; i < nextKasurIndex; i++) {
+        if (details[i].itemType == 'Bonus') {
+          relatedBonus.add(details[i]);
+          print(
+              'Added bonus at index $i: ${details[i].desc1} - ${details[i].desc2}');
+        }
+      }
+
+      print('Total bonus for kasur $kasurIndex: ${relatedBonus.length}');
+
+      print(
+          'Found ${relatedAccessories.length} accessories for kasur $kasurIndex');
+      print('Found ${relatedBonus.length} bonus for kasur $kasurIndex');
+
+      // Debug: print found accessories
+      if (relatedAccessories.isNotEmpty) {
+        print('Found accessories:');
+        for (var acc in relatedAccessories) {
+          print('  - ${acc.itemType}: "${acc.desc1}" - "${acc.desc2}"');
+        }
+      }
+
+      // Debug: print found bonus
+      if (relatedBonus.isNotEmpty) {
+        print('Found bonus for kasur $kasurIndex:');
+        for (var b in relatedBonus) {
+          print(
+              '  - ${b.itemType}: "${b.desc1}" - "${b.desc2}" (qty: ${b.qty})');
+        }
+      } else {
+        print('No bonus found for kasur $kasurIndex');
+      }
+
+      // Debug: print bonus details
+      print('Bonus details for kasur $kasurIndex:');
+      for (var b in relatedBonus) {
+        print('  - ${b.itemType}: "${b.desc1}" - "${b.desc2}" (qty: ${b.qty})');
+      }
+
+      // Debug: print all available bonus items
+      final allBonus = details.where((d) => d.itemType == 'Bonus').toList();
+      print('All available bonus items: ${allBonus.length}');
+      for (var b in allBonus) {
+        print('  - ${b.itemType}: "${b.desc1}" - "${b.desc2}" (qty: ${b.qty})');
+      }
+
+      // Debug: check case sensitivity
+      print('=== CASE SENSITIVITY CHECK ===');
+      final bonusLower = details.where((d) => d.itemType == 'bonus').toList();
+      final bonusUpper = details.where((d) => d.itemType == 'Bonus').toList();
+      final bonusAny = details
+          .where((d) => d.itemType.toString().toLowerCase() == 'bonus')
+          .toList();
+      print('Bonus with "bonus" (lower): ${bonusLower.length}');
+      print('Bonus with "Bonus" (upper): ${bonusUpper.length}');
+      print('Bonus with any case: ${bonusAny.length}');
+
+      // Show all item types to debug
+      final allItemTypes = details.map((d) => d.itemType).toSet().toList();
+      print('All item types found: $allItemTypes');
+
+      // Gunakan aksesoris yang sudah difilter, bukan semua aksesoris
+      // relatedAccessories = allAccessories; // Hapus baris ini
+
+      cards.add(_buildOrderItemCard(
+        kasurIndex: kasurIndex,
+        kasurDetail: kasurDetail,
+        accessories: relatedAccessories,
+        bonus: relatedBonus,
+      ));
+    }
+
+    return cards;
+  }
+
+  Widget _buildOrderItemCard({
+    required int kasurIndex,
+    required dynamic kasurDetail,
+    required List<dynamic> accessories,
+    required List<dynamic> bonus,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final pricelist = kasurDetail.unitPrice * kasurDetail.qty;
+    final nett = _document!.extendedAmount;
+    final discount = pricelist - nett;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      elevation: 4,
+      child: Padding(
+        padding: const EdgeInsets.all(15),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header dengan nomor urut, icon, nama kasur, dan quantity
+            Row(
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.blue[700] : Colors.blue[100],
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '$kasurIndex',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.blue[800],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: isDark ? Colors.blue[700] : Colors.blue[100],
+                  child: Icon(
+                    Icons.bed,
+                    color: isDark ? Colors.white : Colors.blue[800],
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    '${kasurDetail.desc1} ${kasurDetail.desc2}',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.grey[700] : Colors.grey[100],
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    'Qty: ${kasurDetail.qty}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.grey[800],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+
+            // Detail Produk Section - Aksesoris selain kasur
+            if (accessories.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Detail Produk',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 6),
+              ...accessories.map((acc) => _buildAccessoryRow(acc, isDark)),
+              const SizedBox(height: 8),
+            ],
+
+            // Bonus Section
+            if (bonus.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Icon(
+                    Icons.card_giftcard,
+                    size: 18,
+                    color: isDark ? Colors.green[400] : Colors.green[600],
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Bonus',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              ...bonus.map((b) => Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.green[600],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${b.qty}x',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${b.desc1} ${b.desc2}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                      ),
+                    ],
+                  )),
+              const SizedBox(height: 8),
+            ],
+
+            // Informasi Harga Section - Dihapus untuk sementara
+
+            // Total Harga Section - Dihapus untuk sementara
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAccessoryRow(dynamic acc, bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(
+            _getAccessoryIcon(acc.itemType),
+            size: 20,
+            color: isDark ? Colors.grey[400] : Colors.grey.shade600,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '${acc.desc1} ${acc.desc2}',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
+          ),
+          Text(
+            '${acc.qty}x',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.grey[800],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _getAccessoryIcon(String itemType) {
+    switch (itemType) {
+      case 'bonus':
+        return Icons.card_giftcard;
+      case 'chair':
+        return Icons.chair;
+      case 'bed':
+        return Icons.bed;
+      case 'divan':
+        return Icons.chair; // Assuming divan is a type of chair
+      case 'headboard':
+        return Icons.chair; // Assuming headboard is a type of chair
+      case 'sorong':
+        return Icons.chair; // Assuming sorong is a type of chair
+      default:
+        return Icons.inventory_2_outlined;
+    }
+  }
+
+  Widget _buildDetailRow(
+      IconData icon, String label, String value, bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 20,
+            color: isDark ? Colors.grey[400] : Colors.grey.shade600,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '$label ',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
+          ),
+          Text(
+            value.isNotEmpty ? value : '-',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: isDark ? Colors.grey[300] : Colors.grey[700],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPriceRow(
+    String label,
+    String value,
+    bool isDark, {
+    Color? color,
+    bool isBold = false,
+    bool isStrikethrough = false,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: isBold ? FontWeight.w600 : FontWeight.w500,
+            color: isDark ? Colors.grey[300] : Colors.grey[700],
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
+            color: color ?? (isDark ? Colors.white : Colors.black87),
+            decoration: isStrikethrough ? TextDecoration.lineThrough : null,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOrderItemHeader(
+      BuildContext context,
+      bool isDark,
+      int index,
+      dynamic detail,
+      int displayQty,
+      bool isKasur,
+      bool isBonus,
+      bool isAccessory) {
+    return Row(
+      children: [
+        if (isKasur)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.blue[700] : Colors.blue[100],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              '${index + 1}',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : Colors.blue[800],
+              ),
+            ),
+          ),
+        const SizedBox(width: 16),
+        CircleAvatar(
+          radius: 20,
+          backgroundColor: isDark ? Colors.blue[700] : Colors.blue[100],
+          child: Icon(
+            isBonus
+                ? Icons.card_giftcard
+                : isAccessory
+                    ? Icons.chair
+                    : Icons.bed,
+            color: isDark ? Colors.white : Colors.blue[800],
+            size: 20,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Text(
+            '${detail.desc1} ${detail.desc2}',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: isDark ? Colors.grey[700] : Colors.grey[100],
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            'Qty: $displayQty',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.grey[800],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOrderItemDetailsSection(BuildContext context, bool isDark,
+      dynamic detail, bool isKasur, bool isBonus, bool isAccessory) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 10),
+        _buildProductDetails(
+            context, isDark, detail, isKasur, isBonus, isAccessory),
+        const SizedBox(height: 10),
+        _buildBonusAndNotes(context, isDark, detail, isBonus),
+        const SizedBox(height: 10),
+      ],
+    );
+  }
+
+  Widget _buildProductDetails(BuildContext context, bool isDark, dynamic detail,
+      bool isKasur, bool isBonus, bool isAccessory) {
+    final styleLabel = TextStyle(fontSize: 14, fontWeight: FontWeight.w600);
+    final styleValue = TextStyle(fontSize: 14, fontWeight: FontWeight.w500);
+
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.grey[800] : Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Detail Produk',
+            style: styleLabel.copyWith(
+              fontSize: 15,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _detailRow(
+              Icons.category,
+              'Tipe Item',
+              isBonus
+                  ? 'BONUS'
+                  : isAccessory
+                      ? 'AKSESORIS'
+                      : 'KASUR',
+              styleLabel,
+              styleValue,
+              isDark),
+          if (isKasur)
+            _detailRow(Icons.bed, 'Kasur', '${detail.desc1}', styleLabel,
+                styleValue, isDark),
+          if (isAccessory)
+            _detailRow(Icons.chair, 'Aksesoris', '${detail.desc1}', styleLabel,
+                styleValue, isDark),
+          if (isBonus)
+            _detailRow(Icons.card_giftcard, 'Bonus', '${detail.desc1}',
+                styleLabel, styleValue, isDark),
+        ],
+      ),
+    );
+  }
+
+  Widget _detailRow(IconData icon, String label, String value,
+      TextStyle labelStyle, TextStyle valueStyle, bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 20,
+            color: isDark ? Colors.grey[400] : Colors.grey.shade600,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '$label ',
+              style: labelStyle.copyWith(
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
+          ),
+          Text(
+            value.isNotEmpty ? value : '-',
+            style: valueStyle.copyWith(
+              color: isDark ? Colors.grey[300] : Colors.grey[700],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBonusAndNotes(
+      BuildContext context, bool isDark, dynamic detail, bool isBonus) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (isBonus)
+          _bonusBox(context, Icons.card_giftcard, 'Bonus', '', isDark)
+        else
+          Text(
+            'Bonus: Tidak ada bonus',
+            style: TextStyle(
+              color: isDark ? Colors.grey[400] : Colors.grey.shade600,
+            ),
+          ),
+        const SizedBox(height: 8),
+        _infoBox(context, Icons.note, 'Catatan', 'Tidak ada catatan', isDark),
+      ],
+    );
+  }
+
+  Widget _bonusBox(BuildContext context, IconData icon, String title,
+      String content, bool isDark) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.grey[800] : Colors.green.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark
+              ? Colors.green.withOpacity(0.2)
+              : Colors.green.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                icon,
+                size: 18,
+                color: isDark ? Colors.green[400] : Colors.green[600],
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.green[600],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '1x',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Item bonus dari pesanan',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoBox(BuildContext context, IconData icon, String title,
+      String content, bool isDark) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+          color: isDark ? Colors.grey[800] : Colors.grey[100],
+          borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(icon,
+                size: 20, color: isDark ? Colors.blue[400] : Colors.blue[600]),
+            const SizedBox(width: 8),
+            Text(title,
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white : Colors.black87))
+          ]),
+          const SizedBox(height: 4),
+          Text(content.isNotEmpty ? content : 'Tidak ada catatan',
+              style: TextStyle(
+                  fontSize: 14,
+                  color: isDark ? Colors.grey[300] : Colors.grey[700])),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOrderItemPriceInfo(
+      BuildContext context,
+      bool isDark,
+      double pricelist,
+      double nett,
+      double discount,
+      bool isKasur,
+      bool isBonus,
+      bool isAccessory) {
+    final styleLabel = TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: isDark ? Colors.white : Colors.black87);
+    final styleValue = TextStyle(
+        fontSize: 14, color: isDark ? Colors.grey[300] : Colors.grey[700]);
+
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+          color: isDark ? Colors.grey[800] : Colors.grey[100],
+          borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Informasi Harga', style: styleLabel.copyWith(fontSize: 16)),
+          const SizedBox(height: 8),
+          _priceRow(
+              'Pricelist',
+              FormatHelper.formatCurrency(isBonus ? 0 : pricelist),
+              styleLabel.copyWith(
+                  decoration: isBonus
+                      ? null
+                      : (isKasur ? TextDecoration.lineThrough : null),
+                  color: isBonus ? styleValue.color : Colors.red),
+              isDark),
+          if (!isBonus) ...[
+            const SizedBox(height: 8),
+            _priceRow(
+                'Diskon/Program',
+                FormatHelper.formatCurrency(isKasur ? discount : pricelist),
+                styleValue.copyWith(color: Colors.orange),
+                isDark),
+          ],
+          const SizedBox(height: 8),
+          _priceRow(
+              'Harga Nett',
+              FormatHelper.formatCurrency(isKasur ? nett : 0),
+              styleValue.copyWith(
+                  fontWeight: FontWeight.w700, color: Colors.green),
+              isDark),
+        ],
+      ),
+    );
+  }
+
+  Widget _priceRow(
+      String label, String value, TextStyle valueStyle, bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label,
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+          Text(value, style: valueStyle)
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOrderItemTotalPrice(
+      BuildContext context, bool isDark, double nett, int displayQty) {
+    final total = nett * displayQty;
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.grey[800] : Colors.green.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Total Harga:',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
+          Text(FormatHelper.formatCurrency(total),
+              style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.green)),
         ],
       ),
     );
@@ -347,9 +1152,6 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
     final details = _document!.details;
     final discounts = _document!.discounts;
 
-    final subtotal =
-        _document!.extendedAmount * 0.89; // 89% dari extended amount
-    final ppn = _document!.extendedAmount * 0.11; // 11% PPN
     final grandTotal = _document!.extendedAmount;
 
     return Container(
@@ -369,14 +1171,19 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
             ),
           ),
           const SizedBox(height: 12),
+
+          // Tampilkan discount sebagai disc1 + disc2 + disc3 + disc4
+          if (discounts.isNotEmpty) ...[
+            _buildDiscountSection(discounts),
+            const SizedBox(height: 12),
+          ],
+
           Row(
             children: [
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildTotalRow('Subtotal', subtotal),
-                    _buildTotalRow('PPN 11%', ppn),
                     _buildTotalRow('Grand Total', grandTotal, isBold: true),
                   ],
                 ),
@@ -411,6 +1218,93 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         ],
       ),
     );
+  }
+
+  Widget _buildDiscountSection(List<OrderLetterDiscountModel> discounts) {
+    // Sort discounts by approver_level_id (1=User, 2=Direct Leader, 3=Indirect Leader, 4=Controller, 5=Analyst)
+    final sortedDiscounts = List<OrderLetterDiscountModel>.from(discounts);
+    sortedDiscounts.sort(
+        (a, b) => (a.approverLevelId ?? 0).compareTo(b.approverLevelId ?? 0));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // const Text(
+        //   'DISCOUNT',
+        //   style: TextStyle(
+        //     fontSize: 14,
+        //     fontWeight: FontWeight.bold,
+        //     color: Colors.red,
+        //   ),
+        // ),
+        // const SizedBox(height: 8),
+        ...sortedDiscounts.map((discount) {
+          String levelLabel = '';
+          switch (discount.approverLevelId) {
+            case 1:
+              levelLabel = 'Disc 1';
+              break;
+            case 2:
+              levelLabel = 'Disc 2';
+              break;
+            case 3:
+              levelLabel = 'Disc 3';
+              break;
+            case 4:
+              levelLabel = 'Disc 4';
+              break;
+            case 5:
+              levelLabel = 'Disc 5';
+              break;
+            default:
+              levelLabel = 'Disc ${discount.approverLevelId}';
+          }
+
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  levelLabel,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  '-${_formatDiscountPercentage(discount.discount)}%',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.red,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  /// Format discount percentage dengan maksimal 2 angka di belakang koma
+  /// Hanya tampilkan angka di belakang koma jika ada angka selain 0
+  String _formatDiscountPercentage(double percentage) {
+    // Data discount sudah dalam format persentase, tidak perlu dikalikan 100
+    // Jika angka bulat (tidak ada desimal), tampilkan tanpa koma
+    if (percentage == percentage.toInt()) {
+      return percentage.toInt().toString();
+    }
+
+    // Jika ada desimal, format dengan maksimal 2 angka di belakang koma
+    final formatted = percentage.toStringAsFixed(2);
+
+    // Hapus trailing zeros (angka 0 di belakang)
+    final trimmed =
+        formatted.replaceAll(RegExp(r'0*$'), '').replaceAll(RegExp(r'\.$'), '');
+
+    return trimmed;
   }
 
   Widget _buildApprovalSection() {

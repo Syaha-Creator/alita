@@ -260,15 +260,15 @@ class OrderLetterService {
           'approver_level': approverLevel,
           'approver_work_title': approverWorkTitle,
           'approved': approvedValue,
-          'approved_at': approvedAt,
+          'approved_at': approvedAt, // Hanya level 1 yang akan ada approved_at
         };
 
-        // print('OrderLetterService: Discount $i - Final data being sent:');
-        // print('  - Level: ${i + 1} ($approverLevel)');
-        // print('  - Approver: $approverName ($approverId)');
-        // print('  - Approved: $isApproved');
-        // print('  - Approved At: $approvedAt');
-        // print('  - Full data: $discountData');
+        print('OrderLetterService: Discount $i - Final data being sent:');
+        print('  - Level: ${i + 1} ($approverLevel)');
+        print('  - Approver: $approverName ($approverId)');
+        print('  - Approved: $approvedValue');
+        print('  - Approved At: $approvedAt');
+        print('  - Full data: $discountData');
 
         final discountResult = await createOrderLetterDiscount(discountData);
         discountResults.add(discountResult);

@@ -230,6 +230,19 @@ class OrderLetterDiscountModel {
       }
     }
 
+    // Debug: print raw data from backend
+    print('OrderLetterDiscountModel.fromJson - Raw data:');
+    print('  - ID: ${json['id']}');
+    print('  - Level: ${json['approver_level_id']}');
+    print('  - Approved: ${json['approved']}');
+    print('  - Approved At (raw): ${json['approved_at']}');
+
+    final approved = json['approved'] == 'true' || json['approved'] == true;
+    final approvedAt = approved ? json['approved_at'] : null;
+
+    print('  - Approved (processed): $approved');
+    print('  - Approved At (processed): $approvedAt');
+
     return OrderLetterDiscountModel(
       id: json['id'] ?? 0,
       orderLetterDetailId: json['order_letter_detail_id'] ?? 0,
@@ -240,8 +253,8 @@ class OrderLetterDiscountModel {
       approverLevelId: json['approver_level_id'],
       approverLevel: json['approver_level'],
       approverWorkTitle: json['approver_work_title'],
-      approved: json['approved'] == 'true' || json['approved'] == true,
-      approvedAt: json['approved_at'],
+      approved: approved,
+      approvedAt: approvedAt,
       createdAt: json['created_at'] ?? '',
       updatedAt: json['updated_at'] ?? '',
     );

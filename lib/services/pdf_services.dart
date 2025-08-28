@@ -142,8 +142,8 @@ class PDFService {
             repaymentDate: repaymentDate,
           ),
           pw.SizedBox(height: 10),
-          _buildApprovalTable(approvalData),
-          pw.SizedBox(height: 10),
+          // _buildApprovalTable(approvalData),
+          // pw.SizedBox(height: 10),
           _buildSignatureSection(customerName, salesName ?? "NAMA SALES"),
           pw.Spacer(),
           _buildTermsAndConditions(),
@@ -644,141 +644,141 @@ class PDFService {
   }
 
   /// Build tabel approval.
-  static pw.Widget _buildApprovalTable(
-      List<Map<String, dynamic>>? approvalData) {
-    if (approvalData == null || approvalData.isEmpty) {
-      return pw.Container(); // Return empty container if no approval data
-    }
+  // static pw.Widget _buildApprovalTable(
+  //     List<Map<String, dynamic>>? approvalData) {
+  //   if (approvalData == null || approvalData.isEmpty) {
+  //     return pw.Container(); // Return empty container if no approval data
+  //   }
 
-    // Sort approval data by approver_level_id
-    final sortedApprovals = List<Map<String, dynamic>>.from(approvalData);
-    sortedApprovals.sort((a, b) {
-      final levelA = a['approver_level_id'] ?? 0;
-      final levelB = b['approver_level_id'] ?? 0;
-      return levelA.compareTo(levelB);
-    });
+  //   // Sort approval data by approver_level_id
+  //   final sortedApprovals = List<Map<String, dynamic>>.from(approvalData);
+  //   sortedApprovals.sort((a, b) {
+  //     final levelA = a['approver_level_id'] ?? 0;
+  //     final levelB = b['approver_level_id'] ?? 0;
+  //     return levelA.compareTo(levelB);
+  //   });
 
-    final List<pw.TableRow> tableRows = [];
+  //   final List<pw.TableRow> tableRows = [];
 
-    // Header
-    tableRows.add(
-      pw.TableRow(
-        verticalAlignment: pw.TableCellVerticalAlignment.middle,
-        decoration: const pw.BoxDecoration(color: PdfColors.grey300),
-        children: [
-          pw.Padding(
-            padding: const pw.EdgeInsets.all(4),
-            child: pw.Text(
-              'NO',
-              textAlign: pw.TextAlign.center,
-              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
-            ),
-          ),
-          pw.Padding(
-            padding: const pw.EdgeInsets.all(4),
-            child: pw.Text(
-              'JABATAN',
-              textAlign: pw.TextAlign.center,
-              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
-            ),
-          ),
-          pw.Padding(
-            padding: const pw.EdgeInsets.all(4),
-            child: pw.Text(
-              'NAMA',
-              textAlign: pw.TextAlign.center,
-              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
-            ),
-          ),
-          pw.Padding(
-            padding: const pw.EdgeInsets.all(4),
-            child: pw.Text(
-              'STATUS',
-              textAlign: pw.TextAlign.center,
-              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
-            ),
-          ),
-          pw.Padding(
-            padding: const pw.EdgeInsets.all(4),
-            child: pw.Text(
-              'TANGGAL',
-              textAlign: pw.TextAlign.center,
-              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
-    );
+  //   // Header
+  //   tableRows.add(
+  //     pw.TableRow(
+  //       verticalAlignment: pw.TableCellVerticalAlignment.middle,
+  //       decoration: const pw.BoxDecoration(color: PdfColors.grey300),
+  //       children: [
+  //         pw.Padding(
+  //           padding: const pw.EdgeInsets.all(4),
+  //           child: pw.Text(
+  //             'NO',
+  //             textAlign: pw.TextAlign.center,
+  //             style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+  //           ),
+  //         ),
+  //         pw.Padding(
+  //           padding: const pw.EdgeInsets.all(4),
+  //           child: pw.Text(
+  //             'JABATAN',
+  //             textAlign: pw.TextAlign.center,
+  //             style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+  //           ),
+  //         ),
+  //         pw.Padding(
+  //           padding: const pw.EdgeInsets.all(4),
+  //           child: pw.Text(
+  //             'NAMA',
+  //             textAlign: pw.TextAlign.center,
+  //             style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+  //           ),
+  //         ),
+  //         pw.Padding(
+  //           padding: const pw.EdgeInsets.all(4),
+  //           child: pw.Text(
+  //             'STATUS',
+  //             textAlign: pw.TextAlign.center,
+  //             style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+  //           ),
+  //         ),
+  //         pw.Padding(
+  //           padding: const pw.EdgeInsets.all(4),
+  //           child: pw.Text(
+  //             'TANGGAL',
+  //             textAlign: pw.TextAlign.center,
+  //             style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+  //           ),
+  //         ),
+  //       ],
+  //     ),
+  //   );
 
-    // Data rows
-    int rowNumber = 1;
-    for (var approval in sortedApprovals) {
-      final approverLevel = approval['approver_level'] ?? '';
-      final approverName = approval['approver_name'] ?? '';
-      final approved = approval['approved'];
-      final approvedAt = approval['approved_at'];
+  //   // Data rows
+  //   int rowNumber = 1;
+  //   for (var approval in sortedApprovals) {
+  //     final approverLevel = approval['approver_level'] ?? '';
+  //     final approverName = approval['approver_name'] ?? '';
+  //     final approved = approval['approved'];
+  //     final approvedAt = approval['approved_at'];
 
-      String status = 'Pending';
-      String date = '-';
+  //     String status = 'Pending';
+  //     String date = '-';
 
-      if (approved == true) {
-        status = 'Approved';
-        if (approvedAt != null) {
-          try {
-            final dateTime = DateTime.parse(approvedAt);
-            date = _formatSimpleDate(dateTime);
-          } catch (e) {
-            date = approvedAt.toString();
-          }
-        }
-      } else if (approved == false) {
-        status = 'Rejected';
-        if (approvedAt != null) {
-          try {
-            final dateTime = DateTime.parse(approvedAt);
-            date = _formatSimpleDate(dateTime);
-          } catch (e) {
-            date = approvedAt.toString();
-          }
-        }
-      }
+  //     if (approved == true) {
+  //       status = 'Approved';
+  //       if (approvedAt != null) {
+  //         try {
+  //           final dateTime = DateTime.parse(approvedAt);
+  //           date = _formatSimpleDate(dateTime);
+  //         } catch (e) {
+  //           date = approvedAt.toString();
+  //         }
+  //       }
+  //     } else if (approved == false) {
+  //       status = 'Rejected';
+  //       if (approvedAt != null) {
+  //         try {
+  //           final dateTime = DateTime.parse(approvedAt);
+  //           date = _formatSimpleDate(dateTime);
+  //         } catch (e) {
+  //           date = approvedAt.toString();
+  //         }
+  //       }
+  //     }
 
-      tableRows.add(
-        pw.TableRow(
-          children: [
-            _buildTableCell(rowNumber.toString(), align: pw.TextAlign.center),
-            _buildTableCell(approverLevel, align: pw.TextAlign.center),
-            _buildTableCell(approverName, align: pw.TextAlign.center),
-            _buildTableCell(status, align: pw.TextAlign.center),
-            _buildTableCell(date, align: pw.TextAlign.center),
-          ],
-        ),
-      );
-      rowNumber++;
-    }
+  //     tableRows.add(
+  //       pw.TableRow(
+  //         children: [
+  //           _buildTableCell(rowNumber.toString(), align: pw.TextAlign.center),
+  //           _buildTableCell(approverLevel, align: pw.TextAlign.center),
+  //           _buildTableCell(approverName, align: pw.TextAlign.center),
+  //           _buildTableCell(status, align: pw.TextAlign.center),
+  //           _buildTableCell(date, align: pw.TextAlign.center),
+  //         ],
+  //       ),
+  //     );
+  //     rowNumber++;
+  //   }
 
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Text(
-          'APPROVAL',
-          style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
-        ),
-        pw.SizedBox(height: 4),
-        pw.Table(
-          border: pw.TableBorder.all(color: PdfColors.black, width: 0.5),
-          columnWidths: {
-            0: const pw.FlexColumnWidth(0.5),
-            1: const pw.FlexColumnWidth(2.0),
-            2: const pw.FlexColumnWidth(2.0),
-            3: const pw.FlexColumnWidth(1.0),
-            4: const pw.FlexColumnWidth(1.5),
-          },
-          children: tableRows,
-        ),
-      ],
-    );
-  }
+  //   return pw.Column(
+  //     crossAxisAlignment: pw.CrossAxisAlignment.start,
+  //     children: [
+  //       pw.Text(
+  //         'APPROVAL',
+  //         style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+  //       ),
+  //       pw.SizedBox(height: 4),
+  //       pw.Table(
+  //         border: pw.TableBorder.all(color: PdfColors.black, width: 0.5),
+  //         columnWidths: {
+  //           0: const pw.FlexColumnWidth(0.5),
+  //           1: const pw.FlexColumnWidth(2.0),
+  //           2: const pw.FlexColumnWidth(2.0),
+  //           3: const pw.FlexColumnWidth(1.0),
+  //           4: const pw.FlexColumnWidth(1.5),
+  //         },
+  //         children: tableRows,
+  //       ),
+  //     ],
+  //   );
+  // }
 
   /// Build syarat dan ketentuan pembelian.
   static pw.Widget _buildTermsAndConditions() {
