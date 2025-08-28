@@ -13,6 +13,10 @@ class AppStarted extends ProductEvent {}
 
 class InitializeDropdowns extends ProductEvent {}
 
+class RefreshAreas extends ProductEvent {}
+
+class ClearAreaCache extends ProductEvent {}
+
 class FetchProductsByFilter extends ProductEvent {
   final String? selectedArea;
   final String? selectedChannel;

@@ -66,12 +66,11 @@ class _ProductPageState extends State<ProductPage> {
                 state.whatsAppChannel != null) {
               showDialog(
                 context: context,
-                builder:
-                    (context) => WhatsAppDialog(
-                      brand: state.whatsAppBrand!,
-                      area: state.whatsAppArea!,
-                      channel: state.whatsAppChannel!,
-                    ),
+                builder: (context) => WhatsAppDialog(
+                  brand: state.whatsAppBrand!,
+                  area: state.whatsAppArea!,
+                  channel: state.whatsAppChannel!,
+                ),
               ).then((result) {
                 // Hide dialog after user interaction
                 context.read<ProductBloc>().add(HideWhatsAppDialog());
@@ -155,10 +154,9 @@ class _ProductPageState extends State<ProductPage> {
                         "Area tersebut belum tersedia pricelist",
                         style: TextStyle(
                           fontSize: 16,
-                          color:
-                              isDark
-                                  ? AppColors.textSecondaryDark
-                                  : Colors.grey[600],
+                          color: isDark
+                              ? AppColors.textSecondaryDark
+                              : Colors.grey[600],
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -167,8 +165,8 @@ class _ProductPageState extends State<ProductPage> {
                         onPressed: () {
                           context.read<ProductBloc>().add(ResetProductState());
                           context.read<ProductBloc>().add(
-                            InitializeDropdowns(),
-                          );
+                                InitializeDropdowns(),
+                              );
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor:
@@ -195,29 +193,27 @@ class _ProductPageState extends State<ProductPage> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color:
-                              (state.selectedBrand ==
-                                          BrandEnum.springair.value ||
-                                      state.selectedBrand ==
-                                          BrandEnum.therapedic.value)
-                                  ? (theme.brightness == Brightness.dark
-                                      ? AppColors.accentDark.withOpacity(0.1)
-                                      : Colors.blue[50])
-                                  : (theme.brightness == Brightness.dark
-                                      ? AppColors.success.withOpacity(0.1)
-                                      : Colors.green[50]),
+                          color: (state.selectedBrand ==
+                                      BrandEnum.springair.value ||
+                                  state.selectedBrand ==
+                                      BrandEnum.therapedic.value)
+                              ? (theme.brightness == Brightness.dark
+                                  ? AppColors.accentDark.withOpacity(0.1)
+                                  : Colors.blue[50])
+                              : (theme.brightness == Brightness.dark
+                                  ? AppColors.success.withOpacity(0.1)
+                                  : Colors.green[50]),
                           border: Border.all(
-                            color:
-                                (state.selectedBrand ==
-                                            BrandEnum.springair.value ||
-                                        state.selectedBrand ==
-                                            BrandEnum.therapedic.value)
-                                    ? (theme.brightness == Brightness.dark
-                                        ? AppColors.accentDark.withOpacity(0.3)
-                                        : Colors.blue[200]!)
-                                    : (theme.brightness == Brightness.dark
-                                        ? AppColors.success.withOpacity(0.3)
-                                        : Colors.green[200]!),
+                            color: (state.selectedBrand ==
+                                        BrandEnum.springair.value ||
+                                    state.selectedBrand ==
+                                        BrandEnum.therapedic.value)
+                                ? (theme.brightness == Brightness.dark
+                                    ? AppColors.accentDark.withOpacity(0.3)
+                                    : Colors.blue[200]!)
+                                : (theme.brightness == Brightness.dark
+                                    ? AppColors.success.withOpacity(0.3)
+                                    : Colors.green[200]!),
                           ),
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -225,17 +221,16 @@ class _ProductPageState extends State<ProductPage> {
                           children: [
                             Icon(
                               Icons.location_on,
-                              color:
-                                  (state.selectedBrand ==
-                                              BrandEnum.springair.value ||
-                                          state.selectedBrand ==
-                                              BrandEnum.therapedic.value)
-                                      ? (isDark
-                                          ? AppColors.accentDark
-                                          : Colors.blue[600])
-                                      : (isDark
-                                          ? AppColors.success
-                                          : Colors.green[600]),
+                              color: (state.selectedBrand ==
+                                          BrandEnum.springair.value ||
+                                      state.selectedBrand ==
+                                          BrandEnum.therapedic.value)
+                                  ? (isDark
+                                      ? AppColors.accentDark
+                                      : Colors.blue[600])
+                                  : (isDark
+                                      ? AppColors.success
+                                      : Colors.green[600]),
                               size: 24,
                             ),
                             const SizedBox(width: 12),
@@ -247,21 +242,16 @@ class _ProductPageState extends State<ProductPage> {
                                     "Area Anda",
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color:
-                                          (state.selectedBrand ==
-                                                      BrandEnum
-                                                          .springair
-                                                          .value ||
-                                                  state.selectedBrand ==
-                                                      BrandEnum
-                                                          .therapedic
-                                                          .value)
-                                              ? (isDark
-                                                  ? AppColors.accentDark
-                                                  : Colors.blue[600])
-                                              : (isDark
-                                                  ? AppColors.success
-                                                  : Colors.green[600]),
+                                      color: (state.selectedBrand ==
+                                                  BrandEnum.springair.value ||
+                                              state.selectedBrand ==
+                                                  BrandEnum.therapedic.value)
+                                          ? (isDark
+                                              ? AppColors.accentDark
+                                              : Colors.blue[600])
+                                          : (isDark
+                                              ? AppColors.success
+                                              : Colors.green[600]),
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
@@ -271,32 +261,64 @@ class _ProductPageState extends State<ProductPage> {
                                           BrandEnum.springair.value &&
                                       state.selectedBrand !=
                                           BrandEnum.therapedic.value) ...[
-                                    DropdownButton<String>(
-                                      key: ValueKey(state.selectedArea),
-                                      value: state.selectedArea,
-                                      underline: Container(),
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w900,
-                                        color:
-                                            isDark
-                                                ? AppColors.textPrimaryDark
-                                                : AppColors.textPrimaryLight,
-                                      ),
-                                      items:
-                                          AreaEnum.values.map((area) {
-                                            return DropdownMenuItem<String>(
-                                              value: area.value,
-                                              child: Text(area.value),
-                                            );
-                                          }).toList(),
-                                      onChanged: (String? newValue) {
-                                        if (newValue != null) {
-                                          context.read<ProductBloc>().add(
-                                            UpdateSelectedArea(newValue),
-                                          );
-                                        }
-                                      },
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: DropdownButton<String>(
+                                            key: ValueKey(state.selectedArea),
+                                            value: _getValidSelectedArea(state),
+                                            underline: Container(),
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w900,
+                                              color: isDark
+                                                  ? AppColors.textPrimaryDark
+                                                  : AppColors.textPrimaryLight,
+                                            ),
+                                            items: state.availableAreaEnums
+                                                    .isNotEmpty
+                                                ? state.availableAreaEnums
+                                                    .map((area) {
+                                                    return DropdownMenuItem<
+                                                        String>(
+                                                      value: area.value,
+                                                      child: Text(area.value),
+                                                    );
+                                                  }).toList()
+                                                : AreaEnum.values.map((area) {
+                                                    return DropdownMenuItem<
+                                                        String>(
+                                                      value: area.value,
+                                                      child: Text(area.value),
+                                                    );
+                                                  }).toList(),
+                                            onChanged: (String? newValue) {
+                                              if (newValue != null) {
+                                                context.read<ProductBloc>().add(
+                                                      UpdateSelectedArea(
+                                                          newValue),
+                                                    );
+                                              }
+                                            },
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        IconButton(
+                                          icon: Icon(
+                                            Icons.refresh,
+                                            size: 20,
+                                            color: isDark
+                                                ? AppColors.accentDark
+                                                : Colors.blue[600],
+                                          ),
+                                          onPressed: () {
+                                            context
+                                                .read<ProductBloc>()
+                                                .add(RefreshAreas());
+                                          },
+                                          tooltip: 'Refresh Areas',
+                                        ),
+                                      ],
                                     ),
                                   ] else ...[
                                     Text(
@@ -304,10 +326,9 @@ class _ProductPageState extends State<ProductPage> {
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w900,
-                                        color:
-                                            isDark
-                                                ? AppColors.textPrimaryDark
-                                                : AppColors.textPrimaryLight,
+                                        color: isDark
+                                            ? AppColors.textPrimaryDark
+                                            : AppColors.textPrimaryLight,
                                       ),
                                     ),
                                   ],
@@ -319,10 +340,9 @@ class _ProductPageState extends State<ProductPage> {
                                       "Brand ${state.selectedBrand} menggunakan Area Nasional untuk pencarian",
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color:
-                                            isDark
-                                                ? AppColors.accentDark
-                                                : Colors.blue[600],
+                                        color: isDark
+                                            ? AppColors.accentDark
+                                            : Colors.blue[600],
                                         fontStyle: FontStyle.italic,
                                       ),
                                     ),
@@ -337,20 +357,19 @@ class _ProductPageState extends State<ProductPage> {
                                     vertical: 4,
                                   ),
                                   decoration: BoxDecoration(
-                                    color:
-                                        (state.selectedBrand ==
-                                                    BrandEnum.springair.value ||
-                                                state.selectedBrand ==
-                                                    BrandEnum.therapedic.value)
-                                            ? (isDark
-                                                ? AppColors.accentDark
-                                                    .withOpacity(0.2)
-                                                : Colors.blue[100])
-                                            : (isDark
-                                                ? AppColors.success.withOpacity(
-                                                  0.2,
-                                                )
-                                                : Colors.green[100]),
+                                    color: (state.selectedBrand ==
+                                                BrandEnum.springair.value ||
+                                            state.selectedBrand ==
+                                                BrandEnum.therapedic.value)
+                                        ? (isDark
+                                            ? AppColors.accentDark
+                                                .withOpacity(0.2)
+                                            : Colors.blue[100])
+                                        : (isDark
+                                            ? AppColors.success.withOpacity(
+                                                0.2,
+                                              )
+                                            : Colors.green[100]),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Text(
@@ -362,21 +381,16 @@ class _ProductPageState extends State<ProductPage> {
                                         : "Default",
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color:
-                                          (state.selectedBrand ==
-                                                      BrandEnum
-                                                          .springair
-                                                          .value ||
-                                                  state.selectedBrand ==
-                                                      BrandEnum
-                                                          .therapedic
-                                                          .value)
-                                              ? (isDark
-                                                  ? AppColors.accentDark
-                                                  : Colors.blue[700])
-                                              : (isDark
-                                                  ? AppColors.success
-                                                  : Colors.green[700]),
+                                      color: (state.selectedBrand ==
+                                                  BrandEnum.springair.value ||
+                                              state.selectedBrand ==
+                                                  BrandEnum.therapedic.value)
+                                          ? (isDark
+                                              ? AppColors.accentDark
+                                              : Colors.blue[700])
+                                          : (isDark
+                                              ? AppColors.success
+                                              : Colors.green[700]),
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
@@ -395,8 +409,8 @@ class _ProductPageState extends State<ProductPage> {
                                     child: GestureDetector(
                                       onTap: () {
                                         context.read<ProductBloc>().add(
-                                          ResetUserSelectedArea(),
-                                        );
+                                              ResetUserSelectedArea(),
+                                            );
                                       },
                                       child: Container(
                                         padding: const EdgeInsets.all(4),
@@ -429,59 +443,64 @@ class _ProductPageState extends State<ProductPage> {
                       onAreaChanged: (value) {
                         if (value != null) {
                           context.read<ProductBloc>().add(
-                            UpdateSelectedArea(value),
-                          );
+                                UpdateSelectedArea(value),
+                              );
                         }
                       },
                       isUserAreaSet: state.isUserAreaSet,
-                      channels: ChannelEnum.values.map((e) => e.value).toList(),
-                      selectedChannel:
-                          state.selectedChannel?.isEmpty ?? true
-                              ? null
-                              : state.selectedChannel,
+                      channels: state.availableChannels.isNotEmpty
+                          ? state.availableChannels
+                          : ChannelEnum.values.map((e) => e.value).toList(),
+                      selectedChannel: state.selectedChannel?.isEmpty ?? true
+                          ? null
+                          : state.selectedChannel,
                       onChannelChanged: (value) {
                         if (value != null) {
                           context.read<ProductBloc>().add(
-                            UpdateSelectedChannel(value),
-                          );
+                                UpdateSelectedChannel(value),
+                              );
                         }
                       },
-                      availableChannelEnums: ChannelEnum.values,
-                      brands: BrandEnum.values.map((e) => e.value).toList(),
-                      selectedBrand:
-                          state.selectedBrand?.isEmpty ?? true
-                              ? null
-                              : state.selectedBrand,
+                      availableChannelEnums:
+                          state.availableChannelEnums.isNotEmpty
+                              ? state.availableChannelEnums
+                              : ChannelEnum.values,
+                      brands: state.availableBrands.isNotEmpty
+                          ? state.availableBrands
+                          : BrandEnum.values.map((e) => e.value).toList(),
+                      selectedBrand: state.selectedBrand?.isEmpty ?? true
+                          ? null
+                          : state.selectedBrand,
                       onBrandChanged: (value) {
                         if (value != null) {
                           context.read<ProductBloc>().add(
-                            UpdateSelectedBrand(value),
-                          );
+                                UpdateSelectedBrand(value),
+                              );
                         }
                       },
-                      availableBrandEnums: BrandEnum.values,
+                      availableBrandEnums: state.availableBrandEnums.isNotEmpty
+                          ? state.availableBrandEnums
+                          : BrandEnum.values,
                       kasurs: state.availableKasurs,
-                      selectedKasur:
-                          state.selectedKasur?.isEmpty ?? true
-                              ? null
-                              : state.selectedKasur,
+                      selectedKasur: state.selectedKasur?.isEmpty ?? true
+                          ? null
+                          : state.selectedKasur,
                       onKasurChanged: (value) {
                         if (value != null) {
                           context.read<ProductBloc>().add(
-                            UpdateSelectedKasur(value),
-                          );
+                                UpdateSelectedKasur(value),
+                              );
                         }
                       },
                       divans: state.availableDivans,
-                      selectedDivan:
-                          state.selectedDivan?.isEmpty ?? true
-                              ? null
-                              : state.selectedDivan,
+                      selectedDivan: state.selectedDivan?.isEmpty ?? true
+                          ? null
+                          : state.selectedDivan,
                       onDivanChanged: (value) {
                         if (value != null) {
                           context.read<ProductBloc>().add(
-                            UpdateSelectedDivan(value),
-                          );
+                                UpdateSelectedDivan(value),
+                              );
                         }
                       },
                       headboards: state.availableHeadboards,
@@ -492,39 +511,36 @@ class _ProductPageState extends State<ProductPage> {
                       onHeadboardChanged: (value) {
                         if (value != null) {
                           context.read<ProductBloc>().add(
-                            UpdateSelectedHeadboard(value),
-                          );
+                                UpdateSelectedHeadboard(value),
+                              );
                         }
                       },
                       sorongs: state.availableSorongs,
-                      selectedSorong:
-                          state.selectedSorong?.isEmpty ?? true
-                              ? null
-                              : state.selectedSorong,
+                      selectedSorong: state.selectedSorong?.isEmpty ?? true
+                          ? null
+                          : state.selectedSorong,
                       onSorongChanged: (value) {
                         if (value != null) {
                           context.read<ProductBloc>().add(
-                            UpdateSelectedSorong(value),
-                          );
+                                UpdateSelectedSorong(value),
+                              );
                         }
                       },
                       sizes: state.availableSizes,
-                      selectedSize:
-                          state.selectedSize?.isEmpty ?? true
-                              ? null
-                              : state.selectedSize,
+                      selectedSize: state.selectedSize?.isEmpty ?? true
+                          ? null
+                          : state.selectedSize,
                       onSizeChanged: (value) {
                         if (value != null) {
                           context.read<ProductBloc>().add(
-                            UpdateSelectedUkuran(value),
-                          );
+                                UpdateSelectedUkuran(value),
+                              );
                         }
                       },
                       programs: state.availablePrograms,
-                      selectedProgram:
-                          state.selectedProgram?.isEmpty ?? true
-                              ? null
-                              : state.selectedProgram,
+                      selectedProgram: state.selectedProgram?.isEmpty ?? true
+                          ? null
+                          : state.selectedProgram,
                       isLoading: state.isLoading,
                     ),
                     const SizedBox(height: AppPadding.p10),
@@ -534,140 +550,133 @@ class _ProductPageState extends State<ProductPage> {
                       children: [
                         Expanded(
                           child: Tooltip(
-                            message:
-                                state.isUserAreaSet
-                                    ? "Terapkan filter yang dipilih untuk melihat produk"
-                                    : "Tampilkan produk berdasarkan filter yang dipilih",
+                            message: state.isUserAreaSet
+                                ? "Terapkan filter yang dipilih untuk melihat produk"
+                                : "Tampilkan produk berdasarkan filter yang dipilih",
                             child: ElevatedButton.icon(
-                              onPressed:
-                                  (state.selectedKasur != null &&
-                                          state.selectedKasur!.isNotEmpty)
-                                      ? () async {
-                                        // Simpan posisi scroll sebelum filter diterapkan
-                                        _lastScrollOffset =
-                                            _scrollController.offset;
-                                        String? areaToUse =
-                                            state.selectedArea?.isEmpty ?? true
-                                                ? null
-                                                : state.selectedArea;
-                                        if (state.selectedBrand ==
-                                                BrandEnum.springair.value ||
-                                            state.selectedBrand ==
-                                                BrandEnum.therapedic.value) {
-                                          areaToUse = AreaEnum.nasional.value;
-                                        }
-                                        context.read<ProductBloc>().add(
-                                          ApplyFilters(
-                                            selectedArea: areaToUse,
-                                            selectedChannel:
-                                                state
-                                                            .selectedChannel
-                                                            ?.isEmpty ??
-                                                        true
-                                                    ? null
-                                                    : state.selectedChannel,
-                                            selectedBrand:
-                                                state.selectedBrand?.isEmpty ??
-                                                        true
-                                                    ? null
-                                                    : state.selectedBrand,
-                                            selectedKasur:
-                                                state.selectedKasur?.isEmpty ??
-                                                        true
-                                                    ? null
-                                                    : state.selectedKasur,
-                                            selectedDivan:
-                                                state.selectedDivan?.isEmpty ??
-                                                        true
-                                                    ? null
-                                                    : state.selectedDivan,
-                                            selectedHeadboard:
-                                                state
-                                                            .selectedHeadboard
-                                                            ?.isEmpty ??
-                                                        true
-                                                    ? null
-                                                    : state.selectedHeadboard,
-                                            selectedSorong:
-                                                state.selectedSorong?.isEmpty ??
-                                                        true
-                                                    ? null
-                                                    : state.selectedSorong,
-                                            selectedSize:
-                                                state.selectedSize?.isEmpty ??
-                                                        true
-                                                    ? null
-                                                    : state.selectedSize,
-                                          ),
-                                        );
-                                        // Scroll ke tombol filter & reset, pastikan tepat di bawah AppBar
-                                        await Future.delayed(
-                                          const Duration(milliseconds: 100),
-                                        );
-                                        final ctx =
-                                            _filterButtonKey.currentContext;
-                                        if (ctx != null) {
-                                          final box =
-                                              ctx.findRenderObject()
-                                                  as RenderBox?;
-                                          if (box != null) {
-                                            final position =
-                                                box
-                                                    .localToGlobal(
-                                                      Offset.zero,
-                                                      ancestor: null,
-                                                    )
-                                                    .dy;
-                                            final scrollOffset =
-                                                _scrollController.offset +
-                                                position -
-                                                appBarHeight -
-                                                16; // 16 = padding
-                                            _scrollController.animateTo(
-                                              scrollOffset,
-                                              duration: const Duration(
-                                                milliseconds: 400,
-                                              ),
-                                              curve: Curves.easeInOut,
-                                            );
-                                          }
+                              onPressed: (state.selectedKasur != null &&
+                                      state.selectedKasur!.isNotEmpty)
+                                  ? () async {
+                                      // Simpan posisi scroll sebelum filter diterapkan
+                                      _lastScrollOffset =
+                                          _scrollController.offset;
+                                      String? areaToUse =
+                                          state.selectedArea?.isEmpty ?? true
+                                              ? null
+                                              : state.selectedArea;
+                                      if (state.selectedBrand ==
+                                              BrandEnum.springair.value ||
+                                          state.selectedBrand ==
+                                              BrandEnum.therapedic.value) {
+                                        areaToUse = AreaEnum.nasional.value;
+                                      }
+                                      context.read<ProductBloc>().add(
+                                            ApplyFilters(
+                                              selectedArea: areaToUse,
+                                              selectedChannel: state
+                                                          .selectedChannel
+                                                          ?.isEmpty ??
+                                                      true
+                                                  ? null
+                                                  : state.selectedChannel,
+                                              selectedBrand: state.selectedBrand
+                                                          ?.isEmpty ??
+                                                      true
+                                                  ? null
+                                                  : state.selectedBrand,
+                                              selectedKasur: state.selectedKasur
+                                                          ?.isEmpty ??
+                                                      true
+                                                  ? null
+                                                  : state.selectedKasur,
+                                              selectedDivan: state.selectedDivan
+                                                          ?.isEmpty ??
+                                                      true
+                                                  ? null
+                                                  : state.selectedDivan,
+                                              selectedHeadboard: state
+                                                          .selectedHeadboard
+                                                          ?.isEmpty ??
+                                                      true
+                                                  ? null
+                                                  : state.selectedHeadboard,
+                                              selectedSorong: state
+                                                          .selectedSorong
+                                                          ?.isEmpty ??
+                                                      true
+                                                  ? null
+                                                  : state.selectedSorong,
+                                              selectedSize:
+                                                  state.selectedSize?.isEmpty ??
+                                                          true
+                                                      ? null
+                                                      : state.selectedSize,
+                                            ),
+                                          );
+                                      // Scroll ke tombol filter & reset, pastikan tepat di bawah AppBar
+                                      await Future.delayed(
+                                        const Duration(milliseconds: 100),
+                                      );
+                                      final ctx =
+                                          _filterButtonKey.currentContext;
+                                      if (ctx != null) {
+                                        final box = ctx.findRenderObject()
+                                            as RenderBox?;
+                                        if (box != null) {
+                                          final position = box
+                                              .localToGlobal(
+                                                Offset.zero,
+                                                ancestor: null,
+                                              )
+                                              .dy;
+                                          final scrollOffset =
+                                              _scrollController.offset +
+                                                  position -
+                                                  appBarHeight -
+                                                  16; // 16 = padding
+                                          _scrollController.animateTo(
+                                            scrollOffset,
+                                            duration: const Duration(
+                                              milliseconds: 400,
+                                            ),
+                                            curve: Curves.easeInOut,
+                                          );
                                         }
                                       }
-                                      : null,
+                                    }
+                                  : null,
                               icon: Icon(
                                 state.isUserAreaSet
                                     ? Icons.filter_alt
                                     : Icons.search,
                                 size: 18,
                               ),
-                              label:
-                                  state.isLoading
-                                      ? const SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor:
-                                              AlwaysStoppedAnimation<Color>(
-                                                Colors.white,
-                                              ),
-                                        ),
-                                      )
-                                      : Text(
-                                        state.isUserAreaSet
-                                            ? "Terapkan Filter"
-                                            : "Tampilkan Produk",
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w500,
+                              label: state.isLoading
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                          Colors.white,
                                         ),
                                       ),
+                                    )
+                                  : Text(
+                                      state.isUserAreaSet
+                                          ? "Terapkan Filter"
+                                          : "Tampilkan Produk",
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor:
-                                    (state.selectedBrand != null &&
-                                            state.selectedBrand!.isNotEmpty)
-                                        ? Theme.of(context).colorScheme.primary
-                                        : Colors.grey.shade400,
+                                backgroundColor: (state.selectedBrand != null &&
+                                        state.selectedBrand!.isNotEmpty)
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Colors.grey.shade400,
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8),
@@ -688,27 +697,26 @@ class _ProductPageState extends State<ProductPage> {
                           Tooltip(
                             message: "Reset semua filter yang dipilih",
                             child: ElevatedButton.icon(
-                              onPressed:
-                                  state.isLoading
-                                      ? null
-                                      : () async {
-                                        context.read<ProductBloc>().add(
-                                          ResetFilters(),
-                                        );
-                                        // Scroll kembali ke posisi sebelum filter diterapkan
-                                        await Future.delayed(
-                                          const Duration(milliseconds: 100),
-                                        );
-                                        if (_lastScrollOffset != null) {
-                                          _scrollController.animateTo(
-                                            _lastScrollOffset!,
-                                            duration: const Duration(
-                                              milliseconds: 400,
-                                            ),
-                                            curve: Curves.easeInOut,
+                              onPressed: state.isLoading
+                                  ? null
+                                  : () async {
+                                      context.read<ProductBloc>().add(
+                                            ResetFilters(),
                                           );
-                                        }
-                                      },
+                                      // Scroll kembali ke posisi sebelum filter diterapkan
+                                      await Future.delayed(
+                                        const Duration(milliseconds: 100),
+                                      );
+                                      if (_lastScrollOffset != null) {
+                                        _scrollController.animateTo(
+                                          _lastScrollOffset!,
+                                          duration: const Duration(
+                                            milliseconds: 400,
+                                          ),
+                                          curve: Curves.easeInOut,
+                                        );
+                                      }
+                                    },
                               icon: const Icon(
                                 Icons.refresh,
                                 color: Colors.white,
@@ -716,10 +724,9 @@ class _ProductPageState extends State<ProductPage> {
                               ),
                               label: const Text("Reset"),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor:
-                                    state.isLoading
-                                        ? Colors.grey.shade400
-                                        : Colors.red.shade600,
+                                backgroundColor: state.isLoading
+                                    ? Colors.grey.shade400
+                                    : Colors.red.shade600,
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8),
@@ -741,33 +748,31 @@ class _ProductPageState extends State<ProductPage> {
                       height: MediaQuery.of(context).size.height * 0.6,
                       child: AnimatedSwitcher(
                         duration: const Duration(milliseconds: 300),
-                        child:
-                            state.isFilterApplied
-                                ? (state.filteredProducts.isNotEmpty
-                                    ? ListView.builder(
-                                      key: ValueKey(
-                                        state.filteredProducts.length,
-                                      ),
-                                      itemCount: state.filteredProducts.length,
-                                      itemBuilder: (context, index) {
-                                        return ProductCard(
-                                          product:
-                                              state.filteredProducts[index],
-                                        );
-                                      },
-                                    )
-                                    : const EmptyStateWidget(
-                                      icon: Icons.search_off,
-                                      title: "Produk Tidak Ditemukan",
-                                      message:
-                                          "Coba ubah kriteria filter Anda untuk menemukan produk yang lain.",
-                                    ))
+                        child: state.isFilterApplied
+                            ? (state.filteredProducts.isNotEmpty
+                                ? ListView.builder(
+                                    key: ValueKey(
+                                      state.filteredProducts.length,
+                                    ),
+                                    itemCount: state.filteredProducts.length,
+                                    itemBuilder: (context, index) {
+                                      return ProductCard(
+                                        product: state.filteredProducts[index],
+                                      );
+                                    },
+                                  )
                                 : const EmptyStateWidget(
-                                  icon: Icons.filter_list,
-                                  title: "Pilih Filter",
-                                  message:
-                                      "Silakan pilih kriteria filter dan klik tombol 'Terapkan Filter' untuk melihat produk.",
-                                ),
+                                    icon: Icons.search_off,
+                                    title: "Produk Tidak Ditemukan",
+                                    message:
+                                        "Coba ubah kriteria filter Anda untuk menemukan produk yang lain.",
+                                  ))
+                            : const EmptyStateWidget(
+                                icon: Icons.filter_list,
+                                title: "Pilih Filter",
+                                message:
+                                    "Silakan pilih kriteria filter dan klik tombol 'Terapkan Filter' untuk melihat produk.",
+                              ),
                       ),
                     ),
                   ],
@@ -778,5 +783,12 @@ class _ProductPageState extends State<ProductPage> {
         ),
       ),
     );
+  }
+
+  String _getValidSelectedArea(ProductState state) {
+    if (state.selectedArea != null && state.selectedArea!.isNotEmpty) {
+      return state.selectedArea!;
+    }
+    return AreaEnum.nasional.value;
   }
 }

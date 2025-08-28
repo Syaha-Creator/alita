@@ -19,6 +19,9 @@ class ApiConfig {
   // Products Endpoints
   static const String filteredProducts =
       "${baseUrl}api/rawdata_price_lists/filtered_pl";
+  static const String plAreas = "${baseUrl}api/pl_areas";
+  static const String plChannels = "${baseUrl}api/pl_channels";
+  static const String plBrands = "${baseUrl}api/pl_brands";
 
   // Approval Endpoints
   static const String orderLetters = "${baseUrl}api/order_letters";
@@ -51,6 +54,30 @@ class ApiConfig {
     final encodedBrand = Uri.encodeComponent(brand);
     final encodedToken = Uri.encodeComponent(token);
     return "$filteredProducts?area=$encodedArea&channel=$encodedChannel&brand=$encodedBrand&access_token=$encodedToken&client_id=$clientId&client_secret=$clientSecret";
+  }
+
+  // Helper untuk fetch areas
+  static String getPlAreasUrl({
+    required String token,
+  }) {
+    final encodedToken = Uri.encodeComponent(token);
+    return "$plAreas?access_token=$encodedToken&client_id=$clientId&client_secret=$clientSecret";
+  }
+
+  // Helper untuk fetch channels
+  static String getPlChannelsUrl({
+    required String token,
+  }) {
+    final encodedToken = Uri.encodeComponent(token);
+    return "$plChannels?access_token=$encodedToken&client_id=$clientId&client_secret=$clientSecret";
+  }
+
+  // Helper untuk fetch brands
+  static String getPlBrandsUrl({
+    required String token,
+  }) {
+    final encodedToken = Uri.encodeComponent(token);
+    return "$plBrands?access_token=$encodedToken&client_id=$clientId&client_secret=$clientSecret";
   }
 
   // Helper untuk contact work experience

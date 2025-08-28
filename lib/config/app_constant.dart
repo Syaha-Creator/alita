@@ -108,6 +108,29 @@ enum AreaEnum {
         return 10;
     }
   }
+
+  /// Convert API area data to AreaEnum if possible, otherwise return null
+  static AreaEnum? fromApiData(int id, String name) {
+    // Try to match by name first (case-insensitive)
+    try {
+      return AreaEnum.values.firstWhere(
+        (area) => area.value.toLowerCase() == name.toLowerCase(),
+      );
+    } catch (e) {
+      // If no match found, try to match by ID
+      try {
+        return AreaEnum.values.firstWhere(
+          (area) => AreaEnum.getId(area) == id,
+        );
+      } catch (e) {
+        // No match found, return null
+        return null;
+      }
+    }
+  }
+
+  /// Get all available area enums (for backward compatibility)
+  static List<AreaEnum> get allValues => AreaEnum.values.toList();
 }
 
 enum ChannelEnum {
@@ -129,6 +152,48 @@ enum ChannelEnum {
       orElse: () => ChannelEnum.callCenter,
     );
   }
+
+  /// Convert API channel data to ChannelEnum if possible, otherwise return null
+  static ChannelEnum? fromApiData(int id, String name) {
+    // Try to match by name first (case-insensitive)
+    try {
+      return ChannelEnum.values.firstWhere(
+        (channel) => channel.value.toLowerCase() == name.toLowerCase(),
+      );
+    } catch (e) {
+      // If no match found, try to match by ID
+      try {
+        return ChannelEnum.values.firstWhere(
+          (channel) => ChannelEnum.getId(channel) == id,
+        );
+      } catch (e) {
+        // No match found, return null
+        return null;
+      }
+    }
+  }
+
+  static int? getId(ChannelEnum channel) {
+    switch (channel) {
+      case ChannelEnum.callCenter:
+        return 1;
+      case ChannelEnum.indirect:
+        return 2;
+      case ChannelEnum.retail:
+        return 3;
+      case ChannelEnum.accessories:
+        return 4;
+      case ChannelEnum.massindofairdirect:
+        return 5;
+      case ChannelEnum.massindofairindirect:
+        return 6;
+      case ChannelEnum.modernmarket:
+        return 7;
+    }
+  }
+
+  /// Get all available channel enums (for backward compatibility)
+  static List<ChannelEnum> get allValues => ChannelEnum.values.toList();
 }
 
 enum BrandEnum {
@@ -149,6 +214,46 @@ enum BrandEnum {
       orElse: () => BrandEnum.superfit,
     );
   }
+
+  /// Convert API brand data to BrandEnum if possible, otherwise return null
+  static BrandEnum? fromApiData(int id, String name) {
+    // Try to match by name first (case-insensitive)
+    try {
+      return BrandEnum.values.firstWhere(
+        (brand) => brand.value.toLowerCase() == name.toLowerCase(),
+      );
+    } catch (e) {
+      // If no match found, try to match by ID
+      try {
+        return BrandEnum.values.firstWhere(
+          (brand) => BrandEnum.getId(brand) == id,
+        );
+      } catch (e) {
+        // No match found, return null
+        return null;
+      }
+    }
+  }
+
+  static int? getId(BrandEnum brand) {
+    switch (brand) {
+      case BrandEnum.superfit:
+        return 1;
+      case BrandEnum.therapedic:
+        return 2;
+      case BrandEnum.sleepspa:
+        return 3;
+      case BrandEnum.springair:
+        return 4;
+      case BrandEnum.comforta:
+        return 5;
+      case BrandEnum.isleep:
+        return 6;
+    }
+  }
+
+  /// Get all available brand enums (for backward compatibility)
+  static List<BrandEnum> get allValues => BrandEnum.values.toList();
 }
 
 // Note: Kasur, Divan, Headboard, Sorong, and Size will be dynamic based on API data

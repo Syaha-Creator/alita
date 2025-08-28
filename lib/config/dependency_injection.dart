@@ -2,9 +2,16 @@ import 'package:dio/dio.dart';
 import 'package:get_it/get_it.dart';
 
 import '../features/product/data/repositories/product_repository.dart';
+import '../features/product/data/repositories/area_repository.dart';
+import '../features/product/data/repositories/channel_repository.dart';
+import '../features/product/data/repositories/brand_repository.dart';
 import '../features/product/domain/usecases/get_product_usecase.dart';
 import '../features/product/presentation/bloc/product_bloc.dart';
 import '../services/api_client.dart';
+import '../services/area_service.dart';
+import '../services/channel_service.dart';
+import '../services/brand_service.dart';
+import '../core/utils/area_utils.dart';
 import '../services/cart_storage_service.dart';
 import '../services/order_letter_service.dart';
 import '../services/checkout_service.dart';
@@ -12,7 +19,6 @@ import '../services/contact_work_experience_service.dart';
 import '../services/leader_service.dart';
 import '../services/notification_service.dart';
 import '../services/local_notification_service.dart';
-import '../services/approval_notification_service.dart';
 import '../features/approval/data/repositories/approval_repository.dart';
 import '../features/approval/domain/usecases/get_approvals_usecase.dart';
 import '../features/approval/domain/usecases/create_approval_usecase.dart';
@@ -40,6 +46,15 @@ void setupLocator() {
 
   // Register Services
   locator.registerLazySingleton<ApiClient>(() => ApiClient());
+  locator.registerLazySingleton<AreaService>(
+    () => AreaService(apiClient: locator<ApiClient>()),
+  );
+  locator.registerLazySingleton<ChannelService>(
+    () => ChannelService(apiClient: locator<ApiClient>()),
+  );
+  locator.registerLazySingleton<BrandService>(
+    () => BrandService(apiClient: locator<ApiClient>()),
+  );
   locator.registerLazySingleton<CartStorageService>(() => CartStorageService());
   locator.registerLazySingleton<OrderLetterService>(
     () => OrderLetterService(locator<Dio>()),
@@ -101,6 +116,18 @@ void setupLocator() {
   // Register Product Dependencies
   locator.registerLazySingleton<ProductRepository>(
     () => ProductRepository(apiClient: locator<ApiClient>()),
+  );
+  locator.registerLazySingleton<AreaRepository>(
+    () => AreaRepository(areaService: locator<AreaService>()),
+  );
+  locator.registerLazySingleton<ChannelRepository>(
+    () => ChannelRepository(channelService: locator<ChannelService>()),
+  );
+  locator.registerLazySingleton<BrandRepository>(
+    () => BrandRepository(brandService: locator<BrandService>()),
+  );
+  locator.registerLazySingleton<AreaUtils>(
+    () => AreaUtils(areaRepository: locator<AreaRepository>()),
   );
   locator.registerLazySingleton<GetProductUseCase>(
     () => GetProductUseCase(locator<ProductRepository>()),
