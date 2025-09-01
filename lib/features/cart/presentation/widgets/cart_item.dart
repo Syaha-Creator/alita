@@ -273,15 +273,12 @@ class _CartItemWidgetState extends State<CartItemWidget> {
             isDark,
             'headboard',
           ),
-          _buildDropdownRow(
+          _buildSorongOrUkuranDropdown(
             context,
-            Icons.storage,
-            'Sorong',
-            p.sorong,
+            p,
             styleLabel,
             styleValue,
             isDark,
-            'sorong',
           ),
           _detailRow(
               Icons.local_offer,
@@ -371,6 +368,80 @@ class _CartItemWidgetState extends State<CartItemWidget> {
         ],
       ),
     );
+  }
+
+  Widget _buildSorongOrUkuranDropdown(
+    BuildContext context,
+    ProductEntity product,
+    TextStyle labelStyle,
+    TextStyle valueStyle,
+    bool isDark,
+  ) {
+    return FutureBuilder<List<String>>(
+      future: _getSorongOptions(product),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          // Loading state - show sorong by default
+          return _buildDropdownRow(
+            context,
+            Icons.storage,
+            'Sorong',
+            product.sorong,
+            labelStyle,
+            valueStyle,
+            isDark,
+            'sorong',
+          );
+        }
+
+        final sorongOptions = snapshot.data!;
+
+        // If sorong has only one option that is "Tanpa sorong", show ukuran dropdown instead
+        if (sorongOptions.length == 1 &&
+            (sorongOptions.first.toLowerCase().contains('tanpa') ||
+                sorongOptions.first.toLowerCase().contains('tidak ada'))) {
+          return _buildDropdownRow(
+            context,
+            Icons.straighten,
+            'Ukuran',
+            product.ukuran,
+            labelStyle,
+            valueStyle,
+            isDark,
+            'ukuran',
+          );
+        } else {
+          // Show sorong dropdown normally
+          return _buildDropdownRow(
+            context,
+            Icons.storage,
+            'Sorong',
+            product.sorong,
+            labelStyle,
+            valueStyle,
+            isDark,
+            'sorong',
+          );
+        }
+      },
+    );
+  }
+
+  Future<List<String>> _getSorongOptions(ProductEntity product) async {
+    try {
+      final productOptionsService = locator<ProductOptionsService>();
+      return await productOptionsService.getSorongOptions(
+        area: product.area,
+        channel: product.channel,
+        brand: product.brand,
+        kasur: product.kasur,
+        divan: product.divan,
+        headboard: product.headboard,
+      );
+    } catch (e) {
+      // Return empty list on error
+      return [];
+    }
   }
 
   Widget _detailRow(IconData icon, String label, String value,
@@ -988,6 +1059,16 @@ class _CartItemWidgetState extends State<CartItemWidget> {
           kasur: widget.item.product.kasur,
           divan: widget.item.product.divan,
           headboard: widget.item.product.headboard,
+        );
+      } else if (type == 'ukuran') {
+        options = await productOptionsService.getUkuranOptions(
+          area: widget.item.product.area,
+          channel: widget.item.product.channel,
+          brand: widget.item.product.brand,
+          kasur: widget.item.product.kasur,
+          divan: widget.item.product.divan,
+          headboard: widget.item.product.headboard,
+          sorong: widget.item.product.sorong,
         );
       }
 

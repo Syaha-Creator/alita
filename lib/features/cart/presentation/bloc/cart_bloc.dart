@@ -420,6 +420,9 @@ class CartBloc extends Bloc<CartEvent, CartState> {
             final String newSorong = event.detailType == 'sorong'
                 ? event.detailValue
                 : item.product.sorong;
+            final String newUkuran = event.detailType == 'ukuran'
+                ? event.detailValue
+                : item.product.ukuran;
 
             // Fetch products with same filters to find the exact variant
             try {
@@ -436,7 +439,7 @@ class CartBloc extends Bloc<CartEvent, CartState> {
                     (p.divan == newDivan) &&
                     (p.headboard == newHeadboard) &&
                     (p.sorong == newSorong) &&
-                    (p.ukuran == item.product.ukuran),
+                    (p.ukuran == newUkuran),
                 orElse: () => item.product,
               );
 
@@ -455,7 +458,7 @@ class CartBloc extends Bloc<CartEvent, CartState> {
                 divan: newDivan,
                 headboard: newHeadboard,
                 sorong: newSorong,
-                ukuran: matched.ukuran,
+                ukuran: newUkuran,
                 pricelist: matched.pricelist,
                 program: matched.program,
                 eupKasur: matched.eupKasur,
@@ -509,7 +512,7 @@ class CartBloc extends Bloc<CartEvent, CartState> {
                 divan: newDivan,
                 headboard: newHeadboard,
                 sorong: newSorong,
-                ukuran: item.product.ukuran,
+                ukuran: newUkuran,
                 pricelist: item.product.pricelist,
                 program: item.product.program,
                 eupKasur: item.product.eupKasur,

@@ -149,6 +149,64 @@ class ProductOptionsService {
     }
   }
 
+  /// Get available ukuran options based on filter for cart item
+  Future<List<String>> getUkuranOptions({
+    required String area,
+    required String channel,
+    required String brand,
+    required String kasur,
+    required String divan,
+    required String headboard,
+    required String sorong,
+  }) async {
+    try {
+      final products = await _fetchProductsWithFilter(
+        area: area,
+        channel: channel,
+        brand: brand,
+      );
+
+      // Filter products by kasur, divan, headboard, and sorong
+      var filteredProducts = kasur == AppStrings.noKasur
+          ? products
+              .where((p) => p.kasur.isEmpty || p.kasur == AppStrings.noKasur)
+              .toList()
+          : products.where((p) => p.kasur == kasur).toList();
+
+      filteredProducts = divan == AppStrings.noDivan
+          ? filteredProducts
+              .where((p) => p.divan.isEmpty || p.divan == AppStrings.noDivan)
+              .toList()
+          : filteredProducts.where((p) => p.divan == divan).toList();
+
+      filteredProducts = headboard == AppStrings.noHeadboard
+          ? filteredProducts
+              .where((p) =>
+                  p.headboard.isEmpty || p.headboard == AppStrings.noHeadboard)
+              .toList()
+          : filteredProducts.where((p) => p.headboard == headboard).toList();
+
+      filteredProducts = sorong == AppStrings.noSorong
+          ? filteredProducts
+              .where((p) => p.sorong.isEmpty || p.sorong == AppStrings.noSorong)
+              .toList()
+          : filteredProducts.where((p) => p.sorong == sorong).toList();
+
+      // Extract unique ukuran options
+      final ukuranOptions = filteredProducts
+          .map((p) => p.ukuran)
+          .where((ukuran) => ukuran.isNotEmpty)
+          .toSet()
+          .toList()
+        ..sort();
+
+      return ukuranOptions;
+    } catch (e) {
+      print('Error getting ukuran options: $e');
+      return [];
+    }
+  }
+
   /// Fetch products with filter from API
   Future<List<ProductModel>> _fetchProductsWithFilter({
     required String area,
