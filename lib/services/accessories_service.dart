@@ -4,8 +4,94 @@ import '../config/api_config.dart';
 import '../config/app_constant.dart';
 import '../features/product/domain/entities/product_entity.dart';
 
+// New entity class for accessories from the new API
+class AccessoryEntity {
+  final int id;
+  final String brand;
+  final String series;
+  final String tipe;
+  final String? itemNum;
+  final String item;
+  final String ukuran;
+  final String createdAt;
+  final String updatedAt;
+
+  AccessoryEntity({
+    required this.id,
+    required this.brand,
+    required this.series,
+    required this.tipe,
+    this.itemNum,
+    required this.item,
+    required this.ukuran,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  factory AccessoryEntity.fromJson(Map<String, dynamic> json) {
+    return AccessoryEntity(
+      id: json['id'] ?? 0,
+      brand: json['brand'] ?? '',
+      series: json['series'] ?? '',
+      tipe: json['tipe'] ?? '',
+      itemNum: json['item_num'],
+      item: json['item'] ?? '',
+      ukuran: json['ukuran'] ?? '',
+      createdAt: json['created_at'] ?? '',
+      updatedAt: json['updated_at'] ?? '',
+    );
+  }
+
+  // Convert to ProductEntity for compatibility with existing cart system
+  ProductEntity toProductEntity() {
+    return ProductEntity(
+      id: id,
+      area: 'Jabodetabek', // Default area for accessories
+      channel: 'Accessories',
+      brand: brand,
+      kasur: item,
+      divan: '',
+      headboard: '',
+      sorong: '',
+      ukuran: ukuran,
+      pricelist: 0.0, // Accessories are free as bonus
+      program: '',
+      eupKasur: 0.0,
+      eupDivan: 0.0,
+      eupHeadboard: 0.0,
+      endUserPrice: 0.0,
+      bonus: [],
+      discounts: [],
+      isSet: false,
+      plKasur: 0.0,
+      plDivan: 0.0,
+      plHeadboard: 0.0,
+      plSorong: 0.0,
+      eupSorong: 0.0,
+      bottomPriceAnalyst: 0.0,
+      disc1: 0.0,
+      disc2: 0.0,
+      disc3: 0.0,
+      disc4: 0.0,
+      disc5: 0.0,
+      itemNumber: itemNum,
+      itemNumberKasur: itemNum,
+      itemNumberDivan: null,
+      itemNumberHeadboard: null,
+      itemNumberSorong: null,
+      itemNumberAccessories: itemNum,
+      itemNumberBonus1: itemNum,
+      itemNumberBonus2: null,
+      itemNumberBonus3: null,
+      itemNumberBonus4: null,
+      itemNumberBonus5: null,
+    );
+  }
+}
+
 class AccessoriesService {
-  static Future<List<ProductEntity>> getAccessories() async {
+  // New method to get accessories from the new API endpoint
+  static Future<List<AccessoryEntity>> getAccessoriesFromNewAPI() async {
     try {
       // Get auth token
       final prefs = await SharedPreferences.getInstance();
@@ -16,111 +102,42 @@ class AccessoriesService {
       }
 
       final dio = Dio();
+      final url = ApiConfig.getAccessoriesUrl(token: token);
 
-      // Accessories only available for Comforta brand and Jabodetabek area
-      final String area = 'Jabodetabek';
-      final String brand = 'Comforta';
-
-      final String tokenToUse = token;
-
-      final url = ApiConfig.getFilteredProductsUrl(
-        token: tokenToUse,
-        area: area,
-        channel: 'Accessories',
-        brand: brand,
-      );
-
-      print('Using token: $tokenToUse');
-      print('Trying URL: $url');
+      print('Fetching accessories from new API: $url');
       final response = await dio.get(url);
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = response.data;
-        print('Response for $area-$brand: $responseData');
+        print('Accessories API response: $responseData');
 
-        // Check if response has 'result' field
-        final dynamic result = responseData['result'];
-        print('Result for $area-$brand: $result');
+        if (responseData['status'] == 'success' &&
+            responseData['result'] != null) {
+          final List<dynamic> accessoriesList = responseData['result'];
 
-        // Handle both List and Map responses
-        List<dynamic> productsList;
-        if (result is List) {
-          productsList = result;
-        } else if (result is Map) {
-          productsList =
-              result['products'] ?? result['items'] ?? result['data'] ?? [];
+          final accessories = accessoriesList
+              .map((accessory) => AccessoryEntity.fromJson(accessory))
+              .toList();
+
+          print('Found ${accessories.length} accessories from new API');
+          return accessories;
         } else {
-          // Fallback to old structure
-          final dynamic data = responseData['data'] ?? responseData;
-          if (data is List) {
-            productsList = data;
-          } else if (data is Map) {
-            productsList =
-                data['products'] ?? data['items'] ?? data['data'] ?? [];
-          } else {
-            throw Exception('Unexpected response format: ${data.runtimeType}');
-          }
+          throw Exception('Invalid response format from accessories API');
         }
-
-        // Map the response data to ProductEntity based on actual API response
-        final accessories = productsList
-            .map((product) => ProductEntity(
-                  id: product['id'],
-                  area: product['area'] ?? '',
-                  channel: product['channel'] ?? '',
-                  brand: product['brand'] ?? '',
-                  kasur: product['kasur'] ?? '',
-                  divan: product['divan'] ?? '',
-                  headboard: product['headboard'] ?? '',
-                  sorong: product['sorong'] ?? '',
-                  ukuran: product['ukuran'] ?? '',
-                  pricelist: (product['pricelist'] ?? 0).toDouble(),
-                  program: product['program'] ?? '',
-                  eupKasur: (product['eup_kasur'] ?? 0).toDouble(),
-                  eupDivan: (product['eup_divan'] ?? 0).toDouble(),
-                  eupHeadboard: (product['eup_headboard'] ?? 0).toDouble(),
-                  endUserPrice: (product['end_user_price'] ?? 0).toDouble(),
-                  bonus: (product['bonus'] as List<dynamic>? ?? [])
-                      .map((bonus) => BonusItem(
-                            name: bonus['name'] ?? '',
-                            quantity: bonus['quantity'] ?? 0,
-                          ))
-                      .toList(),
-                  discounts: List<double>.from(
-                      (product['discounts'] as List<dynamic>? ?? <dynamic>[])
-                          .map((d) => (d ?? 0).toDouble())),
-                  isSet: product['set'] ?? false,
-                  plKasur: (product['pl_kasur'] ?? 0).toDouble(),
-                  plDivan: (product['pl_divan'] ?? 0).toDouble(),
-                  plHeadboard: (product['pl_headboard'] ?? 0).toDouble(),
-                  plSorong: (product['pl_sorong'] ?? 0).toDouble(),
-                  eupSorong: (product['eup_sorong'] ?? 0).toDouble(),
-                  bottomPriceAnalyst:
-                      (product['bottom_price_analyst'] ?? 0).toDouble(),
-                  disc1: (product['disc1'] ?? 0).toDouble(),
-                  disc2: (product['disc2'] ?? 0).toDouble(),
-                  disc3: (product['disc3'] ?? 0).toDouble(),
-                  disc4: (product['disc4'] ?? 0).toDouble(),
-                  disc5: (product['disc5'] ?? 0).toDouble(),
-                  itemNumber: product['item_number'],
-                  itemNumberKasur: product['item_number_kasur'],
-                  itemNumberDivan: product['item_number_divan'],
-                  itemNumberHeadboard: product['item_number_headboard'],
-                  itemNumberSorong: product['item_number_sorong'],
-                  itemNumberAccessories: product['item_number_accessories'],
-                  itemNumberBonus1: product['item_number_bonus1'],
-                  itemNumberBonus2: product['item_number_bonus2'],
-                  itemNumberBonus3: product['item_number_bonus3'],
-                  itemNumberBonus4: product['item_number_bonus4'],
-                  itemNumberBonus5: product['item_number_bonus5'],
-                ))
-            .toList();
-
-        print('Found ${accessories.length} accessories for $area-$brand');
-        return accessories;
       } else {
         throw Exception('Failed to load accessories: ${response.statusCode}');
       }
+    } catch (e) {
+      throw Exception('Failed to load accessories from new API: $e');
+    }
+  }
+
+  // Legacy method for backward compatibility (kept for now)
+  static Future<List<ProductEntity>> getAccessories() async {
+    try {
+      // Get accessories from new API and convert to ProductEntity
+      final accessories = await getAccessoriesFromNewAPI();
+      return accessories.map((acc) => acc.toProductEntity()).toList();
     } catch (e) {
       throw Exception('Failed to load accessories: $e');
     }

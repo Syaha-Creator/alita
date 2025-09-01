@@ -151,7 +151,6 @@ class ApprovalBloc extends Bloc<ApprovalEvent, ApprovalState> {
             approvalAction: event.action,
             approvalLevel: result['approval_level'] ?? 'Current Level',
             comment: event.comment,
-            orderDetails: result['order_details'] ?? '',
             customerName: result['customer_name'] ?? '',
             totalAmount: result['total_amount'] != null
                 ? double.tryParse(result['total_amount'].toString())
@@ -170,7 +169,6 @@ class ApprovalBloc extends Bloc<ApprovalEvent, ApprovalState> {
               approvalAction: event.action,
               approvalLevel: result['approval_level'] ?? 'Current Level',
               comment: event.comment,
-              orderDetails: result['order_details'] ?? '',
               customerName: result['customer_name'] ?? '',
               totalAmount: result['total_amount'] != null
                   ? double.tryParse(result['total_amount'].toString())

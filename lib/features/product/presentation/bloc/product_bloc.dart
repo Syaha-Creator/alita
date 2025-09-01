@@ -612,7 +612,8 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
     on<UpdateSelectedBrand>((event, emit) {
       // Show toast for Spring Air and Therapedic brands
       if (event.brand == BrandEnum.springair.value ||
-          event.brand == BrandEnum.therapedic.value) {
+          event.brand == BrandEnum.therapedic.value ||
+          event.brand.toLowerCase().contains('spring air')) {
         CustomToast.showToast(
           "Brand ${event.brand} akan menggunakan area nasional untuk pencarian produk.",
           ToastType.info,
@@ -639,8 +640,9 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       // Determine which area to use based on brand selection
       String? areaToUse;
       if (event.brand == BrandEnum.springair.value ||
-          event.brand == BrandEnum.therapedic.value) {
-        // Use nasional area for Spring Air and Therapedic
+          event.brand == BrandEnum.therapedic.value ||
+          event.brand.toLowerCase().contains('spring air')) {
+        // Use nasional area for Spring Air (including European Collection) and Therapedic
         areaToUse = AreaEnum.nasional.value;
       } else {
         // Use user's selected area for other brands
@@ -673,8 +675,10 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
 
       // If brand is Spring Air or Therapedic, use "nasional" area
       if (event.selectedBrand == BrandEnum.springair.value ||
-          event.selectedBrand == BrandEnum.therapedic.value) {
-        // Try usingnasional" first, if it fails, fallback to user's area
+          event.selectedBrand == BrandEnum.therapedic.value ||
+          (event.selectedBrand?.toLowerCase().contains('spring air') ??
+              false)) {
+        // Try using "nasional" first, if it fails, fallback to user's area
         areaToUse = AreaEnum.nasional.value;
       } else {
         // For other brands, use user's selected area or default area

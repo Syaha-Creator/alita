@@ -30,6 +30,7 @@ import '../features/order_letter_document/data/repositories/order_letter_documen
 import 'api_config.dart';
 import '../services/unified_notification_service.dart';
 import '../services/device_token_service.dart';
+import '../services/product_options_service.dart';
 
 final locator = GetIt.instance;
 
@@ -78,6 +79,9 @@ void setupLocator() {
   );
   locator.registerLazySingleton<DeviceTokenService>(
     () => DeviceTokenService(),
+  );
+  locator.registerLazySingleton<ProductOptionsService>(
+    () => ProductOptionsService(apiClient: locator<ApiClient>()),
   );
 
   // Register Approval Dependencies

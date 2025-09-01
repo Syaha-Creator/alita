@@ -47,9 +47,7 @@ class _EditPriceDialogState extends State<EditPriceDialog> {
     final currentPrice =
         state.roundedPrices[widget.product.id] ?? widget.product.endUserPrice;
     isPriceLocked = currentPrice <= widget.product.bottomPriceAnalyst;
-    lockReason = isPriceLocked
-        ? "Anda tidak memiliki otoritas untuk memberikan diskon / harga lebih daripada yang sudah ditentukan"
-        : "";
+    lockReason = isPriceLocked ? "Discount dan Harga Sudah Maksimal" : "";
 
     priceController = TextEditingController(
         text: FormatHelper.formatCurrency(priceBeforeEdit));

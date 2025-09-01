@@ -138,6 +138,22 @@ class CartBloc extends Bloc<CartEvent, CartState> {
       emit(CartLoaded([]));
     });
 
+    on<MarkItemAsCheckedOut>((event, emit) async {
+      if (state is CartLoaded) {
+        final currentState = state as CartLoaded;
+        final updatedItems = currentState.cartItems.map((item) {
+          if (item.product.id == event.productId &&
+              item.netPrice == event.netPrice) {
+            return item.copyWith(isCheckedOut: true);
+          }
+          return item;
+        }).toList();
+
+        await CartStorageService.saveCartItems(updatedItems);
+        emit(CartLoaded(updatedItems));
+      }
+    });
+
     on<Checkout>((event, emit) async {
       if (state is CartLoaded) {
         // After successful checkout, clear the cart
@@ -338,6 +354,80 @@ class CartBloc extends Bloc<CartEvent, CartState> {
               eupHeadboard: item.product.eupHeadboard,
               endUserPrice: item.product.endUserPrice,
               bonus: updatedBonus,
+              discounts: item.product.discounts,
+              isSet: item.product.isSet,
+              plKasur: item.product.plKasur,
+              plDivan: item.product.plDivan,
+              plHeadboard: item.product.plHeadboard,
+              plSorong: item.product.plSorong,
+              eupSorong: item.product.eupSorong,
+              bottomPriceAnalyst: item.product.bottomPriceAnalyst,
+              disc1: item.product.disc1,
+              disc2: item.product.disc2,
+              disc3: item.product.disc3,
+              disc4: item.product.disc4,
+              disc5: item.product.disc5,
+              itemNumber: item.product.itemNumber,
+              itemNumberKasur: item.product.itemNumberKasur,
+              itemNumberDivan: item.product.itemNumberDivan,
+              itemNumberHeadboard: item.product.itemNumberHeadboard,
+              itemNumberSorong: item.product.itemNumberSorong,
+              itemNumberAccessories: item.product.itemNumberAccessories,
+              itemNumberBonus1: item.product.itemNumberBonus1,
+              itemNumberBonus2: item.product.itemNumberBonus2,
+              itemNumberBonus3: item.product.itemNumberBonus3,
+              itemNumberBonus4: item.product.itemNumberBonus4,
+              itemNumberBonus5: item.product.itemNumberBonus5,
+            );
+
+            return CartEntity(
+              product: updatedProduct,
+              quantity: item.quantity,
+              netPrice: item.netPrice,
+              discountPercentages: item.discountPercentages,
+              installmentMonths: item.installmentMonths,
+              installmentPerMonth: item.installmentPerMonth,
+              isSelected: item.isSelected,
+            );
+          }
+          return item;
+        }).toList();
+
+        await CartStorageService.saveCartItems(updatedItems);
+        emit(CartLoaded(updatedItems));
+      }
+    });
+
+    on<UpdateCartProductDetail>((event, emit) async {
+      if (state is CartLoaded) {
+        final currentState = state as CartLoaded;
+        final updatedItems = currentState.cartItems.map((item) {
+          if (item.product.id == event.productId &&
+              item.netPrice == event.netPrice) {
+            // Create updated product with new detail value
+            final updatedProduct = ProductEntity(
+              id: item.product.id,
+              area: item.product.area,
+              channel: item.product.channel,
+              brand: item.product.brand,
+              kasur: item.product.kasur,
+              divan: event.detailType == 'divan'
+                  ? event.detailValue
+                  : item.product.divan,
+              headboard: event.detailType == 'headboard'
+                  ? event.detailValue
+                  : item.product.headboard,
+              sorong: event.detailType == 'sorong'
+                  ? event.detailValue
+                  : item.product.sorong,
+              ukuran: item.product.ukuran,
+              pricelist: item.product.pricelist,
+              program: item.product.program,
+              eupKasur: item.product.eupKasur,
+              eupDivan: item.product.eupDivan,
+              eupHeadboard: item.product.eupHeadboard,
+              endUserPrice: item.product.endUserPrice,
+              bonus: item.product.bonus,
               discounts: item.product.discounts,
               isSet: item.product.isSet,
               plKasur: item.product.plKasur,

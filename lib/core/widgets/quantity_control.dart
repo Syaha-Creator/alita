@@ -8,12 +8,14 @@ class QuantityControl extends StatelessWidget {
   final int quantity;
   final VoidCallback onIncrement;
   final VoidCallback onDecrement;
+  final VoidCallback? onDelete;
 
   const QuantityControl({
     super.key,
     required this.quantity,
     required this.onIncrement,
     required this.onDecrement,
+    this.onDelete,
   });
 
   @override
@@ -22,9 +24,10 @@ class QuantityControl extends StatelessWidget {
       children: [
         _buildIconButton(
           context,
-          Icons.remove,
-          Colors.redAccent,
-          onDecrement,
+          quantity > 1 ? Icons.remove : Icons.delete_outline,
+          quantity > 1 ? Colors.redAccent : Colors.red,
+          quantity > 1 ? onDecrement : (onDelete ?? onDecrement),
+          tooltip: quantity > 1 ? 'Kurangi jumlah' : 'Hapus item',
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppPadding.p8),
@@ -39,13 +42,15 @@ class QuantityControl extends StatelessWidget {
           Icons.add,
           Colors.green,
           onIncrement,
+          tooltip: 'Tambah jumlah',
         ),
       ],
     );
   }
 
   Widget _buildIconButton(
-      BuildContext context, IconData icon, Color color, VoidCallback onTap) {
+      BuildContext context, IconData icon, Color color, VoidCallback onTap,
+      {String? tooltip}) {
     return Material(
       shape: const CircleBorder(),
       color: color.withOpacity(0.1),
@@ -54,7 +59,10 @@ class QuantityControl extends StatelessWidget {
         radius: 20,
         child: Padding(
           padding: const EdgeInsets.all(AppPadding.p8),
-          child: Icon(icon, size: 20, color: color),
+          child: Tooltip(
+            message: tooltip ?? '',
+            child: Icon(icon, size: 20, color: color),
+          ),
         ),
       ),
     );

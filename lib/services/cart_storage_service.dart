@@ -68,6 +68,7 @@ class CartStorageService {
       'installmentMonths': item.installmentMonths,
       'installmentPerMonth': item.installmentPerMonth,
       'isSelected': item.isSelected,
+      'isCheckedOut': item.isCheckedOut,
     };
   }
 
@@ -81,6 +82,7 @@ class CartStorageService {
       installmentMonths: json['installmentMonths'],
       installmentPerMonth: json['installmentPerMonth']?.toDouble(),
       isSelected: json['isSelected'] ?? true,
+      isCheckedOut: json['isCheckedOut'] ?? false,
     );
   }
 

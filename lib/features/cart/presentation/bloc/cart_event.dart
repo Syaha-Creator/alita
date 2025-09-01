@@ -81,6 +81,19 @@ class ToggleCartItemSelection extends CartEvent {
 
 class ClearCart extends CartEvent {}
 
+class MarkItemAsCheckedOut extends CartEvent {
+  final int productId;
+  final double netPrice;
+
+  const MarkItemAsCheckedOut({
+    required this.productId,
+    required this.netPrice,
+  });
+
+  @override
+  List<Object?> get props => [productId, netPrice];
+}
+
 class Checkout extends CartEvent {
   final double totalPrice;
   final String promoCode;
@@ -151,4 +164,21 @@ class RemoveCartBonus extends CartEvent {
 
   @override
   List<Object?> get props => [productId, netPrice, bonusIndex];
+}
+
+class UpdateCartProductDetail extends CartEvent {
+  final int productId;
+  final double netPrice;
+  final String detailType;
+  final String detailValue;
+
+  const UpdateCartProductDetail({
+    required this.productId,
+    required this.netPrice,
+    required this.detailType,
+    required this.detailValue,
+  });
+
+  @override
+  List<Object?> get props => [productId, netPrice, detailType, detailValue];
 }

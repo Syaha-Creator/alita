@@ -8,6 +8,7 @@ class CartEntity {
   final int? installmentMonths;
   final double? installmentPerMonth;
   final bool isSelected;
+  final bool isCheckedOut;
 
   CartEntity copyWith({
     ProductEntity? product,
@@ -17,6 +18,7 @@ class CartEntity {
     int? installmentMonths,
     double? installmentPerMonth,
     bool? isSelected,
+    bool? isCheckedOut,
   }) {
     return CartEntity(
       product: product ?? this.product,
@@ -26,6 +28,7 @@ class CartEntity {
       installmentMonths: installmentMonths ?? this.installmentMonths,
       installmentPerMonth: installmentPerMonth ?? this.installmentPerMonth,
       isSelected: isSelected ?? this.isSelected,
+      isCheckedOut: isCheckedOut ?? this.isCheckedOut,
     );
   }
 
@@ -37,6 +40,7 @@ class CartEntity {
     this.installmentMonths,
     this.installmentPerMonth,
     this.isSelected = true,
+    this.isCheckedOut = false,
   });
 
   List<Object?> get props => [
@@ -47,6 +51,7 @@ class CartEntity {
         installmentMonths,
         installmentPerMonth,
         isSelected,
+        isCheckedOut,
       ];
 
   Map<String, dynamic> toJson() {
@@ -90,6 +95,7 @@ class CartEntity {
       'installmentMonths': installmentMonths,
       'installmentPerMonth': installmentPerMonth,
       'isSelected': isSelected,
+      'isCheckedOut': isCheckedOut,
     };
   }
 }

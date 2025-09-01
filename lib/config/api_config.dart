@@ -23,6 +23,9 @@ class ApiConfig {
   static const String plChannels = "${baseUrl}api/pl_channels";
   static const String plBrands = "${baseUrl}api/pl_brands";
 
+  // Accessories Endpoints
+  static const String accessories = "${baseUrl}api/pl_accessories";
+
   // Approval Endpoints
   static const String orderLetters = "${baseUrl}api/order_letters";
   static const String orderLetterDetails = "${baseUrl}api/order_letter_details";
@@ -78,6 +81,14 @@ class ApiConfig {
   }) {
     final encodedToken = Uri.encodeComponent(token);
     return "$plBrands?access_token=$encodedToken&client_id=$clientId&client_secret=$clientSecret";
+  }
+
+  // Helper untuk fetch accessories
+  static String getAccessoriesUrl({
+    required String token,
+  }) {
+    final encodedToken = Uri.encodeComponent(token);
+    return "$accessories?access_token=$encodedToken&client_id=$clientId&client_secret=$clientSecret";
   }
 
   // Helper untuk contact work experience

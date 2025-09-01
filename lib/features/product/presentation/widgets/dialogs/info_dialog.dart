@@ -29,7 +29,6 @@ class _InfoDialogState extends State<InfoDialog> {
   late List<double> _initialNominals;
   bool hasChanged = false;
   LeaderByUserModel? _leaderData;
-  bool _isLoadingLeader = false;
 
   void _checkHasChanged() {
     final currentPercentages = percentageControllers
@@ -73,22 +72,15 @@ class _InfoDialogState extends State<InfoDialog> {
   }
 
   Future<void> _loadLeaderData() async {
-    setState(() {
-      _isLoadingLeader = true;
-    });
-
     try {
       final leaderService = locator<LeaderService>();
       final leaderData = await leaderService.getLeaderByUser();
 
       setState(() {
         _leaderData = leaderData;
-        _isLoadingLeader = false;
       });
     } catch (e) {
-      setState(() {
-        _isLoadingLeader = false;
-      });
+      // No-op, leader data will be null if loading fails
     }
   }
 
@@ -175,121 +167,32 @@ class _InfoDialogState extends State<InfoDialog> {
     }
   }
 
-  Widget _buildLeaderInfoSection() {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[300]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "Hierarki Approval",
-            style: GoogleFonts.montserrat(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          _buildLeaderRow("Diskon 1 (User)", _leaderData!.user.fullName,
-              _leaderData!.user.workTitle),
-          if (_leaderData!.directLeader != null)
-            _buildLeaderRow(
-                "Diskon 2 (Direct Leader)",
-                _leaderData!.directLeader!.fullName,
-                _leaderData!.directLeader!.workTitle),
-          if (_leaderData!.indirectLeader != null)
-            _buildLeaderRow(
-                "Diskon 3 (Indirect Leader)",
-                _leaderData!.indirectLeader!.fullName,
-                _leaderData!.indirectLeader!.workTitle),
-          if (_leaderData!.controller != null)
-            _buildLeaderRow(
-                "Diskon 4 (Controller)",
-                _leaderData!.controller!.fullName,
-                _leaderData!.controller!.workTitle),
-          if (_leaderData!.analyst != null)
-            _buildLeaderRow(
-                "Diskon 5 (Analyst)",
-                _leaderData!.analyst!.fullName,
-                _leaderData!.analyst!.workTitle),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLeaderRow(String title, String name, String workTitle) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              title,
-              style: GoogleFonts.montserrat(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[700],
-              ),
-            ),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: GoogleFonts.montserrat(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                Text(
-                  workTitle,
-                  style: GoogleFonts.montserrat(
-                    fontSize: 11,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   String _getDiscountLabel(int discountLevel, bool isPercentage) {
     String levelText = "Diskon $discountLevel";
 
     if (_leaderData != null) {
       switch (discountLevel) {
         case 1:
-          levelText = "Diskon 1 (User)";
+          levelText = "Diskon 1";
           break;
         case 2:
           if (_leaderData!.directLeader != null) {
-            levelText = "Diskon 2 (Direct Leader)";
+            levelText = "Diskon 2";
           }
           break;
         case 3:
           if (_leaderData!.indirectLeader != null) {
-            levelText = "Diskon 3 (Indirect Leader)";
+            levelText = "Diskon 3";
           }
           break;
         case 4:
           if (_leaderData!.controller != null) {
-            levelText = "Diskon 4 (Controller)";
+            levelText = "Diskon 4";
           }
           break;
         case 5:
           if (_leaderData!.analyst != null) {
-            levelText = "Diskon 5 (Analyst)";
+            levelText = "Diskon 5";
           }
           break;
       }
@@ -334,18 +237,15 @@ class _InfoDialogState extends State<InfoDialog> {
                     fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
 
-            // Leader Information Section
-            if (_isLoadingLeader)
-              const Center(child: CircularProgressIndicator())
-            else if (_leaderData != null)
-              _buildLeaderInfoSection(),
-
-            const SizedBox(height: 16),
             // Konten di dalam SingleChildScrollView agar tidak overflow
             SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: List.generate(5, (i) {
+                  // Hanya tampilkan discount field jika disc value > 0
+                  final discValue = _getMaxDisc(i);
+                  if (discValue <= 0) return const SizedBox.shrink();
+
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 4.0),
                     child: Row(
@@ -386,7 +286,9 @@ class _InfoDialogState extends State<InfoDialog> {
                       ],
                     ),
                   );
-                }),
+                })
+                    .where((widget) => widget != const SizedBox.shrink())
+                    .toList(),
               ),
             ),
             const SizedBox(height: 24),

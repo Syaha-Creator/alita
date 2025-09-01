@@ -223,6 +223,11 @@ enum BrandEnum {
         (brand) => brand.value.toLowerCase() == name.toLowerCase(),
       );
     } catch (e) {
+      // If no exact match found, try partial matching for Spring Air
+      if (name.toLowerCase().contains('spring air')) {
+        return BrandEnum.springair;
+      }
+
       // If no match found, try to match by ID
       try {
         return BrandEnum.values.firstWhere(

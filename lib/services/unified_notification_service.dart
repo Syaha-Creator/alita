@@ -23,7 +23,6 @@ class UnifiedNotificationService {
   Future<bool> handleOrderLetterCreation({
     required String creatorUserId,
     required String orderId,
-    String? orderDetails,
     String? customerName,
     double? totalAmount,
   }) async {
@@ -52,7 +51,6 @@ class UnifiedNotificationService {
       final fcmSuccess = await _sendInitialFCMToDirectLeader(
         creatorUserId: creatorUserId,
         orderId: orderId,
-        orderDetails: orderDetails,
         customerName: customerName,
         totalAmount: totalAmount,
       );
@@ -95,7 +93,6 @@ class UnifiedNotificationService {
     required String approvalAction, // 'approve' or 'reject'
     required String approvalLevel,
     String? comment,
-    String? orderDetails,
     String? customerName,
     double? totalAmount,
   }) async {
@@ -137,7 +134,6 @@ class UnifiedNotificationService {
           creatorUserId: creatorUserId,
           orderLetterId: orderLetterId,
           currentApprovalLevel: approvalLevel,
-          orderDetails: orderDetails,
           customerName: customerName,
           totalAmount: totalAmount,
         );
@@ -206,7 +202,6 @@ class UnifiedNotificationService {
   Future<bool> _sendInitialFCMToDirectLeader({
     required String creatorUserId,
     required String orderId,
-    String? orderDetails,
     String? customerName,
     double? totalAmount,
   }) async {
@@ -274,7 +269,6 @@ class UnifiedNotificationService {
         creatorUserId: creatorUserId,
         customerName: customerName,
         totalAmount: totalAmount,
-        orderDetails: orderDetails,
       );
 
       // Log template for debugging
@@ -338,7 +332,6 @@ class UnifiedNotificationService {
     required String approvalAction,
     required String approvalLevel,
     String? comment,
-    String? orderDetails,
     String? customerName,
     double? totalAmount,
   }) async {
@@ -425,7 +418,6 @@ class UnifiedNotificationService {
     required String creatorUserId,
     required String orderLetterId,
     required String currentApprovalLevel,
-    String? orderDetails,
     String? customerName,
     double? totalAmount,
   }) async {
@@ -492,7 +484,6 @@ class UnifiedNotificationService {
         creatorUserId: creatorUserId,
         orderLetterId: orderLetterId,
         approvalLevel: nextLevelName,
-        orderDetails: orderDetails,
         customerName: customerName,
         totalAmount: totalAmount,
       );
@@ -512,7 +503,6 @@ class UnifiedNotificationService {
     required String creatorUserId,
     required String orderLetterId,
     required String approvalLevel,
-    String? orderDetails,
     String? customerName,
     double? totalAmount,
   }) async {
@@ -560,7 +550,6 @@ class UnifiedNotificationService {
         creatorUserId: creatorUserId,
         customerName: customerName,
         totalAmount: totalAmount,
-        orderDetails: orderDetails,
       );
 
       // Log template for debugging
@@ -655,7 +644,6 @@ class UnifiedNotificationService {
       final result = await handleOrderLetterCreation(
         creatorUserId: 'test_user_123',
         orderId: 'test_order_456',
-        orderDetails: 'Test order for notification service',
         customerName: 'Test Customer',
         totalAmount: 1500000.0,
       );

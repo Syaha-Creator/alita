@@ -218,8 +218,6 @@ class CheckoutService {
             await _notificationService.handleOrderLetterCreation(
               creatorUserId: currentUserId.toString(),
               orderId: result['orderLetterId']?.toString() ?? 'Unknown',
-              orderDetails:
-                  note.isNotEmpty ? note : 'Order letter created from cart',
               customerName: customerName,
               totalAmount: totalExtendedAmount,
             );
@@ -230,8 +228,6 @@ class CheckoutService {
             await approvalNotificationService.handleOrderLetterCreation(
               creatorUserId: 'unknown',
               orderId: result['orderLetterId']?.toString() ?? 'Unknown',
-              orderDetails:
-                  note.isNotEmpty ? note : 'Order letter created from cart',
               customerName: customerName,
               totalAmount: totalExtendedAmount,
             );
