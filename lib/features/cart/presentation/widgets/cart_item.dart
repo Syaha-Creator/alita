@@ -273,12 +273,22 @@ class _CartItemWidgetState extends State<CartItemWidget> {
             isDark,
             'headboard',
           ),
-          _buildSorongOrUkuranDropdown(
+          _buildConditionalSorongDropdown(
             context,
             p,
             styleLabel,
             styleValue,
             isDark,
+          ),
+          _buildDropdownRow(
+            context,
+            Icons.straighten,
+            'Ukuran',
+            p.ukuran,
+            styleLabel,
+            styleValue,
+            isDark,
+            'ukuran',
           ),
           _detailRow(
               Icons.local_offer,
@@ -370,7 +380,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
     );
   }
 
-  Widget _buildSorongOrUkuranDropdown(
+  Widget _buildConditionalSorongDropdown(
     BuildContext context,
     ProductEntity product,
     TextStyle labelStyle,
@@ -381,37 +391,14 @@ class _CartItemWidgetState extends State<CartItemWidget> {
       future: _getSorongOptions(product),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          // Loading state - show sorong by default
-          return _buildDropdownRow(
-            context,
-            Icons.storage,
-            'Sorong',
-            product.sorong,
-            labelStyle,
-            valueStyle,
-            isDark,
-            'sorong',
-          );
+          // Loading state - show nothing while loading
+          return const SizedBox.shrink();
         }
 
         final sorongOptions = snapshot.data!;
 
-        // If sorong has only one option that is "Tanpa sorong", show ukuran dropdown instead
-        if (sorongOptions.length == 1 &&
-            (sorongOptions.first.toLowerCase().contains('tanpa') ||
-                sorongOptions.first.toLowerCase().contains('tidak ada'))) {
-          return _buildDropdownRow(
-            context,
-            Icons.straighten,
-            'Ukuran',
-            product.ukuran,
-            labelStyle,
-            valueStyle,
-            isDark,
-            'ukuran',
-          );
-        } else {
-          // Show sorong dropdown normally
+        // Only show sorong dropdown if there are more than 1 option
+        if (sorongOptions.length > 1) {
           return _buildDropdownRow(
             context,
             Icons.storage,
@@ -422,6 +409,9 @@ class _CartItemWidgetState extends State<CartItemWidget> {
             isDark,
             'sorong',
           );
+        } else {
+          // Don't show sorong dropdown if only 1 option
+          return const SizedBox.shrink();
         }
       },
     );
@@ -1091,28 +1081,34 @@ class _CartItemWidgetState extends State<CartItemWidget> {
               fontWeight: FontWeight.w600,
             ),
           ),
-          content: SizedBox(
-            width: double.maxFinite,
-            height: 300,
-            child: ListView.builder(
-              itemCount: options.length,
-              itemBuilder: (context, index) {
-                final option = options[index];
-                return ListTile(
-                  title: Text(option),
-                  onTap: () {
-                    context.read<CartBloc>().add(UpdateCartProductDetail(
-                          productId: widget.item.product.id,
-                          netPrice: widget.item.netPrice,
-                          detailType: type,
-                          detailValue: option,
-                        ));
-                    Navigator.pop(ctx);
-                  },
-                );
-              },
-            ),
-          ),
+          content: Builder(builder: (context) {
+            double dialogHeight = options.length * 52.0;
+            if (dialogHeight > 360.0) dialogHeight = 360.0;
+
+            return SizedBox(
+              width: double.maxFinite,
+              height: dialogHeight,
+              child: ListView.builder(
+                itemExtent: 48.0,
+                itemCount: options.length,
+                itemBuilder: (context, index) {
+                  final option = options[index];
+                  return ListTile(
+                    title: Text(option),
+                    onTap: () {
+                      context.read<CartBloc>().add(UpdateCartProductDetail(
+                            productId: widget.item.product.id,
+                            netPrice: widget.item.netPrice,
+                            detailType: type,
+                            detailValue: option,
+                          ));
+                      Navigator.pop(ctx);
+                    },
+                  );
+                },
+              ),
+            );
+          }),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
