@@ -2,6 +2,8 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../services/cart_storage_service.dart';
+import '../../../../config/dependency_injection.dart';
+import '../../../product/domain/usecases/get_product_usecase.dart';
 import '../../domain/entities/cart_entity.dart';
 import '../../../product/domain/entities/product_entity.dart';
 import 'cart_event.dart';
@@ -401,71 +403,165 @@ class CartBloc extends Bloc<CartEvent, CartState> {
     on<UpdateCartProductDetail>((event, emit) async {
       if (state is CartLoaded) {
         final currentState = state as CartLoaded;
-        final updatedItems = currentState.cartItems.map((item) {
+        final getProductUseCase = locator<GetProductUseCase>();
+
+        final List<CartEntity> updatedItems = [];
+
+        for (final item in currentState.cartItems) {
           if (item.product.id == event.productId &&
               item.netPrice == event.netPrice) {
-            // Create updated product with new detail value
-            final updatedProduct = ProductEntity(
-              id: item.product.id,
-              area: item.product.area,
-              channel: item.product.channel,
-              brand: item.product.brand,
-              kasur: item.product.kasur,
-              divan: event.detailType == 'divan'
-                  ? event.detailValue
-                  : item.product.divan,
-              headboard: event.detailType == 'headboard'
-                  ? event.detailValue
-                  : item.product.headboard,
-              sorong: event.detailType == 'sorong'
-                  ? event.detailValue
-                  : item.product.sorong,
-              ukuran: item.product.ukuran,
-              pricelist: item.product.pricelist,
-              program: item.product.program,
-              eupKasur: item.product.eupKasur,
-              eupDivan: item.product.eupDivan,
-              eupHeadboard: item.product.eupHeadboard,
-              endUserPrice: item.product.endUserPrice,
-              bonus: item.product.bonus,
-              discounts: item.product.discounts,
-              isSet: item.product.isSet,
-              plKasur: item.product.plKasur,
-              plDivan: item.product.plDivan,
-              plHeadboard: item.product.plHeadboard,
-              plSorong: item.product.plSorong,
-              eupSorong: item.product.eupSorong,
-              bottomPriceAnalyst: item.product.bottomPriceAnalyst,
-              disc1: item.product.disc1,
-              disc2: item.product.disc2,
-              disc3: item.product.disc3,
-              disc4: item.product.disc4,
-              disc5: item.product.disc5,
-              itemNumber: item.product.itemNumber,
-              itemNumberKasur: item.product.itemNumberKasur,
-              itemNumberDivan: item.product.itemNumberDivan,
-              itemNumberHeadboard: item.product.itemNumberHeadboard,
-              itemNumberSorong: item.product.itemNumberSorong,
-              itemNumberAccessories: item.product.itemNumberAccessories,
-              itemNumberBonus1: item.product.itemNumberBonus1,
-              itemNumberBonus2: item.product.itemNumberBonus2,
-              itemNumberBonus3: item.product.itemNumberBonus3,
-              itemNumberBonus4: item.product.itemNumberBonus4,
-              itemNumberBonus5: item.product.itemNumberBonus5,
-            );
+            // Update selected detail on current product
+            final String newDivan = event.detailType == 'divan'
+                ? event.detailValue
+                : item.product.divan;
+            final String newHeadboard = event.detailType == 'headboard'
+                ? event.detailValue
+                : item.product.headboard;
+            final String newSorong = event.detailType == 'sorong'
+                ? event.detailValue
+                : item.product.sorong;
 
-            return CartEntity(
-              product: updatedProduct,
-              quantity: item.quantity,
-              netPrice: item.netPrice,
-              discountPercentages: item.discountPercentages,
-              installmentMonths: item.installmentMonths,
-              installmentPerMonth: item.installmentPerMonth,
-              isSelected: item.isSelected,
-            );
+            // Fetch products with same filters to find the exact variant
+            try {
+              final products = await getProductUseCase.callWithFilter(
+                area: item.product.area,
+                channel: item.product.channel,
+                brand: item.product.brand,
+              );
+
+              // Try to find a matching variant
+              final matched = products.firstWhere(
+                (p) =>
+                    (p.kasur == item.product.kasur) &&
+                    (p.divan == newDivan) &&
+                    (p.headboard == newHeadboard) &&
+                    (p.sorong == newSorong) &&
+                    (p.ukuran == item.product.ukuran),
+                orElse: () => item.product,
+              );
+
+              // Base price is endUserPrice of matched product
+              final double basePrice = matched.endUserPrice;
+              final double recalculatedNet = _applyDiscountsSequentially(
+                  basePrice, item.discountPercentages);
+
+              // Build updated product entity using matched details
+              final updatedProduct = ProductEntity(
+                id: item.product.id,
+                area: matched.area,
+                channel: matched.channel,
+                brand: matched.brand,
+                kasur: matched.kasur,
+                divan: newDivan,
+                headboard: newHeadboard,
+                sorong: newSorong,
+                ukuran: matched.ukuran,
+                pricelist: matched.pricelist,
+                program: matched.program,
+                eupKasur: matched.eupKasur,
+                eupDivan: matched.eupDivan,
+                eupHeadboard: matched.eupHeadboard,
+                endUserPrice: matched.endUserPrice,
+                bonus: item.product.bonus,
+                discounts: matched.discounts,
+                isSet: matched.isSet,
+                plKasur: matched.plKasur,
+                plDivan: matched.plDivan,
+                plHeadboard: matched.plHeadboard,
+                plSorong: matched.plSorong,
+                eupSorong: matched.eupSorong,
+                bottomPriceAnalyst: matched.bottomPriceAnalyst,
+                disc1: matched.disc1,
+                disc2: matched.disc2,
+                disc3: matched.disc3,
+                disc4: matched.disc4,
+                disc5: matched.disc5,
+                itemNumber: matched.itemNumber,
+                itemNumberKasur: matched.itemNumberKasur,
+                itemNumberDivan: matched.itemNumberDivan,
+                itemNumberHeadboard: matched.itemNumberHeadboard,
+                itemNumberSorong: matched.itemNumberSorong,
+                itemNumberAccessories: matched.itemNumberAccessories,
+                itemNumberBonus1: matched.itemNumberBonus1,
+                itemNumberBonus2: matched.itemNumberBonus2,
+                itemNumberBonus3: matched.itemNumberBonus3,
+                itemNumberBonus4: matched.itemNumberBonus4,
+                itemNumberBonus5: matched.itemNumberBonus5,
+              );
+
+              updatedItems.add(CartEntity(
+                product: updatedProduct,
+                quantity: item.quantity,
+                netPrice: recalculatedNet,
+                discountPercentages: item.discountPercentages,
+                installmentMonths: item.installmentMonths,
+                installmentPerMonth: item.installmentPerMonth,
+                isSelected: item.isSelected,
+              ));
+            } catch (e) {
+              // If matching fails, keep original but update the selected field
+              final updatedProduct = ProductEntity(
+                id: item.product.id,
+                area: item.product.area,
+                channel: item.product.channel,
+                brand: item.product.brand,
+                kasur: item.product.kasur,
+                divan: newDivan,
+                headboard: newHeadboard,
+                sorong: newSorong,
+                ukuran: item.product.ukuran,
+                pricelist: item.product.pricelist,
+                program: item.product.program,
+                eupKasur: item.product.eupKasur,
+                eupDivan: item.product.eupDivan,
+                eupHeadboard: item.product.eupHeadboard,
+                endUserPrice: item.product.endUserPrice,
+                bonus: item.product.bonus,
+                discounts: item.product.discounts,
+                isSet: item.product.isSet,
+                plKasur: item.product.plKasur,
+                plDivan: item.product.plDivan,
+                plHeadboard: item.product.plHeadboard,
+                plSorong: item.product.plSorong,
+                eupSorong: item.product.eupSorong,
+                bottomPriceAnalyst: item.product.bottomPriceAnalyst,
+                disc1: item.product.disc1,
+                disc2: item.product.disc2,
+                disc3: item.product.disc3,
+                disc4: item.product.disc4,
+                disc5: item.product.disc5,
+                itemNumber: item.product.itemNumber,
+                itemNumberKasur: item.product.itemNumberKasur,
+                itemNumberDivan: item.product.itemNumberDivan,
+                itemNumberHeadboard: item.product.itemNumberHeadboard,
+                itemNumberSorong: item.product.itemNumberSorong,
+                itemNumberAccessories: item.product.itemNumberAccessories,
+                itemNumberBonus1: item.product.itemNumberBonus1,
+                itemNumberBonus2: item.product.itemNumberBonus2,
+                itemNumberBonus3: item.product.itemNumberBonus3,
+                itemNumberBonus4: item.product.itemNumberBonus4,
+                itemNumberBonus5: item.product.itemNumberBonus5,
+              );
+
+              // Recalculate net from current endUserPrice
+              final double basePrice = updatedProduct.endUserPrice;
+              final double recalculatedNet = _applyDiscountsSequentially(
+                  basePrice, item.discountPercentages);
+
+              updatedItems.add(CartEntity(
+                product: updatedProduct,
+                quantity: item.quantity,
+                netPrice: recalculatedNet,
+                discountPercentages: item.discountPercentages,
+                installmentMonths: item.installmentMonths,
+                installmentPerMonth: item.installmentPerMonth,
+                isSelected: item.isSelected,
+              ));
+            }
+          } else {
+            updatedItems.add(item);
           }
-          return item;
-        }).toList();
+        }
 
         await CartStorageService.saveCartItems(updatedItems);
         emit(CartLoaded(updatedItems));
@@ -483,5 +579,18 @@ class CartBloc extends Bloc<CartEvent, CartState> {
       if (a[i] != b[i]) return false;
     }
     return true;
+  }
+
+  // Apply percentage discounts sequentially to a base price
+  double _applyDiscountsSequentially(
+      double basePrice, List<double> discountPercentages) {
+    double price = basePrice;
+    for (final percent in discountPercentages) {
+      if (percent <= 0) continue;
+      price = price * (1 - (percent / 100.0));
+    }
+    // Ensure not negative and round to 2 decimals if needed
+    if (price < 0) price = 0;
+    return price;
   }
 }
