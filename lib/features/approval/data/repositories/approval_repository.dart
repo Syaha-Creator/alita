@@ -68,6 +68,25 @@ class ApprovalRepository {
         approvals.add(approval);
       }
 
+      // Sort approvals by order date (newest first)
+      approvals.sort((a, b) {
+        try {
+          final dateA = DateTime.parse(a.orderDate);
+          final dateB = DateTime.parse(b.orderDate);
+          return dateB.compareTo(dateA); // Newest first
+        } catch (e) {
+          // If date parsing fails, fallback to request date
+          try {
+            final dateA = DateTime.parse(a.requestDate);
+            final dateB = DateTime.parse(b.requestDate);
+            return dateB.compareTo(dateA); // Newest first
+          } catch (e) {
+            // If both dates fail, sort by ID (newest first)
+            return b.id.compareTo(a.id);
+          }
+        }
+      });
+
       return approvals;
     } catch (e) {
       return [];
