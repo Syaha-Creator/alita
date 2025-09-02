@@ -182,3 +182,36 @@ class UpdateCartProductDetail extends CartEvent {
   @override
   List<Object?> get props => [productId, netPrice, detailType, detailValue];
 }
+
+class UpdateCartPrice extends CartEvent {
+  final int productId;
+  final double oldNetPrice;
+  final double newNetPrice;
+
+  const UpdateCartPrice({
+    required this.productId,
+    required this.oldNetPrice,
+    required this.newNetPrice,
+  });
+
+  @override
+  List<Object?> get props => [productId, oldNetPrice, newNetPrice];
+}
+
+class UpdateCartDiscounts extends CartEvent {
+  final int productId;
+  final double oldNetPrice;
+  final List<double> discountPercentages;
+  final double newNetPrice;
+
+  const UpdateCartDiscounts({
+    required this.productId,
+    required this.oldNetPrice,
+    required this.discountPercentages,
+    required this.newNetPrice,
+  });
+
+  @override
+  List<Object?> get props =>
+      [productId, oldNetPrice, discountPercentages, newNetPrice];
+}

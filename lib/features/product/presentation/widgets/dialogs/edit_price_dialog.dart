@@ -194,20 +194,27 @@ class _EditPriceDialogState extends State<EditPriceDialog> {
                 onPressed: isPriceLocked
                     ? null
                     : () {
-                        final newPrice = FormatHelper.parseCurrencyToDouble(
-                            priceController.text);
+                        try {
+                          final newPrice = FormatHelper.parseCurrencyToDouble(
+                              priceController.text);
 
-                        if (!_validatePrice(newPrice)) {
-                          return;
+                          if (!_validatePrice(newPrice)) {
+                            return;
+                          }
+
+                          context.read<ProductBloc>().add(UpdateRoundedPrice(
+                              widget.product.id,
+                              newPrice,
+                              percentageChange.value));
+                          context.read<ProductBloc>().add(SaveProductNote(
+                              widget.product.id, noteController.text));
+                          Navigator.pop(context);
+                        } catch (e) {
+                          CustomToast.showToast(
+                            "Gagal menyimpan harga: ${e.toString()}",
+                            ToastType.error,
+                          );
                         }
-
-                        context.read<ProductBloc>().add(UpdateRoundedPrice(
-                            widget.product.id,
-                            newPrice,
-                            percentageChange.value));
-                        context.read<ProductBloc>().add(SaveProductNote(
-                            widget.product.id, noteController.text));
-                        Navigator.pop(context);
                       },
                 child: const Text("Simpan"),
               ),

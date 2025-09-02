@@ -571,6 +571,54 @@ class CartBloc extends Bloc<CartEvent, CartState> {
       }
     });
 
+    on<UpdateCartPrice>((event, emit) async {
+      if (state is CartLoaded) {
+        final currentState = state as CartLoaded;
+        final updatedItems = currentState.cartItems.map((item) {
+          if (item.product.id == event.productId &&
+              item.netPrice == event.oldNetPrice) {
+            return CartEntity(
+              product: item.product,
+              quantity: item.quantity,
+              netPrice: event.newNetPrice,
+              discountPercentages: item.discountPercentages,
+              installmentMonths: item.installmentMonths,
+              installmentPerMonth: item.installmentPerMonth,
+              isSelected: item.isSelected,
+            );
+          }
+          return item;
+        }).toList();
+
+        await CartStorageService.saveCartItems(updatedItems);
+        emit(CartLoaded(updatedItems));
+      }
+    });
+
+    on<UpdateCartDiscounts>((event, emit) async {
+      if (state is CartLoaded) {
+        final currentState = state as CartLoaded;
+        final updatedItems = currentState.cartItems.map((item) {
+          if (item.product.id == event.productId &&
+              item.netPrice == event.oldNetPrice) {
+            return CartEntity(
+              product: item.product,
+              quantity: item.quantity,
+              netPrice: event.newNetPrice,
+              discountPercentages: event.discountPercentages,
+              installmentMonths: item.installmentMonths,
+              installmentPerMonth: item.installmentPerMonth,
+              isSelected: item.isSelected,
+            );
+          }
+          return item;
+        }).toList();
+
+        await CartStorageService.saveCartItems(updatedItems);
+        emit(CartLoaded(updatedItems));
+      }
+    });
+
     // Auto-load cart when bloc is created
     add(LoadCart());
   }

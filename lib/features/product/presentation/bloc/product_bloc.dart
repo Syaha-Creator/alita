@@ -825,8 +825,18 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       updatedPercentages[event.productId] = event.percentageChange;
 
       // --- LOGIC: AUTO SPLIT DISKON BERTINGKAT ---
-      final product = state.products.firstWhere((p) => p.id == event.productId,
-          orElse: () => state.selectProduct!);
+      final product = state.products.firstWhere(
+        (p) => p.id == event.productId,
+        orElse: () {
+          // If product not found in products list, try to use selectProduct
+          if (state.selectProduct != null &&
+              state.selectProduct!.id == event.productId) {
+            return state.selectProduct!;
+          }
+          // If still not found, throw an exception to prevent crashes
+          throw Exception('Product with ID ${event.productId} not found');
+        },
+      );
       double originalPrice = product.endUserPrice;
       double targetPrice = event.newPrice;
       List<double> maxDiscs = [

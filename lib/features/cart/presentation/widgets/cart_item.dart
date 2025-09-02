@@ -13,6 +13,11 @@ import '../../../product/presentation/bloc/product_bloc.dart';
 import '../../../product/presentation/bloc/product_event.dart';
 import '../../../product/presentation/bloc/product_state.dart';
 import '../../../product/domain/entities/product_entity.dart';
+import '../../../product/presentation/widgets/dialogs/edit_price_dialog.dart';
+import 'package:collection/collection.dart';
+import '../../../../core/widgets/custom_toast.dart';
+import '../../../../services/leader_service.dart';
+import '../../../../features/approval/data/models/approval_model.dart';
 import '../../domain/entities/cart_entity.dart';
 import '../bloc/cart_bloc.dart';
 import '../bloc/cart_event.dart';
@@ -52,6 +57,15 @@ class _CartItemWidgetState extends State<CartItemWidget> {
     super.dispose();
   }
 
+  // Helper method to compare lists
+  bool _listEquals<T>(List<T> a, List<T> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -64,6 +78,40 @@ class _CartItemWidgetState extends State<CartItemWidget> {
         // Hanya update controller jika teksnya berbeda untuk menghindari loop tak terbatas
         if (_noteController.text != newNote) {
           _noteController.text = newNote;
+        }
+
+        // Check if price has changed and update cart
+        final newPrice = state.roundedPrices[widget.item.product.id];
+        if (newPrice != null && newPrice != widget.item.netPrice) {
+          // Update cart item with new price
+          context.read<CartBloc>().add(UpdateCartPrice(
+                productId: widget.item.product.id,
+                oldNetPrice: widget.item.netPrice,
+                newNetPrice: newPrice,
+              ));
+        }
+
+        // Check if discounts have changed and update cart
+        final newDiscountPercentages =
+            state.productDiscountsPercentage[widget.item.product.id];
+        if (newDiscountPercentages != null &&
+            !_listEquals(
+                newDiscountPercentages, widget.item.discountPercentages)) {
+          // Calculate new net price from discounts
+          double calculatedPrice = widget.item.product.endUserPrice;
+          for (final percentage in newDiscountPercentages) {
+            if (percentage > 0) {
+              calculatedPrice = calculatedPrice * (1 - (percentage / 100));
+            }
+          }
+
+          // Update cart item with new discounts and calculated price
+          context.read<CartBloc>().add(UpdateCartDiscounts(
+                productId: widget.item.product.id,
+                oldNetPrice: widget.item.netPrice,
+                discountPercentages: newDiscountPercentages,
+                newNetPrice: calculatedPrice,
+              ));
         }
       },
       child: InkWell(
@@ -827,7 +875,23 @@ class _CartItemWidgetState extends State<CartItemWidget> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Informasi Harga', style: styleLabel.copyWith(fontSize: 16)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Informasi Harga', style: styleLabel.copyWith(fontSize: 16)),
+              IconButton(
+                icon: Icon(Icons.edit,
+                    size: 20,
+                    color: isDark
+                        ? AppColors.textSecondaryDark
+                        : AppColors.textSecondaryLight),
+                onPressed: () => _showPriceActions(context),
+                tooltip: 'Edit/Info Harga',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              ),
+            ],
+          ),
           const SizedBox(height: AppPadding.p10 / 2),
           _priceRow(
               'Pricelist',
@@ -862,6 +926,75 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                   fontWeight: FontWeight.w700, color: AppColors.success),
               isDark),
         ],
+      ),
+    );
+  }
+
+  void _showPriceActions(BuildContext context) {
+    final product = widget.item.product;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.edit),
+                title: const Text('Edit Harga'),
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  _openEditPrice(context, product);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.info_outline),
+                title: const Text('Info Produk'),
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  _openInfo(context, product);
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _openEditPrice(BuildContext context, ProductEntity product) {
+    // Ensure product is available in ProductBloc state for editing
+    context.read<ProductBloc>().add(SelectProduct(product));
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => EditPriceDialog(product: product),
+    );
+  }
+
+  void _openInfo(BuildContext context, ProductEntity product) {
+    // Ensure product is available in ProductBloc state for editing
+    context.read<ProductBloc>().add(SelectProduct(product));
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => CartInfoDialog(
+        product: product,
+        discountPercentages: widget.item.discountPercentages,
+        netPrice: widget.item.netPrice,
       ),
     );
   }
@@ -1129,6 +1262,364 @@ class _CartItemWidgetState extends State<CartItemWidget> {
         );
       }
     }
+  }
+}
+
+// Cart Info Dialog Widget
+class CartInfoDialog extends StatefulWidget {
+  final ProductEntity product;
+  final List<double> discountPercentages;
+  final double netPrice;
+
+  const CartInfoDialog({
+    super.key,
+    required this.product,
+    required this.discountPercentages,
+    required this.netPrice,
+  });
+
+  @override
+  State<CartInfoDialog> createState() => _CartInfoDialogState();
+}
+
+class _CartInfoDialogState extends State<CartInfoDialog> {
+  late List<TextEditingController> percentageControllers;
+  late List<TextEditingController> nominalControllers;
+  late double basePrice;
+  late List<double> _initialPercentages;
+  late List<double> _initialNominals;
+  bool hasChanged = false;
+  LeaderByUserModel? _leaderData;
+
+  void _checkHasChanged() {
+    final currentPercentages = percentageControllers
+        .map((c) => double.tryParse(c.text) ?? 0.0)
+        .toList();
+    final currentNominals = nominalControllers
+        .map((c) => FormatHelper.parseCurrencyToDouble(c.text))
+        .toList();
+    setState(() {
+      hasChanged = !const ListEquality()
+              .equals(currentPercentages, _initialPercentages) ||
+          !const ListEquality().equals(currentNominals, _initialNominals);
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Use cart's netPrice as base price
+    basePrice = widget.netPrice;
+
+    // Initialize with cart's discount percentages
+    _initialPercentages = List.from(widget.discountPercentages);
+    _initialNominals =
+        List.filled(5, 0.0); // Will be calculated from percentages
+
+    percentageControllers = List.generate(
+      5,
+      (i) => TextEditingController(
+          text: (i < _initialPercentages.length && _initialPercentages[i] > 0)
+              ? _initialPercentages[i].toStringAsFixed(2)
+              : ""),
+    );
+
+    // Calculate initial nominals from percentages
+    nominalControllers = List.generate(5, (i) {
+      if (i < _initialPercentages.length && _initialPercentages[i] > 0) {
+        double remainingPrice = basePrice;
+        for (int j = 0; j < i; j++) {
+          remainingPrice -= _initialNominals[j];
+        }
+        double nominal =
+            (remainingPrice * (_initialPercentages[i] / 100)).roundToDouble();
+        _initialNominals[i] = nominal;
+        return TextEditingController(
+            text: FormatHelper.formatCurrency(nominal));
+      } else {
+        return TextEditingController(text: "");
+      }
+    });
+
+    hasChanged = false;
+    _loadLeaderData();
+  }
+
+  Future<void> _loadLeaderData() async {
+    try {
+      final leaderService = locator<LeaderService>();
+      final leaderData = await leaderService.getLeaderByUser();
+
+      setState(() {
+        _leaderData = leaderData;
+      });
+    } catch (e) {
+      // No-op, leader data will be null if loading fails
+    }
+  }
+
+  @override
+  void dispose() {
+    for (var controller in percentageControllers) {
+      controller.removeListener(_checkHasChanged);
+      controller.dispose();
+    }
+    for (var controller in nominalControllers) {
+      controller.removeListener(_checkHasChanged);
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  void updateNominal(int index) {
+    setState(() {
+      double remainingPrice = basePrice;
+      for (int i = 0; i < index; i++) {
+        remainingPrice -=
+            FormatHelper.parseCurrencyToDouble(nominalControllers[i].text);
+      }
+      double percentage =
+          double.tryParse(percentageControllers[index].text) ?? 0.0;
+      // --- VALIDASI DISKON MAKSIMUM ---
+      final maxDisc = _getMaxDisc(index);
+      if (percentage > maxDisc * 100) {
+        percentage = maxDisc * 100;
+        percentageControllers[index].text = (maxDisc * 100).toStringAsFixed(2);
+        CustomToast.showToast(
+          "Diskon ${index + 1} tidak boleh melebihi ${(maxDisc * 100).toStringAsFixed(0)}%",
+          ToastType.error,
+        );
+      }
+      double nominal = (remainingPrice * (percentage / 100)).roundToDouble();
+      nominalControllers[index].text = FormatHelper.formatCurrency(nominal);
+    });
+  }
+
+  void updatePercentage(int index) {
+    setState(() {
+      double remainingPrice = basePrice;
+      for (int i = 0; i < index; i++) {
+        remainingPrice -=
+            FormatHelper.parseCurrencyToDouble(nominalControllers[i].text);
+      }
+      double nominal =
+          FormatHelper.parseCurrencyToDouble(nominalControllers[index].text);
+      if (remainingPrice > 0) {
+        double percentage = (nominal / remainingPrice) * 100;
+        // --- VALIDASI DISKON MAKSIMUM ---
+        final maxDisc = _getMaxDisc(index);
+        if (percentage > maxDisc * 100) {
+          percentage = maxDisc * 100;
+          double maxNominal = (remainingPrice * maxDisc).roundToDouble();
+          nominalControllers[index].text =
+              FormatHelper.formatCurrency(maxNominal);
+          CustomToast.showToast(
+            "Diskon ${index + 1} tidak boleh melebihi ${(maxDisc * 100).toStringAsFixed(0)}%",
+            ToastType.error,
+          );
+        }
+        percentageControllers[index].text =
+            percentage > 0 ? percentage.toStringAsFixed(2) : "";
+      }
+    });
+  }
+
+  double _getMaxDisc(int index) {
+    switch (index) {
+      case 0:
+        return widget.product.disc1;
+      case 1:
+        return widget.product.disc2;
+      case 2:
+        return widget.product.disc3;
+      case 3:
+        return widget.product.disc4;
+      case 4:
+        return widget.product.disc5;
+      default:
+        return 1.0;
+    }
+  }
+
+  String _getDiscountLabel(int discountLevel, bool isPercentage) {
+    String levelText = "Diskon $discountLevel";
+
+    if (_leaderData != null) {
+      switch (discountLevel) {
+        case 1:
+          levelText = "Diskon 1";
+          break;
+        case 2:
+          if (_leaderData!.directLeader != null) {
+            levelText = "Diskon 2";
+          }
+          break;
+        case 3:
+          if (_leaderData!.indirectLeader != null) {
+            levelText = "Diskon 3";
+          }
+          break;
+        case 4:
+          if (_leaderData!.controller != null) {
+            levelText = "Diskon 4";
+          }
+          break;
+        case 5:
+          if (_leaderData!.analyst != null) {
+            levelText = "Diskon 5";
+          }
+          break;
+      }
+    }
+
+    return isPercentage ? "$levelText (%)" : "$levelText (Rp)";
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 20,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("Input Diskon",
+              style: GoogleFonts.montserrat(
+                  fontSize: 20, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+
+          // Konten di dalam SingleChildScrollView agar tidak overflow
+          SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: List.generate(5, (i) {
+                // Hanya tampilkan discount field jika disc value > 0
+                final discValue = _getMaxDisc(i);
+                if (discValue <= 0) return const SizedBox.shrink();
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4.0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                          child: TextField(
+                              controller: percentageControllers[i],
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                      decimal: true),
+                              decoration: InputDecoration(
+                                  labelText: _getDiscountLabel(i + 1, true),
+                                  border: OutlineInputBorder()),
+                              onChanged: (val) {
+                                updateNominal(i);
+                                _checkHasChanged();
+                              })),
+                      const SizedBox(width: 8),
+                      Expanded(
+                          child: TextField(
+                              controller: nominalControllers[i],
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                  labelText: _getDiscountLabel(i + 1, false),
+                                  border: OutlineInputBorder()),
+                              onChanged: (val) {
+                                final formatted =
+                                    FormatHelper.formatTextFieldCurrency(val);
+                                nominalControllers[i].value = TextEditingValue(
+                                  text: formatted,
+                                  selection: TextSelection.collapsed(
+                                      offset: formatted.length),
+                                );
+                                updatePercentage(i);
+                                _checkHasChanged();
+                              })),
+                    ],
+                  ),
+                );
+              }).where((widget) => widget != const SizedBox.shrink()).toList(),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                  onPressed: () {
+                    // Clear all controllers
+                    setState(() {
+                      for (int i = 0; i < 5; i++) {
+                        percentageControllers[i].clear();
+                        nominalControllers[i].clear();
+                      }
+                    });
+
+                    // Update ProductBloc to reset discounts to zero
+                    context.read<ProductBloc>().add(UpdateProductDiscounts(
+                          productId: widget.product.id,
+                          discountPercentages: List.filled(5, 0.0),
+                          discountNominals: List.filled(5, 0.0),
+                          originalPrice:
+                              widget.product.endUserPrice, // Use original price
+                          leaderIds: List.filled(5, null),
+                        ));
+
+                    CustomToast.showToast("Diskon direset", ToastType.info);
+                    Navigator.pop(context); // Close dialog after reset
+                  },
+                  child: Text("Reset",
+                      style: TextStyle(
+                          color: Theme.of(context).colorScheme.error))),
+              const SizedBox(width: 8),
+              TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text("Batal")),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: hasChanged
+                    ? () {
+                        try {
+                          // Get current values
+                          final currentPercentages = percentageControllers
+                              .map((c) => double.tryParse(c.text) ?? 0.0)
+                              .toList();
+                          final currentNominals = nominalControllers
+                              .map((c) =>
+                                  FormatHelper.parseCurrencyToDouble(c.text))
+                              .toList();
+
+                          // Update ProductBloc with new discounts
+                          context
+                              .read<ProductBloc>()
+                              .add(UpdateProductDiscounts(
+                                productId: widget.product.id,
+                                discountPercentages: currentPercentages,
+                                discountNominals: currentNominals,
+                                originalPrice: basePrice,
+                                leaderIds:
+                                    List.filled(5, null), // Simplified for cart
+                              ));
+
+                          Navigator.pop(context);
+                        } catch (e) {
+                          CustomToast.showToast(
+                            "Gagal menyimpan diskon: ${e.toString()}",
+                            ToastType.error,
+                          );
+                        }
+                      }
+                    : null,
+                child: const Text("Simpan"),
+              ),
+            ],
+          )
+        ],
+      ),
+    );
   }
 }
 
