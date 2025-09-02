@@ -42,6 +42,31 @@ class ApprovalEntity {
     required this.discounts,
     required this.approvalHistory,
   });
+
+  /// Get formatted discount display string showing discount values
+  String getDiscountDisplayString() {
+    if (discounts.isEmpty) return '';
+
+    // Sort discounts by ID to ensure consistent order
+    final sortedDiscounts = List<ApprovalDiscountEntity>.from(discounts)
+      ..sort((a, b) => a.id.compareTo(b.id));
+
+    // Create display string: "10 + 5 + 5" or "10.5 + 5.25 + 5"
+    final discountValues = sortedDiscounts.map((d) {
+      final discount = d.discount;
+      // If discount is a whole number (e.g., 10.0), show as integer
+      if (discount % 1 == 0) {
+        return discount.toInt().toString();
+      } else {
+        // If discount has decimal places, show max 2 decimal places
+        return discount
+            .toStringAsFixed(2)
+            .replaceAll(RegExp(r'0+$'), '')
+            .replaceAll(RegExp(r'\.$'), '');
+      }
+    }).toList();
+    return discountValues.join(' + ');
+  }
 }
 
 class ApprovalDetailEntity {

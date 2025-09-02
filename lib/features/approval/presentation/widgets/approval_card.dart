@@ -354,11 +354,11 @@ class _ApprovalCardState extends State<ApprovalCard>
         const SizedBox(width: 8),
 
         // Discount (if exists)
-        if (widget.approval.discount != null && widget.approval.discount! > 0)
+        if (widget.approval.discounts.isNotEmpty)
           Expanded(
             child: _buildDetailCard(
               'Discount',
-              '${widget.approval.discount}%',
+              widget.approval.getDiscountDisplayString(),
               Icons.discount_rounded,
               AppColors.error,
               theme,

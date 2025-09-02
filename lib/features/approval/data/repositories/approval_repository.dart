@@ -39,14 +39,34 @@ class ApprovalRepository {
             .where((detail) => detail['order_letter_id'] == orderLetterId)
             .toList();
 
+        // Extract discount IDs from order_letter_discount in details
+        final List<Map<String, dynamic>> extractedDiscounts = [];
+        for (final detail in details) {
+          if (detail['order_letter_discount'] != null) {
+            final orderLetterDiscounts =
+                detail['order_letter_discount'] as List;
+            for (final discount in orderLetterDiscounts) {
+              extractedDiscounts.add({
+                'id': discount['order_letter_discount_id'],
+                'order_letter_id': orderLetterId,
+                'order_letter_detail_id': detail['order_letter_detail_id'],
+                'discount': discount['discount'],
+              });
+            }
+          }
+        }
+
         // Get discounts for this order letter
         final allDiscounts = await _orderLetterService.getOrderLetterDiscounts(
             orderLetterId: orderLetterId);
 
         // Filter discounts that belong to this specific order letter
-        final discounts = allDiscounts
+        final apiDiscounts = allDiscounts
             .where((discount) => discount['order_letter_id'] == orderLetterId)
             .toList();
+
+        // Combine extracted discounts with API discounts
+        final discounts = [...extractedDiscounts, ...apiDiscounts];
 
         // Get approval history for this order letter
         final allApprovalHistory = await _orderLetterService
