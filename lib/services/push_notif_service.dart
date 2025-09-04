@@ -1,17 +1,25 @@
 import 'package:googleapis_auth/auth_io.dart';
+import '../config/firebase_credentials.dart';
 
 class PushNotificationService {
   static Future<String> getAccessToken() async {
-    // TODO: Implement secure credential loading
-    // This service should load Firebase credentials from:
-    // 1. Environment variables
-    // 2. Secure storage (Keychain/Keystore)
-    // 3. Encrypted configuration files
-    // 4. Cloud secret management services
-    
-    throw UnimplementedError(
-      'Firebase credentials need to be configured securely. '
-      'Please implement secure credential loading mechanism.'
-    );
+    try {
+      final scopes = [
+        "https://www.googleapis.com/auth/userinfo.email",
+        "https://www.googleapis.com/auth/firebase.database",
+        "https://www.googleapis.com/auth/firebase.messaging"
+      ];
+
+      final client = await clientViaServiceAccount(
+        ServiceAccountCredentials.fromJson(FirebaseCredentials.serviceAccount),
+        scopes,
+      );
+
+      final accessServerKey = client.credentials.accessToken.data;
+      return accessServerKey;
+    } catch (e) {
+      print('PushNotificationService: Error getting access token: $e');
+      rethrow;
+    }
   }
 }

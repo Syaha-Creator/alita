@@ -46,6 +46,7 @@ app.*.map.json
 
 # Sensitive credentials
 lib/config/fcm_credentials.dart
+lib/config/firebase_credentials.dart
 
 # Build artifacts
 android/app/.cxx/
