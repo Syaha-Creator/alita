@@ -19,6 +19,7 @@ class ApprovalModel extends ApprovalEntity {
     required super.note,
     required super.status,
     super.keterangan,
+    super.createdAt,
     required super.details,
     required super.discounts,
     required super.approvalHistory,
@@ -46,6 +47,7 @@ class ApprovalModel extends ApprovalEntity {
       note: json['note'] ?? '',
       status: json['status'] ?? '',
       keterangan: json['keterangan'],
+      createdAt: json['created_at'],
       details: json['details'] != null
           ? (json['details'] as List)
               .map((detail) => ApprovalDetailModel.fromJson(detail))
@@ -83,6 +85,7 @@ class ApprovalModel extends ApprovalEntity {
       'note': note,
       'status': status,
       'keterangan': keterangan,
+      'created_at': createdAt,
       'details': details
           .map((detail) => (detail as ApprovalDetailModel).toJson())
           .toList(),

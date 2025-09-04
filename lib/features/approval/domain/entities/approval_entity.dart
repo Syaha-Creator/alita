@@ -16,6 +16,7 @@ class ApprovalEntity {
   final String note;
   final String status;
   final String? keterangan;
+  final String? createdAt;
   final List<ApprovalDetailEntity> details;
   final List<ApprovalDiscountEntity> discounts;
   final List<ApprovalHistoryEntity> approvalHistory;
@@ -38,6 +39,7 @@ class ApprovalEntity {
     required this.note,
     required this.status,
     this.keterangan,
+    this.createdAt,
     required this.details,
     required this.discounts,
     required this.approvalHistory,

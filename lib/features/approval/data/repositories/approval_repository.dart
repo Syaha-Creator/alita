@@ -88,28 +88,128 @@ class ApprovalRepository {
         approvals.add(approval);
       }
 
-      // Sort approvals by order date (newest first)
+      // Sort approvals by creation time (newest first) with improved date parsing
       approvals.sort((a, b) {
-        try {
-          final dateA = DateTime.parse(a.orderDate);
-          final dateB = DateTime.parse(b.orderDate);
+        // Primary: Use createdAt (actual creation time) for most accurate sorting
+        DateTime? dateA = _parseDate(a.createdAt);
+        DateTime? dateB = _parseDate(b.createdAt);
+
+        // If creation dates are valid, use them for sorting
+        if (dateA != null && dateB != null) {
+          print(
+              'ApprovalRepository: Sorting by createdAt - A: ${a.createdAt} (${dateA}), B: ${b.createdAt} (${dateB})');
           return dateB.compareTo(dateA); // Newest first
-        } catch (e) {
-          // If date parsing fails, fallback to request date
-          try {
-            final dateA = DateTime.parse(a.requestDate);
-            final dateB = DateTime.parse(b.requestDate);
-            return dateB.compareTo(dateA); // Newest first
-          } catch (e) {
-            // If both dates fail, sort by ID (newest first)
-            return b.id.compareTo(a.id);
-          }
         }
+
+        // Fallback 1: Use order date if createdAt is not available
+        dateA ??= _parseDate(a.orderDate);
+        dateB ??= _parseDate(b.orderDate);
+
+        if (dateA != null && dateB != null) {
+          print(
+              'ApprovalRepository: Sorting by orderDate - A: ${a.orderDate} (${dateA}), B: ${b.orderDate} (${dateB})');
+          return dateB.compareTo(dateA); // Newest first
+        }
+
+        // Fallback 2: Use request date if order date parsing failed
+        dateA ??= _parseDate(a.requestDate);
+        dateB ??= _parseDate(b.requestDate);
+
+        if (dateA != null && dateB != null) {
+          print(
+              'ApprovalRepository: Sorting by requestDate - A: ${a.requestDate} ($dateA), B: ${b.requestDate} (${dateB})');
+          return dateB.compareTo(dateA); // Newest first
+        }
+
+        // Last resort: Sort by ID (newest first)
+        print('ApprovalRepository: Sorting by ID - A: ${a.id}, B: ${b.id}');
+        return b.id.compareTo(a.id);
       });
 
       return approvals;
     } catch (e) {
       return [];
+    }
+  }
+
+  /// Parse date string with multiple format support including ISO datetime with timezone
+  DateTime? _parseDate(String? dateString) {
+    if (dateString == null || dateString.isEmpty) {
+      print('ApprovalRepository: _parseDate - null or empty date string');
+      return null;
+    }
+
+    try {
+      // Try standard ISO format first (handles both date and datetime with timezone)
+      final result = DateTime.parse(dateString);
+      print(
+          'ApprovalRepository: _parseDate - successfully parsed "$dateString" to $result');
+      return result;
+    } catch (e) {
+      print(
+          'ApprovalRepository: _parseDate - failed to parse "$dateString" with DateTime.parse: $e');
+      try {
+        // Try common date formats
+        final formats = [
+          'yyyy-MM-dd', // 2024-01-15
+          'dd/MM/yyyy', // 15/01/2024
+          'MM/dd/yyyy', // 01/15/2024
+          'yyyy-MM-dd HH:mm:ss', // 2024-01-15 10:30:00
+          'dd-MM-yyyy', // 15-01-2024
+        ];
+
+        for (final format in formats) {
+          try {
+            // Simple parsing for common formats
+            if (format == 'yyyy-MM-dd' && dateString.length == 10) {
+              final parts = dateString.split('-');
+              if (parts.length == 3) {
+                final result = DateTime(
+                  int.parse(parts[0]), // year
+                  int.parse(parts[1]), // month
+                  int.parse(parts[2]), // day
+                );
+                print(
+                    'ApprovalRepository: _parseDate - successfully parsed "$dateString" with yyyy-MM-dd format to $result');
+                return result;
+              }
+            } else if (format == 'dd/MM/yyyy' && dateString.contains('/')) {
+              final parts = dateString.split('/');
+              if (parts.length == 3) {
+                final result = DateTime(
+                  int.parse(parts[2]), // year
+                  int.parse(parts[1]), // month
+                  int.parse(parts[0]), // day
+                );
+                print(
+                    'ApprovalRepository: _parseDate - successfully parsed "$dateString" with dd/MM/yyyy format to $result');
+                return result;
+              }
+            } else if (format == 'MM/dd/yyyy' && dateString.contains('/')) {
+              final parts = dateString.split('/');
+              if (parts.length == 3) {
+                final result = DateTime(
+                  int.parse(parts[2]), // year
+                  int.parse(parts[0]), // month
+                  int.parse(parts[1]), // day
+                );
+                print(
+                    'ApprovalRepository: _parseDate - successfully parsed "$dateString" with MM/dd/yyyy format to $result');
+                return result;
+              }
+            }
+          } catch (e) {
+            continue;
+          }
+        }
+
+        print(
+            'ApprovalRepository: _parseDate - failed to parse "$dateString" with any format');
+        return null;
+      } catch (e) {
+        print('ApprovalRepository: _parseDate - error in fallback parsing: $e');
+        return null;
+      }
     }
   }
 
