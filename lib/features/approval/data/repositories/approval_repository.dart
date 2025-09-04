@@ -97,7 +97,7 @@ class ApprovalRepository {
         // If creation dates are valid, use them for sorting
         if (dateA != null && dateB != null) {
           print(
-              'ApprovalRepository: Sorting by createdAt - A: ${a.createdAt} (${dateA}), B: ${b.createdAt} (${dateB})');
+              'ApprovalRepository: Sorting by createdAt - A: ${a.createdAt} ($dateA), B: ${b.createdAt} ($dateB)');
           return dateB.compareTo(dateA); // Newest first
         }
 
@@ -107,7 +107,7 @@ class ApprovalRepository {
 
         if (dateA != null && dateB != null) {
           print(
-              'ApprovalRepository: Sorting by orderDate - A: ${a.orderDate} (${dateA}), B: ${b.orderDate} (${dateB})');
+              'ApprovalRepository: Sorting by orderDate - A: ${a.orderDate} ($dateA), B: ${b.orderDate} ($dateB)');
           return dateB.compareTo(dateA); // Newest first
         }
 
@@ -117,7 +117,7 @@ class ApprovalRepository {
 
         if (dateA != null && dateB != null) {
           print(
-              'ApprovalRepository: Sorting by requestDate - A: ${a.requestDate} ($dateA), B: ${b.requestDate} (${dateB})');
+              'ApprovalRepository: Sorting by requestDate - A: ${a.requestDate} ($dateA), B: ${b.requestDate} ($dateB)');
           return dateB.compareTo(dateA); // Newest first
         }
 

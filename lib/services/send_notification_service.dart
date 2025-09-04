@@ -10,7 +10,7 @@ class SendNotificationService {
     required Map<String, dynamic>? data,
   }) async {
     try {
-      String serverKey = await PushNotifService().getServerKeyToken();
+      String serverKey = await PushNotificationService.getAccessToken();
 
       if (kDebugMode) {
         print("FCM Server Key: ${serverKey.substring(0, 20)}...");
