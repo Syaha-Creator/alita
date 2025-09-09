@@ -69,14 +69,14 @@ class PaymentMethod {
   final String name;
   final double amount;
   final String? reference;
-  final String? receiptImagePath;
+  final String receiptImagePath; // Changed from optional to required
 
   PaymentMethod({
     required this.type,
     required this.name,
     required this.amount,
     this.reference,
-    this.receiptImagePath,
+    required this.receiptImagePath, // Now required
   });
 
   Map<String, dynamic> toJson() {
@@ -1086,13 +1086,27 @@ class _CheckoutPagesState extends State<CheckoutPages>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Metode Pembayaran',
-                      style: GoogleFonts.montserrat(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? AppColors.surfaceLight : Colors.black,
-                      ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Metode Pembayaran',
+                          style: GoogleFonts.montserrat(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color:
+                                isDark ? AppColors.surfaceLight : Colors.black,
+                          ),
+                        ),
+                        Text(
+                          '* Struk pembayaran wajib diisi',
+                          style: GoogleFonts.montserrat(
+                            fontSize: 10,
+                            color: Colors.red[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
                     TextButton.icon(
                       onPressed: () =>
@@ -1272,26 +1286,25 @@ class _CheckoutPagesState extends State<CheckoutPages>
                       color: isDark ? Colors.grey[400] : Colors.grey[600],
                     ),
                   ),
-                if (payment.receiptImagePath != null &&
-                    payment.receiptImagePath!.isNotEmpty)
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.receipt,
-                        size: 12,
+                // Always show receipt indicator since it's now required
+                Row(
+                  children: [
+                    Icon(
+                      Icons.receipt,
+                      size: 12,
+                      color: AppColors.success,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Struk tersedia',
+                      style: GoogleFonts.montserrat(
+                        fontSize: 10,
                         color: AppColors.success,
+                        fontWeight: FontWeight.w500,
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Struk tersedia',
-                        style: GoogleFonts.montserrat(
-                          fontSize: 10,
-                          color: AppColors.success,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -1304,19 +1317,18 @@ class _CheckoutPagesState extends State<CheckoutPages>
             ),
           ),
           const SizedBox(width: 8),
-          if (payment.receiptImagePath != null &&
-              payment.receiptImagePath!.isNotEmpty)
-            IconButton(
-              onPressed: () =>
-                  _showReceiptImage(payment.receiptImagePath!, isDark),
-              icon: Icon(
-                Icons.visibility,
-                size: 18,
-                color: AppColors.success,
-              ),
-              constraints: const BoxConstraints(),
-              padding: EdgeInsets.zero,
+          // Always show view receipt button since receipt is now required
+          IconButton(
+            onPressed: () =>
+                _showReceiptImage(payment.receiptImagePath, isDark),
+            icon: Icon(
+              Icons.visibility,
+              size: 18,
+              color: AppColors.success,
             ),
+            constraints: const BoxConstraints(),
+            padding: EdgeInsets.zero,
+          ),
           const SizedBox(width: 4),
           IconButton(
             onPressed: () => _removePaymentMethod(index),
@@ -1459,7 +1471,6 @@ class _CheckoutPagesState extends State<CheckoutPages>
                 ),
               ),
               child: Row(
-                mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
                     Icons.info_outline,
@@ -1468,14 +1479,16 @@ class _CheckoutPagesState extends State<CheckoutPages>
                         isDark ? AppColors.primaryDark : AppColors.primaryLight,
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    'Tambahkan pembayaran untuk melanjutkan',
-                    style: GoogleFonts.montserrat(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: isDark
-                          ? AppColors.primaryDark
-                          : AppColors.primaryLight,
+                  Expanded(
+                    child: Text(
+                      'Tambahkan pembayaran untuk melanjutkan',
+                      style: GoogleFonts.montserrat(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: isDark
+                            ? AppColors.primaryDark
+                            : AppColors.primaryLight,
+                      ),
                     ),
                   ),
                 ],
@@ -1544,6 +1557,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
       builder: (context) => _PaymentMethodDialog(
         grandTotal: grandTotal,
         isDark: isDark,
+        existingPayments: _paymentMethods,
         onPaymentAdded: (payment) {
           setState(() {
             _paymentMethods.add(payment);
@@ -1835,11 +1849,13 @@ class _PaymentMethodDialog extends StatefulWidget {
   final double grandTotal;
   final bool isDark;
   final Function(PaymentMethod) onPaymentAdded;
+  final List<PaymentMethod> existingPayments;
 
   const _PaymentMethodDialog({
     required this.grandTotal,
     required this.isDark,
     required this.onPaymentAdded,
+    required this.existingPayments,
   });
 
   @override
@@ -1859,6 +1875,19 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
     _amountController.dispose();
     _referenceController.dispose();
     super.dispose();
+  }
+
+  // Calculate remaining amount to be paid
+  double _getRemainingAmount() {
+    final totalPaid = widget.existingPayments
+        .fold(0.0, (sum, payment) => sum + payment.amount);
+    return widget.grandTotal - totalPaid;
+  }
+
+  // Get hint text based on remaining amount
+  String _getAmountHintText() {
+    final remaining = _getRemainingAmount();
+    return FormatHelper.formatCurrency(remaining);
   }
 
   @override
@@ -1991,7 +2020,7 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
                       ],
                       decoration: InputDecoration(
                         labelText: 'Jumlah Pembayaran',
-                        hintText: 'Rp 0',
+                        hintText: _getAmountHintText(),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -2009,8 +2038,9 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
                         if (amount <= 0) {
                           return 'Jumlah pembayaran tidak valid';
                         }
-                        if (amount > widget.grandTotal) {
-                          return 'Jumlah tidak boleh melebihi total pesanan';
+                        final remaining = _getRemainingAmount();
+                        if (amount > remaining) {
+                          return 'Jumlah tidak boleh melebihi sisa pembayaran (${FormatHelper.formatCurrency(remaining)})';
                         }
                         return null;
                       },
@@ -2019,7 +2049,7 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
 
                     // Receipt Image Upload
                     Text(
-                      'Foto Struk (Opsional)',
+                      'Foto Struk Pembayaran *',
                       style: GoogleFonts.montserrat(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -2168,6 +2198,27 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
 
   void _addPayment() {
     if (_formKey.currentState?.validate() ?? false) {
+      // Validate receipt image is required
+      if (_receiptImagePath == null || _receiptImagePath!.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Foto struk pembayaran wajib diisi',
+              style: GoogleFonts.montserrat(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            backgroundColor: Colors.red[600],
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+        return;
+      }
+
       final amount = FormatHelper.parseCurrencyToDouble(_amountController.text);
       final reference = _referenceController.text.trim();
 
@@ -2176,7 +2227,7 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
         name: _getPaymentName(_selectedType),
         amount: amount,
         reference: reference.isEmpty ? null : reference,
-        receiptImagePath: _receiptImagePath,
+        receiptImagePath: _receiptImagePath!,
       );
 
       widget.onPaymentAdded(payment);
@@ -2210,6 +2261,15 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
             style: GoogleFonts.montserrat(
               fontSize: 12,
               color: widget.isDark ? Colors.grey[400] : Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Struk pembayaran wajib diisi',
+            style: GoogleFonts.montserrat(
+              fontSize: 10,
+              color: Colors.red[600],
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
