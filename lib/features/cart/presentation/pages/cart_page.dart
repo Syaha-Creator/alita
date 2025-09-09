@@ -281,6 +281,7 @@ class CartPage extends StatelessWidget {
                                   userPhone: result.phone,
                                   userEmail: result.email,
                                   isTakeAway: result.isTakeAway,
+                                  isExistingCustomer: result.isExistingCustomer,
                                 ),
                               ),
                             );

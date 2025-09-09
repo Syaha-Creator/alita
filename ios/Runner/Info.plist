@@ -34,6 +34,8 @@
 	<string>Kami memerlukan izin untuk menyimpan gambar produk ke galeri.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Kami memerlukan akses ke galeri untuk menyimpan dan berbagi gambar produk.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Kami memerlukan akses kamera untuk mengambil foto struk pembayaran.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIFileSharingEnabled</key>
