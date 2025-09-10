@@ -15,7 +15,7 @@ import '../../../../config/dependency_injection.dart';
 import '../../../../core/utils/controller_disposal_mixin.dart';
 import '../../../../core/utils/format_helper.dart';
 import '../../../../core/widgets/custom_toast.dart';
-import '../../../../services/checkout_service.dart';
+import '../../../../services/enhanced_checkout_service.dart';
 import '../../../../services/auth_service.dart';
 
 import '../../../../theme/app_colors.dart';
@@ -253,9 +253,10 @@ class _CheckoutPagesState extends State<CheckoutPages>
         ),
       );
 
-      // Create Order Letter
-      final checkoutService = locator<CheckoutService>();
-      final orderLetterResult = await checkoutService.createOrderLetterFromCart(
+      // Create Order Letter with Item Mapping
+      final enhancedCheckoutService = locator<EnhancedCheckoutService>();
+      final orderLetterResult =
+          await enhancedCheckoutService.checkoutWithItemMapping(
         cartItems: selectedItems,
         customerName: _customerNameController.text,
         customerPhone: _customerPhoneController.text,

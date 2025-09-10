@@ -5,7 +5,9 @@ import '../features/product/data/repositories/product_repository.dart';
 import '../features/product/data/repositories/area_repository.dart';
 import '../features/product/data/repositories/channel_repository.dart';
 import '../features/product/data/repositories/brand_repository.dart';
+import '../features/product/data/repositories/item_lookup_repository.dart';
 import '../features/product/domain/usecases/get_product_usecase.dart';
+import '../features/product/domain/usecases/get_item_lookup_usecase.dart';
 import '../features/product/presentation/bloc/product_bloc.dart';
 import '../services/api_client.dart';
 import '../services/area_service.dart';
@@ -31,6 +33,8 @@ import 'api_config.dart';
 import '../services/unified_notification_service.dart';
 import '../services/device_token_service.dart';
 import '../services/product_options_service.dart';
+import '../services/item_mapping_service.dart';
+import '../services/enhanced_checkout_service.dart';
 
 final locator = GetIt.instance;
 
@@ -83,6 +87,16 @@ void setupLocator() {
   locator.registerLazySingleton<ProductOptionsService>(
     () => ProductOptionsService(apiClient: locator<ApiClient>()),
   );
+  locator.registerLazySingleton<ItemMappingService>(
+    () => ItemMappingService(
+        getItemLookupUsecase: locator<GetItemLookupUsecase>()),
+  );
+  locator.registerLazySingleton<EnhancedCheckoutService>(
+    () => EnhancedCheckoutService(
+      checkoutService: locator<CheckoutService>(),
+      itemMappingService: locator<ItemMappingService>(),
+    ),
+  );
 
   // Register Approval Dependencies
   locator.registerLazySingleton<ApprovalRepository>(() => ApprovalRepository());
@@ -130,11 +144,17 @@ void setupLocator() {
   locator.registerLazySingleton<BrandRepository>(
     () => BrandRepository(brandService: locator<BrandService>()),
   );
+  locator.registerLazySingleton<ItemLookupRepositoryImpl>(
+    () => ItemLookupRepositoryImpl(apiClient: locator<ApiClient>()),
+  );
   locator.registerLazySingleton<AreaUtils>(
     () => AreaUtils(areaRepository: locator<AreaRepository>()),
   );
   locator.registerLazySingleton<GetProductUseCase>(
     () => GetProductUseCase(locator<ProductRepository>()),
+  );
+  locator.registerLazySingleton<GetItemLookupUsecase>(
+    () => GetItemLookupUsecase(repository: locator<ItemLookupRepositoryImpl>()),
   );
   locator.registerLazySingleton<ProductBloc>(
     () => ProductBloc(locator<GetProductUseCase>()),

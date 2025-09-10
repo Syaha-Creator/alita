@@ -26,6 +26,9 @@ class ApiConfig {
   // Accessories Endpoints
   static const String accessories = "${baseUrl}api/pl_accessories";
 
+  // Item Lookup Endpoints
+  static const String plLookupItemNums = "${baseUrl}api/pl_lookup_item_nums";
+
   // Approval Endpoints
   static const String orderLetters = "${baseUrl}api/order_letters";
   static const String orderLetterDetails = "${baseUrl}api/order_letter_details";
@@ -97,6 +100,14 @@ class ApiConfig {
     required int userId,
   }) {
     return "$contactWorkExperiences?access_token=$token&client_id=$clientId&client_secret=$clientSecret&user_id=$userId";
+  }
+
+  // Helper untuk item lookup
+  static String getPlLookupItemNumsUrl({
+    required String token,
+  }) {
+    final encodedToken = Uri.encodeComponent(token);
+    return "$plLookupItemNums?access_token=$encodedToken&client_id=$clientId&client_secret=$clientSecret";
   }
 
   // Helper untuk Order Letters
