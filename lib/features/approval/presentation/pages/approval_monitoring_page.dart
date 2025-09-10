@@ -673,9 +673,50 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
     );
   }
 
+  /// Group approval details by kasur (like draft page) to combine all related items
+  List<Map<String, dynamic>> _groupApprovalDetails(
+      List<ApprovalDetailEntity> details) {
+    final Map<String, Map<String, dynamic>> groupedItems = {};
+
+    for (final detail in details) {
+      // Group by kasur (desc1) - same as draft page
+      final kasur = detail.desc1;
+
+      if (groupedItems.containsKey(kasur)) {
+        // If kasur already exists, add to quantity and total price
+        final existingItem = groupedItems[kasur]!;
+        final existingQty = existingItem['quantity'] as int;
+        final existingTotalPrice = existingItem['totalPrice'] as double;
+
+        groupedItems[kasur] = {
+          ...existingItem,
+          'quantity': existingQty + detail.qty,
+          'totalPrice': existingTotalPrice + (detail.unitPrice * detail.qty),
+        };
+      } else {
+        // Create new grouped item based on kasur
+        groupedItems[kasur] = {
+          'kasur': kasur,
+          'ukuran': detail.desc2,
+          'divan': '', // Will be filled from other details
+          'headboard': '', // Will be filled from other details
+          'sorong': '', // Will be filled from other details
+          'bonus':
+              <Map<String, dynamic>>[], // Will be filled from other details
+          'quantity': detail.qty,
+          'netPrice': detail.unitPrice,
+          'totalPrice': detail.unitPrice * detail.qty,
+        };
+      }
+    }
+
+    return groupedItems.values.toList();
+  }
+
   Widget _buildItemDetailsModal(BuildContext context, ApprovalEntity approval) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final items = _groupApprovalDetails(approval.details);
+    final customerName = approval.customerName;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
       decoration: BoxDecoration(
@@ -684,235 +725,450 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
           topLeft: Radius.circular(24),
           topRight: Radius.circular(24),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, -5),
+          ),
+        ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Handle Bar
+          // Enhanced Handle Bar
           Container(
             margin: const EdgeInsets.only(top: 12),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  width: 40,
-                  height: 4,
+                  width: 50,
+                  height: 5,
                   decoration: BoxDecoration(
-                    color: colorScheme.onSurfaceVariant.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(2),
+                    color: colorScheme.onSurfaceVariant.withOpacity(0.4),
+                    borderRadius: BorderRadius.circular(3),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
 
-          // Header
+          // Enhanced Header with Status
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: colorScheme.primary.withOpacity(0.05),
+              gradient: LinearGradient(
+                colors: [
+                  colorScheme.primary.withOpacity(0.08),
+                  colorScheme.primary.withOpacity(0.03),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(24),
+                topRight: Radius.circular(24),
+              ),
             ),
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: colorScheme.primary,
-                    borderRadius: BorderRadius.circular(8),
+                    gradient: LinearGradient(
+                      colors: [
+                        colorScheme.primary,
+                        colorScheme.primary.withOpacity(0.8),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: colorScheme.primary.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: Icon(
                     Icons.inventory_2_rounded,
                     color: Colors.white,
-                    size: 16,
+                    size: 18,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Order Items',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: colorScheme.onSurface,
-                        ),
+                        'Detail Items',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: colorScheme.onSurface,
+                              fontSize: 20,
+                            ),
                       ),
-                      Text(
-                        'Order #${approval.id} - ${approval.customerName}',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 12,
-                        ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.person_rounded,
+                            size: 14,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            customerName,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                          ),
+                          const SizedBox(width: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.warning.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: AppColors.warning.withOpacity(0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Text(
+                              approval.status,
+                              style: TextStyle(
+                                color: AppColors.warning,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
-                IconButton(
-                  onPressed: () => context.pop(),
-                  icon: Icon(
-                    Icons.close_rounded,
-                    color: colorScheme.onSurfaceVariant,
-                    size: 24,
-                  ),
-                  style: IconButton.styleFrom(
-                    backgroundColor: colorScheme.surfaceVariant.withOpacity(
-                      0.3,
-                    ),
-                    padding: const EdgeInsets.all(8),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Items List
-          Flexible(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(20),
-              itemCount: approval.details.length,
-              itemBuilder: (context, index) {
-                final item = approval.details[index];
-                final totalPrice = item.unitPrice * item.qty;
-
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(16),
+                Container(
                   decoration: BoxDecoration(
-                    color: colorScheme.surfaceVariant.withOpacity(0.3),
+                    color: colorScheme.surfaceVariant.withOpacity(0.5),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: colorScheme.outline.withOpacity(0.1),
                       width: 1,
                     ),
                   ),
+                  child: IconButton(
+                    onPressed: () => context.pop(),
+                    icon: Icon(
+                      Icons.close_rounded,
+                      color: colorScheme.onSurfaceVariant,
+                      size: 20,
+                    ),
+                    style: IconButton.styleFrom(
+                      padding: const EdgeInsets.all(8),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Enhanced Items List
+          Flexible(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(20),
+              itemCount: items.length,
+              itemBuilder: (context, index) {
+                final item = items[index];
+                final kasur = item['kasur'] as String;
+                final ukuran = item['ukuran'] as String;
+                final divan = item['divan'] as String;
+                final headboard = item['headboard'] as String;
+                final sorong = item['sorong'] as String;
+                final bonus = item['bonus'] as List<Map<String, dynamic>>;
+                final quantity = item['quantity'] as int;
+                final netPrice = item['netPrice'] as double;
+                final totalPrice = item['totalPrice'] as double;
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: colorScheme.outline.withOpacity(0.1),
+                      width: 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Item Name and Code
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  item.desc1.isNotEmpty
-                                      ? item.desc1
-                                      : 'Unknown Product',
-                                  style: theme.textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    color: colorScheme.onSurface,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Code: ${item.itemNumber}',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: colorScheme.onSurfaceVariant,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                                if (item.desc2.isNotEmpty) ...[
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    item.desc2,
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: colorScheme.onSurfaceVariant,
-                                      fontSize: 10,
-                                    ),
-                                  ),
-                                ],
-                                if (item.brand.isNotEmpty) ...[
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Brand: ${item.brand}',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: colorScheme.onSurfaceVariant,
-                                      fontSize: 10,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: colorScheme.primary.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              'Qty: ${item.qty}',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: colorScheme.primary,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      // Price Details
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildPriceRow(
-                              'Unit Price',
-                              'Rp ${_formatNumber(item.unitPrice.toInt())}',
-                              Icons.attach_money_rounded,
-                              AppColors.info,
-                              theme,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildPriceRow(
-                              'Total',
-                              'Rp ${_formatNumber(totalPrice.toInt())}',
-                              Icons.calculate_rounded,
-                              colorScheme.primary,
-                              theme,
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      // Item Type
-                      const SizedBox(height: 8),
+                      // Item Header with gradient
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
+                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: colorScheme.secondary.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(6),
+                          gradient: LinearGradient(
+                            colors: [
+                              colorScheme.primary.withOpacity(0.05),
+                              colorScheme.primary.withOpacity(0.02),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(16),
+                            topRight: Radius.circular(16),
+                          ),
                         ),
                         child: Row(
-                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              Icons.category_rounded,
-                              color: colorScheme.secondary,
-                              size: 12,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Type: ${item.itemType}',
-                              style: TextStyle(
-                                color: colorScheme.secondary,
-                                fontWeight: FontWeight.w500,
-                                fontSize: 10,
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: colorScheme.primary.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                Icons.bed_rounded,
+                                color: colorScheme.primary,
+                                size: 16,
                               ),
                             ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Item ${index + 1}',
+                                    style: TextStyle(
+                                      color: colorScheme.onSurfaceVariant,
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    kasur.isNotEmpty ? kasur : 'Tanpa Kasur',
+                                    style: TextStyle(
+                                      color: colorScheme.onSurface,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    colorScheme.primary,
+                                    colorScheme.primary.withOpacity(0.8),
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: colorScheme.primary.withOpacity(0.3),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Text(
+                                'Qty: $quantity',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Item Details
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Specifications (same as draft page)
+                            if (ukuran.isNotEmpty) ...[
+                              _buildSpecificationRow('Ukuran', ukuran,
+                                  Icons.straighten_rounded, colorScheme),
+                              const SizedBox(height: 8),
+                            ],
+                            if (divan.isNotEmpty && divan != 'Tanpa Divan') ...[
+                              _buildSpecificationRow('Divan', divan,
+                                  Icons.chair_rounded, colorScheme),
+                              const SizedBox(height: 8),
+                            ],
+                            if (headboard.isNotEmpty &&
+                                headboard != 'Tanpa Headboard') ...[
+                              _buildSpecificationRow('Headboard', headboard,
+                                  Icons.headset_rounded, colorScheme),
+                              const SizedBox(height: 8),
+                            ],
+                            if (sorong.isNotEmpty &&
+                                sorong != 'Tanpa Sorong') ...[
+                              _buildSpecificationRow('Sorong', sorong,
+                                  Icons.drag_handle_rounded, colorScheme),
+                              const SizedBox(height: 8),
+                            ],
+
+                            // Enhanced Bonus Items (same as draft page)
+                            if (bonus.isNotEmpty) ...[
+                              const SizedBox(height: 12),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      colorScheme.secondary.withOpacity(0.1),
+                                      colorScheme.secondary.withOpacity(0.05),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color:
+                                        colorScheme.secondary.withOpacity(0.2),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: BoxDecoration(
+                                            color: colorScheme.secondary
+                                                .withOpacity(0.2),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
+                                          child: Icon(
+                                            Icons.card_giftcard_rounded,
+                                            color: colorScheme.secondary,
+                                            size: 14,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Bonus Items',
+                                          style: TextStyle(
+                                            color: colorScheme.secondary,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    ...bonus.map((bonusItem) {
+                                      final name =
+                                          bonusItem['name'] as String? ?? '';
+                                      final qty =
+                                          bonusItem['quantity'] as int? ?? 0;
+                                      if (name.isNotEmpty && qty > 0) {
+                                        return Container(
+                                          margin:
+                                              const EdgeInsets.only(bottom: 4),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 6),
+                                          decoration: BoxDecoration(
+                                            color: colorScheme.surface,
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                            border: Border.all(
+                                              color: colorScheme.outline
+                                                  .withOpacity(0.1),
+                                              width: 1,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                Icons.check_circle_rounded,
+                                                color: colorScheme.secondary,
+                                                size: 12,
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Expanded(
+                                                child: Text(
+                                                  name,
+                                                  style: TextStyle(
+                                                    color:
+                                                        colorScheme.onSurface,
+                                                    fontWeight: FontWeight.w500,
+                                                    fontSize: 11,
+                                                  ),
+                                                ),
+                                              ),
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 6,
+                                                        vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: colorScheme.secondary
+                                                      .withOpacity(0.1),
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
+                                                ),
+                                                child: Text(
+                                                  '${qty}x',
+                                                  style: TextStyle(
+                                                    color:
+                                                        colorScheme.secondary,
+                                                    fontWeight: FontWeight.w600,
+                                                    fontSize: 10,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      }
+                                      return const SizedBox.shrink();
+                                    }),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -923,11 +1179,18 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
             ),
           ),
 
-          // Summary
+          // Enhanced Summary
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: colorScheme.surface,
+              gradient: LinearGradient(
+                colors: [
+                  colorScheme.surface,
+                  colorScheme.surfaceVariant.withOpacity(0.3),
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
               border: Border(
                 top: BorderSide(
                   color: colorScheme.outline.withOpacity(0.1),
@@ -938,90 +1201,128 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
             child: Row(
               children: [
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Total Items',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w500,
-                        ),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: colorScheme.outline.withOpacity(0.1),
+                        width: 1,
                       ),
-                      Text(
-                        '${approval.details.length} items',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: colorScheme.onSurface,
-                          fontWeight: FontWeight.w600,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: AppColors.info.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                Icons.inventory_2_rounded,
+                                color: AppColors.info,
+                                size: 14,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Total Items',
+                              style: TextStyle(
+                                color: colorScheme.onSurfaceVariant,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${items.length} items',
+                          style: TextStyle(
+                            color: colorScheme.onSurface,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      'Total Amount',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w500,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          colorScheme.primary,
+                          colorScheme.primary.withOpacity(0.8),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colorScheme.primary.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
-                    Text(
-                      'Rp ${_formatNumber(approval.extendedAmount.toInt())}',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: colorScheme.primary,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.attach_money_rounded,
+                                color: Colors.white,
+                                size: 14,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Total Amount',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Rp ${_formatNumber(approval.extendedAmount.toInt())}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPriceRow(
-    String label,
-    String value,
-    IconData icon,
-    Color color,
-    ThemeData theme,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 12, color: color),
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 10,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurface,
-              fontWeight: FontWeight.w600,
-              fontSize: 11,
             ),
           ),
         ],
@@ -1034,6 +1335,51 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
           RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
           (Match m) => '${m[1]},',
         );
+  }
+
+  Widget _buildSpecificationRow(
+      String label, String value, IconData icon, ColorScheme colorScheme) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: colorScheme.primary.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            icon,
+            color: colorScheme.primary,
+            size: 14,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  color: colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: TextStyle(
+                  color: colorScheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   void _showSuccessSnackBar(String action) {

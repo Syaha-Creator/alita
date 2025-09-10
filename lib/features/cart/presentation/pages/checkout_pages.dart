@@ -8,6 +8,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
+import 'package:image/image.dart' as img;
 
 import '../../../../config/dependency_injection.dart';
 import '../../../../core/utils/controller_disposal_mixin.dart';
@@ -2472,8 +2474,8 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
       final fileName = 'receipt_${DateTime.now().millisecondsSinceEpoch}.jpg';
       final filePath = '${directory.path}/$fileName';
 
-      final File imageFile = File(sourcePath);
-      await imageFile.copy(filePath);
+      // Compress image to approximately 150KB
+      await _compressImage(sourcePath, filePath);
 
       setState(() {
         _receiptImagePath = filePath;
@@ -2484,6 +2486,80 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
       print('Error saving image: $e');
       CustomToast.showToast(
           'Gagal menyimpan gambar: ${e.toString()}', ToastType.error);
+    }
+  }
+
+  Future<void> _compressImage(String sourcePath, String targetPath) async {
+    try {
+      // Read the image file
+      final File sourceFile = File(sourcePath);
+      final Uint8List imageBytes = await sourceFile.readAsBytes();
+
+      // Decode the image
+      final img.Image? originalImage = img.decodeImage(imageBytes);
+      if (originalImage == null) {
+        throw Exception('Failed to decode image');
+      }
+
+      // Calculate target size (150KB = 153,600 bytes)
+      const int targetSizeBytes = 150 * 1024;
+
+      // Start with high quality and reduce until we reach target size
+      int quality = 95;
+      Uint8List compressedBytes = Uint8List(0);
+
+      while (quality > 10) {
+        // Encode with current quality
+        compressedBytes =
+            Uint8List.fromList(img.encodeJpg(originalImage, quality: quality));
+
+        // Check if we're within target size
+        if (compressedBytes.length <= targetSizeBytes) {
+          break;
+        }
+
+        // Reduce quality by 10
+        quality -= 10;
+      }
+
+      // If still too large, try resizing the image
+      if (compressedBytes.length > targetSizeBytes) {
+        // Calculate resize factor based on current size vs target
+        double resizeFactor =
+            math.sqrt(targetSizeBytes / compressedBytes.length);
+
+        // Calculate new dimensions
+        int newWidth = (originalImage.width * resizeFactor).round();
+        int newHeight = (originalImage.height * resizeFactor).round();
+
+        // Ensure minimum dimensions
+        newWidth = math.max(newWidth, 200);
+        newHeight = math.max(newHeight, 200);
+
+        // Resize the image
+        final img.Image resizedImage = img.copyResize(
+          originalImage,
+          width: newWidth,
+          height: newHeight,
+        );
+
+        // Encode with good quality
+        compressedBytes =
+            Uint8List.fromList(img.encodeJpg(resizedImage, quality: 85));
+      }
+
+      // Write compressed image to target path
+      final File targetFile = File(targetPath);
+      await targetFile.writeAsBytes(compressedBytes);
+
+      print(
+          'Image compressed: ${compressedBytes.length} bytes (target: $targetSizeBytes bytes)');
+    } catch (e) {
+      print('Error compressing image: $e');
+      // Fallback: copy original file if compression fails
+      final File sourceFile = File(sourcePath);
+      final File targetFile = File(targetPath);
+      await sourceFile.copy(targetPath);
     }
   }
 
