@@ -1,9 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../../../../config/api_config.dart';
-import '../../../../config/app_constant.dart';
 import '../../../../core/error/exceptions.dart';
-
 import '../../../../services/api_client.dart';
 import '../../../../services/auth_service.dart';
 import '../models/product_model.dart';
@@ -114,13 +112,13 @@ class ProductRepository {
         } else if (e.response?.statusCode == 400 ||
             e.response?.statusCode == 404) {
           // If area "Nasional" is not recognized, try with user's area
-          if (area == AreaEnum.nasional.value) {
+          if (area == "Nasional") {
             final userAreaId = await AuthService.getCurrentUserAreaId();
             if (userAreaId != null) {
-              final userAreaEnum = _getAreaEnumFromId(userAreaId);
-              if (userAreaEnum != null && userAreaEnum != AreaEnum.nasional) {
+              final userAreaName = _getAreaNameFromId(userAreaId);
+              if (userAreaName != null && userAreaName != "Nasional") {
                 return await fetchProductsWithFilter(
-                  area: userAreaEnum.value,
+                  area: userAreaName,
                   channel: channel,
                   brand: brand,
                 );
@@ -284,13 +282,33 @@ class ProductRepository {
   }
 
   // Helper method to map area_id to area enum
-  AreaEnum? _getAreaEnumFromId(int areaId) {
-    try {
-      return AreaEnum.values.firstWhere(
-        (area) => AreaEnum.getId(area) == areaId,
-      );
-    } catch (e) {
-      return null;
+  String? _getAreaNameFromId(int areaId) {
+    // Map area ID to area name
+    switch (areaId) {
+      case 0:
+        return "Nasional";
+      case 1:
+        return "Jabodetabek";
+      case 2:
+        return "Bandung";
+      case 3:
+        return "Surabaya";
+      case 4:
+        return "Semarang";
+      case 5:
+        return "Yogyakarta";
+      case 6:
+        return "Solo";
+      case 7:
+        return "Malang";
+      case 8:
+        return "Denpasar";
+      case 9:
+        return "Medan";
+      case 10:
+        return "Palembang";
+      default:
+        return null;
     }
   }
 }

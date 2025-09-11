@@ -142,7 +142,7 @@ class _AreaSelectorWidgetState extends State<AreaSelectorWidget> {
   Widget _buildAreaInfo() {
     if (_selectedArea == null) return const SizedBox.shrink();
 
-    final areaEnum = _areaUtils.convertToEnum(_selectedArea!);
+    final areaName = _selectedArea!.name;
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -165,10 +165,7 @@ class _AreaSelectorWidgetState extends State<AreaSelectorWidget> {
           _buildInfoRow('Nama', _selectedArea!.name),
           if (_selectedArea!.code != null)
             _buildInfoRow('Kode', _selectedArea!.code!),
-          if (areaEnum != null)
-            _buildInfoRow('Enum Match', '${areaEnum.name} (${areaEnum.value})')
-          else
-            _buildInfoRow('Enum Match', 'Tidak ada match'),
+          _buildInfoRow('Area Name', areaName),
           _buildInfoRow('Status',
               _selectedArea!.isActive ?? true ? 'Aktif' : 'Tidak Aktif'),
         ],

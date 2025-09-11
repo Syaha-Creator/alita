@@ -1,4 +1,3 @@
-import '../../config/app_constant.dart';
 import '../../features/product/data/models/area_model.dart';
 import '../../features/product/data/repositories/area_repository.dart';
 
@@ -19,13 +18,25 @@ class AreaUtils {
     }
   }
 
-  /// Get areas as AreaEnum for backward compatibility
-  Future<List<AreaEnum>> getAreasAsEnum() async {
+  /// Get area names as strings
+  Future<List<String>> getAreaNames() async {
     try {
-      return await areaRepository.fetchAreasAsEnum();
+      return await areaRepository.fetchAllAreaNames();
     } catch (e) {
-      print('AreaUtils: Error converting areas to enum: $e');
-      return AreaEnum.allValues;
+      print('AreaUtils: Error fetching area names: $e');
+      return [
+        "Nasional",
+        "Jabodetabek",
+        "Bandung",
+        "Surabaya",
+        "Semarang",
+        "Yogyakarta",
+        "Solo",
+        "Malang",
+        "Denpasar",
+        "Medan",
+        "Palembang"
+      ];
     }
   }
 
@@ -80,17 +91,10 @@ class AreaUtils {
     ];
   }
 
-  /// Convert AreaModel to AreaEnum if possible
-  AreaEnum? convertToEnum(AreaModel area) {
-    return AreaEnum.fromApiData(area.id, area.name);
-  }
-
   /// Get display name for area (with fallback)
   String getDisplayName(dynamic area) {
     if (area is AreaModel) {
       return area.name;
-    } else if (area is AreaEnum) {
-      return area.value;
     } else if (area is String) {
       return area;
     }
