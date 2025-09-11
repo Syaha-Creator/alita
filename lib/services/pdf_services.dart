@@ -44,7 +44,6 @@ class PDFService {
         await _loadImageProvider('assets/logo/sleepcenter_logo.png');
     final sleepSpaLogo =
         await _loadImageProvider('assets/logo/sleepspa_logo.png');
-    // ... (lanjutan load logo lainnya)
     final springAirLogo =
         await _loadImageProvider('assets/logo/springair_logo.png');
     final therapedicLogo =
@@ -215,14 +214,11 @@ class PDFService {
       children: [
         if (sleepCenterLogo != null)
           pw.Container(
-            height: 170,
-            width: double.infinity,
+            height: 70,
             child: pw.Image(
               sleepCenterLogo,
-              fit: pw.BoxFit.fitWidth,
             ),
           ),
-        pw.SizedBox(height: 15),
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.center, // Logo di tengah
           children: otherLogos
@@ -408,7 +404,7 @@ class PDFService {
       if (product.divan.isNotEmpty && product.divan != AppStrings.noDivan) {
         double divanPricelist = (product.plDivan) * item.quantity;
         double divanEUP = (product.eupDivan) * item.quantity;
-        double divanDiscount = divanPricelist - divanEUP;
+        double divanDiscount = divanPricelist - divanPricelist;
         double divanNet = totalEup > 0 ? (divanEUP / totalEup) * subtotal : 0;
         tableRows.add(pw.TableRow(
           children: [
@@ -429,7 +425,7 @@ class PDFService {
           product.headboard != AppStrings.noHeadboard) {
         double headboardPricelist = (product.plHeadboard) * item.quantity;
         double headboardEUP = (product.eupHeadboard) * item.quantity;
-        double headboardDiscount = headboardPricelist - headboardEUP;
+        double headboardDiscount = headboardPricelist - headboardPricelist;
         double headboardNet =
             totalEup > 0 ? (headboardEUP / totalEup) * subtotal : 0;
         tableRows.add(pw.TableRow(
