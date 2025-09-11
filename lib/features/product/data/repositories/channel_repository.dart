@@ -1,4 +1,3 @@
-import '../../../../config/app_constant.dart';
 import '../../../../services/channel_service.dart';
 import '../models/channel_model.dart';
 
@@ -41,33 +40,6 @@ class ChannelRepository {
       // If API fails, return hardcoded channels as fallback
       print("ChannelRepository: Falling back to hardcoded channels");
       return _getHardcodedChannels();
-    }
-  }
-
-  /// Get channels as ChannelEnum list (for backward compatibility)
-  Future<List<ChannelEnum>> fetchChannelsAsEnum() async {
-    try {
-      final channels = await fetchChannels();
-      final channelEnums = <ChannelEnum>[];
-
-      for (final channel in channels) {
-        final channelEnum = ChannelEnum.fromApiData(channel.id, channel.name);
-        if (channelEnum != null) {
-          channelEnums.add(channelEnum);
-        }
-      }
-
-      // If no channels were converted, fall back to hardcoded values
-      if (channelEnums.isEmpty) {
-        print(
-            "ChannelRepository: No channels converted to enum, using hardcoded values");
-        return ChannelEnum.allValues;
-      }
-
-      return channelEnums;
-    } catch (e) {
-      print("ChannelRepository: Error converting channels to enum: $e");
-      return ChannelEnum.allValues;
     }
   }
 
@@ -136,7 +108,16 @@ class ChannelRepository {
     } catch (e) {
       print("ChannelRepository: Error fetching all channel names: $e");
       // Fallback to hardcoded channel names
-      return ChannelEnum.values.map((e) => e.value).toList();
+      return [
+        "Regular",
+        "Call Center",
+        "Indirect",
+        "Retail",
+        "Accessories",
+        "Massindo Fair - Direct",
+        "Massindo Fair - Indirect",
+        "Modern Market"
+      ];
     }
   }
 

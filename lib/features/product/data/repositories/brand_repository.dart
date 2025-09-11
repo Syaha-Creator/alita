@@ -1,4 +1,3 @@
-import '../../../../config/app_constant.dart';
 import '../../../../services/brand_service.dart';
 import '../models/brand_model.dart';
 
@@ -41,33 +40,6 @@ class BrandRepository {
       // If API fails, return hardcoded brands as fallback
       print("BrandRepository: Falling back to hardcoded brands");
       return _getHardcodedBrands();
-    }
-  }
-
-  /// Get brands as BrandEnum list (for backward compatibility)
-  Future<List<BrandEnum>> fetchBrandsAsEnum() async {
-    try {
-      final brands = await fetchBrands();
-      final brandEnums = <BrandEnum>[];
-
-      for (final brand in brands) {
-        final brandEnum = BrandEnum.fromApiData(brand.id, brand.name);
-        if (brandEnum != null) {
-          brandEnums.add(brandEnum);
-        }
-      }
-
-      // If no brands were converted, fall back to hardcoded values
-      if (brandEnums.isEmpty) {
-        print(
-            "BrandRepository: No brands converted to enum, using hardcoded values");
-        return BrandEnum.allValues;
-      }
-
-      return brandEnums;
-    } catch (e) {
-      print("BrandRepository: Error converting brands to enum: $e");
-      return BrandEnum.allValues;
     }
   }
 
@@ -135,7 +107,14 @@ class BrandRepository {
     } catch (e) {
       print("BrandRepository: Error fetching all brand names: $e");
       // Fallback to hardcoded brand names
-      return BrandEnum.values.map((e) => e.value).toList();
+      return [
+        "Superfit",
+        "Therapedic",
+        "Sleep Spa",
+        "Spring Air",
+        "Comforta",
+        "iSleep"
+      ];
     }
   }
 
