@@ -36,7 +36,9 @@ class FormatHelper {
   /// Konversi dari format mata uang ke double
   static double parseCurrencyToDouble(String formatted) {
     String cleaned = formatted.replaceAll(RegExp(r'[^0-9]'), '');
-    return double.tryParse(cleaned) ?? 0.0;
+    final value = double.tryParse(cleaned) ?? 0.0;
+    // Round to 2 decimal places to avoid floating point precision issues
+    return double.parse(value.toStringAsFixed(2));
   }
 
   /// Format teks saat pengguna mengetik di TextField (otomatis tambahkan `Rp` dan pemisah ribuan)
