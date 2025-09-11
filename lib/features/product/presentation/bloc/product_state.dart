@@ -1,7 +1,8 @@
 import 'package:equatable/equatable.dart';
 
-import '../../../../config/app_constant.dart';
 import '../../domain/entities/product_entity.dart';
+import '../../data/models/channel_model.dart';
+import '../../data/models/brand_model.dart';
 
 class ProductState extends Equatable {
   final bool isFilterApplied;
@@ -10,16 +11,14 @@ class ProductState extends Equatable {
   final bool isSetActive;
   final List<String> availableAreas;
   final String? selectedArea;
-  final List<AreaEnum> availableAreaEnums;
-  final AreaEnum? selectedAreaEnum;
   final List<String> availableChannels;
   final String? selectedChannel;
-  final List<ChannelEnum> availableChannelEnums;
-  final ChannelEnum? selectedChannelEnum;
+  final List<ChannelModel> availableChannelModels;
+  final ChannelModel? selectedChannelModel;
   final List<String> availableBrands;
   final String? selectedBrand;
-  final List<BrandEnum> availableBrandEnums;
-  final BrandEnum? selectedBrandEnum;
+  final List<BrandModel> availableBrandModels;
+  final BrandModel? selectedBrandModel;
   final List<String> availableKasurs;
   final String? selectedKasur;
   final List<String> availableDivans;
@@ -58,16 +57,14 @@ class ProductState extends Equatable {
     this.isSetActive = false,
     this.availableAreas = const [],
     this.selectedArea,
-    this.availableAreaEnums = const [],
-    this.selectedAreaEnum,
     this.availableChannels = const [],
     this.selectedChannel,
-    this.availableChannelEnums = const [],
-    this.selectedChannelEnum,
+    this.availableChannelModels = const [],
+    this.selectedChannelModel,
     this.availableBrands = const [],
     this.selectedBrand,
-    this.availableBrandEnums = const [],
-    this.selectedBrandEnum,
+    this.availableBrandModels = const [],
+    this.selectedBrandModel,
     this.availableKasurs = const [],
     this.selectedKasur,
     this.availableDivans = const [],
@@ -107,16 +104,14 @@ class ProductState extends Equatable {
     bool? isSetActive,
     List<String>? availableAreas,
     String? selectedArea,
-    List<AreaEnum>? availableAreaEnums,
-    AreaEnum? selectedAreaEnum,
     List<String>? availableChannels,
     String? selectedChannel,
-    List<ChannelEnum>? availableChannelEnums,
-    ChannelEnum? selectedChannelEnum,
+    List<ChannelModel>? availableChannelModels,
+    ChannelModel? selectedChannelModel,
     List<String>? availableBrands,
     String? selectedBrand,
-    List<BrandEnum>? availableBrandEnums,
-    BrandEnum? selectedBrandEnum,
+    List<BrandModel>? availableBrandModels,
+    BrandModel? selectedBrandModel,
     List<String>? availableKasurs,
     String? selectedKasur,
     List<String>? availableDivans,
@@ -155,17 +150,15 @@ class ProductState extends Equatable {
       isSetActive: isSetActive ?? this.isSetActive,
       availableAreas: availableAreas ?? this.availableAreas,
       selectedArea: selectedArea ?? this.selectedArea,
-      availableAreaEnums: availableAreaEnums ?? this.availableAreaEnums,
-      selectedAreaEnum: selectedAreaEnum ?? this.selectedAreaEnum,
       availableChannels: availableChannels ?? this.availableChannels,
       selectedChannel: selectedChannel ?? this.selectedChannel,
-      availableChannelEnums:
-          availableChannelEnums ?? this.availableChannelEnums,
-      selectedChannelEnum: selectedChannelEnum ?? this.selectedChannelEnum,
+      availableChannelModels:
+          availableChannelModels ?? this.availableChannelModels,
+      selectedChannelModel: selectedChannelModel ?? this.selectedChannelModel,
       availableBrands: availableBrands ?? this.availableBrands,
       selectedBrand: selectedBrand ?? this.selectedBrand,
-      availableBrandEnums: availableBrandEnums ?? this.availableBrandEnums,
-      selectedBrandEnum: selectedBrandEnum ?? this.selectedBrandEnum,
+      availableBrandModels: availableBrandModels ?? this.availableBrandModels,
+      selectedBrandModel: selectedBrandModel ?? this.selectedBrandModel,
       availableKasurs: availableKasurs ?? this.availableKasurs,
       selectedKasur: selectedKasur ?? this.selectedKasur,
       availableDivans: availableDivans ?? this.availableDivans,
@@ -209,16 +202,14 @@ class ProductState extends Equatable {
         isSetActive,
         availableAreas,
         selectedArea,
-        availableAreaEnums,
-        selectedAreaEnum,
         availableChannels,
         selectedChannel,
-        availableChannelEnums,
-        selectedChannelEnum,
+        availableChannelModels,
+        selectedChannelModel,
         availableBrands,
         selectedBrand,
-        availableBrandEnums,
-        selectedBrandEnum,
+        availableBrandModels,
+        selectedBrandModel,
         availableKasurs,
         selectedKasur,
         availableDivans,
