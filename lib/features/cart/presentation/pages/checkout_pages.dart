@@ -1884,7 +1884,9 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
   double _getRemainingAmount() {
     final totalPaid = widget.existingPayments
         .fold(0.0, (sum, payment) => sum + payment.amount);
-    return widget.grandTotal - totalPaid;
+    final remaining = widget.grandTotal - totalPaid;
+    // Round to 2 decimal places to avoid floating point precision issues
+    return double.parse(remaining.toStringAsFixed(2));
   }
 
   // Get hint text based on remaining amount
@@ -2042,7 +2044,9 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
                           return 'Jumlah pembayaran tidak valid';
                         }
                         final remaining = _getRemainingAmount();
-                        if (amount > remaining) {
+                        // Use small tolerance for floating point comparison
+                        const double tolerance = 0.01;
+                        if (amount > remaining + tolerance) {
                           return 'Jumlah tidak boleh melebihi sisa pembayaran (${FormatHelper.formatCurrency(remaining)})';
                         }
                         return null;
