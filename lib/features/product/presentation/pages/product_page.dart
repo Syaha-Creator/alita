@@ -187,8 +187,8 @@ class _ProductPageState extends State<ProductPage> {
                   children: [
                     // Show area info
                     if (state.isUserAreaSet ||
-                        (state.selectedBrand == BrandEnum.springair.value ||
-                            state.selectedBrand == BrandEnum.therapedic.value ||
+                        (state.selectedBrand == "Spring Air" ||
+                            state.selectedBrand == "Therapedic" ||
                             (state.selectedBrand
                                     ?.toLowerCase()
                                     .contains('spring air') ??
@@ -197,10 +197,8 @@ class _ProductPageState extends State<ProductPage> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: (state.selectedBrand ==
-                                      BrandEnum.springair.value ||
-                                  state.selectedBrand ==
-                                      BrandEnum.therapedic.value ||
+                          color: (state.selectedBrand == "Spring Air" ||
+                                  state.selectedBrand == "Therapedic" ||
                                   (state.selectedBrand
                                           ?.toLowerCase()
                                           .contains('spring air') ??
@@ -212,10 +210,8 @@ class _ProductPageState extends State<ProductPage> {
                                   ? AppColors.success.withOpacity(0.1)
                                   : Colors.green[50]),
                           border: Border.all(
-                            color: (state.selectedBrand ==
-                                        BrandEnum.springair.value ||
-                                    state.selectedBrand ==
-                                        BrandEnum.therapedic.value ||
+                            color: (state.selectedBrand == "Spring Air" ||
+                                    state.selectedBrand == "Therapedic" ||
                                     (state.selectedBrand
                                             ?.toLowerCase()
                                             .contains('spring air') ??
@@ -233,10 +229,8 @@ class _ProductPageState extends State<ProductPage> {
                           children: [
                             Icon(
                               Icons.location_on,
-                              color: (state.selectedBrand ==
-                                          BrandEnum.springair.value ||
-                                      state.selectedBrand ==
-                                          BrandEnum.therapedic.value ||
+                              color: (state.selectedBrand == "Spring Air" ||
+                                      state.selectedBrand == "Therapedic" ||
                                       (state.selectedBrand
                                               ?.toLowerCase()
                                               .contains('spring air') ??
@@ -258,28 +252,28 @@ class _ProductPageState extends State<ProductPage> {
                                     "Area Anda",
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: (state.selectedBrand ==
-                                                  BrandEnum.springair.value ||
-                                              state.selectedBrand ==
-                                                  BrandEnum.therapedic.value ||
-                                              (state.selectedBrand
-                                                      ?.toLowerCase()
-                                                      .contains('spring air') ??
-                                                  false))
-                                          ? (isDark
-                                              ? AppColors.accentDark
-                                              : Colors.blue[600])
-                                          : (isDark
-                                              ? AppColors.success
-                                              : Colors.green[600]),
+                                      color:
+                                          (state.selectedBrand ==
+                                                      "Spring Air" ||
+                                                  state.selectedBrand ==
+                                                      "Therapedic" ||
+                                                  (state.selectedBrand
+                                                          ?.toLowerCase()
+                                                          .contains(
+                                                              'spring air') ??
+                                                      false))
+                                              ? (isDark
+                                                  ? AppColors.accentDark
+                                                  : Colors.blue[600])
+                                              : (isDark
+                                                  ? AppColors.success
+                                                  : Colors.green[600]),
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
                                   // Show dropdown area for non-national brands
-                                  if (state.selectedBrand !=
-                                          BrandEnum.springair.value &&
-                                      state.selectedBrand !=
-                                          BrandEnum.therapedic.value &&
+                                  if (state.selectedBrand != "Spring Air" &&
+                                      state.selectedBrand != "Therapedic" &&
                                       !(state.selectedBrand
                                               ?.toLowerCase()
                                               .contains('spring air') ??
@@ -298,23 +292,35 @@ class _ProductPageState extends State<ProductPage> {
                                                   ? AppColors.textPrimaryDark
                                                   : AppColors.textPrimaryLight,
                                             ),
-                                            items: state.availableAreaEnums
-                                                    .isNotEmpty
-                                                ? state.availableAreaEnums
-                                                    .map((area) {
-                                                    return DropdownMenuItem<
-                                                        String>(
-                                                      value: area.value,
-                                                      child: Text(area.value),
-                                                    );
-                                                  }).toList()
-                                                : AreaEnum.values.map((area) {
-                                                    return DropdownMenuItem<
-                                                        String>(
-                                                      value: area.value,
-                                                      child: Text(area.value),
-                                                    );
-                                                  }).toList(),
+                                            items:
+                                                state.availableAreas.isNotEmpty
+                                                    ? state.availableAreas
+                                                        .map((area) {
+                                                        return DropdownMenuItem<
+                                                            String>(
+                                                          value: area,
+                                                          child: Text(area),
+                                                        );
+                                                      }).toList()
+                                                    : [
+                                                        "Nasional",
+                                                        "Jabodetabek",
+                                                        "Bandung",
+                                                        "Surabaya",
+                                                        "Semarang",
+                                                        "Yogyakarta",
+                                                        "Solo",
+                                                        "Malang",
+                                                        "Denpasar",
+                                                        "Medan",
+                                                        "Palembang"
+                                                      ].map((area) {
+                                                        return DropdownMenuItem<
+                                                            String>(
+                                                          value: area,
+                                                          child: Text(area),
+                                                        );
+                                                      }).toList(),
                                             onChanged: (String? newValue) {
                                               if (newValue != null) {
                                                 context.read<ProductBloc>().add(
@@ -355,10 +361,8 @@ class _ProductPageState extends State<ProductPage> {
                                       ),
                                     ),
                                   ],
-                                  if (state.selectedBrand ==
-                                          BrandEnum.springair.value ||
-                                      state.selectedBrand ==
-                                          BrandEnum.therapedic.value ||
+                                  if (state.selectedBrand == "Spring Air" ||
+                                      state.selectedBrand == "Therapedic" ||
                                       (state.selectedBrand
                                               ?.toLowerCase()
                                               .contains('spring air') ??
@@ -384,28 +388,29 @@ class _ProductPageState extends State<ProductPage> {
                                     vertical: 4,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: (state.selectedBrand ==
-                                                BrandEnum.springair.value ||
-                                            state.selectedBrand ==
-                                                BrandEnum.therapedic.value ||
-                                            (state.selectedBrand
-                                                    ?.toLowerCase()
-                                                    .contains('spring air') ??
-                                                false))
-                                        ? (isDark
-                                            ? AppColors.accentDark
-                                                .withOpacity(0.2)
-                                            : Colors.blue[100])
-                                        : (isDark
-                                            ? AppColors.success.withOpacity(0.2)
-                                            : Colors.green[100]),
+                                    color:
+                                        (state.selectedBrand == "Spring Air" ||
+                                                state.selectedBrand ==
+                                                    "Therapedic" ||
+                                                (state.selectedBrand
+                                                        ?.toLowerCase()
+                                                        .contains(
+                                                            'spring air') ??
+                                                    false))
+                                            ? (isDark
+                                                ? AppColors.accentDark
+                                                    .withOpacity(0.2)
+                                                : Colors.blue[100])
+                                            : (isDark
+                                                ? AppColors.success
+                                                    .withOpacity(0.2)
+                                                : Colors.green[100]),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Text(
-                                    (state.selectedBrand ==
-                                                BrandEnum.springair.value ||
+                                    (state.selectedBrand == "Spring Air" ||
                                             state.selectedBrand ==
-                                                BrandEnum.therapedic.value ||
+                                                "Therapedic" ||
                                             (state.selectedBrand
                                                     ?.toLowerCase()
                                                     .contains('spring air') ??
@@ -414,20 +419,22 @@ class _ProductPageState extends State<ProductPage> {
                                         : "Default",
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: (state.selectedBrand ==
-                                                  BrandEnum.springair.value ||
-                                              state.selectedBrand ==
-                                                  BrandEnum.therapedic.value ||
-                                              (state.selectedBrand
-                                                      ?.toLowerCase()
-                                                      .contains('spring air') ??
-                                                  false))
-                                          ? (isDark
-                                              ? AppColors.accentDark
-                                              : Colors.blue[700])
-                                          : (isDark
-                                              ? AppColors.success
-                                              : Colors.green[700]),
+                                      color:
+                                          (state.selectedBrand ==
+                                                      "Spring Air" ||
+                                                  state.selectedBrand ==
+                                                      "Therapedic" ||
+                                                  (state.selectedBrand
+                                                          ?.toLowerCase()
+                                                          .contains(
+                                                              'spring air') ??
+                                                      false))
+                                              ? (isDark
+                                                  ? AppColors.accentDark
+                                                  : Colors.blue[700])
+                                              : (isDark
+                                                  ? AppColors.success
+                                                  : Colors.green[700]),
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
@@ -436,10 +443,8 @@ class _ProductPageState extends State<ProductPage> {
                                 // Show reset area button for non-national brands
                                 if (state.userSelectedArea != null &&
                                     state.selectedBrand != null &&
-                                    state.selectedBrand !=
-                                        BrandEnum.springair.value &&
-                                    state.selectedBrand !=
-                                        BrandEnum.therapedic.value &&
+                                    state.selectedBrand != "Spring Air" &&
+                                    state.selectedBrand != "Therapedic" &&
                                     !(state.selectedBrand
                                             ?.toLowerCase()
                                             .contains('spring air') ??
@@ -489,9 +494,7 @@ class _ProductPageState extends State<ProductPage> {
                         }
                       },
                       isUserAreaSet: state.isUserAreaSet,
-                      channels: state.availableChannels.isNotEmpty
-                          ? state.availableChannels
-                          : ChannelEnum.values.map((e) => e.value).toList(),
+                      channels: state.availableChannels,
                       selectedChannel: state.selectedChannel?.isEmpty ?? true
                           ? null
                           : state.selectedChannel,
@@ -502,13 +505,8 @@ class _ProductPageState extends State<ProductPage> {
                               );
                         }
                       },
-                      availableChannelEnums:
-                          state.availableChannelEnums.isNotEmpty
-                              ? state.availableChannelEnums
-                              : ChannelEnum.values,
-                      brands: state.availableBrands.isNotEmpty
-                          ? state.availableBrands
-                          : BrandEnum.values.map((e) => e.value).toList(),
+                      availableChannelModels: state.availableChannelModels,
+                      brands: state.availableBrands,
                       selectedBrand: state.selectedBrand?.isEmpty ?? true
                           ? null
                           : state.selectedBrand,
@@ -519,9 +517,8 @@ class _ProductPageState extends State<ProductPage> {
                               );
                         }
                       },
-                      availableBrandEnums: state.availableBrandEnums.isNotEmpty
-                          ? state.availableBrandEnums
-                          : BrandEnum.values,
+                      availableBrandModels:
+                          state.availableBrandModels, // Only API data
                       kasurs: state.availableKasurs,
                       selectedKasur: state.selectedKasur?.isEmpty ?? true
                           ? null
@@ -605,11 +602,9 @@ class _ProductPageState extends State<ProductPage> {
                                           state.selectedArea?.isEmpty ?? true
                                               ? null
                                               : state.selectedArea;
-                                      if (state.selectedBrand ==
-                                              BrandEnum.springair.value ||
-                                          state.selectedBrand ==
-                                              BrandEnum.therapedic.value) {
-                                        areaToUse = AreaEnum.nasional.value;
+                                      if (state.selectedBrand == "Spring Air" ||
+                                          state.selectedBrand == "Therapedic") {
+                                        areaToUse = "Nasional";
                                       }
                                       context.read<ProductBloc>().add(
                                             ApplyFilters(
@@ -830,6 +825,6 @@ class _ProductPageState extends State<ProductPage> {
     if (state.selectedArea != null && state.selectedArea!.isNotEmpty) {
       return state.selectedArea!;
     }
-    return AreaEnum.nasional.value;
+    return "Nasional";
   }
 }

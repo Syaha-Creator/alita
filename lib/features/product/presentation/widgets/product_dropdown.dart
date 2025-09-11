@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../../config/app_constant.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
+import '../../data/models/channel_model.dart';
+import '../../data/models/brand_model.dart';
 
 class ProductDropdown extends StatelessWidget {
   final bool isSetActive;
@@ -13,12 +15,12 @@ class ProductDropdown extends StatelessWidget {
   final List<String> channels;
   final String? selectedChannel;
   final Function(String?) onChannelChanged;
-  final List<ChannelEnum> availableChannelEnums;
+  final List<ChannelModel> availableChannelModels;
 
   final List<String> brands;
   final String? selectedBrand;
   final Function(String?) onBrandChanged;
-  final List<BrandEnum> availableBrandEnums;
+  final List<BrandModel> availableBrandModels;
 
   final List<String> kasurs;
   final String? selectedKasur;
@@ -55,11 +57,11 @@ class ProductDropdown extends StatelessWidget {
     required this.channels,
     required this.selectedChannel,
     required this.onChannelChanged,
-    required this.availableChannelEnums,
+    required this.availableChannelModels,
     required this.brands,
     required this.selectedBrand,
     required this.onBrandChanged,
-    required this.availableBrandEnums,
+    required this.availableBrandModels,
     required this.kasurs,
     required this.selectedKasur,
     required this.onKasurChanged,
