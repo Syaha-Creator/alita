@@ -33,18 +33,30 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         final userAreaId = await AuthService.getCurrentUserAreaId();
 
         // Fetch areas from API or fallback to hardcoded values
-        List<AreaEnum> availableAreas = [];
+        List<String> availableAreas = [];
         try {
-          availableAreas = await _areaRepository.fetchAreasAsEnum();
+          availableAreas = await _areaRepository.fetchAllAreaNames();
           print(
               "ProductBloc: Successfully fetched ${availableAreas.length} areas from API");
         } catch (e) {
           print(
               "ProductBloc: Error fetching areas from API, using hardcoded values: $e");
-          availableAreas = AreaEnum.allValues;
+          availableAreas = [
+            "Nasional",
+            "Jabodetabek",
+            "Bandung",
+            "Surabaya",
+            "Semarang",
+            "Yogyakarta",
+            "Solo",
+            "Malang",
+            "Denpasar",
+            "Medan",
+            "Palembang"
+          ];
         }
 
-        // Fetch channels from API or fallback to hardcoded values
+        // Fetch channels from API only (no hardcoded fallback)
         List<String> availableChannels = [];
         try {
           // Get all channel names from API (most direct approach)
@@ -53,11 +65,10 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
               "ProductBloc: Successfully fetched ${availableChannels.length} channels from API");
         } catch (e) {
           print(
-              "ProductBloc: Error fetching channels from API, using hardcoded values: $e");
-          availableChannels = ChannelEnum.values.map((e) => e.value).toList();
+              "ProductBloc: Error fetching channels from API, no channels available: $e");
+          availableChannels = [];
         }
 
-        // Fetch brands from API or fallback to hardcoded values
         List<String> availableBrands = [];
         try {
           // Get all brand names from API (most direct approach)
@@ -66,47 +77,58 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
               "ProductBloc: Successfully fetched ${availableBrands.length} brands from API");
         } catch (e) {
           print(
-              "ProductBloc: Error fetching brands from API, using hardcoded values: $e");
-          availableBrands = BrandEnum.values.map((e) => e.value).toList();
+              "ProductBloc: Error fetching brands from API, no brands available: $e");
+          availableBrands = [];
         }
 
         // Ensure no duplicate values and create a clean list
-        final uniqueAreas = <AreaEnum>[];
+        final uniqueAreas = <String>[];
         final seenValues = <String>{};
 
         for (final area in availableAreas) {
-          if (!seenValues.contains(area.value)) {
+          if (!seenValues.contains(area)) {
             uniqueAreas.add(area);
-            seenValues.add(area.value);
+            seenValues.add(area);
           }
         }
 
         // If no areas were found, use hardcoded values
         if (uniqueAreas.isEmpty) {
-          uniqueAreas.addAll(AreaEnum.allValues);
+          uniqueAreas.addAll([
+            "Nasional",
+            "Jabodetabek",
+            "Bandung",
+            "Surabaya",
+            "Semarang",
+            "Yogyakarta",
+            "Solo",
+            "Malang",
+            "Denpasar",
+            "Medan",
+            "Palembang"
+          ]);
         }
 
         // Initialize with empty state and user area if available
         if (userAreaId != null) {
-          AreaEnum? userAreaEnum = _getAreaEnumFromId(userAreaId);
-          if (userAreaEnum != null) {
+          String? userAreaName = _getAreaNameFromId(userAreaId);
+          if (userAreaName != null) {
             // Ensure user area is in the available areas list
-            if (!uniqueAreas.contains(userAreaEnum)) {
-              uniqueAreas.add(userAreaEnum);
+            if (!uniqueAreas.contains(userAreaName)) {
+              uniqueAreas.add(userAreaName);
             }
 
             emit(ProductState(
               userAreaId: userAreaId,
-              selectedArea: userAreaEnum.value,
-              selectedAreaEnum: userAreaEnum,
-              availableAreaEnums: uniqueAreas,
+              selectedArea: userAreaName,
+              availableAreas: uniqueAreas,
               isUserAreaSet: true,
               filteredProducts: [],
               isFilterApplied: false,
               availableChannels: availableChannels,
-              availableChannelEnums: ChannelEnum.values.toList(),
+              availableChannelModels: [],
               availableBrands: availableBrands,
-              availableBrandEnums: [], // No longer needed
+              availableBrandModels: [],
               availableKasurs: [],
               availableDivans: [],
               availableHeadboards: [],
@@ -122,11 +144,11 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
             emit(ProductState(
               userAreaId: userAreaId,
               areaNotAvailable: true,
-              availableAreaEnums: uniqueAreas,
+              availableAreas: uniqueAreas,
               availableChannels: availableChannels,
-              availableChannelEnums: ChannelEnum.values.toList(),
+              availableChannelModels: [], // Only API data, no hardcoded enums
               availableBrands: availableBrands,
-              availableBrandEnums: [], // No longer needed
+              availableBrandModels: [], // No longer needed
               availableKasurs: [],
               availableDivans: [],
               availableHeadboards: [],
@@ -142,11 +164,11 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
           // No user area, show normal state
           emit(ProductState(
             userAreaId: userAreaId,
-            availableAreaEnums: uniqueAreas,
+            availableAreas: uniqueAreas,
             availableChannels: availableChannels,
-            availableChannelEnums: ChannelEnum.values.toList(),
+            availableChannelModels: [], // Will be populated from API
             availableBrands: availableBrands,
-            availableBrandEnums: [], // No longer needed
+            availableBrandModels: [], // Will be populated from API
             availableKasurs: [],
             availableDivans: [],
             availableHeadboards: [],
@@ -166,40 +188,52 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
     on<RefreshAreas>((event, emit) async {
       try {
         // Fetch fresh areas from API
-        final availableAreas = await _areaRepository.fetchAreasAsEnum();
+        final availableAreas = await _areaRepository.fetchAllAreaNames();
         print(
             "ProductBloc: Successfully refreshed ${availableAreas.length} areas from API");
 
         // Ensure no duplicate values and create a clean list
-        final uniqueAreas = <AreaEnum>[];
+        final uniqueAreas = <String>[];
         final seenValues = <String>{};
 
         for (final area in availableAreas) {
-          if (!seenValues.contains(area.value)) {
+          if (!seenValues.contains(area)) {
             uniqueAreas.add(area);
-            seenValues.add(area.value);
+            seenValues.add(area);
           }
         }
 
         // If no areas were found, use hardcoded values
         if (uniqueAreas.isEmpty) {
-          uniqueAreas.addAll(AreaEnum.allValues);
+          uniqueAreas.addAll([
+            "Nasional",
+            "Jabodetabek",
+            "Bandung",
+            "Surabaya",
+            "Semarang",
+            "Yogyakarta",
+            "Solo",
+            "Malang",
+            "Denpasar",
+            "Medan",
+            "Palembang"
+          ]);
         }
 
         // Ensure current selected area is still valid
         String? validSelectedArea = state.selectedArea;
         if (validSelectedArea != null) {
           final hasValidArea =
-              uniqueAreas.any((area) => area.value == validSelectedArea);
+              uniqueAreas.any((area) => area == validSelectedArea);
           if (!hasValidArea && uniqueAreas.isNotEmpty) {
             // If current selected area is not valid, use first available area
-            validSelectedArea = uniqueAreas.first.value;
+            validSelectedArea = uniqueAreas.first;
           }
         }
 
         // Update state with new areas
         emit(state.copyWith(
-          availableAreaEnums: uniqueAreas,
+          availableAreas: uniqueAreas,
           selectedArea: validSelectedArea,
         ));
       } catch (e) {
@@ -217,9 +251,9 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         String areaToUse = event.selectedArea ?? '';
 
         // If brand is Spring Air or Therapedic, use "nasional" area
-        if (event.selectedBrand == BrandEnum.springair.value ||
-            event.selectedBrand == BrandEnum.therapedic.value) {
-          areaToUse = AreaEnum.nasional.value;
+        if (event.selectedBrand == "Spring Air" ||
+            event.selectedBrand == "Therapedic") {
+          areaToUse = "Nasional";
         }
 
         final products = await getProductUseCase.callWithFilter(
@@ -582,18 +616,17 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       emit(state.copyWith(
         userSelectedArea: event.area, // Store user's manual area selection
         selectedArea: event.area, // Use for current filter
-        selectedAreaEnum: AreaEnum.fromString(event.area), // Convert to enum
+        // No longer need enum conversion
       ));
     });
 
     on<UpdateSelectedChannel>((event, emit) {
       emit(state.copyWith(
         selectedChannel: event.channel, // User selected channel
-        selectedChannelEnum:
-            ChannelEnum.fromString(event.channel), // Convert to enum
+        selectedChannelModel: null, // Will be set when needed
         // Don't reset brands - keep the ones from API
         selectedBrand: "", // Reset to empty
-        selectedBrandEnum: null,
+        selectedBrandModel: null,
         availableKasurs: [], // Will be populated when brand is selected
         availableDivans: [], // Will be populated when kasur is selected
         availableHeadboards: [], // Will be populated when divan is selected
@@ -611,8 +644,8 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
 
     on<UpdateSelectedBrand>((event, emit) {
       // Show toast for Spring Air and Therapedic brands
-      if (event.brand == BrandEnum.springair.value ||
-          event.brand == BrandEnum.therapedic.value ||
+      if (event.brand == "Spring Air" ||
+          event.brand == "Therapedic" ||
           event.brand.toLowerCase().contains('spring air')) {
         CustomToast.showToast(
           "Brand ${event.brand} akan menggunakan area nasional untuk pencarian produk.",
@@ -622,7 +655,7 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
 
       emit(state.copyWith(
         selectedBrand: event.brand,
-        selectedBrandEnum: BrandEnum.fromString(event.brand), // Convert to enum
+        selectedBrandModel: null, // Will be set when needed
         availableKasurs: [], // Will be populated after fetch
         availableDivans: [], // Will be populated when kasur is selected
         availableHeadboards: [], // Will be populated when divan is selected
@@ -639,11 +672,11 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
 
       // Determine which area to use based on brand selection
       String? areaToUse;
-      if (event.brand == BrandEnum.springair.value ||
-          event.brand == BrandEnum.therapedic.value ||
+      if (event.brand == "Spring Air" ||
+          event.brand == "Therapedic" ||
           event.brand.toLowerCase().contains('spring air')) {
         // Use nasional area for Spring Air (including European Collection) and Therapedic
-        areaToUse = AreaEnum.nasional.value;
+        areaToUse = "Nasional";
       } else {
         // Use user's selected area for other brands
         areaToUse = state.userSelectedArea ?? state.selectedArea;
@@ -674,12 +707,12 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       String areaToUse = event.selectedArea ?? '';
 
       // If brand is Spring Air or Therapedic, use "nasional" area
-      if (event.selectedBrand == BrandEnum.springair.value ||
-          event.selectedBrand == BrandEnum.therapedic.value ||
+      if (event.selectedBrand == "Spring Air" ||
+          event.selectedBrand == "Therapedic" ||
           (event.selectedBrand?.toLowerCase().contains('spring air') ??
               false)) {
         // Try using "nasional" first, if it fails, fallback to user's area
-        areaToUse = AreaEnum.nasional.value;
+        areaToUse = "Nasional";
       } else {
         // For other brands, use user's selected area or default area
         areaToUse = state.userSelectedArea ?? state.selectedArea ?? '';
@@ -966,18 +999,17 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       final userAreaId = await AuthService.getCurrentUserAreaId();
 
       if (userAreaId != null) {
-        AreaEnum? userAreaEnum = _getAreaEnumFromId(userAreaId);
-        if (userAreaEnum != null) {
+        String? userAreaName = _getAreaNameFromId(userAreaId);
+        if (userAreaName != null) {
           final newState = state.copyWith(
             userSelectedArea: null,
-            selectedArea: userAreaEnum.value,
-            selectedAreaEnum: userAreaEnum,
+            selectedArea: userAreaName,
           );
 
           emit(newState);
 
           CustomToast.showToast(
-            "Area berhasil direset ke area default: ${userAreaEnum.value}",
+            "Area berhasil direset ke area default: $userAreaName",
             ToastType.success,
           );
         } else {
@@ -1013,18 +1045,16 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
     });
 
     on<SetUserArea>((event, emit) async {
-      // Map area_id to area enum
-      AreaEnum? userAreaEnum = _getAreaEnumFromId(event.areaId);
+      // Map area_id to area name
+      String? userAreaName = _getAreaNameFromId(event.areaId);
 
-      if (userAreaEnum != null &&
-          state.availableAreas.contains(userAreaEnum.value)) {
-        add(UpdateSelectedArea(userAreaEnum.value));
+      if (userAreaName != null && state.availableAreas.contains(userAreaName)) {
+        add(UpdateSelectedArea(userAreaName));
       } else {
         // Emit state with area not available message
         emit(state.copyWith(
           userAreaId: event.areaId,
           selectedArea: null,
-          selectedAreaEnum: null,
           areaNotAvailable: true,
         ));
       }
@@ -1076,14 +1106,33 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
   }
 
   // Helper method to map area_id to area enum
-  AreaEnum? _getAreaEnumFromId(int areaId) {
-    try {
-      final areaEnum = AreaEnum.values.firstWhere(
-        (area) => AreaEnum.getId(area) == areaId,
-      );
-      return areaEnum;
-    } catch (e) {
-      return null;
+  String? _getAreaNameFromId(int areaId) {
+    // Map area ID to area name
+    switch (areaId) {
+      case 0:
+        return "Nasional";
+      case 1:
+        return "Jabodetabek";
+      case 2:
+        return "Bandung";
+      case 3:
+        return "Surabaya";
+      case 4:
+        return "Semarang";
+      case 5:
+        return "Yogyakarta";
+      case 6:
+        return "Solo";
+      case 7:
+        return "Malang";
+      case 8:
+        return "Denpasar";
+      case 9:
+        return "Medan";
+      case 10:
+        return "Palembang";
+      default:
+        return null;
     }
   }
 
