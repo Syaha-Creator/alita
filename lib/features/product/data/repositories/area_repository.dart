@@ -1,4 +1,3 @@
-import '../../../../config/app_constant.dart';
 import '../../../../services/area_service.dart';
 import '../models/area_model.dart';
 
@@ -44,33 +43,6 @@ class AreaRepository {
     }
   }
 
-  /// Get areas as AreaEnum list (for backward compatibility)
-  Future<List<AreaEnum>> fetchAreasAsEnum() async {
-    try {
-      final areas = await fetchAreas();
-      final areaEnums = <AreaEnum>[];
-
-      for (final area in areas) {
-        final areaEnum = AreaEnum.fromApiData(area.id, area.name);
-        if (areaEnum != null) {
-          areaEnums.add(areaEnum);
-        }
-      }
-
-      // If no areas were converted, fall back to hardcoded values
-      if (areaEnums.isEmpty) {
-        print(
-            "AreaRepository: No areas converted to enum, using hardcoded values");
-        return AreaEnum.allValues;
-      }
-
-      return areaEnums;
-    } catch (e) {
-      print("AreaRepository: Error converting areas to enum: $e");
-      return AreaEnum.allValues;
-    }
-  }
-
   /// Get area by ID
   Future<AreaModel?> getAreaById(int id) async {
     try {
@@ -108,6 +80,33 @@ class AreaRepository {
       AreaModel(id: 3, name: "Nasional"),
       AreaModel(id: 4, name: "Jabodetabek"),
     ];
+  }
+
+  /// Get all area names from API (most direct approach)
+  Future<List<String>> fetchAllAreaNames() async {
+    try {
+      final areas = await fetchAreas();
+      final areaNames = areas.map((area) => area.name).toList();
+      print(
+          "AreaRepository: Returning all ${areaNames.length} area names from API");
+      return areaNames;
+    } catch (e) {
+      print("AreaRepository: Error fetching all area names: $e");
+      // Fallback to hardcoded area names
+      return [
+        "Nasional",
+        "Jabodetabek",
+        "Bandung",
+        "Surabaya",
+        "Semarang",
+        "Yogyakarta",
+        "Solo",
+        "Malang",
+        "Denpasar",
+        "Medan",
+        "Palembang"
+      ];
+    }
   }
 
   /// Check if areas are available from API
