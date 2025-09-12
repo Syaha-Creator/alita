@@ -43,7 +43,7 @@ class CurrencyInputFormatter extends TextInputFormatter {
 
     // Konversi ke double dan format
     double value = double.parse(cleaned);
-    String formatted = FormatHelper.formatTextFieldCurrency(cleaned);
+    String formatted = "Rp ${FormatHelper.formatCurrency(value)}";
 
     // Hitung posisi cursor yang benar
     int cursorPosition = formatted.length;
@@ -2044,9 +2044,15 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
                           return 'Jumlah pembayaran tidak valid';
                         }
                         final remaining = _getRemainingAmount();
-                        // Use small tolerance for floating point comparison
-                        const double tolerance = 0.01;
-                        if (amount > remaining + tolerance) {
+                        // Use larger tolerance for floating point comparison and round both values
+                        const double tolerance =
+                            0.1; // Increased tolerance to 10 cents
+                        final roundedAmount =
+                            double.parse(amount.toStringAsFixed(2));
+                        final roundedRemaining =
+                            double.parse(remaining.toStringAsFixed(2));
+
+                        if (roundedAmount > roundedRemaining + tolerance) {
                           return 'Jumlah tidak boleh melebihi sisa pembayaran (${FormatHelper.formatCurrency(remaining)})';
                         }
                         return null;
