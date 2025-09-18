@@ -20,7 +20,6 @@ class BrandService {
       }
 
       final url = ApiConfig.getPlBrandsUrl(token: token);
-      print("BrandService: Making request to: $url");
 
       final response = await apiClient.get(url);
 
@@ -30,8 +29,6 @@ class BrandService {
       }
 
       // Debug: Log response structure
-      print("BrandService: API Response keys: ${response.data.keys.toList()}");
-      print("BrandService: API Response status: ${response.data['status']}");
 
       // Check API response status
       if (response.data['status'] != 'success') {
@@ -43,8 +40,6 @@ class BrandService {
       final rawData = response.data["data"] ?? response.data["result"];
 
       if (rawData is! List) {
-        print("BrandService: Raw data type: ${rawData.runtimeType}");
-        print("BrandService: Raw data content: $rawData");
         throw Exception("Data brand tidak ditemukan. Silakan coba lagi.");
       }
 
@@ -52,8 +47,6 @@ class BrandService {
         try {
           return BrandModel.fromJson(item as Map<String, dynamic>);
         } catch (e) {
-          print("BrandService: Error parsing brand item: $e");
-          print("BrandService: Item data: $item");
           rethrow;
         }
       }).toList();
@@ -62,11 +55,8 @@ class BrandService {
       final activeBrands =
           brands.where((brand) => brand.isActive ?? true).toList();
 
-      print("BrandService: Successfully fetched ${activeBrands.length} brands");
       return activeBrands;
     } on DioException catch (e) {
-      print("BrandService: DioException occurred: ${e.type} - ${e.message}");
-      print("BrandService: DioException response: ${e.response?.data}");
 
       if (e.type == DioExceptionType.connectionTimeout ||
           e.type == DioExceptionType.sendTimeout ||
@@ -80,7 +70,6 @@ class BrandService {
         throw ServerException("Error jaringan: ${e.message}");
       }
     } catch (e) {
-      print("BrandService: Unexpected error: $e");
       if (e is ServerException || e is NetworkException) {
         rethrow;
       }
@@ -94,7 +83,6 @@ class BrandService {
       final brands = await fetchBrands();
       return brands.firstWhere((brand) => brand.id == id);
     } catch (e) {
-      print("BrandService: Error getting brand by ID $id: $e");
       return null;
     }
   }
@@ -107,7 +95,6 @@ class BrandService {
         (brand) => brand.name.toLowerCase() == name.toLowerCase(),
       );
     } catch (e) {
-      print("BrandService: Error getting brand by name '$name': $e");
       return null;
     }
   }

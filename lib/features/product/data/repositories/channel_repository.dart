@@ -24,7 +24,6 @@ class ChannelRepository {
     }
 
     try {
-      print("ChannelRepository: Fetching channels from API...");
       final channels = await channelService.fetchChannels();
 
       // Update cache
@@ -35,10 +34,8 @@ class ChannelRepository {
           "ChannelRepository: Successfully fetched and cached ${channels.length} channels");
       return channels;
     } catch (e) {
-      print("ChannelRepository: Error fetching channels from API: $e");
 
       // If API fails, return hardcoded channels as fallback
-      print("ChannelRepository: Falling back to hardcoded channels");
       return _getHardcodedChannels();
     }
   }
@@ -49,7 +46,6 @@ class ChannelRepository {
       final channels = await fetchChannels();
       return channels.firstWhere((channel) => channel.id == id);
     } catch (e) {
-      print("ChannelRepository: Error getting channel by ID $id: $e");
       return null;
     }
   }
@@ -62,7 +58,6 @@ class ChannelRepository {
         (channel) => channel.name.toLowerCase() == name.toLowerCase(),
       );
     } catch (e) {
-      print("ChannelRepository: Error getting channel by name '$name': $e");
       return null;
     }
   }
@@ -71,7 +66,6 @@ class ChannelRepository {
   void clearCache() {
     _cachedChannels = null;
     _lastFetchTime = null;
-    print("ChannelRepository: Cache cleared");
   }
 
   /// Get hardcoded channels as fallback
@@ -106,7 +100,6 @@ class ChannelRepository {
           "ChannelRepository: Returning all ${channelNames.length} channel names from API");
       return channelNames;
     } catch (e) {
-      print("ChannelRepository: Error fetching all channel names: $e");
       // Fallback to hardcoded channel names
       return [
         "Regular",
@@ -129,7 +122,6 @@ class ChannelRepository {
           "ChannelRepository: Returning all ${channels.length} channels from API");
       return channels;
     } catch (e) {
-      print("ChannelRepository: Error fetching all channels: $e");
       // Fallback to hardcoded channels
       return _getHardcodedChannels();
     }

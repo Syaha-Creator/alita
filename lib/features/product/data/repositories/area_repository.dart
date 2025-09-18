@@ -24,7 +24,6 @@ class AreaRepository {
     }
 
     try {
-      print("AreaRepository: Fetching areas from API...");
       final areas = await areaService.fetchAreas();
 
       // Update cache
@@ -35,10 +34,8 @@ class AreaRepository {
           "AreaRepository: Successfully fetched and cached ${areas.length} areas");
       return areas;
     } catch (e) {
-      print("AreaRepository: Error fetching areas from API: $e");
 
       // If API fails, return hardcoded areas as fallback
-      print("AreaRepository: Falling back to hardcoded areas");
       return _getHardcodedAreas();
     }
   }
@@ -49,7 +46,6 @@ class AreaRepository {
       final areas = await fetchAreas();
       return areas.firstWhere((area) => area.id == id);
     } catch (e) {
-      print("AreaRepository: Error getting area by ID $id: $e");
       return null;
     }
   }
@@ -62,7 +58,6 @@ class AreaRepository {
         (area) => area.name.toLowerCase() == name.toLowerCase(),
       );
     } catch (e) {
-      print("AreaRepository: Error getting area by name '$name': $e");
       return null;
     }
   }
@@ -71,7 +66,6 @@ class AreaRepository {
   void clearCache() {
     _cachedAreas = null;
     _lastFetchTime = null;
-    print("AreaRepository: Cache cleared");
   }
 
   /// Get hardcoded areas as fallback
@@ -91,7 +85,6 @@ class AreaRepository {
           "AreaRepository: Returning all ${areaNames.length} area names from API");
       return areaNames;
     } catch (e) {
-      print("AreaRepository: Error fetching all area names: $e");
       // Fallback to hardcoded area names
       return [
         "Nasional",

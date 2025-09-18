@@ -24,7 +24,6 @@ class BrandRepository {
     }
 
     try {
-      print("BrandRepository: Fetching brands from API...");
       final brands = await brandService.fetchBrands();
 
       // Update cache
@@ -35,10 +34,8 @@ class BrandRepository {
           "BrandRepository: Successfully fetched and cached ${brands.length} brands");
       return brands;
     } catch (e) {
-      print("BrandRepository: Error fetching brands from API: $e");
 
       // If API fails, return hardcoded brands as fallback
-      print("BrandRepository: Falling back to hardcoded brands");
       return _getHardcodedBrands();
     }
   }
@@ -49,7 +46,6 @@ class BrandRepository {
       final brands = await fetchBrands();
       return brands.firstWhere((brand) => brand.id == id);
     } catch (e) {
-      print("BrandRepository: Error getting brand by ID $id: $e");
       return null;
     }
   }
@@ -62,7 +58,6 @@ class BrandRepository {
         (brand) => brand.name.toLowerCase() == name.toLowerCase(),
       );
     } catch (e) {
-      print("BrandRepository: Error getting brand by name '$name': $e");
       return null;
     }
   }
@@ -71,7 +66,6 @@ class BrandRepository {
   void clearCache() {
     _cachedBrands = null;
     _lastFetchTime = null;
-    print("BrandRepository: Cache cleared");
   }
 
   /// Get hardcoded brands as fallback
@@ -105,7 +99,6 @@ class BrandRepository {
           "BrandRepository: Returning all ${brandNames.length} brand names from API");
       return brandNames;
     } catch (e) {
-      print("BrandRepository: Error fetching all brand names: $e");
       // Fallback to hardcoded brand names
       return [
         "Superfit",
@@ -122,10 +115,8 @@ class BrandRepository {
   Future<List<BrandModel>> fetchAllBrands() async {
     try {
       final brands = await fetchBrands();
-      print("BrandRepository: Returning all ${brands.length} brands from API");
       return brands;
     } catch (e) {
-      print("BrandRepository: Error fetching all brands: $e");
       // Fallback to hardcoded brands
       return _getHardcodedBrands();
     }

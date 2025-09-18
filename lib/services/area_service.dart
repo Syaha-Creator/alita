@@ -20,7 +20,6 @@ class AreaService {
       }
 
       final url = ApiConfig.getPlAreasUrl(token: token);
-      print("AreaService: Making request to: $url");
 
       final response = await apiClient.get(url);
 
@@ -30,8 +29,6 @@ class AreaService {
       }
 
       // Debug: Log response structure
-      print("AreaService: API Response keys: ${response.data.keys.toList()}");
-      print("AreaService: API Response status: ${response.data['status']}");
 
       // Check API response status
       if (response.data['status'] != 'success') {
@@ -43,8 +40,6 @@ class AreaService {
       final rawData = response.data["data"] ?? response.data["result"];
 
       if (rawData is! List) {
-        print("AreaService: Raw data type: ${rawData.runtimeType}");
-        print("AreaService: Raw data content: $rawData");
         throw Exception("Data area tidak ditemukan. Silakan coba lagi.");
       }
 
@@ -52,8 +47,6 @@ class AreaService {
         try {
           return AreaModel.fromJson(item as Map<String, dynamic>);
         } catch (e) {
-          print("AreaService: Error parsing area item: $e");
-          print("AreaService: Item data: $item");
           rethrow;
         }
       }).toList();
@@ -61,11 +54,8 @@ class AreaService {
       // Filter only active areas
       final activeAreas = areas.where((area) => area.isActive ?? true).toList();
 
-      print("AreaService: Successfully fetched ${activeAreas.length} areas");
       return activeAreas;
     } on DioException catch (e) {
-      print("AreaService: DioException occurred: ${e.type} - ${e.message}");
-      print("AreaService: DioException response: ${e.response?.data}");
 
       if (e.type == DioExceptionType.connectionTimeout ||
           e.type == DioExceptionType.sendTimeout ||
@@ -79,7 +69,6 @@ class AreaService {
         throw ServerException("Error jaringan: ${e.message}");
       }
     } catch (e) {
-      print("AreaService: Unexpected error: $e");
       if (e is ServerException || e is NetworkException) {
         rethrow;
       }
@@ -93,7 +82,6 @@ class AreaService {
       final areas = await fetchAreas();
       return areas.firstWhere((area) => area.id == id);
     } catch (e) {
-      print("AreaService: Error getting area by ID $id: $e");
       return null;
     }
   }
@@ -106,7 +94,6 @@ class AreaService {
         (area) => area.name.toLowerCase() == name.toLowerCase(),
       );
     } catch (e) {
-      print("AreaService: Error getting area by name '$name': $e");
       return null;
     }
   }

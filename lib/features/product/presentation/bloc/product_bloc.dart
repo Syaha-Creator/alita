@@ -237,7 +237,6 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
           selectedArea: validSelectedArea,
         ));
       } catch (e) {
-        print("ProductBloc: Error refreshing areas: $e");
         // Keep existing areas if refresh fails
         CustomToast.showToast("Gagal memperbarui data area", ToastType.error);
       }

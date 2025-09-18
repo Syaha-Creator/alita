@@ -20,7 +20,6 @@ class ChannelService {
       }
 
       final url = ApiConfig.getPlChannelsUrl(token: token);
-      print("ChannelService: Making request to: $url");
 
       final response = await apiClient.get(url);
 
@@ -32,7 +31,6 @@ class ChannelService {
       // Debug: Log response structure
       print(
           "ChannelService: API Response keys: ${response.data.keys.toList()}");
-      print("ChannelService: API Response status: ${response.data['status']}");
 
       // Check API response status
       if (response.data['status'] != 'success') {
@@ -44,8 +42,6 @@ class ChannelService {
       final rawData = response.data["data"] ?? response.data["result"];
 
       if (rawData is! List) {
-        print("ChannelService: Raw data type: ${rawData.runtimeType}");
-        print("ChannelService: Raw data content: $rawData");
         throw Exception("Data channel tidak ditemukan. Silakan coba lagi.");
       }
 
@@ -53,8 +49,6 @@ class ChannelService {
         try {
           return ChannelModel.fromJson(item as Map<String, dynamic>);
         } catch (e) {
-          print("ChannelService: Error parsing channel item: $e");
-          print("ChannelService: Item data: $item");
           rethrow;
         }
       }).toList();
@@ -67,8 +61,6 @@ class ChannelService {
           "ChannelService: Successfully fetched ${activeChannels.length} channels");
       return activeChannels;
     } on DioException catch (e) {
-      print("ChannelService: DioException occurred: ${e.type} - ${e.message}");
-      print("ChannelService: DioException response: ${e.response?.data}");
 
       if (e.type == DioExceptionType.connectionTimeout ||
           e.type == DioExceptionType.sendTimeout ||
@@ -82,7 +74,6 @@ class ChannelService {
         throw ServerException("Error jaringan: ${e.message}");
       }
     } catch (e) {
-      print("ChannelService: Unexpected error: $e");
       if (e is ServerException || e is NetworkException) {
         rethrow;
       }
@@ -96,7 +87,6 @@ class ChannelService {
       final channels = await fetchChannels();
       return channels.firstWhere((channel) => channel.id == id);
     } catch (e) {
-      print("ChannelService: Error getting channel by ID $id: $e");
       return null;
     }
   }
@@ -109,7 +99,6 @@ class ChannelService {
         (channel) => channel.name.toLowerCase() == name.toLowerCase(),
       );
     } catch (e) {
-      print("ChannelService: Error getting channel by name '$name': $e");
       return null;
     }
   }
