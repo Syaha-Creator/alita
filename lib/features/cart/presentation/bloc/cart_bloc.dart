@@ -140,6 +140,22 @@ class CartBloc extends Bloc<CartEvent, CartState> {
       emit(CartLoaded([]));
     });
 
+    on<UpdateBonusTakeAway>((event, emit) async {
+      if (state is CartLoaded) {
+        final currentState = state as CartLoaded;
+        final updatedItems = currentState.cartItems.map((item) {
+          if (item.product.id == event.productId &&
+              item.netPrice == event.netPrice) {
+            return item.copyWith(bonusTakeAway: event.bonusTakeAway);
+          }
+          return item;
+        }).toList();
+
+        await CartStorageService.saveCartItems(updatedItems);
+        emit(CartLoaded(updatedItems));
+      }
+    });
+
     on<MarkItemAsCheckedOut>((event, emit) async {
       if (state is CartLoaded) {
         final currentState = state as CartLoaded;

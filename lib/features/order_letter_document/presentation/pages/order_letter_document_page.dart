@@ -619,7 +619,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          '${b.desc1} ${b.desc2}',
+                          b.desc1, // Hanya tampilkan desc1 untuk bonus
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
@@ -654,7 +654,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '${acc.desc1} ${acc.desc2}',
+              '${acc.desc1} ${acc.desc2}', // Tetap gabungkan desc1 dan desc2 untuk accessories
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -1101,39 +1101,127 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
       );
 
       // Convert order letter details to cart items format
-      final cartItems = _document!.details.map((detail) {
-        // extended_amount adalah harga net untuk kasur saja
-        // Untuk item kasur, gunakan extended_amount
-        // Untuk item lain (bonus), gunakan unit_price (biasanya 0)
-        final netPrice = detail.itemType == 'kasur'
-            ? _document!.extendedAmount
-            : detail.unitPrice;
+      // Debug: Print all details to understand data structure
+      print(
+          'DEBUG: Order Letter Details (${_document!.details.length} items):');
+      for (final detail in _document!.details) {
+        print(
+            '  - Item: ${detail.desc1} ${detail.desc2}, Type: ${detail.itemType}, Price: ${detail.unitPrice}');
+      }
 
-        return CartEntity(
+      // Group order letter details by kasur and create single CartEntity per group
+      final kasurDetails = _document!.details
+          .where((d) => d.itemType.toLowerCase() == 'kasur')
+          .toList();
+      final cartItems = <CartEntity>[];
+
+      print('DEBUG: Found ${kasurDetails.length} kasur items');
+
+      for (int i = 0; i < kasurDetails.length; i++) {
+        final kasurDetail = kasurDetails[i];
+        final kasurIndex = i + 1;
+
+        print(
+            'Processing kasur $kasurIndex: ${kasurDetail.desc1} ${kasurDetail.desc2}');
+
+        // Find position of this kasur in the details list
+        final kasurIndexInDetails = _document!.details.indexWhere((d) =>
+            d.id == kasurDetail.id && d.itemType.toLowerCase() == 'kasur');
+
+        // Find next kasur position (or end of list)
+        int nextKasurIndex = _document!.details.length;
+        for (int j = kasurIndexInDetails + 1;
+            j < _document!.details.length;
+            j++) {
+          if (_document!.details[j].itemType.toLowerCase() == 'kasur') {
+            nextKasurIndex = j;
+            break;
+          }
+        }
+
+        print(
+            'Kasur at index $kasurIndexInDetails, next kasur at $nextKasurIndex');
+
+        // Get accessories and bonus for this kasur (items between this kasur and next kasur)
+        final relatedItems =
+            _document!.details.sublist(kasurIndexInDetails + 1, nextKasurIndex);
+
+        // Initialize product fields
+        String kasur = kasurDetail.desc1;
+        String divan = '';
+        String headboard = '';
+        String sorong = '';
+        double plKasur = kasurDetail.unitPrice,
+            plDivan = 0,
+            plHeadboard = 0,
+            plSorong = 0;
+        double eupKasur = _document!.extendedAmount / kasurDetail.qty,
+            eupDivan = 0,
+            eupHeadboard = 0,
+            eupSorong = 0;
+
+        final bonusItems = <BonusItem>[];
+
+        // Process related items (accessories and bonus)
+        for (final item in relatedItems) {
+          switch (item.itemType.toLowerCase()) {
+            case 'divan':
+              divan = '${item.desc1} ${item.desc2}';
+              plDivan = item.unitPrice;
+              eupDivan = item.unitPrice; // EUP = pricelist for accessories
+              break;
+            case 'headboard':
+              headboard = '${item.desc1} ${item.desc2}';
+              plHeadboard = item.unitPrice;
+              eupHeadboard = item.unitPrice;
+              break;
+            case 'sorong':
+              sorong = '${item.desc1} ${item.desc2}';
+              plSorong = item.unitPrice;
+              eupSorong = item.unitPrice;
+              break;
+            case 'bonus':
+              bonusItems.add(BonusItem(
+                name: item.desc1, // Hanya desc1 untuk bonus
+                quantity: item.qty,
+                takeAway: item.takeAway, // Add take away status
+              ));
+              break;
+          }
+        }
+
+        print('Creating CartEntity for kasur group $kasurIndex:');
+        print('  Kasur: $kasur');
+        print('  Divan: $divan');
+        print('  Headboard: $headboard');
+        print('  Sorong: $sorong');
+        print('  Bonus: ${bonusItems.length} items');
+
+        cartItems.add(CartEntity(
           product: ProductEntity(
-            id: detail.id,
+            id: kasurDetail.id,
             area: '',
             channel: '',
-            brand: detail.brand,
-            kasur: detail.desc1,
-            divan: '',
-            headboard: '',
-            sorong: '',
-            ukuran: detail.desc2,
-            pricelist: detail.unitPrice,
+            brand: kasurDetail.brand,
+            kasur: kasur,
+            divan: divan,
+            headboard: headboard,
+            sorong: sorong,
+            ukuran: kasurDetail.desc2,
+            pricelist: kasurDetail.unitPrice,
             program: '',
-            eupKasur: detail.unitPrice,
-            eupDivan: 0,
-            eupHeadboard: 0,
-            endUserPrice: detail.unitPrice,
-            bonus: [],
+            eupKasur: eupKasur,
+            eupDivan: eupDivan,
+            eupHeadboard: eupHeadboard,
+            eupSorong: eupSorong,
+            endUserPrice: kasurDetail.unitPrice,
+            bonus: bonusItems,
             discounts: [],
             isSet: false,
-            plKasur: detail.unitPrice,
-            plDivan: 0,
-            plHeadboard: 0,
-            plSorong: 0,
-            eupSorong: 0,
+            plKasur: plKasur,
+            plDivan: plDivan,
+            plHeadboard: plHeadboard,
+            plSorong: plSorong,
             bottomPriceAnalyst: 0,
             disc1: 0,
             disc2: 0,
@@ -1141,18 +1229,17 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
             disc4: 0,
             disc5: 0,
           ),
-          quantity: detail.qty,
-          netPrice: netPrice,
+          quantity: kasurDetail.qty,
+          netPrice: _document!.extendedAmount / kasurDetail.qty,
           discountPercentages: [],
           isSelected: true,
-        );
-      }).toList();
+        ));
+      }
 
-      // Calculate totals
-      final grandTotal = _document!.details.fold<double>(
-        0.0,
-        (sum, detail) => sum + (detail.qty * detail.unitPrice),
-      );
+      print('DEBUG: Created ${cartItems.length} CartEntity items for PDF');
+
+      // Use extended amount from order letter as grand total
+      final grandTotal = _document!.extendedAmount;
 
       // Convert approval data to format expected by PDF service
       final approvalData = _document!.discounts.map((discount) {

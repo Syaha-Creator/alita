@@ -1,6 +1,4 @@
-// lib/services/pdf_services.dart
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
@@ -107,12 +105,18 @@ class PDFService {
           return pw.Container();
         },
         footer: (pw.Context context) {
-          return pw.Container(
-            alignment: pw.Alignment.centerRight,
-            child: pw.Text(
-              "Halaman ${context.pageNumber} dari ${context.pagesCount}",
-              style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey),
-            ),
+          return pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text(
+                'Dokumen ini dicetak pada: ${_formatDateTime(DateTime.now())}',
+                style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey),
+              ),
+              pw.Text(
+                "Halaman ${context.pageNumber} dari ${context.pagesCount}",
+                style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey),
+              ),
+            ],
           );
         },
         build: (pw.Context context) => [
@@ -146,14 +150,6 @@ class PDFService {
           _buildSignatureSection(customerName, salesName ?? "NAMA SALES"),
           pw.Spacer(),
           _buildTermsAndConditions(),
-          pw.SizedBox(height: 5),
-          pw.Align(
-            alignment: pw.Alignment.centerLeft,
-            child: pw.Text(
-              'Dokumen ini dicetak pada: ${_formatDateTime(DateTime.now())}',
-              style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey),
-            ),
-          ),
         ],
       ),
     );
@@ -356,6 +352,7 @@ class PDFService {
   static pw.Widget _buildItemsTable(
       List<CartEntity> items, double subtotal, double totalEup,
       {double? orderLetterExtendedAmount}) {
+    print('DEBUG: _buildItemsTable called with ${items.length} items');
     const tableHeaders = [
       'NO',
       'QTY',
@@ -433,14 +430,16 @@ class PDFService {
       if (product.divan.isNotEmpty && product.divan != AppStrings.noDivan) {
         double divanPricelist = (product.plDivan) * item.quantity;
         double divanEUP = (product.eupDivan) * item.quantity;
-        double divanDiscount = divanPricelist - divanPricelist;
-        double divanNet = totalEup > 0 ? (divanEUP / totalEup) * subtotal : 0;
+        double divanDiscount = divanEUP;
+        double divanNet = divanPricelist - divanDiscount;
+        print(
+            'DEBUG DIVAN: Pricelist=$divanPricelist, EUP=$divanEUP, Discount=$divanDiscount, Net=$divanNet');
         tableRows.add(pw.TableRow(
           children: [
             _buildTableCell(''),
             _buildTableCell(item.quantity.toString(),
                 align: pw.TextAlign.center),
-            _buildTableCell(product.divan),
+            _buildTableCell(product.divan), // Sudah berisi desc1 + desc2
             _buildTableCell(FormatHelper.formatCurrency(divanPricelist),
                 align: pw.TextAlign.right),
             _buildTableCell(FormatHelper.formatCurrency(divanDiscount),
@@ -454,15 +453,16 @@ class PDFService {
           product.headboard != AppStrings.noHeadboard) {
         double headboardPricelist = (product.plHeadboard) * item.quantity;
         double headboardEUP = (product.eupHeadboard) * item.quantity;
-        double headboardDiscount = headboardPricelist - headboardPricelist;
-        double headboardNet =
-            totalEup > 0 ? (headboardEUP / totalEup) * subtotal : 0;
+        double headboardDiscount = headboardEUP;
+        double headboardNet = headboardPricelist - headboardDiscount;
+        print(
+            'DEBUG HEADBOARD: Pricelist=$headboardPricelist, EUP=$headboardEUP, Discount=$headboardDiscount, Net=$headboardNet');
         tableRows.add(pw.TableRow(
           children: [
             _buildTableCell(''),
             _buildTableCell(item.quantity.toString(),
                 align: pw.TextAlign.center),
-            _buildTableCell(product.headboard),
+            _buildTableCell(product.headboard), // Sudah berisi desc1 + desc2
             _buildTableCell(FormatHelper.formatCurrency(headboardPricelist),
                 align: pw.TextAlign.right),
             _buildTableCell(FormatHelper.formatCurrency(headboardDiscount),
@@ -475,14 +475,16 @@ class PDFService {
       if (product.sorong.isNotEmpty && product.sorong != AppStrings.noSorong) {
         double sorongPricelist = (product.plSorong) * item.quantity;
         double sorongEUP = (product.eupSorong) * item.quantity;
-        double sorongDiscount = sorongPricelist - sorongEUP;
-        double sorongNet = totalEup > 0 ? (sorongEUP / totalEup) * subtotal : 0;
+        double sorongDiscount = sorongEUP;
+        double sorongNet = sorongPricelist - sorongDiscount;
+        print(
+            'DEBUG SORONG: Pricelist=$sorongPricelist, EUP=$sorongEUP, Discount=$sorongDiscount, Net=$sorongNet');
         tableRows.add(pw.TableRow(
           children: [
             _buildTableCell(''),
             _buildTableCell(item.quantity.toString(),
                 align: pw.TextAlign.center),
-            _buildTableCell(product.sorong),
+            _buildTableCell(product.sorong), // Sudah berisi desc1 + desc2
             _buildTableCell(FormatHelper.formatCurrency(sorongPricelist),
                 align: pw.TextAlign.right),
             _buildTableCell(FormatHelper.formatCurrency(sorongDiscount),
@@ -497,12 +499,21 @@ class PDFService {
         for (var bonus in product.bonus) {
           final bonusQuantity = bonus.quantity * item.quantity;
           const String bonusPrice = "0";
+
+          // Add take away indicator if applicable
+          String bonusName = bonus.name;
+          if (bonus.takeAway == true) {
+            bonusName = '${bonus.name} (BONUS - TAKE AWAY)';
+          } else {
+            bonusName = '${bonus.name} (BONUS)';
+          }
+
           tableRows.add(pw.TableRow(
             children: [
               _buildTableCell(''),
               _buildTableCell(bonusQuantity.toString(),
                   align: pw.TextAlign.center),
-              _buildTableCell('${bonus.name} (BONUS)'),
+              _buildTableCell(bonusName),
               _buildTableCell(bonusPrice, align: pw.TextAlign.right),
               _buildTableCell(bonusPrice, align: pw.TextAlign.right),
               _buildTableCell(bonusPrice, align: pw.TextAlign.right),

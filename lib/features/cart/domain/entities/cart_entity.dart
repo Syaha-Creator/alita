@@ -9,6 +9,7 @@ class CartEntity {
   final double? installmentPerMonth;
   final bool isSelected;
   final bool isCheckedOut;
+  final Map<String, bool>? bonusTakeAway; // Map bonus name to take away status
 
   CartEntity copyWith({
     ProductEntity? product,
@@ -19,6 +20,7 @@ class CartEntity {
     double? installmentPerMonth,
     bool? isSelected,
     bool? isCheckedOut,
+    Map<String, bool>? bonusTakeAway,
   }) {
     return CartEntity(
       product: product ?? this.product,
@@ -29,6 +31,7 @@ class CartEntity {
       installmentPerMonth: installmentPerMonth ?? this.installmentPerMonth,
       isSelected: isSelected ?? this.isSelected,
       isCheckedOut: isCheckedOut ?? this.isCheckedOut,
+      bonusTakeAway: bonusTakeAway ?? this.bonusTakeAway,
     );
   }
 
@@ -41,6 +44,7 @@ class CartEntity {
     this.installmentPerMonth,
     this.isSelected = true,
     this.isCheckedOut = false,
+    this.bonusTakeAway,
   });
 
   List<Object?> get props => [
@@ -52,6 +56,7 @@ class CartEntity {
         installmentPerMonth,
         isSelected,
         isCheckedOut,
+        bonusTakeAway,
       ];
 
   Map<String, dynamic> toJson() {
@@ -96,6 +101,7 @@ class CartEntity {
       'installmentPerMonth': installmentPerMonth,
       'isSelected': isSelected,
       'isCheckedOut': isCheckedOut,
+      'bonusTakeAway': bonusTakeAway,
     };
   }
 }

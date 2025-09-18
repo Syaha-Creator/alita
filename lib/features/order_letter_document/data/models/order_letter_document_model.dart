@@ -111,6 +111,7 @@ class OrderLetterDetailModel {
   final String status;
   final String createdAt;
   final String updatedAt;
+  final bool? takeAway;
 
   OrderLetterDetailModel({
     required this.id,
@@ -126,6 +127,7 @@ class OrderLetterDetailModel {
     required this.status,
     required this.createdAt,
     required this.updatedAt,
+    this.takeAway,
   });
 
   factory OrderLetterDetailModel.fromJson(Map<String, dynamic> json) {
@@ -165,6 +167,7 @@ class OrderLetterDetailModel {
       status: json['status'] ?? '',
       createdAt: json['created_at'] ?? '',
       updatedAt: json['updated_at'] ?? '',
+      takeAway: json['take_away'] == null ? null : json['take_away'] as bool?,
     );
   }
 
@@ -183,6 +186,7 @@ class OrderLetterDetailModel {
       'status': status,
       'created_at': createdAt,
       'updated_at': updatedAt,
+      'take_away': takeAway,
     };
   }
 }

@@ -272,6 +272,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
         addressShipTo: _shippingAddressController.text,
         requestDate: _deliveryDateController.text,
         note: _notesController.text, // Use original notes without phone
+        isTakeAway: widget.isTakeAway,
       );
 
       if (orderLetterResult['success'] != true) {
@@ -421,6 +422,207 @@ class _CheckoutPagesState extends State<CheckoutPages>
                   _buildOrderSummarySection(selectedItems, grandTotal, isDark),
 
                   const SizedBox(height: 20),
+
+                  // Bonus Take Away Section (only show if not take away and has bonus)
+                  if (!widget.isTakeAway &&
+                      selectedItems
+                          .any((item) => item.product.bonus.isNotEmpty))
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? AppColors.surfaceDark
+                            : AppColors.surfaceLight,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? AppColors.cardDark
+                                  : AppColors.cardLight,
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(12),
+                                topRight: Radius.circular(12),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.card_giftcard_outlined,
+                                    color: isDark
+                                        ? AppColors.primaryDark
+                                        : AppColors.primaryLight,
+                                    size: 20),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Opsi Pengambilan Bonus',
+                                  style: GoogleFonts.montserrat(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark
+                                        ? AppColors.surfaceLight
+                                        : Colors.black,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Pilih item bonus yang ingin diambil sendiri di toko:',
+                                  style: GoogleFonts.montserrat(
+                                    fontSize: 14,
+                                    color: isDark
+                                        ? Colors.grey[400]
+                                        : Colors.grey[600],
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                ...selectedItems.expand((item) {
+                                  if (item.product.bonus.isEmpty) {
+                                    return <Widget>[];
+                                  }
+
+                                  return item.product.bonus.map((bonus) {
+                                    final isChecked =
+                                        item.bonusTakeAway?[bonus.name] ??
+                                            false;
+
+                                    return Container(
+                                      margin: const EdgeInsets.only(bottom: 8),
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: isDark
+                                            ? AppColors.cardDark
+                                            : AppColors.cardLight,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: isDark
+                                              ? Colors.grey[800]!
+                                              : Colors.grey[200]!,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Checkbox(
+                                            value: isChecked,
+                                            onChanged: (value) {
+                                              final currentTakeAway =
+                                                  Map<String, bool>.from(
+                                                      item.bonusTakeAway ?? {});
+                                              currentTakeAway[bonus.name] =
+                                                  value ?? false;
+
+                                              context
+                                                  .read<CartBloc>()
+                                                  .add(UpdateBonusTakeAway(
+                                                    productId: item.product.id,
+                                                    netPrice: item.netPrice,
+                                                    bonusTakeAway:
+                                                        currentTakeAway,
+                                                  ));
+                                            },
+                                            activeColor: isDark
+                                                ? AppColors.primaryDark
+                                                : AppColors.primaryLight,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  bonus.name,
+                                                  style: GoogleFonts.montserrat(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: isDark
+                                                        ? AppColors.surfaceLight
+                                                        : Colors.black,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  'Qty: ${bonus.quantity * item.quantity}',
+                                                  style: GoogleFonts.montserrat(
+                                                    fontSize: 12,
+                                                    color: isDark
+                                                        ? Colors.grey[400]
+                                                        : Colors.grey[600],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  });
+                                }),
+                                const SizedBox(height: 8),
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: (isDark
+                                            ? Colors.blue[900]
+                                            : Colors.blue[50])
+                                        ?.withOpacity(0.5),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: isDark
+                                          ? Colors.blue[700]!
+                                          : Colors.blue[200]!,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.info_outline,
+                                        size: 16,
+                                        color: isDark
+                                            ? Colors.blue[300]
+                                            : Colors.blue[700],
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          'Item yang dicentang akan diambil di toko, sisanya akan dikirim bersama pesanan utama.',
+                                          style: GoogleFonts.montserrat(
+                                            fontSize: 12,
+                                            color: isDark
+                                                ? Colors.blue[300]
+                                                : Colors.blue[700],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  if (!widget.isTakeAway &&
+                      selectedItems
+                          .any((item) => item.product.bonus.isNotEmpty))
+                    const SizedBox(height: 20),
 
                   // Payment Section
                   _buildPaymentSection(selectedItems, grandTotal, isDark),

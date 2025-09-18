@@ -27,6 +27,7 @@ class CheckoutService {
     required String addressShipTo,
     required String requestDate,
     required String note,
+    bool isTakeAway = false,
   }) async {
     try {
       final userName = await AuthService.getCurrentUserName() ?? 'Unknown User';
@@ -93,6 +94,7 @@ class CheckoutService {
             'unit_price': item.product.pricelist,
             'qty': item.quantity,
             'item_type': 'kasur',
+            'take_away': isTakeAway ? true : null,
           });
         }
 
@@ -109,6 +111,7 @@ class CheckoutService {
             'unit_price': item.product.plDivan,
             'qty': item.quantity,
             'item_type': 'divan',
+            'take_away': isTakeAway ? true : null,
           });
         }
 
@@ -125,6 +128,7 @@ class CheckoutService {
             'unit_price': item.product.plHeadboard,
             'qty': item.quantity,
             'item_type': 'headboard',
+            'take_away': isTakeAway ? true : null,
           });
         }
 
@@ -141,6 +145,7 @@ class CheckoutService {
             'unit_price': item.product.plSorong,
             'qty': item.quantity,
             'item_type': 'sorong',
+            'take_away': isTakeAway ? true : null,
           });
         }
 
@@ -167,6 +172,16 @@ class CheckoutService {
                 break;
             }
 
+            // Determine take away status for bonus
+            bool? bonusTakeAway;
+            if (isTakeAway) {
+              // If full take away, all bonus items are take away
+              bonusTakeAway = true;
+            } else {
+              // Check individual bonus take away status from cart item
+              bonusTakeAway = item.bonusTakeAway?[bonus.name];
+            }
+
             detailsData.add({
               'item_number': bonusItemNumber ?? item.product.id.toString(),
               'desc_1': bonus.name,
@@ -175,6 +190,7 @@ class CheckoutService {
               'unit_price': 0,
               'qty': bonus.quantity * item.quantity,
               'item_type': 'Bonus',
+              'take_away': bonusTakeAway,
             });
           }
         }

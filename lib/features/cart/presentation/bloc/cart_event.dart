@@ -81,6 +81,21 @@ class ToggleCartItemSelection extends CartEvent {
 
 class ClearCart extends CartEvent {}
 
+class UpdateBonusTakeAway extends CartEvent {
+  final int productId;
+  final double netPrice;
+  final Map<String, bool> bonusTakeAway;
+
+  const UpdateBonusTakeAway({
+    required this.productId,
+    required this.netPrice,
+    required this.bonusTakeAway,
+  });
+
+  @override
+  List<Object?> get props => [productId, netPrice, bonusTakeAway];
+}
+
 class MarkItemAsCheckedOut extends CartEvent {
   final int productId;
   final double netPrice;

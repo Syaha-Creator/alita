@@ -133,7 +133,8 @@ class ProductEntity extends Equatable {
 class BonusItem extends Equatable {
   final String name;
   final int quantity;
-  const BonusItem({required this.name, required this.quantity});
+  final bool? takeAway;
+  const BonusItem({required this.name, required this.quantity, this.takeAway});
   @override
-  List<Object?> get props => [name, quantity];
+  List<Object?> get props => [name, quantity, takeAway];
 }

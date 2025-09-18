@@ -24,6 +24,7 @@ class EnhancedCheckoutService {
     required String addressShipTo,
     required String requestDate,
     required String note,
+    bool isTakeAway = false,
   }) async {
     try {
       // Mapping semua item ke item lookup
@@ -59,6 +60,7 @@ class EnhancedCheckoutService {
         addressShipTo: addressShipTo,
         requestDate: requestDate,
         note: note,
+        isTakeAway: isTakeAway,
       );
     } catch (e) {
       print('EnhancedCheckoutService: Error during checkout with mapping: $e');
