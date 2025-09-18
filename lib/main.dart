@@ -11,8 +11,8 @@ import 'features/approval/presentation/bloc/approval_bloc.dart';
 
 import 'navigation/app_router.dart';
 import 'services/auth_service.dart';
-import 'services/notification_service.dart';
-import 'services/local_notification_service.dart';
+// TEMPORARILY DISABLED - No iOS physical device for testing
+// import 'services/core_notification_service.dart';
 import 'theme/app_theme.dart';
 import 'firebase_options.dart';
 
@@ -24,9 +24,9 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Initialize Notification Services
-  await NotificationService().initialize();
-  await LocalNotificationService().initialize();
+  // Initialize Core Notification Service (replaces multiple notification services)
+  // TEMPORARILY DISABLED - No iOS physical device for testing
+  // await CoreNotificationService().initialize();
 
   setupLocator();
 

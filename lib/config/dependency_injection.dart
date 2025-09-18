@@ -19,8 +19,6 @@ import '../services/order_letter_service.dart';
 import '../services/checkout_service.dart';
 import '../services/contact_work_experience_service.dart';
 import '../services/leader_service.dart';
-import '../services/notification_service.dart';
-import '../services/local_notification_service.dart';
 import '../features/approval/data/repositories/approval_repository.dart';
 import '../features/approval/domain/usecases/get_approvals_usecase.dart';
 import '../features/approval/domain/usecases/create_approval_usecase.dart';
@@ -30,7 +28,7 @@ import '../features/authentication/domain/usecases/login_usecase.dart';
 import '../features/authentication/presentation/bloc/auth_bloc.dart';
 import '../features/order_letter_document/data/repositories/order_letter_document_repository.dart';
 import 'api_config.dart';
-import '../services/unified_notification_service.dart';
+import '../services/core_notification_service.dart';
 import '../services/device_token_service.dart';
 import '../services/product_options_service.dart';
 import '../services/item_mapping_service.dart';
@@ -71,15 +69,9 @@ void setupLocator() {
   locator.registerLazySingleton<LeaderService>(
     () => LeaderService(locator<ApiClient>()),
   );
-  locator.registerLazySingleton<NotificationService>(
-    () => NotificationService(),
-  );
-  locator.registerLazySingleton<LocalNotificationService>(
-    () => LocalNotificationService(),
-  );
-  // Removed ApprovalNotificationService - using UnifiedNotificationService instead
-  locator.registerLazySingleton<UnifiedNotificationService>(
-    () => UnifiedNotificationService(),
+  // CONSOLIDATED: All notification services replaced with CoreNotificationService
+  locator.registerLazySingleton<CoreNotificationService>(
+    () => CoreNotificationService(),
   );
   locator.registerLazySingleton<DeviceTokenService>(
     () => DeviceTokenService(),
