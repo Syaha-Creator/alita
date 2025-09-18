@@ -37,6 +37,12 @@ class ApiConfig {
   static const String orderLetterApproves =
       "${baseUrl}api/order_letter_approves";
 
+  // Order Letter Contacts & Payments Endpoints
+  static const String orderLetterContacts =
+      "${baseUrl}api/order_letter_contacts";
+  static const String orderLetterPayments =
+      "${baseUrl}api/order_letter_payments";
+
   // Leader Endpoints
   static const String leaderByUser = "${baseUrl}api/leaderbyuser";
 
@@ -233,5 +239,19 @@ class ApiConfig {
     required String token,
   }) {
     return "$deviceTokens?access_token=$token&client_id=$clientId&client_secret=$clientSecret";
+  }
+
+  // Helper untuk POST Order Letter Contacts
+  static String getCreateOrderLetterContactUrl({
+    required String token,
+  }) {
+    return "$orderLetterContacts?access_token=$token&client_id=$clientId&client_secret=$clientSecret";
+  }
+
+  // Helper untuk POST Order Letter Payments
+  static String getCreateOrderLetterPaymentUrl({
+    required String token,
+  }) {
+    return "$orderLetterPayments?access_token=$token&client_id=$clientId&client_secret=$clientSecret";
   }
 }

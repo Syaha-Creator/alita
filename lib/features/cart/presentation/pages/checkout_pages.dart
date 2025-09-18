@@ -17,6 +17,8 @@ import '../../../../core/utils/format_helper.dart';
 import '../../../../core/widgets/custom_toast.dart';
 import '../../../../services/enhanced_checkout_service.dart';
 import '../../../../services/auth_service.dart';
+import '../../../../services/order_letter_contact_service.dart';
+import '../../../../services/order_letter_payment_service.dart';
 
 import '../../../../theme/app_colors.dart';
 import '../../domain/entities/cart_entity.dart';
@@ -120,6 +122,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
 
   late final TextEditingController _customerNameController;
   late final TextEditingController _customerPhoneController;
+  late final TextEditingController _customerPhone2Controller;
   late final TextEditingController _customerReceiverController;
   late final TextEditingController _shippingAddressController;
   late final TextEditingController _notesController;
@@ -127,6 +130,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
   late final TextEditingController _emailController;
   late final TextEditingController _customerAddressController;
   bool _shippingSameAsCustomer = false;
+  bool _showSecondPhone = false;
 
   // Payment related variables
   String _paymentType = 'full'; // 'full' or 'partial'
@@ -138,6 +142,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
     super.initState();
     _customerNameController = registerController();
     _customerPhoneController = registerController();
+    _customerPhone2Controller = registerController();
     _emailController = registerController();
     _customerReceiverController = registerController();
     _shippingAddressController = registerController();
@@ -176,6 +181,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
       final draft = {
         'customerName': _customerNameController.text,
         'customerPhone': _customerPhoneController.text,
+        'customerPhone2': _customerPhone2Controller.text,
         'email': _emailController.text,
         'customerAddress': _customerAddressController.text,
         'shippingAddress': _shippingAddressController.text,
@@ -253,19 +259,19 @@ class _CheckoutPagesState extends State<CheckoutPages>
         ),
       );
 
-      // Create Order Letter with Item Mapping
+      // Create Order Letter with Item Mapping (without phone - will be uploaded separately)
       final enhancedCheckoutService = locator<EnhancedCheckoutService>();
       final orderLetterResult =
           await enhancedCheckoutService.checkoutWithItemMapping(
         cartItems: selectedItems,
         customerName: _customerNameController.text,
-        customerPhone: _customerPhoneController.text,
+        customerPhone: '', // Remove phone from order letter
         email: _emailController.text,
         customerAddress: _customerAddressController.text,
         shipToName: _customerReceiverController.text,
         addressShipTo: _shippingAddressController.text,
         requestDate: _deliveryDateController.text,
-        note: _notesController.text,
+        note: _notesController.text, // Use original notes without phone
       );
 
       if (orderLetterResult['success'] != true) {
@@ -280,9 +286,42 @@ class _CheckoutPagesState extends State<CheckoutPages>
 
       if (mounted) Navigator.pop(context);
 
-      // Show success message with order letter info
+      // Upload phone numbers using contacts API
       final orderLetterId = orderLetterResult['orderLetterId'];
       final noSp = orderLetterResult['noSp'];
+
+      if (orderLetterId != null) {
+        try {
+          // Upload phone numbers
+          final contactService = locator<OrderLetterContactService>();
+          await contactService.uploadPhoneNumbers(
+            orderLetterId: orderLetterId,
+            primaryPhone: _customerPhoneController.text,
+            secondaryPhone: _showSecondPhone &&
+                    _customerPhone2Controller.text.trim().isNotEmpty
+                ? _customerPhone2Controller.text.trim()
+                : null,
+          );
+
+          // Upload payment methods if any
+          if (_paymentMethods.isNotEmpty) {
+            final paymentService = locator<OrderLetterPaymentService>();
+            final currentUserId = await AuthService.getCurrentUserId();
+
+            if (currentUserId != null) {
+              await paymentService.uploadPaymentMethods(
+                orderLetterId: orderLetterId,
+                paymentMethods: _convertPaymentMethodsToApiFormat(),
+                creator: currentUserId,
+                note: 'Payment from checkout',
+              );
+            }
+          }
+        } catch (e) {
+          // Log error but don't fail the checkout
+          print('Warning: Failed to upload phone numbers or payments: $e');
+        }
+      }
 
       if (mounted) {
         CustomToast.showToast(
@@ -578,16 +617,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
                     isDark: isDark,
                   ),
                   const SizedBox(height: 16),
-                  _buildModernTextField(
-                    controller: _customerPhoneController,
-                    label: 'Nomor Telepon',
-                    icon: Icons.phone,
-                    keyboardType: TextInputType.phone,
-                    validator: (val) => val == null || val.isEmpty
-                        ? 'Nomor telepon wajib diisi'
-                        : null,
-                    isDark: isDark,
-                  ),
+                  _buildPhoneNumberSection(isDark),
                   const SizedBox(height: 16),
                   _buildModernTextField(
                     controller: _emailController,
@@ -918,6 +948,138 @@ class _CheckoutPagesState extends State<CheckoutPages>
           ),
         ],
       ),
+    );
+  }
+
+  List<Map<String, dynamic>> _convertPaymentMethodsToApiFormat() {
+    return _paymentMethods.map((payment) {
+      return {
+        'payment_method': payment.type,
+        'payment_bank': payment.name, // Bank name from payment method name
+        'payment_number': payment.reference ?? '', // Transaction number
+        'payment_amount': payment.amount,
+        'note':
+            'Payment via ${payment.type}${payment.reference != null ? ' - Ref: ${payment.reference}' : ''}',
+      };
+    }).toList();
+  }
+
+  String? _validatePhoneNumber(String? value, bool isRequired) {
+    if (isRequired && (value == null || value.trim().isEmpty)) {
+      return 'Nomor telepon wajib diisi';
+    }
+
+    if (value != null && value.trim().isNotEmpty) {
+      // Remove all non-digit characters for validation
+      final cleanNumber = value.replaceAll(RegExp(r'[^\d]'), '');
+
+      // Check minimum length (8 digits for local numbers)
+      if (cleanNumber.length < 8) {
+        return 'Nomor telepon minimal 8 digit';
+      }
+
+      // Check maximum length (15 digits including country code)
+      if (cleanNumber.length > 15) {
+        return 'Nomor telepon maksimal 15 digit';
+      }
+
+      // Check if starts with valid Indonesian prefixes
+      if (cleanNumber.startsWith('08') ||
+          cleanNumber.startsWith('628') ||
+          cleanNumber.startsWith('8')) {
+        return null; // Valid Indonesian number
+      }
+
+      // Check for international format
+      if (cleanNumber.startsWith('0') || cleanNumber.length >= 10) {
+        return null; // Assume valid for other formats
+      }
+
+      return 'Format nomor telepon tidak valid';
+    }
+
+    return null;
+  }
+
+  Widget _buildPhoneNumberSection(bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Primary phone number with add button
+        Row(
+          children: [
+            Expanded(
+              child: _buildModernTextField(
+                controller: _customerPhoneController,
+                label: 'Nomor Telepon',
+                icon: Icons.phone,
+                keyboardType: TextInputType.phone,
+                validator: (val) => _validatePhoneNumber(val, true),
+                isDark: isDark,
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Add second phone button
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: _showSecondPhone
+                    ? Colors.red.withOpacity(0.1)
+                    : (isDark ? AppColors.primaryDark : AppColors.primaryLight)
+                        .withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: _showSecondPhone
+                      ? Colors.red
+                      : (isDark
+                          ? AppColors.primaryDark
+                          : AppColors.primaryLight),
+                  width: 1,
+                ),
+              ),
+              child: IconButton(
+                icon: Icon(
+                  _showSecondPhone ? Icons.remove : Icons.add,
+                  color: _showSecondPhone
+                      ? Colors.red
+                      : (isDark
+                          ? AppColors.primaryDark
+                          : AppColors.primaryLight),
+                  size: 20,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _showSecondPhone = !_showSecondPhone;
+                    if (!_showSecondPhone) {
+                      _customerPhone2Controller.clear();
+                    }
+                  });
+                },
+                tooltip: _showSecondPhone
+                    ? 'Hapus nomor kedua'
+                    : 'Tambah nomor kedua',
+              ),
+            ),
+          ],
+        ),
+        // Second phone number field (conditional)
+        if (_showSecondPhone) ...[
+          const SizedBox(height: 12),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            child: _buildModernTextField(
+              controller: _customerPhone2Controller,
+              label: 'Nomor Telepon Kedua (Opsional)',
+              icon: Icons.phone_outlined,
+              keyboardType: TextInputType.phone,
+              validator: (val) => _validatePhoneNumber(val, false),
+              isDark: isDark,
+            ),
+          ),
+        ],
+      ],
     );
   }
 
