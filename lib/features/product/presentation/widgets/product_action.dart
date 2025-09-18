@@ -48,6 +48,11 @@ class ProductActions {
   }
 
   static void showSharePopup(BuildContext context, ProductEntity product) {
+    showSharePopupWithPosition(context, product, context);
+  }
+
+  static void showSharePopupWithPosition(
+      BuildContext context, ProductEntity product, BuildContext buttonContext) {
     final state = context.read<ProductBloc>().state;
     ScreenshotController screenshotController = ScreenshotController();
     showDialog(
@@ -102,7 +107,19 @@ class ProductActions {
                       "📱 Dibagikan dari Alita Pricelist";
                   final imageFile = XFile.fromData(imageBytes,
                       mimeType: 'image/png', name: 'product_${product.id}.png');
-                  await Share.shareXFiles([imageFile], text: shareText);
+
+                  // Get the render box for proper positioning on iOS
+                  final RenderBox? box =
+                      buttonContext.findRenderObject() as RenderBox?;
+                  final Rect sharePositionOrigin = box != null
+                      ? box.localToGlobal(Offset.zero) & box.size
+                      : const Rect.fromLTWH(200, 100, 48, 48);
+
+                  await Share.shareXFiles(
+                    [imageFile],
+                    text: shareText,
+                    sharePositionOrigin: sharePositionOrigin,
+                  );
                   Navigator.pop(dialogContext); // Close share dialog
                   CustomToast.showToast(
                       "Produk berhasil dibagikan!", ToastType.success);

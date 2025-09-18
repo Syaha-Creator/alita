@@ -58,30 +58,11 @@ class ProductDetailPage extends StatelessWidget {
               SliverAppBar(
                 pinned: true,
                 stretch: false,
-                backgroundColor:
-                    isDark ? AppColors.primaryDark : AppColors.primaryLight,
-                title: Text(
-                  '${product.kasur} (${product.ukuran})',
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16.0,
-                      fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
-                ),
-                actions: [
-                  CartBadge(
-                    onTap: () {
-                      context.push(RoutePaths.cart);
-                    },
-                    child: Icon(Icons.shopping_cart_outlined, size: 28),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.share),
-                    onPressed: () =>
-                        ProductActions.showSharePopup(context, product),
-                    tooltip: 'Bagikan Produk',
-                  ),
-                ],
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                flexibleSpace: _buildCustomAppBar(context, product, isDark),
+                automaticallyImplyLeading: false,
+                toolbarHeight: 80,
               ),
               SliverList(
                 delegate: SliverChildListDelegate(
@@ -96,9 +77,302 @@ class ProductDetailPage extends StatelessWidget {
               ),
             ],
           ),
-          bottomSheet: _buildActionButtons(context, product, state, isDark),
+          bottomSheet:
+              _buildAdaptiveBottomSheet(context, product, state, isDark),
         );
       },
+    );
+  }
+
+  /// Build custom AppBar with centered product name
+  Widget _buildCustomAppBar(
+      BuildContext context, ProductEntity product, bool isDark) {
+    return SafeArea(
+      child: Container(
+        height: 80,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: [
+            // Back button (fixed width)
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: IconButton(
+                icon: Icon(
+                  Icons.arrow_back_ios_rounded,
+                  color:
+                      isDark ? AppColors.primaryDark : AppColors.primaryLight,
+                  size: 20,
+                ),
+                onPressed: () => Navigator.of(context).pop(),
+                tooltip: 'Kembali',
+              ),
+            ),
+
+            // Expanded center section for product name with proper spacing
+            Expanded(
+              child: Container(
+                margin: const EdgeInsets.symmetric(
+                    horizontal: 12), // Add spacing from sides
+                child: Center(
+                  child: _buildProductNameSection(product, isDark),
+                ),
+              ),
+            ),
+
+            // Action bubbles (fixed width)
+            _buildActionBubbles(context, product, isDark),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Build product name and size section in AppBar with adaptive sizing
+  Widget _buildProductNameSection(ProductEntity product, bool isDark) {
+    final productName = product.kasur;
+    final productSize = product.ukuran;
+    final fullText = '$productName ($productSize)';
+
+    // Calculate adaptive dimensions and font sizes
+    final adaptiveConfig =
+        _calculateAdaptiveTextConfig(productName, productSize, fullText);
+
+    return Container(
+      width: adaptiveConfig['bubbleWidth'],
+      height: adaptiveConfig['bubbleHeight'],
+      padding: EdgeInsets.symmetric(
+          horizontal: adaptiveConfig['horizontalPadding'],
+          vertical: adaptiveConfig['verticalPadding']),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Center(
+        child: adaptiveConfig['useTwoLines']
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Product name (separate line for long text)
+                  Text(
+                    productName,
+                    style: TextStyle(
+                      color: isDark
+                          ? AppColors.primaryDark
+                          : AppColors.primaryLight,
+                      fontSize: adaptiveConfig['nameFontSize'],
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.2,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 1),
+                  // Product size (separate line)
+                  if (productSize.isNotEmpty)
+                    Text(
+                      '($productSize)',
+                      style: TextStyle(
+                        color: (isDark
+                                ? AppColors.primaryDark
+                                : AppColors.primaryLight)
+                            .withOpacity(0.8),
+                        fontSize: adaptiveConfig['sizeFontSize'],
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.1,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              )
+            : Text(
+                // Short text: single line
+                fullText,
+                style: TextStyle(
+                  color:
+                      isDark ? AppColors.primaryDark : AppColors.primaryLight,
+                  fontSize: adaptiveConfig['nameFontSize'],
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.2,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+      ),
+    );
+  }
+
+  /// Build action bubbles (cart and share)
+  Widget _buildActionBubbles(
+      BuildContext context, ProductEntity product, bool isDark) {
+    return Container(
+      margin: const EdgeInsets.only(right: 8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Cart bubble
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: CartBadge(
+              onTap: () {
+                context.push(RoutePaths.cart);
+              },
+              child: Icon(
+                Icons.shopping_cart_outlined,
+                color: isDark ? AppColors.primaryDark : AppColors.primaryLight,
+                size: 20,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Share bubble
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Builder(
+              builder: (buttonContext) => IconButton(
+                icon: Icon(
+                  Icons.share_rounded,
+                  color:
+                      isDark ? AppColors.primaryDark : AppColors.primaryLight,
+                  size: 20,
+                ),
+                onPressed: () => ProductActions.showSharePopupWithPosition(
+                  context,
+                  product,
+                  buttonContext,
+                ),
+                tooltip: 'Bagikan Produk',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Build adaptive bottom sheet that respects device navigation
+  Widget _buildAdaptiveBottomSheet(BuildContext context, ProductEntity product,
+      ProductState state, bool isDark) {
+    final mediaQuery = MediaQuery.of(context);
+    final bottomPadding = mediaQuery.padding.bottom;
+    final viewInsets = mediaQuery.viewInsets.bottom;
+
+    // Detect if device has gesture navigation (home indicator)
+    final hasGestureNavigation = bottomPadding > 0;
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(16),
+          topRight: Radius.circular(16),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 16,
+        // Smart bottom padding based on navigation type
+        bottom: hasGestureNavigation
+            ? bottomPadding + 8 // ✅ Above gesture navigation
+            : 16, // ✅ Standard padding for button navigation
+      ),
+      child: _buildActionButtons(context, product, state, isDark),
+    );
+  }
+
+  Widget _buildActionButtons(BuildContext context, ProductEntity product,
+      ProductState state, bool isDark) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        // Left side action bubbles
+        Row(
+          children: [
+            _buildActionBubble(
+              context,
+              Icons.credit_card,
+              "Credit",
+              () => ProductActions.showCreditPopup(context, product),
+              isDark,
+            ),
+            const SizedBox(width: 12),
+            _buildActionBubble(
+              context,
+              Icons.edit,
+              "Edit",
+              () => ProductActions.showEditPopup(context, product),
+              isDark,
+            ),
+            const SizedBox(width: 12),
+            _buildActionBubble(
+              context,
+              Icons.info_outline,
+              "Info",
+              () => ProductActions.showInfoPopup(context, product),
+              isDark,
+            ),
+          ],
+        ),
+        // Right side - Add to Cart bubble
+        _buildAddToCartBubble(context, product, isDark),
+      ],
     );
   }
 
@@ -323,71 +597,6 @@ class ProductDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildActionButtons(BuildContext context, ProductEntity product,
-      ProductState state, bool isDark) {
-    final netPrice = state.roundedPrices[product.id] ?? product.endUserPrice;
-    final discountPercentages =
-        state.productDiscountsPercentage[product.id] ?? [];
-    final editPopupDiscount = state.priceChangePercentages[product.id] ?? 0.0;
-    int? installmentMonths = state.installmentMonths[product.id];
-    double? installmentPerMonth =
-        installmentMonths != null && installmentMonths > 0
-            ? netPrice / installmentMonths
-            : null;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-          horizontal: AppPadding.p16, vertical: AppPadding.p12),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-        boxShadow: [
-          BoxShadow(
-            color: isDark
-                ? Colors.black.withOpacity(0.3)
-                : Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, -5),
-          ),
-        ],
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(16),
-          topRight: Radius.circular(16),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              _actionIconButton(
-                  context,
-                  Icons.credit_card,
-                  "Credit",
-                  () => ProductActions.showCreditPopup(context, product),
-                  isDark),
-              const SizedBox(width: 16),
-              _actionIconButton(context, Icons.edit, "Edit",
-                  () => ProductActions.showEditPopup(context, product), isDark),
-              const SizedBox(width: 16),
-              _actionIconButton(context, Icons.info_outline, "Info",
-                  () => ProductActions.showInfoPopup(context, product), isDark),
-            ],
-          ),
-          ElevatedButton.icon(
-            onPressed: () => _addToCart(context, product),
-            icon: const Icon(Icons.shopping_cart, color: Colors.white),
-            label: const Text('Add to Cart',
-                style: TextStyle(color: Colors.white)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryLight,
-              foregroundColor: Colors.white,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildPriceRow(String title, String value,
       {Color? valueColor,
       bool isStrikethrough = false,
@@ -462,22 +671,78 @@ class ProductDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _actionIconButton(BuildContext context, IconData icon, String tooltip,
-      VoidCallback onPressed, bool isDark) {
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(24),
-        child: CircleAvatar(
-          radius: 22,
-          backgroundColor:
-              isDark ? AppColors.surfaceDark : Colors.grey.shade200,
-          child: Icon(
-            icon,
-            color: isDark ? AppColors.textPrimaryDark : Colors.grey.shade800,
-            size: 24,
+  /// Build action bubble with consistent AppBar styling
+  Widget _buildActionBubble(
+    BuildContext context,
+    IconData icon,
+    String tooltip,
+    VoidCallback onPressed,
+    bool isDark,
+  ) {
+    return Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
+        ],
+      ),
+      child: IconButton(
+        icon: Icon(
+          icon,
+          color: isDark ? AppColors.primaryDark : AppColors.primaryLight,
+          size: 20,
+        ),
+        onPressed: onPressed,
+        tooltip: tooltip,
+      ),
+    );
+  }
+
+  /// Build Add to Cart bubble with primary styling
+  Widget _buildAddToCartBubble(
+    BuildContext context,
+    ProductEntity product,
+    bool isDark,
+  ) {
+    return Container(
+      height: 48,
+      decoration: BoxDecoration(
+        color: AppColors.primaryLight,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ElevatedButton.icon(
+        onPressed: () => _addToCart(context, product),
+        icon: const Icon(Icons.shopping_cart, color: Colors.white, size: 20),
+        label: const Text(
+          'Add to Cart',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
       ),
     );
@@ -507,5 +772,99 @@ class ProductDetailPage extends StatelessWidget {
     } catch (e) {
       CustomToast.showToast('Error adding to cart: $e', ToastType.error);
     }
+  }
+
+  /// Calculate adaptive text configuration based on content length
+  Map<String, dynamic> _calculateAdaptiveTextConfig(
+      String productName, String productSize, String fullText) {
+    final nameLength = productName.length;
+    final sizeLength = productSize.length;
+    final fullLength = fullText.length;
+
+    // Determine if we need two lines
+    bool useTwoLines = fullLength > 22 || nameLength > 18;
+
+    // Calculate bubble dimensions based on precise content fitting
+    double bubbleWidth;
+    double bubbleHeight;
+    double nameFontSize;
+    double sizeFontSize;
+    double horizontalPadding = 12.0;
+    double verticalPadding;
+
+    if (useTwoLines) {
+      // Two-line layout - calculate based on longest line
+      bubbleHeight = 52.0;
+      verticalPadding = 6.0;
+
+      final maxLineLength = nameLength > (sizeLength + 2)
+          ? nameLength
+          : (sizeLength + 2); // +2 for parentheses
+
+      // Precise width calculation: character width * font size + padding
+      if (maxLineLength <= 12) {
+        nameFontSize = 16.0;
+        sizeFontSize = 12.0;
+        bubbleWidth = (maxLineLength * 9.0) +
+            (horizontalPadding * 2); // ~9px per char at 16px font
+      } else if (maxLineLength <= 16) {
+        nameFontSize = 15.0;
+        sizeFontSize = 11.0;
+        bubbleWidth = (maxLineLength * 8.5) +
+            (horizontalPadding * 2); // ~8.5px per char at 15px font
+      } else if (maxLineLength <= 20) {
+        nameFontSize = 14.0;
+        sizeFontSize = 10.0;
+        bubbleWidth = (maxLineLength * 8.0) +
+            (horizontalPadding * 2); // ~8px per char at 14px font
+      } else if (maxLineLength <= 25) {
+        nameFontSize = 13.0;
+        sizeFontSize = 9.0;
+        bubbleWidth = (maxLineLength * 7.5) +
+            (horizontalPadding * 2); // ~7.5px per char at 13px font
+      } else {
+        // Very long text
+        nameFontSize = 12.0;
+        sizeFontSize = 8.0;
+        bubbleWidth = (maxLineLength * 7.0) +
+            (horizontalPadding * 2); // ~7px per char at 12px font
+      }
+    } else {
+      // Single-line layout - calculate based on full text
+      bubbleHeight = 40.0;
+      verticalPadding = 8.0;
+
+      // Precise width calculation for single line
+      if (fullLength <= 10) {
+        nameFontSize = 16.0;
+        bubbleWidth = (fullLength * 9.0) + (horizontalPadding * 2);
+      } else if (fullLength <= 15) {
+        nameFontSize = 15.0;
+        bubbleWidth = (fullLength * 8.5) + (horizontalPadding * 2);
+      } else if (fullLength <= 20) {
+        nameFontSize = 14.0;
+        bubbleWidth = (fullLength * 8.0) + (horizontalPadding * 2);
+      } else {
+        nameFontSize = 13.0;
+        bubbleWidth = (fullLength * 7.5) + (horizontalPadding * 2);
+      }
+
+      sizeFontSize = nameFontSize; // Same as name for single line
+    }
+
+    // Ensure minimum and maximum constraints
+    bubbleWidth = bubbleWidth.clamp(120.0, 320.0);
+    nameFontSize = nameFontSize.clamp(11.0, 16.0);
+    sizeFontSize = sizeFontSize.clamp(9.0, 13.0);
+
+    return {
+      'useTwoLines': useTwoLines,
+      'bubbleWidth': bubbleWidth,
+      'bubbleHeight': bubbleHeight,
+      'nameFontSize': nameFontSize,
+      'sizeFontSize': sizeFontSize,
+      'horizontalPadding': horizontalPadding,
+      'verticalPadding': verticalPadding,
+    };
   }
 }
