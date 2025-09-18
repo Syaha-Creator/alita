@@ -69,13 +69,15 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         ],
       ),
       floatingActionButton: _document != null
-          ? FloatingActionButton.extended(
-              onPressed: _generatePDF,
-              backgroundColor: Colors.red[600],
-              foregroundColor: Colors.white,
-              icon: const Icon(Icons.picture_as_pdf),
-              elevation: 8,
-              label: const Text('Generate PDF'),
+          ? Builder(
+              builder: (buttonContext) => FloatingActionButton.extended(
+                onPressed: () => _generatePDF(buttonContext),
+                backgroundColor: Colors.red[600],
+                foregroundColor: Colors.white,
+                icon: const Icon(Icons.picture_as_pdf),
+                elevation: 8,
+                label: const Text('Generate PDF'),
+              ),
             )
           : null,
       body: _isLoading
@@ -692,18 +694,6 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
     }
   }
 
-
-
-
-
-
-
-
-
-
-
-
-
   Widget _buildTotalsSection() {
     final details = _document!.details;
     final discounts = _document!.discounts;
@@ -1098,7 +1088,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
     );
   }
 
-  Future<void> _generatePDF() async {
+  Future<void> _generatePDF(BuildContext buttonContext) async {
     if (_document == null) return;
 
     try {
@@ -1199,9 +1189,18 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         shipToName: _document!.shipToName,
       );
 
-      // Save and share PDF
+      // Save and share PDF with proper positioning for iOS
       final fileName = 'Surat_Pesanan_${_document!.noSp}.pdf';
-      await PDFService.sharePDF(pdfBytes, fileName);
+
+      // Get the render box for proper positioning on iOS
+      final RenderBox? box = buttonContext.findRenderObject() as RenderBox?;
+      final Rect sharePositionOrigin = box != null
+          ? box.localToGlobal(Offset.zero) & box.size
+          : const Rect.fromLTWH(
+              200, 400, 120, 48); // Fallback to approximate FAB position
+
+      await PDFService.sharePDFWithPosition(
+          pdfBytes, fileName, sharePositionOrigin);
 
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
