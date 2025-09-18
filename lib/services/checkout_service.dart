@@ -1,18 +1,19 @@
 import '../config/dependency_injection.dart';
 import '../features/cart/domain/entities/cart_entity.dart';
 import '../features/product/presentation/bloc/product_bloc.dart';
+import '../features/approval/data/repositories/approval_repository.dart';
 import '../services/auth_service.dart';
 import '../services/order_letter_service.dart';
-import '../services/unified_notification_service.dart';
+import '../services/core_notification_service.dart';
 
 class CheckoutService {
   late final OrderLetterService _orderLetterService;
-  late final UnifiedNotificationService _notificationService;
+  late final CoreNotificationService _notificationService;
 
   CheckoutService() {
     // Initialize services without circular dependency
     _orderLetterService = locator<OrderLetterService>();
-    _notificationService = UnifiedNotificationService();
+    _notificationService = locator<CoreNotificationService>();
   }
 
   /// Create Order Letter from Cart Items
@@ -28,8 +29,6 @@ class CheckoutService {
     required String note,
   }) async {
     try {
-      print('CheckoutService: Starting order letter creation from cart');
-
       final userName = await AuthService.getCurrentUserName() ?? 'Unknown User';
       final now = DateTime.now();
       final orderDateStr = now.toIso8601String().split('T')[0];
@@ -56,6 +55,9 @@ class CheckoutService {
         }
       }
 
+      // Determine smart status based on discount approval requirements
+      String orderStatus = _determineOrderStatus(allDiscounts);
+
       // Prepare Order Letter Data
       final orderLetterData = {
         'order_date': orderDateStr,
@@ -71,13 +73,8 @@ class CheckoutService {
         'harga_awal': totalHargaAwal,
         'discount': totalDiscountPercentage,
         'note': note,
-        'status': 'Pending',
+        'status': orderStatus,
       };
-
-      print('CheckoutService: Order letter data prepared: $orderLetterData');
-      print(
-        'CheckoutService: Shipping data - shipToName: "$shipToName", addressShipTo: "$addressShipTo"',
-      );
 
       // Prepare Details Data
       final List<Map<String, dynamic>> detailsData = [];
@@ -195,8 +192,6 @@ class CheckoutService {
         leaderIds.addAll(productLeaderIds);
       }
 
-      print('CheckoutService: Leader IDs prepared: $leaderIds');
-
       // Create Order Letter with Details and Discounts
       final result = await _orderLetterService.createOrderLetterWithDetails(
         orderLetterData: orderLetterData,
@@ -204,8 +199,6 @@ class CheckoutService {
         discountsData: allDiscounts,
         leaderIds: leaderIds,
       );
-
-      print('CheckoutService: Order letter creation result: $result');
 
       // Send notification if order letter created successfully
       if (result['success'] == true) {
@@ -222,10 +215,9 @@ class CheckoutService {
               totalAmount: totalExtendedAmount,
             );
           } else {
-            // Fallback to unified notification service
-            final approvalNotificationService =
-                locator<UnifiedNotificationService>();
-            await approvalNotificationService.handleOrderLetterCreation(
+            // Use core notification service
+            final coreNotificationService = locator<CoreNotificationService>();
+            await coreNotificationService.handleOrderLetterCreation(
               creatorUserId: 'unknown',
               orderId: result['orderLetterId']?.toString() ?? 'Unknown',
               customerName: customerName,
@@ -233,15 +225,44 @@ class CheckoutService {
             );
           }
         } catch (e) {
-          print('CheckoutService: Error sending notification: $e');
           // Don't fail the checkout process if notification fails
+        }
+
+        // Invalidate approval cache so new order appears immediately
+        try {
+          final approvalRepository = locator<ApprovalRepository>();
+          approvalRepository.clearCache();
+        } catch (e) {
+          // Don't fail if cache clear fails
         }
       }
 
       return result;
     } catch (e) {
-      print('CheckoutService: Error creating order letter from cart: $e');
       return {'success': false, 'message': 'Error creating order letter: $e'};
     }
+  }
+
+  /// Determine order status based on discount approval requirements
+  String _determineOrderStatus(List<double> discounts) {
+    // Filter out zero discounts (no approval needed)
+    final significantDiscounts = discounts.where((d) => d > 0.0).toList();
+
+    if (significantDiscounts.isEmpty) {
+      // No discounts that need approval → Approved immediately
+      return 'Approved';
+    }
+
+    // Check if only user-level discounts (level 1 auto-approved)
+    // For now, assume any discount > 0 needs approval beyond user level
+    // This logic can be enhanced based on business rules
+
+    if (significantDiscounts.every((d) => d <= 5.0)) {
+      // Small discounts (≤5%) → Only user approval needed → Auto-approved
+      return 'Approved';
+    }
+
+    // Has significant discounts that need higher-level approval
+    return 'Pending';
   }
 }

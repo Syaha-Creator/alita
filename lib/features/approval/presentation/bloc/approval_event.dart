@@ -68,3 +68,16 @@ class FilterApprovals extends ApprovalEvent {
   @override
   List<Object> get props => [status];
 }
+
+class UpdateSingleApproval extends ApprovalEvent {
+  final int orderLetterId;
+
+  const UpdateSingleApproval(this.orderLetterId);
+
+  @override
+  List<Object> get props => [orderLetterId];
+}
+
+class LoadNewApprovalsIncremental extends ApprovalEvent {
+  const LoadNewApprovalsIncremental();
+}

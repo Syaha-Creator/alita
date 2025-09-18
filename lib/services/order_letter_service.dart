@@ -101,7 +101,6 @@ class OrderLetterService {
         detailResults.add(detailResult);
 
         if (detailResult['success']) {
-          // print('OrderLetterService: Detail created successfully');
         } else {
           // print(
           //     'OrderLetterService: Failed to create detail: ${detailResult['message']}');
@@ -229,26 +228,36 @@ class OrderLetterService {
             }
           }
         } catch (e) {
-          // print('OrderLetterService: Error getting leader data: $e');
           // Fallback to current user data
         }
 
         // print(
         //     'OrderLetterService: Discount $i - Approver: $approverName ($approverId), Level: $approverLevel, Title: $approverWorkTitle');
 
-        // Auto-approve for User level (level 1)
+        // Smart approval logic
         bool isApproved = false;
         String? approvedAt;
+        String? approvedValue;
 
         if (i == 0) {
-          // User level
+          // User level - always auto-approved (user created the order)
           isApproved = true;
           approvedAt = DateTime.now().toIso8601String();
-          // print('OrderLetterService: Auto-approving User level discount');
-        }
+          approvedValue = 'true';
+        } else {
+          // Check if this level is the same as the creator (self-approval case)
+          final currentUserId = await AuthService.getCurrentUserId();
 
-        // For level 2-5, set approved to null (pending), not false (rejected)
-        final approvedValue = i == 0 ? 'true' : null;
+          if (currentUserId != null && approverId == currentUserId) {
+            // Self-approval case: auto-approve if user is their own approver
+            isApproved = true;
+            approvedAt = DateTime.now().toIso8601String();
+            approvedValue = 'true';
+          } else {
+            // Different approver: set to pending
+            approvedValue = null;
+          }
+        }
 
         final discountData = {
           'order_letter_id': orderLetterId,
@@ -263,18 +272,10 @@ class OrderLetterService {
           'approved_at': approvedAt, // Hanya level 1 yang akan ada approved_at
         };
 
-        print('OrderLetterService: Discount $i - Final data being sent:');
-        print('  - Level: ${i + 1} ($approverLevel)');
-        print('  - Approver: $approverName ($approverId)');
-        print('  - Approved: $approvedValue');
-        print('  - Approved At: $approvedAt');
-        print('  - Full data: $discountData');
-
         final discountResult = await createOrderLetterDiscount(discountData);
         discountResults.add(discountResult);
 
         if (discountResult['success']) {
-          // print('OrderLetterService: Discount created successfully');
         } else {
           // print(
           //     'OrderLetterService: Failed to create discount: ${discountResult['message']}');
@@ -287,6 +288,19 @@ class OrderLetterService {
       final allDiscountsSuccess =
           discountResults.every((result) => result['success']);
 
+      // Determine final status after discount creation
+      String finalStatus = orderLetterData['status'] ?? 'Pending';
+
+      if (allDetailsSuccess && allDiscountsSuccess) {
+        finalStatus =
+            await _determineFinalOrderStatus(orderLetterId, discountsData);
+      }
+
+      // Update order letter status if it should be auto-approved
+      if (finalStatus == 'Approved') {
+        await _updateOrderLetterStatus(orderLetterId, 'Approved');
+      }
+
       return {
         'success': allDetailsSuccess && allDiscountsSuccess,
         'message': allDetailsSuccess && allDiscountsSuccess
@@ -294,11 +308,11 @@ class OrderLetterService {
             : 'Order letter created but some details or discounts failed',
         'orderLetterId': orderLetterId,
         'noSp': noSp,
+        'finalStatus': finalStatus,
         'detailResults': detailResults,
         'discountResults': discountResults,
       };
     } catch (e) {
-      // print('OrderLetterService: Error in createOrderLetterWithDetails: $e');
       return {
         'success': false,
         'message': 'Error creating order letter: $e',
@@ -324,7 +338,6 @@ class OrderLetterService {
       final response = await dio.post(url, data: orderLetterData);
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        // print('OrderLetterService: Order letter response: ${response.data}');
         return {
           'success': true,
           'data': response.data,
@@ -335,7 +348,6 @@ class OrderLetterService {
             'Failed to create order letter: ${response.statusCode}');
       }
     } catch (e) {
-      // print('OrderLetterService: Error creating order letter: $e');
       return {
         'success': false,
         'message': 'Error creating order letter: $e',
@@ -353,7 +365,6 @@ class OrderLetterService {
       }
 
       final url = ApiConfig.getCreateOrderLetterDetailUrl(token: token);
-      // print('OrderLetterService: Creating detail with data: $detailData');
 
       final response = await dio.post(url, data: detailData);
 
@@ -368,7 +379,6 @@ class OrderLetterService {
             'Failed to create order letter detail: ${response.statusCode}');
       }
     } catch (e) {
-      // print('OrderLetterService: Error creating order letter detail: $e');
       return {
         'success': false,
         'message': 'Error creating order letter detail: $e',
@@ -386,7 +396,6 @@ class OrderLetterService {
       }
 
       final url = ApiConfig.getCreateOrderLetterDiscountUrl(token: token);
-      // print('OrderLetterService: Creating discount with data: $discountData');
 
       final response = await dio.post(url, data: discountData);
 
@@ -401,12 +410,10 @@ class OrderLetterService {
       } else {
         // print(
         //     'OrderLetterService: Discount creation failed with status: ${response.statusCode}');
-        // print('OrderLetterService: Error response: ${response.data}');
         throw Exception(
             'Failed to create order letter discount: ${response.statusCode}');
       }
     } catch (e) {
-      // print('OrderLetterService: Error creating order letter discount: $e');
       return {
         'success': false,
         'message': 'Error creating order letter discount: $e',
@@ -436,9 +443,6 @@ class OrderLetterService {
         'job_level_id': jobLevelId,
       };
 
-      // print('OrderLetterService: Approving discount with URL: $approveUrl');
-      // print('OrderLetterService: Approve data: $approveData');
-
       final approveResponse = await dio.post(
         approveUrl,
         data: approveData,
@@ -450,8 +454,6 @@ class OrderLetterService {
         ),
       );
 
-      // print('OrderLetterService: Approve response: ${approveResponse.data}');
-
       // PUT to order_letter_discounts endpoint
       final updateUrl = ApiConfig.getUpdateOrderLetterDiscountUrl(
         token: token,
@@ -461,9 +463,6 @@ class OrderLetterService {
         'approved': true,
         'approved_at': currentTime,
       };
-
-      // print('OrderLetterService: Updating discount with URL: $updateUrl');
-      // print('OrderLetterService: Update data: $updateData');
 
       final updateResponse = await dio.put(
         updateUrl,
@@ -475,8 +474,6 @@ class OrderLetterService {
           },
         ),
       );
-
-      // print('OrderLetterService: Update response: ${updateResponse.data}');
 
       // Check if this is the final approval (highest level)
       final isFinalApproval = await _isFinalApproval(orderLetterId, jobLevelId);
@@ -496,7 +493,6 @@ class OrderLetterService {
         'is_final_approval': isFinalApproval,
       };
     } catch (e) {
-      // print('OrderLetterService: Error approving discount: $e');
       rethrow;
     }
   }
@@ -528,7 +524,6 @@ class OrderLetterService {
       //     'OrderLetterService: Highest level: $highestLevel, Current level: $currentJobLevelId');
       return currentJobLevelId == highestLevel;
     } catch (e) {
-      // print('OrderLetterService: Error checking final approval: $e');
       return false;
     }
   }
@@ -548,9 +543,6 @@ class OrderLetterService {
         'status': status,
       };
 
-      // print('OrderLetterService: Updating order letter status with URL: $url');
-      // print('OrderLetterService: Update data: $updateData');
-
       final response = await dio.put(
         url,
         data: updateData,
@@ -566,7 +558,6 @@ class OrderLetterService {
       //     'OrderLetterService: Order letter status update response: ${response.data}');
       return response.data;
     } catch (e) {
-      // print('OrderLetterService: Error updating order letter status: $e');
       return null;
     }
   }
@@ -580,14 +571,11 @@ class OrderLetterService {
       }
 
       final url = ApiConfig.getOrderLettersUrl(token: token, creator: creator);
-      // print('OrderLetterService: Getting order letters with URL: $url');
-      // print('OrderLetterService: Creator filter: $creator');
 
       final response = await dio.get(url);
 
       if (response.statusCode == 200) {
         final data = response.data;
-        // print('OrderLetterService: Order letters response data: $data');
 
         if (data is List) {
           final result = List<Map<String, dynamic>>.from(data);
@@ -608,8 +596,54 @@ class OrderLetterService {
             'Failed to fetch order letters: ${response.statusCode}');
       }
     } catch (e) {
-      // print('OrderLetterService: Error getting order letters: $e');
       return [];
+    }
+  }
+
+  /// Get Order Letters with Complete Data (optimized for approval monitoring)
+  /// This method fetches order letters along with their details, discounts, and approvals in one API call
+  Future<List<Map<String, dynamic>>> getOrderLettersWithCompleteData({
+    String? creator,
+    bool includeDetails = true,
+    bool includeDiscounts = true,
+    bool includeApprovals = true,
+  }) async {
+    try {
+      final token = await AuthService.getToken();
+      if (token == null) {
+        throw Exception('Token not found');
+      }
+
+      final url = ApiConfig.getOrderLettersWithCompleteDataUrl(
+        token: token,
+        creator: creator,
+        includeDetails: includeDetails,
+        includeDiscounts: includeDiscounts,
+        includeApprovals: includeApprovals,
+      );
+
+      final response = await dio.get(url);
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+
+        if (data is List) {
+          final result = List<Map<String, dynamic>>.from(data);
+
+          return result;
+        } else if (data is Map && data['result'] is List) {
+          final result = List<Map<String, dynamic>>.from(data['result']);
+
+          return result;
+        }
+
+        return await getOrderLetters(creator: creator);
+      } else {
+        return await getOrderLetters(creator: creator);
+      }
+    } catch (e) {
+      // Fallback to original method
+      return await getOrderLetters(creator: creator);
     }
   }
 
@@ -725,7 +759,6 @@ class OrderLetterService {
             'Failed to fetch order letter approves: ${response.statusCode}');
       }
     } catch (e) {
-      // print('OrderLetterService: Error getting order letter approves: $e');
       return [];
     }
   }
@@ -753,11 +786,75 @@ class OrderLetterService {
             'Failed to create order letter approve: ${response.statusCode}');
       }
     } catch (e) {
-      // print('OrderLetterService: Error creating order letter approve: $e');
       return {
         'success': false,
         'message': 'Error creating order letter approve: $e',
       };
+    }
+  }
+
+  /// Determine final order status after discount creation
+  Future<String> _determineFinalOrderStatus(
+      int? orderLetterId, List<double> discountsData) async {
+    try {
+      if (orderLetterId == null) return 'Pending';
+
+      // Filter significant discounts
+      final significantDiscounts = discountsData.where((d) => d > 0.0).toList();
+
+      if (significantDiscounts.isEmpty) {
+        // No discounts → Approved immediately
+        return 'Approved';
+      }
+
+      // Get created discount records to check approval levels
+      final discountRecords =
+          await getOrderLetterDiscounts(orderLetterId: orderLetterId);
+
+      if (discountRecords.isEmpty) {
+        // No discount records created → Approved
+        return 'Approved';
+      }
+
+      // Check approval status for all discount levels
+      bool allRequiredApprovalsCompleted = true;
+      bool hasPendingApprovals = false;
+
+      for (final discount in discountRecords) {
+        final level = discount['approver_level_id'] ?? 1;
+        final approved = discount['approved'];
+
+        // Check if this level needs approval
+        if (level == 1) {
+          // User level should always be approved
+          if (approved != true) {
+            allRequiredApprovalsCompleted = false;
+          }
+        } else {
+          // Higher levels: check if approval is needed
+          if (approved == null) {
+            // Pending approval
+            hasPendingApprovals = true;
+            allRequiredApprovalsCompleted = false;
+          } else if (approved == false) {
+            // Rejected
+            return 'Rejected';
+          }
+          // If approved == true, continue checking other levels
+        }
+      }
+
+      // Determine final status
+      if (allRequiredApprovalsCompleted && !hasPendingApprovals) {
+        return 'Approved';
+      } else if (hasPendingApprovals) {
+        return 'Pending';
+      } else {
+        return 'Approved'; // Default to approved if all checks pass
+      }
+    } catch (e) {
+      // Default to Pending if there's any error
+      return 'Pending';
     }
   }
 }

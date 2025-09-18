@@ -119,6 +119,23 @@ class ApiConfig {
     return "$orderLetters?access_token=$token&client_id=$clientId&client_secret=$clientSecret$creatorParam";
   }
 
+  // Helper untuk Order Letters with Complete Data (optimized for approval monitoring)
+  static String getOrderLettersWithCompleteDataUrl({
+    required String token,
+    String? creator,
+    bool includeDetails = true,
+    bool includeDiscounts = true,
+    bool includeApprovals = true,
+  }) {
+    final creatorParam = creator != null ? "&creator=$creator" : "";
+    final includeDetailsParam = includeDetails ? "&include_details=true" : "";
+    final includeDiscountsParam =
+        includeDiscounts ? "&include_discounts=true" : "";
+    final includeApprovalsParam =
+        includeApprovals ? "&include_approvals=true" : "";
+    return "$orderLetters?access_token=$token&client_id=$clientId&client_secret=$clientSecret$creatorParam$includeDetailsParam$includeDiscountsParam$includeApprovalsParam";
+  }
+
   // Helper untuk Order Letter Details
   static String getOrderLetterDetailsUrl({
     required String token,

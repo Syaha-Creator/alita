@@ -1,9 +1,10 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../config/dependency_injection.dart';
-import '../../../../services/unified_notification_service.dart';
+import '../../../../services/core_notification_service.dart';
 import '../../domain/entities/approval_entity.dart';
 import '../../domain/usecases/get_approvals_usecase.dart';
 import '../../domain/usecases/create_approval_usecase.dart';
+import '../../data/repositories/approval_repository.dart';
 import 'approval_event.dart';
 import 'approval_state.dart';
 
@@ -14,8 +15,8 @@ class ApprovalBloc extends Bloc<ApprovalEvent, ApprovalState> {
   final GetApprovedApprovalsUseCase _getApprovedApprovalsUseCase;
   final GetRejectedApprovalsUseCase _getRejectedApprovalsUseCase;
   final CreateApprovalUseCase _createApprovalUseCase;
-  // Removed ApprovalNotificationService - using UnifiedNotificationService instead
-  final UnifiedNotificationService _unifiedNotificationService;
+  // Using consolidated CoreNotificationService
+  final CoreNotificationService _coreNotificationService;
 
   ApprovalBloc()
       : _getApprovalsUseCase = locator<GetApprovalsUseCase>(),
@@ -24,8 +25,8 @@ class ApprovalBloc extends Bloc<ApprovalEvent, ApprovalState> {
         _getApprovedApprovalsUseCase = locator<GetApprovedApprovalsUseCase>(),
         _getRejectedApprovalsUseCase = locator<GetRejectedApprovalsUseCase>(),
         _createApprovalUseCase = locator<CreateApprovalUseCase>(),
-        // Removed ApprovalNotificationService initialization
-        _unifiedNotificationService = locator<UnifiedNotificationService>(),
+        // Using consolidated CoreNotificationService
+        _coreNotificationService = locator<CoreNotificationService>(),
         super(ApprovalInitial()) {
     on<LoadApprovals>(_onLoadApprovals);
     on<LoadPendingApprovals>(_onLoadPendingApprovals);
@@ -35,6 +36,8 @@ class ApprovalBloc extends Bloc<ApprovalEvent, ApprovalState> {
     on<CreateApproval>(_onCreateApproval);
     on<RefreshApprovals>(_onRefreshApprovals);
     on<FilterApprovals>(_onFilterApprovals);
+    on<UpdateSingleApproval>(_onUpdateSingleApproval);
+    on<LoadNewApprovalsIncremental>(_onLoadNewApprovalsIncremental);
   }
 
   Future<void> _onLoadApprovals(
@@ -144,7 +147,7 @@ class ApprovalBloc extends Bloc<ApprovalEvent, ApprovalState> {
         // Send notification to next level leader
         try {
           // Use new approval flow notification service
-          await _unifiedNotificationService.handleApprovalFlow(
+          await _coreNotificationService.handleApprovalFlowNotification(
             orderLetterId: event.orderLetterId.toString(),
             approverUserId: result['approver_user_id'] ?? '',
             approverName: event.approverName,
@@ -162,7 +165,7 @@ class ApprovalBloc extends Bloc<ApprovalEvent, ApprovalState> {
 
           // Fallback to unified notification service
           try {
-            await _unifiedNotificationService.handleApprovalFlow(
+            await _coreNotificationService.handleApprovalFlowNotification(
               orderLetterId: event.orderLetterId.toString(),
               approverUserId: result['approver_user_id'] ?? '',
               approverName: event.approverName,
@@ -175,12 +178,12 @@ class ApprovalBloc extends Bloc<ApprovalEvent, ApprovalState> {
                   : null,
             );
           } catch (fallbackError) {
-            print('Error sending fallback notification: $fallbackError');
+            // Silent error handling for fallback notification
           }
         }
 
-        // Refresh the approvals list
-        add(const RefreshApprovals());
+        // Update only this specific approval instead of full refresh
+        add(UpdateSingleApproval(event.orderLetterId));
       } else {
         emit(ApprovalActionError(
           message: result['message'] ?? 'Gagal membuat approval',
@@ -239,6 +242,69 @@ class ApprovalBloc extends Bloc<ApprovalEvent, ApprovalState> {
       }
     } catch (e) {
       emit(ApprovalError('Gagal filter approval: $e'));
+    }
+  }
+
+  Future<void> _onUpdateSingleApproval(
+      UpdateSingleApproval event, Emitter<ApprovalState> emit) async {
+    try {
+      // Get current state
+      final currentState = state;
+      if (currentState is! ApprovalLoaded) {
+        // If not loaded, do full load instead
+        add(LoadApprovals());
+        return;
+      }
+
+      // Update specific approval
+      final repository = locator<ApprovalRepository>();
+      final updatedApproval =
+          await repository.updateSingleApproval(event.orderLetterId);
+
+      if (updatedApproval != null) {
+        // Update the specific item in current state
+        final updatedApprovals = currentState.approvals.map((approval) {
+          if (approval.id == event.orderLetterId) {
+            return updatedApproval;
+          }
+          return approval;
+        }).toList();
+
+        // Emit updated state without full loading
+        emit(ApprovalLoaded(
+          approvals: updatedApprovals,
+          filterStatus: currentState.filterStatus,
+        ));
+      }
+    } catch (e) {
+      // If selective update fails, don't emit error - just skip
+      // User can still pull-to-refresh for full update
+    }
+  }
+
+  Future<void> _onLoadNewApprovalsIncremental(
+      LoadNewApprovalsIncremental event, Emitter<ApprovalState> emit) async {
+    try {
+      // Get current state
+      final currentState = state;
+      if (currentState is! ApprovalLoaded) {
+        // If not loaded, do full load instead
+        add(LoadApprovals());
+        return;
+      }
+
+      // Load new approvals incrementally
+      final repository = locator<ApprovalRepository>();
+      final updatedApprovals = await repository.loadNewApprovalsIncremental();
+
+      // Emit updated state with new approvals at top
+      emit(ApprovalLoaded(
+        approvals: updatedApprovals,
+        filterStatus: currentState.filterStatus,
+      ));
+    } catch (e) {
+      // If incremental load fails, don't emit error - just skip
+      // User can still pull-to-refresh for full update
     }
   }
 }
