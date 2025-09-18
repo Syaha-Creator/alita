@@ -1,5 +1,6 @@
 // lib/services/pdf_services.dart
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
@@ -77,6 +78,15 @@ class PDFService {
     final font = await PdfGoogleFonts.poppinsRegular();
     final boldFont = await PdfGoogleFonts.poppinsBold();
 
+    // Load watermark image berdasarkan status
+    pw.Widget? watermarkWidget;
+    if (approvalData != null) {
+      watermarkWidget = await _buildImageWatermark(
+          isAllApproved: _isAllApproved(approvalData));
+    } else if (isPaid) {
+      watermarkWidget = await _buildImageWatermark(isAllApproved: true);
+    }
+
     pdf.addPage(
       pw.MultiPage(
         pageTheme: pw.PageTheme(
@@ -84,17 +94,7 @@ class PDFService {
           margin: const pw.EdgeInsets.fromLTRB(36, 28, 36, 28),
           theme: pw.ThemeData.withFont(base: font, bold: boldFont),
           buildBackground: (pw.Context context) {
-            // Tampilkan watermark berdasarkan status approval
-            if (approvalData != null) {
-              return _buildLunasWatermark(
-                  isAllApproved: _isAllApproved(approvalData));
-            }
-            // Jika tidak ada approval data, gunakan logic lama
-            if (isPaid) {
-              return _buildLunasWatermark(isAllApproved: true);
-            }
-            // Jika tidak, kembalikan widget kosong
-            return pw.SizedBox();
+            return watermarkWidget ?? pw.SizedBox();
           },
         ),
         // --- Akhir Perubahan ---
@@ -166,30 +166,59 @@ class PDFService {
     return approvalData.every((approval) => approval['approved'] == true);
   }
 
-  /// Membuat watermark LUNAS atau WAITING TO APPROVAL pada PDF.
-  static pw.Widget _buildLunasWatermark({bool isAllApproved = false}) {
-    return pw.Center(
-      child: pw.Transform.rotate(
-        angle: 0.785,
-        child: pw.Text(
-          isAllApproved ? 'LUNAS' : 'WAITING TO APPROVAL',
-          style: pw.TextStyle(
-            fontSize: 120,
-            color: PdfColor(
-              isAllApproved ? PdfColors.green300.red : PdfColors.orange300.red,
-              isAllApproved
-                  ? PdfColors.green300.green
-                  : PdfColors.orange300.green,
-              isAllApproved
-                  ? PdfColors.green300.blue
-                  : PdfColors.orange300.blue,
-              0.05, // lebih tipis
+  /// Membuat watermark dengan gambar PAID atau UNPAID pada PDF.
+  static Future<pw.Widget> _buildImageWatermark(
+      {bool isAllApproved = false}) async {
+    try {
+      // Load gambar dari assets berdasarkan status
+      final String assetPath =
+          isAllApproved ? 'assets/images/paid.png' : 'assets/images/unpaid.png';
+
+      final ByteData imageData = await rootBundle.load(assetPath);
+      final Uint8List imageBytes = imageData.buffer.asUint8List();
+      final pw.ImageProvider imageProvider = pw.MemoryImage(imageBytes);
+
+      return pw.Center(
+        child: pw.Transform.rotate(
+          angle: 0.785, // 45 degrees rotation
+          child: pw.Opacity(
+            opacity: 0.25, // 25% opacity (20-30% range)
+            child: pw.Image(
+              imageProvider,
+              width: 300, // Ukuran watermark
+              height: 300,
+              fit: pw.BoxFit.contain,
             ),
-            fontWeight: pw.FontWeight.bold,
           ),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      // Fallback ke text watermark jika gambar gagal dimuat
+      return pw.Center(
+        child: pw.Transform.rotate(
+          angle: 0.785,
+          child: pw.Text(
+            isAllApproved ? 'PAID' : 'UNPAID',
+            style: pw.TextStyle(
+              fontSize: 120,
+              color: PdfColor(
+                isAllApproved
+                    ? PdfColors.green300.red
+                    : PdfColors.orange300.red,
+                isAllApproved
+                    ? PdfColors.green300.green
+                    : PdfColors.orange300.green,
+                isAllApproved
+                    ? PdfColors.green300.blue
+                    : PdfColors.orange300.blue,
+                0.25, // 25% opacity
+              ),
+              fontWeight: pw.FontWeight.bold,
+            ),
+          ),
+        ),
+      );
+    }
   }
 
   /// Load image provider dari asset untuk logo.
@@ -853,26 +882,64 @@ class PDFService {
       final filePath = '${directory.path}/$fileName';
       final file = File(filePath);
       await file.writeAsBytes(pdfBytes);
-      print('filePath: $filePath');
+
+      // 📁 LOG: Tampilkan lokasi file PDF yang disimpan permanen
+      print('💾 PDF Saved to Device Successfully!');
+      print('📄 File Name: $fileName');
+      print('📂 Full Path: $filePath');
+      print(
+          '🗂️  ${Platform.isAndroid ? 'Android' : 'iOS'} Storage: ${directory.path}');
+      if (Platform.isMacOS || Platform.isIOS) {
+        print('🍎 Finder: Cmd+Shift+G → ${directory.path}');
+        print('📱 iOS Files App: On My iPhone → [App Name] → Documents');
+      } else if (Platform.isAndroid) {
+        print(
+            '🤖 File Manager: Internal Storage → Android → data → [package] → files');
+      }
+
       return filePath;
     } catch (e) {
-      // logger.e("❌ Error saving PDF: $e");
       throw Exception('Failed to save PDF: $e');
     }
   }
 
   /// Share PDF ke aplikasi lain.
   static Future<void> sharePDF(Uint8List pdfBytes, String fileName) async {
+    await sharePDFWithPosition(pdfBytes, fileName, null);
+  }
+
+  /// Share PDF ke aplikasi lain dengan positioning untuk iOS.
+  static Future<void> sharePDFWithPosition(
+    Uint8List pdfBytes,
+    String fileName,
+    Rect? sharePositionOrigin,
+  ) async {
     try {
       final tempDir = await getTemporaryDirectory();
       final tempPath = '${tempDir.path}/$fileName';
       final tempFile = File(tempPath);
       await tempFile.writeAsBytes(pdfBytes);
-      await Share.shareXFiles([XFile(tempPath)],
-          text: 'Invoice Checkout - Alita Pricelist');
-      print('tempPath: $tempPath');
+
+      // 📁 LOG: Tampilkan lokasi file PDF untuk debugging
+      print('🔍 PDF Generated Successfully!');
+      print('📄 File Name: $fileName');
+      print('📂 Full Path: $tempPath');
+      print('🗂️  Temp Directory: ${tempDir.path}');
+      if (Platform.isMacOS || Platform.isIOS) {
+        print('🍎 Finder: Cmd+Shift+G → ${tempDir.path}');
+      } else if (Platform.isAndroid) {
+        print('🤖 File Manager: Navigate to temp directory');
+      }
+
+      // Set default position if not provided (fallback for iOS)
+      final defaultPosition =
+          sharePositionOrigin ?? const Rect.fromLTWH(100, 100, 100, 100);
+
+      await Share.shareXFiles(
+        [XFile(tempPath)],
+        sharePositionOrigin: defaultPosition,
+      );
     } catch (e) {
-      // logger.e("❌ Error sharing PDF: $e");
       throw Exception('Failed to share PDF: $e');
     }
   }
