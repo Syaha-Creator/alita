@@ -178,10 +178,10 @@ class PDFService {
         child: pw.Transform.rotate(
           angle: 0.785, // 45 degrees rotation
           child: pw.Opacity(
-            opacity: 0.25, // 25% opacity (20-30% range)
+            opacity: 0.15,
             child: pw.Image(
               imageProvider,
-              width: 300, // Ukuran watermark
+              width: 300,
               height: 300,
               fit: pw.BoxFit.contain,
             ),

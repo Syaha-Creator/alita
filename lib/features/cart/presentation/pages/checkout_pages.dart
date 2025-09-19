@@ -22,6 +22,7 @@ import '../../../../services/order_letter_payment_service.dart';
 
 import '../../../../theme/app_colors.dart';
 import '../../domain/entities/cart_entity.dart';
+import '../../../product/domain/entities/product_entity.dart';
 import '../bloc/cart_bloc.dart';
 import '../bloc/cart_event.dart';
 import '../bloc/cart_state.dart';
@@ -101,6 +102,7 @@ class CheckoutPages extends StatefulWidget {
   final String? userAddress;
   final bool isTakeAway;
   final bool isExistingCustomer;
+  final Map<String, dynamic>? draftData; // For loading existing draft
 
   const CheckoutPages({
     super.key,
@@ -110,7 +112,19 @@ class CheckoutPages extends StatefulWidget {
     this.userAddress,
     this.isTakeAway = false,
     this.isExistingCustomer = false,
+    this.draftData,
   });
+
+  // Named constructor for loading from draft
+  CheckoutPages.fromDraft({
+    super.key,
+    required this.draftData,
+  })  : userName = null,
+        userPhone = null,
+        userEmail = null,
+        userAddress = null,
+        isTakeAway = draftData?['isTakeAway'] as bool? ?? false,
+        isExistingCustomer = draftData?['isExistingCustomer'] as bool? ?? false;
 
   @override
   State<CheckoutPages> createState() => _CheckoutPagesState();
@@ -150,15 +164,166 @@ class _CheckoutPagesState extends State<CheckoutPages>
     _deliveryDateController = registerController();
     _customerAddressController = registerController();
 
-    if (widget.userName != null) {
-      _customerNameController.text = widget.userName!;
+    // Load from draft if available, otherwise use widget parameters
+    if (widget.draftData != null) {
+      _loadFromDraft(widget.draftData!);
+    } else {
+      // Load from widget parameters (existing behavior)
+      if (widget.userName != null) {
+        _customerNameController.text = widget.userName!;
+      }
+      if (widget.userPhone != null) {
+        _customerPhoneController.text = widget.userPhone!;
+      }
+      if (widget.userEmail != null) _emailController.text = widget.userEmail!;
+      if (widget.userAddress != null) {
+        _customerAddressController.text = widget.userAddress!;
+      }
     }
-    if (widget.userPhone != null) {
-      _customerPhoneController.text = widget.userPhone!;
+  }
+
+  // Load all data from draft
+  void _loadFromDraft(Map<String, dynamic> draft) {
+    // Customer Information
+    _customerNameController.text = draft['customerName'] as String? ?? '';
+    _customerPhoneController.text = draft['customerPhone'] as String? ?? '';
+    _customerPhone2Controller.text = draft['customerPhone2'] as String? ?? '';
+    _emailController.text = draft['email'] as String? ?? '';
+    _customerAddressController.text = draft['customerAddress'] as String? ?? '';
+
+    // Shipping Information
+    _customerReceiverController.text =
+        draft['customerReceiver'] as String? ?? '';
+    _shippingAddressController.text = draft['shippingAddress'] as String? ?? '';
+    _notesController.text = draft['notes'] as String? ?? '';
+    _deliveryDateController.text = draft['deliveryDate'] as String? ?? '';
+    _shippingSameAsCustomer = draft['shippingSameAsCustomer'] as bool? ?? false;
+    _showSecondPhone = draft['showSecondPhone'] as bool? ?? false;
+
+    // Payment Information
+    _paymentType = draft['paymentType'] as String? ?? 'full';
+    _totalPaid = draft['totalPaid'] as double? ?? 0.0;
+
+    // Load payment methods
+    final paymentMethodsData = draft['paymentMethods'] as List<dynamic>? ?? [];
+    _paymentMethods.clear();
+    for (final paymentData in paymentMethodsData) {
+      final payment = paymentData as Map<String, dynamic>;
+      _paymentMethods.add(PaymentMethod(
+        type: payment['type'] as String? ?? '',
+        name: payment['name'] as String? ?? '',
+        amount: payment['amount'] as double? ?? 0.0,
+        reference: payment['reference'] as String?,
+        receiptImagePath: payment['receiptImagePath'] as String? ?? '',
+      ));
     }
-    if (widget.userEmail != null) _emailController.text = widget.userEmail!;
-    if (widget.userAddress != null) {
-      _customerAddressController.text = widget.userAddress!;
+
+    // Cart items will be handled separately
+    // We'll restore bonus take away states after cart is loaded
+    _restoreCartItemsFromDraft(draft);
+
+    print('Draft loaded successfully: ${draft['customerName']}');
+    print('Payment methods restored: ${_paymentMethods.length}');
+    print('Take away status: ${draft['isTakeAway']}');
+  }
+
+  // Restore cart items from draft data
+  Future<void> _restoreCartItemsFromDraft(Map<String, dynamic> draft) async {
+    try {
+      final itemsData = draft['selectedItems'] as List<dynamic>? ?? [];
+
+      // Clear current cart first
+      context.read<CartBloc>().add(ClearCart());
+
+      // Wait a bit for cart to clear
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      // Add each item back to cart with restored bonus take away data
+      for (final itemData in itemsData) {
+        final item = itemData as Map<String, dynamic>;
+        final productData = item['product'] as Map<String, dynamic>;
+
+        // Reconstruct bonus items
+        final bonusData = productData['bonus'] as List<dynamic>? ?? [];
+        final bonusItems = bonusData.map((bonus) {
+          final bonusMap = bonus as Map<String, dynamic>;
+          return BonusItem(
+            name: bonusMap['name'] as String,
+            quantity: bonusMap['quantity'] as int,
+            takeAway: bonusMap['takeAway'] as bool?,
+          );
+        }).toList();
+
+        // Reconstruct product entity
+        final product = ProductEntity(
+          id: productData['id'] as int,
+          area: '',
+          channel: '',
+          brand: productData['brand'] as String,
+          kasur: productData['kasur'] as String,
+          divan: productData['divan'] as String? ?? '',
+          headboard: productData['headboard'] as String? ?? '',
+          sorong: productData['sorong'] as String? ?? '',
+          ukuran: productData['ukuran'] as String,
+          pricelist: productData['pricelist'] as double,
+          program: '',
+          eupKasur: productData['eupKasur'] as double? ?? 0,
+          eupDivan: productData['eupDivan'] as double? ?? 0,
+          eupHeadboard: productData['eupHeadboard'] as double? ?? 0,
+          eupSorong: productData['eupSorong'] as double? ?? 0,
+          endUserPrice: productData['pricelist'] as double,
+          bonus: bonusItems,
+          discounts: [],
+          isSet: false,
+          plKasur: productData['plKasur'] as double? ?? 0,
+          plDivan: productData['plDivan'] as double? ?? 0,
+          plHeadboard: productData['plHeadboard'] as double? ?? 0,
+          plSorong: productData['plSorong'] as double? ?? 0,
+          bottomPriceAnalyst: 0,
+          disc1: 0,
+          disc2: 0,
+          disc3: 0,
+          disc4: 0,
+          disc5: 0,
+        );
+
+        // Convert bonusTakeAway data
+        final bonusTakeAwayData =
+            item['bonusTakeAway'] as Map<String, dynamic>?;
+        Map<String, bool>? bonusTakeAway;
+        if (bonusTakeAwayData != null) {
+          bonusTakeAway = bonusTakeAwayData
+              .map((key, value) => MapEntry(key, value as bool));
+        }
+
+        // Add to cart with bonus take away data
+        context.read<CartBloc>().add(AddToCart(
+              product: product,
+              quantity: item['quantity'] as int,
+              netPrice: item['netPrice'] as double,
+              discountPercentages:
+                  (item['discountPercentages'] as List<dynamic>?)
+                          ?.map((d) => d as double)
+                          .toList() ??
+                      [],
+            ));
+
+        // After adding to cart, update bonus take away if needed
+        if (bonusTakeAway != null && bonusTakeAway.isNotEmpty) {
+          // Wait a bit for cart to be updated
+          await Future.delayed(const Duration(milliseconds: 50));
+
+          context.read<CartBloc>().add(UpdateBonusTakeAway(
+                productId: product.id,
+                netPrice: item['netPrice'] as double,
+                bonusTakeAway: bonusTakeAway,
+              ));
+        }
+      }
+
+      print('Cart items restored from draft: ${itemsData.length} items');
+    } catch (e) {
+      print('Error restoring cart items from draft: $e');
     }
   }
 
@@ -179,38 +344,102 @@ class _CheckoutPagesState extends State<CheckoutPages>
       final draftStrings = prefs.getStringList(key) ?? [];
 
       final draft = {
+        // Customer Information
         'customerName': _customerNameController.text,
         'customerPhone': _customerPhoneController.text,
         'customerPhone2': _customerPhone2Controller.text,
         'email': _emailController.text,
         'customerAddress': _customerAddressController.text,
+
+        // Shipping Information
+        'customerReceiver': _customerReceiverController.text,
         'shippingAddress': _shippingAddressController.text,
         'notes': _notesController.text,
         'deliveryDate': _deliveryDateController.text,
+        'shippingSameAsCustomer': _shippingSameAsCustomer,
+        'showSecondPhone': _showSecondPhone,
+
+        // Cart Items with Bonus Take Away
         'selectedItems': selectedItems
             .map((item) => {
                   'product': {
                     'id': item.product.id,
                     'kasur': item.product.kasur,
+                    'divan': item.product.divan,
+                    'headboard': item.product.headboard,
+                    'sorong': item.product.sorong,
                     'ukuran': item.product.ukuran,
                     'brand': item.product.brand,
                     'pricelist': item.product.pricelist,
+                    'plKasur': item.product.plKasur,
+                    'plDivan': item.product.plDivan,
+                    'plHeadboard': item.product.plHeadboard,
+                    'plSorong': item.product.plSorong,
+                    'eupKasur': item.product.eupKasur,
+                    'eupDivan': item.product.eupDivan,
+                    'eupHeadboard': item.product.eupHeadboard,
+                    'eupSorong': item.product.eupSorong,
+                    'bonus': item.product.bonus
+                        .map((bonus) => {
+                              'name': bonus.name,
+                              'quantity': bonus.quantity,
+                              'takeAway': bonus.takeAway,
+                            })
+                        .toList(),
                   },
                   'quantity': item.quantity,
                   'netPrice': item.netPrice,
+                  'bonusTakeAway': item.bonusTakeAway,
+                  'discountPercentages': item.discountPercentages,
                 })
             .toList(),
+
+        // Payment Information
+        'paymentMethods': _paymentMethods
+            .map((payment) => {
+                  'type': payment.type,
+                  'name': payment.name,
+                  'amount': payment.amount,
+                  'reference': payment.reference,
+                  'receiptImagePath': payment.receiptImagePath,
+                })
+            .toList(),
+        'paymentType': _paymentType,
+        'totalPaid': _totalPaid,
+
+        // Totals
         'grandTotal': selectedItems.fold(
             0.0, (sum, item) => sum + (item.netPrice * item.quantity)),
+
+        // Settings
         'isTakeAway': widget.isTakeAway,
         'isExistingCustomer': widget.isExistingCustomer,
+
+        // Metadata
         'savedAt': DateTime.now().toIso8601String(),
+        'version': '2.0', // Version for backward compatibility
       };
 
       draftStrings.add(jsonEncode(draft));
       await prefs.setStringList(key, draftStrings);
 
       CustomToast.showToast('Draft berhasil disimpan', ToastType.success);
+
+      // Clear cart items that were saved to draft
+      for (final item in selectedItems) {
+        context.read<CartBloc>().add(MarkItemAsCheckedOut(
+              productId: item.product.id,
+              netPrice: item.netPrice,
+            ));
+      }
+
+      // Navigate to draft checkout page
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const DraftCheckoutPage(),
+        ),
+      );
     } catch (e) {
       CustomToast.showToast('Gagal menyimpan draft: $e', ToastType.error);
     }
@@ -328,8 +557,17 @@ class _CheckoutPagesState extends State<CheckoutPages>
         CustomToast.showToast(
             'Surat pesanan berhasil dibuat!\nNo. SP: $noSp', ToastType.success);
 
-        // Clear selected items from cart
-        context.read<CartBloc>().add(ClearCart());
+        // Mark selected items as checked out (remove from cart)
+        final cartState = context.read<CartBloc>().state;
+        if (cartState is CartLoaded) {
+          final selectedItems = cartState.selectedItems;
+          for (final item in selectedItems) {
+            context.read<CartBloc>().add(MarkItemAsCheckedOut(
+                  productId: item.product.id,
+                  netPrice: item.netPrice,
+                ));
+          }
+        }
 
         // Navigate back to product page
         Navigator.of(context).popUntil(

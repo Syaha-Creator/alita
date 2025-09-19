@@ -7,7 +7,7 @@ import '../../../../core/utils/format_helper.dart';
 import '../../../../core/widgets/custom_toast.dart';
 import '../../../../services/auth_service.dart';
 import '../../../../theme/app_colors.dart';
-import 'draft_detail_page.dart';
+import 'checkout_pages.dart';
 
 class DraftCheckoutPage extends StatefulWidget {
   const DraftCheckoutPage({super.key});
@@ -544,28 +544,24 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
                     ),
                     onSelected: (value) async {
                       switch (value) {
+                        case 'checkout':
+                          await _continueCheckout(draft);
+                          break;
                         case 'delete':
                           await _showDeleteConfirmation(index);
-                          break;
-                        case 'edit':
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  DraftDetailPage(draft: draft, index: index),
-                            ),
-                          ).then((_) => _loadDrafts());
                           break;
                       }
                     },
                     itemBuilder: (context) => [
                       PopupMenuItem(
-                        value: 'edit',
+                        value: 'checkout',
                         child: Row(
                           children: [
-                            Icon(Icons.edit_rounded, size: 16),
+                            Icon(Icons.shopping_cart_checkout,
+                                size: 16, color: Colors.green),
                             const SizedBox(width: 8),
-                            Text('Edit'),
+                            Text('Lanjutkan Checkout',
+                                style: TextStyle(color: Colors.green)),
                           ],
                         ),
                       ),
@@ -1581,5 +1577,24 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
         ],
       ),
     );
+  }
+
+  // Continue checkout from draft
+  Future<void> _continueCheckout(Map<String, dynamic> draft) async {
+    try {
+      // Navigate to checkout page with draft data
+      // Cart items will be restored in the checkout page initState
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CheckoutPages.fromDraft(
+            draftData: draft,
+          ),
+        ),
+      );
+    } catch (e) {
+      CustomToast.showToast('Gagal memuat draft: $e', ToastType.error);
+      print('Error loading draft for checkout: $e');
+    }
   }
 }
