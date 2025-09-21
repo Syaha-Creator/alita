@@ -39,21 +39,36 @@ class CheckoutService {
       // Calculate totals
       double totalExtendedAmount = 0;
       int totalHargaAwal = 0;
-      final List<double> allDiscounts = [];
+      final List<Map<String, dynamic>> itemDiscounts =
+          []; // Store discounts with item info
       double totalDiscountPercentage = 0;
 
       for (final item in cartItems) {
         totalExtendedAmount += item.netPrice * item.quantity;
         totalHargaAwal += (item.product.pricelist * item.quantity).toInt();
 
-        // Collect all discounts from each item
+        // Collect discounts from each item with item information
         if (item.discountPercentages.isNotEmpty) {
-          allDiscounts.addAll(item.discountPercentages.where((d) => d > 0.0));
-          totalDiscountPercentage += item.discountPercentages.fold(
-            0.0,
-            (sum, d) => sum + d,
-          );
+          final validDiscounts =
+              item.discountPercentages.where((d) => d > 0.0).toList();
+          if (validDiscounts.isNotEmpty) {
+            itemDiscounts.add({
+              'productId': item.product.id,
+              'kasurName': item.product.kasur,
+              'discounts': validDiscounts,
+            });
+            totalDiscountPercentage += item.discountPercentages.fold(
+              0.0,
+              (sum, d) => sum + d,
+            );
+          }
         }
+      }
+
+      // Flatten all discounts for status determination
+      final List<double> allDiscounts = [];
+      for (final itemDiscount in itemDiscounts) {
+        allDiscounts.addAll(itemDiscount['discounts']);
       }
 
       // Determine smart status based on discount approval requirements
@@ -84,6 +99,8 @@ class CheckoutService {
         // Add main product (kasur)
         if (item.product.kasur.isNotEmpty &&
             item.product.kasur != 'Tidak ada kasur') {
+          print(
+              'CheckoutService: Adding kasur ${item.product.kasur} - Pricelist: ${item.product.pricelist}, NetPrice: ${item.netPrice}');
           detailsData.add({
             'item_number': item.product.itemNumberKasur ??
                 item.product.itemNumber ??
@@ -91,7 +108,7 @@ class CheckoutService {
             'desc_1': item.product.kasur,
             'desc_2': item.product.ukuran,
             'brand': item.product.brand,
-            'unit_price': item.product.pricelist,
+            'unit_price': item.netPrice,
             'qty': item.quantity,
             'item_type': 'kasur',
             'take_away': isTakeAway ? true : null,
@@ -200,7 +217,20 @@ class CheckoutService {
         'CheckoutService: Details data prepared: ${detailsData.length} items',
       );
 
-      // Get leader IDs from product state
+      // Get leader IDs from product state with item mapping
+      final Map<String, List<int?>> itemLeaderIds = {};
+      for (final item in cartItems) {
+        final state = locator<ProductBloc>().state;
+        final productLeaderIds = state.productLeaderIds[item.product.id] ?? [];
+        if (productLeaderIds.isNotEmpty) {
+          itemLeaderIds[item.product.kasur] = productLeaderIds;
+        }
+      }
+
+      print('CheckoutService: Item leader IDs mapping: $itemLeaderIds');
+      print('CheckoutService: Item discounts data: $itemDiscounts');
+
+      // For backward compatibility, flatten all leader IDs
       final List<int?> leaderIds = [];
       for (final item in cartItems) {
         final state = locator<ProductBloc>().state;
@@ -212,7 +242,7 @@ class CheckoutService {
       final result = await _orderLetterService.createOrderLetterWithDetails(
         orderLetterData: orderLetterData,
         detailsData: detailsData,
-        discountsData: allDiscounts,
+        discountsData: itemDiscounts, // Pass structured discount data
         leaderIds: leaderIds,
       );
 
