@@ -13,7 +13,8 @@ class OrderLetterService {
   Future<Map<String, dynamic>> createOrderLetterWithDetails({
     required Map<String, dynamic> orderLetterData,
     required List<Map<String, dynamic>> detailsData,
-    required List<double> discountsData,
+    required dynamic
+        discountsData, // Can be List<double> or List<Map<String, dynamic>>
     List<int?>? leaderIds, // Add leader IDs parameter
   }) async {
     try {
@@ -97,19 +98,35 @@ class OrderLetterService {
         detailWithId['order_letter_id'] = orderLetterId;
         detailWithId['no_sp'] = noSp;
 
+        print('OrderLetterService: Creating detail with data: $detailWithId');
         final detailResult = await createOrderLetterDetail(detailWithId);
         detailResults.add(detailResult);
 
         if (detailResult['success']) {
+          print(
+              'OrderLetterService: Detail created successfully: ${detailResult['data']}');
         } else {
-          // print(
-          //     'OrderLetterService: Failed to create detail: ${detailResult['message']}');
+          print(
+              'OrderLetterService: Failed to create detail: ${detailResult['message']}');
         }
       }
 
       // Step 3: POST Order Letter Discounts with Leader Data
       final List<Map<String, dynamic>> discountResults = [];
-      for (int i = 0; i < discountsData.length; i++) {
+
+      // Handle different discount data formats
+      if (discountsData is List<Map<String, dynamic>>) {
+        // New structured format with per-item discount information
+        await _processStructuredDiscounts(discountsData, detailResults,
+            discountResults, leaderIds, orderLetterId);
+      } else if (discountsData is List<double>) {
+        // Legacy format - process all discounts for first kasur
+        await _processLegacyDiscounts(discountsData, detailResults,
+            discountResults, leaderIds, orderLetterId);
+      }
+
+      // Skip original loop completely - it's been replaced by structured/legacy processing above
+      for (int i = 0; i < 0; i++) {
         final discount = discountsData[i];
         if (discount <= 0) continue; // Skip zero discounts
 
@@ -117,26 +134,15 @@ class OrderLetterService {
         int? kasurOrderLetterDetailId;
         for (final detailResult in detailResults) {
           if (detailResult['success'] && detailResult['data'] != null) {
-            final detailData = detailResult['data'];
+            final rawData = detailResult['data'];
+            final detailData = rawData['location'] ?? rawData;
             // Check for both 'Mattress' and 'kasur' item types
             if (detailData['item_type'] == 'Mattress' ||
                 detailData['item_type'] == 'kasur') {
-              // Try to get ID from location object first
-              if (detailData['location'] is Map<String, dynamic>) {
-                final location = detailData['location'] as Map<String, dynamic>;
-                kasurOrderLetterDetailId = location['id'] ??
-                    location['order_letter_detail_id'] ??
-                    location['detail_id'];
-                // print(
-                //     'OrderLetterService: Found kasur detail ID from location: $kasurOrderLetterDetailId');
-              } else {
-                // Fallback to direct access
-                kasurOrderLetterDetailId = detailData['id'] ??
-                    detailData['order_letter_detail_id'] ??
-                    detailData['detail_id'];
-                // print(
-                //     'OrderLetterService: Found kasur detail ID from direct access: $kasurOrderLetterDetailId');
-              }
+              // detailData sudah berisi location data, langsung akses ID
+              kasurOrderLetterDetailId = detailData['id'] ??
+                  detailData['order_letter_detail_id'] ??
+                  detailData['detail_id'];
               break; // Found the first kasur detail, no need to continue
             }
           }
@@ -146,23 +152,13 @@ class OrderLetterService {
         if (kasurOrderLetterDetailId == null) {
           for (final detailResult in detailResults) {
             if (detailResult['success'] && detailResult['data'] != null) {
-              final detailData = detailResult['data'];
-              if (detailData['location'] is Map<String, dynamic>) {
-                final location = detailData['location'] as Map<String, dynamic>;
-                kasurOrderLetterDetailId = location['id'] ??
-                    location['order_letter_detail_id'] ??
-                    location['detail_id'];
-                // print(
-                //     'OrderLetterService: Using first available detail ID from location: $kasurOrderLetterDetailId');
-                break;
-              } else {
-                kasurOrderLetterDetailId = detailData['id'] ??
-                    detailData['order_letter_detail_id'] ??
-                    detailData['detail_id'];
-                // print(
-                //     'OrderLetterService: Using first available detail ID from direct access: $kasurOrderLetterDetailId');
-                break;
-              }
+              final rawData = detailResult['data'];
+              final detailData = rawData['location'] ?? rawData;
+              // detailData sudah berisi location data, langsung akses ID
+              kasurOrderLetterDetailId = detailData['id'] ??
+                  detailData['order_letter_detail_id'] ??
+                  detailData['detail_id'];
+              break;
             }
           }
         }
@@ -417,6 +413,128 @@ class OrderLetterService {
       return {
         'success': false,
         'message': 'Error creating order letter discount: $e',
+      };
+    }
+  }
+
+  /// Batch approve all discounts for a specific user level in an order letter
+  Future<Map<String, dynamic>> batchApproveOrderLetterDiscounts({
+    required int orderLetterId,
+    required int leaderId,
+    required int jobLevelId,
+  }) async {
+    try {
+      final token = await AuthService.getToken();
+      if (token == null) {
+        throw Exception('Token not available');
+      }
+
+      // Get all discounts for this order letter
+      final allDiscounts =
+          await getOrderLetterDiscounts(orderLetterId: orderLetterId);
+
+      // Find all pending discounts for the current user level
+      final List<int> discountIdsToApprove = [];
+      for (final discount in allDiscounts) {
+        final approverId = discount['approver'];
+        final approverLevelId = discount['approver_level_id'];
+        final approved = discount['approved'];
+
+        // Check if this discount is for the current user and level, and is pending
+        if (approverId == leaderId &&
+            approverLevelId == jobLevelId &&
+            (approved == null || approved == false)) {
+          discountIdsToApprove.add(discount['id']);
+        }
+      }
+
+      if (discountIdsToApprove.isEmpty) {
+        return {
+          'success': false,
+          'message': 'No pending discounts found for approval',
+          'approved_count': 0,
+        };
+      }
+
+      final currentTime = DateTime.now().toIso8601String();
+      final List<Map<String, dynamic>> approveResults = [];
+      final List<Map<String, dynamic>> updateResults = [];
+
+      // Approve all discounts in batch
+      for (final discountId in discountIdsToApprove) {
+        try {
+          // POST to order_letter_approves endpoint
+          final approveUrl =
+              ApiConfig.getCreateOrderLetterApproveUrl(token: token);
+          final approveData = {
+            'order_letter_discount_id': discountId,
+            'leader': leaderId,
+            'job_level_id': jobLevelId,
+          };
+
+          final approveResponse = await dio.post(
+            approveUrl,
+            data: approveData,
+            options: Options(
+              headers: {
+                'Authorization': 'Bearer $token',
+                'Content-Type': 'application/json',
+              },
+            ),
+          );
+          approveResults.add(approveResponse.data);
+
+          // PUT to order_letter_discounts endpoint
+          final updateUrl = ApiConfig.getUpdateOrderLetterDiscountUrl(
+            token: token,
+            discountId: discountId,
+          );
+          final updateData = {
+            'approved': true,
+            'approved_at': currentTime,
+          };
+
+          final updateResponse = await dio.put(
+            updateUrl,
+            data: updateData,
+            options: Options(
+              headers: {
+                'Authorization': 'Bearer $token',
+                'Content-Type': 'application/json',
+              },
+            ),
+          );
+          updateResults.add(updateResponse.data);
+        } catch (e) {
+          print('OrderLetterService: Error approving discount $discountId: $e');
+          // Continue with other discounts even if one fails
+        }
+      }
+
+      // Check if this is the final approval (highest level)
+      final isFinalApproval = await _isFinalApproval(orderLetterId, jobLevelId);
+
+      Map<String, dynamic>? orderLetterUpdateResult;
+      if (isFinalApproval) {
+        orderLetterUpdateResult =
+            await _updateOrderLetterStatus(orderLetterId, 'Approved');
+      }
+
+      return {
+        'success': true,
+        'message': 'Batch approval completed successfully',
+        'approved_count': discountIdsToApprove.length,
+        'discount_ids': discountIdsToApprove,
+        'approve_results': approveResults,
+        'update_results': updateResults,
+        'order_letter_update_result': orderLetterUpdateResult,
+        'is_final_approval': isFinalApproval,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Error in batch approval: $e',
+        'approved_count': 0,
       };
     }
   }
@@ -795,12 +913,27 @@ class OrderLetterService {
 
   /// Determine final order status after discount creation
   Future<String> _determineFinalOrderStatus(
-      int? orderLetterId, List<double> discountsData) async {
+      int? orderLetterId, dynamic discountsData) async {
     try {
       if (orderLetterId == null) return 'Pending';
 
+      // Extract all discount values from either format
+      List<double> allDiscounts = [];
+      if (discountsData is List<double>) {
+        // Legacy format - direct list of doubles
+        allDiscounts = discountsData;
+      } else if (discountsData is List<Map<String, dynamic>>) {
+        // New structured format - extract discounts from each item
+        for (final itemDiscount in discountsData) {
+          final discounts = itemDiscount['discounts'] as List<dynamic>?;
+          if (discounts != null) {
+            allDiscounts.addAll(discounts.cast<double>());
+          }
+        }
+      }
+
       // Filter significant discounts
-      final significantDiscounts = discountsData.where((d) => d > 0.0).toList();
+      final significantDiscounts = allDiscounts.where((d) => d > 0.0).toList();
 
       if (significantDiscounts.isEmpty) {
         // No discounts → Approved immediately
@@ -826,7 +959,7 @@ class OrderLetterService {
 
         // Check if this level needs approval
         if (level == 1) {
-          // User level should always be approved
+          // User level should always be auto-approved
           if (approved != true) {
             allRequiredApprovalsCompleted = false;
           }
@@ -855,6 +988,269 @@ class OrderLetterService {
     } catch (e) {
       // Default to Pending if there's any error
       return 'Pending';
+    }
+  }
+
+  /// Process structured discount data (per item)
+  Future<void> _processStructuredDiscounts(
+    List<Map<String, dynamic>> itemDiscounts,
+    List<Map<String, dynamic>> detailResults,
+    List<Map<String, dynamic>> discountResults,
+    List<int?>? leaderIds,
+    int orderLetterId,
+  ) async {
+    print(
+        'OrderLetterService: Processing ${itemDiscounts.length} items with structured discounts');
+
+    for (final itemDiscount in itemDiscounts) {
+      final productId = itemDiscount['productId'];
+      final kasurName = itemDiscount['kasurName'] as String;
+      final discounts = itemDiscount['discounts'] as List<double>;
+
+      print(
+          'OrderLetterService: Processing kasur "$kasurName" with ${discounts.length} discounts');
+
+      // Debug: Print all available detail results
+      print('OrderLetterService: Available detail results:');
+      for (int idx = 0; idx < detailResults.length; idx++) {
+        print(
+            '  Raw Detail $idx: success=${detailResults[idx]['success']}, data=${detailResults[idx]['data']}');
+        if (detailResults[idx]['success'] &&
+            detailResults[idx]['data'] != null) {
+          final rawData = detailResults[idx]['data'];
+          // Data sebenarnya ada di dalam 'location' field
+          final detailData = rawData['location'] ?? rawData;
+          print(
+              '  Detail $idx: type="${detailData['item_type']}", desc_1="${detailData['desc_1']}", desc_2="${detailData['desc_2']}"');
+        } else {
+          print('  Detail $idx: FAILED or NULL DATA');
+        }
+      }
+
+      // Find kasur detail ID for this specific kasur
+      int? kasurOrderLetterDetailId;
+      for (final detailResult in detailResults) {
+        if (detailResult['success'] && detailResult['data'] != null) {
+          final rawData = detailResult['data'];
+          // Data sebenarnya ada di dalam 'location' field
+          final detailData = rawData['location'] ?? rawData;
+
+          print(
+              'OrderLetterService: Checking detail - type: "${detailData['item_type']}", desc_1: "${detailData['desc_1']}" vs kasurName: "$kasurName"');
+
+          // Match by kasur name and type
+          if ((detailData['item_type'] == 'Mattress' ||
+                  detailData['item_type'] == 'kasur') &&
+              detailData['desc_1'] == kasurName) {
+            // detailData sudah berisi data location, jadi langsung akses ID
+            kasurOrderLetterDetailId = detailData['id'] ??
+                detailData['order_letter_detail_id'] ??
+                detailData['detail_id'];
+
+            print(
+                'OrderLetterService: Found detail ID $kasurOrderLetterDetailId for kasur "$kasurName"');
+            break;
+          }
+        }
+      }
+
+      if (kasurOrderLetterDetailId == null) {
+        print(
+            'OrderLetterService: WARNING - No detail ID found for kasur "$kasurName"');
+        continue;
+      }
+
+      // Process each discount for this kasur
+      for (int i = 0; i < discounts.length; i++) {
+        final discount = discounts[i];
+        if (discount <= 0) continue;
+
+        await _createSingleDiscount(
+          orderLetterId: orderLetterId,
+          kasurOrderLetterDetailId: kasurOrderLetterDetailId,
+          discount: discount,
+          discountIndex: i,
+          leaderIds: leaderIds,
+          discountResults: discountResults,
+          kasurName: kasurName,
+        );
+      }
+    }
+  }
+
+  /// Process legacy discount data (all to first kasur)
+  Future<void> _processLegacyDiscounts(
+    List<double> discounts,
+    List<Map<String, dynamic>> detailResults,
+    List<Map<String, dynamic>> discountResults,
+    List<int?>? leaderIds,
+    int orderLetterId,
+  ) async {
+    print(
+        'OrderLetterService: Processing ${discounts.length} legacy discounts');
+
+    // Find first kasur detail ID
+    int? kasurOrderLetterDetailId;
+    for (final detailResult in detailResults) {
+      if (detailResult['success'] && detailResult['data'] != null) {
+        final rawData = detailResult['data'];
+        final detailData = rawData['location'] ?? rawData;
+        if (detailData['item_type'] == 'Mattress' ||
+            detailData['item_type'] == 'kasur') {
+          // detailData sudah berisi location data, langsung akses ID
+          kasurOrderLetterDetailId = detailData['id'] ??
+              detailData['order_letter_detail_id'] ??
+              detailData['detail_id'];
+          break;
+        }
+      }
+    }
+
+    if (kasurOrderLetterDetailId == null) {
+      print(
+          'OrderLetterService: WARNING - No kasur detail ID found for legacy discounts');
+      return;
+    }
+
+    // Process all discounts for first kasur
+    for (int i = 0; i < discounts.length; i++) {
+      final discount = discounts[i];
+      if (discount <= 0) continue;
+
+      await _createSingleDiscount(
+        orderLetterId: orderLetterId,
+        kasurOrderLetterDetailId: kasurOrderLetterDetailId,
+        discount: discount,
+        discountIndex: i,
+        leaderIds: leaderIds,
+        discountResults: discountResults,
+        kasurName: 'First Kasur (Legacy)',
+      );
+    }
+  }
+
+  /// Create a single discount entry
+  Future<void> _createSingleDiscount({
+    required int orderLetterId,
+    required int kasurOrderLetterDetailId,
+    required double discount,
+    required int discountIndex,
+    required List<int?>? leaderIds,
+    required List<Map<String, dynamic>> discountResults,
+    required String kasurName,
+  }) async {
+    // Get leader information
+    final leaderId = (leaderIds != null && discountIndex < leaderIds.length)
+        ? leaderIds[discountIndex]
+        : null;
+
+    int? approverId;
+    String approverName = '';
+    String approverLevel = '';
+    String approverWorkTitle = '';
+    bool?
+        approvedValue; // Should be nullable - null for pending, true for approved, false for rejected
+    String? approvedAt;
+
+    // Always try to get leader data, regardless of leaderId
+    try {
+      final leaderService = locator<LeaderService>();
+      final leaderData = await leaderService.getLeaderByUser();
+
+      if (leaderData != null) {
+        // Use leaderId if available, otherwise get from leaderData based on level
+        approverId = leaderId ??
+            leaderService.getLeaderIdByDiscountLevel(
+                leaderData, discountIndex + 1);
+        approverName = leaderService.getLeaderNameByDiscountLevel(
+                leaderData, discountIndex + 1) ??
+            '';
+        approverLevel = _getApproverLevelName(discountIndex + 1);
+        approverWorkTitle = leaderService.getLeaderWorkTitleByDiscountLevel(
+                leaderData, discountIndex + 1) ??
+            '';
+
+        // Level 1 discounts should be auto-approved (user created the order)
+        if (discountIndex == 0) {
+          approvedValue = true; // Auto-approve level 1 (User level)
+          approvedAt = DateTime.now().toIso8601String();
+        }
+      }
+    } catch (e) {
+      print('OrderLetterService: Error getting leader info: $e');
+    }
+
+    final discountData = {
+      'order_letter_id': orderLetterId,
+      'order_letter_detail_id': kasurOrderLetterDetailId,
+      'discount': discount.toString(),
+      'approver': approverId,
+      'approver_name': approverName,
+      'approver_level_id': discountIndex + 1,
+      'approver_level': approverLevel,
+      'approver_work_title': approverWorkTitle,
+      'approved': approvedValue,
+      'approved_at': approvedAt,
+    };
+
+    final discountResult = await createOrderLetterDiscount(discountData);
+    discountResults.add(discountResult);
+
+    if (discountResult['success']) {
+      print(
+          'OrderLetterService: Created $discount% discount for "$kasurName" (detail ID: $kasurOrderLetterDetailId)');
+    } else {
+      print(
+          'OrderLetterService: Failed to create discount for "$kasurName": ${discountResult['message']}');
+    }
+  }
+
+  /// Get count of pending discounts for a specific user level in an order letter
+  Future<int> getPendingDiscountCount({
+    required int orderLetterId,
+    required int leaderId,
+    required int jobLevelId,
+  }) async {
+    try {
+      final allDiscounts =
+          await getOrderLetterDiscounts(orderLetterId: orderLetterId);
+
+      int pendingCount = 0;
+      for (final discount in allDiscounts) {
+        final approverId = discount['approver'];
+        final approverLevelId = discount['approver_level_id'];
+        final approved = discount['approved'];
+
+        // Check if this discount is for the current user and level, and is pending
+        if (approverId == leaderId &&
+            approverLevelId == jobLevelId &&
+            (approved == null || approved == false)) {
+          pendingCount++;
+        }
+      }
+
+      return pendingCount;
+    } catch (e) {
+      print('OrderLetterService: Error getting pending discount count: $e');
+      return 0;
+    }
+  }
+
+  /// Get approver level name
+  String _getApproverLevelName(int level) {
+    switch (level) {
+      case 1:
+        return 'User';
+      case 2:
+        return 'Direct Leader';
+      case 3:
+        return 'Indirect Leader';
+      case 4:
+        return 'Controller';
+      case 5:
+        return 'Analyst';
+      default:
+        return 'Unknown';
     }
   }
 }
