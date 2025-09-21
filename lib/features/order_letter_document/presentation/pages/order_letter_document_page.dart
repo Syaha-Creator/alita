@@ -767,70 +767,107 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
   }
 
   Widget _buildDiscountSection(List<OrderLetterDiscountModel> discounts) {
-    // Sort discounts by approver_level_id (1=User, 2=Direct Leader, 3=Indirect Leader, 4=Controller, 5=Analyst)
-    final sortedDiscounts = List<OrderLetterDiscountModel>.from(discounts);
-    sortedDiscounts.sort(
-        (a, b) => (a.approverLevelId ?? 0).compareTo(b.approverLevelId ?? 0));
+    // Group discounts by kasur (orderLetterDetailId)
+    final Map<int, List<OrderLetterDiscountModel>> groupedDiscounts = {};
+
+    for (final discount in discounts) {
+      if (!groupedDiscounts.containsKey(discount.orderLetterDetailId)) {
+        groupedDiscounts[discount.orderLetterDetailId] = [];
+      }
+      groupedDiscounts[discount.orderLetterDetailId]!.add(discount);
+    }
+
+    // Create list of widgets for each kasur group
+    final List<Widget> discountWidgets = [];
+
+    for (final entry in groupedDiscounts.entries) {
+      final detailId = entry.key;
+      final kasurDiscounts = entry.value;
+
+      // Find the kasur detail to get the kasur name
+      final kasurDetail = _document!.details.firstWhere(
+        (detail) => detail.id == detailId,
+        orElse: () => _document!.details.first, // fallback
+      );
+
+      // Only show kasur name if it's actually a kasur (not bonus items)
+      final isKasur = kasurDetail.itemType.toLowerCase() == 'kasur';
+
+      if (isKasur && kasurDiscounts.isNotEmpty) {
+        // Add kasur name as separator
+        discountWidgets.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 4),
+            child: Text(
+              kasurDetail.desc1, // Nama kasur
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: Colors.blue,
+              ),
+            ),
+          ),
+        );
+
+        // Sort discounts by approver_level_id for this kasur
+        kasurDiscounts.sort((a, b) =>
+            (a.approverLevelId ?? 0).compareTo(b.approverLevelId ?? 0));
+
+        // Add discount rows for this kasur
+        discountWidgets.addAll(
+          kasurDiscounts.map((discount) {
+            String levelLabel = '';
+            switch (discount.approverLevelId) {
+              case 1:
+                levelLabel = 'Disc 1';
+                break;
+              case 2:
+                levelLabel = 'Disc 2';
+                break;
+              case 3:
+                levelLabel = 'Disc 3';
+                break;
+              case 4:
+                levelLabel = 'Disc 4';
+                break;
+              case 5:
+                levelLabel = 'Disc 5';
+                break;
+              default:
+                levelLabel = 'Disc ${discount.approverLevelId}';
+            }
+
+            return Padding(
+              padding: const EdgeInsets.only(left: 16, top: 2, bottom: 2),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    levelLabel,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Text(
+                    '-${_formatDiscountPercentage(discount.discount)}%',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.red,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        );
+      }
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // const Text(
-        //   'DISCOUNT',
-        //   style: TextStyle(
-        //     fontSize: 14,
-        //     fontWeight: FontWeight.bold,
-        //     color: Colors.red,
-        //   ),
-        // ),
-        // const SizedBox(height: 8),
-        ...sortedDiscounts.map((discount) {
-          String levelLabel = '';
-          switch (discount.approverLevelId) {
-            case 1:
-              levelLabel = 'Disc 1';
-              break;
-            case 2:
-              levelLabel = 'Disc 2';
-              break;
-            case 3:
-              levelLabel = 'Disc 3';
-              break;
-            case 4:
-              levelLabel = 'Disc 4';
-              break;
-            case 5:
-              levelLabel = 'Disc 5';
-              break;
-            default:
-              levelLabel = 'Disc ${discount.approverLevelId}';
-          }
-
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  levelLabel,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                Text(
-                  '-${_formatDiscountPercentage(discount.discount)}%',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.red,
-                  ),
-                ),
-              ],
-            ),
-          );
-        }),
-      ],
+      children: discountWidgets,
     );
   }
 
@@ -1155,7 +1192,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
             plDivan = 0,
             plHeadboard = 0,
             plSorong = 0;
-        double eupKasur = _document!.extendedAmount / kasurDetail.qty,
+        double eupKasur = kasurDetail.unitPrice,
             eupDivan = 0,
             eupHeadboard = 0,
             eupSorong = 0;
@@ -1192,6 +1229,8 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
 
         print('Creating CartEntity for kasur group $kasurIndex:');
         print('  Kasur: $kasur');
+        print('  Unit Price: ${kasurDetail.unitPrice}');
+        print('  Quantity: ${kasurDetail.qty}');
         print('  Divan: $divan');
         print('  Headboard: $headboard');
         print('  Sorong: $sorong');
@@ -1199,7 +1238,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
 
         cartItems.add(CartEntity(
           product: ProductEntity(
-            id: kasurDetail.id,
+            id: kasurDetail.id, // This is the order_letter_detail_id we need
             area: '',
             channel: '',
             brand: kasurDetail.brand,
@@ -1230,13 +1269,22 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
             disc5: 0,
           ),
           quantity: kasurDetail.qty,
-          netPrice: _document!.extendedAmount / kasurDetail.qty,
+          netPrice: kasurDetail
+              .unitPrice, // Unit price now contains net price (after discount) from API
           discountPercentages: [],
           isSelected: true,
         ));
       }
 
       print('DEBUG: Created ${cartItems.length} CartEntity items for PDF');
+
+      // Validate total calculation
+      final calculatedTotal = cartItems.fold<double>(
+          0.0, (sum, item) => sum + (item.netPrice * item.quantity));
+      print(
+          'DEBUG: Calculated total from items: ${FormatHelper.formatCurrency(calculatedTotal)}');
+      print(
+          'DEBUG: Order letter extended amount: ${FormatHelper.formatCurrency(_document!.extendedAmount)}');
 
       // Use extended amount from order letter as grand total
       final grandTotal = _document!.extendedAmount;
@@ -1249,6 +1297,17 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
           'approver_level_id': discount.approverLevelId,
           'approver_name': discount.approverName,
           'approved_at': discount.approvedAt,
+        };
+      }).toList();
+
+      // Convert discount data for pricelist calculation
+      final discountData = _document!.discounts.map((discount) {
+        return {
+          'id': discount.id,
+          'order_letter_detail_id': discount.orderLetterDetailId,
+          'order_letter_id': discount.orderLetterId,
+          'discount': discount.discount,
+          'approver_level_id': discount.approverLevelId,
         };
       }).toList();
 
@@ -1274,10 +1333,11 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         orderLetterExtendedAmount: _document!.extendedAmount,
         orderLetterHargaAwal: _document!.hargaAwal,
         shipToName: _document!.shipToName,
+        discountData: discountData,
       );
 
       // Save and share PDF with proper positioning for iOS
-      final fileName = 'Surat_Pesanan_${_document!.noSp}.pdf';
+      final fileName = '${_document!.customerName}_${_document!.noSp}.pdf';
 
       // Get the render box for proper positioning on iOS
       final RenderBox? box = buttonContext.findRenderObject() as RenderBox?;
