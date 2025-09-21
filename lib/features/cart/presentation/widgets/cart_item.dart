@@ -953,7 +953,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
               ),
               ListTile(
                 leading: const Icon(Icons.info_outline),
-                title: const Text('Info Produk'),
+                title: const Text('Diskon Produk'),
                 onTap: () {
                   Navigator.pop(sheetCtx);
                   _openInfo(context, product);

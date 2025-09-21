@@ -59,7 +59,7 @@ class CartPage extends StatelessWidget {
           child: BlocBuilder<CartBloc, CartState>(
             builder: (context, state) {
               if (state is CartLoaded) {
-                if (state.cartItems.isEmpty) {
+                if (state.activeCartItems.isEmpty) {
                   return _buildEmptyCart(context, isDark);
                 } else {
                   return _buildCartWithItems(context, state, isDark);
@@ -162,8 +162,8 @@ class CartPage extends StatelessWidget {
 
   Widget _buildCartWithItems(
       BuildContext context, CartLoaded state, bool isDark) {
-    final selectedItems =
-        state.cartItems.where((item) => item.isSelected).toList();
+    final selectedItems = state
+        .selectedItems; // Use the getter that already filters active + selected items
     final totalPrice = selectedItems.fold(
       0.0,
       (sum, item) => sum + (item.netPrice * item.quantity),
@@ -177,9 +177,9 @@ class CartPage extends StatelessWidget {
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(vertical: AppPadding.p4),
-            itemCount: state.cartItems.length,
+            itemCount: state.activeCartItems.length,
             itemBuilder: (context, index) {
-              final cartItem = state.cartItems[index];
+              final cartItem = state.activeCartItems[index];
               return Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppPadding.p4,

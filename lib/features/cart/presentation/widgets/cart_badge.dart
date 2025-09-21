@@ -24,7 +24,8 @@ class CartBadge extends StatelessWidget {
     return BlocBuilder<CartBloc, CartState>(
       buildWhen: (previous, current) {
         if (previous is CartLoaded && current is CartLoaded) {
-          return previous.cartItems.length != current.cartItems.length;
+          return previous.activeCartItems.length !=
+              current.activeCartItems.length;
         }
         return true;
       },
@@ -32,7 +33,7 @@ class CartBadge extends StatelessWidget {
         int itemCount = 0;
 
         if (state is CartLoaded) {
-          itemCount = state.cartItems.fold(
+          itemCount = state.activeCartItems.fold(
             0,
             (sum, item) => sum + item.quantity,
           );
