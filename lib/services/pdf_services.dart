@@ -35,6 +35,7 @@ class PDFService {
     double? orderLetterExtendedAmount,
     double? orderLetterHargaAwal,
     String? shipToName,
+    List<Map<String, dynamic>>? discountData,
   }) async {
     final pdf = pw.Document();
 
@@ -133,7 +134,8 @@ class PDFService {
           ),
           pw.SizedBox(height: 12),
           _buildItemsTable(cartItems, subtotal, totalEup,
-              orderLetterExtendedAmount: orderLetterExtendedAmount),
+              orderLetterExtendedAmount: orderLetterExtendedAmount,
+              discountData: discountData),
           pw.SizedBox(height: 8),
           _buildNotesAndTotals(
             keterangan: keterangan ?? '-',
@@ -167,8 +169,9 @@ class PDFService {
       {bool isAllApproved = false}) async {
     try {
       // Load gambar dari assets berdasarkan status
-      final String assetPath =
-          isAllApproved ? 'assets/images/paid.png' : 'assets/images/unpaid.png';
+      final String assetPath = isAllApproved
+          ? 'assets/images/paid.png'
+          : 'assets/images/approval.png';
 
       final ByteData imageData = await rootBundle.load(assetPath);
       final Uint8List imageBytes = imageData.buffer.asUint8List();
@@ -178,7 +181,7 @@ class PDFService {
         child: pw.Transform.rotate(
           angle: 0.785, // 45 degrees rotation
           child: pw.Opacity(
-            opacity: 0.15,
+            opacity: 0.10,
             child: pw.Image(
               imageProvider,
               width: 300,
@@ -207,7 +210,7 @@ class PDFService {
                 isAllApproved
                     ? PdfColors.green300.blue
                     : PdfColors.orange300.blue,
-                0.25, // 25% opacity
+                0.10,
               ),
               fontWeight: pw.FontWeight.bold,
             ),
@@ -351,15 +354,15 @@ class PDFService {
   /// Build tabel item pesanan.
   static pw.Widget _buildItemsTable(
       List<CartEntity> items, double subtotal, double totalEup,
-      {double? orderLetterExtendedAmount}) {
-    print('DEBUG: _buildItemsTable called with ${items.length} items');
+      {double? orderLetterExtendedAmount,
+      List<Map<String, dynamic>>? discountData}) {
     const tableHeaders = [
-      'NO',
-      'QTY',
+      'ORDER',
       'NAMA BARANG',
-      'HARGA\nPRICELIST',
-      'DISC/\nPROGRAM',
-      'HARGA\nNETT'
+      'QTY',
+      'PRICELIST',
+      'DISCOUNT',
+      'HARGA TOTAL'
     ];
     final List<pw.TableRow> tableRows = [];
 
@@ -373,7 +376,7 @@ class PDFService {
             child: pw.Text(
               header,
               textAlign: pw.TextAlign.center,
-              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+              style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold),
             ),
           );
         }).toList(),
@@ -387,7 +390,13 @@ class PDFService {
 
       // Jika ada order letter extended amount, gunakan perhitungan yang sesuai
       if (orderLetterExtendedAmount != null) {
-        double kasurPricelist = (product.plKasur) * item.quantity;
+        // Calculate original pricelist from unit_price using discount data
+        double kasurPricelistPerUnit = _calculateOriginalPricelist(
+          item.netPrice, // unit_price (after discount)
+          product.id, // detail ID
+          discountData, // discount data
+        );
+        double kasurPricelist = kasurPricelistPerUnit * item.quantity;
         double kasurNet =
             item.netPrice * item.quantity; // Gunakan netPrice dari CartEntity
         double kasurDiscount = kasurPricelist - kasurNet;
@@ -395,9 +404,9 @@ class PDFService {
           children: [
             _buildTableCell((itemNumber++).toString(),
                 align: pw.TextAlign.center),
+            _buildTableCell('${product.kasur} ${product.ukuran}'),
             _buildTableCell(item.quantity.toString(),
                 align: pw.TextAlign.center),
-            _buildTableCell('${product.kasur} ${product.ukuran}'),
             _buildTableCell(FormatHelper.formatCurrency(kasurPricelist),
                 align: pw.TextAlign.right),
             _buildTableCell(FormatHelper.formatCurrency(kasurDiscount),
@@ -415,9 +424,9 @@ class PDFService {
           children: [
             _buildTableCell((itemNumber++).toString(),
                 align: pw.TextAlign.center),
+            _buildTableCell('${product.kasur} ${product.ukuran}'),
             _buildTableCell(item.quantity.toString(),
                 align: pw.TextAlign.center),
-            _buildTableCell('${product.kasur} ${product.ukuran}'),
             _buildTableCell(FormatHelper.formatCurrency(kasurPricelist),
                 align: pw.TextAlign.right),
             _buildTableCell(FormatHelper.formatCurrency(kasurDiscount),
@@ -432,14 +441,12 @@ class PDFService {
         double divanEUP = (product.eupDivan) * item.quantity;
         double divanDiscount = divanEUP;
         double divanNet = divanPricelist - divanDiscount;
-        print(
-            'DEBUG DIVAN: Pricelist=$divanPricelist, EUP=$divanEUP, Discount=$divanDiscount, Net=$divanNet');
         tableRows.add(pw.TableRow(
           children: [
             _buildTableCell(''),
+            _buildTableCell(product.divan),
             _buildTableCell(item.quantity.toString(),
                 align: pw.TextAlign.center),
-            _buildTableCell(product.divan), // Sudah berisi desc1 + desc2
             _buildTableCell(FormatHelper.formatCurrency(divanPricelist),
                 align: pw.TextAlign.right),
             _buildTableCell(FormatHelper.formatCurrency(divanDiscount),
@@ -455,14 +462,12 @@ class PDFService {
         double headboardEUP = (product.eupHeadboard) * item.quantity;
         double headboardDiscount = headboardEUP;
         double headboardNet = headboardPricelist - headboardDiscount;
-        print(
-            'DEBUG HEADBOARD: Pricelist=$headboardPricelist, EUP=$headboardEUP, Discount=$headboardDiscount, Net=$headboardNet');
         tableRows.add(pw.TableRow(
           children: [
             _buildTableCell(''),
+            _buildTableCell(product.headboard),
             _buildTableCell(item.quantity.toString(),
                 align: pw.TextAlign.center),
-            _buildTableCell(product.headboard), // Sudah berisi desc1 + desc2
             _buildTableCell(FormatHelper.formatCurrency(headboardPricelist),
                 align: pw.TextAlign.right),
             _buildTableCell(FormatHelper.formatCurrency(headboardDiscount),
@@ -477,14 +482,12 @@ class PDFService {
         double sorongEUP = (product.eupSorong) * item.quantity;
         double sorongDiscount = sorongEUP;
         double sorongNet = sorongPricelist - sorongDiscount;
-        print(
-            'DEBUG SORONG: Pricelist=$sorongPricelist, EUP=$sorongEUP, Discount=$sorongDiscount, Net=$sorongNet');
         tableRows.add(pw.TableRow(
           children: [
             _buildTableCell(''),
+            _buildTableCell(product.sorong),
             _buildTableCell(item.quantity.toString(),
                 align: pw.TextAlign.center),
-            _buildTableCell(product.sorong), // Sudah berisi desc1 + desc2
             _buildTableCell(FormatHelper.formatCurrency(sorongPricelist),
                 align: pw.TextAlign.right),
             _buildTableCell(FormatHelper.formatCurrency(sorongDiscount),
@@ -511,9 +514,9 @@ class PDFService {
           tableRows.add(pw.TableRow(
             children: [
               _buildTableCell(''),
+              _buildTableCell(bonusName),
               _buildTableCell(bonusQuantity.toString(),
                   align: pw.TextAlign.center),
-              _buildTableCell(bonusName),
               _buildTableCell(bonusPrice, align: pw.TextAlign.right),
               _buildTableCell(bonusPrice, align: pw.TextAlign.right),
               _buildTableCell(bonusPrice, align: pw.TextAlign.right),
@@ -527,14 +530,53 @@ class PDFService {
       border: pw.TableBorder.all(color: PdfColors.black, width: 0.5),
       columnWidths: {
         0: const pw.FlexColumnWidth(0.6),
-        1: const pw.FlexColumnWidth(0.6),
-        2: const pw.FlexColumnWidth(3.8),
+        1: const pw.FlexColumnWidth(3.8),
+        2: const pw.FlexColumnWidth(0.6),
         3: const pw.FlexColumnWidth(1.5),
         4: const pw.FlexColumnWidth(1.5),
         5: const pw.FlexColumnWidth(1.5),
       },
       children: tableRows,
     );
+  }
+
+  /// Calculate original pricelist from unit_price by adding back individual discounts
+  static double _calculateOriginalPricelist(double unitPrice, int detailId,
+      List<Map<String, dynamic>>? discountData) {
+    if (discountData == null || discountData.isEmpty) {
+      return unitPrice;
+    }
+
+    // Find discounts for this specific detail
+    final itemDiscounts = discountData
+        .where((discount) => discount['order_letter_detail_id'] == detailId)
+        .toList();
+
+    if (itemDiscounts.isEmpty) {
+      return unitPrice;
+    }
+
+    // Sort discounts by level to apply them in correct order
+    itemDiscounts.sort((a, b) =>
+        (a['approver_level_id'] ?? 0).compareTo(b['approver_level_id'] ?? 0));
+
+    double currentPrice = unitPrice;
+
+    // Apply each discount backward to get original price
+    // If unit_price = original * (1 - disc1/100) * (1 - disc2/100) * (1 - disc3/100)
+    // Then original = unit_price / ((1 - disc1/100) * (1 - disc2/100) * (1 - disc3/100))
+    for (final discount in itemDiscounts) {
+      final discountPercentage = (discount['discount'] is String)
+          ? double.tryParse(discount['discount']) ?? 0.0
+          : (discount['discount'] ?? 0.0).toDouble();
+
+      if (discountPercentage > 0) {
+        // Add back the discount: current_price / (1 - discount/100)
+        currentPrice = currentPrice / (1 - discountPercentage / 100);
+      }
+    }
+
+    return currentPrice;
   }
 
   /// Build satu cell pada tabel item.
@@ -651,7 +693,7 @@ class PDFService {
       child: pw.Row(
         children: [
           _buildSignatureBox('PEMBELI', customerName),
-          _buildSignatureBox('SALES', salesName, borderLeft: true),
+          _buildSignatureBox('SLEEP CONSULTANT', salesName, borderLeft: true),
         ],
       ),
     );
