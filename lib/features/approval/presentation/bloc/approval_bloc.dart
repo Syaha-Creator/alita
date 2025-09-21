@@ -38,6 +38,7 @@ class ApprovalBloc extends Bloc<ApprovalEvent, ApprovalState> {
     on<FilterApprovals>(_onFilterApprovals);
     on<UpdateSingleApproval>(_onUpdateSingleApproval);
     on<LoadNewApprovalsIncremental>(_onLoadNewApprovalsIncremental);
+    on<UpdateApprovalStatusesOnly>(_onUpdateApprovalStatusesOnly);
   }
 
   Future<void> _onLoadApprovals(
@@ -304,6 +305,31 @@ class ApprovalBloc extends Bloc<ApprovalEvent, ApprovalState> {
       ));
     } catch (e) {
       // If incremental load fails, don't emit error - just skip
+      // User can still pull-to-refresh for full update
+    }
+  }
+
+  Future<void> _onUpdateApprovalStatusesOnly(
+      UpdateApprovalStatusesOnly event, Emitter<ApprovalState> emit) async {
+    try {
+      // Get current state
+      final currentState = state;
+      if (currentState is! ApprovalLoaded) {
+        // If not loaded, skip update
+        return;
+      }
+
+      // Update only approval statuses (lightweight operation)
+      final repository = locator<ApprovalRepository>();
+      final updatedApprovals = await repository.updateApprovalStatusesOnly();
+
+      // Emit updated state with same data but updated statuses
+      emit(ApprovalLoaded(
+        approvals: updatedApprovals,
+        filterStatus: currentState.filterStatus,
+      ));
+    } catch (e) {
+      // If status update fails, don't emit error - just skip
       // User can still pull-to-refresh for full update
     }
   }

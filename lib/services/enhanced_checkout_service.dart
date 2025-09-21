@@ -144,7 +144,7 @@ class EnhancedCheckoutService {
         installmentMonths: originalItem.installmentMonths,
         installmentPerMonth: originalItem.installmentPerMonth,
         isSelected: originalItem.isSelected,
-        isCheckedOut: originalItem.isCheckedOut,
+        bonusTakeAway: originalItem.bonusTakeAway,
       );
 
       mappedCartItems.add(mappedCartItem);

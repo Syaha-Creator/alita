@@ -81,3 +81,7 @@ class UpdateSingleApproval extends ApprovalEvent {
 class LoadNewApprovalsIncremental extends ApprovalEvent {
   const LoadNewApprovalsIncremental();
 }
+
+class UpdateApprovalStatusesOnly extends ApprovalEvent {
+  const UpdateApprovalStatusesOnly();
+}

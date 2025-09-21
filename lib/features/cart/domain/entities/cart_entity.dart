@@ -8,7 +8,6 @@ class CartEntity {
   final int? installmentMonths;
   final double? installmentPerMonth;
   final bool isSelected;
-  final bool isCheckedOut;
   final Map<String, bool>? bonusTakeAway; // Map bonus name to take away status
 
   CartEntity copyWith({
@@ -19,7 +18,6 @@ class CartEntity {
     int? installmentMonths,
     double? installmentPerMonth,
     bool? isSelected,
-    bool? isCheckedOut,
     Map<String, bool>? bonusTakeAway,
   }) {
     return CartEntity(
@@ -30,7 +28,6 @@ class CartEntity {
       installmentMonths: installmentMonths ?? this.installmentMonths,
       installmentPerMonth: installmentPerMonth ?? this.installmentPerMonth,
       isSelected: isSelected ?? this.isSelected,
-      isCheckedOut: isCheckedOut ?? this.isCheckedOut,
       bonusTakeAway: bonusTakeAway ?? this.bonusTakeAway,
     );
   }
@@ -43,7 +40,6 @@ class CartEntity {
     this.installmentMonths,
     this.installmentPerMonth,
     this.isSelected = true,
-    this.isCheckedOut = false,
     this.bonusTakeAway,
   });
 
@@ -55,7 +51,6 @@ class CartEntity {
         installmentMonths,
         installmentPerMonth,
         isSelected,
-        isCheckedOut,
         bonusTakeAway,
       ];
 
@@ -100,7 +95,6 @@ class CartEntity {
       'installmentMonths': installmentMonths,
       'installmentPerMonth': installmentPerMonth,
       'isSelected': isSelected,
-      'isCheckedOut': isCheckedOut,
       'bonusTakeAway': bonusTakeAway,
     };
   }

@@ -12,12 +12,11 @@ class CartLoaded extends CartState {
   final List<CartEntity> cartItems;
   const CartLoaded(this.cartItems);
 
-  // Filter out checked out items (items that have been saved to draft or checked out)
-  List<CartEntity> get activeCartItems =>
-      cartItems.where((item) => !item.isCheckedOut).toList();
+  // All cart items are active now (checked out items are removed from cart)
+  List<CartEntity> get activeCartItems => cartItems;
 
   List<CartEntity> get selectedItems =>
-      activeCartItems.where((item) => item.isSelected).toList();
+      cartItems.where((item) => item.isSelected).toList();
 
   @override
   List<Object?> get props => [cartItems];

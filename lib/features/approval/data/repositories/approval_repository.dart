@@ -534,6 +534,73 @@ class ApprovalRepository {
     }
   }
 
+  /// Update only approval statuses (lightweight operation)
+  Future<List<ApprovalEntity>> updateApprovalStatusesOnly() async {
+    try {
+      // Get current cached approvals
+      final cachedApprovals = ApprovalCache.getCachedApprovals();
+      if (cachedApprovals == null || cachedApprovals.isEmpty) {
+        return [];
+      }
+
+      final currentUserId = await AuthService.getCurrentUserId();
+      if (currentUserId == null) return cachedApprovals;
+
+      // Get order letters with minimal data (just status)
+      final orderLetters = await _orderLetterService.getOrderLetters();
+
+      // Create a map of order letter ID to status
+      final statusMap = <int, String>{};
+      for (final orderLetter in orderLetters) {
+        final id = orderLetter['id'] as int?;
+        final status = orderLetter['status'] as String?;
+        if (id != null && status != null) {
+          statusMap[id] = status;
+        }
+      }
+
+      // Update cached approvals with new statuses
+      final updatedApprovals = cachedApprovals.map((cachedApproval) {
+        final newStatus = statusMap[cachedApproval.id];
+        if (newStatus != null && newStatus != cachedApproval.status) {
+          // Create updated approval with new status using copyWith-like approach
+          return ApprovalModel(
+            id: cachedApproval.id,
+            noSp: cachedApproval.noSp,
+            orderDate: cachedApproval.orderDate,
+            requestDate: cachedApproval.requestDate,
+            creator: cachedApproval.creator,
+            customerName: cachedApproval.customerName,
+            phone: cachedApproval.phone,
+            email: cachedApproval.email,
+            address: cachedApproval.address,
+            shipToName: cachedApproval.shipToName,
+            addressShipTo: cachedApproval.addressShipTo,
+            extendedAmount: cachedApproval.extendedAmount,
+            hargaAwal: cachedApproval.hargaAwal,
+            discount: cachedApproval.discount,
+            note: cachedApproval.note,
+            status: newStatus, // Updated status
+            keterangan: cachedApproval.keterangan,
+            createdAt: cachedApproval.createdAt,
+            details: cachedApproval.details,
+            discounts: cachedApproval.discounts,
+            approvalHistory: cachedApproval.approvalHistory,
+          );
+        }
+        return cachedApproval;
+      }).toList();
+
+      // Update cache with new statuses
+      ApprovalCache.cacheApprovals(updatedApprovals);
+
+      return updatedApprovals;
+    } catch (e) {
+      // If status update fails, return cached data
+      return ApprovalCache.getCachedApprovals() ?? [];
+    }
+  }
+
   /// Clear cache (useful for refresh)
   void clearCache() {
     ApprovalCache.clearAllCache();

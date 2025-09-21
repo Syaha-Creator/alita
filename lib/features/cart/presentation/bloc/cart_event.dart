@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../domain/entities/cart_entity.dart';
 import '../../../product/domain/entities/product_entity.dart';
 
 abstract class CartEvent extends Equatable {
@@ -96,17 +97,15 @@ class UpdateBonusTakeAway extends CartEvent {
   List<Object?> get props => [productId, netPrice, bonusTakeAway];
 }
 
-class MarkItemAsCheckedOut extends CartEvent {
-  final int productId;
-  final double netPrice;
+class RemoveSelectedItems extends CartEvent {
+  final List<CartEntity> itemsToRemove;
 
-  const MarkItemAsCheckedOut({
-    required this.productId,
-    required this.netPrice,
+  const RemoveSelectedItems({
+    required this.itemsToRemove,
   });
 
   @override
-  List<Object?> get props => [productId, netPrice];
+  List<Object?> get props => [itemsToRemove];
 }
 
 class Checkout extends CartEvent {

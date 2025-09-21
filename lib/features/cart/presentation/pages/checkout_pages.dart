@@ -6,11 +6,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:go_router/go_router.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'package:image/image.dart' as img;
 
+import '../../../../config/app_constant.dart';
 import '../../../../config/dependency_injection.dart';
 import '../../../../core/utils/controller_disposal_mixin.dart';
 import '../../../../core/utils/format_helper.dart';
@@ -425,13 +427,10 @@ class _CheckoutPagesState extends State<CheckoutPages>
 
       CustomToast.showToast('Draft berhasil disimpan', ToastType.success);
 
-      // Clear cart items that were saved to draft
-      for (final item in selectedItems) {
-        context.read<CartBloc>().add(MarkItemAsCheckedOut(
-              productId: item.product.id,
-              netPrice: item.netPrice,
-            ));
-      }
+      // Remove selected items from cart after saving to draft
+      context
+          .read<CartBloc>()
+          .add(RemoveSelectedItems(itemsToRemove: selectedItems));
 
       // Navigate to draft checkout page
       Navigator.pushReplacement(
@@ -557,21 +556,11 @@ class _CheckoutPagesState extends State<CheckoutPages>
         CustomToast.showToast(
             'Surat pesanan berhasil dibuat!\nNo. SP: $noSp', ToastType.success);
 
-        // Mark selected items as checked out (remove from cart)
-        final cartState = context.read<CartBloc>().state;
-        if (cartState is CartLoaded) {
-          final selectedItems = cartState.selectedItems;
-          for (final item in selectedItems) {
-            context.read<CartBloc>().add(MarkItemAsCheckedOut(
-                  productId: item.product.id,
-                  netPrice: item.netPrice,
-                ));
-          }
-        }
+        // Clear entire cart after successful checkout
+        context.read<CartBloc>().add(ClearCart());
 
-        // Navigate back to product page
-        Navigator.of(context).popUntil(
-            (route) => route.isFirst || route.settings.name == '/product');
+        // Navigate to approval monitoring page to see the new order
+        context.go(RoutePaths.approvalMonitoring);
       }
     } catch (e) {
       if (mounted) {

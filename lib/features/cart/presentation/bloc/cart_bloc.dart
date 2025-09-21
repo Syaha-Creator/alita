@@ -156,15 +156,14 @@ class CartBloc extends Bloc<CartEvent, CartState> {
       }
     });
 
-    on<MarkItemAsCheckedOut>((event, emit) async {
+    on<RemoveSelectedItems>((event, emit) async {
       if (state is CartLoaded) {
         final currentState = state as CartLoaded;
-        final updatedItems = currentState.cartItems.map((item) {
-          if (item.product.id == event.productId &&
-              item.netPrice == event.netPrice) {
-            return item.copyWith(isCheckedOut: true);
-          }
-          return item;
+        // Remove specific items from cart
+        final updatedItems = currentState.cartItems.where((item) {
+          return !event.itemsToRemove.any((removeItem) =>
+              removeItem.product.id == item.product.id &&
+              removeItem.netPrice == item.netPrice);
         }).toList();
 
         await CartStorageService.saveCartItems(updatedItems);

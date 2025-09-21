@@ -68,7 +68,7 @@ class CartStorageService {
       'installmentMonths': item.installmentMonths,
       'installmentPerMonth': item.installmentPerMonth,
       'isSelected': item.isSelected,
-      'isCheckedOut': item.isCheckedOut,
+      'bonusTakeAway': item.bonusTakeAway,
     };
   }
 
@@ -82,7 +82,9 @@ class CartStorageService {
       installmentMonths: json['installmentMonths'],
       installmentPerMonth: json['installmentPerMonth']?.toDouble(),
       isSelected: json['isSelected'] ?? true,
-      isCheckedOut: json['isCheckedOut'] ?? false,
+      bonusTakeAway: json['bonusTakeAway'] != null
+          ? Map<String, bool>.from(json['bonusTakeAway'])
+          : null,
     );
   }
 

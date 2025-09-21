@@ -61,24 +61,35 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
   // Background sync
   Timer? _backgroundSyncTimer;
 
+  // Loading state for status updates
+  bool _isUpdatingStatuses = false;
+
   @override
   void initState() {
     super.initState();
     _initializeAnimations();
     _loadUserInfo();
-    _loadApprovals();
+    _loadApprovalsWithCache();
     _startBackgroundSync();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Check if we need to load new data when returning from other pages
-    _checkForNewData();
+    // Only check for new data if we're returning from another page (not initial load)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkForNewData();
+    });
   }
 
   /// Check for new data when returning to page
   void _checkForNewData() {
+    // Only check for new data if we already have loaded data
+    final currentState = context.read<ApprovalBloc>().state;
+    if (currentState is! ApprovalLoaded) {
+      return; // Don't check if we're still loading or in error state
+    }
+
     // If cache is older than 30 seconds, load new data incrementally
     final cacheStats = ApprovalCache.getCacheStats();
     final cacheTimestamp = cacheStats['approval_cache_timestamp'] as String?;
@@ -90,8 +101,21 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
         final difference = now.difference(cacheTime);
 
         if (difference.inSeconds > 30) {
-          // Load new data incrementally
-          context.read<ApprovalBloc>().add(const LoadNewApprovalsIncremental());
+          // Update only approval statuses (lightweight operation)
+          setState(() {
+            _isUpdatingStatuses = true;
+          });
+
+          context.read<ApprovalBloc>().add(const UpdateApprovalStatusesOnly());
+
+          // Reset loading state after a delay
+          Future.delayed(const Duration(seconds: 2), () {
+            if (mounted) {
+              setState(() {
+                _isUpdatingStatuses = false;
+              });
+            }
+          });
         }
       }
     }
@@ -167,6 +191,60 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
         _isLoadingUserInfo = false;
       });
     }
+  }
+
+  void _loadApprovalsWithCache() {
+    final stopwatch = Stopwatch()..start();
+
+    // Check if we have cached data
+    final cachedApprovals = ApprovalCache.getCachedApprovals();
+    final cacheStats = ApprovalCache.getCacheStats();
+    final cacheTimestamp = cacheStats['approval_cache_timestamp'] as String?;
+
+    if (cachedApprovals != null &&
+        cachedApprovals.isNotEmpty &&
+        cacheTimestamp != null) {
+      final cacheTime = DateTime.tryParse(cacheTimestamp);
+      if (cacheTime != null) {
+        final now = DateTime.now();
+        final difference = now.difference(cacheTime);
+
+        // If cache is less than 2 minutes old, use cache immediately and check for new data
+        if (difference.inMinutes < 2) {
+          // Use cached data immediately (repository will return cached data)
+          context.read<ApprovalBloc>().add(LoadApprovals());
+
+          // Check for status updates after a short delay
+          Future.delayed(const Duration(milliseconds: 1000), () {
+            if (mounted) {
+              setState(() {
+                _isUpdatingStatuses = true;
+              });
+
+              context
+                  .read<ApprovalBloc>()
+                  .add(const UpdateApprovalStatusesOnly());
+
+              // Reset loading state after a delay
+              Future.delayed(const Duration(seconds: 2), () {
+                if (mounted) {
+                  setState(() {
+                    _isUpdatingStatuses = false;
+                  });
+                }
+              });
+            }
+          });
+
+          stopwatch.stop();
+          return;
+        }
+      }
+    }
+
+    // No cache or cache is old, do normal load (repository will handle caching)
+    context.read<ApprovalBloc>().add(LoadApprovals());
+    stopwatch.stop();
   }
 
   void _loadApprovals({bool forceRefresh = false}) {
@@ -1619,6 +1697,46 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
       body: SafeArea(
         child: Column(
           children: [
+            // Status Update Loading Indicator
+            if (_isUpdatingStatuses)
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: colorScheme.primary.withOpacity(0.1),
+                  border: Border(
+                    bottom: BorderSide(
+                      color: colorScheme.primary.withOpacity(0.2),
+                      width: 1,
+                    ),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(colorScheme.primary),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Memperbarui status approval...',
+                      style: TextStyle(
+                        color: colorScheme.primary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
             // Compact Header
             _buildCompactHeader(
               theme,
