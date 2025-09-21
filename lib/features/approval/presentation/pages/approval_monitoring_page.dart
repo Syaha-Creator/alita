@@ -302,6 +302,41 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
       }
     }
 
+    // Get pending discount count before showing modal
+    int pendingCount = 0;
+    try {
+      final currentUserId = await AuthService.getCurrentUserId();
+      if (currentUserId != null) {
+        final orderLetterService = locator<OrderLetterService>();
+        final rawDiscounts = await orderLetterService.getOrderLetterDiscounts(
+            orderLetterId: approval.id);
+
+        // Get user's job level
+        int jobLevelId = 1;
+        for (final discount in rawDiscounts) {
+          final approverId = discount['approver'];
+          final approverName = discount['approver_name'];
+          final approverLevelId = discount['approver_level_id'];
+
+          if ((approverId == currentUserId ||
+                  _isNameMatch(approverName,
+                      await AuthService.getCurrentUserName() ?? '')) &&
+              approverLevelId != null) {
+            jobLevelId = approverLevelId;
+            break;
+          }
+        }
+
+        pendingCount = await orderLetterService.getPendingDiscountCount(
+          orderLetterId: approval.id,
+          leaderId: currentUserId,
+          jobLevelId: jobLevelId,
+        );
+      }
+    } catch (e) {
+      // Continue with pendingCount = 0 if error
+    }
+
     // Show approval modal for approvers who haven't approved yet
     showModalBottomSheet(
       context: context,
@@ -309,6 +344,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
       backgroundColor: Colors.transparent,
       builder: (context) => ApprovalModal(
         approval: approval,
+        pendingDiscountCount: pendingCount,
         onApprovalAction: (action, comment) async {
           try {
             // Get the discount that needs approval for current user
@@ -326,8 +362,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
             final rawDiscounts = await orderLetterService
                 .getOrderLetterDiscounts(orderLetterId: approval.id);
 
-            // Find the discount that current user needs to approve (SEQUENTIAL)
-            int? discountIdToApprove;
+            // Check if current user can approve sequentially
             bool canApprove = _canUserApproveSequentially(
               rawDiscounts,
               currentUserId,
@@ -338,26 +373,6 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
               _showErrorSnackBar(
                 'Cannot approve: Previous levels must be approved first',
               );
-              return;
-            }
-
-            // Find the specific discount for current user
-            for (final discount in rawDiscounts) {
-              final approverId = discount['approver'];
-              final approverName = discount['approver_name'];
-              final approved = discount['approved'];
-
-              // Check if this discount is pending approval from current user
-              if ((approverId == currentUserId ||
-                      _isNameMatch(approverName, currentUserName)) &&
-                  (approved == null || approved == false)) {
-                discountIdToApprove = discount['id'];
-                break;
-              }
-            }
-
-            if (discountIdToApprove == null) {
-              _showErrorSnackBar('No pending discount found for approval');
               return;
             }
 
@@ -378,15 +393,35 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
               }
             }
 
-            // Call approval service
-            final result = await orderLetterService.approveOrderLetterDiscount(
-              discountId: discountIdToApprove,
+            // Get count of pending discounts for better user feedback
+            final pendingCount =
+                await orderLetterService.getPendingDiscountCount(
+              orderLetterId: approval.id,
               leaderId: currentUserId,
               jobLevelId: jobLevelId,
-              orderLetterId: approval.id,
             );
 
-            _showSuccessSnackBar(action);
+            if (pendingCount == 0) {
+              _showErrorSnackBar('No pending discounts found for approval');
+              return;
+            }
+
+            // Use batch approval for all pending discounts at user's level
+            final result =
+                await orderLetterService.batchApproveOrderLetterDiscounts(
+              orderLetterId: approval.id,
+              leaderId: currentUserId,
+              jobLevelId: jobLevelId,
+            );
+
+            // Show success message with count of approved discounts
+            final approvedCount = result['approved_count'] ?? 0;
+            if (result['success'] == true && approvedCount > 0) {
+              _showSuccessSnackBar(
+                  '$action - $approvedCount diskon berhasil disetujui');
+            } else {
+              _showErrorSnackBar(result['message'] ?? 'Approval failed');
+            }
 
             // Send notification using unified notification service
             try {

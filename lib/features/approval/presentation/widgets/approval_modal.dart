@@ -4,15 +4,18 @@ import '../../../../theme/app_colors.dart';
 import '../../domain/entities/approval_entity.dart';
 import '../../../../config/dependency_injection.dart';
 import '../../../../services/leader_service.dart';
+import '../../../../services/order_letter_service.dart';
 
 class ApprovalModal extends StatefulWidget {
   final ApprovalEntity approval;
   final Function(String action, String comment) onApprovalAction;
+  final int? pendingDiscountCount; // Add pending discount count parameter
 
   const ApprovalModal({
     super.key,
     required this.approval,
     required this.onApprovalAction,
+    this.pendingDiscountCount,
   });
 
   @override
@@ -28,6 +31,10 @@ class _ApprovalModalState extends State<ApprovalModal>
   bool _isStaffLevel = false;
   bool _isLoadingUserInfo = true;
 
+  // Add state for discount data
+  Map<String, List<Map<String, dynamic>>> _discountsByKasur = {};
+  bool _isLoadingDiscounts = true;
+
   late AnimationController _slideController;
   late AnimationController _fadeController;
   late AnimationController _pulseController;
@@ -42,6 +49,7 @@ class _ApprovalModalState extends State<ApprovalModal>
     super.initState();
     _initializeAnimations();
     _loadUserInfo();
+    _loadDiscountData();
   }
 
   void _initializeAnimations() {
@@ -126,6 +134,56 @@ class _ApprovalModalState extends State<ApprovalModal>
       setState(() {
         _isLoadingUserInfo = false;
       });
+    }
+  }
+
+  Future<void> _loadDiscountData() async {
+    try {
+      final orderLetterService = locator<OrderLetterService>();
+      final discounts = await orderLetterService.getOrderLetterDiscounts(
+          orderLetterId: widget.approval.id);
+
+      // Group discounts by kasur name
+      final Map<String, List<Map<String, dynamic>>> groupedDiscounts = {};
+
+      for (final discount in discounts) {
+        final detailId = discount['order_letter_detail_id'];
+
+        // Find the corresponding detail to get kasur name
+        final detail = widget.approval.details.firstWhere(
+          (d) => d.id == detailId,
+          orElse: () => widget.approval.details.first,
+        );
+
+        // Only group discounts for kasur items
+        if (detail.itemType.toLowerCase() == 'kasur') {
+          final kasurName = detail.desc1;
+
+          if (!groupedDiscounts.containsKey(kasurName)) {
+            groupedDiscounts[kasurName] = [];
+          }
+          groupedDiscounts[kasurName]!.add(discount);
+        }
+      }
+
+      // Sort discounts within each kasur group by level
+      for (final kasurDiscounts in groupedDiscounts.values) {
+        kasurDiscounts.sort((a, b) => (a['approver_level_id'] ?? 0)
+            .compareTo(b['approver_level_id'] ?? 0));
+      }
+
+      if (mounted) {
+        setState(() {
+          _discountsByKasur = groupedDiscounts;
+          _isLoadingDiscounts = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingDiscounts = false;
+        });
+      }
     }
   }
 
@@ -461,10 +519,17 @@ class _ApprovalModalState extends State<ApprovalModal>
                 '${widget.approval.details.length} items',
                 Icons.inventory_2_rounded,
                 AppColors.info),
-            if (widget.approval.discount != null &&
-                widget.approval.discount! > 0)
-              _buildSummaryRow('Discount', '${widget.approval.discount}%',
-                  Icons.discount_rounded, AppColors.warning),
+            // Show discount breakdown by kasur
+            if (!_isLoadingDiscounts && _discountsByKasur.isNotEmpty)
+              _buildDiscountBreakdown(theme, colorScheme),
+            // Show pending discount count if available
+            if (widget.pendingDiscountCount != null &&
+                widget.pendingDiscountCount! > 0)
+              _buildSummaryRow(
+                  'Pending Approvals',
+                  '${widget.pendingDiscountCount} diskon menunggu persetujuan',
+                  Icons.pending_actions_rounded,
+                  AppColors.warning),
             _buildSummaryRow(
                 'Status',
                 widget.approval.status,
@@ -885,6 +950,139 @@ class _ApprovalModalState extends State<ApprovalModal>
           RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
           (Match m) => '${m[1]},',
         );
+  }
+
+  /// Format discount percentage with max 2 decimal places
+  String _formatDiscountPercentage(double percentage) {
+    // If it's a whole number, show without decimals
+    if (percentage == percentage.toInt()) {
+      return percentage.toInt().toString();
+    }
+
+    // Format with max 2 decimal places and remove trailing zeros
+    final formatted = percentage.toStringAsFixed(2);
+    return formatted
+        .replaceAll(RegExp(r'0*$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
+  }
+
+  /// Build discount breakdown section similar to order letter document page
+  Widget _buildDiscountBreakdown(ThemeData theme, ColorScheme colorScheme) {
+    final List<Widget> discountWidgets = [];
+
+    for (final entry in _discountsByKasur.entries) {
+      final kasurName = entry.key;
+      final kasurDiscounts = entry.value;
+
+      if (kasurDiscounts.isNotEmpty) {
+        // Add kasur name as header
+        discountWidgets.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 4),
+            child: Text(
+              kasurName,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: colorScheme.primary,
+              ),
+            ),
+          ),
+        );
+
+        // Add discount rows for this kasur
+        for (final discount in kasurDiscounts) {
+          final level = discount['approver_level_id'] ?? 1;
+          final percentage = (discount['discount'] is String)
+              ? double.tryParse(discount['discount']) ?? 0.0
+              : (discount['discount'] ?? 0.0).toDouble();
+
+          String levelLabel = '';
+          switch (level) {
+            case 1:
+              levelLabel = 'Disc 1';
+              break;
+            case 2:
+              levelLabel = 'Disc 2';
+              break;
+            case 3:
+              levelLabel = 'Disc 3';
+              break;
+            case 4:
+              levelLabel = 'Disc 4';
+              break;
+            case 5:
+              levelLabel = 'Disc 5';
+              break;
+            default:
+              levelLabel = 'Disc $level';
+          }
+
+          discountWidgets.add(
+            Padding(
+              padding: const EdgeInsets.only(left: 16, top: 2, bottom: 2),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    levelLabel,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w500,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  Text(
+                    '-${_formatDiscountPercentage(percentage)}%',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.error,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+      }
+    }
+
+    if (discountWidgets.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.discount_rounded,
+                  size: 14,
+                  color: AppColors.warning,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Discount Breakdown',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ...discountWidgets,
+        ],
+      ),
+    );
   }
 
   Widget _buildLoadingState(ThemeData theme, ColorScheme colorScheme) {
