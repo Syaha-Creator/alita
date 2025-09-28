@@ -110,9 +110,7 @@ class EnhancedCheckoutService {
         disc3: originalItem.product.disc3,
         disc4: originalItem.product.disc4,
         disc5: originalItem.product.disc5,
-        // Gunakan item_number dari mapping (atau kosong jika tidak ditemukan)
-        itemNumber:
-            productMapping.kasurItemNumber ?? '', // Kasur sebagai item utama
+        itemNumber: productMapping.kasurItemNumber ?? '',
         itemNumberKasur: productMapping.kasurItemNumber ?? '',
         itemNumberDivan: productMapping.divanItemNumber ?? '',
         itemNumberHeadboard: productMapping.headboardItemNumber ?? '',

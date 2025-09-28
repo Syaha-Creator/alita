@@ -125,6 +125,14 @@ class ApiConfig {
     return "$orderLetters?access_token=$token&client_id=$clientId&client_secret=$clientSecret$creatorParam";
   }
 
+  // Helper untuk Order Letter by ID (with complete data including contacts)
+  static String getOrderLetterByIdUrl({
+    required String token,
+    required int orderLetterId,
+  }) {
+    return "$orderLetters/$orderLetterId?access_token=$token&client_id=$clientId&client_secret=$clientSecret";
+  }
+
   // Helper untuk Order Letters with Complete Data (optimized for approval monitoring)
   static String getOrderLettersWithCompleteDataUrl({
     required String token,

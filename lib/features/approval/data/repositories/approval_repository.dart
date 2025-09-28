@@ -150,8 +150,6 @@ class ApprovalRepository {
 
         // If creation dates are valid, use them for sorting
         if (dateA != null && dateB != null) {
-          print(
-              'ApprovalRepository: Sorting by createdAt - A: ${a.createdAt} (rul), B: ${b.createdAt} ($dateB)');
           return dateB.compareTo(dateA); // Newest first
         }
 
@@ -160,8 +158,6 @@ class ApprovalRepository {
         dateB ??= _parseDate(b.orderDate);
 
         if (dateA != null && dateB != null) {
-          print(
-              'ApprovalRepository: Sorting by orderDate - A: ${a.orderDate} ($dateA), B: ${b.orderDate} ($dateB)');
           return dateB.compareTo(dateA); // Newest first
         }
 
@@ -170,8 +166,6 @@ class ApprovalRepository {
         dateB ??= _parseDate(b.requestDate);
 
         if (dateA != null && dateB != null) {
-          print(
-              'ApprovalRepository: Sorting by requestDate - A: ${a.requestDate} ($dateA), B: ${b.requestDate} ($dateB)');
           return dateB.compareTo(dateA); // Newest first
         }
 
@@ -196,8 +190,6 @@ class ApprovalRepository {
       final result = DateTime.parse(dateString);
       return result;
     } catch (e) {
-      print(
-          'ApprovalRepository: _parseDate - failed to parse "$dateString" with DateTime.parse: $e');
       try {
         // Try common date formats
         final formats = [
@@ -247,8 +239,6 @@ class ApprovalRepository {
           }
         }
 
-        print(
-            'ApprovalRepository: _parseDate - failed to parse "$dateString" with any format');
         return null;
       } catch (e) {
         return null;
@@ -303,8 +293,6 @@ class ApprovalRepository {
       // Check if pagination should be used
       if (ApprovalCache.shouldUsePagination()) {
         final paginatedApprovals = ApprovalCache.getPaginatedApprovals(page);
-        print(
-            'ApprovalRepository: Returning page $page with ${paginatedApprovals.length} items');
         return paginatedApprovals;
       } else {
         // Return all data if pagination not needed
@@ -360,8 +348,6 @@ class ApprovalRepository {
           );
         }
       } catch (e) {
-        print(
-            'ApprovalRepository: Background sync - optimized approach failed: $e');
         // Fallback to original method
         newApprovals = await _getApprovalsOriginalMethod(
             currentUserId, currentUserName, null);

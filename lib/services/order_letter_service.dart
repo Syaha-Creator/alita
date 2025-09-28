@@ -98,7 +98,6 @@ class OrderLetterService {
         detailWithId['order_letter_id'] = orderLetterId;
         detailWithId['no_sp'] = noSp;
 
-        print('OrderLetterService: Creating detail with data: $detailWithId');
         final detailResult = await createOrderLetterDetail(detailWithId);
         detailResults.add(detailResult);
 
@@ -227,9 +226,6 @@ class OrderLetterService {
           // Fallback to current user data
         }
 
-        // print(
-        //     'OrderLetterService: Discount $i - Approver: $approverName ($approverId), Level: $approverLevel, Title: $approverWorkTitle');
-
         // Smart approval logic
         bool isApproved = false;
         String? approvedAt;
@@ -241,18 +237,10 @@ class OrderLetterService {
           approvedAt = DateTime.now().toIso8601String();
           approvedValue = 'true';
         } else {
-          // Check if this level is the same as the creator (self-approval case)
-          final currentUserId = await AuthService.getCurrentUserId();
-
-          if (currentUserId != null && approverId == currentUserId) {
-            // Self-approval case: auto-approve if user is their own approver
-            isApproved = true;
-            approvedAt = DateTime.now().toIso8601String();
-            approvedValue = 'true';
-          } else {
-            // Different approver: set to pending
-            approvedValue = null;
-          }
+          // For all other levels (Direct Leader, Indirect Leader, Controller, Analyst)
+          // Set approved and approved_at to null - they need manual approval
+          approvedValue = null;
+          approvedAt = null;
         }
 
         final discountData = {
@@ -265,17 +253,22 @@ class OrderLetterService {
           'approver_level': approverLevel,
           'approver_work_title': approverWorkTitle,
           'approved': approvedValue,
-          'approved_at': approvedAt, // Hanya level 1 yang akan ada approved_at
+          'approved_at': approvedAt,
         };
+
+        // Debug logging to verify data being sent to API
+        print(
+            'OrderLetterService: Creating discount for level ${i + 1} ($approverLevel):');
+        print('  - approved: $approvedValue');
+        print('  - approved_at: $approvedAt');
+        print('  - approver: $approverId ($approverName)');
+        print('  - Full discount data: $discountData');
 
         final discountResult = await createOrderLetterDiscount(discountData);
         discountResults.add(discountResult);
 
         if (discountResult['success']) {
-        } else {
-          // print(
-          //     'OrderLetterService: Failed to create discount: ${discountResult['message']}');
-        }
+        } else {}
       }
 
       // Check if all operations were successful
@@ -396,16 +389,12 @@ class OrderLetterService {
       final response = await dio.post(url, data: discountData);
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        // print(
-        //     'OrderLetterService: Discount creation response: ${response.data}');
         return {
           'success': true,
           'data': response.data,
           'message': 'Order letter discount created successfully',
         };
       } else {
-        // print(
-        //     'OrderLetterService: Discount creation failed with status: ${response.statusCode}');
         throw Exception(
             'Failed to create order letter discount: ${response.statusCode}');
       }
@@ -745,17 +734,16 @@ class OrderLetterService {
       if (response.statusCode == 200) {
         final data = response.data;
 
+        List<Map<String, dynamic>> result = [];
         if (data is List) {
-          final result = List<Map<String, dynamic>>.from(data);
-
-          return result;
+          result = List<Map<String, dynamic>>.from(data);
         } else if (data is Map && data['result'] is List) {
-          final result = List<Map<String, dynamic>>.from(data['result']);
-
-          return result;
+          result = List<Map<String, dynamic>>.from(data['result']);
+        } else {
+          return await getOrderLetters(creator: creator);
         }
 
-        return await getOrderLetters(creator: creator);
+        return result;
       } else {
         return await getOrderLetters(creator: creator);
       }
@@ -827,16 +815,15 @@ class OrderLetterService {
         }
 
         // Filter discounts by order_letter_id if specified
+        List<Map<String, dynamic>> discountsToReturn = allDiscounts;
         if (orderLetterId != null) {
-          final filteredDiscounts = allDiscounts.where((discount) {
+          discountsToReturn = allDiscounts.where((discount) {
             final discountOrderLetterId = discount['order_letter_id'];
             return discountOrderLetterId == orderLetterId;
           }).toList();
-
-          return filteredDiscounts;
         }
 
-        return allDiscounts;
+        return discountsToReturn;
       } else {
         throw Exception(
             'Failed to fetch order letter discounts: ${response.statusCode}');
@@ -1002,13 +989,20 @@ class OrderLetterService {
     print(
         'OrderLetterService: Processing ${itemDiscounts.length} items with structured discounts');
 
+    // Track created discounts to prevent duplicates
+    final Set<String> createdDiscounts = {};
+
     for (final itemDiscount in itemDiscounts) {
       final productId = itemDiscount['productId'];
       final kasurName = itemDiscount['kasurName'] as String;
       final discounts = itemDiscount['discounts'] as List<double>;
 
+      // Get product size from the original cart item to create unique key
+      final productSize = itemDiscount['productSize'] as String? ?? '';
+      final uniqueProductKey = '${kasurName}_$productSize';
+
       print(
-          'OrderLetterService: Processing kasur "$kasurName" with ${discounts.length} discounts');
+          'OrderLetterService: Processing kasur "$kasurName" ($productSize) with ${discounts.length} discounts');
 
       // Debug: Print all available detail results
       print('OrderLetterService: Available detail results:');
@@ -1027,7 +1021,7 @@ class OrderLetterService {
         }
       }
 
-      // Find kasur detail ID for this specific kasur
+      // Find kasur detail ID for this specific kasur with matching size
       int? kasurOrderLetterDetailId;
       for (final detailResult in detailResults) {
         if (detailResult['success'] && detailResult['data'] != null) {
@@ -1036,19 +1030,20 @@ class OrderLetterService {
           final detailData = rawData['location'] ?? rawData;
 
           print(
-              'OrderLetterService: Checking detail - type: "${detailData['item_type']}", desc_1: "${detailData['desc_1']}" vs kasurName: "$kasurName"');
+              'OrderLetterService: Checking detail - type: "${detailData['item_type']}", desc_1: "${detailData['desc_1']}", desc_2: "${detailData['desc_2']}" vs kasurName: "$kasurName", size: "$productSize"');
 
-          // Match by kasur name and type
+          // Match by kasur name, size, and type
           if ((detailData['item_type'] == 'Mattress' ||
                   detailData['item_type'] == 'kasur') &&
-              detailData['desc_1'] == kasurName) {
+              detailData['desc_1'] == kasurName &&
+              detailData['desc_2'] == productSize) {
             // detailData sudah berisi data location, jadi langsung akses ID
             kasurOrderLetterDetailId = detailData['id'] ??
                 detailData['order_letter_detail_id'] ??
                 detailData['detail_id'];
 
             print(
-                'OrderLetterService: Found detail ID $kasurOrderLetterDetailId for kasur "$kasurName"');
+                'OrderLetterService: Found detail ID $kasurOrderLetterDetailId for kasur "$kasurName" ($productSize)');
             break;
           }
         }
@@ -1056,14 +1051,26 @@ class OrderLetterService {
 
       if (kasurOrderLetterDetailId == null) {
         print(
-            'OrderLetterService: WARNING - No detail ID found for kasur "$kasurName"');
+            'OrderLetterService: WARNING - No detail ID found for kasur "$kasurName" ($productSize)');
         continue;
       }
 
       // Process each discount for this kasur
+      // Only create discounts for levels that have actual discount values > 0
       for (int i = 0; i < discounts.length; i++) {
         final discount = discounts[i];
-        if (discount <= 0) continue;
+        if (discount <= 0) continue; // Skip zero or negative discounts
+
+        // Create unique key to prevent duplicates
+        final discountKey = '${kasurOrderLetterDetailId}_${i}_$discount';
+        if (createdDiscounts.contains(discountKey)) {
+          print(
+              'OrderLetterService: Skipping duplicate discount for "$kasurName" ($productSize) at level ${i + 1}: $discount%');
+          continue;
+        }
+
+        print(
+            'OrderLetterService: Creating discount for "$kasurName" ($productSize) at level ${i + 1}: $discount%');
 
         await _createSingleDiscount(
           orderLetterId: orderLetterId,
@@ -1074,6 +1081,9 @@ class OrderLetterService {
           discountResults: discountResults,
           kasurName: kasurName,
         );
+
+        // Mark this discount as created
+        createdDiscounts.add(discountKey);
       }
     }
   }
@@ -1174,6 +1184,11 @@ class OrderLetterService {
         if (discountIndex == 0) {
           approvedValue = true; // Auto-approve level 1 (User level)
           approvedAt = DateTime.now().toIso8601String();
+        } else {
+          // For all other levels (Direct Leader, Indirect Leader, Controller, Analyst)
+          // Set approved and approved_at to null - they need manual approval
+          approvedValue = null;
+          approvedAt = null;
         }
       }
     } catch (e) {
@@ -1192,6 +1207,14 @@ class OrderLetterService {
       'approved': approvedValue,
       'approved_at': approvedAt,
     };
+
+    // Debug logging to verify data being sent to API
+    print(
+        'OrderLetterService: Creating discount for level ${discountIndex + 1} ($approverLevel):');
+    print('  - approved: $approvedValue');
+    print('  - approved_at: $approvedAt');
+    print('  - approver: $approverId ($approverName)');
+    print('  - Full discount data: $discountData');
 
     final discountResult = await createOrderLetterDiscount(discountData);
     discountResults.add(discountResult);

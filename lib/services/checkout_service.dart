@@ -55,6 +55,7 @@ class CheckoutService {
             itemDiscounts.add({
               'productId': item.product.id,
               'kasurName': item.product.kasur,
+              'productSize': item.product.ukuran,
               'discounts': validDiscounts,
             });
             totalDiscountPercentage += item.discountPercentages.fold(
