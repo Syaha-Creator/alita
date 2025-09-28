@@ -367,6 +367,7 @@ class _OrderLetterDocumentListPageState
   }
 
   Widget _buildApprovalStatus(OrderLetterDocumentModel document) {
+    // Count approvals based on discount.approved field
     final approvedCount =
         document.discounts.where((d) => d.approved == true).length;
     final totalCount = document.discounts.length;

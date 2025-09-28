@@ -57,17 +57,8 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Surat Pesanan'),
-        backgroundColor: Colors.blue[800],
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadDocument,
-          ),
-        ],
-      ),
+      backgroundColor: Colors.grey[50],
+      appBar: _document != null ? _buildCustomAppBar() : null,
       floatingActionButton: _document != null
           ? Builder(
               builder: (buttonContext) => FloatingActionButton.extended(
@@ -87,11 +78,29 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text('Error: $_error'),
+                      Icon(
+                        Icons.error_outline,
+                        size: 64,
+                        color: Colors.red[300],
+                      ),
                       const SizedBox(height: 16),
-                      ElevatedButton(
+                      Text(
+                        'Error: $_error',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Colors.red,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
                         onPressed: _loadDocument,
-                        child: const Text('Retry'),
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Retry'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue[600],
+                          foregroundColor: Colors.white,
+                        ),
                       ),
                     ],
                   ),
@@ -126,102 +135,345 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                       ),
                     )
                   : SingleChildScrollView(
-                      padding: const EdgeInsets.all(16),
                       child: _buildDocumentContent(),
                     ),
+    );
+  }
+
+  /// Build custom AppBar with document information
+  PreferredSizeWidget _buildCustomAppBar() {
+    return AppBar(
+      backgroundColor: Colors.white,
+      foregroundColor: Colors.grey[800],
+      elevation: 2,
+      shadowColor: Colors.black.withOpacity(0.1),
+      toolbarHeight: 80,
+      leading: IconButton(
+        icon: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey[200]!),
+          ),
+          child:
+              Icon(Icons.arrow_back_ios_new, color: Colors.grey[700], size: 18),
+        ),
+        onPressed: () => Navigator.of(context).pop(),
+      ),
+      actions: [
+        IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.blue[50],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.blue[200]!),
+            ),
+            child: Icon(Icons.refresh, color: Colors.blue[600], size: 20),
+          ),
+          onPressed: _loadDocument,
+        ),
+      ],
+      title: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue[200]!),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.description_outlined,
+                      color: Colors.blue[600],
+                      size: 16,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'SURAT PESANAN',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.blue[700],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _getStatusColor(_document!.status).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                      color:
+                          _getStatusColor(_document!.status).withOpacity(0.3)),
+                ),
+                child: Text(
+                  _document!.status.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: _getStatusColor(_document!.status),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _document!.noSp,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(50),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.grey[50],
+            border: Border(
+              top: BorderSide(color: Colors.grey[200]!),
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: _buildInfoItem(
+                  icon: Icons.calendar_today_outlined,
+                  label: 'Tanggal',
+                  value: _formatDate(_document!.createdAt),
+                  color: Colors.orange[600]!,
+                ),
+              ),
+              Container(
+                width: 1,
+                height: 30,
+                color: Colors.grey[300],
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+              ),
+              Expanded(
+                child: _buildInfoItem(
+                  icon: Icons.person_outline,
+                  label: 'Creator',
+                  value: _document!.creator,
+                  color: Colors.green[600]!,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Build info item for AppBar bottom section
+  Widget _buildInfoItem({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            icon,
+            size: 18,
+            color: color,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[800],
+                  fontWeight: FontWeight.w600,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildDocumentContent() {
     final document = _document!;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: Colors.grey[300]!),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        children: [
-          _buildHeader(),
-          const SizedBox(height: 16),
-          _buildItemsTable(),
-          const SizedBox(height: 16),
-          _buildTotalsSection(),
-          const SizedBox(height: 16),
-          _buildApprovalSection(),
-          const SizedBox(height: 16),
-          _buildTermsAndConditions(),
-          const SizedBox(height: 16),
-          _buildSignatureSection(),
-          const SizedBox(height: 20),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.blue[50],
-        border: Border(bottom: BorderSide(color: Colors.grey[300]!)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Column(
+      children: [
+        // Customer info section - Clean design
+        Container(
+          width: double.infinity,
+          margin: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey[200]!),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.08),
+                spreadRadius: 1,
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
             children: [
-              Flexible(
-                child: const Text(
-                  'SURAT PESANAN',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue,
+              // Header
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(12),
+                    topRight: Radius.circular(12),
                   ),
+                  border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.person_outline,
+                      color: Colors.grey[600],
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Informasi Customer',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 8),
-              Flexible(
+              // Content
+              Padding(
+                padding: const EdgeInsets.all(20),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(
-                      'No. SP: ${_document!.noSp}',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      overflow: TextOverflow.ellipsis,
+                    // Customer name row
+                    _buildInfoRow(
+                      icon: Icons.business,
+                      label: 'Nama Customer',
+                      value: document.customerName,
+                      iconColor: Colors.blue[600]!,
                     ),
-                    Text(
-                      'Status: ${_document!.status}',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: _getStatusColor(_document!.status),
-                        fontWeight: FontWeight.bold,
-                      ),
-                      overflow: TextOverflow.ellipsis,
+                    const SizedBox(height: 16),
+                    // Phone row
+                    _buildInfoRow(
+                      icon: Icons.phone,
+                      label: 'Nomor Telepon',
+                      value: _getAllPhonesForPDF(),
+                      iconColor: Colors.green[600]!,
+                    ),
+                    const SizedBox(height: 16),
+                    // Address row
+                    _buildInfoRow(
+                      icon: Icons.location_on,
+                      label: 'Alamat',
+                      value: document.address,
+                      iconColor: Colors.orange[600]!,
+                      isAddress: true,
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text('Tanggal: ${_formatDate(_document!.createdAt)}'),
-          const SizedBox(height: 4),
-          Text('Dibuat oleh: ${_document!.creator}'),
-          const SizedBox(height: 8),
-          Text('Customer: ${_document!.customerName}'),
-          const SizedBox(height: 4),
-          Text('Phone: ${_document!.phone}'),
-          const SizedBox(height: 4),
-          Text('Address: ${_document!.address}'),
-        ],
-      ),
+        ),
+
+        // Items section
+        _buildItemsTable(),
+
+        // Totals section
+        Container(
+          width: double.infinity,
+          margin: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey[200]!),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.08),
+                spreadRadius: 1,
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: _buildTotalsSection(),
+        ),
+
+        // Terms and conditions
+        Container(
+          width: double.infinity,
+          margin: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey[200]!),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.08),
+                spreadRadius: 1,
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: _buildTermsAndConditions(),
+        ),
+
+        const SizedBox(height: 20),
+      ],
     );
   }
 
@@ -230,24 +482,36 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
 
     if (details.isEmpty) {
       return Container(
-        padding: const EdgeInsets.all(16),
+        width: double.infinity,
+        margin: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey[300]!),
-          borderRadius: BorderRadius.circular(4),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey[200]!),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.08),
+              spreadRadius: 1,
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-        child: const Column(
+        child: Column(
           children: [
             Icon(
               Icons.inventory_2_outlined,
               size: 48,
-              color: Colors.grey,
+              color: Colors.grey[400],
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 12),
             Text(
               'Tidak ada detail pesanan',
               style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
+                fontSize: 16,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
               ),
             ),
           ],
@@ -256,27 +520,80 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
     }
 
     return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey[300]!),
-        borderRadius: BorderRadius.circular(4),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.08),
+            spreadRadius: 1,
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header section dengan design yang menyatu
           Container(
-            padding: const EdgeInsets.all(12),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             decoration: BoxDecoration(
-              color: Colors.grey[100],
-              border: Border(bottom: BorderSide(color: Colors.grey[300]!)),
-            ),
-            child: const Text(
-              'DETAIL PESANAN',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
+              color: Colors.blue[50],
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
               ),
+              border: Border(bottom: BorderSide(color: Colors.blue[100]!)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.shopping_cart_outlined,
+                    color: Colors.blue[600],
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'DETAIL PESANAN',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.blue[700],
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[100],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${details.where((d) => d.itemType == 'kasur').length} Produk',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.blue[600],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
+          // Content section dengan padding yang konsisten
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -288,39 +605,18 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
     );
   }
 
-  List<Widget> _buildOrderItemCards(List<dynamic> details) {
+  List<Widget> _buildOrderItemCards(List<OrderLetterDetailModel> details) {
     final List<Widget> cards = [];
 
     // Kelompokkan detail berdasarkan kasur utama
     final kasurDetails = details.where((d) => d.itemType == 'kasur').toList();
 
-    print('Total details: ${details.length}');
-    print('Kasur details: ${kasurDetails.length}');
-
-    // Debug: print all details first to see the structure
-    print('=== ALL DETAILS STRUCTURE ===');
-    for (int j = 0; j < details.length; j++) {
-      final detail = details[j];
-      print(
-          '  $j: itemType=${detail.itemType}, desc1="${detail.desc1}", desc2="${detail.desc2}"');
-      // Print all available fields
-      print('      Fields: ${detail.runtimeType.toString()}');
-      if (detail.runtimeType.toString().contains('Map')) {
-        print('      Map keys: ${(detail as Map).keys.toList()}');
-      }
-    }
-
     for (int i = 0; i < kasurDetails.length; i++) {
       final kasurDetail = kasurDetails[i];
       final kasurIndex = i + 1;
 
-      print('\n=== PROCESSING KASUR $kasurIndex ===');
-      print('Kasur: ${kasurDetail.desc1} - ${kasurDetail.desc2}');
-      print('Kasur desc1: "${kasurDetail.desc1}"');
-      print('Kasur desc2: "${kasurDetail.desc2}"');
-
       // Coba berbagai cara matching untuk aksesoris
-      List<dynamic> relatedAccessories = [];
+      List<OrderLetterDetailModel> relatedAccessories = [];
 
       // Method 1: Exact desc1 match
       var accessories1 = details
@@ -329,7 +625,6 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
               d.itemType != 'Bonus' &&
               d.desc1 == kasurDetail.desc1)
           .toList();
-      print('Method 1 (exact desc1): ${accessories1.length} accessories');
 
       // Method 2: Partial desc1 match
       var accessories2 = details
@@ -338,7 +633,6 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
               d.itemType != 'Bonus' &&
               d.desc1.toString().contains(kasurDetail.desc1.toString()))
           .toList();
-      print('Method 2 (partial desc1): ${accessories2.length} accessories');
 
       // Method 3: Any field match
       var accessories3 = details
@@ -350,16 +644,11 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                   d.desc1.toString().contains(kasurDetail.desc2.toString()) ||
                   d.desc2.toString().contains(kasurDetail.desc2.toString())))
           .toList();
-      print('Method 3 (any field): ${accessories3.length} accessories');
 
       // Method 4: Show all non-kasur, non-bonus items
       var allAccessories = details
           .where((d) => d.itemType != 'kasur' && d.itemType != 'Bonus')
           .toList();
-      print('All non-kasur, non-bonus items: ${allAccessories.length}');
-      for (var acc in allAccessories) {
-        print('  - ${acc.itemType}: "${acc.desc1}" - "${acc.desc2}"');
-      }
 
       // Gunakan method yang paling banyak hasilnya
       if (accessories3.isNotEmpty) {
@@ -376,16 +665,13 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
       }
 
       // Cari bonus yang terkait dengan kasur ini berdasarkan urutan item
-      var relatedBonus = <dynamic>[];
+      var relatedBonus = <OrderLetterDetailModel>[];
 
       // Cari posisi kasur saat ini dalam array details
       final kasurIndexInDetails = details.indexWhere((d) =>
           d.itemType == 'kasur' &&
           d.desc1 == kasurDetail.desc1 &&
           d.desc2 == kasurDetail.desc2);
-
-      print(
-          'Kasur ${kasurDetail.desc1} - ${kasurDetail.desc2} found at index: $kasurIndexInDetails');
 
       // Cari posisi kasur berikutnya (jika ada)
       int nextKasurIndex = -1;
@@ -401,72 +687,21 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
             .length; // Jika tidak ada kasur berikutnya, gunakan panjang array
       }
 
-      print('Next kasur found at index: $nextKasurIndex');
-
       // Ambil bonus yang berada antara kasur saat ini dan kasur berikutnya
       for (int i = kasurIndexInDetails + 1; i < nextKasurIndex; i++) {
         if (details[i].itemType == 'Bonus') {
           relatedBonus.add(details[i]);
-          print(
-              'Added bonus at index $i: ${details[i].desc1} - ${details[i].desc2}');
         }
       }
 
-      print('Total bonus for kasur $kasurIndex: ${relatedBonus.length}');
-
-      print(
-          'Found ${relatedAccessories.length} accessories for kasur $kasurIndex');
-      print('Found ${relatedBonus.length} bonus for kasur $kasurIndex');
-
-      // Debug: print found accessories
-      if (relatedAccessories.isNotEmpty) {
-        print('Found accessories:');
-        for (var acc in relatedAccessories) {
-          print('  - ${acc.itemType}: "${acc.desc1}" - "${acc.desc2}"');
-        }
-      }
-
-      // Debug: print found bonus
-      if (relatedBonus.isNotEmpty) {
-        print('Found bonus for kasur $kasurIndex:');
-        for (var b in relatedBonus) {
-          print(
-              '  - ${b.itemType}: "${b.desc1}" - "${b.desc2}" (qty: ${b.qty})');
-        }
-      } else {
-        print('No bonus found for kasur $kasurIndex');
-      }
-
-      // Debug: print bonus details
-      print('Bonus details for kasur $kasurIndex:');
-      for (var b in relatedBonus) {
-        print('  - ${b.itemType}: "${b.desc1}" - "${b.desc2}" (qty: ${b.qty})');
-      }
-
-      // Debug: print all available bonus items
       final allBonus = details.where((d) => d.itemType == 'Bonus').toList();
-      print('All available bonus items: ${allBonus.length}');
-      for (var b in allBonus) {
-        print('  - ${b.itemType}: "${b.desc1}" - "${b.desc2}" (qty: ${b.qty})');
-      }
-
-      // Debug: check case sensitivity
-      print('=== CASE SENSITIVITY CHECK ===');
       final bonusLower = details.where((d) => d.itemType == 'bonus').toList();
       final bonusUpper = details.where((d) => d.itemType == 'Bonus').toList();
       final bonusAny = details
           .where((d) => d.itemType.toString().toLowerCase() == 'bonus')
           .toList();
-      print('Bonus with "bonus" (lower): ${bonusLower.length}');
-      print('Bonus with "Bonus" (upper): ${bonusUpper.length}');
-      print('Bonus with any case: ${bonusAny.length}');
 
-      // Show all item types to debug
       final allItemTypes = details.map((d) => d.itemType).toSet().toList();
-      print('All item types found: $allItemTypes');
-
-      // Gunakan aksesoris yang sudah difilter, bukan semua aksesoris
-      // relatedAccessories = allAccessories; // Hapus baris ini
 
       cards.add(_buildOrderItemCard(
         kasurIndex: kasurIndex,
@@ -481,9 +716,9 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
 
   Widget _buildOrderItemCard({
     required int kasurIndex,
-    required dynamic kasurDetail,
-    required List<dynamic> accessories,
-    required List<dynamic> bonus,
+    required OrderLetterDetailModel kasurDetail,
+    required List<OrderLetterDetailModel> accessories,
+    required List<OrderLetterDetailModel> bonus,
   }) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -491,12 +726,23 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
     final nett = _document!.extendedAmount;
     final discount = pricelist - nett;
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      elevation: 4,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.08),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(15),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -632,16 +878,151 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
               const SizedBox(height: 8),
             ],
 
-            // Informasi Harga Section - Dihapus untuk sementara
-
-            // Total Harga Section - Dihapus untuk sementara
+            // Discount Section - Menampilkan diskon yang terkait dengan kasur ini
+            _buildDiscountSectionForKasur(kasurDetail, isDark),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildAccessoryRow(dynamic acc, bool isDark) {
+  Widget _buildDiscountSectionForKasur(
+      OrderLetterDetailModel kasurDetail, bool isDark) {
+    // Get discounts directly from the kasur detail
+    final kasurDiscounts = kasurDetail.discounts;
+
+    print(
+        'Kasur: ${kasurDetail.desc1} ${kasurDetail.desc2} (ID: ${kasurDetail.id}) - Found ${kasurDiscounts.length} discounts');
+
+    if (kasurDiscounts.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    // Sort discounts by approver_level_id
+    final sortedDiscounts = List<OrderLetterDiscountModel>.from(kasurDiscounts);
+    sortedDiscounts.sort(
+        (a, b) => (a.approverLevelId ?? 0).compareTo(b.approverLevelId ?? 0));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 12),
+        // Header for discount section
+        Row(
+          children: [
+            Icon(
+              Icons.discount,
+              size: 16,
+              color: isDark ? Colors.orange[400] : Colors.orange[600],
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Diskon',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        // Tampilkan diskon seperti di rincian biaya (sederhana)
+        ...sortedDiscounts.asMap().entries.map((entry) {
+          final index = entry.key;
+          final discount = entry.value;
+
+          String levelLabel = 'Disc ${index + 1}';
+          Color statusColor = Colors.grey;
+          IconData statusIcon = Icons.pending;
+
+          // Determine status color and icon
+          if (discount.approved == true) {
+            statusColor = Colors.green;
+            statusIcon = Icons.check_circle;
+          } else if (discount.approved == false) {
+            // Only show cross for explicitly rejected (not pending)
+            statusColor = Colors.red;
+            statusIcon = Icons.cancel;
+          } else {
+            // For pending status, use clock icon instead of cross to avoid confusion
+            statusColor = Colors.orange;
+            statusIcon = Icons.schedule;
+          }
+
+          return Container(
+            margin: const EdgeInsets.only(left: 16, top: 4, bottom: 4),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.grey[800] : Colors.grey[50],
+              border: Border.all(color: statusColor.withOpacity(0.3)),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  statusIcon,
+                  size: 14,
+                  color: statusColor,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            levelLabel,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                          Text(
+                            '- ${_formatDiscountPercentage(discount.discount)}%',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.red,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (discount.approverName != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          discount.approverName!,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: isDark ? Colors.grey[400] : Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                      if (discount.approvedAt != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          'Approved: ${_formatDate(discount.approvedAt!)}',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: isDark ? Colors.grey[400] : Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget _buildAccessoryRow(OrderLetterDetailModel acc, bool isDark) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -695,70 +1076,216 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
   }
 
   Widget _buildTotalsSection() {
-    final details = _document!.details;
-    final discounts = _document!.discounts;
-
+    final hargaAwal = _document!.hargaAwal;
     final grandTotal = _document!.extendedAmount;
+    final totalDiscount = hargaAwal - grandTotal;
+    final discountPercentage =
+        hargaAwal > 0 ? (totalDiscount / hargaAwal) * 100 : 0.0;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey[300]!),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'RINCIAN BIAYA',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header section
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          decoration: BoxDecoration(
+            color: Colors.green[50],
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(12),
+              topRight: Radius.circular(12),
             ),
+            border: Border(bottom: BorderSide(color: Colors.green[100]!)),
           ),
-          const SizedBox(height: 12),
-
-          // Tampilkan discount sebagai disc1 + disc2 + disc3 + disc4
-          if (discounts.isNotEmpty) ...[
-            _buildDiscountSection(discounts),
-            const SizedBox(height: 12),
-          ],
-
-          Row(
+          child: Row(
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green[100],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.payment_outlined,
+                  color: Colors.green[600],
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'RINCIAN PEMBAYARAN',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.green[700],
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Content section
+        Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              // Harga Awal
+              _buildPaymentRow(
+                label: 'Harga Awal',
+                amount: hargaAwal,
+                color: Colors.grey[600]!,
+                isSubtotal: true,
+              ),
+              const SizedBox(height: 8),
+
+              // Diskon (jika ada)
+              if (totalDiscount > 0) ...[
+                _buildPaymentRow(
+                  label: 'Total Diskon',
+                  amount:
+                      -totalDiscount, // Negative untuk menunjukkan pengurangan
+                  color: Colors.red[600]!,
+                  isDiscount: true,
+                  percentage: discountPercentage,
+                ),
+                const SizedBox(height: 12),
+                // Divider
+                Container(
+                  height: 1,
+                  color: Colors.grey[300],
+                ),
+                const SizedBox(height: 12),
+              ],
+
+              // Grand Total
+              _buildPaymentRow(
+                label: 'Total yang Harus Dibayar',
+                amount: grandTotal,
+                color: Colors.green[700]!,
+                isTotal: true,
+              ),
+
+              const SizedBox(height: 16),
+
+              // Info Box
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue[200]!),
+                ),
+                child: Row(
                   children: [
-                    _buildTotalRow('Grand Total', grandTotal, isBold: true),
+                    Icon(
+                      Icons.info_outline,
+                      color: Colors.blue[600],
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Pembayaran dilakukan 100% sebelum pengiriman',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.blue[700],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
             ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _buildTotalRow(String label, double amount,
-      {bool isBold = false, bool isDiscount = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+  /// Build payment row with different styles for different types
+  Widget _buildPaymentRow({
+    required String label,
+    required double amount,
+    required Color color,
+    bool isSubtotal = false,
+    bool isDiscount = false,
+    bool isTotal = false,
+    double? percentage,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: isTotal ? Colors.green[50] : Colors.grey[50],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isTotal ? Colors.green[200]! : Colors.grey[200]!,
+          width: isTotal ? 2 : 1,
+        ),
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+          Expanded(
+            child: Row(
+              children: [
+                if (isDiscount) ...[
+                  Icon(
+                    Icons.remove_circle_outline,
+                    color: Colors.red[600],
+                    size: 16,
+                  ),
+                  const SizedBox(width: 8),
+                ] else if (isTotal) ...[
+                  Icon(
+                    Icons.check_circle_outline,
+                    color: Colors.green[600],
+                    size: 16,
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: isTotal ? 16 : 14,
+                      fontWeight: isTotal ? FontWeight.bold : FontWeight.w500,
+                      color: color,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (percentage != null && percentage > 0) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.red[100],
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '${percentage.toStringAsFixed(1)}%',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red[700],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
+          const SizedBox(width: 12),
           Text(
-            FormatHelper.formatCurrency(amount),
+            isDiscount && amount < 0
+                ? '- ${FormatHelper.formatCurrency(amount.abs())}'
+                : FormatHelper.formatCurrency(amount),
             style: TextStyle(
-              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-              color: isDiscount ? Colors.red : null,
+              fontSize: isTotal ? 18 : 14,
+              fontWeight: isTotal ? FontWeight.bold : FontWeight.w600,
+              color: color,
             ),
           ),
         ],
@@ -766,116 +1293,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
     );
   }
 
-  Widget _buildDiscountSection(List<OrderLetterDiscountModel> discounts) {
-    // Group discounts by kasur (orderLetterDetailId)
-    final Map<int, List<OrderLetterDiscountModel>> groupedDiscounts = {};
-
-    for (final discount in discounts) {
-      if (!groupedDiscounts.containsKey(discount.orderLetterDetailId)) {
-        groupedDiscounts[discount.orderLetterDetailId] = [];
-      }
-      groupedDiscounts[discount.orderLetterDetailId]!.add(discount);
-    }
-
-    // Create list of widgets for each kasur group
-    final List<Widget> discountWidgets = [];
-
-    for (final entry in groupedDiscounts.entries) {
-      final detailId = entry.key;
-      final kasurDiscounts = entry.value;
-
-      // Find the kasur detail to get the kasur name
-      final kasurDetail = _document!.details.firstWhere(
-        (detail) => detail.id == detailId,
-        orElse: () => _document!.details.first, // fallback
-      );
-
-      // Only show kasur name if it's actually a kasur (not bonus items)
-      final isKasur = kasurDetail.itemType.toLowerCase() == 'kasur';
-
-      if (isKasur && kasurDiscounts.isNotEmpty) {
-        // Add kasur name as separator
-        discountWidgets.add(
-          Padding(
-            padding: const EdgeInsets.only(top: 8, bottom: 4),
-            child: Text(
-              kasurDetail.desc1, // Nama kasur
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: Colors.blue,
-              ),
-            ),
-          ),
-        );
-
-        // Sort discounts by approver_level_id for this kasur
-        kasurDiscounts.sort((a, b) =>
-            (a.approverLevelId ?? 0).compareTo(b.approverLevelId ?? 0));
-
-        // Add discount rows for this kasur
-        discountWidgets.addAll(
-          kasurDiscounts.map((discount) {
-            String levelLabel = '';
-            switch (discount.approverLevelId) {
-              case 1:
-                levelLabel = 'Disc 1';
-                break;
-              case 2:
-                levelLabel = 'Disc 2';
-                break;
-              case 3:
-                levelLabel = 'Disc 3';
-                break;
-              case 4:
-                levelLabel = 'Disc 4';
-                break;
-              case 5:
-                levelLabel = 'Disc 5';
-                break;
-              default:
-                levelLabel = 'Disc ${discount.approverLevelId}';
-            }
-
-            return Padding(
-              padding: const EdgeInsets.only(left: 16, top: 2, bottom: 2),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    levelLabel,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  Text(
-                    '-${_formatDiscountPercentage(discount.discount)}%',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.red,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
-        );
-      }
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: discountWidgets,
-    );
-  }
-
-  /// Format discount percentage dengan maksimal 2 angka di belakang koma
-  /// Hanya tampilkan angka di belakang koma jika ada angka selain 0
   String _formatDiscountPercentage(double percentage) {
-    // Data discount sudah dalam format persentase, tidak perlu dikalikan 100
-    // Jika angka bulat (tidak ada desimal), tampilkan tanpa koma
     if (percentage == percentage.toInt()) {
       return percentage.toInt().toString();
     }
@@ -890,238 +1308,102 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
     return trimmed;
   }
 
-  Widget _buildApprovalSection() {
-    final discounts = _document!.discounts;
-    final approvals = _document!.approvals;
-
-    // Sort discounts by approver_level_id (1=User, 2=Direct Leader, 3=Indirect Leader, 4=Controller, 5=Analyst)
-    final sortedDiscounts = List<OrderLetterDiscountModel>.from(discounts);
-    sortedDiscounts.sort(
-        (a, b) => (a.approverLevelId ?? 0).compareTo(b.approverLevelId ?? 0));
-
-    if (discounts.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey[300]!),
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: const Column(
-          children: [
-            Text(
-              'STATUS APPROVAL',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 12),
-            Icon(
-              Icons.approval_outlined,
-              size: 48,
-              color: Colors.grey,
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Tidak ada data approval',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey[300]!),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'STATUS APPROVAL',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 12),
-          ...sortedDiscounts
-              .map((discount) => _buildApprovalRow(discount, approvals)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildApprovalRow(OrderLetterDiscountModel discount,
-      List<OrderLetterApproveModel> approvals) {
-    final approval = approvals.firstWhere(
-      (a) => a.orderLetterDiscountId == discount.id,
-      orElse: () => OrderLetterApproveModel(
-        id: 0,
-        orderLetterDiscountId: 0,
-        leader: 0,
-        jobLevelId: 0,
-        createdAt: '',
-        updatedAt: '',
-      ),
-    );
-
-    final isApproved = discount.approved == true;
-    final approvalDate =
-        discount.approvedAt != null ? _formatDate(discount.approvedAt!) : '-';
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isApproved ? Colors.green[50] : Colors.orange[50],
-        border: Border.all(
-          color: isApproved ? Colors.green[300]! : Colors.orange[300]!,
-        ),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            isApproved ? Icons.check_circle : Icons.pending,
-            color: isApproved ? Colors.green : Colors.orange,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  discount.approverLevel ?? 'Unknown Level',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                Text(discount.approverName ?? 'Unknown'),
-                if (discount.approverWorkTitle != null)
-                  Text(
-                    discount.approverWorkTitle!,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                Text('Disetujui: $approvalDate'),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: isApproved ? Colors.green : Colors.orange,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              isApproved ? 'DISETUJUI' : 'MENUNGGU',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildTermsAndConditions() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey[300]!),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'SYARAT DAN KETENTUAN',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header section
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          decoration: BoxDecoration(
+            color: Colors.orange[50],
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(12),
+              topRight: Radius.circular(12),
             ),
+            border: Border(bottom: BorderSide(color: Colors.orange[100]!)),
           ),
-          const SizedBox(height: 12),
-          const Text(
-            '1. Surat pesanan ini berlaku setelah disetujui oleh pihak yang berwenang.\n'
-            '2. Harga dan spesifikasi dapat berubah sewaktu-waktu.\n'
-            '3. Pembayaran dilakukan sesuai dengan ketentuan yang berlaku.\n'
-            '4. Pengiriman akan dilakukan setelah pembayaran lunas.',
-            style: TextStyle(fontSize: 12),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.orange[100],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.description_outlined,
+                  color: Colors.orange[600],
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'SYARAT DAN KETENTUAN',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.orange[700],
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSignatureSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey[300]!),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              children: [
-                const Text(
-                  'Dibuat oleh',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 20),
-                Container(
-                  width: 100,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[300]!),
-                  ),
-                  child: const Center(
-                    child: Text('Tanda Tangan'),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(_document!.creator),
-              ],
-            ),
+        ),
+        // Content section
+        Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildTermsItem(
+                '1',
+                'Konsumen wajib melunasi 100% nilai pesanan sebelum melakukan pengiriman / penyerahan barang pesanan. Pelunasan dilakukan selambat-lambatnya 3 hari kerja sebelum jadwal pengiriman / penyerahan yang dijadwalkan.',
+              ),
+              const SizedBox(height: 12),
+              _buildTermsItem(
+                '2',
+                'Barang yang sudah dipesan / dibeli, tidak dapat ditukar atau dikembalikan.',
+              ),
+              const SizedBox(height: 12),
+              _buildTermsItem(
+                '3',
+                'Uang muka yang telah dibayarkan tidak dapat dikembalikan.',
+              ),
+              const SizedBox(height: 12),
+              _buildTermsItem(
+                '4',
+                'Sleep Center berhak mengubah tanggal pengiriman dengan sebelumnya memberitahukan kepada konsumen.',
+              ),
+              const SizedBox(height: 12),
+              _buildTermsItem(
+                '5',
+                'Surat Pesanan yang sudah lewat 3 (Tiga) bulan namun belum dikirim harus dilunasi jika tidak akan dianggap batal dan uang muka tidak dapat dikembalikan.',
+              ),
+              const SizedBox(height: 12),
+              _buildTermsItem(
+                '6',
+                'Apabila konsumen menunda pengiriman selama lebih dari 2 (Dua) Bulan dari tanggal kirim awal, SP dianggap batal dan uang muka tidak dapat dikembalikan.',
+              ),
+              const SizedBox(height: 12),
+              _buildTermsItem(
+                '7',
+                'Pembeli akan dikenakan biaya tambahan untuk pengiriman, pembongkaran, pengambilan furnitur dll yang disebabkan adanya kesulitan/ketidakcocokan penempatan furnitur di tempat atau ruangan yang dikehendaki oleh pembeli.',
+              ),
+              const SizedBox(height: 12),
+              _buildTermsItem(
+                '8',
+                'Jika pengiriman dilakukan lebih dari 1 (Satu) kali, konsumen wajib melunasi pembelian sebelum pengiriman pertama.',
+              ),
+              const SizedBox(height: 12),
+              _buildTermsItem(
+                '9',
+                'Untuk tipe dan ukuran khusus, pelunasan harus dilakukan saat pemesanan dan tidak dapat dibatalkan/diganti.',
+              ),
+            ],
           ),
-          const SizedBox(width: 20),
-          Expanded(
-            child: Column(
-              children: [
-                const Text(
-                  'Disetujui oleh',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 20),
-                Container(
-                  width: 100,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[300]!),
-                  ),
-                  child: const Center(
-                    child: Text('Tanda Tangan'),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text('Pihak Berwenang'),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -1137,29 +1419,15 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         ),
       );
 
-      // Convert order letter details to cart items format
-      // Debug: Print all details to understand data structure
-      print(
-          'DEBUG: Order Letter Details (${_document!.details.length} items):');
-      for (final detail in _document!.details) {
-        print(
-            '  - Item: ${detail.desc1} ${detail.desc2}, Type: ${detail.itemType}, Price: ${detail.unitPrice}');
-      }
-
       // Group order letter details by kasur and create single CartEntity per group
       final kasurDetails = _document!.details
           .where((d) => d.itemType.toLowerCase() == 'kasur')
           .toList();
       final cartItems = <CartEntity>[];
 
-      print('DEBUG: Found ${kasurDetails.length} kasur items');
-
       for (int i = 0; i < kasurDetails.length; i++) {
         final kasurDetail = kasurDetails[i];
         final kasurIndex = i + 1;
-
-        print(
-            'Processing kasur $kasurIndex: ${kasurDetail.desc1} ${kasurDetail.desc2}');
 
         // Find position of this kasur in the details list
         final kasurIndexInDetails = _document!.details.indexWhere((d) =>
@@ -1175,9 +1443,6 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
             break;
           }
         }
-
-        print(
-            'Kasur at index $kasurIndexInDetails, next kasur at $nextKasurIndex');
 
         // Get accessories and bonus for this kasur (items between this kasur and next kasur)
         final relatedItems =
@@ -1219,22 +1484,13 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
               break;
             case 'bonus':
               bonusItems.add(BonusItem(
-                name: item.desc1, // Hanya desc1 untuk bonus
+                name: item.desc1,
                 quantity: item.qty,
                 takeAway: item.takeAway, // Add take away status
               ));
               break;
           }
         }
-
-        print('Creating CartEntity for kasur group $kasurIndex:');
-        print('  Kasur: $kasur');
-        print('  Unit Price: ${kasurDetail.unitPrice}');
-        print('  Quantity: ${kasurDetail.qty}');
-        print('  Divan: $divan');
-        print('  Headboard: $headboard');
-        print('  Sorong: $sorong');
-        print('  Bonus: ${bonusItems.length} items');
 
         cartItems.add(CartEntity(
           product: ProductEntity(
@@ -1276,15 +1532,9 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         ));
       }
 
-      print('DEBUG: Created ${cartItems.length} CartEntity items for PDF');
-
       // Validate total calculation
       final calculatedTotal = cartItems.fold<double>(
           0.0, (sum, item) => sum + (item.netPrice * item.quantity));
-      print(
-          'DEBUG: Calculated total from items: ${FormatHelper.formatCurrency(calculatedTotal)}');
-      print(
-          'DEBUG: Order letter extended amount: ${FormatHelper.formatCurrency(_document!.extendedAmount)}');
 
       // Use extended amount from order letter as grand total
       final grandTotal = _document!.extendedAmount;
@@ -1301,15 +1551,49 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
       }).toList();
 
       // Convert discount data for pricelist calculation
-      final discountData = _document!.discounts.map((discount) {
-        return {
-          'id': discount.id,
-          'order_letter_detail_id': discount.orderLetterDetailId,
-          'order_letter_id': discount.orderLetterId,
-          'discount': discount.discount,
-          'approver_level_id': discount.approverLevelId,
-        };
-      }).toList();
+      // Map discounts by product description (desc_1 + desc_2) instead of order_letter_detail_id
+      final discountData = <Map<String, dynamic>>[];
+
+      // Group discounts by product name (desc1) to apply same discounts to all variants
+      final Map<String, List<OrderLetterDiscountModel>> discountsByProduct = {};
+
+      for (final discount in _document!.discounts) {
+        // Find the corresponding detail to get desc_1 and desc_2
+        final detail = _document!.details.firstWhere(
+          (d) => d.id == discount.orderLetterDetailId,
+          orElse: () => _document!.details.first, // fallback
+        );
+
+        final productName =
+            detail.desc1; // Use only desc1 (product name) as key
+        if (!discountsByProduct.containsKey(productName)) {
+          discountsByProduct[productName] = [];
+        }
+        discountsByProduct[productName]!.add(discount);
+      }
+
+      // Now create discount data for all product variants
+      for (final detail in _document!.details) {
+        final productName = detail.desc1;
+        final productKey = '${detail.desc1}_${detail.desc2}';
+
+        // Check if we have discounts for this product name
+        if (discountsByProduct.containsKey(productName)) {
+          final productDiscounts = discountsByProduct[productName]!;
+
+          // Apply all discounts for this product to this variant
+          for (final discount in productDiscounts) {
+            discountData.add({
+              'id': discount.id,
+              'order_letter_detail_id': discount.orderLetterDetailId,
+              'order_letter_id': discount.orderLetterId,
+              'discount': discount.discount,
+              'approver_level_id': discount.approverLevelId,
+              'product_key': productKey,
+            });
+          }
+        }
+      }
 
       // Generate PDF using existing service with order letter info
       final pdfBytes = await PDFService.generateCheckoutPDF(
@@ -1317,7 +1601,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         customerName: _document!.customerName,
         customerAddress: _document!.address,
         shippingAddress: _document!.addressShipTo,
-        phoneNumber: _document!.phone,
+        phoneNumber: _getAllPhonesForPDF(),
         deliveryDate: _formatDate(_document!.createdAt),
         paymentMethod: 'Transfer',
         paymentAmount: _document!.extendedAmount,
@@ -1387,5 +1671,108 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
     } catch (e) {
       return dateString;
     }
+  }
+
+  /// Build info row with icon, label and value
+  Widget _buildInfoRow({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color iconColor,
+    bool isAddress = false,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: iconColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            icon,
+            color: iconColor,
+            size: 20,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: isAddress ? 14 : 15,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[800],
+                  height: isAddress ? 1.3 : 1.2,
+                ),
+                maxLines: isAddress ? 3 : 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Get all phone numbers from contacts as a formatted string for PDF
+  String _getAllPhonesForPDF() {
+    if (_document?.contacts.isNotEmpty == true) {
+      return _document!.contacts.map((contact) => contact.phone).join(', ');
+    }
+    // Fallback to main phone field if no contacts
+    return _document?.phone ?? '-';
+  }
+
+  /// Build individual terms and conditions item with proper formatting
+  Widget _buildTermsItem(String number, String text) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 24,
+          height: 24,
+          decoration: BoxDecoration(
+            color: Colors.blue[100],
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Center(
+            child: Text(
+              number,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Colors.blue[800],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            text,
+            textAlign: TextAlign.justify, // Rata kanan kiri
+            style: const TextStyle(
+              fontSize: 12,
+              height: 1.4, // Line height for better readability
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }

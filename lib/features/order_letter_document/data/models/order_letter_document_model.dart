@@ -17,6 +17,7 @@ class OrderLetterDocumentModel {
   final List<OrderLetterDetailModel> details;
   final List<OrderLetterDiscountModel> discounts;
   final List<OrderLetterApproveModel> approvals;
+  final List<OrderLetterContactModel> contacts;
 
   OrderLetterDocumentModel({
     required this.id,
@@ -37,6 +38,7 @@ class OrderLetterDocumentModel {
     required this.details,
     required this.discounts,
     required this.approvals,
+    required this.contacts,
   });
 
   factory OrderLetterDocumentModel.fromJson(Map<String, dynamic> json) {
@@ -70,6 +72,10 @@ class OrderLetterDocumentModel {
               ?.map((approval) => OrderLetterApproveModel.fromJson(approval))
               .toList() ??
           [],
+      contacts: (json['contacts'] as List<dynamic>?)
+              ?.map((contact) => OrderLetterContactModel.fromJson(contact))
+              .toList() ??
+          [],
     );
   }
 
@@ -93,6 +99,7 @@ class OrderLetterDocumentModel {
       'details': details.map((detail) => detail.toJson()).toList(),
       'discounts': discounts.map((discount) => discount.toJson()).toList(),
       'approvals': approvals.map((approval) => approval.toJson()).toList(),
+      'contacts': contacts.map((contact) => contact.toJson()).toList(),
     };
   }
 }
@@ -112,6 +119,7 @@ class OrderLetterDetailModel {
   final String createdAt;
   final String updatedAt;
   final bool? takeAway;
+  final List<OrderLetterDiscountModel> discounts;
 
   OrderLetterDetailModel({
     required this.id,
@@ -128,6 +136,7 @@ class OrderLetterDetailModel {
     required this.createdAt,
     required this.updatedAt,
     this.takeAway,
+    required this.discounts,
   });
 
   factory OrderLetterDetailModel.fromJson(Map<String, dynamic> json) {
@@ -153,8 +162,21 @@ class OrderLetterDetailModel {
       }
     }
 
+    // Extract discounts from the nested order_letter_discount array
+    final List<OrderLetterDiscountModel> discounts = [];
+    final discountData = json['order_letter_discount'] as List<dynamic>?;
+    if (discountData != null) {
+      for (final discountJson in discountData) {
+        // Add the order_letter_detail_id to the discount for proper mapping
+        final discountWithDetailId = Map<String, dynamic>.from(discountJson);
+        discountWithDetailId['order_letter_detail_id'] =
+            json['order_letter_detail_id'] ?? json['id'] ?? 0;
+        discounts.add(OrderLetterDiscountModel.fromJson(discountWithDetailId));
+      }
+    }
+
     return OrderLetterDetailModel(
-      id: json['id'] ?? 0,
+      id: json['order_letter_detail_id'] ?? json['id'] ?? 0,
       orderLetterId: json['order_letter_id'] ?? 0,
       noSp: json['no_sp'] ?? '',
       qty: qtyValue,
@@ -168,6 +190,7 @@ class OrderLetterDetailModel {
       createdAt: json['created_at'] ?? '',
       updatedAt: json['updated_at'] ?? '',
       takeAway: json['take_away'] == null ? null : json['take_away'] as bool?,
+      discounts: discounts,
     );
   }
 
@@ -187,6 +210,8 @@ class OrderLetterDetailModel {
       'created_at': createdAt,
       'updated_at': updatedAt,
       'take_away': takeAway,
+      'order_letter_discount':
+          discounts.map((discount) => discount.toJson()).toList(),
     };
   }
 }
@@ -233,22 +258,34 @@ class OrderLetterDiscountModel {
         discountValue = discountData.toDouble();
       }
     }
+    // Handle approved field that can be string, boolean, or null
+    bool? approved;
+    String? approvedAt;
 
-    // Debug: print raw data from backend
-    print('OrderLetterDiscountModel.fromJson - Raw data:');
-    print('  - ID: ${json['id']}');
-    print('  - Level: ${json['approver_level_id']}');
-    print('  - Approved: ${json['approved']}');
-    print('  - Approved At (raw): ${json['approved_at']}');
-
-    final approved = json['approved'] == 'true' || json['approved'] == true;
-    final approvedAt = approved ? json['approved_at'] : null;
-
-    print('  - Approved (processed): $approved');
-    print('  - Approved At (processed): $approvedAt');
+    final approvedValue = json['approved'];
+    if (approvedValue == null) {
+      approved = null;
+      approvedAt = null;
+    } else if (approvedValue == 'true' ||
+        approvedValue == true ||
+        approvedValue == 'Approved') {
+      approved = true;
+      approvedAt = json['approved_at'];
+    } else if (approvedValue == 'false' ||
+        approvedValue == false ||
+        approvedValue == 'Rejected') {
+      approved = false;
+      approvedAt = json['approved_at'];
+    } else if (approvedValue == 'Pending') {
+      approved = null;
+      approvedAt = null;
+    } else {
+      approved = null;
+      approvedAt = null;
+    }
 
     return OrderLetterDiscountModel(
-      id: json['id'] ?? 0,
+      id: json['order_letter_discount_id'] ?? 0,
       orderLetterDetailId: json['order_letter_detail_id'] ?? 0,
       orderLetterId: json['order_letter_id'] ?? 0,
       discount: discountValue,
@@ -319,6 +356,30 @@ class OrderLetterApproveModel {
       'job_level_id': jobLevelId,
       'created_at': createdAt,
       'updated_at': updatedAt,
+    };
+  }
+}
+
+class OrderLetterContactModel {
+  final int orderLetterContactId;
+  final String phone;
+
+  OrderLetterContactModel({
+    required this.orderLetterContactId,
+    required this.phone,
+  });
+
+  factory OrderLetterContactModel.fromJson(Map<String, dynamic> json) {
+    return OrderLetterContactModel(
+      orderLetterContactId: json['order_letter_contact_id'] ?? 0,
+      phone: json['phone'] ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'order_letter_contact_id': orderLetterContactId,
+      'phone': phone,
     };
   }
 }
