@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import '../../../../core/utils/format_helper.dart';
 import '../../../../services/pdf_services.dart';
+import '../../../../services/auth_service.dart';
+import '../../../../services/order_letter_service.dart';
+import '../../../../services/core_notification_service.dart';
+import '../../../../config/dependency_injection.dart';
 import '../../data/models/order_letter_document_model.dart';
 import '../../data/repositories/order_letter_document_repository.dart';
 import '../../../cart/domain/entities/cart_entity.dart';
@@ -24,6 +28,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
   OrderLetterDocumentModel? _document;
   bool _isLoading = true;
   String? _error;
+  bool _isApprovalLoading = false;
 
   @override
   void initState() {
@@ -62,7 +67,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
       floatingActionButton: _document != null
           ? Builder(
               builder: (buttonContext) => FloatingActionButton.extended(
-                onPressed: () => _generatePDF(buttonContext),
+                onPressed: () => _showPDFOptionsDialog(buttonContext),
                 backgroundColor: Colors.red[600],
                 foregroundColor: Colors.white,
                 icon: const Icon(Icons.picture_as_pdf),
@@ -71,6 +76,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
               ),
             )
           : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
@@ -135,6 +141,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                       ),
                     )
                   : SingleChildScrollView(
+                      padding: const EdgeInsets.only(bottom: 100),
                       child: _buildDocumentContent(),
                     ),
     );
@@ -197,34 +204,40 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                       size: 16,
                     ),
                     const SizedBox(width: 6),
-                    Text(
-                      'SURAT PESANAN',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.blue[700],
+                    Flexible(
+                      child: Text(
+                        'SURAT PESANAN',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.blue[700],
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: 8),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: _getStatusColor(_document!.status).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                      color:
-                          _getStatusColor(_document!.status).withOpacity(0.3)),
-                ),
-                child: Text(
-                  _document!.status.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: _getStatusColor(_document!.status),
+              Flexible(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(_document!.status).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                        color: _getStatusColor(_document!.status)
+                            .withOpacity(0.3)),
+                  ),
+                  child: Text(
+                    _document!.status.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: _getStatusColor(_document!.status),
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
@@ -472,6 +485,25 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
           child: _buildTermsAndConditions(),
         ),
 
+        // Approval Section
+        Container(
+          width: double.infinity,
+          margin: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey[200]!),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.08),
+                spreadRadius: 1,
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: _buildApprovalSection(),
+        ),
         const SizedBox(height: 20),
       ],
     );
@@ -894,12 +926,32 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
     print(
         'Kasur: ${kasurDetail.desc1} ${kasurDetail.desc2} (ID: ${kasurDetail.id}) - Found ${kasurDiscounts.length} discounts');
 
+    // Log discount values for debugging
+    for (final discount in kasurDiscounts) {
+      print(
+          '  - Discount ${discount.approverLevelId}: ${discount.discount}% (${discount.approverLevel})');
+    }
+
     if (kasurDiscounts.isEmpty) {
       return const SizedBox.shrink();
     }
 
-    // Sort discounts by approver_level_id
-    final sortedDiscounts = List<OrderLetterDiscountModel>.from(kasurDiscounts);
+    // Filter out discounts with 0.0 or null values, then sort by approver_level_id
+    final filteredDiscounts = kasurDiscounts.where((discount) {
+      // Hide discounts with 0.0 or null values
+      return discount.discount > 0.0;
+    }).toList();
+
+    print(
+        'Filtered discounts: ${filteredDiscounts.length} out of ${kasurDiscounts.length}');
+
+    if (filteredDiscounts.isEmpty) {
+      print('No valid discounts to display - hiding discount section');
+      return const SizedBox.shrink();
+    }
+
+    final sortedDiscounts =
+        List<OrderLetterDiscountModel>.from(filteredDiscounts);
     sortedDiscounts.sort(
         (a, b) => (a.approverLevelId ?? 0).compareTo(b.approverLevelId ?? 0));
 
@@ -1407,7 +1459,344 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
     );
   }
 
-  Future<void> _generatePDF(BuildContext buttonContext) async {
+  Widget _buildApprovalSection() {
+    // Check if current user can approve this order
+    return FutureBuilder<bool>(
+      future: _canUserApprove(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || !snapshot.data!) {
+          return const SizedBox.shrink();
+        }
+
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.grey[50],
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey[200]!),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.approval,
+                    color: Colors.blue[600],
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Approval',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _isApprovalLoading
+                          ? null
+                          : () => _showApprovalDialog('approve'),
+                      icon: _isApprovalLoading
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.check, color: Colors.white),
+                      label: const Text(
+                        'Approve',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green[600],
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _isApprovalLoading
+                          ? null
+                          : () => _showApprovalDialog('reject'),
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      label: const Text(
+                        'Reject',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red[600],
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<bool> _canUserApprove() async {
+    try {
+      final currentUserId = await AuthService.getCurrentUserId();
+      if (currentUserId == null) return false;
+
+      final orderLetterService = locator<OrderLetterService>();
+      final rawDiscounts = await orderLetterService.getOrderLetterDiscounts(
+        orderLetterId: widget.orderLetterId,
+      );
+
+      return _canUserApproveSequentially(rawDiscounts, currentUserId);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  bool _canUserApproveSequentially(
+      List<Map<String, dynamic>> discounts, int currentUserId) {
+    if (discounts.isEmpty) return false;
+
+    // Sort discounts by approver_level_id
+    final sortedDiscounts = List<Map<String, dynamic>>.from(discounts)
+      ..sort((a, b) =>
+          (a['approver_level_id'] ?? 0).compareTo(b['approver_level_id'] ?? 0));
+
+    // Find current user's discount level
+    int? currentUserLevel;
+    for (final discount in sortedDiscounts) {
+      final approverId = discount['approver'];
+      final approverName = discount['approver_name'];
+      final approverLevelId = discount['approver_level_id'];
+
+      if (approverId == currentUserId ||
+          _isNameMatch(approverName, currentUserId)) {
+        currentUserLevel = approverLevelId;
+        break;
+      }
+    }
+
+    if (currentUserLevel == null) return false;
+
+    // Check if all previous levels are approved
+    for (final discount in sortedDiscounts) {
+      final level = discount['approver_level_id'] ?? 0;
+      final approved = discount['approved'];
+
+      if (level < currentUserLevel) {
+        // Previous levels must be approved
+        if (approved != true) {
+          return false;
+        }
+      } else if (level == currentUserLevel) {
+        // Current level should be pending
+        if (approved != null) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
+  bool _isNameMatch(String? approverName, int currentUserId) {
+    // Simple name matching logic - you can enhance this
+    return false;
+  }
+
+  void _showApprovalDialog(String action) {
+    final isApprove = action == 'approve';
+    final title = isApprove ? 'Approve Order' : 'Reject Order';
+    final message = isApprove
+        ? 'Are you sure you want to approve this order?'
+        : 'Are you sure you want to reject this order?';
+    final confirmText = isApprove ? 'Approve' : 'Reject';
+    final confirmColor = isApprove ? Colors.green : Colors.red;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _handleApprovalAction(action);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: confirmColor,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(confirmText),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleApprovalAction(String action) async {
+    try {
+      setState(() {
+        _isApprovalLoading = true;
+      });
+
+      final currentUserId = await AuthService.getCurrentUserId();
+      final currentUserName = await AuthService.getCurrentUserName() ?? '';
+
+      if (currentUserId == null) {
+        _showErrorSnackBar('User information not available');
+        return;
+      }
+
+      final orderLetterService = locator<OrderLetterService>();
+      final rawDiscounts = await orderLetterService.getOrderLetterDiscounts(
+        orderLetterId: widget.orderLetterId,
+      );
+
+      // Get user's job level
+      int jobLevelId = 1;
+      for (final discount in rawDiscounts) {
+        final approverId = discount['approver'];
+        final approverName = discount['approver_name'];
+        final approverLevelId = discount['approver_level_id'];
+
+        if ((approverId == currentUserId ||
+                _isNameMatch(approverName, currentUserId)) &&
+            approverLevelId != null) {
+          jobLevelId = approverLevelId;
+          break;
+        }
+      }
+
+      // Use batch approval for all pending discounts at user's level
+      final result = await orderLetterService.batchApproveOrderLetterDiscounts(
+        orderLetterId: widget.orderLetterId,
+        leaderId: currentUserId,
+        jobLevelId: jobLevelId,
+      );
+
+      final approvedCount = result['approved_count'] ?? 0;
+      if (result['success'] == true && approvedCount > 0) {
+        _showSuccessSnackBar(
+            '$action - $approvedCount diskon berhasil diproses');
+
+        // Reload document to show updated status
+        _loadDocument();
+      } else {
+        _showErrorSnackBar(result['message'] ?? 'Approval failed');
+      }
+
+      // Send notification
+      try {
+        final coreNotificationService = locator<CoreNotificationService>();
+        await coreNotificationService.handleApprovalFlowNotification(
+          orderLetterId: widget.orderLetterId.toString(),
+          approverUserId: currentUserId.toString(),
+          approverName: currentUserName,
+          approvalAction: action,
+          approvalLevel: 'Level $jobLevelId',
+          comment: '',
+          customerName: _document?.customerName,
+          totalAmount: _document?.extendedAmount,
+        );
+      } catch (e) {
+        // Don't fail the approval if notification fails
+      }
+    } catch (e) {
+      _showErrorSnackBar('Failed to process approval: $e');
+    } finally {
+      setState(() {
+        _isApprovalLoading = false;
+      });
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+
+  void _showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  void _showPDFOptionsDialog(BuildContext buttonContext) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Pilih Jenis PDF'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.person, color: Colors.blue[600]),
+              title: const Text('PDF Customer'),
+              subtitle: const Text('PDF untuk customer (tanpa kolom approval)'),
+              onTap: () {
+                Navigator.of(context).pop();
+                _generatePDF(buttonContext, showApprovalColumn: false);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.approval, color: Colors.green[600]),
+              title: const Text('PDF Approval'),
+              subtitle: const Text('PDF dengan kolom approval dan stempel'),
+              onTap: () {
+                Navigator.of(context).pop();
+                _generatePDF(buttonContext, showApprovalColumn: true);
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Batal'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _generatePDF(BuildContext buttonContext,
+      {required bool showApprovalColumn}) async {
     if (_document == null) return;
 
     try {
@@ -1618,10 +2007,13 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         orderLetterHargaAwal: _document!.hargaAwal,
         shipToName: _document!.shipToName,
         discountData: discountData,
+        showApprovalColumn: showApprovalColumn,
       );
 
       // Save and share PDF with proper positioning for iOS
-      final fileName = '${_document!.customerName}_${_document!.noSp}.pdf';
+      final pdfType = showApprovalColumn ? 'Approval' : 'Customer';
+      final fileName =
+          '${_document!.customerName}_${_document!.noSp}_$pdfType.pdf';
 
       // Get the render box for proper positioning on iOS
       final RenderBox? box = buttonContext.findRenderObject() as RenderBox?;

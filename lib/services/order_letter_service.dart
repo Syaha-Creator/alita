@@ -226,7 +226,7 @@ class OrderLetterService {
           // Fallback to current user data
         }
 
-        // Smart approval logic
+        // Smart approval logic - Modified to ensure all orders require Direct Leader approval
         bool isApproved = false;
         String? approvedAt;
         String? approvedValue;
@@ -923,8 +923,8 @@ class OrderLetterService {
       final significantDiscounts = allDiscounts.where((d) => d > 0.0).toList();
 
       if (significantDiscounts.isEmpty) {
-        // No discounts → Approved immediately
-        return 'Approved';
+        // No discounts → Still need Direct Leader approval
+        return 'Pending';
       }
 
       // Get created discount records to check approval levels
@@ -932,8 +932,8 @@ class OrderLetterService {
           await getOrderLetterDiscounts(orderLetterId: orderLetterId);
 
       if (discountRecords.isEmpty) {
-        // No discount records created → Approved
-        return 'Approved';
+        // No discount records created → Still need Direct Leader approval
+        return 'Pending';
       }
 
       // Check approval status for all discount levels
@@ -1056,10 +1056,26 @@ class OrderLetterService {
       }
 
       // Process each discount for this kasur
-      // Only create discounts for levels that have actual discount values > 0
-      for (int i = 0; i < discounts.length; i++) {
-        final discount = discounts[i];
-        if (discount <= 0) continue; // Skip zero or negative discounts
+      // Modified logic: Ensure all orders require Direct Leader approval
+
+      // Determine if we need to create discount entries up to Direct Leader level
+      bool hasDirectLeaderDiscount = discounts.length > 1 && discounts[1] > 0;
+      int maxLevelToCreate = hasDirectLeaderDiscount
+          ? discounts.length
+          : 2; // Always go up to Direct Leader if needed
+
+      print(
+          'OrderLetterService: Processing discounts for "$kasurName" ($productSize)');
+      print('  - Total discounts provided: ${discounts.length}');
+      print('  - Has Direct Leader discount: $hasDirectLeaderDiscount');
+      print('  - Max level to create: $maxLevelToCreate');
+
+      for (int i = 0; i < maxLevelToCreate; i++) {
+        final discount = i < discounts.length ? discounts[i] : 0.0;
+
+        // For Direct Leader level (i=1), always create entry even if discount is 0
+        // For other levels, only create if discount > 0
+        if (i != 1 && discount <= 0) continue;
 
         // Create unique key to prevent duplicates
         final discountKey = '${kasurOrderLetterDetailId}_${i}_$discount';
@@ -1123,9 +1139,25 @@ class OrderLetterService {
     }
 
     // Process all discounts for first kasur
-    for (int i = 0; i < discounts.length; i++) {
-      final discount = discounts[i];
-      if (discount <= 0) continue;
+    // Modified logic: Ensure all orders require Direct Leader approval
+
+    // Determine if we need to create discount entries up to Direct Leader level
+    bool hasDirectLeaderDiscount = discounts.length > 1 && discounts[1] > 0;
+    int maxLevelToCreate = hasDirectLeaderDiscount
+        ? discounts.length
+        : 2; // Always go up to Direct Leader if needed
+
+    print('OrderLetterService: Processing legacy discounts');
+    print('  - Total discounts provided: ${discounts.length}');
+    print('  - Has Direct Leader discount: $hasDirectLeaderDiscount');
+    print('  - Max level to create: $maxLevelToCreate');
+
+    for (int i = 0; i < maxLevelToCreate; i++) {
+      final discount = i < discounts.length ? discounts[i] : 0.0;
+
+      // For Direct Leader level (i=1), always create entry even if discount is 0
+      // For other levels, only create if discount > 0
+      if (i != 1 && discount <= 0) continue;
 
       await _createSingleDiscount(
         orderLetterId: orderLetterId,
@@ -1211,6 +1243,7 @@ class OrderLetterService {
     // Debug logging to verify data being sent to API
     print(
         'OrderLetterService: Creating discount for level ${discountIndex + 1} ($approverLevel):');
+    print('  - discount value: $discount%');
     print('  - approved: $approvedValue');
     print('  - approved_at: $approvedAt');
     print('  - approver: $approverId ($approverName)');
