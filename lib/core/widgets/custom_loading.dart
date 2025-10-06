@@ -1,5 +1,5 @@
-import 'package:alitapricelist/config/app_constant.dart';
 import 'package:flutter/material.dart';
+import '../../config/app_constant.dart';
 import '../../theme/app_colors.dart';
 
 /// Utility untuk menampilkan dialog loading custom.

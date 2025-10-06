@@ -331,22 +331,6 @@ class _ProductPageState extends State<ProductPage> {
                                             },
                                           ),
                                         ),
-                                        const SizedBox(width: 8),
-                                        IconButton(
-                                          icon: Icon(
-                                            Icons.refresh,
-                                            size: 20,
-                                            color: isDark
-                                                ? AppColors.accentDark
-                                                : Colors.blue[600],
-                                          ),
-                                          onPressed: () {
-                                            context
-                                                .read<ProductBloc>()
-                                                .add(RefreshAreas());
-                                          },
-                                          tooltip: 'Refresh Areas',
-                                        ),
                                       ],
                                     ),
                                   ] else ...[
