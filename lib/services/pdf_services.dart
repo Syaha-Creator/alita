@@ -36,6 +36,7 @@ class PDFService {
     double? orderLetterHargaAwal,
     String? shipToName,
     List<Map<String, dynamic>>? discountData,
+    bool showApprovalColumn = false,
   }) async {
     final pdf = pw.Document();
 
@@ -48,6 +49,12 @@ class PDFService {
         await _loadImageProvider('assets/logo/springair_logo.png');
     final therapedicLogo =
         await _loadImageProvider('assets/logo/therapedic_logo.png');
+
+    // Load approval stamp image
+    pw.ImageProvider? approveStamp;
+    if (showApprovalColumn) {
+      approveStamp = await _loadImageProvider('assets/images/approve.png');
+    }
     final comfortaLogo =
         await _loadImageProvider('assets/logo/comforta_logo.png');
     final superfitLogo =
@@ -147,11 +154,13 @@ class PDFService {
             repaymentDate: repaymentDate,
           ),
           pw.SizedBox(height: 10),
-          // _buildApprovalTable(approvalData),
-          // pw.SizedBox(height: 10),
-          _buildSignatureSection(customerName, salesName ?? "NAMA SALES"),
-          pw.Spacer(),
-          _buildTermsAndConditions(),
+          // Add approval table if needed
+          if (showApprovalColumn) ...[
+            _buildApprovalTable(approvalData, approveStamp),
+            pw.SizedBox(height: 10),
+          ],
+          _buildTermsAndSignatureSection(
+              customerName, salesName ?? "NAMA SALES"),
         ],
       ),
     );
@@ -264,7 +273,7 @@ class PDFService {
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            pw.Text('SHOWROOM/PAMERAN: -',
+            pw.Text('SHOWROOM/PAMERAN: IDD COMFORTA BOUTIQUE STORE',
                 style: const pw.TextStyle(fontSize: 9)),
             pw.Text(
                 'TANGGAL PEMBELIAN: ${orderLetterDate ?? _formatSimpleDate(DateTime.now())}',
@@ -351,12 +360,136 @@ class PDFService {
     );
   }
 
+  /// Build approval table with stamps and names
+  static pw.Widget _buildApprovalTable(List<Map<String, dynamic>>? approvalData,
+      pw.ImageProvider? approveStamp) {
+    if (approvalData == null || approvalData.isEmpty || approveStamp == null) {
+      return pw.SizedBox.shrink();
+    }
+
+    // Group approvals by level and get unique levels
+    final Map<String, List<Map<String, dynamic>>> approvalsByLevel = {};
+
+    for (final approval in approvalData) {
+      final level = approval['approver_level'] ?? 'Unknown';
+      if (!approvalsByLevel.containsKey(level)) {
+        approvalsByLevel[level] = [];
+      }
+      approvalsByLevel[level]!.add(approval);
+    }
+
+    // Create table rows for each approval level
+    final List<pw.Widget> approvalColumns = [];
+
+    approvalsByLevel.forEach((level, approvals) {
+      // Get the first approved approval for this level
+      final approvedApproval = approvals.firstWhere(
+        (approval) => approval['approved'] == true,
+        orElse: () => approvals.first,
+      );
+
+      final approverName = approvedApproval['approver_name'] ?? 'Unknown';
+
+      // Map level names for PDF display only
+      String displayLevel = level;
+      switch (level.toLowerCase()) {
+        case 'user':
+          displayLevel = 'SC';
+          break;
+        case 'direct leader':
+          displayLevel = 'Supervisor';
+          break;
+        case 'indirect leader':
+          displayLevel = 'RSM';
+          break;
+        case 'controller':
+          displayLevel = 'Controller';
+          break;
+        case 'analyst':
+          displayLevel = 'Analyst';
+          break;
+        default:
+          displayLevel = level; // Keep original if not in mapping
+      }
+
+      approvalColumns.add(
+        pw.Container(
+          width: 80,
+          padding: const pw.EdgeInsets.all(8),
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(color: PdfColors.grey300),
+            borderRadius: pw.BorderRadius.circular(4),
+          ),
+          child: pw.Column(
+            mainAxisSize: pw.MainAxisSize.min,
+            children: [
+              // Level name at top
+              pw.Text(
+                displayLevel,
+                style: pw.TextStyle(
+                  fontSize: 8,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+                textAlign: pw.TextAlign.center,
+              ),
+              pw.SizedBox(height: 4),
+              // Approval stamp in middle
+              pw.SizedBox(
+                width: 30,
+                height: 30,
+                child: pw.Image(approveStamp),
+              ),
+              pw.SizedBox(height: 4),
+              // Approver name at bottom
+              pw.Text(
+                approverName,
+                style: const pw.TextStyle(
+                  fontSize: 7,
+                ),
+                textAlign: pw.TextAlign.center,
+                maxLines: 2,
+                overflow: pw.TextOverflow.clip,
+              ),
+            ],
+          ),
+        ),
+      );
+    });
+
+    return pw.Container(
+      width: double.infinity,
+      padding: const pw.EdgeInsets.all(12),
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.grey400),
+        borderRadius: pw.BorderRadius.circular(8),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            'APPROVAL',
+            style: pw.TextStyle(
+              fontSize: 10,
+              fontWeight: pw.FontWeight.bold,
+            ),
+          ),
+          pw.SizedBox(height: 8),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly,
+            children: approvalColumns,
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Build tabel item pesanan.
   static pw.Widget _buildItemsTable(
       List<CartEntity> items, double subtotal, double totalEup,
       {double? orderLetterExtendedAmount,
       List<Map<String, dynamic>>? discountData}) {
     const tableHeaders = [
+      'BRAND',
       'ORDER',
       'NAMA BARANG',
       'QTY',
@@ -409,8 +542,11 @@ class PDFService {
         double kasurNet =
             item.netPrice * item.quantity; // Gunakan netPrice dari CartEntity
         double kasurDiscount = kasurPricelist - kasurNet;
+
         tableRows.add(pw.TableRow(
           children: [
+            _buildTableCell(_getBrandAbbreviation(product.brand),
+                align: pw.TextAlign.center),
             _buildTableCell((itemNumber++).toString(),
                 align: pw.TextAlign.center),
             _buildTableCell('${product.kasur} ${product.ukuran}'),
@@ -429,8 +565,11 @@ class PDFService {
         double kasurPricelist = (product.plKasur) * item.quantity;
         double kasurNet = (item.netPrice * item.quantity) * 0.89;
         double kasurDiscount = kasurPricelist - kasurNet;
+
         tableRows.add(pw.TableRow(
           children: [
+            _buildTableCell(_getBrandAbbreviation(product.brand),
+                align: pw.TextAlign.center),
             _buildTableCell((itemNumber++).toString(),
                 align: pw.TextAlign.center),
             _buildTableCell('${product.kasur} ${product.ukuran}'),
@@ -450,20 +589,20 @@ class PDFService {
         double divanEUP = (product.eupDivan) * item.quantity;
         double divanDiscount = divanEUP;
         double divanNet = divanPricelist - divanDiscount;
-        tableRows.add(pw.TableRow(
-          children: [
-            _buildTableCell(''),
-            _buildTableCell(product.divan),
-            _buildTableCell(item.quantity.toString(),
-                align: pw.TextAlign.center),
-            _buildTableCell(FormatHelper.formatCurrency(divanPricelist),
-                align: pw.TextAlign.right),
-            _buildTableCell(FormatHelper.formatCurrency(divanDiscount),
-                align: pw.TextAlign.right),
-            _buildTableCell(FormatHelper.formatCurrency(divanNet),
-                align: pw.TextAlign.right),
-          ],
-        ));
+        final divanRowChildren = [
+          _buildTableCell('', align: pw.TextAlign.center),
+          _buildTableCell(''),
+          _buildTableCell(product.divan),
+          _buildTableCell(item.quantity.toString(), align: pw.TextAlign.center),
+          _buildTableCell(FormatHelper.formatCurrency(divanPricelist),
+              align: pw.TextAlign.right),
+          _buildTableCell(FormatHelper.formatCurrency(divanDiscount),
+              align: pw.TextAlign.right),
+          _buildTableCell(FormatHelper.formatCurrency(divanNet),
+              align: pw.TextAlign.right),
+        ];
+
+        tableRows.add(pw.TableRow(children: divanRowChildren));
       }
       if (product.headboard.isNotEmpty &&
           product.headboard != AppStrings.noHeadboard) {
@@ -471,40 +610,40 @@ class PDFService {
         double headboardEUP = (product.eupHeadboard) * item.quantity;
         double headboardDiscount = headboardEUP;
         double headboardNet = headboardPricelist - headboardDiscount;
-        tableRows.add(pw.TableRow(
-          children: [
-            _buildTableCell(''),
-            _buildTableCell(product.headboard),
-            _buildTableCell(item.quantity.toString(),
-                align: pw.TextAlign.center),
-            _buildTableCell(FormatHelper.formatCurrency(headboardPricelist),
-                align: pw.TextAlign.right),
-            _buildTableCell(FormatHelper.formatCurrency(headboardDiscount),
-                align: pw.TextAlign.right),
-            _buildTableCell(FormatHelper.formatCurrency(headboardNet),
-                align: pw.TextAlign.right),
-          ],
-        ));
+        final headboardRowChildren = [
+          _buildTableCell('', align: pw.TextAlign.center),
+          _buildTableCell(''),
+          _buildTableCell(product.headboard),
+          _buildTableCell(item.quantity.toString(), align: pw.TextAlign.center),
+          _buildTableCell(FormatHelper.formatCurrency(headboardPricelist),
+              align: pw.TextAlign.right),
+          _buildTableCell(FormatHelper.formatCurrency(headboardDiscount),
+              align: pw.TextAlign.right),
+          _buildTableCell(FormatHelper.formatCurrency(headboardNet),
+              align: pw.TextAlign.right),
+        ];
+
+        tableRows.add(pw.TableRow(children: headboardRowChildren));
       }
       if (product.sorong.isNotEmpty && product.sorong != AppStrings.noSorong) {
         double sorongPricelist = (product.plSorong) * item.quantity;
         double sorongEUP = (product.eupSorong) * item.quantity;
         double sorongDiscount = sorongEUP;
         double sorongNet = sorongPricelist - sorongDiscount;
-        tableRows.add(pw.TableRow(
-          children: [
-            _buildTableCell(''),
-            _buildTableCell(product.sorong),
-            _buildTableCell(item.quantity.toString(),
-                align: pw.TextAlign.center),
-            _buildTableCell(FormatHelper.formatCurrency(sorongPricelist),
-                align: pw.TextAlign.right),
-            _buildTableCell(FormatHelper.formatCurrency(sorongDiscount),
-                align: pw.TextAlign.right),
-            _buildTableCell(FormatHelper.formatCurrency(sorongNet),
-                align: pw.TextAlign.right),
-          ],
-        ));
+        final sorongRowChildren = [
+          _buildTableCell('', align: pw.TextAlign.center),
+          _buildTableCell(''),
+          _buildTableCell(product.sorong),
+          _buildTableCell(item.quantity.toString(), align: pw.TextAlign.center),
+          _buildTableCell(FormatHelper.formatCurrency(sorongPricelist),
+              align: pw.TextAlign.right),
+          _buildTableCell(FormatHelper.formatCurrency(sorongDiscount),
+              align: pw.TextAlign.right),
+          _buildTableCell(FormatHelper.formatCurrency(sorongNet),
+              align: pw.TextAlign.right),
+        ];
+
+        tableRows.add(pw.TableRow(children: sorongRowChildren));
       }
 
       if (product.bonus.isNotEmpty) {
@@ -520,17 +659,18 @@ class PDFService {
             bonusName = '${bonus.name} (BONUS)';
           }
 
-          tableRows.add(pw.TableRow(
-            children: [
-              _buildTableCell(''),
-              _buildTableCell(bonusName),
-              _buildTableCell(bonusQuantity.toString(),
-                  align: pw.TextAlign.center),
-              _buildTableCell(bonusPrice, align: pw.TextAlign.right),
-              _buildTableCell(bonusPrice, align: pw.TextAlign.right),
-              _buildTableCell(bonusPrice, align: pw.TextAlign.right),
-            ],
-          ));
+          final bonusRowChildren = [
+            _buildTableCell('', align: pw.TextAlign.center),
+            _buildTableCell(''),
+            _buildTableCell(bonusName),
+            _buildTableCell(bonusQuantity.toString(),
+                align: pw.TextAlign.center),
+            _buildTableCell(bonusPrice, align: pw.TextAlign.right),
+            _buildTableCell(bonusPrice, align: pw.TextAlign.right),
+            _buildTableCell(bonusPrice, align: pw.TextAlign.right),
+          ];
+
+          tableRows.add(pw.TableRow(children: bonusRowChildren));
         }
       }
     }
@@ -538,12 +678,13 @@ class PDFService {
     return pw.Table(
       border: pw.TableBorder.all(color: PdfColors.black, width: 0.5),
       columnWidths: {
-        0: const pw.FlexColumnWidth(0.6),
-        1: const pw.FlexColumnWidth(3.8),
-        2: const pw.FlexColumnWidth(0.6),
-        3: const pw.FlexColumnWidth(1.5),
-        4: const pw.FlexColumnWidth(1.5),
-        5: const pw.FlexColumnWidth(1.5),
+        0: const pw.FlexColumnWidth(0.8),
+        1: const pw.FlexColumnWidth(0.6),
+        2: const pw.FlexColumnWidth(3.2),
+        3: const pw.FlexColumnWidth(0.6),
+        4: const pw.FlexColumnWidth(1.3),
+        5: const pw.FlexColumnWidth(1.3),
+        6: const pw.FlexColumnWidth(1.3),
       },
       children: tableRows,
     );
@@ -731,8 +872,75 @@ class PDFService {
     );
   }
 
-  /// Build syarat dan ketentuan pembelian.
-  static pw.Widget _buildTermsAndConditions() {
+  /// Convert brand name to abbreviation.
+  static String _getBrandAbbreviation(String brand) {
+    final brandLower = brand.toLowerCase();
+
+    if (brandLower.contains('spring air')) {
+      return 'SA';
+    } else if (brandLower.contains('therapedic')) {
+      return 'TH';
+    } else if (brandLower.contains('comforta')) {
+      return 'CF';
+    } else if (brandLower.contains('sleep spa')) {
+      return 'SS';
+    } else if (brandLower.contains('superfit')) {
+      return 'SF';
+    } else if (brandLower.contains('isleep')) {
+      return 'isleep';
+    } else {
+      // Fallback: return first 2 characters in uppercase
+      return brand.length >= 2
+          ? brand.substring(0, 2).toUpperCase()
+          : brand.toUpperCase();
+    }
+  }
+
+  /// Build first term with bold bank account numbers in list format.
+  static pw.Widget _buildFirstTermWithBoldBank() {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          "Pembayaran dianggap SAH hanya apabila sudah diterima di rekening perusahaan atas nama:",
+          style: pw.TextStyle(fontSize: 7),
+        ),
+        pw.SizedBox(height: 2),
+        pw.Padding(
+          padding: const pw.EdgeInsets.only(left: 8),
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text(
+                "PT MASSINDO KARYA PRIMA",
+                style: pw.TextStyle(
+                  fontSize: 7,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.SizedBox(height: 1),
+              pw.Text(
+                "BANK BCA 066-328-8871",
+                style: pw.TextStyle(
+                  fontSize: 7,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+        pw.SizedBox(height: 2),
+        pw.Text(
+          "Pembayaran ke rekening lain tidak akan diakui sebagai pembayaran yang sah.",
+          style: pw.TextStyle(fontSize: 7),
+        ),
+      ],
+    );
+  }
+
+  /// Build syarat dan ketentuan pembelian beserta signature dalam satu kesatuan.
+  static pw.Widget _buildTermsAndSignatureSection(
+      String customerName, String salesName) {
     final List<String> terms = [
       "Konsumen wajib melunasi 100% nilai pesanan sebelum melakukan pengiriman / penyerahan barang pesanan. Pelunasan dilakukan selambat-lambatnya 3 hari kerja sebelum jadwal pengiriman / penyerahan yang dijadwalkan.",
       "Barang yang sudah dipesan / dibeli, tidak dapat ditukar atau dikembalikan.",
@@ -744,37 +952,45 @@ class PDFService {
       "Jika pengiriman dilakukan lebih dari 1 (Satu) kali, konsumen wajib melunasi pembelian sebelum pengiriman pertama.",
       "Untuk tipe dan ukuran khusus, pelunasan harus dilakukan saat pemesanan dan tidak dapat dibatalkan/diganti."
     ];
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
+
+    return pw.Wrap(
       children: [
-        pw.Text('Syarat - Syarat Pembelian :',
-            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8)),
-        pw.SizedBox(height: 3),
         pw.Column(
-          children: terms.asMap().entries.map((entry) {
-            return pw.Padding(
-              padding: const pw.EdgeInsets.only(bottom: 1.5),
-              child: pw.Row(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.SizedBox(
-                    width: 12,
-                    child: pw.Text(
-                      '${entry.key + 1}.',
-                      style: const pw.TextStyle(fontSize: 7),
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text('Syarat - Syarat Pembelian :',
+                style:
+                    pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8)),
+            pw.SizedBox(height: 3),
+            ...terms.asMap().entries.map((entry) {
+              return pw.Padding(
+                padding: const pw.EdgeInsets.only(bottom: 1.5),
+                child: pw.Row(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.SizedBox(
+                      width: 12,
+                      child: pw.Text(
+                        '${entry.key + 1}.',
+                        style: const pw.TextStyle(fontSize: 7),
+                      ),
                     ),
-                  ),
-                  pw.Expanded(
-                    child: pw.Text(
-                      entry.value,
-                      style: const pw.TextStyle(fontSize: 7),
-                      textAlign: pw.TextAlign.justify,
+                    pw.Expanded(
+                      child: entry.key == 0
+                          ? _buildFirstTermWithBoldBank()
+                          : pw.Text(
+                              entry.value,
+                              style: pw.TextStyle(fontSize: 7),
+                              textAlign: pw.TextAlign.justify,
+                            ),
                     ),
-                  ),
-                ],
-              ),
-            );
-          }).toList(),
+                  ],
+                ),
+              );
+            }),
+            pw.SizedBox(height: 10),
+            _buildSignatureSection(customerName, salesName),
+          ],
         ),
       ],
     );
