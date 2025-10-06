@@ -1,42 +1,28 @@
 import '../../../../services/area_service.dart';
+import '../../../../core/widgets/custom_toast.dart';
 import '../models/area_model.dart';
 
 class AreaRepository {
   final AreaService areaService;
 
-  // Cache for areas to avoid repeated API calls
-  List<AreaModel>? _cachedAreas;
-  DateTime? _lastFetchTime;
-  static const Duration _cacheValidDuration = Duration(minutes: 30);
-
   AreaRepository({required this.areaService});
 
-  /// Fetch areas from API with caching
+  /// Fetch areas from API (always fresh data)
   Future<List<AreaModel>> fetchAreas() async {
-    // Check if cache is still valid
-    if (_cachedAreas != null && _lastFetchTime != null) {
-      final timeSinceLastFetch = DateTime.now().difference(_lastFetchTime!);
-      if (timeSinceLastFetch < _cacheValidDuration) {
-        print(
-            "AreaRepository: Returning cached areas (${_cachedAreas!.length} areas)");
-        return _cachedAreas!;
-      }
-    }
-
     try {
       final areas = await areaService.fetchAreas();
-
-      // Update cache
-      _cachedAreas = areas;
-      _lastFetchTime = DateTime.now();
-
-      print(
-          "AreaRepository: Successfully fetched and cached ${areas.length} areas");
+      print("AreaRepository: Successfully fetched ${areas.length} areas");
       return areas;
     } catch (e) {
-
-      // If API fails, return hardcoded areas as fallback
-      return _getHardcodedAreas();
+      print("AreaRepository: API failed: $e");
+      // Show error toast to user
+      CustomToast.showToast(
+        "Gagal memuat data area. Periksa koneksi internet Anda.",
+        ToastType.error,
+        duration: 3,
+      );
+      // Return empty list if API fails - no hardcoded fallback
+      return [];
     }
   }
 
@@ -62,20 +48,6 @@ class AreaRepository {
     }
   }
 
-  /// Clear cache (useful for testing or when data needs to be refreshed)
-  void clearCache() {
-    _cachedAreas = null;
-    _lastFetchTime = null;
-  }
-
-  /// Get hardcoded areas as fallback
-  List<AreaModel> _getHardcodedAreas() {
-    return [
-      AreaModel(id: 3, name: "Nasional"),
-      AreaModel(id: 4, name: "Jabodetabek"),
-    ];
-  }
-
   /// Get all area names from API (most direct approach)
   Future<List<String>> fetchAllAreaNames() async {
     try {
@@ -85,20 +57,15 @@ class AreaRepository {
           "AreaRepository: Returning all ${areaNames.length} area names from API");
       return areaNames;
     } catch (e) {
-      // Fallback to hardcoded area names
-      return [
-        "Nasional",
-        "Jabodetabek",
-        "Bandung",
-        "Surabaya",
-        "Semarang",
-        "Yogyakarta",
-        "Solo",
-        "Malang",
-        "Denpasar",
-        "Medan",
-        "Palembang"
-      ];
+      print("AreaRepository: API failed for area names: $e");
+      // Show error toast to user
+      CustomToast.showToast(
+        "Gagal memuat daftar area. Periksa koneksi internet Anda.",
+        ToastType.error,
+        duration: 3,
+      );
+      // Return empty list if API fails - no hardcoded fallback
+      return [];
     }
   }
 

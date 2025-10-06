@@ -1,5 +1,6 @@
 import '../../features/product/data/models/area_model.dart';
 import '../../features/product/data/repositories/area_repository.dart';
+import '../widgets/custom_toast.dart';
 
 /// Utility class for working with areas
 class AreaUtils {
@@ -7,14 +8,20 @@ class AreaUtils {
 
   AreaUtils({required this.areaRepository});
 
-  /// Get all available areas from API or fallback to hardcoded values
+  /// Get all available areas from API
   Future<List<AreaModel>> getAllAreas() async {
     try {
       return await areaRepository.fetchAreas();
     } catch (e) {
       print('AreaUtils: Error fetching areas: $e');
-      // Return hardcoded areas as fallback
-      return _getHardcodedAreas();
+      // Show error toast to user
+      CustomToast.showToast(
+        "Gagal memuat data area. Periksa koneksi internet Anda.",
+        ToastType.error,
+        duration: 3,
+      );
+      // Return empty list if API fails - no hardcoded fallback
+      return [];
     }
   }
 
@@ -24,19 +31,14 @@ class AreaUtils {
       return await areaRepository.fetchAllAreaNames();
     } catch (e) {
       print('AreaUtils: Error fetching area names: $e');
-      return [
-        "Nasional",
-        "Jabodetabek",
-        "Bandung",
-        "Surabaya",
-        "Semarang",
-        "Yogyakarta",
-        "Solo",
-        "Malang",
-        "Denpasar",
-        "Medan",
-        "Palembang"
-      ];
+      // Show error toast to user
+      CustomToast.showToast(
+        "Gagal memuat daftar area. Periksa koneksi internet Anda.",
+        ToastType.error,
+        duration: 3,
+      );
+      // Return empty list if API fails - no hardcoded fallback
+      return [];
     }
   }
 
@@ -67,28 +69,6 @@ class AreaUtils {
     } catch (e) {
       return false;
     }
-  }
-
-  /// Clear area cache
-  void clearCache() {
-    areaRepository.clearCache();
-  }
-
-  /// Get hardcoded areas as fallback
-  List<AreaModel> _getHardcodedAreas() {
-    return [
-      AreaModel(id: 0, name: "Nasional"),
-      AreaModel(id: 1, name: "Jabodetabek"),
-      AreaModel(id: 2, name: "Bandung"),
-      AreaModel(id: 3, name: "Surabaya"),
-      AreaModel(id: 4, name: "Semarang"),
-      AreaModel(id: 5, name: "Yogyakarta"),
-      AreaModel(id: 6, name: "Solo"),
-      AreaModel(id: 7, name: "Malang"),
-      AreaModel(id: 8, name: "Denpasar"),
-      AreaModel(id: 9, name: "Medan"),
-      AreaModel(id: 10, name: "Palembang"),
-    ];
   }
 
   /// Get display name for area (with fallback)

@@ -1,42 +1,29 @@
 import '../../../../services/channel_service.dart';
+import '../../../../core/widgets/custom_toast.dart';
 import '../models/channel_model.dart';
 
 class ChannelRepository {
   final ChannelService channelService;
 
-  // Cache for channels to avoid repeated API calls
-  List<ChannelModel>? _cachedChannels;
-  DateTime? _lastFetchTime;
-  static const Duration _cacheValidDuration = Duration(minutes: 30);
-
   ChannelRepository({required this.channelService});
 
-  /// Fetch channels from API with caching
+  /// Fetch channels from API (always fresh data)
   Future<List<ChannelModel>> fetchChannels() async {
-    // Check if cache is still valid
-    if (_cachedChannels != null && _lastFetchTime != null) {
-      final timeSinceLastFetch = DateTime.now().difference(_lastFetchTime!);
-      if (timeSinceLastFetch < _cacheValidDuration) {
-        print(
-            "ChannelRepository: Returning cached channels (${_cachedChannels!.length} channels)");
-        return _cachedChannels!;
-      }
-    }
-
     try {
       final channels = await channelService.fetchChannels();
-
-      // Update cache
-      _cachedChannels = channels;
-      _lastFetchTime = DateTime.now();
-
       print(
-          "ChannelRepository: Successfully fetched and cached ${channels.length} channels");
+          "ChannelRepository: Successfully fetched ${channels.length} channels");
       return channels;
     } catch (e) {
-
-      // If API fails, return hardcoded channels as fallback
-      return _getHardcodedChannels();
+      print("ChannelRepository: API failed: $e");
+      // Show error toast to user
+      CustomToast.showToast(
+        "Gagal memuat data channel. Periksa koneksi internet Anda.",
+        ToastType.error,
+        duration: 3,
+      );
+      // Return empty list if API fails - no hardcoded fallback
+      return [];
     }
   }
 
@@ -62,25 +49,6 @@ class ChannelRepository {
     }
   }
 
-  /// Clear cache (useful for testing or when data needs to be refreshed)
-  void clearCache() {
-    _cachedChannels = null;
-    _lastFetchTime = null;
-  }
-
-  /// Get hardcoded channels as fallback
-  List<ChannelModel> _getHardcodedChannels() {
-    return [
-      ChannelModel(id: 1, name: "Call Center"),
-      ChannelModel(id: 2, name: "Indirect"),
-      ChannelModel(id: 3, name: "Retail"),
-      ChannelModel(id: 4, name: "Accessories"),
-      ChannelModel(id: 5, name: "Massindo Fair - Direct"),
-      ChannelModel(id: 6, name: "Massindo Fair - Indirect"),
-      ChannelModel(id: 7, name: "Modern Market"),
-    ];
-  }
-
   /// Check if channels are available from API
   Future<bool> isApiAvailable() async {
     try {
@@ -100,17 +68,15 @@ class ChannelRepository {
           "ChannelRepository: Returning all ${channelNames.length} channel names from API");
       return channelNames;
     } catch (e) {
-      // Fallback to hardcoded channel names
-      return [
-        "Regular",
-        "Call Center",
-        "Indirect",
-        "Retail",
-        "Accessories",
-        "Massindo Fair - Direct",
-        "Massindo Fair - Indirect",
-        "Modern Market"
-      ];
+      print("ChannelRepository: API failed for channel names: $e");
+      // Show error toast to user
+      CustomToast.showToast(
+        "Gagal memuat daftar channel. Periksa koneksi internet Anda.",
+        ToastType.error,
+        duration: 3,
+      );
+      // Return empty list if API fails - no hardcoded fallback
+      return [];
     }
   }
 
@@ -122,8 +88,15 @@ class ChannelRepository {
           "ChannelRepository: Returning all ${channels.length} channels from API");
       return channels;
     } catch (e) {
-      // Fallback to hardcoded channels
-      return _getHardcodedChannels();
+      print("ChannelRepository: API failed for all channels: $e");
+      // Show error toast to user
+      CustomToast.showToast(
+        "Gagal memuat data channel. Periksa koneksi internet Anda.",
+        ToastType.error,
+        duration: 3,
+      );
+      // Return empty list if API fails - no hardcoded fallback
+      return [];
     }
   }
 }

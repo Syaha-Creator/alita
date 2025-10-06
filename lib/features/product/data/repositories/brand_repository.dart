@@ -1,42 +1,28 @@
 import '../../../../services/brand_service.dart';
+import '../../../../core/widgets/custom_toast.dart';
 import '../models/brand_model.dart';
 
 class BrandRepository {
   final BrandService brandService;
 
-  // Cache for brands to avoid repeated API calls
-  List<BrandModel>? _cachedBrands;
-  DateTime? _lastFetchTime;
-  static const Duration _cacheValidDuration = Duration(minutes: 30);
-
   BrandRepository({required this.brandService});
 
-  /// Fetch brands from API with caching
+  /// Fetch brands from API (always fresh data)
   Future<List<BrandModel>> fetchBrands() async {
-    // Check if cache is still valid
-    if (_cachedBrands != null && _lastFetchTime != null) {
-      final timeSinceLastFetch = DateTime.now().difference(_lastFetchTime!);
-      if (timeSinceLastFetch < _cacheValidDuration) {
-        print(
-            "BrandRepository: Returning cached brands (${_cachedBrands!.length} brands)");
-        return _cachedBrands!;
-      }
-    }
-
     try {
       final brands = await brandService.fetchBrands();
-
-      // Update cache
-      _cachedBrands = brands;
-      _lastFetchTime = DateTime.now();
-
-      print(
-          "BrandRepository: Successfully fetched and cached ${brands.length} brands");
+      print("BrandRepository: Successfully fetched ${brands.length} brands");
       return brands;
     } catch (e) {
-
-      // If API fails, return hardcoded brands as fallback
-      return _getHardcodedBrands();
+      print("BrandRepository: API failed: $e");
+      // Show error toast to user
+      CustomToast.showToast(
+        "Gagal memuat data brand. Periksa koneksi internet Anda.",
+        ToastType.error,
+        duration: 3,
+      );
+      // Return empty list if API fails - no hardcoded fallback
+      return [];
     }
   }
 
@@ -62,24 +48,6 @@ class BrandRepository {
     }
   }
 
-  /// Clear cache (useful for testing or when data needs to be refreshed)
-  void clearCache() {
-    _cachedBrands = null;
-    _lastFetchTime = null;
-  }
-
-  /// Get hardcoded brands as fallback
-  List<BrandModel> _getHardcodedBrands() {
-    return [
-      BrandModel(id: 1, name: "Superfit"),
-      BrandModel(id: 2, name: "Therapedic"),
-      BrandModel(id: 3, name: "Sleep Spa"),
-      BrandModel(id: 4, name: "Spring Air"),
-      BrandModel(id: 5, name: "Comforta"),
-      BrandModel(id: 6, name: "iSleep"),
-    ];
-  }
-
   /// Check if brands are available from API
   Future<bool> isApiAvailable() async {
     try {
@@ -99,15 +67,15 @@ class BrandRepository {
           "BrandRepository: Returning all ${brandNames.length} brand names from API");
       return brandNames;
     } catch (e) {
-      // Fallback to hardcoded brand names
-      return [
-        "Superfit",
-        "Therapedic",
-        "Sleep Spa",
-        "Spring Air",
-        "Comforta",
-        "iSleep"
-      ];
+      print("BrandRepository: API failed for brand names: $e");
+      // Show error toast to user
+      CustomToast.showToast(
+        "Gagal memuat daftar brand. Periksa koneksi internet Anda.",
+        ToastType.error,
+        duration: 3,
+      );
+      // Return empty list if API fails - no hardcoded fallback
+      return [];
     }
   }
 
@@ -117,8 +85,15 @@ class BrandRepository {
       final brands = await fetchBrands();
       return brands;
     } catch (e) {
-      // Fallback to hardcoded brands
-      return _getHardcodedBrands();
+      print("BrandRepository: API failed for all brands: $e");
+      // Show error toast to user
+      CustomToast.showToast(
+        "Gagal memuat data brand. Periksa koneksi internet Anda.",
+        ToastType.error,
+        duration: 3,
+      );
+      // Return empty list if API fails - no hardcoded fallback
+      return [];
     }
   }
 }
