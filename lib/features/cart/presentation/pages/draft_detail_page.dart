@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -8,6 +9,8 @@ import '../../../../core/utils/format_helper.dart';
 import '../../../../core/widgets/custom_textfield.dart';
 import '../../../../core/widgets/custom_toast.dart';
 import '../../../../services/auth_service.dart';
+import '../bloc/cart_bloc.dart';
+import '../bloc/cart_state.dart';
 
 class DraftDetailPage extends StatefulWidget {
   final Map<String, dynamic> draft;
@@ -100,6 +103,63 @@ class _DraftDetailPageState extends State<DraftDetailPage>
       final key = 'checkout_drafts_$userId';
       final draftStrings = prefs.getStringList(key) ?? [];
 
+      // Get current cart items from CartBloc
+      final cartState = context.read<CartBloc>().state;
+      List<dynamic> currentCartItems = [];
+
+      if (cartState is CartLoaded) {
+        currentCartItems = cartState.cartItems;
+      }
+
+      // Convert current cart items to serializable format
+      final selectedItems = currentCartItems.map((item) {
+        // Cast item to dynamic to access properties
+        final cartItem = item as dynamic;
+        return {
+          'product': {
+            'id': cartItem.product?.id ?? 0,
+            'area': cartItem.product?.area ?? '',
+            'channel': cartItem.product?.channel ?? '',
+            'brand': cartItem.product?.brand ?? '',
+            'kasur': cartItem.product?.kasur ?? '',
+            'divan': cartItem.product?.divan ?? '',
+            'headboard': cartItem.product?.headboard ?? '',
+            'sorong': cartItem.product?.sorong ?? '',
+            'ukuran': cartItem.product?.ukuran ?? '',
+            'pricelist': cartItem.product?.pricelist ?? 0.0,
+            'program': cartItem.product?.program ?? '',
+            'eupKasur': cartItem.product?.eupKasur ?? 0.0,
+            'eupDivan': cartItem.product?.eupDivan ?? 0.0,
+            'eupHeadboard': cartItem.product?.eupHeadboard ?? 0.0,
+            'eupSorong': cartItem.product?.eupSorong ?? 0.0,
+            'endUserPrice': cartItem.product?.endUserPrice ?? 0.0,
+            'bonus': (cartItem.product?.bonus ?? [])
+                .map((bonus) => {
+                      'name': bonus?.name ?? '',
+                      'quantity': bonus?.quantity ?? 0,
+                      'takeAway': bonus?.takeAway ?? false,
+                    })
+                .toList(),
+            'discounts': cartItem.product?.discounts ?? [],
+            'isSet': cartItem.product?.isSet ?? false,
+            'plKasur': cartItem.product?.plKasur ?? 0.0,
+            'plDivan': cartItem.product?.plDivan ?? 0.0,
+            'plHeadboard': cartItem.product?.plHeadboard ?? 0.0,
+            'plSorong': cartItem.product?.plSorong ?? 0.0,
+            'bottomPriceAnalyst': cartItem.product?.bottomPriceAnalyst ?? 0.0,
+            'disc1': cartItem.product?.disc1 ?? 0.0,
+            'disc2': cartItem.product?.disc2 ?? 0.0,
+            'disc3': cartItem.product?.disc3 ?? 0.0,
+            'disc4': cartItem.product?.disc4 ?? 0.0,
+            'disc5': cartItem.product?.disc5 ?? 0.0,
+          },
+          'quantity': cartItem.quantity ?? 0,
+          'netPrice': cartItem.netPrice ?? 0.0,
+          'discountPercentages': cartItem.discountPercentages ?? [],
+          'isSelected': cartItem.isSelected ?? false,
+        };
+      }).toList();
+
       final updatedDraft = {
         'customerName': _customerNameController.text,
         'customerPhone': _customerPhoneController.text,
@@ -110,7 +170,7 @@ class _DraftDetailPageState extends State<DraftDetailPage>
         'deliveryDate': _deliveryDateController.text,
         'paymentAmount': _paymentAmountController.text,
         'repaymentDate': _repaymentDateController.text,
-        'selectedItems': widget.draft['selectedItems'], // Keep existing items
+        'selectedItems': selectedItems,
         'grandTotal': double.tryParse(_grandTotalController.text) ?? 0.0,
         'isTakeAway': _shippingSameAsCustomer,
         'savedAt': DateTime.now().toIso8601String(),

@@ -296,8 +296,8 @@ class CheckoutService {
     final significantDiscounts = discounts.where((d) => d > 0.0).toList();
 
     if (significantDiscounts.isEmpty) {
-      // No discounts that need approval → Approved immediately
-      return 'Approved';
+      // No discounts → Still need Direct Leader approval
+      return 'Pending';
     }
 
     // Check if only user-level discounts (level 1 auto-approved)
@@ -305,8 +305,8 @@ class CheckoutService {
     // This logic can be enhanced based on business rules
 
     if (significantDiscounts.every((d) => d <= 5.0)) {
-      // Small discounts (≤5%) → Only user approval needed → Auto-approved
-      return 'Approved';
+      // Small discounts (≤5%) → Still need Direct Leader approval
+      return 'Pending';
     }
 
     // Has significant discounts that need higher-level approval

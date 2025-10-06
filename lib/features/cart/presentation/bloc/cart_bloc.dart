@@ -1,4 +1,3 @@
-// File: lib/features/cart/presentation/bloc/cart_bloc.dart
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../services/cart_storage_service.dart';
@@ -21,8 +20,15 @@ class CartBloc extends Bloc<CartEvent, CartState> {
     });
 
     on<AddToCart>((event, emit) async {
+      print('=== ADD TO CART EVENT ===');
+      print('Product: ${event.product.kasur} ${event.product.ukuran}');
+      print('Quantity: ${event.quantity}');
+      print('Net Price: ${event.netPrice}');
+
       if (state is CartLoaded) {
         final currentState = state as CartLoaded;
+        print(
+            'Current cart items before add: ${currentState.cartItems.length}');
 
         // Check if item with same configuration already exists
         final existingItemIndex = currentState.cartItems.indexWhere(
@@ -38,6 +44,7 @@ class CartBloc extends Bloc<CartEvent, CartState> {
 
         if (existingItemIndex != -1) {
           // Update existing item quantity
+          print('Updating existing item at index $existingItemIndex');
           final existingItem = updatedItems[existingItemIndex];
           updatedItems[existingItemIndex] = CartEntity(
             product: existingItem.product,
@@ -49,6 +56,7 @@ class CartBloc extends Bloc<CartEvent, CartState> {
           );
         } else {
           // Add new item
+          print('Adding new item to cart');
           updatedItems.add(
             CartEntity(
               product: event.product,
@@ -61,9 +69,12 @@ class CartBloc extends Bloc<CartEvent, CartState> {
           );
         }
 
+        print('Cart items after add: ${updatedItems.length}');
+
         // Save to storage and emit new state
         await CartStorageService.saveCartItems(updatedItems);
         emit(CartLoaded(updatedItems));
+        print('Cart state updated successfully');
       } else {
         // Create new cart
         final newCart = [

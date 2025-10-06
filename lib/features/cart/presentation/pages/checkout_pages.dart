@@ -234,6 +234,9 @@ class _CheckoutPagesState extends State<CheckoutPages>
     try {
       final itemsData = draft['selectedItems'] as List<dynamic>? ?? [];
 
+      print('=== RESTORING CART FROM DRAFT ===');
+      print('Total items in draft: ${itemsData.length}');
+
       // Clear current cart first
       context.read<CartBloc>().add(ClearCart());
 
@@ -241,9 +244,17 @@ class _CheckoutPagesState extends State<CheckoutPages>
       await Future.delayed(const Duration(milliseconds: 100));
 
       // Add each item back to cart with restored bonus take away data
-      for (final itemData in itemsData) {
+      for (int i = 0; i < itemsData.length; i++) {
+        final itemData = itemsData[i];
+        print('Processing item ${i + 1}/${itemsData.length}');
+
         final item = itemData as Map<String, dynamic>;
         final productData = item['product'] as Map<String, dynamic>;
+
+        print(
+            'Item ${i + 1} - Product: ${productData['kasur']} ${productData['ukuran']}');
+        print('Item ${i + 1} - Quantity: ${item['quantity']}');
+        print('Item ${i + 1} - Net Price: ${item['netPrice']}');
 
         // Reconstruct bonus items
         final bonusData = productData['bonus'] as List<dynamic>? ?? [];
@@ -299,6 +310,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
         }
 
         // Add to cart with bonus take away data
+        print('Adding item ${i + 1} to cart...');
         context.read<CartBloc>().add(AddToCart(
               product: product,
               quantity: item['quantity'] as int,
@@ -309,9 +321,11 @@ class _CheckoutPagesState extends State<CheckoutPages>
                           .toList() ??
                       [],
             ));
+        print('Item ${i + 1} added to cart successfully');
 
         // After adding to cart, update bonus take away if needed
         if (bonusTakeAway != null && bonusTakeAway.isNotEmpty) {
+          print('Updating bonus take away for item ${i + 1}');
           // Wait a bit for cart to be updated
           await Future.delayed(const Duration(milliseconds: 50));
 
@@ -320,9 +334,14 @@ class _CheckoutPagesState extends State<CheckoutPages>
                 netPrice: item['netPrice'] as double,
                 bonusTakeAway: bonusTakeAway,
               ));
+          print('Bonus take away updated for item ${i + 1}');
         }
+
+        // Add delay between items to ensure proper processing
+        await Future.delayed(const Duration(milliseconds: 100));
       }
 
+      print('=== CART RESTORATION COMPLETED ===');
       print('Cart items restored from draft: ${itemsData.length} items');
     } catch (e) {
       print('Error restoring cart items from draft: $e');
@@ -427,10 +446,8 @@ class _CheckoutPagesState extends State<CheckoutPages>
 
       CustomToast.showToast('Draft berhasil disimpan', ToastType.success);
 
-      // Remove selected items from cart after saving to draft
-      context
-          .read<CartBloc>()
-          .add(RemoveSelectedItems(itemsToRemove: selectedItems));
+      // Clear all items from cart after saving to draft
+      context.read<CartBloc>().add(ClearCart());
 
       // Navigate to draft checkout page
       Navigator.pushReplacement(
