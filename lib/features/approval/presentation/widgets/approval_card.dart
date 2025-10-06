@@ -353,8 +353,9 @@ class _ApprovalCardState extends State<ApprovalCard>
 
         const SizedBox(width: 8),
 
-        // Discount (if exists)
-        if (widget.approval.discounts.isNotEmpty)
+        // Discount (if exists and has valid values > 0)
+        if (widget.approval.discounts.isNotEmpty &&
+            widget.approval.discounts.any((d) => d.discount > 0.0))
           Expanded(
             child: _buildDetailCard(
               'Discount',

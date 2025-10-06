@@ -53,8 +53,14 @@ class ApprovalEntity {
     final sortedDiscounts = List<ApprovalDiscountEntity>.from(discounts)
       ..sort((a, b) => a.id.compareTo(b.id));
 
+    // Filter out discounts with 0.0 or null values
+    final validDiscounts =
+        sortedDiscounts.where((d) => d.discount > 0.0).toList();
+
+    if (validDiscounts.isEmpty) return '';
+
     // Create display string: "10 + 5 + 5" or "10.5 + 5.25 + 5"
-    final discountValues = sortedDiscounts.map((d) {
+    final discountValues = validDiscounts.map((d) {
       final discount = d.discount;
       // If discount is a whole number (e.g., 10.0), show as integer
       if (discount % 1 == 0) {

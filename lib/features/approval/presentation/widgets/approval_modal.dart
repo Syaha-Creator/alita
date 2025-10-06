@@ -974,7 +974,15 @@ class _ApprovalModalState extends State<ApprovalModal>
       final kasurName = entry.key;
       final kasurDiscounts = entry.value;
 
-      if (kasurDiscounts.isNotEmpty) {
+      // Filter out discounts with 0.0 or null values first
+      final validKasurDiscounts = kasurDiscounts.where((discount) {
+        final percentage = (discount['discount'] is String)
+            ? double.tryParse(discount['discount']) ?? 0.0
+            : (discount['discount'] ?? 0.0).toDouble();
+        return percentage > 0.0;
+      }).toList();
+
+      if (validKasurDiscounts.isNotEmpty) {
         // Add kasur name as header
         discountWidgets.add(
           Padding(
@@ -989,8 +997,8 @@ class _ApprovalModalState extends State<ApprovalModal>
           ),
         );
 
-        // Add discount rows for this kasur
-        for (final discount in kasurDiscounts) {
+        // Add discount rows for this kasur (only show discounts > 0)
+        for (final discount in validKasurDiscounts) {
           final level = discount['approver_level_id'] ?? 1;
           final percentage = (discount['discount'] is String)
               ? double.tryParse(discount['discount']) ?? 0.0

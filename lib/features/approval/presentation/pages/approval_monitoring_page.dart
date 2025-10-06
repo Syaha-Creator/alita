@@ -7,7 +7,6 @@ import '../../../../config/app_constant.dart';
 import '../../../../config/dependency_injection.dart';
 import '../../../../services/auth_service.dart';
 import '../../../../services/order_letter_service.dart';
-import '../../../../services/core_notification_service.dart';
 import '../../../../theme/app_colors.dart';
 import '../../domain/entities/approval_entity.dart';
 import '../../data/repositories/approval_repository.dart';
@@ -16,7 +15,6 @@ import '../bloc/approval_bloc.dart';
 import '../bloc/approval_event.dart';
 import '../bloc/approval_state.dart';
 import '../widgets/approval_card.dart';
-import '../widgets/approval_modal.dart';
 import '../widgets/approval_skeleton_card.dart';
 
 class ApprovalMonitoringPage extends StatefulWidget {
@@ -415,137 +413,10 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
       // Continue with pendingCount = 0 if error
     }
 
-    // Show approval modal for approvers who haven't approved yet
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => ApprovalModal(
-        approval: approval,
-        pendingDiscountCount: pendingCount,
-        onApprovalAction: (action, comment) async {
-          try {
-            // Get the discount that needs approval for current user
-            final currentUserId = await AuthService.getCurrentUserId();
-            final currentUserName =
-                await AuthService.getCurrentUserName() ?? '';
-
-            if (currentUserId == null) {
-              _showErrorSnackBar('User information not available');
-              return;
-            }
-
-            // Get raw discount data from repository to find pending approval
-            final orderLetterService = locator<OrderLetterService>();
-            final rawDiscounts = await orderLetterService
-                .getOrderLetterDiscounts(orderLetterId: approval.id);
-
-            // Check if current user can approve sequentially
-            bool canApprove = _canUserApproveSequentially(
-              rawDiscounts,
-              currentUserId,
-              currentUserName,
-            );
-
-            if (!canApprove) {
-              _showErrorSnackBar(
-                'Cannot approve: Previous levels must be approved first',
-              );
-              return;
-            }
-
-            // Get user's job level from discount data
-            int jobLevelId = 1; // Default to user level
-
-            // Find the discount for current user to get their job level
-            for (final discount in rawDiscounts) {
-              final approverId = discount['approver'];
-              final approverName = discount['approver_name'];
-              final approverLevelId = discount['approver_level_id'];
-
-              if ((approverId == currentUserId ||
-                      _isNameMatch(approverName, currentUserName)) &&
-                  approverLevelId != null) {
-                jobLevelId = approverLevelId;
-                break;
-              }
-            }
-
-            // Get count of pending discounts for better user feedback
-            final pendingCount =
-                await orderLetterService.getPendingDiscountCount(
-              orderLetterId: approval.id,
-              leaderId: currentUserId,
-              jobLevelId: jobLevelId,
-            );
-
-            if (pendingCount == 0) {
-              _showErrorSnackBar('No pending discounts found for approval');
-              return;
-            }
-
-            // Use batch approval for all pending discounts at user's level
-            final result =
-                await orderLetterService.batchApproveOrderLetterDiscounts(
-              orderLetterId: approval.id,
-              leaderId: currentUserId,
-              jobLevelId: jobLevelId,
-            );
-
-            // Show success message with count of approved discounts
-            final approvedCount = result['approved_count'] ?? 0;
-            if (result['success'] == true && approvedCount > 0) {
-              _showSuccessSnackBar(
-                  '$action - $approvedCount diskon berhasil disetujui');
-            } else {
-              _showErrorSnackBar(result['message'] ?? 'Approval failed');
-            }
-
-            // Send notification using unified notification service
-            try {
-              final coreNotificationService =
-                  locator<CoreNotificationService>();
-
-              // Get order details for notification
-              String? orderDetails;
-              String? customerName;
-              double? totalAmount;
-
-              // Try to get order details from approval data
-              customerName = approval.customerName;
-              totalAmount = approval.extendedAmount;
-
-              // Handle approval flow notification
-              await coreNotificationService.handleApprovalFlowNotification(
-                orderLetterId: approval.id.toString(),
-                approverUserId: currentUserId.toString(),
-                approverName: currentUserName,
-                approvalAction: action,
-                approvalLevel: 'Level $jobLevelId',
-                comment: '', // Could be added later if needed
-                customerName: customerName,
-                totalAmount: totalAmount,
-              );
-            } catch (e) {
-              // Don't fail the approval if notification fails
-            }
-
-            // Refresh timeline data for this approval card
-            final cardKey = _approvalCardKeys[approval.id];
-            if (cardKey?.currentState != null) {
-              final cardState = cardKey!.currentState as dynamic;
-              if (cardState.refreshTimelineData != null) {
-                await cardState.refreshTimelineData();
-              }
-            }
-
-            // Update only this specific approval instead of full refresh
-            context.read<ApprovalBloc>().add(UpdateSingleApproval(approval.id));
-          } catch (e) {
-            _showErrorSnackBar('Failed to process approval: $e');
-          }
-        },
-      ),
+    // Redirect to order letter document page for approval instead of showing modal
+    Navigator.of(context).pushNamed(
+      RoutePaths.orderLetterDocument,
+      arguments: approval.id,
     );
   }
 
@@ -1623,59 +1494,6 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
     );
   }
 
-  void _showSuccessSnackBar(String action) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: action == 'approve' ? AppColors.success : AppColors.error,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                action == 'approve'
-                    ? Icons.check_circle_rounded
-                    : Icons.cancel_rounded,
-                color: Colors.white,
-                size: 24,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      action == 'approve' ? 'Approved!' : 'Rejected!',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                      ),
-                    ),
-                    Text(
-                      'Order has been ${action}d successfully',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        backgroundColor: Colors.transparent,
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(16),
-        elevation: 0,
-      ),
-    );
-  }
-
   List<ApprovalEntity> _filterApprovals(List<ApprovalEntity> approvals) {
     if (_selectedFilter == 'All') return approvals;
     return approvals
@@ -2479,94 +2297,5 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
         elevation: 0,
       ),
     );
-  }
-
-  bool _canUserApproveSequentially(
-    List<Map<String, dynamic>> rawDiscounts,
-    int currentUserId,
-    String currentUserName,
-  ) {
-    // Sort discounts by approver_level_id to ensure sequential order
-    final sortedDiscounts = List<Map<String, dynamic>>.from(rawDiscounts)
-      ..sort((a, b) {
-        final levelA = a['approver_level_id'] ?? 0;
-        final levelB = b['approver_level_id'] ?? 0;
-        return levelA.compareTo(levelB);
-      });
-
-    // Find current user's level and check if they have already approved
-    int? currentUserLevel;
-    bool hasUserApproved = false;
-
-    for (final discount in sortedDiscounts) {
-      final approverId = discount['approver'];
-      final approverName = discount['approver_name'];
-      final level = discount['approver_level_id'];
-      final approved = discount['approved'];
-
-      if (approverId == currentUserId ||
-          _isNameMatch(approverName, currentUserName)) {
-        currentUserLevel = level;
-        hasUserApproved = approved == true;
-        break;
-      }
-    }
-
-    if (currentUserLevel == null) {
-      return false;
-    }
-
-    // If user has already approved, they can always see the approval (for tracking)
-    if (hasUserApproved) {
-      return true;
-    }
-
-    // For level 1 (User), always allow (auto-approved)
-    if (currentUserLevel == 1) {
-      return true;
-    }
-
-    // For level 2-5, check if immediate previous level is approved
-    bool foundPreviousLevel = false;
-    for (final discount in sortedDiscounts) {
-      final level = discount['approver_level_id'];
-      final approved = discount['approved'];
-
-      // Check if this is the immediate previous level
-      if (level != null && level == currentUserLevel - 1) {
-        foundPreviousLevel = true;
-        if (approved != true) {
-          return false;
-        } else {
-          break;
-        }
-      }
-    }
-
-    // If no previous level found, allow approval (for new order letters)
-    if (!foundPreviousLevel) {
-      return true;
-    }
-
-    // Check if current user's level is pending
-    for (final discount in sortedDiscounts) {
-      final level = discount['approver_level_id'];
-      final approved = discount['approved'];
-      final approverId = discount['approver'];
-      final approverName = discount['approver_name'];
-
-      if (level != null &&
-          level == currentUserLevel &&
-          (approverId == currentUserId ||
-              _isNameMatch(approverName, currentUserName))) {
-        if (approved == null || approved == false) {
-          return true;
-        } else {
-          return false;
-        }
-      }
-    }
-
-    return false;
   }
 }
