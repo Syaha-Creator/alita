@@ -7,7 +7,7 @@ import '../config/app_constant.dart';
 /// Service untuk autentikasi, penyimpanan token, dan session user.
 class AuthService {
   static final ValueNotifier<bool> authChangeNotifier = ValueNotifier(false);
-  static const int _sessionDuration = 24 * 60 * 60 * 1000;
+
   static const String _userNameKey = "current_user_name";
   static const String _userAreaIdKey = "current_user_area_id";
 
@@ -17,14 +17,6 @@ class AuthService {
     bool isLoggedIn = prefs.getBool(StorageKeys.isLoggedIn) ?? false;
     int? loginTimestamp = prefs.getInt(StorageKeys.loginTimestamp);
     String? token = prefs.getString(StorageKeys.authToken);
-
-    if (isLoggedIn && loginTimestamp != null) {
-      int currentTime = DateTime.now().millisecondsSinceEpoch;
-      if (currentTime - loginTimestamp > _sessionDuration || token == null) {
-        await logout();
-        return false;
-      }
-    }
 
     authChangeNotifier.value = isLoggedIn;
     return isLoggedIn;

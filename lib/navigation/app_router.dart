@@ -12,6 +12,7 @@ import '../features/product/presentation/bloc/product_event.dart';
 import '../features/product/presentation/pages/product_page.dart';
 import '../features/product/presentation/pages/product_detail_page.dart';
 import '../features/approval/presentation/pages/approval_monitoring_page.dart';
+import '../features/order_letter_document/presentation/pages/order_letter_document_page.dart';
 
 import '../services/auth_service.dart';
 import 'navigation_service.dart';
@@ -20,10 +21,9 @@ class AppRouter {
   static final GoRouter router = GoRouter(
     navigatorKey: NavigationService.navigatorKey,
     refreshListenable: AuthService.authChangeNotifier,
-    initialLocation:
-        AuthService.authChangeNotifier.value
-            ? RoutePaths.product
-            : RoutePaths.login,
+    initialLocation: AuthService.authChangeNotifier.value
+        ? RoutePaths.product
+        : RoutePaths.login,
     routes: [
       GoRoute(
         path: RoutePaths.login,
@@ -51,19 +51,18 @@ class AppRouter {
       ),
       GoRoute(
         path: RoutePaths.cart,
-        pageBuilder:
-            (context, state) => CustomTransitionPage(
-              key: state.pageKey,
-              child: const CartPage(),
-              transitionsBuilder: (
-                context,
-                animation,
-                secondaryAnimation,
-                child,
-              ) {
-                return FadeTransition(opacity: animation, child: child);
-              },
-            ),
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const CartPage(),
+          transitionsBuilder: (
+            context,
+            animation,
+            secondaryAnimation,
+            child,
+          ) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+        ),
       ),
       GoRoute(
         path: RoutePaths.checkout,
@@ -72,6 +71,17 @@ class AppRouter {
       GoRoute(
         path: RoutePaths.approvalMonitoring,
         builder: (context, state) => const ApprovalMonitoringPage(),
+      ),
+      GoRoute(
+        path: RoutePaths.orderLetterDocument,
+        builder: (context, state) {
+          final orderLetterId = state.extra as int?;
+          if (orderLetterId == null) {
+            // Handle error case - redirect to approval monitoring
+            return const ApprovalMonitoringPage();
+          }
+          return OrderLetterDocumentPage(orderLetterId: orderLetterId);
+        },
       ),
     ],
     redirect: (context, state) {
