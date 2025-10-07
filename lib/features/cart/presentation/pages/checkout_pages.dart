@@ -551,17 +551,38 @@ class _CheckoutPagesState extends State<CheckoutPages>
 
           // Upload payment methods if any
           if (_paymentMethods.isNotEmpty) {
+            print(
+                'CheckoutPage: Uploading ${_paymentMethods.length} payment methods');
             final paymentService = locator<OrderLetterPaymentService>();
             final currentUserId = await AuthService.getCurrentUserId();
 
             if (currentUserId != null) {
-              await paymentService.uploadPaymentMethods(
-                orderLetterId: orderLetterId,
-                paymentMethods: _convertPaymentMethodsToApiFormat(),
-                creator: currentUserId,
-                note: 'Payment from checkout',
-              );
+              try {
+                final paymentData = _convertPaymentMethodsToApiFormat();
+                print('CheckoutPage: Payment data to upload: $paymentData');
+
+                await paymentService.uploadPaymentMethods(
+                  orderLetterId: orderLetterId,
+                  paymentMethods: paymentData,
+                  creator: currentUserId,
+                  note: 'Payment from checkout',
+                );
+                print('CheckoutPage: Payment methods uploaded successfully');
+              } catch (paymentError) {
+                print('CheckoutPage: Error uploading payments: $paymentError');
+                // Show toast to user about payment upload failure
+                if (mounted) {
+                  CustomToast.showToast(
+                    'Pembayaran gagal diupload: ${paymentError.toString()}',
+                    ToastType.warning,
+                  );
+                }
+              }
+            } else {
+              print('CheckoutPage: Cannot upload payments - user ID is null');
             }
+          } else {
+            print('CheckoutPage: No payment methods to upload');
           }
         } catch (e) {
           // Log error but don't fail the checkout
@@ -1401,11 +1422,12 @@ class _CheckoutPagesState extends State<CheckoutPages>
     return _paymentMethods.map((payment) {
       return {
         'payment_method': payment.type,
-        'payment_bank': payment.name, // Bank name from payment method name
-        'payment_number': payment.reference ?? '', // Transaction number
+        'payment_bank': payment.name,
+        'payment_number': payment.reference ?? '',
         'payment_amount': payment.amount,
         'note':
             'Payment via ${payment.type}${payment.reference != null ? ' - Ref: ${payment.reference}' : ''}',
+        'receipt_image_path': payment.receiptImagePath,
       };
     }).toList();
   }
