@@ -30,7 +30,10 @@ class CheckoutService {
     bool isTakeAway = false,
   }) async {
     try {
-      final userName = await AuthService.getCurrentUserName() ?? 'Unknown User';
+      // Get current user ID for creator field
+      final userId = await AuthService.getCurrentUserId();
+      final creatorId = userId?.toString() ?? '0';
+
       final now = DateTime.now();
       final orderDateStr = now.toIso8601String().split('T')[0];
       final requestDateStr =
@@ -79,7 +82,7 @@ class CheckoutService {
       final orderLetterData = {
         'order_date': orderDateStr,
         'request_date': requestDateStr,
-        'creator': userName,
+        'creator': creatorId,
         'customer_name': customerName,
         'phone': customerPhone,
         'email': email,
