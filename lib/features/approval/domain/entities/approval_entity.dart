@@ -15,6 +15,7 @@ class ApprovalEntity {
   final double? discount;
   final String note;
   final String status;
+  final String? spgCode;
   final String? keterangan;
   final String? createdAt;
   final List<ApprovalDetailEntity> details;
@@ -38,6 +39,7 @@ class ApprovalEntity {
     this.discount,
     required this.note,
     required this.status,
+    this.spgCode,
     this.keterangan,
     this.createdAt,
     required this.details,

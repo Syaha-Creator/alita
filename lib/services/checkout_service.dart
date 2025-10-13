@@ -27,6 +27,7 @@ class CheckoutService {
     required String addressShipTo,
     required String requestDate,
     required String note,
+    String? spgCode,
     bool isTakeAway = false,
   }) async {
     try {
@@ -94,6 +95,7 @@ class CheckoutService {
         'discount': totalDiscountPercentage,
         'note': note,
         'status': orderStatus,
+        'spg_code': spgCode ?? '',
       };
 
       // Prepare Details Data
@@ -230,9 +232,6 @@ class CheckoutService {
           itemLeaderIds[item.product.kasur] = productLeaderIds;
         }
       }
-
-      print('CheckoutService: Item leader IDs mapping: $itemLeaderIds');
-      print('CheckoutService: Item discounts data: $itemDiscounts');
 
       // For backward compatibility, flatten all leader IDs
       final List<int?> leaderIds = [];

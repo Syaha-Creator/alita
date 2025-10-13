@@ -5,6 +5,7 @@ import '../../../../services/pdf_services.dart';
 import '../../../../services/auth_service.dart';
 import '../../../../services/order_letter_service.dart';
 import '../../../../services/core_notification_service.dart';
+import '../../../../services/leader_service.dart';
 import '../../../../config/dependency_injection.dart';
 import '../../data/models/order_letter_document_model.dart';
 import '../../data/repositories/order_letter_document_repository.dart';
@@ -29,6 +30,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
   bool _isLoading = true;
   String? _error;
   bool _isApprovalLoading = false;
+  String? _creatorName; // Cache creator name
 
   @override
   void initState() {
@@ -47,6 +49,11 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
       final document =
           await repository.getOrderLetterDocument(widget.orderLetterId);
 
+      // Fetch creator name if creator is user ID
+      if (document != null) {
+        await _fetchCreatorName(document.creator);
+      }
+
       setState(() {
         _document = document;
         _isLoading = false;
@@ -56,6 +63,35 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         _error = e.toString();
         _isLoading = false;
       });
+    }
+  }
+
+  /// Fetch creator name from user ID
+  Future<void> _fetchCreatorName(String creator) async {
+    try {
+      // Check if creator is a user ID (numeric string)
+      final creatorUserId = int.tryParse(creator);
+
+      if (creatorUserId != null) {
+        // Creator is user ID, fetch user name
+        final leaderService = locator<LeaderService>();
+        final leaderData = await leaderService.getLeaderByUser(
+          userId: creator,
+        );
+
+        if (leaderData != null && leaderData.user.fullName.isNotEmpty) {
+          _creatorName = leaderData.user.fullName;
+        } else {
+          _creatorName = 'User #$creator';
+        }
+      } else {
+        // Creator is already a name
+        _creatorName = creator;
+      }
+    } catch (e) {
+      // If fetch fails, use fallback
+      final creatorUserId = int.tryParse(creator);
+      _creatorName = creatorUserId != null ? 'User #$creator' : creator;
     }
   }
 
@@ -286,7 +322,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                 child: _buildInfoItem(
                   icon: Icons.person_outline,
                   label: 'Creator',
-                  value: _document!.creator,
+                  value: _creatorName ?? _document!.creator,
                   color: Colors.green[600]!,
                 ),
               ),
@@ -1929,15 +1965,37 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
       final grandTotal = _document!.extendedAmount;
 
       // Convert approval data to format expected by PDF service
-      final approvalData = _document!.discounts.map((discount) {
+      final approvalData =
+          await Future.wait(_document!.discounts.map((discount) async {
+        // Check if approver_name is a user ID (numeric), if so fetch real name
+        String displayName = discount.approverName ?? 'Unknown';
+
+        if (int.tryParse(displayName) != null) {
+          // It's a user ID, fetch the real name
+          try {
+            final leaderService = locator<LeaderService>();
+            final leaderData = await leaderService.getLeaderByUser(
+              userId: displayName,
+            );
+
+            if (leaderData != null && leaderData.user.fullName.isNotEmpty) {
+              displayName = leaderData.user.fullName;
+            } else {
+              displayName = 'User #$displayName';
+            }
+          } catch (e) {
+            displayName = 'User #$displayName';
+          }
+        }
+
         return {
           'approved': discount.approved,
           'approver_level': discount.approverLevel,
           'approver_level_id': discount.approverLevelId,
-          'approver_name': discount.approverName,
+          'approver_name': displayName,
           'approved_at': discount.approvedAt,
         };
-      }).toList();
+      }));
 
       // Convert discount data for pricelist calculation
       // Map discounts by product description (desc_1 + desc_2) instead of order_letter_detail_id
@@ -1998,7 +2056,8 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         grandTotal: _document!.extendedAmount,
         email: _document!.email,
         keterangan: _document!.note,
-        salesName: _document!.creator,
+        salesName: _creatorName ?? _document!.creator,
+        spgCode: _document!.spgCode,
         orderLetterNo: _document!.noSp,
         orderLetterStatus: _document!.status,
         orderLetterDate: _formatDate(_document!.createdAt),

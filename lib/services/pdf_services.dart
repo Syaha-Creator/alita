@@ -28,6 +28,7 @@ class PDFService {
     String? email,
     String? keterangan,
     String? salesName,
+    String? spgCode,
     String? orderLetterNo,
     String? orderLetterStatus,
     String? orderLetterDate,
@@ -160,7 +161,7 @@ class PDFService {
             pw.SizedBox(height: 10),
           ],
           _buildTermsAndSignatureSection(
-              customerName, salesName ?? "NAMA SALES"),
+              customerName, salesName ?? "NAMA SALES", spgCode),
         ],
       ),
     );
@@ -382,13 +383,20 @@ class PDFService {
     final List<pw.Widget> approvalColumns = [];
 
     approvalsByLevel.forEach((level, approvals) {
-      // Get the first approved approval for this level
+      // Check if this level has been approved
       final approvedApproval = approvals.firstWhere(
         (approval) => approval['approved'] == true,
-        orElse: () => approvals.first,
+        orElse: () => {},
       );
 
-      final approverName = approvedApproval['approver_name'] ?? 'Unknown';
+      // Check if approved
+      final bool isApproved =
+          approvedApproval.isNotEmpty && approvedApproval['approved'] == true;
+
+      // Get approver name (from approved approval or first entry)
+      final approverName = isApproved
+          ? (approvedApproval['approver_name'] ?? 'Unknown')
+          : (approvals.first['approver_name'] ?? 'Pending');
 
       // Map level names for PDF display only
       String displayLevel = level;
@@ -433,18 +441,40 @@ class PDFService {
                 textAlign: pw.TextAlign.center,
               ),
               pw.SizedBox(height: 4),
-              // Approval stamp in middle
+              // Approval stamp in middle - ONLY show if approved
               pw.SizedBox(
                 width: 30,
                 height: 30,
-                child: pw.Image(approveStamp),
+                child: isApproved
+                    ? pw.Image(approveStamp)
+                    : pw.Container(
+                        decoration: pw.BoxDecoration(
+                          border: pw.Border.all(
+                            color: PdfColors.orange,
+                            width: 1,
+                          ),
+                          borderRadius: pw.BorderRadius.circular(4),
+                        ),
+                        child: pw.Center(
+                          child: pw.Text(
+                            'PENDING',
+                            style: pw.TextStyle(
+                              fontSize: 5,
+                              color: PdfColors.orange,
+                              fontWeight: pw.FontWeight.bold,
+                            ),
+                            textAlign: pw.TextAlign.center,
+                          ),
+                        ),
+                      ),
               ),
               pw.SizedBox(height: 4),
               // Approver name at bottom
               pw.Text(
                 approverName,
-                style: const pw.TextStyle(
+                style: pw.TextStyle(
                   fontSize: 7,
+                  color: isApproved ? PdfColors.black : PdfColors.grey600,
                 ),
                 textAlign: pw.TextAlign.center,
                 maxLines: 2,
@@ -836,7 +866,7 @@ class PDFService {
 
   /// Build section tanda tangan pembeli dan sales.
   static pw.Widget _buildSignatureSection(
-      String customerName, String salesName) {
+      String customerName, String salesName, String? spgCode) {
     return pw.Container(
       height: 80,
       decoration: pw.BoxDecoration(
@@ -844,7 +874,12 @@ class PDFService {
       child: pw.Row(
         children: [
           _buildSignatureBox('PEMBELI', customerName),
-          _buildSignatureBox('SLEEP CONSULTANT', salesName, borderLeft: true),
+          _buildSignatureBox(
+              'SLEEP CONSULTANT',
+              spgCode != null && spgCode.isNotEmpty
+                  ? '$salesName ($spgCode)'
+                  : salesName,
+              borderLeft: true),
         ],
       ),
     );
@@ -940,7 +975,7 @@ class PDFService {
 
   /// Build syarat dan ketentuan pembelian beserta signature dalam satu kesatuan.
   static pw.Widget _buildTermsAndSignatureSection(
-      String customerName, String salesName) {
+      String customerName, String salesName, String? spgCode) {
     final List<String> terms = [
       "Konsumen wajib melunasi 100% nilai pesanan sebelum melakukan pengiriman / penyerahan barang pesanan. Pelunasan dilakukan selambat-lambatnya 3 hari kerja sebelum jadwal pengiriman / penyerahan yang dijadwalkan.",
       "Barang yang sudah dipesan / dibeli, tidak dapat ditukar atau dikembalikan.",
@@ -989,7 +1024,7 @@ class PDFService {
               );
             }),
             pw.SizedBox(height: 10),
-            _buildSignatureSection(customerName, salesName),
+            _buildSignatureSection(customerName, salesName, spgCode),
           ],
         ),
       ],

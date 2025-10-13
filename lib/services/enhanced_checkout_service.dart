@@ -24,6 +24,7 @@ class EnhancedCheckoutService {
     required String addressShipTo,
     required String requestDate,
     required String note,
+    String? spgCode,
     bool isTakeAway = false,
   }) async {
     try {
@@ -31,19 +32,6 @@ class EnhancedCheckoutService {
       final products = cartItems.map((item) => item.product).toList();
       final checkoutMapping =
           await _itemMappingService.mapCheckoutItems(products);
-
-      print('EnhancedCheckoutService: Item mapping completed');
-      print('Total products: ${checkoutMapping.totalProducts}');
-      print('All items mapped: ${checkoutMapping.allItemsMapped}');
-      print('Total unmapped items: ${checkoutMapping.totalUnmappedItems}');
-
-      // Log unmapped items untuk debugging
-      for (final productMapping in checkoutMapping.productMappings) {
-        if (productMapping.hasUnmappedItems) {
-          print(
-              'Product ${productMapping.productId} (${productMapping.brand}) has unmapped items: ${productMapping.unmappedItems}');
-        }
-      }
 
       // Buat cart items dengan item_number yang sudah di-mapping
       final mappedCartItems =
@@ -60,6 +48,7 @@ class EnhancedCheckoutService {
         addressShipTo: addressShipTo,
         requestDate: requestDate,
         note: note,
+        spgCode: spgCode,
         isTakeAway: isTakeAway,
       );
     } catch (e) {
