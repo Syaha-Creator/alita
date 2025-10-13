@@ -145,6 +145,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
   late final TextEditingController _deliveryDateController;
   late final TextEditingController _emailController;
   late final TextEditingController _customerAddressController;
+  late final TextEditingController _spgCodeController;
   bool _shippingSameAsCustomer = false;
   bool _showSecondPhone = false;
 
@@ -165,6 +166,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
     _notesController = registerController();
     _deliveryDateController = registerController();
     _customerAddressController = registerController();
+    _spgCodeController = registerController();
 
     // Load from draft if available, otherwise use widget parameters
     if (widget.draftData != null) {
@@ -192,6 +194,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
     _customerPhone2Controller.text = draft['customerPhone2'] as String? ?? '';
     _emailController.text = draft['email'] as String? ?? '';
     _customerAddressController.text = draft['customerAddress'] as String? ?? '';
+    _spgCodeController.text = draft['spgCode'] as String? ?? '';
 
     // Shipping Information
     _customerReceiverController.text =
@@ -263,6 +266,8 @@ class _CheckoutPagesState extends State<CheckoutPages>
           return BonusItem(
             name: bonusMap['name'] as String,
             quantity: bonusMap['quantity'] as int,
+            originalQuantity: bonusMap['originalQuantity'] as int? ??
+                (bonusMap['quantity'] as int),
             takeAway: bonusMap['takeAway'] as bool?,
           );
         }).toList();
@@ -371,6 +376,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
         'customerPhone2': _customerPhone2Controller.text,
         'email': _emailController.text,
         'customerAddress': _customerAddressController.text,
+        'spgCode': _spgCodeController.text,
 
         // Shipping Information
         'customerReceiver': _customerReceiverController.text,
@@ -441,7 +447,35 @@ class _CheckoutPagesState extends State<CheckoutPages>
         'version': '2.0', // Version for backward compatibility
       };
 
-      draftStrings.add(jsonEncode(draft));
+      // Check if this is updating an existing draft
+      if (widget.draftData != null && widget.draftData!['savedAt'] != null) {
+        // Find and replace existing draft
+        final originalSavedAt = widget.draftData!['savedAt'] as String;
+        final draftIndex = draftStrings.indexWhere((draftString) {
+          try {
+            final existingDraft =
+                jsonDecode(draftString) as Map<String, dynamic>;
+            return existingDraft['savedAt'] == originalSavedAt;
+          } catch (e) {
+            return false;
+          }
+        });
+
+        if (draftIndex != -1) {
+          // Replace existing draft
+          draftStrings[draftIndex] = jsonEncode(draft);
+          print('Updated existing draft at index $draftIndex');
+        } else {
+          // If not found, add as new draft
+          draftStrings.add(jsonEncode(draft));
+          print('Added new draft (original not found)');
+        }
+      } else {
+        // Add new draft
+        draftStrings.add(jsonEncode(draft));
+        print('Added new draft');
+      }
+
       await prefs.setStringList(key, draftStrings);
 
       CustomToast.showToast('Draft berhasil disimpan', ToastType.success);
@@ -515,6 +549,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
         customerAddress: _customerAddressController.text,
         shipToName: _customerReceiverController.text,
         addressShipTo: _shippingAddressController.text,
+        spgCode: _spgCodeController.text,
         requestDate: _deliveryDateController.text,
         note: _notesController.text, // Use original notes without phone
         isTakeAway: widget.isTakeAway,
@@ -614,302 +649,320 @@ class _CheckoutPagesState extends State<CheckoutPages>
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor:
-          isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-      appBar: AppBar(
+    return GestureDetector(
+      onTap: () {
+        // Dismiss keyboard when tapping outside
+        FocusScope.of(context).unfocus();
+      },
+      child: Scaffold(
         backgroundColor:
-            isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-        elevation: 0,
-        leading: IconButton(
-          onPressed: () => Navigator.pop(context),
-          icon: Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color:
-                isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-          ),
-        ),
-        title: Text(
-          'Checkout',
-          style: GoogleFonts.montserrat(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color:
-                isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-          ),
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const DraftCheckoutPage(),
-                ),
-              );
-            },
+            isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+        resizeToAvoidBottomInset: true,
+        appBar: AppBar(
+          backgroundColor:
+              isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+          elevation: 0,
+          leading: IconButton(
+            onPressed: () => Navigator.pop(context),
             icon: Icon(
-              Icons.drafts_outlined,
+              Icons.arrow_back_ios_new_rounded,
               color: isDark
                   ? AppColors.textPrimaryDark
                   : AppColors.textPrimaryLight,
             ),
           ),
-        ],
-      ),
-      body: BlocBuilder<CartBloc, CartState>(
-        builder: (context, state) {
-          if (state is CartLoaded) {
-            final selectedItems = state.selectedItems;
-            final grandTotal = selectedItems.fold(
-                0.0, (sum, item) => sum + (item.netPrice * item.quantity));
+          title: Text(
+            'Checkout',
+            style: GoogleFonts.montserrat(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: isDark
+                  ? AppColors.textPrimaryDark
+                  : AppColors.textPrimaryLight,
+            ),
+          ),
+          centerTitle: true,
+          actions: [
+            IconButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const DraftCheckoutPage(),
+                  ),
+                );
+              },
+              icon: Icon(
+                Icons.drafts_outlined,
+                color: isDark
+                    ? AppColors.textPrimaryDark
+                    : AppColors.textPrimaryLight,
+              ),
+            ),
+          ],
+        ),
+        body: BlocBuilder<CartBloc, CartState>(
+          builder: (context, state) {
+            if (state is CartLoaded) {
+              final selectedItems = state.selectedItems;
+              final grandTotal = selectedItems.fold(
+                  0.0, (sum, item) => sum + (item.netPrice * item.quantity));
 
-            return SingleChildScrollView(
-              child: Column(
-                children: [
-                  // Header Summary Card
-                  _buildHeaderSummary(selectedItems, grandTotal, isDark),
+              return SingleChildScrollView(
+                child: Column(
+                  children: [
+                    // Header Summary Card
+                    _buildHeaderSummary(selectedItems, grandTotal, isDark),
 
-                  const SizedBox(height: 20),
-
-                  // Customer Info Section
-                  _buildCustomerInfoSection(isDark),
-
-                  const SizedBox(height: 20),
-
-                  // Shipping Info Section
-                  _buildShippingInfoSection(isDark),
-
-                  const SizedBox(height: 20),
-
-                  // Order Summary Section
-                  _buildOrderSummarySection(selectedItems, grandTotal, isDark),
-
-                  const SizedBox(height: 20),
-
-                  // Bonus Take Away Section (only show if not take away and has bonus)
-                  if (!widget.isTakeAway &&
-                      selectedItems
-                          .any((item) => item.product.bonus.isNotEmpty))
-                    Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? AppColors.surfaceDark
-                            : AppColors.surfaceLight,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? AppColors.cardDark
-                                  : AppColors.cardLight,
-                              borderRadius: const BorderRadius.only(
-                                topLeft: Radius.circular(12),
-                                topRight: Radius.circular(12),
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(Icons.card_giftcard_outlined,
-                                    color: isDark
-                                        ? AppColors.primaryDark
-                                        : AppColors.primaryLight,
-                                    size: 20),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Opsi Pengambilan Bonus',
-                                  style: GoogleFonts.montserrat(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: isDark
-                                        ? AppColors.surfaceLight
-                                        : Colors.black,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Pilih item bonus yang ingin diambil sendiri di toko:',
-                                  style: GoogleFonts.montserrat(
-                                    fontSize: 14,
-                                    color: isDark
-                                        ? Colors.grey[400]
-                                        : Colors.grey[600],
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                ...selectedItems.expand((item) {
-                                  if (item.product.bonus.isEmpty) {
-                                    return <Widget>[];
-                                  }
-
-                                  return item.product.bonus.map((bonus) {
-                                    final isChecked =
-                                        item.bonusTakeAway?[bonus.name] ??
-                                            false;
-
-                                    return Container(
-                                      margin: const EdgeInsets.only(bottom: 8),
-                                      padding: const EdgeInsets.all(12),
-                                      decoration: BoxDecoration(
-                                        color: isDark
-                                            ? AppColors.cardDark
-                                            : AppColors.cardLight,
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                          color: isDark
-                                              ? Colors.grey[800]!
-                                              : Colors.grey[200]!,
-                                        ),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Checkbox(
-                                            value: isChecked,
-                                            onChanged: (value) {
-                                              final currentTakeAway =
-                                                  Map<String, bool>.from(
-                                                      item.bonusTakeAway ?? {});
-                                              currentTakeAway[bonus.name] =
-                                                  value ?? false;
-
-                                              context
-                                                  .read<CartBloc>()
-                                                  .add(UpdateBonusTakeAway(
-                                                    productId: item.product.id,
-                                                    netPrice: item.netPrice,
-                                                    bonusTakeAway:
-                                                        currentTakeAway,
-                                                  ));
-                                            },
-                                            activeColor: isDark
-                                                ? AppColors.primaryDark
-                                                : AppColors.primaryLight,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  bonus.name,
-                                                  style: GoogleFonts.montserrat(
-                                                    fontSize: 14,
-                                                    fontWeight: FontWeight.w600,
-                                                    color: isDark
-                                                        ? AppColors.surfaceLight
-                                                        : Colors.black,
-                                                  ),
-                                                ),
-                                                Text(
-                                                  'Qty: ${bonus.quantity * item.quantity}',
-                                                  style: GoogleFonts.montserrat(
-                                                    fontSize: 12,
-                                                    color: isDark
-                                                        ? Colors.grey[400]
-                                                        : Colors.grey[600],
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  });
-                                }),
-                                const SizedBox(height: 8),
-                                Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: (isDark
-                                            ? Colors.blue[900]
-                                            : Colors.blue[50])
-                                        ?.withOpacity(0.5),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: isDark
-                                          ? Colors.blue[700]!
-                                          : Colors.blue[200]!,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.info_outline,
-                                        size: 16,
-                                        color: isDark
-                                            ? Colors.blue[300]
-                                            : Colors.blue[700],
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          'Item yang dicentang akan diambil di toko, sisanya akan dikirim bersama pesanan utama.',
-                                          style: GoogleFonts.montserrat(
-                                            fontSize: 12,
-                                            color: isDark
-                                                ? Colors.blue[300]
-                                                : Colors.blue[700],
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                  if (!widget.isTakeAway &&
-                      selectedItems
-                          .any((item) => item.product.bonus.isNotEmpty))
                     const SizedBox(height: 20),
 
-                  // Payment Section
-                  _buildPaymentSection(selectedItems, grandTotal, isDark),
+                    // Customer Info Section
+                    _buildCustomerInfoSection(isDark),
 
-                  const SizedBox(height: 20), // Space for bottom button
-                ],
-              ),
-            );
-          }
-          return const Center(child: CircularProgressIndicator());
-        },
-      ),
-      bottomNavigationBar: BlocBuilder<CartBloc, CartState>(
-        builder: (context, state) {
-          if (state is CartLoaded) {
-            final selectedItems = state.selectedItems;
-            final grandTotal = selectedItems.fold(
-                0.0, (sum, item) => sum + (item.netPrice * item.quantity));
-            return _buildBottomButton(selectedItems, grandTotal, isDark);
-          }
-          return const SizedBox.shrink();
-        },
+                    const SizedBox(height: 20),
+
+                    // Shipping Info Section
+                    _buildShippingInfoSection(isDark),
+
+                    const SizedBox(height: 20),
+
+                    // Order Summary Section
+                    _buildOrderSummarySection(
+                        selectedItems, grandTotal, isDark),
+
+                    const SizedBox(height: 20),
+
+                    // Bonus Take Away Section (only show if not take away and has bonus)
+                    if (!widget.isTakeAway &&
+                        selectedItems
+                            .any((item) => item.product.bonus.isNotEmpty))
+                      Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? AppColors.surfaceDark
+                              : AppColors.surfaceLight,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? AppColors.cardDark
+                                    : AppColors.cardLight,
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(12),
+                                  topRight: Radius.circular(12),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.card_giftcard_outlined,
+                                      color: isDark
+                                          ? AppColors.primaryDark
+                                          : AppColors.primaryLight,
+                                      size: 20),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Opsi Pengambilan Bonus',
+                                    style: GoogleFonts.montserrat(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark
+                                          ? AppColors.surfaceLight
+                                          : Colors.black,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Pilih item bonus yang ingin diambil sendiri di toko:',
+                                    style: GoogleFonts.montserrat(
+                                      fontSize: 14,
+                                      color: isDark
+                                          ? Colors.grey[400]
+                                          : Colors.grey[600],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  ...selectedItems.expand((item) {
+                                    if (item.product.bonus.isEmpty) {
+                                      return <Widget>[];
+                                    }
+
+                                    return item.product.bonus.map((bonus) {
+                                      final isChecked =
+                                          item.bonusTakeAway?[bonus.name] ??
+                                              false;
+
+                                      return Container(
+                                        margin:
+                                            const EdgeInsets.only(bottom: 8),
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: isDark
+                                              ? AppColors.cardDark
+                                              : AppColors.cardLight,
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          border: Border.all(
+                                            color: isDark
+                                                ? Colors.grey[800]!
+                                                : Colors.grey[200]!,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Checkbox(
+                                              value: isChecked,
+                                              onChanged: (value) {
+                                                final currentTakeAway =
+                                                    Map<String, bool>.from(
+                                                        item.bonusTakeAway ??
+                                                            {});
+                                                currentTakeAway[bonus.name] =
+                                                    value ?? false;
+
+                                                context
+                                                    .read<CartBloc>()
+                                                    .add(UpdateBonusTakeAway(
+                                                      productId:
+                                                          item.product.id,
+                                                      netPrice: item.netPrice,
+                                                      bonusTakeAway:
+                                                          currentTakeAway,
+                                                    ));
+                                              },
+                                              activeColor: isDark
+                                                  ? AppColors.primaryDark
+                                                  : AppColors.primaryLight,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    bonus.name,
+                                                    style:
+                                                        GoogleFonts.montserrat(
+                                                      fontSize: 14,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      color: isDark
+                                                          ? AppColors
+                                                              .surfaceLight
+                                                          : Colors.black,
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    'Qty: ${bonus.quantity * item.quantity}',
+                                                    style:
+                                                        GoogleFonts.montserrat(
+                                                      fontSize: 12,
+                                                      color: isDark
+                                                          ? Colors.grey[400]
+                                                          : Colors.grey[600],
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    });
+                                  }),
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: (isDark
+                                              ? Colors.blue[900]
+                                              : Colors.blue[50])
+                                          ?.withOpacity(0.5),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: isDark
+                                            ? Colors.blue[700]!
+                                            : Colors.blue[200]!,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.info_outline,
+                                          size: 16,
+                                          color: isDark
+                                              ? Colors.blue[300]
+                                              : Colors.blue[700],
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            'Item yang dicentang akan diambil di toko, sisanya akan dikirim bersama pesanan utama.',
+                                            style: GoogleFonts.montserrat(
+                                              fontSize: 12,
+                                              color: isDark
+                                                  ? Colors.blue[300]
+                                                  : Colors.blue[700],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    if (!widget.isTakeAway &&
+                        selectedItems
+                            .any((item) => item.product.bonus.isNotEmpty))
+                      const SizedBox(height: 20),
+
+                    // Payment Section
+                    _buildPaymentSection(selectedItems, grandTotal, isDark),
+
+                    const SizedBox(height: 20), // Space for bottom button
+                  ],
+                ),
+              );
+            }
+            return const Center(child: CircularProgressIndicator());
+          },
+        ),
+        bottomNavigationBar: BlocBuilder<CartBloc, CartState>(
+          builder: (context, state) {
+            if (state is CartLoaded) {
+              final selectedItems = state.selectedItems;
+              final grandTotal = selectedItems.fold(
+                  0.0, (sum, item) => sum + (item.netPrice * item.quantity));
+              return _buildBottomButton(selectedItems, grandTotal, isDark);
+            }
+            return const SizedBox.shrink();
+          },
+        ),
       ),
     );
   }
@@ -1081,6 +1134,13 @@ class _CheckoutPagesState extends State<CheckoutPages>
                     validator: (val) => val == null || val.isEmpty
                         ? 'Nama customer wajib diisi'
                         : null,
+                    isDark: isDark,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildModernTextField(
+                    controller: _spgCodeController,
+                    label: 'Kode SPG',
+                    icon: Icons.badge,
                     isDark: isDark,
                   ),
                   const SizedBox(height: 16),
@@ -1567,6 +1627,12 @@ class _CheckoutPagesState extends State<CheckoutPages>
       maxLines: maxLines,
       enabled: enabled,
       validator: validator,
+      textInputAction:
+          maxLines > 1 ? TextInputAction.newline : TextInputAction.next,
+      onFieldSubmitted: (_) {
+        // Move focus to next field or dismiss keyboard
+        FocusScope.of(context).nextFocus();
+      },
       style: GoogleFonts.montserrat(
         fontSize: 14,
         color: isDark ? AppColors.surfaceLight : Colors.black,
