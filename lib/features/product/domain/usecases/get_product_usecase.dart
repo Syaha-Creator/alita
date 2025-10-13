@@ -35,15 +35,30 @@ class GetProductUseCase {
         isSet: model.set,
         bonus: [
           if (model.bonus1 != null && model.bonus1!.isNotEmpty)
-            BonusItem(name: model.bonus1!, quantity: model.qtyBonus1 ?? 0),
+            BonusItem(
+                name: model.bonus1!,
+                quantity: model.qtyBonus1 ?? 0,
+                originalQuantity: model.qtyBonus1 ?? 0),
           if (model.bonus2 != null && model.bonus2!.isNotEmpty)
-            BonusItem(name: model.bonus2!, quantity: model.qtyBonus2 ?? 0),
+            BonusItem(
+                name: model.bonus2!,
+                quantity: model.qtyBonus2 ?? 0,
+                originalQuantity: model.qtyBonus2 ?? 0),
           if (model.bonus3 != null && model.bonus3!.isNotEmpty)
-            BonusItem(name: model.bonus3!, quantity: model.qtyBonus3 ?? 0),
+            BonusItem(
+                name: model.bonus3!,
+                quantity: model.qtyBonus3 ?? 0,
+                originalQuantity: model.qtyBonus3 ?? 0),
           if (model.bonus4 != null && model.bonus4!.isNotEmpty)
-            BonusItem(name: model.bonus4!, quantity: model.qtyBonus4 ?? 0),
+            BonusItem(
+                name: model.bonus4!,
+                quantity: model.qtyBonus4 ?? 0,
+                originalQuantity: model.qtyBonus4 ?? 0),
           if (model.bonus5 != null && model.bonus5!.isNotEmpty)
-            BonusItem(name: model.bonus5!, quantity: model.qtyBonus5 ?? 0),
+            BonusItem(
+                name: model.bonus5!,
+                quantity: model.qtyBonus5 ?? 0,
+                originalQuantity: model.qtyBonus5 ?? 0),
         ],
         discounts: [
           model.disc1,

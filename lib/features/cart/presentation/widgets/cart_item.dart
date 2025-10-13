@@ -721,7 +721,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                             ),
                           ),
                           child: Text(
-                            '${bonus.quantity * widget.item.quantity}x',
+                            '${bonus.quantity}x (Max: ${bonus.maxQuantity})',
                             style: GoogleFonts.montserrat(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -733,23 +733,29 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                         ),
                         // Plus button
                         IconButton(
-                          onPressed: () {
-                            context.read<CartBloc>().add(UpdateCartBonus(
-                                  productId: widget.item.product.id,
-                                  netPrice: widget.item.netPrice,
-                                  bonusIndex: index,
-                                  bonusName: bonus.name,
-                                  bonusQuantity: bonus.quantity + 1,
-                                ));
-                          },
+                          onPressed: bonus.quantity < bonus.maxQuantity
+                              ? () {
+                                  context.read<CartBloc>().add(UpdateCartBonus(
+                                        productId: widget.item.product.id,
+                                        netPrice: widget.item.netPrice,
+                                        bonusIndex: index,
+                                        bonusName: bonus.name,
+                                        bonusQuantity: bonus.quantity + 1,
+                                      ));
+                                }
+                              : null,
                           icon: Icon(
                             Icons.add_circle_outline,
                             size: 20,
-                            color: isDark
-                                ? AppColors.accentDark
-                                : AppColors.accentLight,
+                            color: bonus.quantity < bonus.maxQuantity
+                                ? (isDark
+                                    ? AppColors.accentDark
+                                    : AppColors.accentLight)
+                                : Colors.grey,
                           ),
-                          tooltip: 'Tambah jumlah',
+                          tooltip: bonus.quantity < bonus.maxQuantity
+                              ? 'Tambah jumlah (Max: ${bonus.maxQuantity})'
+                              : 'Maksimum tercapai (${bonus.maxQuantity})',
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(
                             minWidth: 32,

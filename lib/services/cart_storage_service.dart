@@ -144,8 +144,11 @@ class CartStorageService {
       eupHeadboard: (json['eupHeadboard'] ?? 0.0).toDouble(),
       endUserPrice: (json['endUserPrice'] ?? 0.0).toDouble(),
       bonus: (json['bonus'] as List? ?? [])
-          .map((b) =>
-              BonusItem(name: b['name'] ?? '', quantity: b['quantity'] ?? 0))
+          .map((b) => BonusItem(
+                name: b['name'] ?? '',
+                quantity: b['quantity'] ?? 0,
+                originalQuantity: b['originalQuantity'] ?? (b['quantity'] ?? 0),
+              ))
           .toList(),
       discounts: List<double>.from(json['discounts'] ?? []),
       isSet: json['isSet'] ?? false,

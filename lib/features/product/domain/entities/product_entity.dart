@@ -133,8 +133,16 @@ class ProductEntity extends Equatable {
 class BonusItem extends Equatable {
   final String name;
   final int quantity;
+  final int originalQuantity;
   final bool? takeAway;
-  const BonusItem({required this.name, required this.quantity, this.takeAway});
+  const BonusItem(
+      {required this.name,
+      required this.quantity,
+      this.originalQuantity = 0,
+      this.takeAway});
   @override
-  List<Object?> get props => [name, quantity, takeAway];
+  List<Object?> get props => [name, quantity, originalQuantity, takeAway];
+
+  /// Get maximum allowed quantity (2x original quantity)
+  int get maxQuantity => originalQuantity > 0 ? originalQuantity * 2 : quantity;
 }

@@ -207,10 +207,18 @@ class CartBloc extends Bloc<CartEvent, CartState> {
                 // Remove bonus if quantity is 0 or less
                 updatedBonus.removeAt(event.bonusIndex);
               } else {
-                // Update bonus with new quantity
+                // Get original bonus to preserve originalQuantity and apply max limit
+                final originalBonus = updatedBonus[event.bonusIndex];
+                final maxQuantity = originalBonus.maxQuantity;
+                final finalQuantity = event.bonusQuantity > maxQuantity
+                    ? maxQuantity
+                    : event.bonusQuantity;
+
+                // Update bonus with new quantity (limited to max)
                 updatedBonus[event.bonusIndex] = BonusItem(
                   name: event.bonusName,
-                  quantity: event.bonusQuantity,
+                  quantity: finalQuantity,
+                  originalQuantity: originalBonus.originalQuantity,
                 );
               }
             }
@@ -362,6 +370,8 @@ class CartBloc extends Bloc<CartEvent, CartState> {
             updatedBonus.add(BonusItem(
               name: event.bonusName,
               quantity: event.bonusQuantity,
+              originalQuantity:
+                  event.bonusQuantity, // Set original quantity for new bonus
             ));
 
             // Create updated product with new bonus
