@@ -116,12 +116,22 @@ class OrderLetterService {
       // Handle different discount data formats
       if (discountsData is List<Map<String, dynamic>>) {
         // New structured format with per-item discount information
-        await _processStructuredDiscounts(discountsData, detailResults,
-            discountResults, leaderIds, orderLetterId);
+        if (discountsData.isEmpty) {
+          // If no discounts, create default entries for all items up to Direct Leader
+          await _createDefaultDiscountEntries(
+              detailResults, discountResults, leaderIds, orderLetterId);
+        } else {
+          await _processStructuredDiscounts(discountsData, detailResults,
+              discountResults, leaderIds, orderLetterId);
+        }
       } else if (discountsData is List<double>) {
         // Legacy format - process all discounts for first kasur
         await _processLegacyDiscounts(discountsData, detailResults,
             discountResults, leaderIds, orderLetterId);
+      } else {
+        // No discounts data provided, create default entries
+        await _createDefaultDiscountEntries(
+            detailResults, discountResults, leaderIds, orderLetterId);
       }
 
       // Skip original loop completely - it's been replaced by structured/legacy processing above
@@ -1056,26 +1066,26 @@ class OrderLetterService {
       }
 
       // Process each discount for this kasur
-      // Modified logic: Ensure all orders require Direct Leader approval
+      // Modified logic: Always create entries up to Direct Leader (level 2)
 
-      // Determine if we need to create discount entries up to Direct Leader level
-      bool hasDirectLeaderDiscount = discounts.length > 1 && discounts[1] > 0;
-      int maxLevelToCreate = hasDirectLeaderDiscount
-          ? discounts.length
-          : 2; // Always go up to Direct Leader if needed
+      // Always create up to Direct Leader level (2 levels total: User, Direct Leader)
+      // If more discounts are provided (Indirect Leader, Controller, Analyst), create those too
+      int maxLevelToCreate = discounts.length > 2 ? discounts.length : 2;
 
       print(
           'OrderLetterService: Processing discounts for "$kasurName" ($productSize)');
       print('  - Total discounts provided: ${discounts.length}');
-      print('  - Has Direct Leader discount: $hasDirectLeaderDiscount');
-      print('  - Max level to create: $maxLevelToCreate');
+      print(
+          '  - Max level to create: $maxLevelToCreate (always up to Direct Leader)');
 
       for (int i = 0; i < maxLevelToCreate; i++) {
         final discount = i < discounts.length ? discounts[i] : 0.0;
 
-        // For Direct Leader level (i=1), always create entry even if discount is 0
-        // For other levels, only create if discount > 0
-        if (i != 1 && discount <= 0) continue;
+        // Always create entries for:
+        // - Level 0 (User)
+        // - Level 1 (Direct Leader)
+        // For levels 2+ (Indirect Leader, Controller, Analyst), only create if discount > 0
+        if (i > 1 && discount <= 0) continue;
 
         // Create unique key to prevent duplicates
         final discountKey = '${kasurOrderLetterDetailId}_${i}_$discount';
@@ -1139,25 +1149,25 @@ class OrderLetterService {
     }
 
     // Process all discounts for first kasur
-    // Modified logic: Ensure all orders require Direct Leader approval
+    // Modified logic: Always create entries up to Direct Leader (level 2)
 
-    // Determine if we need to create discount entries up to Direct Leader level
-    bool hasDirectLeaderDiscount = discounts.length > 1 && discounts[1] > 0;
-    int maxLevelToCreate = hasDirectLeaderDiscount
-        ? discounts.length
-        : 2; // Always go up to Direct Leader if needed
+    // Always create up to Direct Leader level (2 levels total: User, Direct Leader)
+    // If more discounts are provided (Indirect Leader, Controller, Analyst), create those too
+    int maxLevelToCreate = discounts.length > 2 ? discounts.length : 2;
 
     print('OrderLetterService: Processing legacy discounts');
     print('  - Total discounts provided: ${discounts.length}');
-    print('  - Has Direct Leader discount: $hasDirectLeaderDiscount');
-    print('  - Max level to create: $maxLevelToCreate');
+    print(
+        '  - Max level to create: $maxLevelToCreate (always up to Direct Leader)');
 
     for (int i = 0; i < maxLevelToCreate; i++) {
       final discount = i < discounts.length ? discounts[i] : 0.0;
 
-      // For Direct Leader level (i=1), always create entry even if discount is 0
-      // For other levels, only create if discount > 0
-      if (i != 1 && discount <= 0) continue;
+      // Always create entries for:
+      // - Level 0 (User)
+      // - Level 1 (Direct Leader)
+      // For levels 2+ (Indirect Leader, Controller, Analyst), only create if discount > 0
+      if (i > 1 && discount <= 0) continue;
 
       await _createSingleDiscount(
         orderLetterId: orderLetterId,
@@ -1168,6 +1178,83 @@ class OrderLetterService {
         discountResults: discountResults,
         kasurName: 'First Kasur (Legacy)',
       );
+    }
+  }
+
+  /// Create default discount entries when no discounts are provided
+  /// Creates entries with 0 discount up to Direct Leader level for all items
+  Future<void> _createDefaultDiscountEntries(
+    List<Map<String, dynamic>> detailResults,
+    List<Map<String, dynamic>> discountResults,
+    List<int?>? leaderIds,
+    int orderLetterId,
+  ) async {
+    try {
+      print('OrderLetterService: _createDefaultDiscountEntries called');
+      print('OrderLetterService: detailResults: $detailResults');
+      print('OrderLetterService: orderLetterId: $orderLetterId');
+
+      // Process each detail (item) in the order
+      for (int idx = 0; idx < detailResults.length; idx++) {
+        final detailResult = detailResults[idx];
+        print(
+            'OrderLetterService: Processing detail $idx: ${detailResult['success']}');
+
+        if (detailResult['success'] && detailResult['data'] != null) {
+          final rawData = detailResult['data'];
+          print('OrderLetterService: rawData: $rawData');
+
+          final detailData = rawData['location'] ?? rawData;
+          print('OrderLetterService: detailData: $detailData');
+          print('OrderLetterService: item_type: ${detailData['item_type']}');
+
+          // Only create for kasur/mattress items
+          if (detailData['item_type'] != 'Mattress' &&
+              detailData['item_type'] != 'kasur') {
+            print('OrderLetterService: Skipping non-kasur item');
+            continue;
+          }
+
+          final kasurOrderLetterDetailId = detailData['id'] ??
+              detailData['order_letter_detail_id'] ??
+              detailData['detail_id'];
+
+          print(
+              'OrderLetterService: kasurOrderLetterDetailId: $kasurOrderLetterDetailId');
+
+          if (kasurOrderLetterDetailId == null) {
+            print('OrderLetterService: WARNING - No detail ID found, skipping');
+            continue;
+          }
+
+          final kasurName = detailData['desc_1'] ?? 'Unknown';
+          final productSize = detailData['desc_2'] ?? '';
+
+          print(
+              'OrderLetterService: Creating default entries for "$kasurName" ($productSize)');
+
+          // Create discount entries up to Direct Leader (level 2)
+          // Level 0: User (auto-approved)
+          // Level 1: Direct Leader (pending)
+          for (int i = 0; i < 2; i++) {
+            print('OrderLetterService: Creating discount entry level $i');
+            await _createSingleDiscount(
+              orderLetterId: orderLetterId,
+              kasurOrderLetterDetailId: kasurOrderLetterDetailId,
+              discount: 0.0,
+              discountIndex: i,
+              leaderIds: leaderIds,
+              discountResults: discountResults,
+              kasurName: kasurName,
+            );
+          }
+        }
+      }
+
+      print('OrderLetterService: _createDefaultDiscountEntries completed');
+    } catch (e, stackTrace) {
+      print('OrderLetterService: ERROR in _createDefaultDiscountEntries: $e');
+      print('OrderLetterService: Stack trace: $stackTrace');
     }
   }
 
@@ -1222,9 +1309,11 @@ class OrderLetterService {
           approvedValue = null;
           approvedAt = null;
         }
+      } else {
+        return; // Skip creating discount if no leader data
       }
     } catch (e) {
-      print('OrderLetterService: Error getting leader info: $e');
+      return; // Skip creating discount on error
     }
 
     final discountData = {
@@ -1240,25 +1329,8 @@ class OrderLetterService {
       'approved_at': approvedAt,
     };
 
-    // Debug logging to verify data being sent to API
-    print(
-        'OrderLetterService: Creating discount for level ${discountIndex + 1} ($approverLevel):');
-    print('  - discount value: $discount%');
-    print('  - approved: $approvedValue');
-    print('  - approved_at: $approvedAt');
-    print('  - approver: $approverId ($approverName)');
-    print('  - Full discount data: $discountData');
-
     final discountResult = await createOrderLetterDiscount(discountData);
     discountResults.add(discountResult);
-
-    if (discountResult['success']) {
-      print(
-          'OrderLetterService: Created $discount% discount for "$kasurName" (detail ID: $kasurOrderLetterDetailId)');
-    } else {
-      print(
-          'OrderLetterService: Failed to create discount for "$kasurName": ${discountResult['message']}');
-    }
   }
 
   /// Get count of pending discounts for a specific user level in an order letter
