@@ -3,6 +3,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import '../config/api_config.dart';
 import '../config/app_constant.dart';
+import '../features/approval/data/cache/approval_cache.dart';
+import 'cart_storage_service.dart';
 
 /// Service untuk autentikasi, penyimpanan token, dan session user.
 class AuthService {
@@ -26,6 +28,9 @@ class AuthService {
   static Future<bool> login(String token, String refreshToken, int userId,
       String userName, int? areaId) async {
     try {
+      // Clear all caches from previous user BEFORE saving new login data
+      _clearAllUserRelatedCaches();
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(StorageKeys.isLoggedIn, true);
       await prefs.setInt(
@@ -230,9 +235,30 @@ class AuthService {
       await prefs.remove(_userAreaIdKey);
 
       authChangeNotifier.value = false;
+
+      // Clear all approval cache for security and privacy
+      _clearAllUserRelatedCaches();
+
       return true;
     } catch (e) {
       return false;
+    }
+  }
+
+  /// Clear all user-related caches when logging out
+  static void _clearAllUserRelatedCaches() {
+    try {
+      // Clear approval cache to prevent data leakage between users
+      ApprovalCache.clearAllCache();
+
+      // Clear cart storage (optional but recommended for clean logout)
+      CartStorageService.clearCart();
+
+      // Add other cache clearing here if needed in the future
+      // Example: ProductCache.clear(), DraftCache.clear(), etc.
+    } catch (e) {
+      // Silent error - cache clearing is not critical for logout
+      print('AuthService: Warning - Failed to clear caches on logout: $e');
     }
   }
 
