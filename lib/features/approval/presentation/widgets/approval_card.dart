@@ -4,6 +4,7 @@ import '../../domain/entities/approval_entity.dart';
 import '../../data/models/approval_model.dart';
 import '../../../../config/dependency_injection.dart';
 import '../../../../services/order_letter_service.dart';
+import '../../../../services/leader_service.dart';
 import '../../../order_letter_document/presentation/pages/order_letter_document_page.dart';
 
 class ApprovalCard extends StatefulWidget {
@@ -37,12 +38,14 @@ class _ApprovalCardState extends State<ApprovalCard>
   List<Map<String, dynamic>>? _cachedDiscountData;
   bool _isLoadingTimeline = false;
   String? _timelineError;
+  String? _creatorName;
 
   @override
   void initState() {
     super.initState();
     _initializeAnimations();
     _loadTimelineData();
+    _fetchCreatorName();
   }
 
   @override
@@ -505,7 +508,7 @@ class _ApprovalCardState extends State<ApprovalCard>
                         ),
                       ),
                       Text(
-                        widget.approval.creator,
+                        _creatorName ?? widget.approval.creator,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: colorScheme.onSurface,
                           fontWeight: FontWeight.w600,
@@ -610,7 +613,7 @@ class _ApprovalCardState extends State<ApprovalCard>
     approvalLevelsMap[1] = {
       'level': 1,
       'title': 'User',
-      'name': widget.approval.creator,
+      'name': _creatorName ?? widget.approval.creator,
       'status': 'completed'
     };
 
@@ -792,6 +795,32 @@ class _ApprovalCardState extends State<ApprovalCard>
           _isLoadingTimeline = false;
         });
       }
+    }
+  }
+
+  /// Fetch creator name from user ID
+  Future<void> _fetchCreatorName() async {
+    try {
+      final creator = widget.approval.creator;
+      final creatorUserId = int.tryParse(creator);
+
+      if (creatorUserId != null) {
+        // Creator is user ID, fetch user name
+        final leaderService = locator<LeaderService>();
+        final leaderData = await leaderService.getLeaderByUser(
+          userId: creator,
+        );
+
+        if (mounted &&
+            leaderData != null &&
+            leaderData.user.fullName.isNotEmpty) {
+          setState(() {
+            _creatorName = leaderData.user.fullName;
+          });
+        }
+      }
+    } catch (e) {
+      // Silent error - will use original creator value
     }
   }
 

@@ -526,22 +526,68 @@ class ApprovalRepository {
       // Get current cached approvals
       final cachedApprovals = ApprovalCache.getCachedApprovals();
       if (cachedApprovals == null || cachedApprovals.isEmpty) {
-        return [];
+        // If cache is empty, do a full refresh instead
+        return await getApprovals(forceRefresh: true);
       }
 
       final currentUserId = await AuthService.getCurrentUserId();
-      if (currentUserId == null) return cachedApprovals;
+      final currentUserName = await AuthService.getCurrentUserName();
+      if (currentUserId == null || currentUserName == null) {
+        return cachedApprovals;
+      }
 
       // Get order letters with minimal data (just status)
       final orderLetters = await _orderLetterService.getOrderLetters();
 
-      // Create a map of order letter ID to status
+      // Filter order letters for current user
+      final filteredOrderLetters = await _filterOrderLettersByCreatorOrApprover(
+          orderLetters, currentUserId, currentUserName);
+
+      // Create a map of order letter ID to status and full data
       final statusMap = <int, String>{};
-      for (final orderLetter in orderLetters) {
+      final orderLetterMap = <int, Map<String, dynamic>>{};
+
+      for (final orderLetter in filteredOrderLetters) {
         final id = orderLetter['id'] as int?;
         final status = orderLetter['status'] as String?;
         if (id != null && status != null) {
           statusMap[id] = status;
+          orderLetterMap[id] = orderLetter;
+        }
+      }
+
+      // Find new order letters that are not in cache
+      final cachedIds = cachedApprovals.map((a) => a.id).toSet();
+      final newOrderLetterIds =
+          statusMap.keys.where((id) => !cachedIds.contains(id)).toList();
+
+      // Fetch full data for new order letters
+      List<ApprovalEntity> newApprovals = [];
+      for (final orderLetterId in newOrderLetterIds) {
+        try {
+          final orderLetter = orderLetterMap[orderLetterId];
+          if (orderLetter == null) continue;
+
+          // Get details, discounts, and approval history for new order letter
+          final details = await _orderLetterService.getOrderLetterDetails(
+              orderLetterId: orderLetterId);
+          final discounts = await _orderLetterService.getOrderLetterDiscounts(
+              orderLetterId: orderLetterId);
+          final approvalHistory = await _orderLetterService
+              .getOrderLetterApproves(orderLetterId: orderLetterId);
+
+          // Create approval model for new order letter
+          final newApproval = ApprovalModel.fromJson({
+            ...orderLetter,
+            'details': details,
+            'discounts': discounts,
+            'approval_history': approvalHistory,
+          });
+
+          newApprovals.add(newApproval);
+        } catch (e) {
+          // Skip this order letter if there's an error
+          continue;
         }
       }
 
@@ -577,10 +623,26 @@ class ApprovalRepository {
         return cachedApproval;
       }).toList();
 
-      // Update cache with new statuses
-      ApprovalCache.cacheApprovals(updatedApprovals);
+      // Combine new approvals with updated approvals (new ones at the top)
+      final combinedApprovals = [...newApprovals, ...updatedApprovals];
 
-      return updatedApprovals;
+      // Sort by creation time to ensure newest first
+      combinedApprovals.sort((a, b) {
+        DateTime? dateA = _parseDate(a.createdAt);
+        DateTime? dateB = _parseDate(b.createdAt);
+
+        if (dateA != null && dateB != null) {
+          return dateB.compareTo(dateA); // Newest first
+        }
+
+        // Fallback to ID sorting
+        return b.id.compareTo(a.id);
+      });
+
+      // Update cache with combined data
+      ApprovalCache.cacheApprovals(combinedApprovals);
+
+      return combinedApprovals;
     } catch (e) {
       // If status update fails, return cached data
       return ApprovalCache.getCachedApprovals() ?? [];
@@ -592,7 +654,7 @@ class ApprovalRepository {
     ApprovalCache.clearAllCache();
   }
 
-  /// Filter order letters based on current user as creator OR approver (SEQUENTIAL) - optimized version
+  /// Filter order letters based on current user as creator OR approver (OPTIMIZED)
   Future<List<Map<String, dynamic>>> _filterOrderLettersByCreatorOrApprover(
     List<Map<String, dynamic>> orderLetters,
     int currentUserId,
@@ -600,70 +662,61 @@ class ApprovalRepository {
   ) async {
     final List<Map<String, dynamic>> filteredLetters = [];
 
-    // Get all discounts in bulk first to avoid individual API calls
+    // OPTIMIZATION 1: Get all discounts in bulk ONCE
     Map<int, List<Map<String, dynamic>>> discountsByOrderLetter = {};
+    Set<int> orderLettersWithCurrentUserAsApprover = {};
 
     try {
-      // Try to get all discounts in one call
       final allDiscounts = await _orderLetterService.getOrderLetterDiscounts();
 
-      // Group discounts by order_letter_id
+      // Group discounts by order_letter_id AND pre-filter by current user
       for (final discount in allDiscounts) {
         final orderLetterId = discount['order_letter_id'] as int?;
+        final approverId = discount['approver'] as int?;
+
         if (orderLetterId != null) {
           discountsByOrderLetter[orderLetterId] ??= [];
           discountsByOrderLetter[orderLetterId]!.add(discount);
+
+          // Pre-mark orders where current user is an approver
+          if (approverId == currentUserId) {
+            orderLettersWithCurrentUserAsApprover.add(orderLetterId);
+          }
         }
       }
     } catch (e) {
-      // Silently fall back to individual calls if needed
+      // Return empty if bulk fetch fails
+      return [];
     }
 
+    // OPTIMIZATION 2: Fast filtering with early exit
     for (final orderLetter in orderLetters) {
       final orderLetterId = orderLetter['id'] as int?;
       if (orderLetterId == null) continue;
 
-      final status = orderLetter['status'] ?? 'Pending';
       final creator = orderLetter['creator'];
 
-      // Check if current user is the creator
-      bool isCurrentUserCreator = _isNameMatch(creator, currentUserName);
-
-      if (isCurrentUserCreator) {
+      // FAST PATH 1: Check creator by user ID (string comparison only)
+      if (creator != null && creator.toString() == currentUserId.toString()) {
         filteredLetters.add(orderLetter);
         continue;
       }
 
-      // Get discounts for this order letter (use cached data if available)
-      List<Map<String, dynamic>> orderDiscounts =
-          discountsByOrderLetter[orderLetterId] ?? [];
+      // FAST PATH 2: Check if user is approver (pre-computed set lookup)
+      if (orderLettersWithCurrentUserAsApprover.contains(orderLetterId)) {
+        final orderDiscounts = discountsByOrderLetter[orderLetterId] ?? [];
 
-      // If no cached data, fall back to individual API call
-      if (orderDiscounts.isEmpty) {
-        try {
-          final allDiscounts = await _orderLetterService
-              .getOrderLetterDiscounts(orderLetterId: orderLetterId);
-          orderDiscounts = allDiscounts
-              .where((discount) => discount['order_letter_id'] == orderLetterId)
-              .toList();
-        } catch (e) {
-          print(
-              'ApprovalRepository: Failed to get discounts for order $orderLetterId: $e');
-          continue;
+        // Only add if user can actually approve (sequential check)
+        if (_canUserApproveSequentially(
+          orderDiscounts,
+          currentUserId,
+          currentUserName,
+          orderLetterId,
+        )) {
+          filteredLetters.add(orderLetter);
         }
       }
-
-      // SEQUENTIAL APPROVAL LOGIC: Check if current user can approve based on previous levels
-      bool canCurrentUserApprove = _canUserApproveSequentially(
-        orderDiscounts,
-        currentUserId,
-        currentUserName,
-        orderLetterId,
-      );
-
-      if (canCurrentUserApprove) {
-        filteredLetters.add(orderLetter);
-      }
+      // Else: skip immediately (no need to check discounts)
     }
 
     return filteredLetters;
@@ -692,12 +745,11 @@ class ApprovalRepository {
     for (final discount in sortedDiscounts) {
       if (discount['order_letter_id'] == orderLetterId) {
         final approverId = discount['approver'];
-        final approverName = discount['approver_name'];
         final level = discount['approver_level_id'];
         final approved = discount['approved'];
 
-        if (approverId == currentUserId ||
-            _isNameMatch(approverName, currentUserName)) {
+        // Match by user ID only - NO name matching
+        if (approverId == currentUserId) {
           currentUserLevel = level;
           currentUserDiscountId = discount['id'];
           hasUserApproved = approved == true;
@@ -751,12 +803,11 @@ class ApprovalRepository {
         final level = discount['approver_level_id'];
         final approved = discount['approved'];
         final approverId = discount['approver'];
-        final approverName = discount['approver_name'];
 
+        // Match by user ID only - NO name matching
         if (level != null &&
             level == currentUserLevel &&
-            (approverId == currentUserId ||
-                _isNameMatch(approverName, currentUserName))) {
+            approverId == currentUserId) {
           if (approved == null || approved == false) {
             return true; // Can approve
           } else {
@@ -873,30 +924,6 @@ class ApprovalRepository {
     } catch (e) {
       return [];
     }
-  }
-
-  /// Helper method to check if names match (with various fallbacks)
-  bool _isNameMatch(String? creator, String userFullName) {
-    if (creator == null) return false;
-
-    // Exact match
-    if (creator == userFullName) return true;
-
-    // Trimmed match
-    if (creator.trim() == userFullName.trim()) return true;
-
-    // Case insensitive match
-    if (creator.toLowerCase().trim() == userFullName.toLowerCase().trim()) {
-      return true;
-    }
-
-    // Partial match
-    if (creator.toLowerCase().contains(userFullName.toLowerCase()) ||
-        userFullName.toLowerCase().contains(creator.toLowerCase())) {
-      return true;
-    }
-
-    return false;
   }
 
   /// Get single approval by ID

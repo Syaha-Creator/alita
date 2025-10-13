@@ -62,6 +62,9 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
   // Loading state for status updates
   bool _isUpdatingStatuses = false;
 
+  // Flag to prevent duplicate initial load
+  bool _hasInitialLoadCompleted = false;
+
   @override
   void initState() {
     super.initState();
@@ -75,9 +78,11 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Only check for new data if we're returning from another page (not initial load)
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkForNewData();
-    });
+    if (_hasInitialLoadCompleted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _checkForNewData();
+      });
+    }
   }
 
   /// Check for new data when returning to page
@@ -331,13 +336,10 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
   }
 
   void _showApprovalModal(ApprovalEntity approval) async {
-    // Check if current user is the creator of this order letter
-    final currentUserName = await AuthService.getCurrentUserName() ?? '';
+    // Check if current user is the creator of this order letter (user ID only)
     final currentUserId = await AuthService.getCurrentUserId();
-    final isCurrentUserCreator = _isNameMatch(
-      approval.creator,
-      currentUserName,
-    );
+    final isCurrentUserCreator =
+        (currentUserId != null && approval.creator == currentUserId.toString());
 
     if (isCurrentUserCreator) {
       // Show approval timeline instead of modal
@@ -356,13 +358,10 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
         bool hasUserApproved = false;
         for (final discount in rawDiscounts) {
           final approverId = discount['approver'];
-          final approverName = discount['approver_name'];
           final approved = discount['approved'];
 
-          // Check if current user has approved this discount
-          if ((approverId == currentUserId ||
-                  _isNameMatch(approverName, currentUserName)) &&
-              approved == true) {
+          // Check if current user has approved this discount (user ID only)
+          if (approverId == currentUserId && approved == true) {
             hasUserApproved = true;
             break;
           }
@@ -387,17 +386,13 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
         final rawDiscounts = await orderLetterService.getOrderLetterDiscounts(
             orderLetterId: approval.id);
 
-        // Get user's job level
+        // Get user's job level (user ID only)
         int jobLevelId = 1;
         for (final discount in rawDiscounts) {
           final approverId = discount['approver'];
-          final approverName = discount['approver_name'];
           final approverLevelId = discount['approver_level_id'];
 
-          if ((approverId == currentUserId ||
-                  _isNameMatch(approverName,
-                      await AuthService.getCurrentUserName() ?? '')) &&
-              approverLevelId != null) {
+          if (approverId == currentUserId && approverLevelId != null) {
             jobLevelId = approverLevelId;
             break;
           }
@@ -414,9 +409,9 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
     }
 
     // Redirect to order letter document page for approval instead of showing modal
-    Navigator.of(context).pushNamed(
+    context.push(
       RoutePaths.orderLetterDocument,
-      arguments: approval.id,
+      extra: approval.id,
     );
   }
 
@@ -574,11 +569,25 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
 
         final Map<int, Map<String, dynamic>> approvalLevelsMap = {};
 
+        // Initialize User level with creator info (will be overridden if discount data exists)
+        String userLevelName = approval.creator;
+
+        // Check if we have User level (level 1) in discount data to get the real name
+        final userLevelDiscount = sortedDiscounts.firstWhere(
+          (d) => d['approver_level_id'] == 1,
+          orElse: () => {},
+        );
+
+        if (userLevelDiscount.isNotEmpty &&
+            userLevelDiscount['approver_name'] != null) {
+          userLevelName = userLevelDiscount['approver_name'];
+        }
+
         // Add creator (User level) as the first level
         approvalLevelsMap[1] = {
           'level': 1,
           'title': 'User',
-          'name': approval.creator,
+          'name': userLevelName,
           'status': 'completed',
         };
 
@@ -769,11 +778,6 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
         );
       },
     );
-  }
-
-  bool _isNameMatch(String? name1, String name2) {
-    if (name1 == null) return false;
-    return name1.trim().toLowerCase() == name2.trim().toLowerCase();
   }
 
   void _showItemDetailsModal(ApprovalEntity approval) {
@@ -1606,6 +1610,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                           _rejectedCount = rejected;
                           _usePagination =
                               paginationInfo['should_use_pagination'] ?? false;
+                          _hasInitialLoadCompleted = true;
                         });
                       }
                     });
