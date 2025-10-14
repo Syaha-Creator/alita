@@ -15,6 +15,8 @@ class OrderLetterDocumentModel {
   final String email;
   final String note;
   final String? spgCode;
+  final String? workPlaceName;
+  final String? workPlaceAddress;
   final List<OrderLetterDetailModel> details;
   final List<OrderLetterDiscountModel> discounts;
   final List<OrderLetterApproveModel> approvals;
@@ -35,6 +37,8 @@ class OrderLetterDocumentModel {
     required this.email,
     required this.note,
     this.spgCode,
+    this.workPlaceName,
+    this.workPlaceAddress,
     required this.extendedAmount,
     required this.hargaAwal,
     required this.details,
@@ -58,7 +62,9 @@ class OrderLetterDocumentModel {
       shipToName: json['ship_to_name'] ?? '',
       email: json['email'] ?? '',
       note: json['note'] ?? '',
-      spgCode: json['spg_code'] ?? '',
+      spgCode: json['sales_code'] ?? '',
+      workPlaceName: json['work_place_name'],
+      workPlaceAddress: json['work_place_address'],
       extendedAmount:
           double.tryParse(json['extended_amount']?.toString() ?? '0.0') ?? 0.0,
       hargaAwal:

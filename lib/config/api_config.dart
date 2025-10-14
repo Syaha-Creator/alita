@@ -49,6 +49,9 @@ class ApiConfig {
   // Device Token Endpoints
   static const String deviceTokens = "${baseUrl}api/device_tokens";
 
+  // Attendance Endpoints
+  static const String attendanceList = "${baseUrl}api/attendance_list";
+
   // Helper untuk login (POST ke signIn)
   static String getLoginUrl() {
     return signIn;
@@ -261,5 +264,13 @@ class ApiConfig {
     required String token,
   }) {
     return "$orderLetterPayments?access_token=$token&client_id=$clientId&client_secret=$clientSecret";
+  }
+
+  // Helper untuk GET Attendance List
+  static String getAttendanceListUrl({
+    required String token,
+    required int userId,
+  }) {
+    return "$attendanceList?user_id=$userId&access_token=$token&client_id=$clientId&client_secret=$clientSecret";
   }
 }

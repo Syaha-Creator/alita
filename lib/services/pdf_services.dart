@@ -32,6 +32,7 @@ class PDFService {
     String? orderLetterNo,
     String? orderLetterStatus,
     String? orderLetterDate,
+    String? workPlaceName,
     List<Map<String, dynamic>>? approvalData,
     double? orderLetterExtendedAmount,
     double? orderLetterHargaAwal,
@@ -109,7 +110,7 @@ class PDFService {
         header: (pw.Context context) {
           if (context.pageNumber == 1) {
             return _buildHeader(sleepCenterLogo, otherLogos, orderLetterNo,
-                orderLetterStatus, orderLetterDate);
+                orderLetterStatus, orderLetterDate, workPlaceName);
           }
           return pw.Container();
         },
@@ -241,13 +242,14 @@ class PDFService {
     }
   }
 
-  /// Build header PDF dengan logo dan showroom.
+  /// Build header PDF dengan logo dan work place name.
   static pw.Widget _buildHeader(
       pw.ImageProvider? sleepCenterLogo,
       List<pw.ImageProvider?> otherLogos,
       String? orderLetterNo,
       String? orderLetterStatus,
-      String? orderLetterDate) {
+      String? orderLetterDate,
+      String? workPlaceName) {
     return pw.Column(
       children: [
         if (sleepCenterLogo != null)
@@ -274,7 +276,7 @@ class PDFService {
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            pw.Text('SHOWROOM/PAMERAN: IDD COMFORTA BOUTIQUE STORE',
+            pw.Text('SHOWROOM/PAMERAN: ${workPlaceName ?? 'SLEEP CENTER'}',
                 style: const pw.TextStyle(fontSize: 9)),
             pw.Text(
                 'TANGGAL PEMBELIAN: ${orderLetterDate ?? _formatSimpleDate(DateTime.now())}',

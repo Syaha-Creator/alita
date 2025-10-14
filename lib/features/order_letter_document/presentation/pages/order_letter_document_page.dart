@@ -2061,6 +2061,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         orderLetterNo: _document!.noSp,
         orderLetterStatus: _document!.status,
         orderLetterDate: _formatDate(_document!.createdAt),
+        workPlaceName: _document!.workPlaceName,
         approvalData: approvalData,
         orderLetterExtendedAmount: _document!.extendedAmount,
         orderLetterHargaAwal: _document!.hargaAwal,

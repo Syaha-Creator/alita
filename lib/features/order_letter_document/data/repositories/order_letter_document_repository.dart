@@ -29,6 +29,10 @@ class OrderLetterDocumentRepository {
       final result = orderLetterResponse.data['result'];
       final orderLetterData = result['order_letter'];
 
+      // Extract work place information from result
+      final workPlaceName = result['work_place_name'];
+      final workPlaceAddress = result['work_place_address'];
+
       // Extract details from the response (discounts are now nested in each detail)
       final detailsData = result['order_letter_details'] ?? [];
 
@@ -67,6 +71,8 @@ class OrderLetterDocumentRepository {
         'discounts': discountsData,
         'approvals': approvalsData,
         'contacts': contactsData,
+        'work_place_name': workPlaceName,
+        'work_place_address': workPlaceAddress,
       };
 
       return OrderLetterDocumentModel.fromJson(

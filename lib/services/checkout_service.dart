@@ -5,15 +5,18 @@ import '../features/approval/data/repositories/approval_repository.dart';
 import '../services/auth_service.dart';
 import '../services/order_letter_service.dart';
 import '../services/core_notification_service.dart';
+import '../services/attendance_service.dart';
 
 class CheckoutService {
   late final OrderLetterService _orderLetterService;
   late final CoreNotificationService _notificationService;
+  late final AttendanceService _attendanceService;
 
   CheckoutService() {
     // Initialize services without circular dependency
     _orderLetterService = locator<OrderLetterService>();
     _notificationService = locator<CoreNotificationService>();
+    _attendanceService = locator<AttendanceService>();
   }
 
   /// Create Order Letter from Cart Items
@@ -79,6 +82,11 @@ class CheckoutService {
       // Determine smart status based on discount approval requirements
       String orderStatus = _determineOrderStatus(allDiscounts);
 
+      // Get work_place_id from attendance API
+      final workPlaceId = await _attendanceService.getWorkPlaceId();
+      print(
+          'CheckoutService: Retrieved work_place_id from attendance: $workPlaceId');
+
       // Prepare Order Letter Data
       final orderLetterData = {
         'order_date': orderDateStr,
@@ -95,7 +103,8 @@ class CheckoutService {
         'discount': totalDiscountPercentage,
         'note': note,
         'status': orderStatus,
-        'spg_code': spgCode ?? '',
+        'sales_code': spgCode ?? '',
+        'work_place_id': workPlaceId,
       };
 
       // Prepare Details Data
