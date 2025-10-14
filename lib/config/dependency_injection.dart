@@ -35,6 +35,7 @@ import '../services/item_mapping_service.dart';
 import '../services/enhanced_checkout_service.dart';
 import '../services/order_letter_contact_service.dart';
 import '../services/order_letter_payment_service.dart';
+import '../services/attendance_service.dart';
 
 final locator = GetIt.instance;
 
@@ -69,6 +70,9 @@ void setupLocator() {
   );
   locator.registerLazySingleton<OrderLetterPaymentService>(
     () => OrderLetterPaymentService(locator<Dio>()),
+  );
+  locator.registerLazySingleton<AttendanceService>(
+    () => AttendanceService(locator<Dio>()),
   );
   locator.registerLazySingleton<CheckoutService>(() => CheckoutService());
   locator.registerLazySingleton<ContactWorkExperienceService>(
