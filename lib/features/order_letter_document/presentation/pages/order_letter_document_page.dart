@@ -4,7 +4,6 @@ import '../../../../core/utils/format_helper.dart';
 import '../../../../services/pdf_services.dart';
 import '../../../../services/auth_service.dart';
 import '../../../../services/order_letter_service.dart';
-import '../../../../services/core_notification_service.dart';
 import '../../../../services/leader_service.dart';
 import '../../../../config/dependency_injection.dart';
 import '../../data/models/order_letter_document_model.dart';
@@ -1748,23 +1747,6 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         _loadDocument();
       } else {
         _showErrorSnackBar(result['message'] ?? 'Approval failed');
-      }
-
-      // Send notification
-      try {
-        final coreNotificationService = locator<CoreNotificationService>();
-        await coreNotificationService.handleApprovalFlowNotification(
-          orderLetterId: widget.orderLetterId.toString(),
-          approverUserId: currentUserId.toString(),
-          approverName: currentUserName,
-          approvalAction: action,
-          approvalLevel: 'Level $jobLevelId',
-          comment: '',
-          customerName: _document?.customerName,
-          totalAmount: _document?.extendedAmount,
-        );
-      } catch (e) {
-        // Don't fail the approval if notification fails
       }
     } catch (e) {
       _showErrorSnackBar('Failed to process approval: $e');

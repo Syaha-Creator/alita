@@ -4,18 +4,15 @@ import '../features/product/presentation/bloc/product_bloc.dart';
 import '../features/approval/data/repositories/approval_repository.dart';
 import '../services/auth_service.dart';
 import '../services/order_letter_service.dart';
-import '../services/core_notification_service.dart';
 import '../services/attendance_service.dart';
 
 class CheckoutService {
   late final OrderLetterService _orderLetterService;
-  late final CoreNotificationService _notificationService;
   late final AttendanceService _attendanceService;
 
   CheckoutService() {
     // Initialize services without circular dependency
     _orderLetterService = locator<OrderLetterService>();
-    _notificationService = locator<CoreNotificationService>();
     _attendanceService = locator<AttendanceService>();
   }
 
@@ -258,33 +255,6 @@ class CheckoutService {
         leaderIds: leaderIds,
       );
 
-      // Send notification if order letter created successfully
-      if (result['success'] == true) {
-        try {
-          // Get current user ID for notification
-          final currentUserId = await AuthService.getCurrentUserId();
-
-          if (currentUserId != null) {
-            // Send both local and FCM notifications using new service
-            await _notificationService.handleOrderLetterCreation(
-              creatorUserId: currentUserId.toString(),
-              orderId: result['orderLetterId']?.toString() ?? 'Unknown',
-              customerName: customerName,
-              totalAmount: totalExtendedAmount,
-            );
-          } else {
-            // Use core notification service
-            final coreNotificationService = locator<CoreNotificationService>();
-            await coreNotificationService.handleOrderLetterCreation(
-              creatorUserId: 'unknown',
-              orderId: result['orderLetterId']?.toString() ?? 'Unknown',
-              customerName: customerName,
-              totalAmount: totalExtendedAmount,
-            );
-          }
-        } catch (e) {
-          // Don't fail the checkout process if notification fails
-        }
 
         // Invalidate approval cache so new order appears immediately
         try {

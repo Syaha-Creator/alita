@@ -28,7 +28,6 @@ import '../features/authentication/domain/usecases/login_usecase.dart';
 import '../features/authentication/presentation/bloc/auth_bloc.dart';
 import '../features/order_letter_document/data/repositories/order_letter_document_repository.dart';
 import 'api_config.dart';
-import '../services/core_notification_service.dart';
 import '../services/device_token_service.dart';
 import '../services/product_options_service.dart';
 import '../services/item_mapping_service.dart';
@@ -80,10 +79,6 @@ void setupLocator() {
   );
   locator.registerLazySingleton<LeaderService>(
     () => LeaderService(locator<ApiClient>()),
-  );
-  // CONSOLIDATED: All notification services replaced with CoreNotificationService
-  locator.registerLazySingleton<CoreNotificationService>(
-    () => CoreNotificationService(),
   );
   locator.registerLazySingleton<DeviceTokenService>(
     () => DeviceTokenService(),
