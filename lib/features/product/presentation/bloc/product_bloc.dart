@@ -9,6 +9,7 @@ import '../../data/repositories/area_repository.dart';
 import '../../data/repositories/channel_repository.dart';
 import '../../data/repositories/brand_repository.dart';
 import '../../domain/usecases/get_product_usecase.dart';
+import '../../domain/entities/product_entity.dart';
 import 'product_event.dart';
 import 'product_state.dart';
 
@@ -395,7 +396,7 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
               .where((p) => p.sorong == selectedSorong)
               .toList();
       final sizes = filteredBySorong.map((p) => p.ukuran).toSet().toList();
-      String selectedSize = sizes.isNotEmpty ? sizes.first : "";
+      String selectedSize = ""; // Don't auto-select size, let user choose
 
       // Ambil program unik dari hasil filter terakhir
       final programs = filteredBySorong.map((p) => p.program).toSet().toList();
@@ -485,7 +486,7 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         availableSorongs: sorongs,
         selectedSorong: selectedSorong,
         availableSizes: sizes,
-        selectedSize: "",
+        selectedSize: "", // Reset size selection when kasur changes
         availablePrograms: programs,
         selectedProgram: selectedProgram,
       ));
@@ -528,7 +529,9 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         availableSorongs: sorongs,
         selectedSorong: selectedSorong,
         availableSizes: sizes,
-        selectedSize: "",
+        selectedSize: sizes.contains(state.selectedSize)
+            ? state.selectedSize
+            : "", // Don't auto-select size, let user choose
         availablePrograms: programs,
         selectedProgram: selectedProgram,
       ));
@@ -568,7 +571,9 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         availableSorongs: sorongs,
         selectedSorong: selectedSorong,
         availableSizes: sizes,
-        selectedSize: "",
+        selectedSize: sizes.contains(state.selectedSize)
+            ? state.selectedSize
+            : "", // Don't auto-select size, let user choose
         availablePrograms: programs,
         selectedProgram: selectedProgram,
       ));
@@ -605,7 +610,8 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       emit(state.copyWith(
         selectedSorong: event.sorong,
         availableSizes: sizes,
-        selectedSize: "",
+        selectedSize:
+            sizes.contains(state.selectedSize) ? state.selectedSize : "",
         availablePrograms: programs,
         selectedProgram: selectedProgram,
       ));
@@ -723,7 +729,7 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
           event.selectedHeadboard ?? AppStrings.noHeadboard;
       String selectedSorong = event.selectedSorong ?? AppStrings.noSorong;
 
-      final filteredProducts = state.products.where((p) {
+      var filteredProducts = state.products.where((p) {
         final matchesArea = areaToUse.isEmpty || p.area == areaToUse;
         final matchesChannel = event.selectedChannel == null ||
             event.selectedChannel!.isEmpty ||
@@ -766,7 +772,7 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
 
         final matchesSet = !state.isSetActive || p.isSet == true;
 
-        return matchesArea &&
+        final finalMatch = matchesArea &&
             matchesChannel &&
             matchesBrand &&
             matchesKasur &&
@@ -776,7 +782,116 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
             matchesSize &&
             matchesProgram &&
             matchesSet;
+
+        return finalMatch;
       }).toList();
+
+      // Apply STRICT filtering - only show products that match ALL selected criteria
+      // Debug: Show what filters are active
+      print(
+          "DEBUG: Active filters - Size: '${event.selectedSize}', Program: '${event.selectedProgram}', Kasur: '${event.selectedKasur}', Divan: '${event.selectedDivan}', Headboard: '${event.selectedHeadboard}', Sorong: '${event.selectedSorong}'");
+      print(
+          "DEBUG: Total products before strict filtering: ${filteredProducts.length}");
+
+      // Apply additional strict filtering based on the debug analysis
+      final strictlyFilteredProducts = filteredProducts.where((product) {
+        bool passesStrictFilter = true;
+
+        // Size filter (if selected)
+        if (event.selectedSize != null && event.selectedSize!.isNotEmpty) {
+          if (product.ukuran != event.selectedSize) {
+            passesStrictFilter = false;
+            print(
+                "DEBUG: Product ${product.id} rejected - Size mismatch: '${product.ukuran}' vs '${event.selectedSize}'");
+          }
+        }
+
+        // Program filter (if selected)
+        if (event.selectedProgram != null &&
+            event.selectedProgram!.isNotEmpty) {
+          if (product.program != event.selectedProgram) {
+            passesStrictFilter = false;
+            print(
+                "DEBUG: Product ${product.id} rejected - Program mismatch: '${product.program}' vs '${event.selectedProgram}'");
+          }
+        }
+
+        // Kasur filter (if selected)
+        if (event.selectedKasur != null &&
+            event.selectedKasur!.isNotEmpty &&
+            event.selectedKasur != AppStrings.noKasur) {
+          if (product.kasur != event.selectedKasur) {
+            passesStrictFilter = false;
+            print(
+                "DEBUG: Product ${product.id} rejected - Kasur mismatch: '${product.kasur}' vs '${event.selectedKasur}'");
+          }
+        }
+
+        // Divan filter (if selected)
+        if (selectedDivan != AppStrings.noDivan) {
+          if (product.divan != selectedDivan) {
+            passesStrictFilter = false;
+            print(
+                "DEBUG: Product ${product.id} rejected - Divan mismatch: '${product.divan}' vs '$selectedDivan'");
+          }
+        }
+
+        // Headboard filter (if selected)
+        if (selectedHeadboard != AppStrings.noHeadboard) {
+          if (product.headboard != selectedHeadboard) {
+            passesStrictFilter = false;
+            print(
+                "DEBUG: Product ${product.id} rejected - Headboard mismatch: '${product.headboard}' vs '$selectedHeadboard'");
+          }
+        }
+
+        // Sorong filter (if selected)
+        if (selectedSorong != AppStrings.noSorong) {
+          if (product.sorong != selectedSorong) {
+            passesStrictFilter = false;
+            print(
+                "DEBUG: Product ${product.id} rejected - Sorong mismatch: '${product.sorong}' vs '$selectedSorong'");
+          }
+        }
+
+        return passesStrictFilter;
+      }).toList();
+
+      // Update filteredProducts with strictly filtered results
+      filteredProducts = strictlyFilteredProducts;
+      print(
+          "DEBUG: After strict filtering: ${filteredProducts.length} products remain");
+
+      // Check if products are truly duplicates or actually different
+      if (filteredProducts.length > 1) {
+        // Create a map to group products by their unique key
+        final Map<String, List<ProductEntity>> productGroups = {};
+
+        for (final product in filteredProducts) {
+          // Create a unique key based on all filterable attributes
+          final uniqueKey =
+              '${product.ukuran}|${product.program}|${product.kasur}|${product.divan}|${product.headboard}|${product.sorong}|${product.brand}|${product.channel}';
+
+          if (!productGroups.containsKey(uniqueKey)) {
+            productGroups[uniqueKey] = [];
+          }
+          productGroups[uniqueKey]!.add(product);
+        }
+
+        print("DEBUG: Found ${productGroups.length} unique product groups");
+
+        // If all products have the same key, they are true duplicates - show only 1
+        if (productGroups.length == 1) {
+          print("DEBUG: All products are TRUE DUPLICATES - showing only 1");
+          final firstProduct = productGroups.values.first.first;
+          filteredProducts = [firstProduct];
+        } else {
+          print(
+              "DEBUG: Products are DIFFERENT - showing all ${filteredProducts.length} products");
+          // Products are different, show all of them
+          // filteredProducts remains unchanged
+        }
+      }
 
       emit(state.copyWith(
           filteredProducts: filteredProducts, isFilterApplied: true));

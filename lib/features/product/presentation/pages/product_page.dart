@@ -631,6 +631,12 @@ class _ProductPageState extends State<ProductPage> {
                                                           true
                                                       ? null
                                                       : state.selectedSize,
+                                              selectedProgram: state
+                                                          .selectedProgram
+                                                          ?.isEmpty ??
+                                                      true
+                                                  ? null
+                                                  : state.selectedProgram,
                                             ),
                                           );
                                       // Scroll ke tombol filter & reset, pastikan tepat di bawah AppBar

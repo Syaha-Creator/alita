@@ -255,7 +255,8 @@ class CheckoutService {
         leaderIds: leaderIds,
       );
 
-
+      // Send notification if order letter created successfully
+      if (result['success'] == true) {
         // Invalidate approval cache so new order appears immediately
         try {
           final approvalRepository = locator<ApprovalRepository>();
@@ -277,20 +278,13 @@ class CheckoutService {
     final significantDiscounts = discounts.where((d) => d > 0.0).toList();
 
     if (significantDiscounts.isEmpty) {
-      // No discounts → Still need Direct Leader approval
       return 'Pending';
     }
-
-    // Check if only user-level discounts (level 1 auto-approved)
-    // For now, assume any discount > 0 needs approval beyond user level
-    // This logic can be enhanced based on business rules
 
     if (significantDiscounts.every((d) => d <= 5.0)) {
-      // Small discounts (≤5%) → Still need Direct Leader approval
       return 'Pending';
     }
 
-    // Has significant discounts that need higher-level approval
     return 'Pending';
   }
 }
