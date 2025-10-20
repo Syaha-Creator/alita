@@ -20,24 +20,45 @@ class AppTheme {
       onBackground: AppColors.textPrimaryLight,
       error: AppColors.error,
       onError: Colors.white,
+      surfaceVariant: AppColors.surfaceVariantLight,
+      onSurfaceVariant: AppColors.textSecondaryLight,
+      outline: AppColors.borderLight,
     ),
-    textTheme: GoogleFonts.montserratTextTheme().copyWith(
-      bodyLarge: GoogleFonts.montserrat(
+    textTheme: GoogleFonts.interTextTheme().copyWith(
+      bodyLarge: GoogleFonts.inter(
         color: AppColors.textPrimaryLight,
         fontSize: 16,
+        fontWeight: FontWeight.w400,
       ),
-      bodyMedium: GoogleFonts.montserrat(
+      bodyMedium: GoogleFonts.inter(
         color: AppColors.textSecondaryLight,
         fontSize: 14,
+        fontWeight: FontWeight.w400,
+      ),
+      titleLarge: GoogleFonts.inter(
+        color: AppColors.textPrimaryLight,
+        fontSize: 22,
+        fontWeight: FontWeight.w600,
+      ),
+      titleMedium: GoogleFonts.inter(
+        color: AppColors.textPrimaryLight,
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+      ),
+      titleSmall: GoogleFonts.inter(
+        color: AppColors.textPrimaryLight,
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
       ),
     ),
     appBarTheme: AppBarTheme(
       backgroundColor: AppColors.primaryLight,
       foregroundColor: Colors.white,
       elevation: 0,
-      titleTextStyle: GoogleFonts.montserrat(
+      shadowColor: AppColors.shadowLight,
+      titleTextStyle: GoogleFonts.inter(
         fontSize: 18,
-        fontWeight: FontWeight.bold,
+        fontWeight: FontWeight.w600,
         color: Colors.white,
       ),
     ),
@@ -45,76 +66,97 @@ class AppTheme {
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.buttonLight,
         foregroundColor: Colors.white,
+        elevation: 2,
+        shadowColor: AppColors.shadowLight,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(12),
         ),
-        textStyle:
-            GoogleFonts.montserrat(fontSize: 16, fontWeight: FontWeight.w600),
+        textStyle: GoogleFonts.inter(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: AppColors.cardLight, // Warna latar belakang input
-      labelStyle: GoogleFonts.montserrat(
+      fillColor: AppColors.surfaceLight,
+      labelStyle: GoogleFonts.inter(
         fontSize: 14,
         color: AppColors.textSecondaryLight,
+        fontWeight: FontWeight.w500,
       ),
-      hintStyle: GoogleFonts.montserrat(
+      hintStyle: GoogleFonts.inter(
         fontSize: 14,
-        color: AppColors.textSecondaryLight.withOpacity(0.7),
+        color: AppColors.textSecondaryLight.withOpacity(0.6),
+        fontWeight: FontWeight.w400,
       ),
-      // Border saat tidak di-klik
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: AppColors.borderLight, width: 1.5),
       ),
-      // Border saat di-klik
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: AppColors.primaryLight, width: 2.0),
       ),
-      // Border saat terjadi error validasi
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: AppColors.error, width: 1.5),
       ),
       focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: AppColors.error, width: 2.0),
       ),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: AppColors.borderLight),
       ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: AppColors.surfaceLight,
       surfaceTintColor: AppColors.surfaceLight,
+      elevation: 8,
+      shadowColor: AppColors.shadowLight,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
       ),
-      titleTextStyle: GoogleFonts.montserrat(
-        fontSize: 18,
-        fontWeight: FontWeight.bold,
+      titleTextStyle: GoogleFonts.inter(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
         color: AppColors.textPrimaryLight,
       ),
-      contentTextStyle: GoogleFonts.montserrat(
+      contentTextStyle: GoogleFonts.inter(
         fontSize: 14,
         color: AppColors.textSecondaryLight,
+        fontWeight: FontWeight.w400,
       ),
     ),
     popupMenuTheme: PopupMenuThemeData(
       color: AppColors.surfaceLight,
-      textStyle: GoogleFonts.montserrat(
+      elevation: 8,
+      shadowColor: AppColors.shadowLight,
+      textStyle: GoogleFonts.inter(
         fontSize: 14,
         color: AppColors.textPrimaryLight,
+        fontWeight: FontWeight.w500,
       ),
     ),
     bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: AppColors.surfaceLight,
       surfaceTintColor: AppColors.surfaceLight,
+      elevation: 8,
+      shadowColor: AppColors.shadowLight,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+    ),
+    cardTheme: CardThemeData(
+      color: AppColors.cardLight,
+      elevation: 2,
+      shadowColor: AppColors.shadowLight,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
       ),
     ),
   );
@@ -136,24 +178,45 @@ class AppTheme {
       onBackground: AppColors.textPrimaryDark,
       error: AppColors.error,
       onError: Colors.white,
+      surfaceVariant: AppColors.surfaceVariantDark,
+      onSurfaceVariant: AppColors.textSecondaryDark,
+      outline: AppColors.borderDark,
     ),
-    textTheme: GoogleFonts.montserratTextTheme().copyWith(
-      bodyLarge: GoogleFonts.montserrat(
+    textTheme: GoogleFonts.interTextTheme().copyWith(
+      bodyLarge: GoogleFonts.inter(
         color: AppColors.textPrimaryDark,
         fontSize: 16,
+        fontWeight: FontWeight.w400,
       ),
-      bodyMedium: GoogleFonts.montserrat(
+      bodyMedium: GoogleFonts.inter(
         color: AppColors.textSecondaryDark,
         fontSize: 14,
+        fontWeight: FontWeight.w400,
+      ),
+      titleLarge: GoogleFonts.inter(
+        color: AppColors.textPrimaryDark,
+        fontSize: 22,
+        fontWeight: FontWeight.w600,
+      ),
+      titleMedium: GoogleFonts.inter(
+        color: AppColors.textPrimaryDark,
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+      ),
+      titleSmall: GoogleFonts.inter(
+        color: AppColors.textPrimaryDark,
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
       ),
     ),
     appBarTheme: AppBarTheme(
       backgroundColor: AppColors.primaryDark,
       foregroundColor: Colors.white,
       elevation: 0,
-      titleTextStyle: GoogleFonts.montserrat(
+      shadowColor: AppColors.shadowDark,
+      titleTextStyle: GoogleFonts.inter(
         fontSize: 18,
-        fontWeight: FontWeight.bold,
+        fontWeight: FontWeight.w600,
         color: Colors.white,
       ),
     ),
@@ -161,73 +224,97 @@ class AppTheme {
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.buttonDark,
         foregroundColor: Colors.white,
+        elevation: 2,
+        shadowColor: AppColors.shadowDark,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(12),
         ),
-        textStyle:
-            GoogleFonts.montserrat(fontSize: 16, fontWeight: FontWeight.w600),
+        textStyle: GoogleFonts.inter(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: AppColors.surfaceDark,
-      labelStyle: GoogleFonts.montserrat(
+      labelStyle: GoogleFonts.inter(
         fontSize: 14,
         color: AppColors.textSecondaryDark,
+        fontWeight: FontWeight.w500,
       ),
-      hintStyle: GoogleFonts.montserrat(
+      hintStyle: GoogleFonts.inter(
         fontSize: 14,
-        color: AppColors.textSecondaryDark.withOpacity(0.7),
+        color: AppColors.textSecondaryDark.withOpacity(0.6),
+        fontWeight: FontWeight.w400,
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: AppColors.borderDark, width: 1.5),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: AppColors.buttonDark, width: 2.0),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: AppColors.error, width: 1.5),
       ),
       focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: AppColors.error, width: 2.0),
       ),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: AppColors.borderDark),
       ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: AppColors.surfaceDark,
       surfaceTintColor: AppColors.surfaceDark,
+      elevation: 8,
+      shadowColor: AppColors.shadowDark,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
       ),
-      titleTextStyle: GoogleFonts.montserrat(
-        fontSize: 18,
-        fontWeight: FontWeight.bold,
+      titleTextStyle: GoogleFonts.inter(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
         color: AppColors.textPrimaryDark,
       ),
-      contentTextStyle: GoogleFonts.montserrat(
+      contentTextStyle: GoogleFonts.inter(
         fontSize: 14,
         color: AppColors.textSecondaryDark,
+        fontWeight: FontWeight.w400,
       ),
     ),
     popupMenuTheme: PopupMenuThemeData(
       color: AppColors.surfaceDark,
-      textStyle: GoogleFonts.montserrat(
+      elevation: 8,
+      shadowColor: AppColors.shadowDark,
+      textStyle: GoogleFonts.inter(
         fontSize: 14,
         color: AppColors.textPrimaryDark,
+        fontWeight: FontWeight.w500,
       ),
     ),
     bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: AppColors.surfaceDark,
       surfaceTintColor: AppColors.surfaceDark,
+      elevation: 8,
+      shadowColor: AppColors.shadowDark,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+    ),
+    cardTheme: CardThemeData(
+      color: AppColors.cardDark,
+      elevation: 2,
+      shadowColor: AppColors.shadowDark,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
       ),
     ),
   );

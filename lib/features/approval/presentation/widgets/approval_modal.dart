@@ -214,6 +214,9 @@ class _ApprovalModalState extends State<ApprovalModal>
   }
 
   void _showWarningSnackBar(String message) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Container(
@@ -224,13 +227,15 @@ class _ApprovalModalState extends State<ApprovalModal>
           ),
           child: Row(
             children: [
-              Icon(Icons.warning_amber_rounded, color: Colors.white, size: 24),
+              Icon(Icons.warning_amber_rounded,
+                  color: isDark ? AppColors.primaryDark : Colors.white,
+                  size: 24),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   message,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: isDark ? AppColors.primaryDark : Colors.white,
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
                   ),
@@ -251,6 +256,7 @@ class _ApprovalModalState extends State<ApprovalModal>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
 
     return SlideTransition(
       position: _slideAnimation,
@@ -271,7 +277,7 @@ class _ApprovalModalState extends State<ApprovalModal>
               _buildHandleBar(colorScheme),
 
               // Header
-              _buildHeader(theme, colorScheme),
+              _buildHeader(theme, colorScheme, isDark),
 
               // Content Area
               Flexible(
@@ -283,17 +289,17 @@ class _ApprovalModalState extends State<ApprovalModal>
                       const SizedBox(height: 16),
 
                       // Order Summary
-                      _buildOrderSummary(theme, colorScheme),
+                      _buildOrderSummary(theme, colorScheme, isDark),
 
                       const SizedBox(height: 20),
 
                       // Customer Info
-                      _buildCustomerInfo(theme, colorScheme),
+                      _buildCustomerInfo(theme, colorScheme, isDark),
 
                       const SizedBox(height: 20),
 
                       // Action Selection
-                      _buildActionSelection(theme, colorScheme),
+                      _buildActionSelection(theme, colorScheme, isDark),
 
                       const SizedBox(height: 20),
 
@@ -314,7 +320,7 @@ class _ApprovalModalState extends State<ApprovalModal>
                 _buildStaffLevelWarning(theme, colorScheme),
 
               // Action Buttons
-              _buildActionButtons(theme, colorScheme),
+              _buildActionButtons(theme, colorScheme, isDark),
             ],
           ),
         ),
@@ -341,7 +347,7 @@ class _ApprovalModalState extends State<ApprovalModal>
     );
   }
 
-  Widget _buildHeader(ThemeData theme, ColorScheme colorScheme) {
+  Widget _buildHeader(ThemeData theme, ColorScheme colorScheme, bool isDark) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -380,7 +386,9 @@ class _ApprovalModalState extends State<ApprovalModal>
                               'Order #${widget.approval.id}',
                               style: theme.textTheme.titleSmall?.copyWith(
                                 fontWeight: FontWeight.w700,
-                                color: Colors.white,
+                                color: isDark
+                                    ? AppColors.primaryDark
+                                    : Colors.white,
                               ),
                             ),
                           ],
@@ -403,7 +411,7 @@ class _ApprovalModalState extends State<ApprovalModal>
                       ),
                       child: Icon(
                         Icons.person_rounded,
-                        color: Colors.white,
+                        color: isDark ? AppColors.primaryDark : Colors.white,
                         size: 16,
                       ),
                     ),
@@ -469,7 +477,8 @@ class _ApprovalModalState extends State<ApprovalModal>
     );
   }
 
-  Widget _buildOrderSummary(ThemeData theme, ColorScheme colorScheme) {
+  Widget _buildOrderSummary(
+      ThemeData theme, ColorScheme colorScheme, bool isDark) {
     return Container(
       decoration: BoxDecoration(
         color: colorScheme.surfaceVariant.withOpacity(0.3),
@@ -589,7 +598,8 @@ class _ApprovalModalState extends State<ApprovalModal>
     );
   }
 
-  Widget _buildCustomerInfo(ThemeData theme, ColorScheme colorScheme) {
+  Widget _buildCustomerInfo(
+      ThemeData theme, ColorScheme colorScheme, bool isDark) {
     return Container(
       decoration: BoxDecoration(
         color: colorScheme.secondary.withOpacity(0.1),
@@ -691,7 +701,8 @@ class _ApprovalModalState extends State<ApprovalModal>
     );
   }
 
-  Widget _buildActionSelection(ThemeData theme, ColorScheme colorScheme) {
+  Widget _buildActionSelection(
+      ThemeData theme, ColorScheme colorScheme, bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -713,6 +724,7 @@ class _ApprovalModalState extends State<ApprovalModal>
                 AppColors.success,
                 'approve',
                 colorScheme,
+                isDark,
               ),
             ),
             const SizedBox(width: 12),
@@ -724,6 +736,7 @@ class _ApprovalModalState extends State<ApprovalModal>
                 AppColors.error,
                 'reject',
                 colorScheme,
+                isDark,
               ),
             ),
           ],
@@ -733,7 +746,7 @@ class _ApprovalModalState extends State<ApprovalModal>
   }
 
   Widget _buildActionButton(BuildContext context, String label, IconData icon,
-      Color color, String action, ColorScheme colorScheme) {
+      Color color, String action, ColorScheme colorScheme, bool isDark) {
     final isSelected = _selectedAction == action;
 
     return AnimatedContainer(
@@ -819,7 +832,8 @@ class _ApprovalModalState extends State<ApprovalModal>
     );
   }
 
-  Widget _buildActionButtons(ThemeData theme, ColorScheme colorScheme) {
+  Widget _buildActionButtons(
+      ThemeData theme, ColorScheme colorScheme, bool isDark) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(

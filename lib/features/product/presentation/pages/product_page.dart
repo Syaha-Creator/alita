@@ -16,7 +16,6 @@ import '../widgets/logout_button.dart';
 import '../widgets/product_card.dart';
 import '../widgets/product_dropdown.dart';
 import '../../../../core/widgets/whatsapp_dialog.dart';
-import '../../../../theme/app_colors.dart';
 
 class ProductPage extends StatefulWidget {
   const ProductPage({super.key});
@@ -124,7 +123,7 @@ class _ProductPageState extends State<ProductPage> {
                   child: Text(
                     state.message,
                     style: TextStyle(
-                      color: isDark ? AppColors.error : Colors.red,
+                      color: theme.colorScheme.error,
                     ),
                   ),
                 );
@@ -137,7 +136,7 @@ class _ProductPageState extends State<ProductPage> {
                       Icon(
                         Icons.location_off,
                         size: 80,
-                        color: isDark ? AppColors.warning : Colors.orange[600],
+                        color: theme.colorScheme.error,
                       ),
                       const SizedBox(height: 16),
                       Text(
@@ -145,8 +144,7 @@ class _ProductPageState extends State<ProductPage> {
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
-                          color:
-                              isDark ? AppColors.warning : Colors.orange[600],
+                          color: theme.colorScheme.error,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -154,9 +152,7 @@ class _ProductPageState extends State<ProductPage> {
                         "Area tersebut belum tersedia pricelist",
                         style: TextStyle(
                           fontSize: 16,
-                          color: isDark
-                              ? AppColors.textSecondaryDark
-                              : Colors.grey[600],
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -169,9 +165,8 @@ class _ProductPageState extends State<ProductPage> {
                               );
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              isDark ? AppColors.warning : Colors.orange[600],
-                          foregroundColor: Colors.white,
+                          backgroundColor: theme.colorScheme.error,
+                          foregroundColor: theme.colorScheme.onError,
                         ),
                         child: const Text("Coba Lagi"),
                       ),
@@ -203,12 +198,10 @@ class _ProductPageState extends State<ProductPage> {
                                           ?.toLowerCase()
                                           .contains('spring air') ??
                                       false))
-                              ? (theme.brightness == Brightness.dark
-                                  ? AppColors.accentDark.withOpacity(0.1)
-                                  : Colors.blue[50])
-                              : (theme.brightness == Brightness.dark
-                                  ? AppColors.success.withOpacity(0.1)
-                                  : Colors.green[50]),
+                              ? theme.colorScheme.primaryContainer
+                                  .withOpacity(0.3)
+                              : theme.colorScheme.secondaryContainer
+                                  .withOpacity(0.3),
                           border: Border.all(
                             color: (state.selectedBrand == "Spring Air" ||
                                     state.selectedBrand == "Therapedic" ||
@@ -216,12 +209,8 @@ class _ProductPageState extends State<ProductPage> {
                                             ?.toLowerCase()
                                             .contains('spring air') ??
                                         false))
-                                ? (theme.brightness == Brightness.dark
-                                    ? AppColors.accentDark.withOpacity(0.3)
-                                    : Colors.blue[200]!)
-                                : (theme.brightness == Brightness.dark
-                                    ? AppColors.success.withOpacity(0.3)
-                                    : Colors.green[200]!),
+                                ? theme.colorScheme.primary.withOpacity(0.3)
+                                : theme.colorScheme.secondary.withOpacity(0.3),
                           ),
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -235,12 +224,8 @@ class _ProductPageState extends State<ProductPage> {
                                               ?.toLowerCase()
                                               .contains('spring air') ??
                                           false))
-                                  ? (isDark
-                                      ? AppColors.accentDark
-                                      : Colors.blue[600])
-                                  : (isDark
-                                      ? AppColors.success
-                                      : Colors.green[600]),
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.secondary,
                               size: 24,
                             ),
                             const SizedBox(width: 12),
@@ -257,17 +242,14 @@ class _ProductPageState extends State<ProductPage> {
                                                       "Spring Air" ||
                                                   state.selectedBrand ==
                                                       "Therapedic" ||
-                                                  (state.selectedBrand
+                                                  (state
+                                                          .selectedBrand
                                                           ?.toLowerCase()
                                                           .contains(
                                                               'spring air') ??
                                                       false))
-                                              ? (isDark
-                                                  ? AppColors.accentDark
-                                                  : Colors.blue[600])
-                                              : (isDark
-                                                  ? AppColors.success
-                                                  : Colors.green[600]),
+                                              ? theme.colorScheme.primary
+                                              : theme.colorScheme.secondary,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
@@ -288,9 +270,8 @@ class _ProductPageState extends State<ProductPage> {
                                             style: TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.w900,
-                                              color: isDark
-                                                  ? AppColors.textPrimaryDark
-                                                  : AppColors.textPrimaryLight,
+                                              color:
+                                                  theme.colorScheme.onSurface,
                                             ),
                                             items:
                                                 state.availableAreas.isNotEmpty
@@ -339,9 +320,7 @@ class _ProductPageState extends State<ProductPage> {
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w900,
-                                        color: isDark
-                                            ? AppColors.textPrimaryDark
-                                            : AppColors.textPrimaryLight,
+                                        color: theme.colorScheme.onSurface,
                                       ),
                                     ),
                                   ],
@@ -355,9 +334,7 @@ class _ProductPageState extends State<ProductPage> {
                                       "Brand ${state.selectedBrand} menggunakan Area Nasional untuk pencarian",
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: isDark
-                                            ? AppColors.accentDark
-                                            : Colors.blue[600],
+                                        color: theme.colorScheme.primary,
                                         fontStyle: FontStyle.italic,
                                       ),
                                     ),
@@ -381,14 +358,11 @@ class _ProductPageState extends State<ProductPage> {
                                                         .contains(
                                                             'spring air') ??
                                                     false))
-                                            ? (isDark
-                                                ? AppColors.accentDark
-                                                    .withOpacity(0.2)
-                                                : Colors.blue[100])
-                                            : (isDark
-                                                ? AppColors.success
-                                                    .withOpacity(0.2)
-                                                : Colors.green[100]),
+                                            ? theme.colorScheme.primaryContainer
+                                                .withOpacity(0.5)
+                                            : theme
+                                                .colorScheme.secondaryContainer
+                                                .withOpacity(0.5),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Text(
@@ -413,12 +387,10 @@ class _ProductPageState extends State<ProductPage> {
                                                           .contains(
                                                               'spring air') ??
                                                       false))
-                                              ? (isDark
-                                                  ? AppColors.accentDark
-                                                  : Colors.blue[700])
-                                              : (isDark
-                                                  ? AppColors.success
-                                                  : Colors.green[700]),
+                                              ? theme.colorScheme
+                                                  .onPrimaryContainer
+                                              : theme.colorScheme
+                                                  .onSecondaryContainer,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
@@ -445,7 +417,9 @@ class _ProductPageState extends State<ProductPage> {
                                       child: Container(
                                         padding: const EdgeInsets.all(4),
                                         decoration: BoxDecoration(
-                                          color: Colors.orange[100],
+                                          color: theme
+                                              .colorScheme.errorContainer
+                                              .withOpacity(0.3),
                                           borderRadius: BorderRadius.circular(
                                             8,
                                           ),
@@ -453,7 +427,8 @@ class _ProductPageState extends State<ProductPage> {
                                         child: Icon(
                                           Icons.refresh,
                                           size: 16,
-                                          color: Colors.orange[700],
+                                          color: theme
+                                              .colorScheme.onErrorContainer,
                                         ),
                                       ),
                                     ),

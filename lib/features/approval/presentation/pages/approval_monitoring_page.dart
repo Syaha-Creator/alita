@@ -430,6 +430,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
   ) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
 
     return Container(
       decoration: BoxDecoration(
@@ -476,7 +477,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                   ),
                   child: Icon(
                     Icons.timeline_rounded,
-                    color: Colors.white,
+                    color: isDark ? AppColors.primaryDark : Colors.white,
                     size: 16,
                   ),
                 ),
@@ -536,6 +537,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
   Widget _buildApprovalTimeline(BuildContext context, ApprovalEntity approval) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
 
     return FutureBuilder<List<Map<String, dynamic>>>(
       future:
@@ -685,6 +687,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                 final index = entry.key;
                 final level = entry.value;
                 final isLast = index == approvalLevels.length - 1;
+                final isDarkMode = isDark; // Capture isDark in closure
 
                 Color statusColor;
                 IconData statusIcon;
@@ -702,7 +705,8 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                     statusText = 'Rejected';
                     break;
                   case 'blocked':
-                    statusColor = Colors.grey;
+                    statusColor =
+                        isDarkMode ? AppColors.textSecondaryDark : Colors.grey;
                     statusIcon = Icons.lock;
                     statusText = 'Blocked (Previous level not approved)';
                     break;
@@ -832,7 +836,9 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
   Widget _buildItemDetailsModal(BuildContext context, ApprovalEntity approval) {
     final items = _groupApprovalDetails(approval.details);
     final customerName = approval.customerName;
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
 
     return Container(
       decoration: BoxDecoration(
@@ -918,7 +924,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                   ),
                   child: Icon(
                     Icons.inventory_2_rounded,
-                    color: Colors.white,
+                    color: isDark ? AppColors.primaryDark : Colors.white,
                     size: 18,
                   ),
                 ),
@@ -1121,7 +1127,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                               ),
                               child: Text(
                                 'Qty: $quantity',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w700,
                                   fontSize: 12,
@@ -1405,20 +1411,26 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                             Container(
                               padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
+                                color: isDark
+                                    ? AppColors.primaryDark.withOpacity(0.2)
+                                    : Colors.white.withOpacity(0.2),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.attach_money_rounded,
-                                color: Colors.white,
+                                color: isDark
+                                    ? AppColors.primaryDark
+                                    : Colors.white,
                                 size: 14,
                               ),
                             ),
                             const SizedBox(width: 8),
-                            const Text(
+                            Text(
                               'Total Amount',
                               style: TextStyle(
-                                color: Colors.white,
+                                color: isDark
+                                    ? AppColors.primaryDark
+                                    : Colors.white,
                                 fontWeight: FontWeight.w600,
                                 fontSize: 12,
                               ),
@@ -1428,8 +1440,9 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                         const SizedBox(height: 8),
                         Text(
                           'Rp ${_formatNumber(approval.extendedAmount.toInt())}',
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color:
+                                isDark ? AppColors.primaryDark : Colors.white,
                             fontWeight: FontWeight.w700,
                             fontSize: 16,
                           ),
@@ -1513,6 +1526,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final size = MediaQuery.of(context).size;
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
@@ -1570,7 +1584,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
             ),
 
             // Compact Filter Section
-            _buildCompactFilters(colorScheme),
+            _buildCompactFilters(colorScheme, isDark),
 
             // Content Area
             Expanded(
@@ -1630,6 +1644,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                       context,
                       state.message,
                       colorScheme,
+                      isDark,
                     );
                   }
                   return _buildCompactEmptyState(colorScheme);
@@ -1832,7 +1847,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
     );
   }
 
-  Widget _buildCompactFilters(ColorScheme colorScheme) {
+  Widget _buildCompactFilters(ColorScheme colorScheme, bool isDark) {
     return AnimatedBuilder(
       animation: _mainController,
       builder: (context, child) {
@@ -1876,7 +1891,9 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                             Icon(
                               _getFilterIcon(filter),
                               color: isSelected
-                                  ? Colors.white
+                                  ? (isDark
+                                      ? AppColors.primaryDark
+                                      : Colors.white)
                                   : colorScheme.onSurfaceVariant,
                               size: 16,
                             ),
@@ -1885,7 +1902,9 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                               filter,
                               style: TextStyle(
                                 color: isSelected
-                                    ? Colors.white
+                                    ? (isDark
+                                        ? AppColors.primaryDark
+                                        : Colors.white)
                                     : colorScheme.onSurface,
                                 fontWeight: isSelected
                                     ? FontWeight.w600
@@ -2145,6 +2164,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
     BuildContext context,
     String message,
     ColorScheme colorScheme,
+    bool isDark,
   ) {
     return Center(
       child: Padding(
@@ -2271,6 +2291,9 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
   }
 
   void _showErrorSnackBar(String message) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Container(
@@ -2281,13 +2304,15 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
           ),
           child: Row(
             children: [
-              Icon(Icons.error_outline_rounded, color: Colors.white, size: 24),
+              Icon(Icons.error_outline_rounded,
+                  color: isDark ? AppColors.primaryDark : Colors.white,
+                  size: 24),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   message,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: isDark ? AppColors.primaryDark : Colors.white,
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
                   ),

@@ -110,6 +110,7 @@ class _ApprovalCardState extends State<ApprovalCard>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
 
     return AnimatedBuilder(
       animation: Listenable.merge([_hoverController, _bounceController]),
@@ -148,12 +149,12 @@ class _ApprovalCardState extends State<ApprovalCard>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Header with Status and Amount
-                        _buildHeader(theme, colorScheme),
+                        _buildHeader(theme, colorScheme, isDark),
 
                         const SizedBox(height: 16),
 
                         // Customer Info
-                        _buildCustomerSection(theme, colorScheme),
+                        _buildCustomerSection(theme, colorScheme, isDark),
 
                         const SizedBox(height: 12),
 
@@ -166,14 +167,14 @@ class _ApprovalCardState extends State<ApprovalCard>
                         _buildFooter(theme, colorScheme),
 
                         // Approval Timeline (Horizontal)
-                        _buildHorizontalTimeline(theme, colorScheme),
+                        _buildHorizontalTimeline(theme, colorScheme, isDark),
 
                         // Approval Info Section (for staff level)
                         if (widget.isStaffLevel)
                           _buildApprovalInfoSection(theme, colorScheme),
 
                         // Action Buttons
-                        _buildActionButtons(theme, colorScheme),
+                        _buildActionButtons(theme, colorScheme, isDark),
                       ],
                     ),
                   ),
@@ -186,7 +187,7 @@ class _ApprovalCardState extends State<ApprovalCard>
     );
   }
 
-  Widget _buildHeader(ThemeData theme, ColorScheme colorScheme) {
+  Widget _buildHeader(ThemeData theme, ColorScheme colorScheme, bool isDark) {
     return Row(
       children: [
         // Status Badge
@@ -273,7 +274,8 @@ class _ApprovalCardState extends State<ApprovalCard>
     );
   }
 
-  Widget _buildCustomerSection(ThemeData theme, ColorScheme colorScheme) {
+  Widget _buildCustomerSection(
+      ThemeData theme, ColorScheme colorScheme, bool isDark) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -560,7 +562,8 @@ class _ApprovalCardState extends State<ApprovalCard>
     );
   }
 
-  Widget _buildHorizontalTimeline(ThemeData theme, ColorScheme colorScheme) {
+  Widget _buildHorizontalTimeline(
+      ThemeData theme, ColorScheme colorScheme, bool isDark) {
     if (_isLoadingTimeline) {
       return SizedBox(
         height: 45, // Increased height to prevent overflow
@@ -592,7 +595,9 @@ class _ApprovalCardState extends State<ApprovalCard>
         child: Center(
           child: Text(
             'No approval data',
-            style: TextStyle(color: Colors.grey, fontSize: 12),
+            style: TextStyle(
+                color: isDark ? AppColors.textSecondaryDark : Colors.grey,
+                fontSize: 12),
           ),
         ),
       );
@@ -707,8 +712,8 @@ class _ApprovalCardState extends State<ApprovalCard>
               iconData = Icons.cancel;
               break;
             case 'blocked':
-              dotColor = Colors.grey;
-              lineColor = Colors.grey;
+              dotColor = isDark ? AppColors.textSecondaryDark : Colors.grey;
+              lineColor = isDark ? AppColors.textSecondaryDark : Colors.grey;
               iconData = Icons.lock;
               break;
             case 'pending':
@@ -996,7 +1001,8 @@ class _ApprovalCardState extends State<ApprovalCard>
     );
   }
 
-  Widget _buildActionButtons(ThemeData theme, ColorScheme colorScheme) {
+  Widget _buildActionButtons(
+      ThemeData theme, ColorScheme colorScheme, bool isDark) {
     return Container(
       margin: const EdgeInsets.only(top: 12),
       child: Row(

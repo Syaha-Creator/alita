@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../config/app_constant.dart';
+import '../../../../theme/app_colors.dart';
 import '../widgets/login_form.dart';
 
 class LoginPage extends StatelessWidget {
@@ -11,15 +12,15 @@ class LoginPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final screenWidth = MediaQuery.of(context).size.width;
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         automaticallyImplyLeading: false,
         elevation: 4,
-        shadowColor: theme.brightness == Brightness.dark
-            ? Colors.black.withAlpha(80)
-            : Colors.black.withAlpha(50),
+        shadowColor:
+            isDark ? Colors.black.withAlpha(80) : Colors.black.withAlpha(50),
         backgroundColor: theme.primaryColor,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -29,7 +30,7 @@ class LoginPage extends StatelessWidget {
               style: GoogleFonts.montserrat(
                 fontWeight: FontWeight.bold,
                 letterSpacing: 0.5,
-                color: Colors.white,
+                color: isDark ? AppColors.primaryDark : Colors.white,
                 fontSize: 22,
               ),
             ),
@@ -38,7 +39,9 @@ class LoginPage extends StatelessWidget {
               'Log in now to continue',
               style: GoogleFonts.montserrat(
                 fontWeight: FontWeight.w300,
-                color: Colors.white.withAlpha(230),
+                color: isDark
+                    ? AppColors.primaryDark.withAlpha(230)
+                    : Colors.white.withAlpha(230),
                 fontSize: 14,
               ),
             ),
@@ -59,7 +62,7 @@ class LoginPage extends StatelessWidget {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(16),
                     child: Image.asset(
-                      theme.brightness == Brightness.dark
+                      isDark
                           ? 'assets/images/login_dark.png'
                           : 'assets/images/login.png',
                       width: screenWidth * 0.7,
@@ -78,7 +81,7 @@ class LoginPage extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: theme.brightness == Brightness.dark
+                      color: isDark
                           ? Colors.black.withAlpha(60)
                           : Colors.black.withAlpha(30),
                       blurRadius: 8,

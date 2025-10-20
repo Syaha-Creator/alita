@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../../../theme/app_colors.dart';
 
 class CheckoutDialogResult {
   final String name;
@@ -55,6 +54,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final colorScheme = theme.colorScheme;
     final mediaQuery = MediaQuery.of(context);
     final keyboardHeight = mediaQuery.viewInsets.bottom;
     final screenHeight = mediaQuery.size.height;
@@ -74,7 +74,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
           bottom: 0, // Tidak ada margin bottom
         ),
         decoration: BoxDecoration(
-          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+          color: colorScheme.surface,
           borderRadius: const BorderRadius.only(
             topLeft: Radius.circular(20),
             topRight: Radius.circular(20),
@@ -88,7 +88,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: isDark ? Colors.grey[600] : Colors.grey[400],
+                color: colorScheme.onSurfaceVariant,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -97,7 +97,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: isDark ? AppColors.cardDark : AppColors.cardLight,
+                color: colorScheme.surfaceVariant,
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(20),
                   topRight: Radius.circular(20),
@@ -108,14 +108,12 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: isDark
-                          ? AppColors.primaryDark
-                          : AppColors.primaryLight,
+                      color: colorScheme.primary,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.person_outline,
-                      color: Colors.white,
+                      color: colorScheme.onPrimary,
                       size: 20,
                     ),
                   ),
@@ -129,7 +127,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
                           style: GoogleFonts.montserrat(
                             fontSize: 18,
                             fontWeight: FontWeight.w600,
-                            color: isDark ? Colors.white : Colors.black,
+                            color: colorScheme.onSurface,
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -137,7 +135,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
                           'Lengkapi data diri Anda',
                           style: GoogleFonts.montserrat(
                             fontSize: 14,
-                            color: isDark ? Colors.grey[400] : Colors.grey[600],
+                            color: colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -149,12 +147,12 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
                     child: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: isDark ? Colors.grey[700] : Colors.grey[200],
+                        color: colorScheme.surfaceVariant,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Icon(
                         Icons.close,
-                        color: isDark ? Colors.white : Colors.black,
+                        color: colorScheme.onSurfaceVariant,
                         size: 20,
                       ),
                     ),
@@ -178,7 +176,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
                         style: GoogleFonts.montserrat(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white : Colors.black,
+                          color: colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -190,7 +188,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
                               isSelected: !_isExistingCustomer,
                               onTap: () =>
                                   setState(() => _isExistingCustomer = false),
-                              isDark: isDark,
+                              colorScheme: colorScheme,
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -200,7 +198,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
                               isSelected: _isExistingCustomer,
                               onTap: () =>
                                   setState(() => _isExistingCustomer = true),
-                              isDark: isDark,
+                              colorScheme: colorScheme,
                             ),
                           ),
                         ],
@@ -215,7 +213,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
                         validator: (val) => val == null || val.trim().isEmpty
                             ? 'Nama wajib diisi'
                             : null,
-                        isDark: isDark,
+                        colorScheme: colorScheme,
                       ),
                       const SizedBox(height: 18),
                       _buildModernTextField(
@@ -226,7 +224,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
                         validator: (val) => val == null || val.trim().isEmpty
                             ? 'Nomor telepon wajib diisi'
                             : null,
-                        isDark: isDark,
+                        colorScheme: colorScheme,
                       ),
                       const SizedBox(height: 18),
                       _buildModernTextField(
@@ -244,7 +242,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
                           }
                           return null;
                         },
-                        isDark: isDark,
+                        colorScheme: colorScheme,
                       ),
                       const SizedBox(height: 20),
 
@@ -254,7 +252,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
                         style: GoogleFonts.montserrat(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white : Colors.black,
+                          color: colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -267,7 +265,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
                               icon: Icons.local_shipping_outlined,
                               isSelected: !_isTakeAway,
                               onTap: () => setState(() => _isTakeAway = false),
-                              isDark: isDark,
+                              colorScheme: colorScheme,
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -278,7 +276,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
                               icon: Icons.storefront_outlined,
                               isSelected: _isTakeAway,
                               onTap: () => setState(() => _isTakeAway = true),
-                              isDark: isDark,
+                              colorScheme: colorScheme,
                             ),
                           ),
                         ],
@@ -310,9 +308,8 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
                     }
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        isDark ? AppColors.primaryDark : AppColors.primaryLight,
-                    foregroundColor: Colors.white,
+                    backgroundColor: colorScheme.primary,
+                    foregroundColor: colorScheme.onPrimary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -340,7 +337,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
     required TextEditingController controller,
     required String label,
     required IconData icon,
-    required bool isDark,
+    required ColorScheme colorScheme,
     TextInputType? keyboardType,
     String? Function(String?)? validator,
   }) {
@@ -350,7 +347,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
       validator: validator,
       style: GoogleFonts.montserrat(
         fontSize: 15,
-        color: isDark ? Colors.white : Colors.black,
+        color: colorScheme.onSurface,
       ),
       decoration: InputDecoration(
         labelText: label,
@@ -358,49 +355,49 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Icon(
             icon,
-            color: isDark ? AppColors.primaryDark : AppColors.primaryLight,
+            color: colorScheme.primary,
             size: 22,
           ),
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(
-            color: isDark ? Colors.grey[700]! : Colors.grey[300]!,
+            color: colorScheme.outline,
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(
-            color: isDark ? Colors.grey[700]! : Colors.grey[300]!,
+            color: colorScheme.outline,
           ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(
-            color: isDark ? AppColors.primaryDark : AppColors.primaryLight,
+            color: colorScheme.primary,
             width: 2,
           ),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Colors.red),
+          borderSide: BorderSide(color: colorScheme.error),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Colors.red, width: 2),
+          borderSide: BorderSide(color: colorScheme.error, width: 2),
         ),
         labelStyle: GoogleFonts.montserrat(
           fontSize: 14,
-          color: isDark ? Colors.grey[400] : Colors.grey[600],
+          color: colorScheme.onSurfaceVariant,
         ),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         errorStyle: GoogleFonts.montserrat(
-          color: Colors.red,
+          color: colorScheme.error,
           fontSize: 12,
         ),
         filled: true,
-        fillColor: isDark ? AppColors.cardDark : AppColors.surfaceLight,
+        fillColor: colorScheme.surfaceVariant,
       ),
     );
   }
@@ -409,7 +406,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
     required String title,
     required bool isSelected,
     required VoidCallback onTap,
-    required bool isDark,
+    required ColorScheme colorScheme,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -417,16 +414,10 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         decoration: BoxDecoration(
           color: isSelected
-              ? isDark
-                  ? AppColors.primaryDark
-                  : AppColors.primaryLight.withOpacity(0.1)
-              : (isDark ? AppColors.cardDark : AppColors.cardLight),
+              ? colorScheme.primaryContainer
+              : colorScheme.surfaceVariant,
           border: Border.all(
-            color: isSelected
-                ? isDark
-                    ? AppColors.primaryDark
-                    : AppColors.primaryLight
-                : (isDark ? Colors.grey[700]! : Colors.grey[300]!),
+            color: isSelected ? colorScheme.primary : colorScheme.outline,
             width: isSelected ? 2 : 1,
           ),
           borderRadius: BorderRadius.circular(8),
@@ -437,10 +428,8 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
             fontSize: 13,
             fontWeight: FontWeight.w600,
             color: isSelected
-                ? isDark
-                    ? AppColors.primaryDark
-                    : AppColors.primaryLight
-                : (isDark ? Colors.white : Colors.black),
+                ? colorScheme.onPrimaryContainer
+                : colorScheme.onSurfaceVariant,
           ),
           textAlign: TextAlign.center,
         ),
@@ -454,7 +443,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
     required IconData icon,
     required bool isSelected,
     required VoidCallback onTap,
-    required bool isDark,
+    required ColorScheme colorScheme,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -462,16 +451,10 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         decoration: BoxDecoration(
           color: isSelected
-              ? isDark
-                  ? AppColors.primaryDark
-                  : AppColors.primaryLight.withOpacity(0.1)
-              : (isDark ? AppColors.cardDark : AppColors.cardLight),
+              ? colorScheme.primaryContainer
+              : colorScheme.surfaceVariant,
           border: Border.all(
-            color: isSelected
-                ? isDark
-                    ? AppColors.primaryDark
-                    : AppColors.primaryLight
-                : (isDark ? Colors.grey[700]! : Colors.grey[300]!),
+            color: isSelected ? colorScheme.primary : colorScheme.outline,
             width: isSelected ? 2 : 1,
           ),
           borderRadius: BorderRadius.circular(8),
@@ -482,10 +465,8 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
               icon,
               size: 24,
               color: isSelected
-                  ? isDark
-                      ? AppColors.primaryDark
-                      : AppColors.primaryLight
-                  : (isDark ? Colors.grey[400] : Colors.grey[600]),
+                  ? colorScheme.onPrimaryContainer
+                  : colorScheme.onSurfaceVariant,
             ),
             const SizedBox(height: 8),
             Text(
@@ -494,10 +475,8 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: isSelected
-                    ? isDark
-                        ? AppColors.primaryDark
-                        : AppColors.primaryLight
-                    : (isDark ? Colors.white : Colors.black),
+                    ? colorScheme.onPrimaryContainer
+                    : colorScheme.onSurfaceVariant,
               ),
               textAlign: TextAlign.center,
             ),
@@ -507,10 +486,8 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
               style: GoogleFonts.montserrat(
                 fontSize: 11,
                 color: isSelected
-                    ? isDark
-                        ? AppColors.primaryDark
-                        : AppColors.primaryLight.withOpacity(0.8)
-                    : (isDark ? Colors.grey[400] : Colors.grey[600]),
+                    ? colorScheme.onPrimaryContainer.withOpacity(0.8)
+                    : colorScheme.onSurfaceVariant,
               ),
               textAlign: TextAlign.center,
             ),
