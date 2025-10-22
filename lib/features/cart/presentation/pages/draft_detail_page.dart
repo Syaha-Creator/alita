@@ -279,7 +279,7 @@ class _DraftDetailPageState extends State<DraftDetailPage>
                           children: [
                             Text(
                               'Edit Draft Checkout',
-                              style: GoogleFonts.montserrat(
+                              style: GoogleFonts.inter(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
                                 color: colorScheme.onSurface,
@@ -287,7 +287,7 @@ class _DraftDetailPageState extends State<DraftDetailPage>
                             ),
                             Text(
                               'Terakhir di edit: ${FormatHelper.formatSimpleDate(DateTime.parse(widget.draft['savedAt'] as String))}',
-                              style: GoogleFonts.montserrat(
+                              style: GoogleFonts.inter(
                                 fontSize: 12,
                                 color: colorScheme.onSurfaceVariant,
                               ),
@@ -513,7 +513,7 @@ class _DraftDetailPageState extends State<DraftDetailPage>
                               const SizedBox(width: 12),
                               Text(
                                 'Menyimpan...',
-                                style: GoogleFonts.montserrat(
+                                style: GoogleFonts.inter(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -522,7 +522,7 @@ class _DraftDetailPageState extends State<DraftDetailPage>
                           )
                         : Text(
                             'Simpan Perubahan',
-                            style: GoogleFonts.montserrat(
+                            style: GoogleFonts.inter(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                             ),
@@ -558,7 +558,7 @@ class _DraftDetailPageState extends State<DraftDetailPage>
         const SizedBox(width: 12),
         Text(
           title,
-          style: GoogleFonts.montserrat(
+          style: GoogleFonts.inter(
             fontSize: 18,
             fontWeight: FontWeight.w600,
             color: colorScheme.onSurface,
@@ -603,7 +603,7 @@ class _DraftDetailPageState extends State<DraftDetailPage>
             const SizedBox(height: 8),
             Text(
               title,
-              style: GoogleFonts.montserrat(
+              style: GoogleFonts.inter(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: isSelected ? colorScheme.primary : colorScheme.onSurface,

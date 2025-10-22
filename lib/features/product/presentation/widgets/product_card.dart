@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../config/app_constant.dart';
 import '../../../../core/utils/format_helper.dart';
+import '../../../../core/utils/responsive_helper.dart';
 import '../../../../core/widgets/detail_info_row.dart';
 import '../../../../theme/app_colors.dart';
 import '../../domain/entities/product_entity.dart';
@@ -49,17 +50,29 @@ class ProductCard extends StatelessWidget {
 
         return Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              minWidth: 320,
-              maxWidth: 500,
+            constraints: BoxConstraints(
+              minWidth: ResponsiveHelper.isMobile(context) ? 280 : 320,
+              maxWidth: ResponsiveHelper.getResponsiveMaxWidth(context),
             ),
             child: Card(
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(22),
+                borderRadius: BorderRadius.circular(
+                  ResponsiveHelper.getResponsiveBorderRadius(
+                    context,
+                    mobile: 16,
+                    tablet: 20,
+                    desktop: 22,
+                  ),
+                ),
                 side: BorderSide(color: border, width: 1.2),
               ),
-              elevation: 2.5,
-              margin: const EdgeInsets.fromLTRB(4, 8, 4, 12),
+              elevation: ResponsiveHelper.getResponsiveElevation(
+                context,
+                mobile: 2.0,
+                tablet: 2.5,
+                desktop: 3.0,
+              ),
+              margin: ResponsiveHelper.getResponsiveMargin(context),
               shadowColor: accent.withOpacity(0.13),
               color: cardColor,
               child: InkWell(
@@ -79,7 +92,7 @@ class ProductCard extends StatelessWidget {
                     color: cardColor,
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.all(18),
+                    padding: ResponsiveHelper.getCardPadding(context),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -103,28 +116,15 @@ class ProductCard extends StatelessWidget {
                                           children: [
                                             Text(
                                               product.brand,
-                                              style: TextStyle(
-                                                fontSize: 20,
-                                                fontWeight: FontWeight.w900,
-                                                color: accent,
-                                                letterSpacing: 0.5,
-                                              ),
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .titleLarge
+                                                  ?.copyWith(
+                                                    fontWeight: FontWeight.w900,
+                                                    color: accent,
+                                                    letterSpacing: 0.5,
+                                                  ),
                                             ),
-                                            // const SizedBox(height: 5),
-                                            // Text(
-                                            //   product.program.isNotEmpty
-                                            //       ? product.program
-                                            //       : "Tidak ada promo",
-                                            //   style: TextStyle(
-                                            //     fontSize: 14,
-                                            //     color: AppColors.secondaryLight,
-                                            //     fontStyle: FontStyle.italic,
-                                            //     fontWeight: FontWeight.w700,
-                                            //   ),
-                                            //   maxLines: 2,
-                                            //   overflow: TextOverflow.visible,
-                                            //   softWrap: true,
-                                            // ),
                                           ],
                                         ),
                                       ),
@@ -145,14 +145,16 @@ class ProductCard extends StatelessWidget {
                                               ),
                                             ],
                                           ),
-                                          child: const Text(
+                                          child: Text(
                                             "SET",
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.bold,
-                                              letterSpacing: 1.2,
-                                            ),
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodySmall
+                                                ?.copyWith(
+                                                  color: AppColors.surfaceLight,
+                                                  fontWeight: FontWeight.bold,
+                                                  letterSpacing: 1.2,
+                                                ),
                                           ),
                                         ),
                                     ],
@@ -233,16 +235,16 @@ class ProductCard extends StatelessWidget {
                         ),
 
                         const SizedBox(height: 15),
-                        _buildBonusInfo(isDark: isDark),
+                        _buildBonusInfo(context, isDark: isDark),
 
                         const SizedBox(height: 15),
                         if (product.isSet) ...[
-                          _buildIndividualPricingSection(),
+                          _buildIndividualPricingSection(context),
                         ],
 
                         if (!product.isSet && setProduct != null) ...[
                           const SizedBox(height: 15),
-                          _buildSetComparison(setProduct, state,
+                          _buildSetComparison(context, setProduct, state,
                               isDark: isDark),
                         ],
 
@@ -250,7 +252,7 @@ class ProductCard extends StatelessWidget {
                             individualKasurProduct != null) ...[
                           const SizedBox(height: 15),
                           _buildIndividualComparison(
-                              individualKasurProduct, state,
+                              context, individualKasurProduct, state,
                               isDark: isDark),
                         ],
                       ],
@@ -312,8 +314,10 @@ class ProductCard extends StatelessWidget {
   }
 
   // Widget untuk menampilkan perbandingan dengan produk set
-  Widget _buildSetComparison(ProductEntity setProduct, ProductState state,
+  Widget _buildSetComparison(
+      BuildContext context, ProductEntity setProduct, ProductState state,
       {bool isDark = false}) {
+    final theme = Theme.of(context);
     final setNetPrice =
         state.roundedPrices[setProduct.id] ?? setProduct.endUserPrice;
     final currentNetPrice =
@@ -349,18 +353,17 @@ class ProductCard extends StatelessWidget {
                 ),
                 child: const Icon(
                   Icons.compare_arrows,
-                  color: Colors.white,
+                  color: AppColors.surfaceLight,
                   size: 16,
                 ),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Text(
                   "Perbandingan dengan Set",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ),
             ],
@@ -372,7 +375,10 @@ class ProductCard extends StatelessWidget {
               const Text("Harga Set:"),
               Text(
                 FormatHelper.formatCurrency(setNetPrice),
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -383,10 +389,11 @@ class ProductCard extends StatelessWidget {
               const Text("Selisih:"),
               Text(
                 "${isMoreExpensive ? '+' : '-'}${FormatHelper.formatCurrency(priceDifference.abs())}",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: isMoreExpensive ? AppColors.error : AppColors.success,
-                ),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color:
+                          isMoreExpensive ? AppColors.error : AppColors.success,
+                    ),
               ),
             ],
           ),
@@ -403,11 +410,11 @@ class ProductCard extends StatelessWidget {
               isMoreExpensive
                   ? "Customer hanya menambah ${FormatHelper.formatCurrency(priceDifference)} (${savingsPercentage.toStringAsFixed(1)}%)"
                   : "Customer hanya menambah ${FormatHelper.formatCurrency(priceDifference.abs())} (${savingsPercentage.toStringAsFixed(1)}%)",
-              style: TextStyle(
-                fontSize: 12,
-                color: isMoreExpensive ? AppColors.error : AppColors.success,
-                fontWeight: FontWeight.w500,
-              ),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color:
+                        isMoreExpensive ? AppColors.error : AppColors.success,
+                    fontWeight: FontWeight.w500,
+                  ),
             ),
           ),
         ],
@@ -417,8 +424,9 @@ class ProductCard extends StatelessWidget {
 
   // Widget untuk menampilkan perbandingan dengan produk individual
   Widget _buildIndividualComparison(
-      ProductEntity individualProduct, ProductState state,
+      BuildContext context, ProductEntity individualProduct, ProductState state,
       {bool isDark = false}) {
+    final theme = Theme.of(context);
     final individualNetPrice = state.roundedPrices[individualProduct.id] ??
         individualProduct.endUserPrice;
     final currentNetPrice =
@@ -453,7 +461,7 @@ class ProductCard extends StatelessWidget {
                 ),
                 child: const Icon(
                   Icons.single_bed,
-                  color: Colors.white,
+                  color: AppColors.surfaceLight,
                   size: 16,
                 ),
               ),
@@ -461,11 +469,10 @@ class ProductCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   "Perbandingan dengan Kasur Only",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                    color: textColor,
-                  ),
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
                 ),
               ),
             ],
@@ -474,10 +481,17 @@ class ProductCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text("Harga Set Kasur:", style: TextStyle(color: textColor)),
+              Text("Harga Set Kasur:",
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(color: textColor)),
               Text(
                 FormatHelper.formatCurrency(currentNetPrice),
-                style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(fontWeight: FontWeight.bold, color: textColor),
               ),
             ],
           ),
@@ -485,10 +499,17 @@ class ProductCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text("Harga Kasur Only:", style: TextStyle(color: textColor)),
+              Text("Harga Kasur Only:",
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(color: textColor)),
               Text(
                 FormatHelper.formatCurrency(individualNetPrice),
-                style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(fontWeight: FontWeight.bold, color: textColor),
               ),
             ],
           ),
@@ -496,13 +517,18 @@ class ProductCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text("Selisih:", style: TextStyle(color: textColor)),
+              Text("Selisih:",
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(color: textColor)),
               Text(
                 "${isMoreExpensive ? '+' : '-'}${FormatHelper.formatCurrency(priceDifference.abs())}",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: isMoreExpensive ? AppColors.error : AppColors.success,
-                ),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color:
+                          isMoreExpensive ? AppColors.error : AppColors.success,
+                    ),
               ),
             ],
           ),
@@ -519,11 +545,11 @@ class ProductCard extends StatelessWidget {
               isMoreExpensive
                   ? "Customer hanya menambah ${FormatHelper.formatCurrency(priceDifference)} (${savingsPercentage.toStringAsFixed(1)}%)"
                   : "Customer hanya menambah ${FormatHelper.formatCurrency(priceDifference.abs())} (${savingsPercentage.toStringAsFixed(1)}%)",
-              style: TextStyle(
-                fontSize: 12,
-                color: isMoreExpensive ? AppColors.error : AppColors.success,
-                fontWeight: FontWeight.w500,
-              ),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color:
+                        isMoreExpensive ? AppColors.error : AppColors.success,
+                    fontWeight: FontWeight.w500,
+                  ),
             ),
           ),
         ],
@@ -532,7 +558,8 @@ class ProductCard extends StatelessWidget {
   }
 
   // Widget untuk menampilkan harga individual
-  Widget _buildIndividualPricingSection() {
+  Widget _buildIndividualPricingSection(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -551,12 +578,11 @@ class ProductCard extends StatelessWidget {
                 size: 16,
               ),
               const SizedBox(width: 8),
-              const Text(
+              Text(
                 "Harga per Item:",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
             ],
           ),
@@ -586,10 +612,11 @@ class ProductCard extends StatelessWidget {
     );
   }
 
-  Widget _buildBonusInfo({bool isDark = false}) {
+  Widget _buildBonusInfo(BuildContext context, {bool isDark = false}) {
+    final theme = Theme.of(context);
     final hasBonus =
         product.bonus.isNotEmpty && product.bonus.any((b) => b.name.isNotEmpty);
-    final cardBg = isDark ? AppColors.surfaceDark : Colors.white;
+    final cardBg = isDark ? AppColors.surfaceDark : AppColors.surfaceLight;
     final border = isDark ? AppColors.borderDark : AppColors.borderLight;
     final iconColor = AppColors.warning;
     final textColor =
@@ -614,11 +641,10 @@ class ProductCard extends StatelessWidget {
               const SizedBox(width: 10),
               Text(
                 "Complimentary:",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                  color: iconColor,
-                ),
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: iconColor,
+                    ),
               ),
             ],
           ),
@@ -638,7 +664,10 @@ class ProductCard extends StatelessWidget {
                         Expanded(
                           child: Text(
                             "${bonus.quantity}x ${bonus.name}",
-                            style: TextStyle(fontSize: 14, color: textColor),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(color: textColor),
                           ),
                         ),
                       ],
@@ -656,7 +685,10 @@ class ProductCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   "Tidak ada bonus.",
-                  style: TextStyle(fontSize: 14, color: border),
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(color: border),
                 ),
               ],
             ),

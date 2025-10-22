@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../config/app_constant.dart';
+import '../../theme/app_colors.dart';
 
 /// Widget kontrol jumlah (quantity) dengan tombol tambah/kurang.
 class QuantityControl extends StatelessWidget {
@@ -25,7 +25,7 @@ class QuantityControl extends StatelessWidget {
         _buildIconButton(
           context,
           quantity > 1 ? Icons.remove : Icons.delete_outline,
-          quantity > 1 ? Colors.redAccent : Colors.red,
+          quantity > 1 ? AppColors.error : AppColors.error,
           quantity > 1 ? onDecrement : (onDelete ?? onDecrement),
           tooltip: quantity > 1 ? 'Kurangi jumlah' : 'Hapus item',
         ),
@@ -33,14 +33,15 @@ class QuantityControl extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: AppPadding.p8),
           child: Text(
             quantity.toString(),
-            style: GoogleFonts.montserrat(
-                fontSize: 15, fontWeight: FontWeight.w600),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
           ),
         ),
         _buildIconButton(
           context,
           Icons.add,
-          Colors.green,
+          AppColors.success,
           onIncrement,
           tooltip: 'Tambah jumlah',
         ),

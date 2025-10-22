@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../config/app_constant.dart';
 import '../widgets/login_form.dart';
@@ -45,24 +44,18 @@ class LoginPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Welcome to Alita Pricelist',
-                      style: GoogleFonts.montserrat(
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
-                        color: colorScheme.onPrimary,
-                        fontSize: 20,
-                      ),
-                    ),
+                    Text('Welcome to Alita Pricelist',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: colorScheme.onPrimary,
+                          letterSpacing: 0.5,
+                          fontWeight: FontWeight.bold,
+                        )),
                     const SizedBox(height: 4),
-                    Text(
-                      'Log in now to continue',
-                      style: GoogleFonts.montserrat(
-                        fontWeight: FontWeight.w300,
-                        color: colorScheme.onPrimary.withAlpha(230),
-                        fontSize: 14,
-                      ),
-                    ),
+                    Text('Log in now to continue',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onPrimary.withAlpha(230),
+                          fontWeight: FontWeight.w300,
+                        )),
                   ],
                 ),
               ),

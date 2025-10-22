@@ -3,8 +3,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../config/app_constant.dart';
+import '../../../../core/utils/responsive_helper.dart';
 import '../../../../core/widgets/empty_widget.dart';
 import '../../../../navigation/navigation_service.dart';
+import '../../../../theme/app_colors.dart';
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/auth_state.dart';
 import '../../../cart/presentation/pages/draft_checkout_page.dart';
@@ -43,6 +45,8 @@ class _ProductPageState extends State<ProductPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final double appBarHeight = kToolbarHeight;
     return MultiBlocListener(
       listeners: [
@@ -80,17 +84,57 @@ class _ProductPageState extends State<ProductPage> {
       ],
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Product List'),
+          backgroundColor:
+              isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+          elevation: 0,
+          toolbarHeight: ResponsiveHelper.getAppBarHeight(context),
+          title: Text(
+            'Product List',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: isDark
+                      ? AppColors.textPrimaryDark
+                      : AppColors.textPrimaryLight,
+                  fontSize: ResponsiveHelper.getResponsiveFontSize(
+                    context,
+                    mobile: 16,
+                    tablet: 18,
+                    desktop: 20,
+                  ),
+                ),
+          ),
           actions: [
             IconButton(
-              icon: const Icon(Icons.approval),
+              icon: Icon(
+                Icons.approval,
+                color: isDark
+                    ? AppColors.textPrimaryDark
+                    : AppColors.textPrimaryLight,
+                size: ResponsiveHelper.getResponsiveIconSize(
+                  context,
+                  mobile: 20,
+                  tablet: 22,
+                  desktop: 24,
+                ),
+              ),
               onPressed: () {
                 context.go(RoutePaths.approvalMonitoring);
               },
               tooltip: 'Approval Monitoring',
             ),
             IconButton(
-              icon: Icon(Icons.drafts),
+              icon: Icon(
+                Icons.drafts,
+                color: isDark
+                    ? AppColors.textPrimaryDark
+                    : AppColors.textPrimaryLight,
+                size: ResponsiveHelper.getResponsiveIconSize(
+                  context,
+                  mobile: 20,
+                  tablet: 22,
+                  desktop: 24,
+                ),
+              ),
               tooltip: 'Draft Checkout',
               onPressed: () {
                 Navigator.push(
@@ -103,13 +147,24 @@ class _ProductPageState extends State<ProductPage> {
               onTap: () {
                 context.push(RoutePaths.cart);
               },
-              child: Icon(Icons.shopping_cart_outlined, size: 28),
+              child: Icon(
+                Icons.shopping_cart_outlined,
+                size: ResponsiveHelper.getResponsiveIconSize(
+                  context,
+                  mobile: 24,
+                  tablet: 26,
+                  desktop: 28,
+                ),
+                color: isDark
+                    ? AppColors.textPrimaryDark
+                    : AppColors.textPrimaryLight,
+              ),
             ),
             LogoutButton(),
           ],
         ),
         body: Padding(
-          padding: const EdgeInsets.all(AppPadding.p16),
+          padding: ResponsiveHelper.getResponsivePadding(context),
           child: BlocBuilder<ProductBloc, ProductState>(
             builder: (context, state) {
               final theme = Theme.of(context);
@@ -122,7 +177,7 @@ class _ProductPageState extends State<ProductPage> {
                 return Center(
                   child: Text(
                     state.message,
-                    style: TextStyle(
+                    style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.error,
                     ),
                   ),
@@ -141,8 +196,7 @@ class _ProductPageState extends State<ProductPage> {
                       const SizedBox(height: 16),
                       Text(
                         "Area Belum Tersedia",
-                        style: TextStyle(
-                          fontSize: 24,
+                        style: theme.textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: theme.colorScheme.error,
                         ),
@@ -150,8 +204,7 @@ class _ProductPageState extends State<ProductPage> {
                       const SizedBox(height: 8),
                       Text(
                         "Area tersebut belum tersedia pricelist",
-                        style: TextStyle(
-                          fontSize: 16,
+                        style: theme.textTheme.bodyLarge?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                         textAlign: TextAlign.center,
@@ -235,8 +288,7 @@ class _ProductPageState extends State<ProductPage> {
                                 children: [
                                   Text(
                                     "Area Anda",
-                                    style: TextStyle(
-                                      fontSize: 12,
+                                    style: theme.textTheme.bodySmall?.copyWith(
                                       color:
                                           (state.selectedBrand ==
                                                       "Spring Air" ||
@@ -267,8 +319,8 @@ class _ProductPageState extends State<ProductPage> {
                                             key: ValueKey(state.selectedArea),
                                             value: _getValidSelectedArea(state),
                                             underline: Container(),
-                                            style: TextStyle(
-                                              fontSize: 16,
+                                            style: theme.textTheme.bodyLarge
+                                                ?.copyWith(
                                               fontWeight: FontWeight.w900,
                                               color:
                                                   theme.colorScheme.onSurface,
@@ -317,8 +369,8 @@ class _ProductPageState extends State<ProductPage> {
                                   ] else ...[
                                     Text(
                                       state.selectedArea ?? "Unknown",
-                                      style: TextStyle(
-                                        fontSize: 16,
+                                      style:
+                                          theme.textTheme.bodyLarge?.copyWith(
                                         fontWeight: FontWeight.w900,
                                         color: theme.colorScheme.onSurface,
                                       ),
@@ -332,8 +384,8 @@ class _ProductPageState extends State<ProductPage> {
                                           false))
                                     Text(
                                       "Brand ${state.selectedBrand} menggunakan Area Nasional untuk pencarian",
-                                      style: TextStyle(
-                                        fontSize: 12,
+                                      style:
+                                          theme.textTheme.bodySmall?.copyWith(
                                         color: theme.colorScheme.primary,
                                         fontStyle: FontStyle.italic,
                                       ),
@@ -375,8 +427,7 @@ class _ProductPageState extends State<ProductPage> {
                                                 false))
                                         ? "Nasional"
                                         : "Default",
-                                    style: TextStyle(
-                                      fontSize: 12,
+                                    style: theme.textTheme.bodySmall?.copyWith(
                                       color:
                                           (state.selectedBrand ==
                                                       "Spring Air" ||
@@ -650,7 +701,12 @@ class _ProductPageState extends State<ProductPage> {
                                 state.isUserAreaSet
                                     ? Icons.filter_alt
                                     : Icons.search,
-                                size: 18,
+                                size: ResponsiveHelper.getResponsiveIconSize(
+                                  context,
+                                  mobile: 16,
+                                  tablet: 17,
+                                  desktop: 18,
+                                ),
                               ),
                               label: state.isLoading
                                   ? const SizedBox(
@@ -668,9 +724,16 @@ class _ProductPageState extends State<ProductPage> {
                                       state.isUserAreaSet
                                           ? "Terapkan Filter"
                                           : "Tampilkan Produk",
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w500,
+                                      style: TextStyle(
+                                        fontSize: ResponsiveHelper
+                                            .getResponsiveFontSize(
+                                          context,
+                                          mobile: 14,
+                                          tablet: 15,
+                                          desktop: 16,
+                                        ),
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
                                       ),
                                     ),
                               style: ElevatedButton.styleFrom(
@@ -682,9 +745,21 @@ class _ProductPageState extends State<ProductPage> {
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AppPadding.p16,
-                                  vertical: AppPadding.p12,
+                                padding: EdgeInsets.symmetric(
+                                  horizontal:
+                                      ResponsiveHelper.getResponsiveSpacing(
+                                    context,
+                                    mobile: 12,
+                                    tablet: 14,
+                                    desktop: 16,
+                                  ),
+                                  vertical:
+                                      ResponsiveHelper.getResponsiveSpacing(
+                                    context,
+                                    mobile: 10,
+                                    tablet: 12,
+                                    desktop: 14,
+                                  ),
                                 ),
                                 elevation: 2,
                               ),
@@ -718,12 +793,30 @@ class _ProductPageState extends State<ProductPage> {
                                         );
                                       }
                                     },
-                              icon: const Icon(
+                              icon: Icon(
                                 Icons.refresh,
                                 color: Colors.white,
-                                size: 18,
+                                size: ResponsiveHelper.getResponsiveIconSize(
+                                  context,
+                                  mobile: 16,
+                                  tablet: 17,
+                                  desktop: 18,
+                                ),
                               ),
-                              label: const Text("Reset"),
+                              label: Text(
+                                "Reset",
+                                style: TextStyle(
+                                  fontSize:
+                                      ResponsiveHelper.getResponsiveFontSize(
+                                    context,
+                                    mobile: 14,
+                                    tablet: 15,
+                                    desktop: 16,
+                                  ),
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: state.isLoading
                                     ? Colors.grey.shade400
@@ -732,9 +825,21 @@ class _ProductPageState extends State<ProductPage> {
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AppPadding.p16,
-                                  vertical: AppPadding.p12,
+                                padding: EdgeInsets.symmetric(
+                                  horizontal:
+                                      ResponsiveHelper.getResponsiveSpacing(
+                                    context,
+                                    mobile: 12,
+                                    tablet: 14,
+                                    desktop: 16,
+                                  ),
+                                  vertical:
+                                      ResponsiveHelper.getResponsiveSpacing(
+                                    context,
+                                    mobile: 10,
+                                    tablet: 12,
+                                    desktop: 14,
+                                  ),
                                 ),
                                 elevation: 2,
                               ),

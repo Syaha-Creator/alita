@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../../core/utils/format_helper.dart';
+import '../../../../../core/utils/responsive_helper.dart';
 import '../../../domain/entities/product_entity.dart';
 import '../../bloc/product_bloc.dart';
 import '../../bloc/product_event.dart'; // Import Google Fonts
@@ -63,11 +64,22 @@ class _CreditDialogState extends State<CreditDialog> {
     // === PERUBAHAN UTAMA: Ganti AlertDialog dengan layout biasa ===
     return Padding(
       padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 20,
+        left: ResponsiveHelper.getResponsivePadding(context).left,
+        right: ResponsiveHelper.getResponsivePadding(context).right,
+        top: ResponsiveHelper.getResponsiveSpacing(
+          context,
+          mobile: 16,
+          tablet: 20,
+          desktop: 24,
+        ),
         // Padding bawah untuk mengakomodasi keyboard
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+        bottom: MediaQuery.of(context).viewInsets.bottom +
+            ResponsiveHelper.getResponsiveSpacing(
+              context,
+              mobile: 16,
+              tablet: 20,
+              desktop: 24,
+            ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -76,12 +88,24 @@ class _CreditDialogState extends State<CreditDialog> {
           // Baris Judul
           Text(
             "Hitung Cicilan",
-            style: GoogleFonts.montserrat(
-              fontSize: 20,
+            style: GoogleFonts.inter(
+              fontSize: ResponsiveHelper.getResponsiveFontSize(
+                context,
+                mobile: 18,
+                tablet: 20,
+                desktop: 22,
+              ),
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 24),
+          SizedBox(
+            height: ResponsiveHelper.getResponsiveSpacing(
+              context,
+              mobile: 20,
+              tablet: 24,
+              desktop: 28,
+            ),
+          ),
 
           // Konten (Input Fields)
           TextField(
@@ -94,7 +118,14 @@ class _CreditDialogState extends State<CreditDialog> {
               border: OutlineInputBorder(),
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(
+            height: ResponsiveHelper.getResponsiveSpacing(
+              context,
+              mobile: 12,
+              tablet: 16,
+              desktop: 20,
+            ),
+          ),
           TextField(
             readOnly: true,
             controller: installmentController,

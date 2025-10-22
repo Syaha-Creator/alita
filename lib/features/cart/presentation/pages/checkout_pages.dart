@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
@@ -16,6 +16,7 @@ import '../../../../config/app_constant.dart';
 import '../../../../config/dependency_injection.dart';
 import '../../../../core/utils/controller_disposal_mixin.dart';
 import '../../../../core/utils/format_helper.dart';
+import '../../../../core/utils/responsive_helper.dart';
 import '../../../../core/widgets/custom_toast.dart';
 import '../../../../services/enhanced_checkout_service.dart';
 import '../../../../services/auth_service.dart';
@@ -72,15 +73,15 @@ class CurrencyInputFormatter extends TextInputFormatter {
 }
 
 class PaymentMethod {
-  final String type;
-  final String name;
+  final String methodType; // BRI, BCA, Cash, etc
+  final String methodName; // Display name
   final double amount;
   final String? reference;
   final String receiptImagePath; // Changed from optional to required
 
   PaymentMethod({
-    required this.type,
-    required this.name,
+    required this.methodType,
+    required this.methodName,
     required this.amount,
     this.reference,
     required this.receiptImagePath, // Now required
@@ -88,8 +89,8 @@ class PaymentMethod {
 
   Map<String, dynamic> toJson() {
     return {
-      'type': type,
-      'name': name,
+      'methodType': methodType,
+      'methodName': methodName,
       'amount': amount,
       'reference': reference,
       'receiptImagePath': receiptImagePath,
@@ -215,8 +216,12 @@ class _CheckoutPagesState extends State<CheckoutPages>
     for (final paymentData in paymentMethodsData) {
       final payment = paymentData as Map<String, dynamic>;
       _paymentMethods.add(PaymentMethod(
-        type: payment['type'] as String? ?? '',
-        name: payment['name'] as String? ?? '',
+        methodType: payment['methodType'] as String? ??
+            payment['type'] as String? ??
+            '',
+        methodName: payment['methodName'] as String? ??
+            payment['name'] as String? ??
+            '',
         amount: payment['amount'] as double? ?? 0.0,
         reference: payment['reference'] as String?,
         receiptImagePath: payment['receiptImagePath'] as String? ?? '',
@@ -424,8 +429,8 @@ class _CheckoutPagesState extends State<CheckoutPages>
         // Payment Information
         'paymentMethods': _paymentMethods
             .map((payment) => {
-                  'type': payment.type,
-                  'name': payment.name,
+                  'methodType': payment.methodType,
+                  'methodName': payment.methodName,
                   'amount': payment.amount,
                   'reference': payment.reference,
                   'receiptImagePath': payment.receiptImagePath,
@@ -523,11 +528,11 @@ class _CheckoutPagesState extends State<CheckoutPages>
                 Expanded(
                   child: Text(
                     'Membuat surat pesanan dan PDF...',
-                    style: TextStyle(
-                      color: isDark
-                          ? AppColors.textPrimaryDark
-                          : AppColors.textPrimaryLight,
-                    ),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: isDark
+                              ? AppColors.textPrimaryDark
+                              : AppColors.textPrimaryLight,
+                        ),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 2,
                   ),
@@ -551,7 +556,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
         addressShipTo: _shippingAddressController.text,
         spgCode: _spgCodeController.text,
         requestDate: _deliveryDateController.text,
-        note: _notesController.text, // Use original notes without phone
+        note: _notesController.text,
         isTakeAway: widget.isTakeAway,
       );
 
@@ -673,13 +678,12 @@ class _CheckoutPagesState extends State<CheckoutPages>
           ),
           title: Text(
             'Checkout',
-            style: GoogleFonts.montserrat(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: isDark
-                  ? AppColors.textPrimaryDark
-                  : AppColors.textPrimaryLight,
-            ),
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: isDark
+                      ? AppColors.textPrimaryDark
+                      : AppColors.textPrimaryLight,
+                ),
           ),
           centerTitle: true,
           actions: [
@@ -714,23 +718,51 @@ class _CheckoutPagesState extends State<CheckoutPages>
                     // Header Summary Card
                     _buildHeaderSummary(selectedItems, grandTotal, isDark),
 
-                    const SizedBox(height: 20),
+                    SizedBox(
+                      height: ResponsiveHelper.getResponsiveSpacing(
+                        context,
+                        mobile: 16,
+                        tablet: 20,
+                        desktop: 24,
+                      ),
+                    ),
 
                     // Customer Info Section
                     _buildCustomerInfoSection(isDark),
 
-                    const SizedBox(height: 20),
+                    SizedBox(
+                      height: ResponsiveHelper.getResponsiveSpacing(
+                        context,
+                        mobile: 16,
+                        tablet: 20,
+                        desktop: 24,
+                      ),
+                    ),
 
                     // Shipping Info Section
                     _buildShippingInfoSection(isDark),
 
-                    const SizedBox(height: 20),
+                    SizedBox(
+                      height: ResponsiveHelper.getResponsiveSpacing(
+                        context,
+                        mobile: 16,
+                        tablet: 20,
+                        desktop: 24,
+                      ),
+                    ),
 
                     // Order Summary Section
                     _buildOrderSummarySection(
                         selectedItems, grandTotal, isDark),
 
-                    const SizedBox(height: 20),
+                    SizedBox(
+                      height: ResponsiveHelper.getResponsiveSpacing(
+                        context,
+                        mobile: 16,
+                        tablet: 20,
+                        desktop: 24,
+                      ),
+                    ),
 
                     // Bonus Take Away Section (only show if not take away and has bonus)
                     if (!widget.isTakeAway &&
@@ -755,7 +787,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Container(
-                              padding: const EdgeInsets.all(16),
+                              padding: ResponsiveHelper.getCardPadding(context),
                               decoration: BoxDecoration(
                                 color: isDark
                                     ? AppColors.cardDark
@@ -775,30 +807,34 @@ class _CheckoutPagesState extends State<CheckoutPages>
                                   const SizedBox(width: 8),
                                   Text(
                                     'Opsi Pengambilan Bonus',
-                                    style: GoogleFonts.montserrat(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                      color: isDark
-                                          ? AppColors.surfaceLight
-                                          : Colors.black,
-                                    ),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyLarge
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                          color: isDark
+                                              ? AppColors.surfaceLight
+                                              : Colors.black,
+                                        ),
                                   ),
                                 ],
                               ),
                             ),
                             Padding(
-                              padding: const EdgeInsets.all(16),
+                              padding: ResponsiveHelper.getCardPadding(context),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
                                     'Pilih item bonus yang ingin diambil sendiri di toko:',
-                                    style: GoogleFonts.montserrat(
-                                      fontSize: 14,
-                                      color: isDark
-                                          ? Colors.grey[400]
-                                          : Colors.grey[600],
-                                    ),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                          color: isDark
+                                              ? Colors.grey[400]
+                                              : Colors.grey[600],
+                                        ),
                                   ),
                                   const SizedBox(height: 12),
                                   ...selectedItems.expand((item) {
@@ -814,7 +850,8 @@ class _CheckoutPagesState extends State<CheckoutPages>
                                       return Container(
                                         margin:
                                             const EdgeInsets.only(bottom: 8),
-                                        padding: const EdgeInsets.all(12),
+                                        padding: ResponsiveHelper
+                                            .getResponsivePadding(context),
                                         decoration: BoxDecoration(
                                           color: isDark
                                               ? AppColors.cardDark
@@ -861,26 +898,30 @@ class _CheckoutPagesState extends State<CheckoutPages>
                                                 children: [
                                                   Text(
                                                     bonus.name,
-                                                    style:
-                                                        GoogleFonts.montserrat(
-                                                      fontSize: 14,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                      color: isDark
-                                                          ? AppColors
-                                                              .surfaceLight
-                                                          : Colors.black,
-                                                    ),
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .bodyMedium
+                                                        ?.copyWith(
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                          color: isDark
+                                                              ? AppColors
+                                                                  .surfaceLight
+                                                              : Colors.black,
+                                                        ),
                                                   ),
                                                   Text(
                                                     'Qty: ${bonus.quantity * item.quantity}',
-                                                    style:
-                                                        GoogleFonts.montserrat(
-                                                      fontSize: 12,
-                                                      color: isDark
-                                                          ? Colors.grey[400]
-                                                          : Colors.grey[600],
-                                                    ),
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .bodyMedium
+                                                        ?.copyWith(
+                                                          fontSize: 12,
+                                                          color: isDark
+                                                              ? Colors.grey[400]
+                                                              : Colors
+                                                                  .grey[600],
+                                                        ),
                                                   ),
                                                 ],
                                               ),
@@ -918,12 +959,15 @@ class _CheckoutPagesState extends State<CheckoutPages>
                                         Expanded(
                                           child: Text(
                                             'Item yang dicentang akan diambil di toko, sisanya akan dikirim bersama pesanan utama.',
-                                            style: GoogleFonts.montserrat(
-                                              fontSize: 12,
-                                              color: isDark
-                                                  ? Colors.blue[300]
-                                                  : Colors.blue[700],
-                                            ),
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodyMedium
+                                                ?.copyWith(
+                                                  fontSize: 12,
+                                                  color: isDark
+                                                      ? Colors.blue[300]
+                                                      : Colors.blue[700],
+                                                ),
                                           ),
                                         ),
                                       ],
@@ -939,12 +983,26 @@ class _CheckoutPagesState extends State<CheckoutPages>
                     if (!widget.isTakeAway &&
                         selectedItems
                             .any((item) => item.product.bonus.isNotEmpty))
-                      const SizedBox(height: 20),
+                      SizedBox(
+                        height: ResponsiveHelper.getResponsiveSpacing(
+                          context,
+                          mobile: 16,
+                          tablet: 20,
+                          desktop: 24,
+                        ),
+                      ),
 
                     // Payment Section
                     _buildPaymentSection(selectedItems, grandTotal, isDark),
 
-                    const SizedBox(height: 20), // Space for bottom button
+                    SizedBox(
+                      height: ResponsiveHelper.getResponsiveSpacing(
+                        context,
+                        mobile: 16,
+                        tablet: 20,
+                        desktop: 24,
+                      ),
+                    ), // Space for bottom button
                   ],
                 ),
               );
@@ -1025,19 +1083,20 @@ class _CheckoutPagesState extends State<CheckoutPages>
                     children: [
                       Text(
                         'Ringkasan Pesanan',
-                        style: GoogleFonts.montserrat(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? AppColors.surfaceLight : Colors.black,
-                        ),
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: isDark
+                                  ? AppColors.surfaceLight
+                                  : Colors.black,
+                            ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         '${selectedItems.length} item • Total: ${FormatHelper.formatCurrency(grandTotal)}',
-                        style: GoogleFonts.montserrat(
-                          fontSize: 14,
-                          color: isDark ? Colors.grey[400] : Colors.grey[600],
-                        ),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color:
+                                  isDark ? Colors.grey[400] : Colors.grey[600],
+                            ),
                       ),
                     ],
                   ),
@@ -1061,11 +1120,11 @@ class _CheckoutPagesState extends State<CheckoutPages>
                     const SizedBox(width: 4),
                     Text(
                       'Customer Existing',
-                      style: GoogleFonts.montserrat(
-                        color: AppColors.success,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.success,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
                     ),
                   ],
                 ),
@@ -1112,11 +1171,10 @@ class _CheckoutPagesState extends State<CheckoutPages>
                 const SizedBox(width: 8),
                 Text(
                   'Informasi Customer',
-                  style: GoogleFonts.montserrat(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? AppColors.surfaceLight : Colors.black,
-                  ),
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? AppColors.surfaceLight : Colors.black,
+                      ),
                 ),
               ],
             ),
@@ -1218,11 +1276,10 @@ class _CheckoutPagesState extends State<CheckoutPages>
                 const SizedBox(width: 8),
                 Text(
                   'Informasi Pengiriman',
-                  style: GoogleFonts.montserrat(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? AppColors.surfaceLight : Colors.black,
-                  ),
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? AppColors.surfaceLight : Colors.black,
+                      ),
                 ),
               ],
             ),
@@ -1246,10 +1303,10 @@ class _CheckoutPagesState extends State<CheckoutPages>
                     contentPadding: EdgeInsets.zero,
                     title: Text(
                       'Alamat pengiriman sama dengan alamat customer',
-                      style: GoogleFonts.montserrat(
-                        fontSize: 14,
-                        color: isDark ? AppColors.surfaceLight : Colors.black,
-                      ),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color:
+                                isDark ? AppColors.surfaceLight : Colors.black,
+                          ),
                     ),
                     value: _shippingSameAsCustomer,
                     onChanged: (val) {
@@ -1358,11 +1415,10 @@ class _CheckoutPagesState extends State<CheckoutPages>
                 const SizedBox(width: 8),
                 Text(
                   'Detail Pesanan',
-                  style: GoogleFonts.montserrat(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? AppColors.surfaceLight : Colors.black,
-                  ),
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? AppColors.surfaceLight : Colors.black,
+                      ),
                 ),
               ],
             ),
@@ -1401,23 +1457,28 @@ class _CheckoutPagesState extends State<CheckoutPages>
                               children: [
                                 Text(
                                   item.product.kasur,
-                                  style: GoogleFonts.montserrat(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: isDark
-                                        ? AppColors.surfaceLight
-                                        : Colors.black,
-                                  ),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark
+                                            ? AppColors.surfaceLight
+                                            : Colors.black,
+                                      ),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
                                   'Qty: ${item.quantity} × ${FormatHelper.formatCurrency(item.netPrice)}',
-                                  style: GoogleFonts.montserrat(
-                                    fontSize: 12,
-                                    color: isDark
-                                        ? Colors.grey[400]
-                                        : Colors.grey[600],
-                                  ),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.copyWith(
+                                        fontSize: 12,
+                                        color: isDark
+                                            ? Colors.grey[400]
+                                            : Colors.grey[600],
+                                      ),
                                 ),
                               ],
                             ),
@@ -1425,13 +1486,15 @@ class _CheckoutPagesState extends State<CheckoutPages>
                           Text(
                             FormatHelper.formatCurrency(
                                 item.netPrice * item.quantity),
-                            style: GoogleFonts.montserrat(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: isDark
-                                  ? AppColors.primaryDark
-                                  : AppColors.primaryLight,
-                            ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark
+                                      ? AppColors.primaryDark
+                                      : AppColors.primaryLight,
+                                ),
                           ),
                         ],
                       ),
@@ -1451,21 +1514,22 @@ class _CheckoutPagesState extends State<CheckoutPages>
                     children: [
                       Text(
                         'Total Pesanan',
-                        style: GoogleFonts.montserrat(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: isDark ? AppColors.surfaceLight : Colors.black,
-                        ),
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: isDark
+                                  ? AppColors.surfaceLight
+                                  : Colors.black,
+                            ),
                       ),
                       Text(
                         FormatHelper.formatCurrency(grandTotal),
-                        style: GoogleFonts.montserrat(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: isDark
-                              ? AppColors.primaryDark
-                              : AppColors.primaryLight,
-                        ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: isDark
+                                      ? AppColors.primaryDark
+                                      : AppColors.primaryLight,
+                                ),
                       ),
                     ],
                   ),
@@ -1480,16 +1544,74 @@ class _CheckoutPagesState extends State<CheckoutPages>
 
   List<Map<String, dynamic>> _convertPaymentMethodsToApiFormat() {
     return _paymentMethods.map((payment) {
+      // Get payment category based on methodType
+      final paymentCategory = _getPaymentCategoryFromMethod(payment.methodType);
+      final categoryDisplayName = _getCategoryDisplayName(paymentCategory);
+
       return {
-        'payment_method': payment.type,
-        'payment_bank': payment.name,
+        'payment_method': paymentCategory,
+        'payment_bank': payment.methodName,
         'payment_number': payment.reference ?? '',
         'payment_amount': payment.amount,
         'note':
-            'Payment via ${payment.type}${payment.reference != null ? ' - Ref: ${payment.reference}' : ''}',
+            'Payment via $categoryDisplayName ${payment.methodName}${payment.reference != null ? ' - Ref: ${payment.reference}' : ''}',
         'receipt_image_path': payment.receiptImagePath,
       };
     }).toList();
+  }
+
+  // Get payment category from method type
+  String _getPaymentCategoryFromMethod(String methodType) {
+    // Transfer Bank
+    if (methodType == 'bri' ||
+        methodType == 'bca' ||
+        methodType == 'mandiri' ||
+        methodType == 'bni' ||
+        methodType == 'btn' ||
+        methodType == 'other_bank') {
+      return 'transfer';
+    }
+    // Credit Card
+    else if (methodType.endsWith('_credit') || methodType == 'other_credit') {
+      return 'credit';
+    }
+    // PayLater
+    else if (methodType == 'akulaku' ||
+        methodType == 'kredivo' ||
+        methodType == 'indodana' ||
+        methodType == 'other_paylater') {
+      return 'paylater';
+    }
+    // Digital Payment (QRIS, E-wallet, etc.)
+    else if (methodType == 'qris' ||
+        methodType == 'gopay' ||
+        methodType == 'ovo' ||
+        methodType == 'dana' ||
+        methodType == 'shopeepay' ||
+        methodType == 'linkaja' ||
+        methodType == 'other_digital') {
+      return 'other';
+    }
+    // Default fallback
+    else {
+      return 'other';
+    }
+  }
+
+  // Get display name for payment category
+  String _getCategoryDisplayName(String category) {
+    switch (category) {
+      case 'transfer':
+        return 'Transfer Bank';
+      case 'credit':
+        return 'Kartu Kredit';
+      case 'paylater':
+        return 'PayLater';
+      case 'other':
+        return 'Digital Payment';
+      default:
+        return 'Pembayaran';
+    }
   }
 
   String? _validatePhoneNumber(String? value, bool isRequired) {
@@ -1633,55 +1755,117 @@ class _CheckoutPagesState extends State<CheckoutPages>
         // Move focus to next field or dismiss keyboard
         FocusScope.of(context).nextFocus();
       },
-      style: GoogleFonts.montserrat(
-        fontSize: 14,
-        color: isDark ? AppColors.surfaceLight : Colors.black,
-      ),
+      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: isDark ? AppColors.surfaceLight : Colors.black,
+            fontSize: ResponsiveHelper.getResponsiveFontSize(
+              context,
+              mobile: 14,
+              tablet: 15,
+              desktop: 16,
+            ),
+          ),
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(
           icon,
           color: isDark ? AppColors.primaryDark : AppColors.primaryLight,
-          size: 20,
+          size: ResponsiveHelper.getResponsiveIconSize(
+            context,
+            mobile: 18,
+            tablet: 20,
+            desktop: 22,
+          ),
         ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(
+            ResponsiveHelper.getResponsiveBorderRadius(
+              context,
+              mobile: 6,
+              tablet: 8,
+              desktop: 10,
+            ),
+          ),
           borderSide: BorderSide(
             color: isDark ? Colors.grey[700]! : Colors.grey[300]!,
           ),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(
+            ResponsiveHelper.getResponsiveBorderRadius(
+              context,
+              mobile: 6,
+              tablet: 8,
+              desktop: 10,
+            ),
+          ),
           borderSide: BorderSide(
             color: isDark ? Colors.grey[700]! : Colors.grey[300]!,
           ),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(
+            ResponsiveHelper.getResponsiveBorderRadius(
+              context,
+              mobile: 6,
+              tablet: 8,
+              desktop: 10,
+            ),
+          ),
           borderSide: BorderSide(
             color: isDark ? AppColors.primaryDark : AppColors.primaryLight,
             width: 2,
           ),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(
+            ResponsiveHelper.getResponsiveBorderRadius(
+              context,
+              mobile: 6,
+              tablet: 8,
+              desktop: 10,
+            ),
+          ),
           borderSide: const BorderSide(color: Colors.red),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(
+            ResponsiveHelper.getResponsiveBorderRadius(
+              context,
+              mobile: 6,
+              tablet: 8,
+              desktop: 10,
+            ),
+          ),
           borderSide: const BorderSide(color: Colors.red, width: 2),
         ),
-        labelStyle: GoogleFonts.montserrat(
-          color: isDark ? Colors.grey[400] : Colors.grey[600],
-        ),
-        errorStyle: GoogleFonts.montserrat(
-          color: Colors.red,
-          fontSize: 12,
-        ),
+        labelStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: isDark ? Colors.grey[400] : Colors.grey[600],
+              fontSize: ResponsiveHelper.getResponsiveFontSize(
+                context,
+                mobile: 13,
+                tablet: 14,
+                desktop: 15,
+              ),
+            ),
+        errorStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Colors.red,
+              fontSize: ResponsiveHelper.getResponsiveFontSize(
+                context,
+                mobile: 11,
+                tablet: 12,
+                desktop: 13,
+              ),
+            ),
         filled: true,
         fillColor: enabled
             ? (isDark ? AppColors.cardDark : AppColors.surfaceLight)
             : (isDark ? Colors.grey[800] : Colors.grey[100]),
+        contentPadding: ResponsiveHelper.getResponsivePaddingWithZoom(
+          context,
+          mobile: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          tablet: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          desktop: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        ),
       ),
     );
   }
@@ -1724,11 +1908,10 @@ class _CheckoutPagesState extends State<CheckoutPages>
                 const SizedBox(width: 8),
                 Text(
                   'Informasi Pembayaran',
-                  style: GoogleFonts.montserrat(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? AppColors.surfaceLight : Colors.black,
-                  ),
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? AppColors.surfaceLight : Colors.black,
+                      ),
                 ),
               ],
             ),
@@ -1741,13 +1924,19 @@ class _CheckoutPagesState extends State<CheckoutPages>
                 // Payment Type Selection
                 Text(
                   'Tipe Pembayaran',
-                  style: GoogleFonts.montserrat(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? AppColors.surfaceLight : Colors.black,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? AppColors.surfaceLight : Colors.black,
+                      ),
+                ),
+                SizedBox(
+                  height: ResponsiveHelper.getResponsiveSpacing(
+                    context,
+                    mobile: 10,
+                    tablet: 12,
+                    desktop: 14,
                   ),
                 ),
-                const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
@@ -1763,7 +1952,14 @@ class _CheckoutPagesState extends State<CheckoutPages>
                         isDark: isDark,
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    SizedBox(
+                      width: ResponsiveHelper.getResponsiveSpacing(
+                        context,
+                        mobile: 10,
+                        tablet: 12,
+                        desktop: 14,
+                      ),
+                    ),
                     Expanded(
                       child: _buildPaymentTypeOption(
                         title: 'Cicilan',
@@ -1779,7 +1975,14 @@ class _CheckoutPagesState extends State<CheckoutPages>
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                SizedBox(
+                  height: ResponsiveHelper.getResponsiveSpacing(
+                    context,
+                    mobile: 16,
+                    tablet: 20,
+                    desktop: 24,
+                  ),
+                ),
 
                 // Payment Methods
                 Row(
@@ -1790,20 +1993,22 @@ class _CheckoutPagesState extends State<CheckoutPages>
                       children: [
                         Text(
                           'Metode Pembayaran',
-                          style: GoogleFonts.montserrat(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color:
-                                isDark ? AppColors.surfaceLight : Colors.black,
-                          ),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark
+                                        ? AppColors.surfaceLight
+                                        : Colors.black,
+                                  ),
                         ),
                         Text(
                           '* Struk pembayaran wajib diisi',
-                          style: GoogleFonts.montserrat(
-                            fontSize: 10,
-                            color: Colors.red[600],
-                            fontWeight: FontWeight.w500,
-                          ),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    fontSize: 10,
+                                    color: Colors.red[600],
+                                    fontWeight: FontWeight.w500,
+                                  ),
                         ),
                       ],
                     ),
@@ -1819,13 +2024,13 @@ class _CheckoutPagesState extends State<CheckoutPages>
                       ),
                       label: Text(
                         'Tambah',
-                        style: GoogleFonts.montserrat(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: isDark
-                              ? AppColors.primaryDark
-                              : AppColors.primaryLight,
-                        ),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isDark
+                                  ? AppColors.primaryDark
+                                  : AppColors.primaryLight,
+                            ),
                       ),
                     ),
                   ],
@@ -1854,10 +2059,13 @@ class _CheckoutPagesState extends State<CheckoutPages>
                         const SizedBox(width: 8),
                         Text(
                           'Belum ada metode pembayaran',
-                          style: GoogleFonts.montserrat(
-                            fontSize: 12,
-                            color: isDark ? Colors.grey[400] : Colors.grey[600],
-                          ),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    fontSize: 12,
+                                    color: isDark
+                                        ? Colors.grey[400]
+                                        : Colors.grey[600],
+                                  ),
                         ),
                       ],
                     ),
@@ -1910,25 +2118,28 @@ class _CheckoutPagesState extends State<CheckoutPages>
           children: [
             Text(
               title,
-              style: GoogleFonts.montserrat(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: isSelected
-                    ? (isDark ? AppColors.primaryDark : AppColors.primaryLight)
-                    : (isDark ? AppColors.surfaceLight : Colors.black),
-              ),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: isSelected
+                        ? (isDark
+                            ? AppColors.primaryDark
+                            : AppColors.primaryLight)
+                        : (isDark ? AppColors.surfaceLight : Colors.black),
+                  ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 4),
             Text(
               subtitle,
-              style: GoogleFonts.montserrat(
-                fontSize: 11,
-                color: isSelected
-                    ? (isDark ? AppColors.primaryDark : AppColors.primaryLight)
-                        .withOpacity(0.8)
-                    : (isDark ? Colors.grey[400] : Colors.grey[600]),
-              ),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontSize: 11,
+                    color: isSelected
+                        ? (isDark
+                                ? AppColors.primaryDark
+                                : AppColors.primaryLight)
+                            .withOpacity(0.8)
+                        : (isDark ? Colors.grey[400] : Colors.grey[600]),
+                  ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -1940,66 +2151,157 @@ class _CheckoutPagesState extends State<CheckoutPages>
   Widget _buildPaymentMethodCard(
       PaymentMethod payment, int index, bool isDark) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
+      margin: EdgeInsets.only(
+        bottom: ResponsiveHelper.getResponsiveSpacing(
+          context,
+          mobile: 6,
+          tablet: 8,
+          desktop: 10,
+        ),
+      ),
+      padding: ResponsiveHelper.getCardPadding(context),
       decoration: BoxDecoration(
         color: isDark ? AppColors.cardDark : AppColors.cardLight,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(
+          ResponsiveHelper.getResponsiveBorderRadius(
+            context,
+            mobile: 6,
+            tablet: 8,
+            desktop: 10,
+          ),
+        ),
         border: Border.all(
           color: isDark ? Colors.grey[700]! : Colors.grey[300]!,
         ),
       ),
       child: Row(
         children: [
+          // Payment Icon
           Container(
-            padding: const EdgeInsets.all(6),
+            padding: EdgeInsets.all(
+              ResponsiveHelper.getResponsiveSpacing(
+                context,
+                mobile: 6,
+                tablet: 8,
+                desktop: 10,
+              ),
+            ),
             decoration: BoxDecoration(
               color: (isDark ? AppColors.primaryDark : AppColors.primaryLight)
                   .withOpacity(0.1),
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(
+                ResponsiveHelper.getResponsiveBorderRadius(
+                  context,
+                  mobile: 4,
+                  tablet: 6,
+                  desktop: 8,
+                ),
+              ),
             ),
             child: Icon(
-              _getPaymentIcon(payment.type),
-              size: 16,
+              _getPaymentIcon(payment.methodType),
+              size: ResponsiveHelper.getResponsiveIconSize(
+                context,
+                mobile: 14,
+                tablet: 16,
+                desktop: 18,
+              ),
               color: isDark ? AppColors.primaryDark : AppColors.primaryLight,
             ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(
+            width: ResponsiveHelper.getResponsiveSpacing(
+              context,
+              mobile: 8,
+              tablet: 12,
+              desktop: 16,
+            ),
+          ),
+          // Payment Info
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  payment.name,
-                  style: GoogleFonts.montserrat(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? AppColors.surfaceLight : Colors.black,
-                  ),
+                  payment.methodName,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontSize: ResponsiveHelper.getResponsiveFontSize(
+                          context,
+                          mobile: 13,
+                          tablet: 14,
+                          desktop: 15,
+                        ),
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? AppColors.surfaceLight : Colors.black,
+                      ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-                if (payment.reference != null && payment.reference!.isNotEmpty)
-                  Text(
-                    'Ref: ${payment.reference}',
-                    style: GoogleFonts.montserrat(
-                      fontSize: 11,
-                      color: isDark ? Colors.grey[400] : Colors.grey[600],
+                if (payment.reference != null &&
+                    payment.reference!.isNotEmpty) ...[
+                  SizedBox(
+                    height: ResponsiveHelper.getResponsiveSpacing(
+                      context,
+                      mobile: 2,
+                      tablet: 3,
+                      desktop: 4,
                     ),
                   ),
-                // Always show receipt indicator since it's now required
+                  Text(
+                    'Ref: ${payment.reference}',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontSize: ResponsiveHelper.getResponsiveFontSize(
+                            context,
+                            mobile: 10,
+                            tablet: 11,
+                            desktop: 12,
+                          ),
+                          color: isDark ? Colors.grey[400] : Colors.grey[600],
+                        ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                SizedBox(
+                  height: ResponsiveHelper.getResponsiveSpacing(
+                    context,
+                    mobile: 2,
+                    tablet: 3,
+                    desktop: 4,
+                  ),
+                ),
                 Row(
                   children: [
                     Icon(
                       Icons.receipt,
-                      size: 12,
+                      size: ResponsiveHelper.getResponsiveIconSize(
+                        context,
+                        mobile: 10,
+                        tablet: 12,
+                        desktop: 14,
+                      ),
                       color: AppColors.success,
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Struk tersedia',
-                      style: GoogleFonts.montserrat(
-                        fontSize: 10,
-                        color: AppColors.success,
-                        fontWeight: FontWeight.w500,
+                    SizedBox(
+                      width: ResponsiveHelper.getResponsiveSpacing(
+                        context,
+                        mobile: 3,
+                        tablet: 4,
+                        desktop: 5,
+                      ),
+                    ),
+                    Flexible(
+                      child: Text(
+                        'Struk tersedia',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontSize: ResponsiveHelper.getResponsiveFontSize(
+                                context,
+                                mobile: 9,
+                                tablet: 10,
+                                desktop: 11,
+                              ),
+                              color: AppColors.success,
+                              fontWeight: FontWeight.w500,
+                            ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -2007,37 +2309,75 @@ class _CheckoutPagesState extends State<CheckoutPages>
               ],
             ),
           ),
-          Text(
-            FormatHelper.formatCurrency(payment.amount),
-            style: GoogleFonts.montserrat(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: isDark ? AppColors.primaryDark : AppColors.primaryLight,
+          // Amount
+          Flexible(
+            child: Text(
+              FormatHelper.formatCurrency(payment.amount),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontSize: ResponsiveHelper.getResponsiveFontSize(
+                      context,
+                      mobile: 13,
+                      tablet: 14,
+                      desktop: 15,
+                    ),
+                    fontWeight: FontWeight.w600,
+                    color:
+                        isDark ? AppColors.primaryDark : AppColors.primaryLight,
+                  ),
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.end,
             ),
           ),
-          const SizedBox(width: 8),
-          // Always show view receipt button since receipt is now required
-          IconButton(
-            onPressed: () =>
-                _showReceiptImage(payment.receiptImagePath, isDark),
-            icon: Icon(
-              Icons.visibility,
-              size: 18,
-              color: AppColors.success,
+          SizedBox(
+            width: ResponsiveHelper.getResponsiveSpacing(
+              context,
+              mobile: 3,
+              tablet: 4,
+              desktop: 6,
             ),
-            constraints: const BoxConstraints(),
-            padding: EdgeInsets.zero,
           ),
-          const SizedBox(width: 4),
-          IconButton(
-            onPressed: () => _removePaymentMethod(index),
-            icon: Icon(
-              Icons.delete_outline,
-              size: 18,
-              color: Colors.red[400],
-            ),
-            constraints: const BoxConstraints(),
-            padding: EdgeInsets.zero,
+          // Action Buttons
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                onPressed: () =>
+                    _showReceiptImage(payment.receiptImagePath, isDark),
+                icon: Icon(
+                  Icons.visibility,
+                  size: ResponsiveHelper.getResponsiveIconSize(
+                    context,
+                    mobile: 16,
+                    tablet: 18,
+                    desktop: 20,
+                  ),
+                  color: AppColors.success,
+                ),
+                constraints: BoxConstraints(
+                  minWidth: ResponsiveHelper.getMinTouchTargetSize(context),
+                  minHeight: ResponsiveHelper.getMinTouchTargetSize(context),
+                ),
+                padding: EdgeInsets.zero,
+              ),
+              IconButton(
+                onPressed: () => _removePaymentMethod(index),
+                icon: Icon(
+                  Icons.delete_outline,
+                  size: ResponsiveHelper.getResponsiveIconSize(
+                    context,
+                    mobile: 16,
+                    tablet: 18,
+                    desktop: 20,
+                  ),
+                  color: Colors.red[400],
+                ),
+                constraints: BoxConstraints(
+                  minWidth: ResponsiveHelper.getMinTouchTargetSize(context),
+                  minHeight: ResponsiveHelper.getMinTouchTargetSize(context),
+                ),
+                padding: EdgeInsets.zero,
+              ),
+            ],
           ),
         ],
       ),
@@ -2072,18 +2412,16 @@ class _CheckoutPagesState extends State<CheckoutPages>
             children: [
               Text(
                 'Total Pesanan',
-                style: GoogleFonts.montserrat(
-                  fontSize: 14,
-                  color: isDark ? Colors.grey[400] : Colors.grey[600],
-                ),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: isDark ? Colors.grey[400] : Colors.grey[600],
+                    ),
               ),
               Text(
                 FormatHelper.formatCurrency(grandTotal),
-                style: GoogleFonts.montserrat(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: isDark ? AppColors.surfaceLight : Colors.black,
-                ),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? AppColors.surfaceLight : Colors.black,
+                    ),
               ),
             ],
           ),
@@ -2093,24 +2431,22 @@ class _CheckoutPagesState extends State<CheckoutPages>
             children: [
               Text(
                 'Total Dibayar',
-                style: GoogleFonts.montserrat(
-                  fontSize: 14,
-                  color: isDark ? Colors.grey[400] : Colors.grey[600],
-                ),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: isDark ? Colors.grey[400] : Colors.grey[600],
+                    ),
               ),
               Text(
                 FormatHelper.formatCurrency(_totalPaid),
-                style: GoogleFonts.montserrat(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: isFullyPaid
-                      ? AppColors.success
-                      : isOverPaid
-                          ? AppColors.warning
-                          : (isDark
-                              ? AppColors.primaryDark
-                              : AppColors.primaryLight),
-                ),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: isFullyPaid
+                          ? AppColors.success
+                          : isOverPaid
+                              ? AppColors.warning
+                              : (isDark
+                                  ? AppColors.primaryDark
+                                  : AppColors.primaryLight),
+                    ),
               ),
             ],
           ),
@@ -2124,33 +2460,31 @@ class _CheckoutPagesState extends State<CheckoutPages>
                     : isOverPaid
                         ? 'Kelebihan'
                         : 'Sisa Pembayaran',
-                style: GoogleFonts.montserrat(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: isFullyPaid
-                      ? AppColors.success
-                      : isOverPaid
-                          ? AppColors.warning
-                          : (isDark
-                              ? AppColors.primaryDark
-                              : AppColors.primaryLight),
-                ),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: isFullyPaid
+                          ? AppColors.success
+                          : isOverPaid
+                              ? AppColors.warning
+                              : (isDark
+                                  ? AppColors.primaryDark
+                                  : AppColors.primaryLight),
+                    ),
               ),
               Text(
                 isFullyPaid
                     ? '✓'
                     : FormatHelper.formatCurrency(remaining.abs()),
-                style: GoogleFonts.montserrat(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: isFullyPaid
-                      ? AppColors.success
-                      : isOverPaid
-                          ? AppColors.warning
-                          : (isDark
-                              ? AppColors.primaryDark
-                              : AppColors.primaryLight),
-                ),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: isFullyPaid
+                          ? AppColors.success
+                          : isOverPaid
+                              ? AppColors.warning
+                              : (isDark
+                                  ? AppColors.primaryDark
+                                  : AppColors.primaryLight),
+                    ),
               ),
             ],
           ),
@@ -2181,13 +2515,13 @@ class _CheckoutPagesState extends State<CheckoutPages>
                   Expanded(
                     child: Text(
                       'Tambahkan pembayaran untuk melanjutkan',
-                      style: GoogleFonts.montserrat(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: isDark
-                            ? AppColors.primaryDark
-                            : AppColors.primaryLight,
-                      ),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: isDark
+                                ? AppColors.primaryDark
+                                : AppColors.primaryLight,
+                          ),
                     ),
                   ),
                 ],
@@ -2199,24 +2533,40 @@ class _CheckoutPagesState extends State<CheckoutPages>
     );
   }
 
-  IconData _getPaymentIcon(String type) {
-    switch (type) {
-      case 'bri':
-        return Icons.account_balance;
-      case 'bca':
-        return Icons.account_balance;
-      case 'mandiri':
-        return Icons.account_balance;
-      case 'bni':
-        return Icons.account_balance;
-      case 'btn':
-        return Icons.account_balance;
-      case 'credit_card':
-        return Icons.credit_card;
-      case 'cash':
-        return Icons.money;
-      default:
-        return Icons.payment;
+  IconData _getPaymentIcon(String methodType) {
+    // Transfer Bank
+    if (methodType == 'bri' ||
+        methodType == 'bca' ||
+        methodType == 'mandiri' ||
+        methodType == 'bni' ||
+        methodType == 'btn' ||
+        methodType == 'other_bank') {
+      return Icons.account_balance;
+    }
+    // Credit Card
+    else if (methodType.endsWith('_credit') || methodType == 'other_credit') {
+      return Icons.credit_card;
+    }
+    // PayLater
+    else if (methodType == 'akulaku' ||
+        methodType == 'kredivo' ||
+        methodType == 'indodana' ||
+        methodType == 'other_paylater') {
+      return Icons.schedule;
+    }
+    // Digital Payment (QRIS, E-wallet, etc.)
+    else if (methodType == 'qris' ||
+        methodType == 'gopay' ||
+        methodType == 'ovo' ||
+        methodType == 'dana' ||
+        methodType == 'shopeepay' ||
+        methodType == 'linkaja' ||
+        methodType == 'other_digital') {
+      return Icons.qr_code;
+    }
+    // Default
+    else {
+      return Icons.payment;
     }
   }
 
@@ -2251,8 +2601,12 @@ class _CheckoutPagesState extends State<CheckoutPages>
   }
 
   void _showPaymentMethodDialog(double grandTotal, bool isDark) {
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      enableDrag: true,
+      isDismissible: true,
       builder: (context) => _PaymentMethodDialog(
         grandTotal: grandTotal,
         isDark: isDark,
@@ -2300,11 +2654,10 @@ class _CheckoutPagesState extends State<CheckoutPages>
                     const SizedBox(width: 8),
                     Text(
                       'Foto Struk Pembayaran',
-                      style: GoogleFonts.montserrat(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white : Colors.black,
-                      ),
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white : Colors.black,
+                          ),
                     ),
                     const Spacer(),
                     IconButton(
@@ -2351,10 +2704,13 @@ class _CheckoutPagesState extends State<CheckoutPages>
                               const SizedBox(height: 8),
                               Text(
                                 'Gagal memuat gambar',
-                                style: GoogleFonts.montserrat(
-                                  color: Colors.red[400],
-                                  fontSize: 14,
-                                ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(
+                                      color: Colors.red[400],
+                                      fontSize: 14,
+                                    ),
                               ),
                             ],
                           ),
@@ -2411,22 +2767,25 @@ class _CheckoutPagesState extends State<CheckoutPages>
                       children: [
                         Text(
                           'Total Pesanan',
-                          style: GoogleFonts.montserrat(
-                            fontSize: 13,
-                            color: isDark ? Colors.grey[400] : Colors.grey[600],
-                            fontWeight: FontWeight.w500,
-                          ),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    fontSize: 13,
+                                    color: isDark
+                                        ? Colors.grey[400]
+                                        : Colors.grey[600],
+                                    fontWeight: FontWeight.w500,
+                                  ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           FormatHelper.formatCurrency(grandTotal),
-                          style: GoogleFonts.montserrat(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            color: isDark
-                                ? AppColors.primaryDark
-                                : AppColors.primaryLight,
-                          ),
+                          style:
+                              Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: isDark
+                                        ? AppColors.primaryDark
+                                        : AppColors.primaryLight,
+                                  ),
                         ),
                       ],
                     ),
@@ -2468,10 +2827,10 @@ class _CheckoutPagesState extends State<CheckoutPages>
                       ),
                       label: Text(
                         'Simpan Draft',
-                        style: GoogleFonts.montserrat(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
                       ),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: isDark
@@ -2511,10 +2870,9 @@ class _CheckoutPagesState extends State<CheckoutPages>
                         _isPaymentComplete(grandTotal)
                             ? 'Buat Surat Pesanan'
                             : _getPaymentStatusText(grandTotal),
-                        style: GoogleFonts.montserrat(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _isPaymentComplete(grandTotal)
@@ -2565,7 +2923,8 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
   final _referenceController = TextEditingController();
-  String _selectedType = 'bri';
+  String _selectedPaymentCategory = 'transfer'; // transfer, credit, paylater
+  String _selectedMethodType = 'bri';
   String? _receiptImagePath;
   final ImagePicker _imagePicker = ImagePicker();
 
@@ -2581,7 +2940,6 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
     final totalPaid = widget.existingPayments
         .fold(0.0, (sum, payment) => sum + payment.amount);
     final remaining = widget.grandTotal - totalPaid;
-    // Round to 2 decimal places to avoid floating point precision issues
     return double.parse(remaining.toStringAsFixed(2));
   }
 
@@ -2593,313 +2951,403 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 400),
-        decoration: BoxDecoration(
-          color: widget.isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Header
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: widget.isDark ? AppColors.cardDark : AppColors.cardLight,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  topRight: Radius.circular(16),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: widget.isDark
-                          ? AppColors.primaryDark
-                          : AppColors.primaryLight,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.payment_outlined,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Tambah Pembayaran',
-                          style: GoogleFonts.montserrat(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: widget.isDark ? Colors.white : Colors.black,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Pilih metode dan jumlah pembayaran',
-                          style: GoogleFonts.montserrat(
-                            fontSize: 14,
-                            color: widget.isDark
-                                ? Colors.grey[400]
-                                : Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final colorScheme = theme.colorScheme;
+    final availableHeight = ResponsiveHelper.getSafeModalHeight(context);
+    final safePadding = ResponsiveHelper.getSafeAreaPadding(context);
+
+    return GestureDetector(
+      onTap: () => Navigator.pop(context),
+      child: Material(
+        color: Colors.transparent,
+        child: GestureDetector(
+          onTap: () {}, // Prevent tap from bubbling up
+          child: Container(
+            height: MediaQuery.of(context).size.height * 0.9,
+            margin: EdgeInsets.only(
+              top: safePadding.top + 60,
+              bottom: 0,
+            ),
+            decoration: BoxDecoration(
+              color: colorScheme.surface,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
               ),
             ),
+            child: Scaffold(
+              resizeToAvoidBottomInset: true, // Handle keyboard properly
+              backgroundColor: Colors.transparent,
+              body: Column(
+                children: [
+                  // Drag Handle
+                  Container(
+                    margin: const EdgeInsets.only(top: 12),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: colorScheme.onSurfaceVariant,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
 
-            // Content
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Payment Method Selection
-                    Text(
-                      'Metode Pembayaran',
-                      style: GoogleFonts.montserrat(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: widget.isDark ? Colors.white : Colors.black,
+                  // Header
+                  Container(
+                    padding: ResponsiveHelper.getResponsivePaddingWithZoom(
+                      context,
+                      mobile: const EdgeInsets.all(20),
+                      tablet: const EdgeInsets.all(24),
+                      desktop: const EdgeInsets.all(28),
+                    ),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceVariant,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(20),
+                        topRight: Radius.circular(20),
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      value: _selectedType,
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        filled: true,
-                        fillColor: widget.isDark
-                            ? AppColors.cardDark
-                            : AppColors.surfaceLight,
-                      ),
-                      items: const [
-                        DropdownMenuItem(value: 'bri', child: Text('BRI')),
-                        DropdownMenuItem(value: 'bca', child: Text('BCA')),
-                        DropdownMenuItem(
-                            value: 'mandiri', child: Text('Bank Mandiri')),
-                        DropdownMenuItem(value: 'bni', child: Text('BNI')),
-                        DropdownMenuItem(value: 'btn', child: Text('BTN')),
-                        DropdownMenuItem(
-                            value: 'credit_card', child: Text('Kartu Kredit')),
-                        DropdownMenuItem(value: 'cash', child: Text('Tunai')),
-                        DropdownMenuItem(
-                            value: 'other', child: Text('Lainnya')),
-                      ],
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() => _selectedType = value);
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Amount Input
-                    TextFormField(
-                      controller: _amountController,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [
-                        CurrencyInputFormatter(),
-                      ],
-                      decoration: InputDecoration(
-                        labelText: 'Jumlah Pembayaran',
-                        hintText: _getAmountHintText(),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        filled: true,
-                        fillColor: widget.isDark
-                            ? AppColors.cardDark
-                            : AppColors.surfaceLight,
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Jumlah pembayaran wajib diisi';
-                        }
-                        final amount =
-                            FormatHelper.parseCurrencyToDouble(value);
-                        if (amount <= 0) {
-                          return 'Jumlah pembayaran tidak valid';
-                        }
-                        final remaining = _getRemainingAmount();
-                        // Use larger tolerance for floating point comparison and round both values
-                        const double tolerance =
-                            0.1; // Increased tolerance to 10 cents
-                        final roundedAmount =
-                            double.parse(amount.toStringAsFixed(2));
-                        final roundedRemaining =
-                            double.parse(remaining.toStringAsFixed(2));
-
-                        if (roundedAmount > roundedRemaining + tolerance) {
-                          return 'Jumlah tidak boleh melebihi sisa pembayaran (${FormatHelper.formatCurrency(remaining)})';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Receipt Image Upload
-                    Text(
-                      'Foto Struk Pembayaran *',
-                      style: GoogleFonts.montserrat(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: widget.isDark ? Colors.white : Colors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    GestureDetector(
-                      onTap: _showImageSourceDialog,
-                      child: Container(
-                        height: 120,
-                        decoration: BoxDecoration(
-                          color: widget.isDark
-                              ? AppColors.cardDark
-                              : AppColors.surfaceLight,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: widget.isDark
-                                ? Colors.grey[700]!
-                                : Colors.grey[300]!,
-                            style: BorderStyle.solid,
-                          ),
-                        ),
-                        child: _receiptImagePath != null
-                            ? Stack(
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Image.file(
-                                      File(_receiptImagePath!),
-                                      width: double.infinity,
-                                      height: 120,
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) {
-                                        return _buildImagePlaceholder();
-                                      },
-                                    ),
-                                  ),
-                                  Positioned(
-                                    top: 8,
-                                    right: 8,
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withOpacity(0.6),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: IconButton(
-                                        onPressed: _removeReceiptImage,
-                                        icon: const Icon(
-                                          Icons.close,
-                                          color: Colors.white,
-                                          size: 16,
-                                        ),
-                                        constraints: const BoxConstraints(),
-                                        padding: const EdgeInsets.all(4),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              )
-                            : _buildImagePlaceholder(),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Reference Input (Optional)
-                    TextFormField(
-                      controller: _referenceController,
-                      decoration: InputDecoration(
-                        labelText: 'Referensi/No. Transaksi (Opsional)',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        filled: true,
-                        fillColor: widget.isDark
-                            ? AppColors.cardDark
-                            : AppColors.surfaceLight,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Action Buttons
-                    Row(
+                    child: Row(
                       children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => Navigator.pop(context),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: widget.isDark
-                                  ? AppColors.primaryDark
-                                  : AppColors.primaryLight,
-                              side: BorderSide(
-                                color: widget.isDark
-                                    ? AppColors.primaryDark
-                                    : AppColors.primaryLight,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                            ),
-                            child: Text(
-                              'Batal',
-                              style: GoogleFonts.montserrat(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: colorScheme.primary,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.payment_outlined,
+                            color: colorScheme.onPrimary,
+                            size: ResponsiveHelper.getResponsiveIconSize(
+                              context,
+                              mobile: 20,
+                              tablet: 22,
+                              desktop: 24,
                             ),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: ElevatedButton(
-                            onPressed: _addPayment,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: widget.isDark
-                                  ? AppColors.primaryDark
-                                  : AppColors.primaryLight,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Tambah Pembayaran',
+                                style: GoogleFonts.inter(
+                                  fontSize:
+                                      ResponsiveHelper.getResponsiveFontSize(
+                                    context,
+                                    mobile: 18,
+                                    tablet: 20,
+                                    desktop: 22,
+                                  ),
+                                  fontWeight: FontWeight.w600,
+                                  color: colorScheme.onSurface,
+                                ),
                               ),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                            ),
-                            child: Text(
-                              'Tambah',
-                              style: GoogleFonts.montserrat(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
+                              const SizedBox(height: 4),
+                              Text(
+                                'Pilih metode dan jumlah pembayaran',
+                                style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
                               ),
-                            ),
+                            ],
+                          ),
+                        ),
+                        // Close Button
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: Icon(
+                            Icons.close,
+                            color: colorScheme.onSurface,
                           ),
                         ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+
+                  // Content
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: ResponsiveHelper.getResponsivePaddingWithZoom(
+                        context,
+                        mobile: const EdgeInsets.all(20),
+                        tablet: const EdgeInsets.all(24),
+                        desktop: const EdgeInsets.all(28),
+                      ),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Payment Category Selection
+                            Text(
+                              'Metode Pembayaran',
+                              style: GoogleFonts.inter(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: colorScheme.onSurface,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            DropdownButtonFormField<String>(
+                              value: _selectedPaymentCategory,
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                filled: true,
+                                fillColor: colorScheme.surface,
+                              ),
+                              items: const [
+                                DropdownMenuItem(
+                                    value: 'transfer',
+                                    child: Text('Transfer Bank')),
+                                DropdownMenuItem(
+                                    value: 'credit',
+                                    child: Text('Kartu Kredit')),
+                                DropdownMenuItem(
+                                    value: 'paylater', child: Text('PayLater')),
+                                DropdownMenuItem(
+                                    value: 'other', child: Text('Lainnya')),
+                              ],
+                              onChanged: (value) {
+                                if (value != null) {
+                                  setState(() {
+                                    _selectedPaymentCategory = value;
+                                    // Reset method type when category changes
+                                    final methods =
+                                        _getPaymentMethodsByCategory(value);
+                                    _selectedMethodType = methods.isNotEmpty
+                                        ? methods.first['value']!
+                                        : '';
+                                  });
+                                }
+                              },
+                            ),
+
+                            const SizedBox(height: 16),
+
+                            // Specific Payment Method Selection
+                            Text(
+                              'Channel Pembayaran',
+                              style: GoogleFonts.inter(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: colorScheme.onSurface,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            DropdownButtonFormField<String>(
+                              value: _selectedMethodType,
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                filled: true,
+                                fillColor: colorScheme.surface,
+                              ),
+                              items: _getPaymentMethodsByCategory(
+                                      _selectedPaymentCategory)
+                                  .map((method) => DropdownMenuItem(
+                                        value: method['value'],
+                                        child: Text(method['label']!),
+                                      ))
+                                  .toList(),
+                              onChanged: (value) {
+                                if (value != null) {
+                                  setState(() => _selectedMethodType = value);
+                                }
+                              },
+                            ),
+
+                            const SizedBox(height: 12),
+
+                            // Amount Input
+                            TextFormField(
+                              controller: _amountController,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                CurrencyInputFormatter(),
+                              ],
+                              decoration: InputDecoration(
+                                labelText: 'Jumlah Pembayaran',
+                                hintText: _getAmountHintText(),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                filled: true,
+                                fillColor: colorScheme.surface,
+                              ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Jumlah pembayaran wajib diisi';
+                                }
+                                final amount =
+                                    FormatHelper.parseCurrencyToDouble(value);
+                                if (amount <= 0) {
+                                  return 'Jumlah pembayaran tidak valid';
+                                }
+                                final remaining = _getRemainingAmount();
+                                const double tolerance = 0.1;
+                                final roundedAmount =
+                                    double.parse(amount.toStringAsFixed(2));
+                                final roundedRemaining =
+                                    double.parse(remaining.toStringAsFixed(2));
+
+                                if (roundedAmount >
+                                    roundedRemaining + tolerance) {
+                                  return 'Jumlah tidak boleh melebihi sisa pembayaran (${FormatHelper.formatCurrency(remaining)})';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Receipt Image Upload
+                            Text(
+                              'Foto Struk Pembayaran *',
+                              style: GoogleFonts.inter(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: colorScheme.onSurface,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            GestureDetector(
+                              onTap: _showImageSourceDialog,
+                              child: Container(
+                                height: 120,
+                                decoration: BoxDecoration(
+                                  color: colorScheme.surface,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: colorScheme.outline,
+                                    style: BorderStyle.solid,
+                                  ),
+                                ),
+                                child: _receiptImagePath != null
+                                    ? Stack(
+                                        children: [
+                                          ClipRRect(
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                            child: Image.file(
+                                              File(_receiptImagePath!),
+                                              width: double.infinity,
+                                              height: 120,
+                                              fit: BoxFit.cover,
+                                              errorBuilder:
+                                                  (context, error, stackTrace) {
+                                                return _buildImagePlaceholder();
+                                              },
+                                            ),
+                                          ),
+                                          Positioned(
+                                            top: 8,
+                                            right: 8,
+                                            child: Container(
+                                              decoration: BoxDecoration(
+                                                color: Colors.black
+                                                    .withOpacity(0.6),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                              ),
+                                              child: IconButton(
+                                                onPressed: _removeReceiptImage,
+                                                icon: const Icon(
+                                                  Icons.close,
+                                                  color: Colors.white,
+                                                  size: 16,
+                                                ),
+                                                constraints:
+                                                    const BoxConstraints(),
+                                                padding:
+                                                    const EdgeInsets.all(4),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      )
+                                    : _buildImagePlaceholder(),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Reference Input (Optional)
+                            TextFormField(
+                              controller: _referenceController,
+                              decoration: InputDecoration(
+                                labelText: 'Referensi/No. Transaksi (Opsional)',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                filled: true,
+                                fillColor: colorScheme.surface,
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+
+                            // Action Buttons
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: colorScheme.primary,
+                                      side: BorderSide(
+                                          color: colorScheme.primary),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 12),
+                                    ),
+                                    child: Text(
+                                      'Batal',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: ElevatedButton(
+                                    onPressed: _addPayment,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: colorScheme.primary,
+                                      foregroundColor: colorScheme.onPrimary,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 12),
+                                    ),
+                                    child: Text(
+                                      'Tambah',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -2913,7 +3361,7 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
           SnackBar(
             content: Text(
               'Foto struk pembayaran wajib diisi',
-              style: GoogleFonts.montserrat(
+              style: GoogleFonts.inter(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
               ),
@@ -2932,8 +3380,8 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
       final reference = _referenceController.text.trim();
 
       final payment = PaymentMethod(
-        type: _selectedType,
-        name: _getPaymentName(_selectedType),
+        methodType: _selectedMethodType,
+        methodName: _getPaymentName(_selectedMethodType),
         amount: amount,
         reference: reference.isEmpty ? null : reference,
         receiptImagePath: _receiptImagePath!,
@@ -2945,14 +3393,17 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
   }
 
   Widget _buildImagePlaceholder() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Container(
       width: double.infinity,
       height: 120,
       decoration: BoxDecoration(
-        color: widget.isDark ? AppColors.cardDark : AppColors.surfaceLight,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: widget.isDark ? Colors.grey[700]! : Colors.grey[300]!,
+          color: colorScheme.outline,
           style: BorderStyle.solid,
         ),
       ),
@@ -2962,21 +3413,21 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
           Icon(
             Icons.add_photo_alternate_outlined,
             size: 32,
-            color: widget.isDark ? Colors.grey[400] : Colors.grey[600],
+            color: colorScheme.onSurfaceVariant,
           ),
           const SizedBox(height: 8),
           Text(
             'Tap untuk ambil foto atau pilih dari galeri',
-            style: GoogleFonts.montserrat(
+            style: GoogleFonts.inter(
               fontSize: 12,
-              color: widget.isDark ? Colors.grey[400] : Colors.grey[600],
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             'Struk pembayaran wajib diisi',
-            style: GoogleFonts.montserrat(
-              fontSize: 10,
+            style: GoogleFonts.inter(
+              fontSize: 12,
               color: Colors.red[600],
               fontWeight: FontWeight.w500,
             ),
@@ -2987,12 +3438,15 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
   }
 
   void _showImageSourceDialog() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
         decoration: BoxDecoration(
-          color: widget.isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+          color: colorScheme.surface,
           borderRadius: const BorderRadius.only(
             topLeft: Radius.circular(20),
             topRight: Radius.circular(20),
@@ -3007,7 +3461,7 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
               height: 4,
               margin: const EdgeInsets.only(top: 12, bottom: 8),
               decoration: BoxDecoration(
-                color: widget.isDark ? Colors.grey[600] : Colors.grey[400],
+                color: colorScheme.onSurfaceVariant,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -3016,10 +3470,10 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
               padding: const EdgeInsets.all(16),
               child: Text(
                 'Pilih Sumber Foto',
-                style: GoogleFonts.montserrat(
+                style: GoogleFonts.inter(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
-                  color: widget.isDark ? Colors.white : Colors.black,
+                  color: colorScheme.onSurface,
                 ),
               ),
             ),
@@ -3039,17 +3493,17 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
               ),
               title: Text(
                 'Ambil Foto',
-                style: GoogleFonts.montserrat(
+                style: GoogleFonts.inter(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
-                  color: widget.isDark ? Colors.white : Colors.black,
+                  color: colorScheme.onSurface,
                 ),
               ),
               subtitle: Text(
                 'Gunakan kamera untuk mengambil foto struk',
-                style: GoogleFonts.montserrat(
+                style: GoogleFonts.inter(
                   fontSize: 12,
-                  color: widget.isDark ? Colors.grey[400] : Colors.grey[600],
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
               onTap: () {
@@ -3061,33 +3515,28 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
               leading: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: (widget.isDark
-                          ? AppColors.primaryDark
-                          : AppColors.primaryLight)
-                      .withOpacity(0.1),
+                  color: colorScheme.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
                   Icons.photo_library,
-                  color: widget.isDark
-                      ? AppColors.primaryDark
-                      : AppColors.primaryLight,
+                  color: colorScheme.primary,
                   size: 24,
                 ),
               ),
               title: Text(
                 'Pilih dari Galeri',
-                style: GoogleFonts.montserrat(
+                style: GoogleFonts.inter(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
-                  color: widget.isDark ? Colors.white : Colors.black,
+                  color: colorScheme.onSurface,
                 ),
               ),
               subtitle: Text(
                 'Pilih foto struk dari galeri',
-                style: GoogleFonts.montserrat(
+                style: GoogleFonts.inter(
                   fontSize: 12,
-                  color: widget.isDark ? Colors.grey[400] : Colors.grey[600],
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
               onTap: () {
@@ -3110,17 +3559,17 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
               ),
               title: Text(
                 'Pilih File',
-                style: GoogleFonts.montserrat(
+                style: GoogleFonts.inter(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
-                  color: widget.isDark ? Colors.white : Colors.black,
+                  color: colorScheme.onSurface,
                 ),
               ),
               subtitle: Text(
                 'Pilih file gambar dari penyimpanan',
-                style: GoogleFonts.montserrat(
+                style: GoogleFonts.inter(
                   fontSize: 12,
-                  color: widget.isDark ? Colors.grey[400] : Colors.grey[600],
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
               onTap: () {
@@ -3276,8 +3725,9 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
     });
   }
 
-  String _getPaymentName(String type) {
-    switch (type) {
+  String _getPaymentName(String methodType) {
+    switch (methodType) {
+      // Transfer Bank
       case 'bri':
         return 'BRI';
       case 'bca':
@@ -3288,12 +3738,91 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
         return 'BNI';
       case 'btn':
         return 'BTN';
-      case 'credit_card':
-        return 'Kartu Kredit';
-      case 'cash':
-        return 'Tunai';
+      case 'other_bank':
+        return 'Bank Lainnya';
+
+      // Credit Card
+      case 'bri_credit':
+        return 'Kartu Kredit BRI';
+      case 'bca_credit':
+        return 'Kartu Kredit BCA';
+      case 'mandiri_credit':
+        return 'Kartu Kredit Mandiri';
+      case 'bni_credit':
+        return 'Kartu Kredit BNI';
+      case 'other_credit':
+        return 'Kartu Kredit Lainnya';
+
+      // PayLater
+      case 'akulaku':
+        return 'Akulaku';
+      case 'kredivo':
+        return 'Kredivo';
+      case 'indodana':
+        return 'Indodana';
+      case 'other_paylater':
+        return 'PayLater Lainnya';
+
+      // Digital Payment
+      case 'qris':
+        return 'QRIS';
+      case 'gopay':
+        return 'GoPay';
+      case 'ovo':
+        return 'OVO';
+      case 'dana':
+        return 'DANA';
+      case 'shopeepay':
+        return 'ShopeePay';
+      case 'linkaja':
+        return 'LinkAja';
+      case 'other_digital':
+        return 'Digital Lainnya';
+
       default:
         return 'Lainnya';
+    }
+  }
+
+  // Get payment methods based on category
+  List<Map<String, String>> _getPaymentMethodsByCategory(String category) {
+    switch (category) {
+      case 'transfer':
+        return [
+          {'value': 'bri', 'label': 'BRI'},
+          {'value': 'bca', 'label': 'BCA'},
+          {'value': 'mandiri', 'label': 'Bank Mandiri'},
+          {'value': 'bni', 'label': 'BNI'},
+          {'value': 'btn', 'label': 'BTN'},
+          {'value': 'other_bank', 'label': 'Bank Lainnya'},
+        ];
+      case 'credit':
+        return [
+          {'value': 'bri_credit', 'label': 'Kartu Kredit BRI'},
+          {'value': 'bca_credit', 'label': 'Kartu Kredit BCA'},
+          {'value': 'mandiri_credit', 'label': 'Kartu Kredit Mandiri'},
+          {'value': 'bni_credit', 'label': 'Kartu Kredit BNI'},
+          {'value': 'other_credit', 'label': 'Kartu Kredit Lainnya'},
+        ];
+      case 'paylater':
+        return [
+          {'value': 'akulaku', 'label': 'Akulaku'},
+          {'value': 'kredivo', 'label': 'Kredivo'},
+          {'value': 'indodana', 'label': 'Indodana'},
+          {'value': 'other_paylater', 'label': 'PayLater Lainnya'},
+        ];
+      case 'other':
+        return [
+          {'value': 'qris', 'label': 'QRIS'},
+          {'value': 'gopay', 'label': 'GoPay'},
+          {'value': 'ovo', 'label': 'OVO'},
+          {'value': 'dana', 'label': 'DANA'},
+          {'value': 'shopeepay', 'label': 'ShopeePay'},
+          {'value': 'linkaja', 'label': 'LinkAja'},
+          {'value': 'other_digital', 'label': 'Digital Lainnya'},
+        ];
+      default:
+        return [];
     }
   }
 }

@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:collection/collection.dart';
 
 import '../../../../../core/utils/format_helper.dart';
+import '../../../../../core/utils/responsive_helper.dart';
 import '../../../../../core/widgets/custom_toast.dart';
 import '../../../../../config/dependency_injection.dart';
 import '../../../../../services/leader_service.dart';
@@ -223,17 +224,28 @@ class _InfoDialogState extends State<InfoDialog> {
       },
       child: Padding(
         padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 20,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+          left: ResponsiveHelper.getResponsivePadding(context).left,
+          right: ResponsiveHelper.getResponsivePadding(context).right,
+          top: ResponsiveHelper.getResponsiveSpacing(
+            context,
+            mobile: 16,
+            tablet: 20,
+            desktop: 24,
+          ),
+          bottom: MediaQuery.of(context).viewInsets.bottom +
+              ResponsiveHelper.getResponsiveSpacing(
+                context,
+                mobile: 16,
+                tablet: 20,
+                desktop: 24,
+              ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text("Input Diskon",
-                style: GoogleFonts.montserrat(
+                style: GoogleFonts.inter(
                     fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
 

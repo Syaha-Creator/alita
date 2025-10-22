@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 /// Widget untuk menampilkan state kosong (empty state) dengan ikon, judul, dan pesan opsional.
 class EmptyStateWidget extends StatelessWidget {
@@ -18,6 +17,8 @@ class EmptyStateWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -26,16 +27,14 @@ class EmptyStateWidget extends StatelessWidget {
           Icon(
             icon,
             size: 80,
-            color: Colors.grey.shade400,
+            color: colorScheme.onSurfaceVariant.withOpacity(0.4),
           ),
           const SizedBox(height: 16),
           Text(
             title,
             textAlign: TextAlign.center,
-            style: GoogleFonts.montserrat(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey.shade600,
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: colorScheme.onSurface,
             ),
           ),
           if (message != null) ...[
@@ -43,9 +42,8 @@ class EmptyStateWidget extends StatelessWidget {
             Text(
               message!,
               textAlign: TextAlign.center,
-              style: GoogleFonts.montserrat(
-                fontSize: 14,
-                color: Colors.grey.shade500,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
           ],

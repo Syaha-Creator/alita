@@ -1,6 +1,8 @@
 // lib/features/product/presentation/widgets/logout_button.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/utils/responsive_helper.dart';
+import '../../../../theme/app_colors.dart';
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/auth_event.dart';
 import '../../../product/presentation/bloc/product_bloc.dart';
@@ -52,9 +54,22 @@ class LogoutButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return IconButton(
-      icon: const Icon(Icons.logout),
+      icon: Icon(
+        Icons.logout,
+        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+        size: ResponsiveHelper.getResponsiveIconSize(
+          context,
+          mobile: 20,
+          tablet: 22,
+          desktop: 24,
+        ),
+      ),
       onPressed: () => _logout(context),
+      tooltip: 'Logout',
     );
   }
 }

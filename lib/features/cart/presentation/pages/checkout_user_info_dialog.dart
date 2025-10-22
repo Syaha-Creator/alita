@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/utils/responsive_helper.dart';
+
 class CheckoutDialogResult {
   final String name;
   final String phone;
@@ -55,23 +57,22 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final colorScheme = theme.colorScheme;
-    final mediaQuery = MediaQuery.of(context);
-    final keyboardHeight = mediaQuery.viewInsets.bottom;
-    final screenHeight = mediaQuery.size.height;
-    final safeAreaTop = mediaQuery.padding.top;
-    final safeAreaBottom = mediaQuery.padding.bottom;
-    final availableHeight = screenHeight -
-        keyboardHeight -
-        safeAreaTop -
-        60; // 60 untuk navigation bar dan margin
+    final availableHeight = ResponsiveHelper.getSafeModalHeight(context);
+    final safePadding = ResponsiveHelper.getSafeAreaPadding(context);
 
     return Material(
       color: Colors.transparent,
       child: Container(
-        height: availableHeight > 650 ? 650 : availableHeight,
+        height: availableHeight,
         margin: EdgeInsets.only(
-          top: safeAreaTop + 20, // Memberikan jarak dari status bar
-          bottom: 0, // Tidak ada margin bottom
+          top: safePadding.top +
+              ResponsiveHelper.getResponsiveSpacingWithZoom(
+                context,
+                mobile: 20,
+                tablet: 24,
+                desktop: 28,
+              ),
+          bottom: 0,
         ),
         decoration: BoxDecoration(
           color: colorScheme.surface,
@@ -95,7 +96,12 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
 
             // Header
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: ResponsiveHelper.getResponsivePaddingWithZoom(
+                context,
+                mobile: const EdgeInsets.all(20),
+                tablet: const EdgeInsets.all(24),
+                desktop: const EdgeInsets.all(28),
+              ),
               decoration: BoxDecoration(
                 color: colorScheme.surfaceVariant,
                 borderRadius: const BorderRadius.only(
@@ -114,7 +120,12 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
                     child: Icon(
                       Icons.person_outline,
                       color: colorScheme.onPrimary,
-                      size: 20,
+                      size: ResponsiveHelper.getResponsiveIconSize(
+                        context,
+                        mobile: 20,
+                        tablet: 22,
+                        desktop: 24,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -124,8 +135,13 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
                       children: [
                         Text(
                           'Informasi Customer',
-                          style: GoogleFonts.montserrat(
-                            fontSize: 18,
+                          style: GoogleFonts.inter(
+                            fontSize: ResponsiveHelper.getResponsiveFontSize(
+                              context,
+                              mobile: 18,
+                              tablet: 20,
+                              desktop: 22,
+                            ),
                             fontWeight: FontWeight.w600,
                             color: colorScheme.onSurface,
                           ),
@@ -133,7 +149,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
                         const SizedBox(height: 4),
                         Text(
                           'Lengkapi data diri Anda',
-                          style: GoogleFonts.montserrat(
+                          style: GoogleFonts.inter(
                             fontSize: 14,
                             color: colorScheme.onSurfaceVariant,
                           ),
@@ -164,7 +180,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
             // Content
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -173,7 +189,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
                       // Customer Type Selection
                       Text(
                         'Tipe Customer',
-                        style: GoogleFonts.montserrat(
+                        style: GoogleFonts.inter(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
                           color: colorScheme.onSurface,
@@ -215,7 +231,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
                             : null,
                         colorScheme: colorScheme,
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 12),
                       _buildModernTextField(
                         controller: _phoneController,
                         label: 'Nomor Telepon',
@@ -226,7 +242,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
                             : null,
                         colorScheme: colorScheme,
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 12),
                       _buildModernTextField(
                         controller: _emailController,
                         label: 'Email',
@@ -244,18 +260,18 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
                         },
                         colorScheme: colorScheme,
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 12),
 
                       // Delivery Options
                       Text(
                         'Metode Pengiriman',
-                        style: GoogleFonts.montserrat(
+                        style: GoogleFonts.inter(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
                           color: colorScheme.onSurface,
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 8),
                       Row(
                         children: [
                           Expanded(
@@ -289,7 +305,13 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
 
             // Action Button - Fixed at bottom
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+              padding: ResponsiveHelper.getResponsivePaddingWithZoom(
+                context,
+                mobile: EdgeInsets.fromLTRB(20, 4, 20, safePadding.bottom + 20),
+                tablet: EdgeInsets.fromLTRB(24, 6, 24, safePadding.bottom + 24),
+                desktop:
+                    EdgeInsets.fromLTRB(28, 8, 28, safePadding.bottom + 28),
+              ),
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -313,14 +335,35 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    padding: const EdgeInsets.symmetric(vertical: 18),
+                    padding: ResponsiveHelper.getResponsivePaddingWithZoom(
+                      context,
+                      mobile: const EdgeInsets.symmetric(
+                          vertical: 18, horizontal: 24),
+                      tablet: const EdgeInsets.symmetric(
+                          vertical: 20, horizontal: 28),
+                      desktop: const EdgeInsets.symmetric(
+                          vertical: 22, horizontal: 32),
+                    ),
                     elevation: 0,
-                    minimumSize: const Size(double.infinity, 56),
+                    minimumSize: Size(
+                      double.infinity,
+                      ResponsiveHelper.getResponsiveButtonHeight(
+                        context,
+                        mobile: 56,
+                        tablet: 60,
+                        desktop: 64,
+                      ),
+                    ),
                   ),
                   child: Text(
                     'Lanjutkan',
-                    style: GoogleFonts.montserrat(
-                      fontSize: 15,
+                    style: GoogleFonts.inter(
+                      fontSize: ResponsiveHelper.getResponsiveFontSize(
+                        context,
+                        mobile: 16,
+                        tablet: 17,
+                        desktop: 18,
+                      ),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -345,7 +388,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
       controller: controller,
       keyboardType: keyboardType,
       validator: validator,
-      style: GoogleFonts.montserrat(
+      style: GoogleFonts.inter(
         fontSize: 15,
         color: colorScheme.onSurface,
       ),
@@ -386,13 +429,13 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: colorScheme.error, width: 2),
         ),
-        labelStyle: GoogleFonts.montserrat(
+        labelStyle: GoogleFonts.inter(
           fontSize: 14,
           color: colorScheme.onSurfaceVariant,
         ),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        errorStyle: GoogleFonts.montserrat(
+        errorStyle: GoogleFonts.inter(
           color: colorScheme.error,
           fontSize: 12,
         ),
@@ -424,7 +467,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
         ),
         child: Text(
           title,
-          style: GoogleFonts.montserrat(
+          style: GoogleFonts.inter(
             fontSize: 13,
             fontWeight: FontWeight.w600,
             color: isSelected
@@ -471,7 +514,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
             const SizedBox(height: 8),
             Text(
               title,
-              style: GoogleFonts.montserrat(
+              style: GoogleFonts.inter(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: isSelected
@@ -483,7 +526,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
             const SizedBox(height: 4),
             Text(
               subtitle,
-              style: GoogleFonts.montserrat(
+              style: GoogleFonts.inter(
                 fontSize: 11,
                 color: isSelected
                     ? colorScheme.onPrimaryContainer.withOpacity(0.8)

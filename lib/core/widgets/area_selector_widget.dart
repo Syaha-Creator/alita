@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../config/dependency_injection.dart';
 import '../../core/utils/area_utils.dart';
 import '../../features/product/data/models/area_model.dart';
+import '../../theme/app_colors.dart';
 
 /// Widget untuk memilih area dengan data dari API atau fallback ke hardcoded values
 class AreaSelectorWidget extends StatefulWidget {
@@ -92,18 +93,18 @@ class _AreaSelectorWidgetState extends State<AreaSelectorWidget> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.red.shade50,
+        color: AppColors.error.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.red.shade200),
+        border: Border.all(color: AppColors.error.withOpacity(0.3)),
       ),
       child: Row(
         children: [
-          Icon(Icons.error_outline, color: Colors.red.shade600, size: 20),
+          Icon(Icons.error_outline, color: AppColors.error, size: 20),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               _errorMessage!,
-              style: TextStyle(color: Colors.red.shade600),
+              style: TextStyle(color: AppColors.error),
             ),
           ),
           TextButton(
@@ -147,9 +148,9 @@ class _AreaSelectorWidgetState extends State<AreaSelectorWidget> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.blue.shade50,
+        color: AppColors.primaryLight.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.blue.shade200),
+        border: Border.all(color: AppColors.primaryLight.withOpacity(0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -157,7 +158,7 @@ class _AreaSelectorWidgetState extends State<AreaSelectorWidget> {
           Text(
             'Informasi Area',
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: Colors.blue.shade700,
+                  color: AppColors.primaryLight,
                 ),
           ),
           const SizedBox(height: 8),

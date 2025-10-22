@@ -1880,7 +1880,9 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                         ),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? colorScheme.primary
+                              ? (isDark
+                                  ? AppColors.primaryDark
+                                  : AppColors.primaryLight)
                               : colorScheme.surfaceVariant.withOpacity(
                                   0.3,
                                 ),
@@ -1891,9 +1893,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                             Icon(
                               _getFilterIcon(filter),
                               color: isSelected
-                                  ? (isDark
-                                      ? AppColors.primaryDark
-                                      : Colors.white)
+                                  ? Colors.white
                                   : colorScheme.onSurfaceVariant,
                               size: 16,
                             ),
@@ -1902,9 +1902,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                               filter,
                               style: TextStyle(
                                 color: isSelected
-                                    ? (isDark
-                                        ? AppColors.primaryDark
-                                        : Colors.white)
+                                    ? Colors.white
                                     : colorScheme.onSurface,
                                 fontWeight: isSelected
                                     ? FontWeight.w600

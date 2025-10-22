@@ -38,10 +38,9 @@ class OrderLetterPaymentService {
         'order_letter_payment[payment_bank]': paymentBank,
         'order_letter_payment[payment_number]': paymentNumber,
         'order_letter_payment[payment_amount]': paymentAmount.toString(),
-        'order_letter_payment[creator]': creator.toString(),
+        'order_letter_payment[created_by]': creator.toString(),
         if (note != null && note.trim().isNotEmpty)
           'order_letter_payment[note]': note.trim(),
-        // Add image file if available (field name: 'image' as per API)
         if (receiptImagePath != null && receiptImagePath.isNotEmpty)
           'order_letter_payment[image]': await MultipartFile.fromFile(
             receiptImagePath,

@@ -3,7 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../../core/utils/format_helper.dart';
+import '../../../../../core/utils/responsive_helper.dart';
 import '../../../../../core/widgets/custom_toast.dart';
+import '../../../../../theme/app_colors.dart';
 import '../../../domain/entities/product_entity.dart';
 import '../../bloc/product_bloc.dart';
 import '../../bloc/product_event.dart';
@@ -94,18 +96,29 @@ class _EditPriceDialogState extends State<EditPriceDialog> {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+        left: ResponsiveHelper.getResponsivePadding(context).left,
+        right: ResponsiveHelper.getResponsivePadding(context).right,
+        top: ResponsiveHelper.getResponsiveSpacing(
+          context,
+          mobile: 16,
+          tablet: 20,
+          desktop: 24,
+        ),
+        bottom: MediaQuery.of(context).viewInsets.bottom +
+            ResponsiveHelper.getResponsiveSpacing(
+              context,
+              mobile: 16,
+              tablet: 20,
+              desktop: 24,
+            ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text("Edit Harga & Catatan",
-              style: GoogleFonts.montserrat(
-                  fontSize: 20, fontWeight: FontWeight.bold)),
+              style:
+                  GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 24),
 
           // Price Lock Warning
@@ -113,26 +126,27 @@ class _EditPriceDialogState extends State<EditPriceDialog> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
+                color: Theme.of(context).colorScheme.error.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.red.withOpacity(0.3)),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.error.withOpacity(0.3),
+                ),
               ),
               child: Row(
                 children: [
                   Icon(
                     Icons.lock,
-                    color: Colors.red[700],
+                    color: Theme.of(context).colorScheme.error,
                     size: 20,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       lockReason,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.red[700],
-                      ),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w500,
+                            color: Theme.of(context).colorScheme.error,
+                          ),
                     ),
                   ),
                 ],
@@ -151,7 +165,7 @@ class _EditPriceDialogState extends State<EditPriceDialog> {
               suffixIcon: isPriceLocked
                   ? Icon(
                       Icons.lock,
-                      color: Colors.red[700],
+                      color: AppColors.error,
                     )
                   : null,
             ),
@@ -172,7 +186,11 @@ class _EditPriceDialogState extends State<EditPriceDialog> {
             builder: (context, value, _) {
               return Text(
                 "Perubahan: ${value.toStringAsFixed(2)}%",
-                style: TextStyle(color: value < 0 ? Colors.green : Colors.red),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: value < 0
+                          ? Theme.of(context).colorScheme.secondary
+                          : Theme.of(context).colorScheme.error,
+                    ),
               );
             },
           ),

@@ -29,7 +29,7 @@ class CustomToast {
       toastLength: duration == 1 ? Toast.LENGTH_SHORT : Toast.LENGTH_LONG,
       gravity: ToastGravity.BOTTOM,
       backgroundColor: bgColor,
-      textColor: Colors.white,
+      textColor: AppColors.surfaceLight,
       fontSize: 16.0,
     );
   }

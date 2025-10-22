@@ -202,14 +202,14 @@ class _ApprovalCardState extends State<ApprovalCard>
             children: [
               Icon(
                 _getStatusIcon(widget.approval.status),
-                color: Colors.white,
+                color: theme.colorScheme.onPrimary,
                 size: 14,
               ),
               const SizedBox(width: 6),
               Text(
                 widget.approval.status,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: Colors.white,
+                  color: theme.colorScheme.onPrimary,
                   fontWeight: FontWeight.w600,
                   fontSize: 11,
                 ),
@@ -296,7 +296,7 @@ class _ApprovalCardState extends State<ApprovalCard>
             ),
             child: Icon(
               Icons.person_rounded,
-              color: Colors.white,
+              color: theme.colorScheme.onPrimary,
               size: 16,
             ),
           ),
@@ -571,7 +571,12 @@ class _ApprovalCardState extends State<ApprovalCard>
           child: SizedBox(
             width: 20,
             height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                theme.colorScheme.primary,
+              ),
+            ),
           ),
         ),
       );
@@ -583,7 +588,10 @@ class _ApprovalCardState extends State<ApprovalCard>
         child: Center(
           child: Text(
             'Error loading timeline',
-            style: TextStyle(color: Colors.red, fontSize: 12),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.error,
+              fontSize: 12,
+            ),
           ),
         ),
       );
@@ -595,9 +603,10 @@ class _ApprovalCardState extends State<ApprovalCard>
         child: Center(
           child: Text(
             'No approval data',
-            style: TextStyle(
-                color: isDark ? AppColors.textSecondaryDark : Colors.grey,
-                fontSize: 12),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontSize: 12,
+            ),
           ),
         ),
       );
@@ -702,24 +711,24 @@ class _ApprovalCardState extends State<ApprovalCard>
 
           switch (level['status']) {
             case 'completed':
-              dotColor = Colors.green;
-              lineColor = Colors.green;
+              dotColor = AppColors.success;
+              lineColor = AppColors.success;
               iconData = Icons.check_circle;
               break;
             case 'rejected':
-              dotColor = Colors.red;
-              lineColor = Colors.red;
+              dotColor = AppColors.error;
+              lineColor = AppColors.error;
               iconData = Icons.cancel;
               break;
             case 'blocked':
-              dotColor = isDark ? AppColors.textSecondaryDark : Colors.grey;
-              lineColor = isDark ? AppColors.textSecondaryDark : Colors.grey;
+              dotColor = theme.colorScheme.onSurfaceVariant;
+              lineColor = theme.colorScheme.onSurfaceVariant;
               iconData = Icons.lock;
               break;
             case 'pending':
             default:
-              dotColor = Colors.orange;
-              lineColor = Colors.orange;
+              dotColor = AppColors.warning;
+              lineColor = AppColors.warning;
               iconData = Icons.schedule;
               break;
           }

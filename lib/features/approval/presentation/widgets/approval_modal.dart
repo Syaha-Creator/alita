@@ -234,11 +234,10 @@ class _ApprovalModalState extends State<ApprovalModal>
               Expanded(
                 child: Text(
                   message,
-                  style: TextStyle(
-                    color: isDark ? AppColors.primaryDark : Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: isDark ? AppColors.primaryDark : Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
                 ),
               ),
             ],
@@ -575,20 +574,18 @@ class _ApprovalModalState extends State<ApprovalModal>
               children: [
                 Text(
                   label,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 12,
-                  ),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w500,
+                      ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   value,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface,
+                        fontWeight: FontWeight.w600,
+                      ),
                 ),
               ],
             ),
@@ -678,20 +675,18 @@ class _ApprovalModalState extends State<ApprovalModal>
               children: [
                 Text(
                   label,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 12,
-                  ),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w500,
+                      ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   value,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface,
+                        fontWeight: FontWeight.w600,
+                      ),
                 ),
               ],
             ),
@@ -780,11 +775,10 @@ class _ApprovalModalState extends State<ApprovalModal>
                 const SizedBox(height: 8),
                 Text(
                   label,
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : color,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: isSelected ? Colors.white : color,
+                        fontWeight: FontWeight.w600,
+                      ),
                 ),
               ],
             ),
@@ -820,9 +814,9 @@ class _ApprovalModalState extends State<ApprovalModal>
             maxLines: 3,
             decoration: InputDecoration(
               hintText: 'Enter your comment here...',
-              hintStyle: TextStyle(
-                color: colorScheme.onSurfaceVariant.withOpacity(0.7),
-              ),
+              hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                  ),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.all(16),
             ),
@@ -875,11 +869,10 @@ class _ApprovalModalState extends State<ApprovalModal>
                     const SizedBox(width: 8),
                     Text(
                       'Close',
-                      style: TextStyle(
-                        color: colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w600,
+                          ),
                     ),
                   ],
                 ),
@@ -916,11 +909,10 @@ class _ApprovalModalState extends State<ApprovalModal>
                       const SizedBox(width: 8),
                       Text(
                         'Submit',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                        ),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
                       ),
                     ],
                   ),

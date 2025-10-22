@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../../../config/app_constant.dart';
+import '../../../../core/utils/responsive_helper.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
+import '../../../../theme/app_colors.dart';
 import '../../data/models/channel_model.dart';
 import '../../data/models/brand_model.dart';
 
@@ -87,63 +88,107 @@ class ProductDropdown extends StatelessWidget {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppPadding.p8),
+          padding: EdgeInsets.symmetric(
+            vertical: ResponsiveHelper.getResponsiveSpacing(
+              context,
+              mobile: 8,
+              tablet: 10,
+              desktop: 12,
+            ),
+          ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 "Gunakan Set",
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: ResponsiveHelper.getResponsiveFontSize(
+                    context,
+                    mobile: 14,
+                    tablet: 16,
+                    desktop: 18,
+                  ),
+                ),
               ),
               Switch(
                 value: isSetActive,
                 onChanged: onSetChanged,
-                activeColor: Colors.blue,
+                activeColor: AppColors.primaryLight,
               ),
             ],
           ),
         ),
-        SizedBox(height: AppPadding.p10),
+        SizedBox(
+          height: ResponsiveHelper.getResponsiveSpacing(
+            context,
+            mobile: 8,
+            tablet: 10,
+            desktop: 12,
+          ),
+        ),
         _buildRow(
+          context,
           CustomDropdown<String>(
             labelText: "Channel",
             items: channels,
             selectedValue: selectedChannel,
             onChanged: onChannelChanged,
-            hintText: "Pilih Channel",
+            hintText:
+                channels.isEmpty ? "Channel belum tersedia" : "Pilih Channel",
+            isDynamicWidth: channels.length <= 3,
           ),
           CustomDropdown<String>(
             labelText: "Brand",
             items: brands,
             selectedValue: selectedBrand,
             onChanged: onBrandChanged,
-            hintText: "Pilih Brand",
+            hintText: brands.isEmpty ? "Brand belum tersedia" : "Pilih Brand",
+            isDynamicWidth: brands.length <= 3,
           ),
         ),
         _buildRow(
+          context,
           isLoading
-              ? Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+              ? SizedBox(
+                  height: ResponsiveHelper.isMobile(context) ? 60 : 65,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      vertical: ResponsiveHelper.isMobile(context) ? 8 : 12,
+                      horizontal: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? AppColors.borderDark
+                            : AppColors.borderLight,
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        "Loading Kasur...",
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
+                      borderRadius: BorderRadius.circular(8),
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? AppColors.surfaceVariantDark
+                          : AppColors.surfaceVariantLight,
+                    ),
+                    child: Row(
+                      children: [
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 8),
+                        Text(
+                          "Loading Kasur...",
+                          style: TextStyle(
+                            fontSize:
+                                ResponsiveHelper.isMobile(context) ? 12 : 14,
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? AppColors.textSecondaryDark
+                                    : AppColors.textSecondaryLight,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 )
               : CustomDropdown<String>(
@@ -153,7 +198,8 @@ class ProductDropdown extends StatelessWidget {
                   onChanged: onKasurChanged,
                   hintText: kasurs.isEmpty
                       ? "Tidak ada kasur tersedia"
-                      : "Pilih Kasur/Accessories",
+                      : "Pilih Kasur",
+                  isDynamicWidth: kasurs.length <= 3,
                 ),
           CustomDropdown<String>(
             labelText: "Divan (${divans.length})",
@@ -162,9 +208,11 @@ class ProductDropdown extends StatelessWidget {
             onChanged: onDivanChanged,
             hintText:
                 divans.isEmpty ? "Tidak ada divan tersedia" : "Pilih Divan",
+            isDynamicWidth: divans.length <= 3,
           ),
         ),
         _buildRow(
+          context,
           CustomDropdown<String>(
             labelText: "Headboard (${headboards.length})",
             items: headboards,
@@ -173,6 +221,7 @@ class ProductDropdown extends StatelessWidget {
             hintText: headboards.isEmpty
                 ? "Tidak ada headboard tersedia"
                 : "Pilih Headboard",
+            isDynamicWidth: headboards.length <= 3,
           ),
           CustomDropdown<String>(
             labelText: "Sorong (${sorongs.length})",
@@ -181,9 +230,11 @@ class ProductDropdown extends StatelessWidget {
             onChanged: onSorongChanged,
             hintText:
                 sorongs.isEmpty ? "Tidak ada sorong tersedia" : "Pilih Sorong",
+            isDynamicWidth: sorongs.length <= 3,
           ),
         ),
         _buildRow(
+          context,
           CustomDropdown<String>(
             labelText: "Ukuran (${sizes.length})",
             items: sizes,
@@ -191,56 +242,115 @@ class ProductDropdown extends StatelessWidget {
             onChanged: onSizeChanged,
             hintText:
                 sizes.isEmpty ? "Tidak ada ukuran tersedia" : "Pilih Ukuran",
+            isDynamicWidth: sizes.length <= 3,
           ),
-          _buildReadOnlyProgramField(),
+          _buildReadOnlyProgramField(context),
         ),
       ],
     );
   }
 
-  Widget _buildRow(Widget firstDropdown, Widget secondDropdown) {
+  Widget _buildRow(
+      BuildContext context, Widget firstDropdown, Widget secondDropdown) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppPadding.p10),
+      padding: EdgeInsets.only(
+        bottom: ResponsiveHelper.getResponsiveSpacing(
+          context,
+          mobile: 8,
+          tablet: 10,
+          desktop: 12,
+        ),
+      ),
       child: Row(
         children: [
           Expanded(child: firstDropdown),
-          const SizedBox(width: 8),
+          SizedBox(
+            width: ResponsiveHelper.getResponsiveSpacing(
+              context,
+              mobile: 6,
+              tablet: 8,
+              desktop: 10,
+            ),
+          ),
           Expanded(child: secondDropdown),
         ],
       ),
     );
   }
 
-  Widget _buildReadOnlyProgramField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade300),
+  Widget _buildReadOnlyProgramField(BuildContext context) {
+    return SizedBox(
+      height: ResponsiveHelper.isMobile(context) ? 60 : 65,
+      child: InputDecorator(
+        decoration: InputDecoration(
+          floatingLabelBehavior: FloatingLabelBehavior.always,
+          border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            color: Colors.grey.shade50,
           ),
-          child: Text(
-            selectedProgram?.isNotEmpty == true
-                ? selectedProgram!
-                : (programs.isEmpty
-                    ? "Tidak ada program tersedia"
-                    : "Program akan dipilih otomatis"),
-            style: TextStyle(
-              fontSize: 14,
-              color: selectedProgram?.isNotEmpty == true
-                  ? Colors.black87
-                  : Colors.grey.shade600,
-              fontWeight: selectedProgram?.isNotEmpty == true
-                  ? FontWeight.w500
-                  : FontWeight.normal,
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? AppColors.borderDark
+                  : AppColors.borderLight,
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? AppColors.primaryDark
+                  : AppColors.primaryLight,
+              width: 2,
+            ),
+          ),
+          contentPadding: EdgeInsets.symmetric(
+            vertical: ResponsiveHelper.isMobile(context) ? 12 : 16,
+            horizontal: 12,
+          ),
+          isDense: true,
+          labelStyle: TextStyle(
+            fontSize: ResponsiveHelper.isMobile(context) ? 11 : 14,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? AppColors.textSecondaryDark
+                : AppColors.textSecondaryLight,
+          ),
+          filled: true,
+          fillColor: Theme.of(context).brightness == Brightness.dark
+              ? AppColors.surfaceVariantDark
+              : AppColors.surfaceVariantLight,
+        ),
+        child: SizedBox(
+          height: ResponsiveHelper.isMobile(context) ? 40 : 44,
+          child: Center(
+            child: Text(
+              selectedProgram?.isNotEmpty == true
+                  ? selectedProgram!
+                  : (programs.isEmpty
+                      ? "Tidak ada program tersedia"
+                      : "Program akan dipilih otomatis"),
+              style: TextStyle(
+                fontSize: ResponsiveHelper.isMobile(context) ? 13 : 15,
+                color: selectedProgram?.isNotEmpty == true
+                    ? (Theme.of(context).brightness == Brightness.dark
+                        ? AppColors.textPrimaryDark
+                        : AppColors.textPrimaryLight)
+                    : (Theme.of(context).brightness == Brightness.dark
+                        ? AppColors.disabledDark
+                        : AppColors.disabledLight),
+                fontWeight: selectedProgram?.isNotEmpty == true
+                    ? FontWeight.w500
+                    : FontWeight.normal,
+                height: 1.2,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              softWrap: true,
             ),
           ),
         ),
-      ],
+      ),
     );
   }
 }

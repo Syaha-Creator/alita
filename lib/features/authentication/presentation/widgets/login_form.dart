@@ -1,7 +1,6 @@
 // lib/features/authentication/presentation/widgets/login_form.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../config/app_constant.dart';
 import '../../../../core/utils/controller_disposal_mixin.dart';
@@ -79,14 +78,11 @@ class _LoginFormState extends State<LoginForm> with ControllerDisposalMixin {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            "Email",
-            style: GoogleFonts.montserrat(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
+          Text("Email",
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w500,
+                color: theme.colorScheme.onSurface,
+              )),
           const SizedBox(height: 6),
           CustomTextField(
             controller: emailController,
@@ -99,14 +95,11 @@ class _LoginFormState extends State<LoginForm> with ControllerDisposalMixin {
             },
           ),
           const SizedBox(height: 15),
-          Text(
-            "Password",
-            style: GoogleFonts.montserrat(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
+          Text("Password",
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w500,
+                color: theme.colorScheme.onSurface,
+              )),
           const SizedBox(height: 6),
           CustomTextField(
             controller: passwordController,

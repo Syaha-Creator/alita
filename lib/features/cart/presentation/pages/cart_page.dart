@@ -41,7 +41,7 @@ class CartPage extends StatelessWidget {
           centerTitle: true,
           title: Text(
             'Keranjang Belanja',
-            style: GoogleFonts.montserrat(
+            style: GoogleFonts.inter(
               fontSize: 18,
               fontWeight: FontWeight.w600,
               color: theme.colorScheme.onSurface,
@@ -106,7 +106,7 @@ class CartPage extends StatelessWidget {
             const SizedBox(height: 32),
             Text(
               'Keranjang Anda kosong',
-              style: GoogleFonts.montserrat(
+              style: GoogleFonts.inter(
                 fontSize: 24,
                 fontWeight: FontWeight.w600,
                 color: isDark
@@ -118,7 +118,7 @@ class CartPage extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               'Tambahkan produk untuk memulai belanja Anda',
-              style: GoogleFonts.montserrat(
+              style: GoogleFonts.inter(
                 fontSize: 16,
                 color: isDark
                     ? AppColors.textSecondaryDark
@@ -135,7 +135,7 @@ class CartPage extends StatelessWidget {
                 icon: const Icon(Icons.add_shopping_cart, size: 24),
                 label: Text(
                   'Mulai Belanja',
-                  style: GoogleFonts.montserrat(
+                  style: GoogleFonts.inter(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
@@ -238,7 +238,7 @@ class CartPage extends StatelessWidget {
                   icon: const Icon(Icons.add_shopping_cart, size: 20),
                   label: Text(
                     'Tambah Produk Lain',
-                    style: GoogleFonts.montserrat(
+                    style: GoogleFonts.inter(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
@@ -306,7 +306,7 @@ class CartPage extends StatelessWidget {
                     children: [
                       Text(
                         'Checkout',
-                        style: GoogleFonts.montserrat(
+                        style: GoogleFonts.inter(
                           color: selectedItems.isEmpty
                               ? (isDark
                                   ? AppColors.textSecondaryDark
@@ -320,7 +320,7 @@ class CartPage extends StatelessWidget {
                         const SizedBox(width: 8),
                         Text(
                           FormatHelper.formatCurrency(totalPrice),
-                          style: GoogleFonts.montserrat(
+                          style: GoogleFonts.inter(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
@@ -353,7 +353,7 @@ class CartPage extends StatelessWidget {
             const SizedBox(height: 24),
             Text(
               'Terjadi Kesalahan',
-              style: GoogleFonts.montserrat(
+              style: GoogleFonts.inter(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
                 color: isDark
@@ -364,7 +364,7 @@ class CartPage extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               state.message,
-              style: GoogleFonts.montserrat(
+              style: GoogleFonts.inter(
                 fontSize: 14,
                 color: isDark
                     ? AppColors.textSecondaryDark
@@ -384,7 +384,7 @@ class CartPage extends StatelessWidget {
               ),
               child: Text(
                 'Coba Lagi',
-                style: GoogleFonts.montserrat(
+                style: GoogleFonts.inter(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
                 ),
@@ -432,7 +432,7 @@ class CartPage extends StatelessWidget {
               const SizedBox(width: 12),
               Text(
                 'Hapus Item',
-                style: GoogleFonts.montserrat(
+                style: GoogleFonts.inter(
                   fontWeight: FontWeight.w600,
                   color: isDark
                       ? AppColors.textPrimaryDark
@@ -443,7 +443,7 @@ class CartPage extends StatelessWidget {
           ),
           content: Text(
             'Apakah Anda yakin ingin menghapus item ini dari keranjang?',
-            style: GoogleFonts.montserrat(
+            style: GoogleFonts.inter(
               color: isDark
                   ? AppColors.textSecondaryDark
                   : AppColors.textSecondaryLight,
@@ -453,7 +453,7 @@ class CartPage extends StatelessWidget {
             TextButton(
               child: Text(
                 'Batal',
-                style: GoogleFonts.montserrat(
+                style: GoogleFonts.inter(
                   color: isDark
                       ? AppColors.textSecondaryDark
                       : AppColors.textSecondaryLight,
@@ -471,7 +471,7 @@ class CartPage extends StatelessWidget {
               ),
               child: Text(
                 'Hapus',
-                style: GoogleFonts.montserrat(
+                style: GoogleFonts.inter(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
                 ),

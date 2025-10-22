@@ -5,7 +5,9 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../../../config/app_constant.dart';
 import '../../../../core/utils/format_helper.dart';
+import '../../../../core/utils/responsive_helper.dart';
 import '../../../../core/widgets/custom_toast.dart';
+import '../../../../theme/app_colors.dart';
 import '../../domain/entities/product_entity.dart';
 import '../bloc/product_bloc.dart';
 import '../bloc/product_state.dart';
@@ -63,10 +65,35 @@ class ProductActions {
           contentPadding: EdgeInsets.zero,
           title: Row(
             children: [
-              Icon(Icons.share,
-                  color: Theme.of(context).primaryColor, size: 24),
-              const SizedBox(width: 8),
-              const Text("Bagikan Produk"),
+              Icon(
+                Icons.share,
+                color: Theme.of(context).primaryColor,
+                size: ResponsiveHelper.getResponsiveIconSize(
+                  context,
+                  mobile: 20,
+                  tablet: 22,
+                  desktop: 24,
+                ),
+              ),
+              SizedBox(
+                width: ResponsiveHelper.getResponsiveSpacing(
+                  context,
+                  mobile: 6,
+                  tablet: 8,
+                  desktop: 10,
+                ),
+              ),
+              Text(
+                "Bagikan Produk",
+                style: TextStyle(
+                  fontSize: ResponsiveHelper.getResponsiveFontSize(
+                    context,
+                    mobile: 16,
+                    tablet: 18,
+                    desktop: 20,
+                  ),
+                ),
+              ),
             ],
           ),
           content: SingleChildScrollView(
@@ -194,14 +221,16 @@ class ProductActions {
                   if (combinedDiscounts.isNotEmpty)
                     _buildPriceRow(
                         "Diskon Tambahan", combinedDiscounts.join(' + '),
-                        valueColor: Colors.blue),
+                        valueColor: AppColors.primaryLight),
                   _buildPriceRow("Total Diskon",
                       "- ${FormatHelper.formatCurrency(totalDiscount)}",
-                      valueColor: Colors.red),
+                      valueColor: AppColors.error),
                   const Divider(height: 16, thickness: 1.5),
                   _buildPriceRow(
                       "Harga Net", FormatHelper.formatCurrency(netPrice),
-                      isBold: true, valueSize: 18, valueColor: Colors.green),
+                      isBold: true,
+                      valueSize: 18,
+                      valueColor: AppColors.success),
                   if (installmentMonths != null && installmentMonths > 0)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),

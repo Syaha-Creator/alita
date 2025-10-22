@@ -193,13 +193,12 @@ class _CartItemWidgetState extends State<CartItemWidget> {
         Expanded(
           child: Text(
             '${widget.item.product.kasur} - ${widget.item.product.ukuran}',
-            style: GoogleFonts.montserrat(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: isDark
-                  ? AppColors.textPrimaryDark
-                  : AppColors.textPrimaryLight,
-            ),
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: isDark
+                      ? AppColors.textPrimaryDark
+                      : AppColors.textPrimaryLight,
+                ),
           ),
         ),
         QuantityControl(
@@ -235,19 +234,19 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                     isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                 title: Text(
                   'Konfirmasi',
-                  style: GoogleFonts.montserrat(
-                    color: isDark
-                        ? AppColors.textPrimaryDark
-                        : AppColors.textPrimaryLight,
-                  ),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: isDark
+                            ? AppColors.textPrimaryDark
+                            : AppColors.textPrimaryLight,
+                      ),
                 ),
                 content: Text(
                   'Yakin ingin menghapus item ini?',
-                  style: GoogleFonts.montserrat(
-                    color: isDark
-                        ? AppColors.textSecondaryDark
-                        : AppColors.textSecondaryLight,
-                  ),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: isDark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondaryLight,
+                      ),
                 ),
                 actions: [
                   TextButton(
@@ -277,10 +276,12 @@ class _CartItemWidgetState extends State<CartItemWidget> {
 
   Widget _buildProductDetails(BuildContext context, bool isDark) {
     final p = widget.item.product;
-    final styleLabel =
-        GoogleFonts.montserrat(fontSize: 14, fontWeight: FontWeight.w600);
-    final styleValue =
-        GoogleFonts.montserrat(fontSize: 14, fontWeight: FontWeight.w500);
+    final baseTextStyle =
+        Theme.of(context).textTheme.bodyMedium ?? const TextStyle();
+    final TextStyle styleLabel =
+        baseTextStyle.copyWith(fontWeight: FontWeight.w600);
+    final TextStyle styleValue =
+        baseTextStyle.copyWith(fontWeight: FontWeight.w500);
 
     return Container(
       padding: const EdgeInsets.all(AppPadding.p10),
@@ -291,15 +292,13 @@ class _CartItemWidgetState extends State<CartItemWidget> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Detail Produk',
-            style: styleLabel.copyWith(
-              fontSize: 15,
-              color: isDark
-                  ? AppColors.textPrimaryDark
-                  : AppColors.textPrimaryLight,
-            ),
-          ),
+          Text('Detail Produk',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: isDark
+                        ? AppColors.textPrimaryDark
+                        : AppColors.textPrimaryLight,
+                    fontWeight: FontWeight.w600,
+                  )),
           const SizedBox(height: AppPadding.p10 / 2),
           _buildDropdownRow(
             context,
@@ -506,7 +505,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
           ),
           Text(
             value.isNotEmpty ? value : '-',
-            style: valueStyle.copyWith(
+            style: (valueStyle).copyWith(
               color: isDark
                   ? AppColors.textSecondaryDark
                   : AppColors.textSecondaryLight,
@@ -590,7 +589,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
               Expanded(
                 child: Text(
                   title,
-                  style: GoogleFonts.montserrat(
+                  style: GoogleFonts.inter(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: isDark
@@ -640,7 +639,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                               Expanded(
                                 child: Text(
                                   bonus.name,
-                                  style: GoogleFonts.montserrat(
+                                  style: GoogleFonts.inter(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w500,
                                     color: isDark
@@ -722,7 +721,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                           ),
                           child: Text(
                             '${bonus.quantity}x (Max: ${bonus.maxQuantity})',
-                            style: GoogleFonts.montserrat(
+                            style: GoogleFonts.inter(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                               color: isDark
@@ -784,7 +783,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                   const SizedBox(width: 8),
                   Text(
                     'Belum ada bonus item',
-                    style: GoogleFonts.montserrat(
+                    style: GoogleFonts.inter(
                       fontSize: 13,
                       color: isDark
                           ? AppColors.textSecondaryDark
@@ -818,7 +817,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                     isDark ? AppColors.accentDark : AppColors.textPrimaryLight),
             const SizedBox(width: 8),
             Text(title,
-                style: GoogleFonts.montserrat(
+                style: GoogleFonts.inter(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                     color: isDark
@@ -831,13 +830,15 @@ class _CartItemWidgetState extends State<CartItemWidget> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
-                  child: Text(
-                      content.isNotEmpty ? content : 'Tidak ada catatan',
-                      style: GoogleFonts.montserrat(
-                          fontSize: 14,
-                          color: isDark
-                              ? AppColors.textSecondaryDark
-                              : AppColors.textSecondaryLight))),
+                child: Text(
+                  content.isNotEmpty ? content : 'Tidak ada catatan',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: isDark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondaryLight,
+                      ),
+                ),
+              ),
               IconButton(
                   onPressed: () => _showEditNoteDialog(context),
                   icon: Icon(Icons.edit,
@@ -863,11 +864,11 @@ class _CartItemWidgetState extends State<CartItemWidget> {
         .join(' + ');
     final hasInstallment = (item.installmentMonths ?? 0) > 0;
 
-    final styleLabel = GoogleFonts.montserrat(
+    final styleLabel = GoogleFonts.inter(
         fontSize: 14,
         fontWeight: FontWeight.w600,
         color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight);
-    final styleValue = GoogleFonts.montserrat(
+    final styleValue = GoogleFonts.inter(
         fontSize: 14,
         color: isDark
             ? AppColors.textSecondaryDark
@@ -884,7 +885,10 @@ class _CartItemWidgetState extends State<CartItemWidget> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Informasi Harga', style: styleLabel.copyWith(fontSize: 16)),
+              Text('Informasi Harga',
+                  style: (Theme.of(context).textTheme.titleSmall ??
+                          const TextStyle())
+                      .copyWith(fontWeight: FontWeight.w600)),
               IconButton(
                 icon: Icon(Icons.edit,
                     size: 20,
@@ -1013,8 +1017,9 @@ class _CartItemWidgetState extends State<CartItemWidget> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label,
-              style: GoogleFonts.montserrat(
-                  fontSize: 14, fontWeight: FontWeight.w600)),
+              style:
+                  (Theme.of(context).textTheme.bodyMedium ?? const TextStyle())
+                      .copyWith(fontWeight: FontWeight.w600)),
           Text(value, style: valueStyle)
         ],
       ),
@@ -1034,21 +1039,20 @@ class _CartItemWidgetState extends State<CartItemWidget> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            'Total Harga:',
-            style: GoogleFonts.montserrat(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: isDark
-                  ? AppColors.textPrimaryDark
-                  : AppColors.textPrimaryLight,
-            ),
-          ),
+          Text('Total Harga:',
+              style:
+                  (Theme.of(context).textTheme.titleSmall ?? const TextStyle())
+                      .copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: isDark
+                              ? AppColors.textPrimaryDark
+                              : AppColors.textPrimaryLight)),
           Text(FormatHelper.formatCurrency(total),
-              style: GoogleFonts.montserrat(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.success)),
+              style:
+                  (Theme.of(context).textTheme.titleSmall ?? const TextStyle())
+                      .copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.success)),
         ],
       ),
     );
@@ -1058,7 +1062,8 @@ class _CartItemWidgetState extends State<CartItemWidget> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Edit Catatan', style: GoogleFonts.montserrat()),
+        title: Text('Edit Catatan',
+            style: Theme.of(context).textTheme.titleMedium),
         content: TextField(
           controller: _noteController,
           decoration: const InputDecoration(
@@ -1088,23 +1093,23 @@ class _CartItemWidgetState extends State<CartItemWidget> {
       builder: (ctx) => AlertDialog(
         title: Text(
           'Hapus Bonus',
-          style: GoogleFonts.montserrat(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
         ),
         content: Text(
           'Apakah Anda yakin ingin menghapus bonus ini?',
-          style: GoogleFonts.montserrat(fontSize: 14),
+          style: Theme.of(context).textTheme.bodyMedium,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text(
               'Batal',
-              style: GoogleFonts.montserrat(
-                color: AppColors.textSecondaryLight,
-              ),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondaryLight,
+                  ),
             ),
           ),
           ElevatedButton(
@@ -1120,12 +1125,10 @@ class _CartItemWidgetState extends State<CartItemWidget> {
               backgroundColor: AppColors.error,
               foregroundColor: Colors.white,
             ),
-            child: Text(
-              'Hapus',
-              style: GoogleFonts.montserrat(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            child: Text('Hapus',
+                style: (Theme.of(context).textTheme.bodyMedium ??
+                        const TextStyle())
+                    .copyWith(fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -1215,7 +1218,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
         builder: (ctx) => AlertDialog(
           title: Text(
             'Pilih $type',
-            style: GoogleFonts.montserrat(
+            style: GoogleFonts.inter(
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
@@ -1253,7 +1256,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
               onPressed: () => Navigator.pop(ctx),
               child: Text(
                 'Batal',
-                style: GoogleFonts.montserrat(
+                style: GoogleFonts.inter(
                   color: AppColors.textSecondaryLight,
                 ),
               ),
@@ -1495,8 +1498,8 @@ class _CartInfoDialogState extends State<CartInfoDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text("Input Diskon",
-              style: GoogleFonts.montserrat(
-                  fontSize: 20, fontWeight: FontWeight.bold)),
+              style:
+                  GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
 
           // Konten di dalam SingleChildScrollView agar tidak overflow
@@ -1691,7 +1694,7 @@ class _BonusSelectorDialogState extends State<_BonusSelectorDialog> {
     return AlertDialog(
       title: Text(
         'Pilih Item Bonus',
-        style: GoogleFonts.montserrat(
+        style: GoogleFonts.inter(
           fontSize: 16,
           fontWeight: FontWeight.w600,
         ),
@@ -1724,7 +1727,7 @@ class _BonusSelectorDialogState extends State<_BonusSelectorDialog> {
                   ? Center(
                       child: Text(
                         'Tidak ada item yang ditemukan',
-                        style: GoogleFonts.montserrat(
+                        style: GoogleFonts.inter(
                           fontSize: 14,
                           color: Colors.grey[600],
                         ),
@@ -1741,14 +1744,14 @@ class _BonusSelectorDialogState extends State<_BonusSelectorDialog> {
                         return ListTile(
                           title: Text(
                             displayText,
-                            style: GoogleFonts.montserrat(
+                            style: GoogleFonts.inter(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
                           subtitle: Text(
                             'Brand: ${accessory.brand}',
-                            style: GoogleFonts.montserrat(
+                            style: GoogleFonts.inter(
                               fontSize: 12,
                               color: Colors.grey[600],
                             ),
@@ -1775,7 +1778,7 @@ class _BonusSelectorDialogState extends State<_BonusSelectorDialog> {
           onPressed: () => Navigator.pop(context),
           child: Text(
             'Batal',
-            style: GoogleFonts.montserrat(
+            style: GoogleFonts.inter(
               color: AppColors.textSecondaryLight,
             ),
           ),

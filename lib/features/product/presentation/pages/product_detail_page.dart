@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../config/app_constant.dart';
 import '../../../../core/utils/format_helper.dart';
+import '../../../../core/utils/responsive_helper.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../cart/presentation/widgets/cart_badge.dart';
 import '../../domain/entities/product_entity.dart';
@@ -62,15 +63,15 @@ class ProductDetailPage extends StatelessWidget {
                 elevation: 0,
                 flexibleSpace: _buildCustomAppBar(context, product, isDark),
                 automaticallyImplyLeading: false,
-                toolbarHeight: 80,
+                toolbarHeight: ResponsiveHelper.getAppBarHeight(context) + 20,
               ),
               SliverList(
                 delegate: SliverChildListDelegate(
                   [
-                    _buildPriceCard(product, netPrice, totalDiscount,
+                    _buildPriceCard(context, product, netPrice, totalDiscount,
                         combinedDiscounts, installmentMonths, isDark),
-                    _buildDetailCard(product, isDark),
-                    _buildBonusAndNotesCard(product, note, isDark),
+                    _buildDetailCard(context, product, isDark),
+                    _buildBonusAndNotesCard(context, product, note, isDark),
                     const SizedBox(height: 75),
                   ],
                 ),
@@ -87,16 +88,27 @@ class ProductDetailPage extends StatelessWidget {
   /// Build custom AppBar with centered product name
   Widget _buildCustomAppBar(
       BuildContext context, ProductEntity product, bool isDark) {
+    final theme = Theme.of(context);
     return SafeArea(
       child: Container(
-        height: 80,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        height: ResponsiveHelper.getAppBarHeight(context) + 20,
+        padding: ResponsiveHelper.getAppBarPadding(context),
         child: Row(
           children: [
             // Back button (fixed width)
             Container(
-              width: 48,
-              height: 48,
+              width: ResponsiveHelper.getResponsiveIconSize(
+                context,
+                mobile: 40,
+                tablet: 44,
+                desktop: 48,
+              ),
+              height: ResponsiveHelper.getResponsiveIconSize(
+                context,
+                mobile: 40,
+                tablet: 44,
+                desktop: 48,
+              ),
               decoration: BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
@@ -113,7 +125,12 @@ class ProductDetailPage extends StatelessWidget {
                   Icons.arrow_back_ios_rounded,
                   color:
                       isDark ? AppColors.primaryDark : AppColors.primaryLight,
-                  size: 20,
+                  size: ResponsiveHelper.getResponsiveIconSize(
+                    context,
+                    mobile: 18,
+                    tablet: 20,
+                    desktop: 22,
+                  ),
                 ),
                 onPressed: () => Navigator.of(context).pop(),
                 tooltip: 'Kembali',
@@ -123,10 +140,16 @@ class ProductDetailPage extends StatelessWidget {
             // Expanded center section for product name with proper spacing
             Expanded(
               child: Container(
-                margin: const EdgeInsets.symmetric(
-                    horizontal: 12), // Add spacing from sides
+                margin: EdgeInsets.symmetric(
+                  horizontal: ResponsiveHelper.getResponsiveSpacing(
+                    context,
+                    mobile: 8,
+                    tablet: 10,
+                    desktop: 12,
+                  ),
+                ),
                 child: Center(
-                  child: _buildProductNameSection(product, isDark),
+                  child: _buildProductNameSection(context, product, isDark),
                 ),
               ),
             ),
@@ -140,7 +163,9 @@ class ProductDetailPage extends StatelessWidget {
   }
 
   /// Build product name and size section in AppBar with adaptive sizing
-  Widget _buildProductNameSection(ProductEntity product, bool isDark) {
+  Widget _buildProductNameSection(
+      BuildContext context, ProductEntity product, bool isDark) {
+    final theme = Theme.of(context);
     final productName = product.kasur;
     final productSize = product.ukuran;
     final fullText = '$productName ($productSize)';
@@ -176,7 +201,7 @@ class ProductDetailPage extends StatelessWidget {
                   // Product name (separate line for long text)
                   Text(
                     productName,
-                    style: TextStyle(
+                    style: theme.textTheme.titleLarge?.copyWith(
                       color: isDark
                           ? AppColors.primaryDark
                           : AppColors.primaryLight,
@@ -193,7 +218,7 @@ class ProductDetailPage extends StatelessWidget {
                   if (productSize.isNotEmpty)
                     Text(
                       '($productSize)',
-                      style: TextStyle(
+                      style: theme.textTheme.titleMedium?.copyWith(
                         color: (isDark
                                 ? AppColors.primaryDark
                                 : AppColors.primaryLight)
@@ -211,7 +236,7 @@ class ProductDetailPage extends StatelessWidget {
             : Text(
                 // Short text: single line
                 fullText,
-                style: TextStyle(
+                style: theme.textTheme.titleLarge?.copyWith(
                   color:
                       isDark ? AppColors.primaryDark : AppColors.primaryLight,
                   fontSize: adaptiveConfig['nameFontSize'],
@@ -377,12 +402,14 @@ class ProductDetailPage extends StatelessWidget {
   }
 
   Widget _buildPriceCard(
+      BuildContext context,
       ProductEntity product,
       double netPrice,
       double totalDiscount,
       List<String> combinedDiscounts,
       int? installmentMonths,
       bool isDark) {
+    final theme = Theme.of(context);
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -396,16 +423,16 @@ class ProductDetailPage extends StatelessWidget {
           children: [
             Text(
               "Rincian Harga",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: isDark
-                    ? AppColors.textPrimaryDark
-                    : AppColors.textPrimaryLight,
-              ),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: isDark
+                        ? AppColors.textPrimaryDark
+                        : AppColors.textPrimaryLight,
+                  ),
             ),
             const Divider(height: 18),
             _buildPriceRow(
+              context,
               "Pricelist",
               FormatHelper.formatCurrency(product.pricelist),
               isStrikethrough: true,
@@ -413,18 +440,21 @@ class ProductDetailPage extends StatelessWidget {
               isDark: isDark,
             ),
             _buildPriceRow(
+              context,
               "Program",
               product.program.isNotEmpty ? product.program : "Tidak ada promo",
               isDark: isDark,
             ),
             if (combinedDiscounts.isNotEmpty)
               _buildPriceRow(
+                context,
                 "Diskon Tambahan",
                 combinedDiscounts.join(' + '),
                 valueColor: AppColors.info,
                 isDark: isDark,
               ),
             _buildPriceRow(
+              context,
               "Total Diskon",
               "- ${FormatHelper.formatCurrency(totalDiscount)}",
               valueColor: AppColors.error,
@@ -432,6 +462,7 @@ class ProductDetailPage extends StatelessWidget {
             ),
             const Divider(height: 18, thickness: 1.5),
             _buildPriceRow(
+              context,
               "Harga Net",
               FormatHelper.formatCurrency(netPrice),
               isBold: true,
@@ -445,11 +476,10 @@ class ProductDetailPage extends StatelessWidget {
                 child: Center(
                   child: Text(
                     "Cicilan: ${FormatHelper.formatCurrency(netPrice / installmentMonths)} x $installmentMonths bulan",
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontStyle: FontStyle.italic,
-                      color: isDark ? AppColors.accentDark : AppColors.info,
-                    ),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontStyle: FontStyle.italic,
+                          color: isDark ? AppColors.accentDark : AppColors.info,
+                        ),
                   ),
                 ),
               ),
@@ -459,7 +489,9 @@ class ProductDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildDetailCard(ProductEntity product, bool isDark) {
+  Widget _buildDetailCard(
+      BuildContext context, ProductEntity product, bool isDark) {
+    final theme = Theme.of(context);
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -473,27 +505,29 @@ class ProductDetailPage extends StatelessWidget {
           children: [
             Text(
               "Spesifikasi Set",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: isDark
-                    ? AppColors.textPrimaryDark
-                    : AppColors.textPrimaryLight,
-              ),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: isDark
+                        ? AppColors.textPrimaryDark
+                        : AppColors.textPrimaryLight,
+                  ),
             ),
             const Divider(height: 24),
-            _buildSpecRow(Icons.king_bed, "Tipe Kasur", product.kasur, isDark),
+            _buildSpecRow(
+                context, Icons.king_bed, "Tipe Kasur", product.kasur, isDark),
             if (product.divan.isNotEmpty && product.divan != AppStrings.noDivan)
-              _buildSpecRow(Icons.layers, "Tipe Divan", product.divan, isDark),
+              _buildSpecRow(
+                  context, Icons.layers, "Tipe Divan", product.divan, isDark),
             if (product.headboard.isNotEmpty &&
                 product.headboard != AppStrings.noHeadboard)
-              _buildSpecRow(Icons.view_headline, "Tipe Headboard",
+              _buildSpecRow(context, Icons.view_headline, "Tipe Headboard",
                   product.headboard, isDark),
             if (product.sorong.isNotEmpty &&
                 product.sorong != AppStrings.noSorong)
-              _buildSpecRow(
-                  Icons.arrow_downward, "Tipe Sorong", product.sorong, isDark),
-            _buildSpecRow(Icons.straighten, "Ukuran", product.ukuran, isDark),
+              _buildSpecRow(context, Icons.arrow_downward, "Tipe Sorong",
+                  product.sorong, isDark),
+            _buildSpecRow(
+                context, Icons.straighten, "Ukuran", product.ukuran, isDark),
           ],
         ),
       ),
@@ -501,7 +535,8 @@ class ProductDetailPage extends StatelessWidget {
   }
 
   Widget _buildBonusAndNotesCard(
-      ProductEntity product, String note, bool isDark) {
+      BuildContext context, ProductEntity product, String note, bool isDark) {
+    final theme = Theme.of(context);
     final hasBonus =
         product.bonus.isNotEmpty && product.bonus.any((b) => b.name.isNotEmpty);
     return Card(
@@ -517,23 +552,22 @@ class ProductDetailPage extends StatelessWidget {
           children: [
             Text(
               "Bonus & Catatan",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: isDark
-                    ? AppColors.textPrimaryDark
-                    : AppColors.textPrimaryLight,
-              ),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: isDark
+                        ? AppColors.textPrimaryDark
+                        : AppColors.textPrimaryLight,
+                  ),
             ),
             const Divider(height: 24),
             Text(
               "Complimentary:",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: isDark
-                    ? AppColors.textPrimaryDark
-                    : AppColors.textPrimaryLight,
-              ),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: isDark
+                        ? AppColors.textPrimaryDark
+                        : AppColors.textPrimaryLight,
+                  ),
             ),
             const SizedBox(height: 8),
             if (hasBonus)
@@ -542,11 +576,11 @@ class ProductDetailPage extends StatelessWidget {
                       padding: const EdgeInsets.only(left: 8.0, bottom: 4.0),
                       child: Text(
                         "• ${bonus.quantity}x ${bonus.name}",
-                        style: TextStyle(
-                          color: isDark
-                              ? AppColors.textSecondaryDark
-                              : AppColors.textSecondaryLight,
-                        ),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: isDark
+                                  ? AppColors.textSecondaryDark
+                                  : AppColors.textSecondaryLight,
+                            ),
                       ),
                     ),
                   )
@@ -555,21 +589,22 @@ class ProductDetailPage extends StatelessWidget {
                 padding: const EdgeInsets.only(left: 8.0),
                 child: Text(
                   "Tidak ada bonus.",
-                  style: TextStyle(
-                    color: isDark ? AppColors.textSecondaryDark : Colors.grey,
-                  ),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color:
+                            isDark ? AppColors.textSecondaryDark : Colors.grey,
+                      ),
                 ),
               ),
             if (note.isNotEmpty) ...[
               const Divider(height: 24),
               Text(
                 "Catatan:",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: isDark
-                      ? AppColors.textPrimaryDark
-                      : AppColors.textPrimaryLight,
-                ),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: isDark
+                          ? AppColors.textPrimaryDark
+                          : AppColors.textPrimaryLight,
+                    ),
               ),
               const SizedBox(height: 8),
               Container(
@@ -582,12 +617,12 @@ class ProductDetailPage extends StatelessWidget {
                 ),
                 child: Text(
                   note,
-                  style: TextStyle(
-                    fontStyle: FontStyle.italic,
-                    color: isDark
-                        ? AppColors.textPrimaryDark
-                        : AppColors.textPrimaryLight,
-                  ),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontStyle: FontStyle.italic,
+                        color: isDark
+                            ? AppColors.textPrimaryDark
+                            : AppColors.textPrimaryLight,
+                      ),
                 ),
               ),
             ]
@@ -597,12 +632,13 @@ class ProductDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildPriceRow(String title, String value,
+  Widget _buildPriceRow(BuildContext context, String title, String value,
       {Color? valueColor,
       bool isStrikethrough = false,
       bool isBold = false,
       double valueSize = 16,
       bool isDark = false}) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
@@ -610,12 +646,11 @@ class ProductDetailPage extends StatelessWidget {
         children: [
           Text(
             title,
-            style: TextStyle(
-              fontSize: 16,
-              color: isDark
-                  ? AppColors.textPrimaryDark
-                  : AppColors.textPrimaryLight,
-            ),
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: isDark
+                      ? AppColors.textPrimaryDark
+                      : AppColors.textPrimaryLight,
+                ),
           ),
           Expanded(
             child: Text(
@@ -623,12 +658,13 @@ class ProductDetailPage extends StatelessWidget {
               textAlign: TextAlign.end,
               overflow: TextOverflow.ellipsis,
               maxLines: 2,
-              style: TextStyle(
-                fontSize: valueSize,
-                color: valueColor,
-                decoration: isStrikethrough ? TextDecoration.lineThrough : null,
-                fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-              ),
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    fontSize: valueSize,
+                    color: valueColor,
+                    decoration:
+                        isStrikethrough ? TextDecoration.lineThrough : null,
+                    fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+                  ),
             ),
           ),
         ],
@@ -636,7 +672,9 @@ class ProductDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildSpecRow(IconData icon, String title, String value, bool isDark) {
+  Widget _buildSpecRow(BuildContext context, IconData icon, String title,
+      String value, bool isDark) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
@@ -649,22 +687,22 @@ class ProductDetailPage extends StatelessWidget {
           const SizedBox(width: 16),
           Text(
             "$title:",
-            style: TextStyle(
-              fontWeight: FontWeight.w500,
-              color: isDark
-                  ? AppColors.textPrimaryDark
-                  : AppColors.textPrimaryLight,
-            ),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                  color: isDark
+                      ? AppColors.textPrimaryDark
+                      : AppColors.textPrimaryLight,
+                ),
           ),
           const Spacer(),
           Text(
             value.isNotEmpty ? value : "-",
             textAlign: TextAlign.end,
-            style: TextStyle(
-              color: isDark
-                  ? AppColors.textSecondaryDark
-                  : AppColors.textSecondaryLight,
-            ),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: isDark
+                      ? AppColors.textSecondaryDark
+                      : AppColors.textSecondaryLight,
+                ),
           ),
         ],
       ),
@@ -727,12 +765,12 @@ class ProductDetailPage extends StatelessWidget {
       child: ElevatedButton.icon(
         onPressed: () => _addToCart(context, product),
         icon: const Icon(Icons.shopping_cart, color: Colors.white, size: 20),
-        label: const Text(
+        label: Text(
           'Add to Cart',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-          ),
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
         ),
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,

@@ -17,10 +17,10 @@ class WhatsAppDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final colorScheme = theme.colorScheme;
 
     return AlertDialog(
-      backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+      backgroundColor: colorScheme.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
@@ -28,16 +28,13 @@ class WhatsAppDialog extends StatelessWidget {
         children: [
           Icon(
             Icons.message,
-            color: Colors.green,
+            color: AppColors.whatsapp,
             size: 24,
           ),
           const SizedBox(width: 12),
-          const Text(
+          Text(
             'Produk Tidak Tersedia',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
+            style: theme.textTheme.titleMedium,
           ),
         ],
       ),
@@ -47,26 +44,20 @@ class WhatsAppDialog extends StatelessWidget {
         children: [
           Text(
             'Detail Produk:',
-            style: TextStyle(
-              fontSize: 14,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w500,
-              color: isDark
-                  ? AppColors.textSecondaryDark
-                  : AppColors.textSecondaryLight,
             ),
           ),
           const SizedBox(height: 12),
-          _buildSimpleInfoRow('Brand', brand, isDark),
-          _buildSimpleInfoRow('Area', area, isDark),
-          _buildSimpleInfoRow('Channel', channel, isDark),
+          _buildSimpleInfoRow(context, 'Brand', brand),
+          _buildSimpleInfoRow(context, 'Area', area),
+          _buildSimpleInfoRow(context, 'Channel', channel),
           const SizedBox(height: 16),
           Text(
             'Hubungi kami melalui WhatsApp untuk informasi lebih lanjut.',
-            style: TextStyle(
-              fontSize: 14,
-              color: isDark
-                  ? AppColors.textSecondaryDark
-                  : AppColors.textSecondaryLight,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -90,7 +81,7 @@ class WhatsAppDialog extends StatelessWidget {
                 SnackBar(
                   content:
                       const Text('Gagal membuka WhatsApp. Silakan coba lagi.'),
-                  backgroundColor: AppColors.error,
+                  backgroundColor: colorScheme.error,
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -102,15 +93,17 @@ class WhatsAppDialog extends StatelessWidget {
           icon: const Icon(Icons.message, size: 18),
           label: const Text('WhatsApp'),
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.green,
-            foregroundColor: Colors.white,
+            backgroundColor: AppColors.whatsapp,
+            foregroundColor: AppColors.surfaceLight,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildSimpleInfoRow(String label, String value, bool isDark) {
+  Widget _buildSimpleInfoRow(BuildContext context, String label, String value) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -120,24 +113,18 @@ class WhatsAppDialog extends StatelessWidget {
             width: 60,
             child: Text(
               '$label:',
-              style: TextStyle(
-                fontSize: 13,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w500,
-                color: isDark
-                    ? AppColors.textSecondaryDark
-                    : AppColors.textSecondaryLight,
               ),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: TextStyle(
-                fontSize: 13,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurface,
                 fontWeight: FontWeight.w600,
-                color: isDark
-                    ? AppColors.textPrimaryDark
-                    : AppColors.textPrimaryLight,
               ),
             ),
           ),

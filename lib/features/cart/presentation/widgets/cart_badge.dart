@@ -67,7 +67,7 @@ class CartBadge extends StatelessWidget {
                   ),
                   child: Text(
                     itemCount > 99 ? '99+' : itemCount.toString(),
-                    style: GoogleFonts.montserrat(
+                    style: GoogleFonts.inter(
                       color: Colors.white,
                       fontSize: 10,
                       fontWeight: FontWeight.bold,

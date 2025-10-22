@@ -39,4 +39,7 @@ class AppColors {
   static const Color disabledDark = Color(0xFF64748B);
   static const Color shadowLight = Color(0x1A000000);
   static const Color shadowDark = Color(0x40000000);
+
+  // Brand Colors
+  static const Color whatsapp = Color(0xFF25D366);
 }
