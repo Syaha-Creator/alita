@@ -2027,11 +2027,12 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         String divan = '';
         String headboard = '';
         String sorong = '';
-        double plKasur = kasurDetail.unitPrice,
+        double plKasur = kasurDetail.unitPrice, // Pricelist (harga asli)
             plDivan = 0,
             plHeadboard = 0,
             plSorong = 0;
-        double eupKasur = kasurDetail.unitPrice,
+        double eupKasur = kasurDetail.netPrice ??
+                kasurDetail.unitPrice, // Harga net (setelah discount)
             eupDivan = 0,
             eupHeadboard = 0,
             eupSorong = 0;
@@ -2043,24 +2044,27 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
           switch (item.itemType.toLowerCase()) {
             case 'divan':
               divan = '${item.desc1} ${item.desc2}';
-              plDivan = item.unitPrice;
-              eupDivan = item.unitPrice; // EUP = pricelist for accessories
+              plDivan = item.unitPrice; // Pricelist (harga asli)
+              eupDivan = item.netPrice ??
+                  item.unitPrice; // Harga net (setelah discount)
               break;
             case 'headboard':
               headboard = '${item.desc1} ${item.desc2}';
-              plHeadboard = item.unitPrice;
-              eupHeadboard = item.unitPrice;
+              plHeadboard = item.unitPrice; // Pricelist (harga asli)
+              eupHeadboard = item.netPrice ??
+                  item.unitPrice; // Harga net (setelah discount)
               break;
             case 'sorong':
               sorong = '${item.desc1} ${item.desc2}';
-              plSorong = item.unitPrice;
-              eupSorong = item.unitPrice;
+              plSorong = item.unitPrice; // Pricelist (harga asli)
+              eupSorong = item.netPrice ??
+                  item.unitPrice; // Harga net (setelah discount)
               break;
             case 'bonus':
               bonusItems.add(BonusItem(
                 name: item.desc1,
                 quantity: item.qty,
-                takeAway: item.takeAway, // Add take away status
+                takeAway: item.takeAway ?? false, // Add take away status
               ));
               break;
           }
@@ -2099,8 +2103,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
             disc5: 0,
           ),
           quantity: kasurDetail.qty,
-          netPrice: kasurDetail
-              .unitPrice, // Unit price now contains net price (after discount) from API
+          netPrice: kasurDetail.netPrice ?? kasurDetail.unitPrice,
           discountPercentages: [],
           isSelected: true,
         ));
@@ -2198,10 +2201,11 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         customerAddress: _document!.address,
         shippingAddress: _document!.addressShipTo,
         phoneNumber: _getAllPhonesForPDF(),
-        deliveryDate: _formatDate(_document!.createdAt),
+        deliveryDate: _formatDate(_document!.requestDate),
+        orderDate: _formatDate(_document!.orderDate),
         paymentMethod: 'Transfer',
         paymentAmount: _document!.extendedAmount,
-        repaymentDate: _formatDate(_document!.createdAt),
+        repaymentDate: _formatDate(_document!.requestDate),
         grandTotal: _document!.extendedAmount,
         email: _document!.email,
         keterangan: _document!.note,

@@ -19,6 +19,7 @@ import '../services/order_letter_service.dart';
 import '../services/checkout_service.dart';
 import '../services/contact_work_experience_service.dart';
 import '../services/leader_service.dart';
+import '../services/team_hierarchy_service.dart';
 import '../features/approval/data/repositories/approval_repository.dart';
 import '../features/approval/domain/usecases/get_approvals_usecase.dart';
 import '../features/approval/domain/usecases/create_approval_usecase.dart';
@@ -79,6 +80,9 @@ void setupLocator() {
   );
   locator.registerLazySingleton<LeaderService>(
     () => LeaderService(locator<ApiClient>()),
+  );
+  locator.registerLazySingleton<TeamHierarchyService>(
+    () => TeamHierarchyService(locator<ApiClient>()),
   );
   locator.registerLazySingleton<DeviceTokenService>(
     () => DeviceTokenService(),

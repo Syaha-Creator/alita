@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:collection/collection.dart';
 
 import '../../../../../core/utils/format_helper.dart';
@@ -187,12 +186,12 @@ class _InfoDialogState extends State<InfoDialog> {
           }
           break;
         case 4:
-          if (_leaderData!.controller != null) {
+          if (_leaderData!.analyst1 != null) {
             levelText = "Diskon 4";
           }
           break;
         case 5:
-          if (_leaderData!.analyst != null) {
+          if (_leaderData!.analyst2 != null) {
             levelText = "Diskon 5";
           }
           break;
@@ -245,7 +244,7 @@ class _InfoDialogState extends State<InfoDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text("Input Diskon",
-                style: GoogleFonts.inter(
+                style: const TextStyle(fontFamily: 'Inter',
                     fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
 

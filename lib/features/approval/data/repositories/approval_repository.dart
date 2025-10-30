@@ -1,6 +1,7 @@
 import '../../../../config/dependency_injection.dart';
 import '../../../../services/order_letter_service.dart';
 import '../../../../services/auth_service.dart';
+import '../../../../services/team_hierarchy_service.dart';
 import '../models/approval_model.dart';
 import '../../domain/entities/approval_entity.dart';
 import '../cache/approval_cache.dart';
@@ -654,7 +655,7 @@ class ApprovalRepository {
     ApprovalCache.clearAllCache();
   }
 
-  /// Filter order letters based on current user as creator OR approver (OPTIMIZED)
+  /// Filter order letters based on team hierarchy (creator + subordinates)
   Future<List<Map<String, dynamic>>> _filterOrderLettersByCreatorOrApprover(
     List<Map<String, dynamic>> orderLetters,
     int currentUserId,
@@ -662,162 +663,74 @@ class ApprovalRepository {
   ) async {
     final List<Map<String, dynamic>> filteredLetters = [];
 
-    // OPTIMIZATION 1: Get all discounts in bulk ONCE
-    Map<int, List<Map<String, dynamic>>> discountsByOrderLetter = {};
-    Set<int> orderLettersWithCurrentUserAsApprover = {};
+    // Get team hierarchy data
+    final teamHierarchyService = locator<TeamHierarchyService>();
+    final teamData = await teamHierarchyService.getTeamHierarchy();
 
-    try {
-      final allDiscounts = await _orderLetterService.getOrderLetterDiscounts();
-
-      // Group discounts by order_letter_id AND pre-filter by current user
-      for (final discount in allDiscounts) {
-        final orderLetterId = discount['order_letter_id'] as int?;
-        final approverId = discount['approver'] as int?;
-
-        if (orderLetterId != null) {
-          discountsByOrderLetter[orderLetterId] ??= [];
-          discountsByOrderLetter[orderLetterId]!.add(discount);
-
-          // Pre-mark orders where current user is an approver
-          if (approverId == currentUserId) {
-            orderLettersWithCurrentUserAsApprover.add(orderLetterId);
-          }
-        }
-      }
-    } catch (e) {
-      // Return empty if bulk fetch fails
-      return [];
+    if (teamData == null) {
+      // If team hierarchy data is not available, fallback to showing only current user's orders
+      print(
+          'ApprovalRepository: Team hierarchy data not available, showing only current user orders');
+      return _filterByCurrentUserOnly(orderLetters, currentUserId);
     }
 
-    // OPTIMIZATION 2: Fast filtering with early exit
+    // Get all subordinate user IDs (including nested teams)
+    final subordinateUserIds = teamData.getAllSubordinateUserIds();
+
+    print('ApprovalRepository: Current user ID: $currentUserId');
+    print(
+        'ApprovalRepository: Has subordinates: ${teamData.hasSubordinates()}');
+    print('ApprovalRepository: Subordinate user IDs: $subordinateUserIds');
+
+    // Filter orders based on hierarchy
+    for (final orderLetter in orderLetters) {
+      final orderLetterId = orderLetter['id'] as int?;
+      if (orderLetterId == null) continue;
+
+      final creator = orderLetter['creator'];
+      if (creator == null) continue;
+
+      final creatorId = int.tryParse(creator.toString());
+      if (creatorId == null) continue;
+
+      // Check if creator is current user
+      if (creatorId == currentUserId) {
+        filteredLetters.add(orderLetter);
+        continue;
+      }
+
+      // Check if creator is one of the subordinates
+      if (subordinateUserIds.contains(creatorId)) {
+        filteredLetters.add(orderLetter);
+        continue;
+      }
+    }
+
+    print(
+        'ApprovalRepository: Filtered ${filteredLetters.length} orders out of ${orderLetters.length} total orders');
+    return filteredLetters;
+  }
+
+  /// Fallback method to filter only current user's orders
+  List<Map<String, dynamic>> _filterByCurrentUserOnly(
+    List<Map<String, dynamic>> orderLetters,
+    int currentUserId,
+  ) {
+    final List<Map<String, dynamic>> filteredLetters = [];
+
     for (final orderLetter in orderLetters) {
       final orderLetterId = orderLetter['id'] as int?;
       if (orderLetterId == null) continue;
 
       final creator = orderLetter['creator'];
 
-      // FAST PATH 1: Check creator by user ID (string comparison only)
+      // Check if creator is current user
       if (creator != null && creator.toString() == currentUserId.toString()) {
         filteredLetters.add(orderLetter);
-        continue;
       }
-
-      // FAST PATH 2: Check if user is approver (pre-computed set lookup)
-      if (orderLettersWithCurrentUserAsApprover.contains(orderLetterId)) {
-        final orderDiscounts = discountsByOrderLetter[orderLetterId] ?? [];
-
-        // Only add if user can actually approve (sequential check)
-        if (_canUserApproveSequentially(
-          orderDiscounts,
-          currentUserId,
-          currentUserName,
-          orderLetterId,
-        )) {
-          filteredLetters.add(orderLetter);
-        }
-      }
-      // Else: skip immediately (no need to check discounts)
     }
 
     return filteredLetters;
-  }
-
-  /// Check if user can approve based on SEQUENTIAL approval logic
-  bool _canUserApproveSequentially(
-    List<Map<String, dynamic>> discounts,
-    int currentUserId,
-    String currentUserName,
-    int orderLetterId,
-  ) {
-    // Sort discounts by approver_level_id to ensure sequential order
-    final sortedDiscounts = List<Map<String, dynamic>>.from(discounts)
-      ..sort((a, b) {
-        final levelA = a['approver_level_id'] ?? 0;
-        final levelB = b['approver_level_id'] ?? 0;
-        return levelA.compareTo(levelB);
-      });
-
-    // Find current user's level and check if they have already approved
-    int? currentUserLevel;
-    int? currentUserDiscountId;
-    bool hasUserApproved = false;
-
-    for (final discount in sortedDiscounts) {
-      if (discount['order_letter_id'] == orderLetterId) {
-        final approverId = discount['approver'];
-        final level = discount['approver_level_id'];
-        final approved = discount['approved'];
-
-        // Match by user ID only - NO name matching
-        if (approverId == currentUserId) {
-          currentUserLevel = level;
-          currentUserDiscountId = discount['id'];
-          hasUserApproved = approved == true;
-          break;
-        }
-      }
-    }
-
-    if (currentUserLevel == null) {
-      return false;
-    }
-
-    // If user has already approved, they can always see the approval (for tracking)
-    if (hasUserApproved) {
-      return true;
-    }
-
-    // If user hasn't approved yet, check sequential logic
-    // For level 1 (User), always allow (auto-approved)
-    if (currentUserLevel == 1) {
-      return true;
-    }
-
-    // For level 2-5, check if immediate previous level is approved
-    bool foundPreviousLevel = false;
-    for (final discount in sortedDiscounts) {
-      if (discount['order_letter_id'] == orderLetterId) {
-        final level = discount['approver_level_id'];
-        final approved = discount['approved'];
-
-        // Check if this is the immediate previous level
-        if (level != null && level == currentUserLevel - 1) {
-          foundPreviousLevel = true;
-          if (approved != true) {
-            return false;
-          } else {
-            break;
-          }
-        }
-      }
-    }
-
-    // If no previous level found, allow approval (for new order letters)
-    if (!foundPreviousLevel) {
-      return true;
-    }
-
-    // Check if current user's level is pending
-    for (final discount in sortedDiscounts) {
-      if (discount['order_letter_id'] == orderLetterId) {
-        final level = discount['approver_level_id'];
-        final approved = discount['approved'];
-        final approverId = discount['approver'];
-
-        // Match by user ID only - NO name matching
-        if (level != null &&
-            level == currentUserLevel &&
-            approverId == currentUserId) {
-          if (approved == null || approved == false) {
-            return true; // Can approve
-          } else {
-            return false; // Already approved
-          }
-        }
-      }
-    }
-
-    return false;
   }
 
   /// Process order letters that already contain complete data (optimized approach)

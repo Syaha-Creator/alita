@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../config/app_constant.dart';
 import '../../../../core/utils/format_helper.dart';
@@ -41,7 +40,8 @@ class CartPage extends StatelessWidget {
           centerTitle: true,
           title: Text(
             'Keranjang Belanja',
-            style: GoogleFonts.inter(
+            style: TextStyle(
+              fontFamily: 'Inter',
               fontSize: 18,
               fontWeight: FontWeight.w600,
               color: theme.colorScheme.onSurface,
@@ -106,7 +106,8 @@ class CartPage extends StatelessWidget {
             const SizedBox(height: 32),
             Text(
               'Keranjang Anda kosong',
-              style: GoogleFonts.inter(
+              style: TextStyle(
+                fontFamily: 'Inter',
                 fontSize: 24,
                 fontWeight: FontWeight.w600,
                 color: isDark
@@ -118,7 +119,8 @@ class CartPage extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               'Tambahkan produk untuk memulai belanja Anda',
-              style: GoogleFonts.inter(
+              style: TextStyle(
+                fontFamily: 'Inter',
                 fontSize: 16,
                 color: isDark
                     ? AppColors.textSecondaryDark
@@ -135,7 +137,8 @@ class CartPage extends StatelessWidget {
                 icon: const Icon(Icons.add_shopping_cart, size: 24),
                 label: Text(
                   'Mulai Belanja',
-                  style: GoogleFonts.inter(
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
@@ -238,7 +241,8 @@ class CartPage extends StatelessWidget {
                   icon: const Icon(Icons.add_shopping_cart, size: 20),
                   label: Text(
                     'Tambah Produk Lain',
-                    style: GoogleFonts.inter(
+                    style: const TextStyle(
+                      fontFamily: 'Inter',
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
@@ -306,7 +310,8 @@ class CartPage extends StatelessWidget {
                     children: [
                       Text(
                         'Checkout',
-                        style: GoogleFonts.inter(
+                        style: TextStyle(
+                          fontFamily: 'Inter',
                           color: selectedItems.isEmpty
                               ? (isDark
                                   ? AppColors.textSecondaryDark
@@ -320,7 +325,8 @@ class CartPage extends StatelessWidget {
                         const SizedBox(width: 8),
                         Text(
                           FormatHelper.formatCurrency(totalPrice),
-                          style: GoogleFonts.inter(
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
@@ -353,7 +359,8 @@ class CartPage extends StatelessWidget {
             const SizedBox(height: 24),
             Text(
               'Terjadi Kesalahan',
-              style: GoogleFonts.inter(
+              style: TextStyle(
+                fontFamily: 'Inter',
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
                 color: isDark
@@ -364,7 +371,8 @@ class CartPage extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               state.message,
-              style: GoogleFonts.inter(
+              style: TextStyle(
+                fontFamily: 'Inter',
                 fontSize: 14,
                 color: isDark
                     ? AppColors.textSecondaryDark
@@ -384,7 +392,8 @@ class CartPage extends StatelessWidget {
               ),
               child: Text(
                 'Coba Lagi',
-                style: GoogleFonts.inter(
+                style: const TextStyle(
+                  fontFamily: 'Inter',
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
                 ),
@@ -432,7 +441,8 @@ class CartPage extends StatelessWidget {
               const SizedBox(width: 12),
               Text(
                 'Hapus Item',
-                style: GoogleFonts.inter(
+                style: TextStyle(
+                  fontFamily: 'Inter',
                   fontWeight: FontWeight.w600,
                   color: isDark
                       ? AppColors.textPrimaryDark
@@ -443,7 +453,8 @@ class CartPage extends StatelessWidget {
           ),
           content: Text(
             'Apakah Anda yakin ingin menghapus item ini dari keranjang?',
-            style: GoogleFonts.inter(
+            style: TextStyle(
+              fontFamily: 'Inter',
               color: isDark
                   ? AppColors.textSecondaryDark
                   : AppColors.textSecondaryLight,
@@ -453,7 +464,8 @@ class CartPage extends StatelessWidget {
             TextButton(
               child: Text(
                 'Batal',
-                style: GoogleFonts.inter(
+                style: TextStyle(
+                  fontFamily: 'Inter',
                   color: isDark
                       ? AppColors.textSecondaryDark
                       : AppColors.textSecondaryLight,
@@ -471,7 +483,8 @@ class CartPage extends StatelessWidget {
               ),
               child: Text(
                 'Hapus',
-                style: GoogleFonts.inter(
+                style: const TextStyle(
+                  fontFamily: 'Inter',
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
                 ),

@@ -43,7 +43,6 @@ class ProductDetailPage extends StatelessWidget {
             state.priceChangePercentages[product.id] ?? 0.0;
         final totalDiscount = product.pricelist - netPrice;
         final installmentMonths = state.installmentMonths[product.id];
-        final note = state.productNotes[product.id] ?? "";
 
         final List<String> combinedDiscounts = [];
         final programDiscounts = discountPercentages
@@ -71,7 +70,7 @@ class ProductDetailPage extends StatelessWidget {
                     _buildPriceCard(context, product, netPrice, totalDiscount,
                         combinedDiscounts, installmentMonths, isDark),
                     _buildDetailCard(context, product, isDark),
-                    _buildBonusAndNotesCard(context, product, note, isDark),
+                    _buildBonusAndNotesCard(context, product, isDark),
                     const SizedBox(height: 75),
                   ],
                 ),
@@ -168,18 +167,28 @@ class ProductDetailPage extends StatelessWidget {
     final theme = Theme.of(context);
     final productName = product.kasur;
     final productSize = product.ukuran;
-    final fullText = '$productName ($productSize)';
+    final nameLength = productName.length;
 
-    // Calculate adaptive dimensions and font sizes
-    final adaptiveConfig =
-        _calculateAdaptiveTextConfig(productName, productSize, fullText);
+    // Fixed width dan height untuk konsistensi proporsi
+    const double containerWidth = 220;
+    const double containerHeight = 60;
+
+    // Dynamic font size based on name length untuk single line
+    double nameFontSize;
+    if (nameLength <= 10) {
+      nameFontSize = 15;
+    } else if (nameLength <= 15) {
+      nameFontSize = 14;
+    } else if (nameLength <= 20) {
+      nameFontSize = 13;
+    } else {
+      nameFontSize = 12;
+    }
 
     return Container(
-      width: adaptiveConfig['bubbleWidth'],
-      height: adaptiveConfig['bubbleHeight'],
-      padding: EdgeInsets.symmetric(
-          horizontal: adaptiveConfig['horizontalPadding'],
-          vertical: adaptiveConfig['verticalPadding']),
+      width: containerWidth,
+      height: containerHeight,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -191,21 +200,17 @@ class ProductDetailPage extends StatelessWidget {
           ),
         ],
       ),
-      child: Center(
-        child: adaptiveConfig['useTwoLines']
-            ? Column(
+      child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Product name (separate line for long text)
+          // Product name - single line dengan ukuran font dinamis
                   Text(
                     productName,
                     style: theme.textTheme.titleLarge?.copyWith(
-                      color: isDark
-                          ? AppColors.primaryDark
-                          : AppColors.primaryLight,
-                      fontSize: adaptiveConfig['nameFontSize'],
+              color: isDark ? AppColors.primaryDark : AppColors.primaryLight,
+              fontSize: nameFontSize,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 0.2,
                     ),
@@ -213,17 +218,15 @@ class ProductDetailPage extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 1),
-                  // Product size (separate line)
+          const SizedBox(height: 2),
+          // Product size - selalu terlihat di bawah
                   if (productSize.isNotEmpty)
                     Text(
                       '($productSize)',
                       style: theme.textTheme.titleMedium?.copyWith(
-                        color: (isDark
-                                ? AppColors.primaryDark
-                                : AppColors.primaryLight)
+                color: (isDark ? AppColors.primaryDark : AppColors.primaryLight)
                             .withOpacity(0.8),
-                        fontSize: adaptiveConfig['sizeFontSize'],
+                fontSize: 10,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.1,
                       ),
@@ -232,21 +235,6 @@ class ProductDetailPage extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                 ],
-              )
-            : Text(
-                // Short text: single line
-                fullText,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  color:
-                      isDark ? AppColors.primaryDark : AppColors.primaryLight,
-                  fontSize: adaptiveConfig['nameFontSize'],
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.2,
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
       ),
     );
   }
@@ -535,7 +523,7 @@ class ProductDetailPage extends StatelessWidget {
   }
 
   Widget _buildBonusAndNotesCard(
-      BuildContext context, ProductEntity product, String note, bool isDark) {
+      BuildContext context, ProductEntity product, bool isDark) {
     final theme = Theme.of(context);
     final hasBonus =
         product.bonus.isNotEmpty && product.bonus.any((b) => b.name.isNotEmpty);
@@ -595,37 +583,6 @@ class ProductDetailPage extends StatelessWidget {
                       ),
                 ),
               ),
-            if (note.isNotEmpty) ...[
-              const Divider(height: 24),
-              Text(
-                "Catatan:",
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: isDark
-                          ? AppColors.textPrimaryDark
-                          : AppColors.textPrimaryLight,
-                    ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.warning.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.warning.withOpacity(0.3)),
-                ),
-                child: Text(
-                  note,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontStyle: FontStyle.italic,
-                        color: isDark
-                            ? AppColors.textPrimaryDark
-                            : AppColors.textPrimaryLight,
-                      ),
-                ),
-              ),
-            ]
           ],
         ),
       ),
@@ -810,99 +767,5 @@ class ProductDetailPage extends StatelessWidget {
     } catch (e) {
       CustomToast.showToast('Error adding to cart: $e', ToastType.error);
     }
-  }
-
-  /// Calculate adaptive text configuration based on content length
-  Map<String, dynamic> _calculateAdaptiveTextConfig(
-      String productName, String productSize, String fullText) {
-    final nameLength = productName.length;
-    final sizeLength = productSize.length;
-    final fullLength = fullText.length;
-
-    // Determine if we need two lines
-    bool useTwoLines = fullLength > 22 || nameLength > 18;
-
-    // Calculate bubble dimensions based on precise content fitting
-    double bubbleWidth;
-    double bubbleHeight;
-    double nameFontSize;
-    double sizeFontSize;
-    double horizontalPadding = 12.0;
-    double verticalPadding;
-
-    if (useTwoLines) {
-      // Two-line layout - calculate based on longest line
-      bubbleHeight = 52.0;
-      verticalPadding = 6.0;
-
-      final maxLineLength = nameLength > (sizeLength + 2)
-          ? nameLength
-          : (sizeLength + 2); // +2 for parentheses
-
-      // Precise width calculation: character width * font size + padding
-      if (maxLineLength <= 12) {
-        nameFontSize = 16.0;
-        sizeFontSize = 12.0;
-        bubbleWidth = (maxLineLength * 9.0) +
-            (horizontalPadding * 2); // ~9px per char at 16px font
-      } else if (maxLineLength <= 16) {
-        nameFontSize = 15.0;
-        sizeFontSize = 11.0;
-        bubbleWidth = (maxLineLength * 8.5) +
-            (horizontalPadding * 2); // ~8.5px per char at 15px font
-      } else if (maxLineLength <= 20) {
-        nameFontSize = 14.0;
-        sizeFontSize = 10.0;
-        bubbleWidth = (maxLineLength * 8.0) +
-            (horizontalPadding * 2); // ~8px per char at 14px font
-      } else if (maxLineLength <= 25) {
-        nameFontSize = 13.0;
-        sizeFontSize = 9.0;
-        bubbleWidth = (maxLineLength * 7.5) +
-            (horizontalPadding * 2); // ~7.5px per char at 13px font
-      } else {
-        // Very long text
-        nameFontSize = 12.0;
-        sizeFontSize = 8.0;
-        bubbleWidth = (maxLineLength * 7.0) +
-            (horizontalPadding * 2); // ~7px per char at 12px font
-      }
-    } else {
-      // Single-line layout - calculate based on full text
-      bubbleHeight = 40.0;
-      verticalPadding = 8.0;
-
-      // Precise width calculation for single line
-      if (fullLength <= 10) {
-        nameFontSize = 16.0;
-        bubbleWidth = (fullLength * 9.0) + (horizontalPadding * 2);
-      } else if (fullLength <= 15) {
-        nameFontSize = 15.0;
-        bubbleWidth = (fullLength * 8.5) + (horizontalPadding * 2);
-      } else if (fullLength <= 20) {
-        nameFontSize = 14.0;
-        bubbleWidth = (fullLength * 8.0) + (horizontalPadding * 2);
-      } else {
-        nameFontSize = 13.0;
-        bubbleWidth = (fullLength * 7.5) + (horizontalPadding * 2);
-      }
-
-      sizeFontSize = nameFontSize; // Same as name for single line
-    }
-
-    // Ensure minimum and maximum constraints
-    bubbleWidth = bubbleWidth.clamp(120.0, 320.0);
-    nameFontSize = nameFontSize.clamp(11.0, 16.0);
-    sizeFontSize = sizeFontSize.clamp(9.0, 13.0);
-
-    return {
-      'useTwoLines': useTwoLines,
-      'bubbleWidth': bubbleWidth,
-      'bubbleHeight': bubbleHeight,
-      'nameFontSize': nameFontSize,
-      'sizeFontSize': sizeFontSize,
-      'horizontalPadding': horizontalPadding,
-      'verticalPadding': verticalPadding,
-    };
   }
 }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../../core/utils/format_helper.dart';
 import '../../../../../core/utils/responsive_helper.dart';
@@ -12,7 +11,9 @@ import '../../bloc/product_event.dart';
 
 class EditPriceDialog extends StatefulWidget {
   final ProductEntity product;
-  const EditPriceDialog({super.key, required this.product});
+  final double initialNetPrice;
+  const EditPriceDialog(
+      {super.key, required this.product, required this.initialNetPrice});
 
   @override
   State<EditPriceDialog> createState() => _EditPriceDialogState();
@@ -20,7 +21,6 @@ class EditPriceDialog extends StatefulWidget {
 
 class _EditPriceDialogState extends State<EditPriceDialog> {
   late TextEditingController priceController;
-  late TextEditingController noteController;
   late ValueNotifier<double> percentageChange;
   late double priceBeforeEdit;
   late bool isPriceLocked;
@@ -29,34 +29,15 @@ class _EditPriceDialogState extends State<EditPriceDialog> {
   @override
   void initState() {
     super.initState();
-    final state = context.read<ProductBloc>().state;
-    final hasProgrammaticDiscount =
-        (state.productDiscountsPercentage[widget.product.id]?.isNotEmpty ??
-            false);
-    priceBeforeEdit =
-        state.roundedPrices[widget.product.id] ?? widget.product.endUserPrice;
-
-    if (hasProgrammaticDiscount &&
-        state.roundedPrices[widget.product.id] == null) {
-      double currentPrice = widget.product.pricelist;
-      for (var disc in state.productDiscountsPercentage[widget.product.id]!) {
-        currentPrice -= currentPrice * (disc / 100);
-      }
-      priceBeforeEdit = currentPrice;
-    }
+    priceBeforeEdit = widget.initialNetPrice;
 
     // Check if current price is at or below bottom price analyst
-    final currentPrice =
-        state.roundedPrices[widget.product.id] ?? widget.product.endUserPrice;
-    isPriceLocked = currentPrice <= widget.product.bottomPriceAnalyst;
+    isPriceLocked = priceBeforeEdit <= widget.product.bottomPriceAnalyst;
     lockReason = isPriceLocked ? "Discount dan Harga Sudah Maksimal" : "";
 
     priceController = TextEditingController(
         text: FormatHelper.formatCurrency(priceBeforeEdit));
-    noteController = TextEditingController(
-        text: state.productNotes[widget.product.id] ?? "");
-    percentageChange =
-        ValueNotifier(state.priceChangePercentages[widget.product.id] ?? 0.0);
+    percentageChange = ValueNotifier(0.0);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _calculatePercentage();
     });
@@ -87,7 +68,6 @@ class _EditPriceDialogState extends State<EditPriceDialog> {
   @override
   void dispose() {
     priceController.dispose();
-    noteController.dispose();
     percentageChange.dispose();
     super.dispose();
   }
@@ -116,9 +96,11 @@ class _EditPriceDialogState extends State<EditPriceDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Edit Harga & Catatan",
-              style:
-                  GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold)),
+          Text("Edit Harga",
+              style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold)),
           const SizedBox(height: 24),
 
           // Price Lock Warning
@@ -194,12 +176,6 @@ class _EditPriceDialogState extends State<EditPriceDialog> {
               );
             },
           ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: noteController,
-            decoration: const InputDecoration(
-                labelText: "Catatan", border: OutlineInputBorder()),
-          ),
           const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
@@ -209,31 +185,27 @@ class _EditPriceDialogState extends State<EditPriceDialog> {
                   child: const Text("Batal")),
               const SizedBox(width: 8),
               ElevatedButton(
-                onPressed: isPriceLocked
-                    ? null
-                    : () {
-                        try {
-                          final newPrice = FormatHelper.parseCurrencyToDouble(
-                              priceController.text);
+                onPressed: () {
+                  try {
+                    String rawText =
+                        priceController.text.replaceAll(RegExp(r'[^0-9]'), '');
+                    double newPrice =
+                        double.tryParse(rawText) ?? priceBeforeEdit;
 
-                          if (!_validatePrice(newPrice)) {
-                            return;
-                          }
+                    if (!_validatePrice(newPrice)) {
+                      return;
+                    }
 
-                          context.read<ProductBloc>().add(UpdateRoundedPrice(
-                              widget.product.id,
-                              newPrice,
-                              percentageChange.value));
-                          context.read<ProductBloc>().add(SaveProductNote(
-                              widget.product.id, noteController.text));
-                          Navigator.pop(context);
-                        } catch (e) {
-                          CustomToast.showToast(
-                            "Gagal menyimpan harga: ${e.toString()}",
-                            ToastType.error,
-                          );
-                        }
-                      },
+                    context.read<ProductBloc>().add(UpdateRoundedPrice(
+                        widget.product.id, newPrice, percentageChange.value));
+                    Navigator.pop(context);
+                  } catch (e) {
+                    CustomToast.showToast(
+                      "Gagal menyimpan harga: ${e.toString()}",
+                      ToastType.error,
+                    );
+                  }
+                },
                 child: const Text("Simpan"),
               ),
             ],

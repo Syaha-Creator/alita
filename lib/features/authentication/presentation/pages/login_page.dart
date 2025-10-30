@@ -13,10 +13,13 @@ class LoginPage extends StatelessWidget {
     final screenWidth = MediaQuery.of(context).size.width;
     final isDark = theme.brightness == Brightness.dark;
 
+    final hasKeyboard = MediaQuery.of(context).viewInsets.bottom > 0;
+    final spacing = hasKeyboard ? 24.0 : 60.0;
+
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(
             horizontal: AppPadding.p24,
             vertical: AppPadding.p20,
@@ -76,8 +79,8 @@ class LoginPage extends StatelessWidget {
                 ),
               ),
 
-              // Spacer untuk memberikan jarak yang proporsional
-              const Spacer(),
+              // Dynamic spacing based on keyboard
+              SizedBox(height: spacing),
 
               // Login Form
               Container(

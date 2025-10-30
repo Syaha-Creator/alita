@@ -217,26 +217,6 @@ class ApplyFilters extends ProductEvent {
 
 class ResetProductState extends ProductEvent {}
 
-class SaveProductNote extends ProductEvent {
-  final int productId;
-  final String note;
-
-  const SaveProductNote(this.productId, this.note);
-
-  @override
-  List<Object?> get props => [productId, note];
-}
-
-class UpdateProductNote extends ProductEvent {
-  final int productId;
-  final String note;
-
-  const UpdateProductNote({required this.productId, required this.note});
-
-  @override
-  List<Object?> get props => [productId, note];
-}
-
 class ClearFilters extends ProductEvent {}
 
 class ResetFilters extends ProductEvent {}

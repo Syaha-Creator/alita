@@ -28,13 +28,29 @@ class ProductActions {
   }
 
   static void showEditPopup(BuildContext context, ProductEntity product) {
+    final state = context.read<ProductBloc>().state;
+
+    double initialNetPrice =
+        state.roundedPrices[product.id] ?? product.endUserPrice;
+    final discounts = state.productDiscountsPercentage[product.id];
+    if (state.roundedPrices[product.id] == null &&
+        (discounts?.isNotEmpty ?? false)) {
+      double currentPrice = product.pricelist;
+      for (final disc in discounts!) {
+        if (disc <= 0) continue;
+        currentPrice -= currentPrice * (disc / 100);
+      }
+      initialNetPrice = currentPrice;
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => EditPriceDialog(product: product),
+      builder: (_) =>
+          EditPriceDialog(product: product, initialNetPrice: initialNetPrice),
     );
   }
 
@@ -172,7 +188,6 @@ class ProductActions {
         state.productDiscountsPercentage[product.id] ?? [];
     final totalDiscount = product.pricelist - netPrice;
     final installmentMonths = state.installmentMonths[product.id];
-    final note = state.productNotes[product.id] ?? "";
 
     final List<String> combinedDiscounts = [];
     final programDiscounts = discountPercentages
@@ -278,7 +293,7 @@ class ProductActions {
           ),
           const SizedBox(height: 12),
 
-          // Bonus & Notes Card
+          // Bonus Card
           Card(
             elevation: 2,
             child: Padding(
@@ -287,7 +302,7 @@ class ProductActions {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    "Bonus & Catatan",
+                    "Bonus",
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const Divider(height: 16),
@@ -306,13 +321,6 @@ class ProductActions {
                   else
                     const Text("Tidak ada bonus",
                         style: TextStyle(fontStyle: FontStyle.italic)),
-                  if (note.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    const Text("Catatan:",
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    Text(note),
-                  ],
                 ],
               ),
             ),

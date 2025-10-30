@@ -46,6 +46,9 @@ class ApiConfig {
   // Leader Endpoints
   static const String leaderByUser = "${baseUrl}api/leaderbyuser";
 
+  // Team Hierarchy Endpoints
+  static const String teamHierarchy = "${baseUrl}api/team_hierarchy";
+
   // Device Token Endpoints
   static const String deviceTokens = "${baseUrl}api/device_tokens";
 
@@ -235,6 +238,14 @@ class ApiConfig {
     required String userId,
   }) {
     return "$leaderByUser?user_id=$userId&access_token=$token&client_id=$clientId&client_secret=$clientSecret";
+  }
+
+  // Helper untuk Team Hierarchy
+  static String getTeamHierarchyUrl({
+    required String token,
+    required String userId,
+  }) {
+    return "$teamHierarchy?user_id=$userId&access_token=$token&client_id=$clientId&client_secret=$clientSecret";
   }
 
   // Helper untuk GET Device Tokens

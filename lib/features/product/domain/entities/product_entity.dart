@@ -133,16 +133,36 @@ class ProductEntity extends Equatable {
 class BonusItem extends Equatable {
   final String name;
   final int quantity;
-  final int originalQuantity;
+  final int originalQuantity; // Bonus quantity per 1 product
   final bool? takeAway;
-  const BonusItem(
-      {required this.name,
-      required this.quantity,
-      this.originalQuantity = 0,
-      this.takeAway});
+
+  const BonusItem({
+    required this.name,
+    required this.quantity,
+    this.originalQuantity = 0,
+    this.takeAway,
+  });
+
   @override
   List<Object?> get props => [name, quantity, originalQuantity, takeAway];
 
-  /// Get maximum allowed quantity (2x original quantity)
+  @Deprecated('Use calculateMaxQuantity(productQuantity) instead')
   int get maxQuantity => originalQuantity > 0 ? originalQuantity * 2 : quantity;
+
+  /// Calculate maximum allowed quantity for a given product quantity
+  /// Formula: maxQuantity = originalQuantity * productQuantity
+  int calculateMaxQuantity(int productQuantity) {
+    return originalQuantity > 0 ? originalQuantity * productQuantity : quantity;
+  }
+
+  /// Create a copy with updated quantity (clamped to max)
+  BonusItem copyWithQuantity(int newQuantity, int productQuantity) {
+    final maxQty = calculateMaxQuantity(productQuantity);
+    return BonusItem(
+      name: name,
+      quantity: newQuantity.clamp(1, maxQty),
+      originalQuantity: originalQuantity,
+      takeAway: takeAway,
+    );
+  }
 }

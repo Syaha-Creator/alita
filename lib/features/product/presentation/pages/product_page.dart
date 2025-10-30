@@ -240,6 +240,10 @@ class _ProductPageState extends State<ProductPage> {
                             (state.selectedBrand
                                     ?.toLowerCase()
                                     .contains('spring air') ??
+                                false) ||
+                            (state.selectedBrand
+                                    ?.toLowerCase()
+                                    .contains('sleep spa') ??
                                 false)))
                       Container(
                         width: double.infinity,
@@ -250,6 +254,10 @@ class _ProductPageState extends State<ProductPage> {
                                   (state.selectedBrand
                                           ?.toLowerCase()
                                           .contains('spring air') ??
+                                      false) ||
+                                  (state.selectedBrand
+                                          ?.toLowerCase()
+                                          .contains('sleep spa') ??
                                       false))
                               ? theme.colorScheme.primaryContainer
                                   .withOpacity(0.3)
@@ -261,6 +269,10 @@ class _ProductPageState extends State<ProductPage> {
                                     (state.selectedBrand
                                             ?.toLowerCase()
                                             .contains('spring air') ??
+                                        false) ||
+                                    (state.selectedBrand
+                                            ?.toLowerCase()
+                                            .contains('sleep spa') ??
                                         false))
                                 ? theme.colorScheme.primary.withOpacity(0.3)
                                 : theme.colorScheme.secondary.withOpacity(0.3),
@@ -276,6 +288,10 @@ class _ProductPageState extends State<ProductPage> {
                                       (state.selectedBrand
                                               ?.toLowerCase()
                                               .contains('spring air') ??
+                                          false) ||
+                                      (state.selectedBrand
+                                              ?.toLowerCase()
+                                              .contains('sleep spa') ??
                                           false))
                                   ? theme.colorScheme.primary
                                   : theme.colorScheme.secondary,
@@ -311,6 +327,10 @@ class _ProductPageState extends State<ProductPage> {
                                       !(state.selectedBrand
                                               ?.toLowerCase()
                                               .contains('spring air') ??
+                                          false) &&
+                                      !(state.selectedBrand
+                                              ?.toLowerCase()
+                                              .contains('sleep spa') ??
                                           false)) ...[
                                     Row(
                                       children: [
@@ -381,6 +401,10 @@ class _ProductPageState extends State<ProductPage> {
                                       (state.selectedBrand
                                               ?.toLowerCase()
                                               .contains('spring air') ??
+                                          false) ||
+                                      (state.selectedBrand
+                                              ?.toLowerCase()
+                                              .contains('sleep spa') ??
                                           false))
                                     Text(
                                       "Brand ${state.selectedBrand} menggunakan Area Nasional untuk pencarian",
@@ -409,6 +433,11 @@ class _ProductPageState extends State<ProductPage> {
                                                         ?.toLowerCase()
                                                         .contains(
                                                             'spring air') ??
+                                                    false) ||
+                                                (state.selectedBrand
+                                                        ?.toLowerCase()
+                                                        .contains(
+                                                            'sleep spa') ??
                                                     false))
                                             ? theme.colorScheme.primaryContainer
                                                 .withOpacity(0.5)
@@ -424,6 +453,10 @@ class _ProductPageState extends State<ProductPage> {
                                             (state.selectedBrand
                                                     ?.toLowerCase()
                                                     .contains('spring air') ??
+                                                false) ||
+                                            (state.selectedBrand
+                                                    ?.toLowerCase()
+                                                    .contains('sleep spa') ??
                                                 false))
                                         ? "Nasional"
                                         : "Default",
@@ -437,6 +470,11 @@ class _ProductPageState extends State<ProductPage> {
                                                           ?.toLowerCase()
                                                           .contains(
                                                               'spring air') ??
+                                                      false) ||
+                                                  (state.selectedBrand
+                                                          ?.toLowerCase()
+                                                          .contains(
+                                                              'sleep spa') ??
                                                       false))
                                               ? theme.colorScheme
                                                   .onPrimaryContainer
@@ -455,6 +493,10 @@ class _ProductPageState extends State<ProductPage> {
                                     !(state.selectedBrand
                                             ?.toLowerCase()
                                             .contains('spring air') ??
+                                        false) &&
+                                    !(state.selectedBrand
+                                            ?.toLowerCase()
+                                            .contains('sleep spa') ??
                                         false)) ...[
                                   const SizedBox(width: 8),
                                   Tooltip(
@@ -613,7 +655,11 @@ class _ProductPageState extends State<ProductPage> {
                                               ? null
                                               : state.selectedArea;
                                       if (state.selectedBrand == "Spring Air" ||
-                                          state.selectedBrand == "Therapedic") {
+                                          state.selectedBrand == "Therapedic" ||
+                                          (state.selectedBrand
+                                                  ?.toLowerCase()
+                                                  .contains('sleep spa') ??
+                                              false)) {
                                         areaToUse = "Nasional";
                                       }
                                       context.read<ProductBloc>().add(

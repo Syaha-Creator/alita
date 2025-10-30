@@ -13,7 +13,6 @@ class AreaUtils {
     try {
       return await areaRepository.fetchAreas();
     } catch (e) {
-      print('AreaUtils: Error fetching areas: $e');
       // Show error toast to user
       CustomToast.showToast(
         "Gagal memuat data area. Periksa koneksi internet Anda.",
@@ -30,7 +29,6 @@ class AreaUtils {
     try {
       return await areaRepository.fetchAllAreaNames();
     } catch (e) {
-      print('AreaUtils: Error fetching area names: $e');
       // Show error toast to user
       CustomToast.showToast(
         "Gagal memuat daftar area. Periksa koneksi internet Anda.",
@@ -47,7 +45,6 @@ class AreaUtils {
     try {
       return await areaRepository.getAreaByName(name);
     } catch (e) {
-      print('AreaUtils: Error getting area by name: $e');
       return null;
     }
   }
@@ -57,7 +54,6 @@ class AreaUtils {
     try {
       return await areaRepository.getAreaById(id);
     } catch (e) {
-      print('AreaUtils: Error getting area by ID: $e');
       return null;
     }
   }

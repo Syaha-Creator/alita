@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/utils/responsive_helper.dart';
+import '../../../../core/widgets/custom_toast.dart';
+import '../../../../config/dependency_injection.dart';
+import '../../../../services/attendance_service.dart';
+import '../bloc/cart_bloc.dart';
+import '../bloc/cart_state.dart';
+import '../../../product/presentation/bloc/product_bloc.dart';
 
 class CheckoutDialogResult {
   final String name;
@@ -43,6 +49,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
   final _emailController = TextEditingController();
   bool _isTakeAway = false;
   bool _isExistingCustomer = false;
+  bool _isValidatingLocation = false;
 
   @override
   void dispose() {
@@ -50,6 +57,101 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
     _phoneController.dispose();
     _emailController.dispose();
     super.dispose();
+  }
+
+  /// Validate user location before allowing checkout
+  Future<bool> _validateLocation(BuildContext context) async {
+    try {
+      // Get AttendanceService and validate checkout location
+      final attendanceService = locator<AttendanceService>();
+      final validationResult =
+          await attendanceService.validateCheckoutLocation();
+
+      if (validationResult['isValid'] == true) {
+        // Location is valid, now validate prices
+        await _revalidateCartPrices(context);
+
+        // Allow checkout directly without dialog
+        return true;
+      } else {
+        // Location is not valid, show error message
+        final message =
+            validationResult['message'] as String? ?? 'Lokasi tidak valid';
+
+        _showLocationErrorDialog(
+          context,
+          'Lokasi tidak valid',
+          message,
+        );
+        return false;
+      }
+    } catch (e) {
+      _showLocationErrorDialog(
+        context,
+        'Error validasi lokasi',
+        'Terjadi kesalahan saat memvalidasi lokasi: $e',
+      );
+      return false;
+    }
+  }
+
+  /// Revalidate cart prices with latest from API
+  Future<void> _revalidateCartPrices(BuildContext context) async {
+    final cartBloc = context.read<CartBloc>();
+    final productBloc = context.read<ProductBloc>();
+
+    if (cartBloc.state is! CartLoaded) return;
+
+    final cartState = cartBloc.state as CartLoaded;
+    final productState = productBloc.state;
+
+    // For each cart item, check if prices match latest from ProductBloc
+    for (final cartItem in cartState.cartItems) {
+      // Find matching product in ProductBloc state
+      final matchingProduct = productState.products.firstWhere(
+        (p) =>
+            p.id == cartItem.product.id &&
+            p.kasur == cartItem.product.kasur &&
+            p.divan == cartItem.product.divan &&
+            p.headboard == cartItem.product.headboard &&
+            p.sorong == cartItem.product.sorong &&
+            p.ukuran == cartItem.product.ukuran &&
+            p.brand == cartItem.product.brand &&
+            p.area == cartItem.product.area &&
+            p.channel == cartItem.product.channel,
+        orElse: () => cartItem.product,
+      );
+
+      // If prices differ, show notification (but don't block checkout yet)
+      if (matchingProduct.endUserPrice != cartItem.product.endUserPrice) {
+        CustomToast.showToast(
+          "Harga produk ${cartItem.product.kasur} telah diperbarui. Harga Anda: ${cartItem.netPrice.toStringAsFixed(0)}, Harga terbaru: ${matchingProduct.endUserPrice.toStringAsFixed(0)}",
+          ToastType.warning,
+          duration: 4,
+        );
+      }
+    }
+  }
+
+  /// Show location error dialog
+  void _showLocationErrorDialog(
+    BuildContext context,
+    String title,
+    String message,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -135,7 +237,8 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
                       children: [
                         Text(
                           'Informasi Customer',
-                          style: GoogleFonts.inter(
+                          style: TextStyle(
+                            fontFamily: 'Inter',
                             fontSize: ResponsiveHelper.getResponsiveFontSize(
                               context,
                               mobile: 18,
@@ -149,7 +252,8 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
                         const SizedBox(height: 4),
                         Text(
                           'Lengkapi data diri Anda',
-                          style: GoogleFonts.inter(
+                          style: TextStyle(
+                            fontFamily: 'Inter',
                             fontSize: 14,
                             color: colorScheme.onSurfaceVariant,
                           ),
@@ -189,7 +293,8 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
                       // Customer Type Selection
                       Text(
                         'Tipe Customer',
-                        style: GoogleFonts.inter(
+                        style: TextStyle(
+                          fontFamily: 'Inter',
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
                           color: colorScheme.onSurface,
@@ -265,7 +370,8 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
                       // Delivery Options
                       Text(
                         'Metode Pengiriman',
-                        style: GoogleFonts.inter(
+                        style: TextStyle(
+                          fontFamily: 'Inter',
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
                           color: colorScheme.onSurface,
@@ -315,20 +421,42 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    if (_formKey.currentState?.validate() ?? false) {
-                      Navigator.pop(
-                        context,
-                        CheckoutDialogResult(
-                          name: _nameController.text.trim(),
-                          phone: _phoneController.text.trim(),
-                          email: _emailController.text.trim(),
-                          isTakeAway: _isTakeAway,
-                          isExistingCustomer: _isExistingCustomer,
-                        ),
-                      );
-                    }
-                  },
+                  onPressed: _isValidatingLocation
+                      ? null
+                      : () async {
+                          if (_formKey.currentState?.validate() ?? false) {
+                            setState(() {
+                              _isValidatingLocation = true;
+                            });
+
+                            try {
+                              // Validate location before proceeding
+                              final locationValid =
+                                  await _validateLocation(context);
+                              if (locationValid) {
+                                if (mounted) {
+                                  Navigator.pop(
+                                    context,
+                                    CheckoutDialogResult(
+                                      name: _nameController.text.trim(),
+                                      phone: _phoneController.text.trim(),
+                                      email: _emailController.text.trim(),
+                                      isTakeAway: _isTakeAway,
+                                      isExistingCustomer: _isExistingCustomer,
+                                    ),
+                                  );
+                                }
+                              }
+                              // If location not valid, stay in dialog
+                            } finally {
+                              if (mounted) {
+                                setState(() {
+                                  _isValidatingLocation = false;
+                                });
+                              }
+                            }
+                          }
+                        },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: colorScheme.primary,
                     foregroundColor: colorScheme.onPrimary,
@@ -355,18 +483,50 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
                       ),
                     ),
                   ),
-                  child: Text(
-                    'Lanjutkan',
-                    style: GoogleFonts.inter(
-                      fontSize: ResponsiveHelper.getResponsiveFontSize(
-                        context,
-                        mobile: 16,
-                        tablet: 17,
-                        desktop: 18,
-                      ),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  child: _isValidatingLocation
+                      ? Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  colorScheme.onPrimary,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Memvalidasi lokasi...',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize:
+                                    ResponsiveHelper.getResponsiveFontSize(
+                                  context,
+                                  mobile: 16,
+                                  tablet: 17,
+                                  desktop: 18,
+                                ),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Text(
+                          'Lanjutkan',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: ResponsiveHelper.getResponsiveFontSize(
+                              context,
+                              mobile: 16,
+                              tablet: 17,
+                              desktop: 18,
+                            ),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                 ),
               ),
             ),
@@ -388,7 +548,8 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
       controller: controller,
       keyboardType: keyboardType,
       validator: validator,
-      style: GoogleFonts.inter(
+      style: TextStyle(
+        fontFamily: 'Inter',
         fontSize: 15,
         color: colorScheme.onSurface,
       ),
@@ -429,13 +590,15 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: colorScheme.error, width: 2),
         ),
-        labelStyle: GoogleFonts.inter(
+        labelStyle: TextStyle(
+          fontFamily: 'Inter',
           fontSize: 14,
           color: colorScheme.onSurfaceVariant,
         ),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        errorStyle: GoogleFonts.inter(
+        errorStyle: TextStyle(
+          fontFamily: 'Inter',
           color: colorScheme.error,
           fontSize: 12,
         ),
@@ -467,7 +630,8 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
         ),
         child: Text(
           title,
-          style: GoogleFonts.inter(
+          style: TextStyle(
+            fontFamily: 'Inter',
             fontSize: 13,
             fontWeight: FontWeight.w600,
             color: isSelected
@@ -514,7 +678,8 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
             const SizedBox(height: 8),
             Text(
               title,
-              style: GoogleFonts.inter(
+              style: TextStyle(
+                fontFamily: 'Inter',
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: isSelected
@@ -526,7 +691,8 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
             const SizedBox(height: 4),
             Text(
               subtitle,
-              style: GoogleFonts.inter(
+              style: TextStyle(
+                fontFamily: 'Inter',
                 fontSize: 11,
                 color: isSelected
                     ? colorScheme.onPrimaryContainer.withOpacity(0.8)

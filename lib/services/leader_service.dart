@@ -15,29 +15,21 @@ class LeaderService {
           userId ?? (await AuthService.getCurrentUserId())?.toString();
 
       if (token == null || currentUserId == null) {
-        print('LeaderService: Token or current user ID is null');
         return null;
       }
-
-      print('LeaderService: Getting leader data for user ID: $currentUserId');
 
       final response = await _apiClient.getLeaderByUser(
         token: token,
         userId: currentUserId,
       );
 
-      print('LeaderService: API response: $response');
-
       if (response['result'] != null) {
         final leaderData = LeaderByUserModel.fromJson(response['result']);
-        print('LeaderService: Parsed leader data: $leaderData');
         return leaderData;
       }
 
-      print('LeaderService: No result found in response');
       return null;
     } catch (e) {
-      print('LeaderService: Error getting leader data: $e');
       // Don't rethrow the exception, just return null to prevent app crash
       return null;
     }
@@ -55,10 +47,10 @@ class LeaderService {
         return leaderData.directLeader?.id;
       case 3: // Diskon 3 - Indirect Leader
         return leaderData.indirectLeader?.id;
-      case 4: // Diskon 4 - Controller
-        return leaderData.controller?.id;
-      case 5: // Diskon 5 - Analyst
-        return leaderData.analyst?.id;
+      case 4: // Diskon 4 - Analyst 1
+        return leaderData.analyst1?.id;
+      case 5: // Diskon 5 - Analyst 2
+        return leaderData.analyst2?.id;
       default:
         return null;
     }
@@ -76,10 +68,10 @@ class LeaderService {
         return leaderData.directLeader?.fullName;
       case 3: // Diskon 3 - Indirect Leader
         return leaderData.indirectLeader?.fullName;
-      case 4: // Diskon 4 - Controller
-        return leaderData.controller?.fullName;
-      case 5: // Diskon 5 - Analyst
-        return leaderData.analyst?.fullName;
+      case 4: // Diskon 4 - Analyst 1
+        return leaderData.analyst1?.fullName;
+      case 5: // Diskon 5 - Analyst 2
+        return leaderData.analyst2?.fullName;
       default:
         return null;
     }
@@ -97,10 +89,10 @@ class LeaderService {
         return leaderData.directLeader?.workTitle;
       case 3: // Diskon 3 - Indirect Leader
         return leaderData.indirectLeader?.workTitle;
-      case 4: // Diskon 4 - Controller
-        return leaderData.controller?.workTitle;
-      case 5: // Diskon 5 - Analyst
-        return leaderData.analyst?.workTitle;
+      case 4: // Diskon 4 - Analyst 1
+        return leaderData.analyst1?.workTitle;
+      case 5: // Diskon 5 - Analyst 2
+        return leaderData.analyst2?.workTitle;
       default:
         return null;
     }

@@ -17,18 +17,15 @@ class OrderLetterPaymentService {
     required int creator,
     String? note,
     String? receiptImagePath,
+    String? paymentDate,
   }) async {
     try {
-      print('PaymentService: Creating payment for order $orderLetterId');
-      print('PaymentService: Receipt image path: $receiptImagePath');
-
       final token = await AuthService.getToken();
       if (token == null) {
         throw Exception('Token not available');
       }
 
       final url = ApiConfig.getCreateOrderLetterPaymentUrl(token: token);
-      print('PaymentService: Posting to URL: $url');
 
       // Use FormData for multipart/form-data request (like Postman form-data)
       // Field names use array notation: order_letter_payment[field_name]
@@ -38,20 +35,17 @@ class OrderLetterPaymentService {
         'order_letter_payment[payment_bank]': paymentBank,
         'order_letter_payment[payment_number]': paymentNumber,
         'order_letter_payment[payment_amount]': paymentAmount.toString(),
-        'order_letter_payment[created_by]': creator.toString(),
+        'order_letter_payment[creator]': creator.toString(),
         if (note != null && note.trim().isNotEmpty)
           'order_letter_payment[note]': note.trim(),
+        if (paymentDate != null && paymentDate.trim().isNotEmpty)
+          'order_letter_payment[payment_date]': paymentDate.trim(),
         if (receiptImagePath != null && receiptImagePath.isNotEmpty)
           'order_letter_payment[image]': await MultipartFile.fromFile(
             receiptImagePath,
             filename: receiptImagePath.split('/').last,
           ),
       });
-
-      print(
-          'PaymentService: FormData fields: ${formData.fields.map((e) => '${e.key}=${e.value}').join(', ')}');
-      print(
-          'PaymentService: FormData files: ${formData.files.map((e) => e.key).join(', ')}');
 
       final response = await _dio.post(
         url,
@@ -67,22 +61,15 @@ class OrderLetterPaymentService {
         ),
       );
 
-      print('PaymentService: Response status: ${response.statusCode}');
-      print('PaymentService: Response data: ${response.data}');
-
       if (response.statusCode == 200 || response.statusCode == 201) {
         return response.data as Map<String, dynamic>;
       } else {
         // Log the error response body for debugging
-        print('PaymentService: Error response body: ${response.data}');
         throw Exception(
             'Failed to create payment (${response.statusCode}): ${response.data}');
       }
     } catch (e) {
-      print('PaymentService: Error creating payment: $e');
-      if (e is DioException && e.response != null) {
-        print('PaymentService: Error response: ${e.response?.data}');
-      }
+      if (e is DioException && e.response != null) {}
       throw Exception('Error creating payment: $e');
     }
   }
@@ -108,6 +95,7 @@ class OrderLetterPaymentService {
           creator: creator,
           note: payment['note'] ?? note,
           receiptImagePath: payment['receipt_image_path'] as String?,
+          paymentDate: payment['payment_date'] as String?,
         );
         results.add(result);
       }
@@ -128,6 +116,7 @@ class OrderLetterPaymentService {
     required int creator,
     String? note,
     String? receiptImagePath,
+    String? paymentDate,
   }) async {
     return await createPayment(
       orderLetterId: orderLetterId,
@@ -138,6 +127,7 @@ class OrderLetterPaymentService {
       creator: creator,
       note: note,
       receiptImagePath: receiptImagePath,
+      paymentDate: paymentDate,
     );
   }
 }

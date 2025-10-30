@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../../core/utils/format_helper.dart';
 import '../../../../../core/utils/responsive_helper.dart';
@@ -88,7 +87,8 @@ class _CreditDialogState extends State<CreditDialog> {
           // Baris Judul
           Text(
             "Hitung Cicilan",
-            style: GoogleFonts.inter(
+            style: TextStyle(
+              fontFamily: 'Inter',
               fontSize: ResponsiveHelper.getResponsiveFontSize(
                 context,
                 mobile: 18,

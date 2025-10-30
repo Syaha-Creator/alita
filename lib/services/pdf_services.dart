@@ -4,7 +4,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:permission_handler/permission_handler.dart';
-import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../config/app_constant.dart';
@@ -32,6 +31,7 @@ class PDFService {
     String? orderLetterNo,
     String? orderLetterStatus,
     String? orderLetterDate,
+    String? orderDate,
     String? workPlaceName,
     List<Map<String, dynamic>>? approvalData,
     double? orderLetterExtendedAmount,
@@ -73,18 +73,21 @@ class PDFService {
     ];
 
     // Hitung subtotal dan PPN dari grandTotal
-    final subtotal = grandTotal * 0.89;
-    final ppn = grandTotal - subtotal;
+    // Asumsi: grandTotal sudah termasuk PPN 11%
+    final subtotal = grandTotal / 1.11; // Subtotal sebelum PPN
+    final ppn = grandTotal - subtotal; // PPN 11% dari subtotal
     // Hitung total EUP semua item (untuk proporsi harga net)
     final selectedItems = cartItems.where((item) => item.isSelected).toList();
     final totalEup = selectedItems.fold<double>(
         0.0, (sum, item) => sum + (item.netPrice * item.quantity));
 
-    // --- PERUBAHAN 1: Tentukan kondisi lunas ---
     final bool isPaid = grandTotal - paymentAmount <= 0;
 
-    final font = await PdfGoogleFonts.poppinsRegular();
-    final boldFont = await PdfGoogleFonts.poppinsBold();
+    // Use local Inter font from assets for offline-safe PDF generation
+    final interData =
+        await rootBundle.load('assets/font/Inter-VariableFont_opsz,wght.ttf');
+    final font = pw.Font.ttf(interData);
+    final boldFont = font; // variable font used for bold as well
 
     // Load watermark image berdasarkan status
     pw.Widget? watermarkWidget;
@@ -105,12 +108,10 @@ class PDFService {
             return watermarkWidget ?? pw.SizedBox();
           },
         ),
-        // --- Akhir Perubahan ---
-
         header: (pw.Context context) {
           if (context.pageNumber == 1) {
             return _buildHeader(sleepCenterLogo, otherLogos, orderLetterNo,
-                orderLetterStatus, orderLetterDate, workPlaceName);
+                orderLetterStatus, orderDate, workPlaceName);
           }
           return pw.Container();
         },
@@ -139,6 +140,7 @@ class PDFService {
             spNumber: orderLetterNo ??
                 'SP-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}',
             deliveryDate: deliveryDate,
+            orderDate: orderDate,
             shipToName: shipToName,
           ),
           pw.SizedBox(height: 12),
@@ -298,6 +300,7 @@ class PDFService {
     required String email,
     required String spNumber,
     required String deliveryDate,
+    String? orderDate,
     String? shipToName,
   }) {
     return pw.Row(
@@ -595,7 +598,7 @@ class PDFService {
       } else {
         // Logic lama untuk cart biasa
         double kasurPricelist = (product.plKasur) * item.quantity;
-        double kasurNet = (item.netPrice * item.quantity) * 0.89;
+        double kasurNet = (item.netPrice * item.quantity) / 1.11;
         double kasurDiscount = kasurPricelist - kasurNet;
 
         tableRows.add(pw.TableRow(
@@ -745,9 +748,6 @@ class PDFService {
 
     double currentPrice = unitPrice;
 
-    // Apply each discount backward to get original price
-    // If unit_price = original * (1 - disc1/100) * (1 - disc2/100) * (1 - disc3/100)
-    // Then original = unit_price / ((1 - disc1/100) * (1 - disc2/100) * (1 - disc3/100))
     for (final discount in itemDiscounts) {
       final discountPercentage = (discount['discount'] is String)
           ? double.tryParse(discount['discount']) ?? 0.0
@@ -876,11 +876,7 @@ class PDFService {
       child: pw.Row(
         children: [
           _buildSignatureBox('PEMBELI', customerName),
-          _buildSignatureBox(
-              'SLEEP CONSULTANT',
-              spgCode != null && spgCode.isNotEmpty
-                  ? '$salesName ($spgCode)'
-                  : salesName,
+          _buildSignatureBoxWithSpgCode('SLEEP CONSULTANT', salesName, spgCode,
               borderLeft: true),
         ],
       ),
@@ -903,6 +899,37 @@ class PDFService {
           children: [
             pw.Text(title, style: const pw.TextStyle(fontSize: 9)),
             pw.Text('($name)', style: const pw.TextStyle(fontSize: 9)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Build box tanda tangan dengan SPG code di baris terpisah.
+  static pw.Widget _buildSignatureBoxWithSpgCode(
+      String title, String name, String? spgCode,
+      {bool borderLeft = false}) {
+    return pw.Expanded(
+      child: pw.Container(
+        height: 70,
+        padding: const pw.EdgeInsets.symmetric(vertical: 4),
+        decoration: borderLeft
+            ? const pw.BoxDecoration(
+                border: pw.Border(left: pw.BorderSide(width: 0.5)))
+            : const pw.BoxDecoration(),
+        child: pw.Column(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          children: [
+            pw.Text(title, style: const pw.TextStyle(fontSize: 9)),
+            pw.Column(
+              children: [
+                pw.Text('($name)', style: const pw.TextStyle(fontSize: 9)),
+                if (spgCode != null && spgCode.isNotEmpty)
+                  pw.Text('($spgCode)',
+                      style: const pw.TextStyle(
+                          fontSize: 8, color: PdfColors.grey600)),
+              ],
+            ),
           ],
         ),
       ),

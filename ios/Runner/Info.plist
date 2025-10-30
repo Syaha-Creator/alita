@@ -36,6 +36,10 @@
 	<string>Kami memerlukan akses ke galeri untuk menyimpan dan berbagi gambar produk.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Kami memerlukan akses kamera untuk mengambil foto struk pembayaran.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Kami memerlukan akses lokasi untuk memvalidasi posisi Anda saat membuat surat pesanan.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Kami memerlukan akses lokasi untuk memvalidasi posisi Anda saat membuat surat pesanan.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIFileSharingEnabled</key>

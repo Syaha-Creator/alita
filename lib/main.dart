@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'config/dependency_injection.dart';
 import 'features/authentication/presentation/bloc/auth_bloc.dart';
@@ -19,13 +20,15 @@ import 'firebase_options.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Prevent runtime font fetching to avoid crashes when offline / no DNS
+  GoogleFonts.config.allowRuntimeFetching = false;
+
   // Initialize Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
   // Initialize Core Notification Service (replaces multiple notification services)
-  // TEMPORARILY DISABLED - No iOS physical device for testing
   // await CoreNotificationService().initialize();
 
   setupLocator();

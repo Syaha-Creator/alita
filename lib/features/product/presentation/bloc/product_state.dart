@@ -39,7 +39,6 @@ class ProductState extends Equatable {
   final Map<int, List<double>> productDiscountsPercentage;
   final Map<int, List<double>> productDiscountsNominal;
   final Map<int, List<int?>> productLeaderIds;
-  final Map<int, String> productNotes;
   final int? userAreaId;
   final bool areaNotAvailable;
   final bool isUserAreaSet;
@@ -85,7 +84,6 @@ class ProductState extends Equatable {
     this.productDiscountsPercentage = const {},
     this.productDiscountsNominal = const {},
     this.productLeaderIds = const {},
-    this.productNotes = const {},
     this.userAreaId,
     this.areaNotAvailable = false,
     this.isUserAreaSet = false,
@@ -132,7 +130,6 @@ class ProductState extends Equatable {
     Map<int, List<double>>? productDiscountsPercentage,
     Map<int, List<double>>? productDiscountsNominal,
     Map<int, List<int?>>? productLeaderIds,
-    Map<int, String>? productNotes,
     int? userAreaId,
     bool? areaNotAvailable,
     bool? isUserAreaSet,
@@ -182,7 +179,6 @@ class ProductState extends Equatable {
       productDiscountsNominal:
           productDiscountsNominal ?? this.productDiscountsNominal,
       productLeaderIds: productLeaderIds ?? this.productLeaderIds,
-      productNotes: productNotes ?? this.productNotes,
       userAreaId: userAreaId ?? this.userAreaId,
       areaNotAvailable: areaNotAvailable ?? this.areaNotAvailable,
       isUserAreaSet: isUserAreaSet ?? this.isUserAreaSet,
@@ -230,7 +226,6 @@ class ProductState extends Equatable {
         productDiscountsPercentage,
         productDiscountsNominal,
         productLeaderIds,
-        productNotes,
         userAreaId,
         areaNotAvailable,
         isUserAreaSet,

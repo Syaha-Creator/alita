@@ -69,6 +69,8 @@ class CartStorageService {
       'installmentPerMonth': item.installmentPerMonth,
       'isSelected': item.isSelected,
       'bonusTakeAway': item.bonusTakeAway,
+      'selectedItemNumbers': item.selectedItemNumbers,
+      'selectedItemNumbersPerUnit': item.selectedItemNumbersPerUnit,
     };
   }
 
@@ -84,6 +86,24 @@ class CartStorageService {
       isSelected: json['isSelected'] ?? true,
       bonusTakeAway: json['bonusTakeAway'] != null
           ? Map<String, bool>.from(json['bonusTakeAway'])
+          : null,
+      // Persist user-selected item numbers
+      selectedItemNumbers: json['selectedItemNumbers'] != null
+          ? Map<String, Map<String, String>>.from(
+              (json['selectedItemNumbers'] as Map).map((k, v) => MapEntry(
+                    k.toString(),
+                    Map<String, String>.from(v as Map),
+                  )))
+          : null,
+      // New per-unit selections (backward compatible)
+      selectedItemNumbersPerUnit: json['selectedItemNumbersPerUnit'] != null
+          ? Map<String, List<Map<String, String>>>.from(
+              (json['selectedItemNumbersPerUnit'] as Map)
+                  .map((k, v) => MapEntry(
+                        k.toString(),
+                        List<Map<String, String>>.from((v as List)
+                            .map((e) => Map<String, String>.from(e))),
+                      )))
           : null,
     );
   }
@@ -108,7 +128,11 @@ class CartStorageService {
       'endUserPrice': product.endUserPrice,
       'isSet': product.isSet,
       'bonus': product.bonus
-          .map((b) => {'name': b.name, 'quantity': b.quantity})
+          .map((b) => {
+                'name': b.name,
+                'quantity': b.quantity,
+                'originalQuantity': b.originalQuantity,
+              })
           .toList(),
       'discounts': product.discounts,
       'plKasur': product.plKasur,

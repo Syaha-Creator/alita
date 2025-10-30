@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import '../config/api_config.dart';
 import 'auth_service.dart';
+import 'location_service.dart';
 
 class AttendanceService {
   final Dio dio;
@@ -19,9 +20,6 @@ class AttendanceService {
       final userId = await AuthService.getCurrentUserId();
 
       if (token == null || userId == null) {
-        print('AttendanceService: Token or userId not found');
-        print('AttendanceService: Token: ${token != null ? "exists" : "null"}');
-        print('AttendanceService: UserId: $userId');
         return null;
       }
 
@@ -29,8 +27,6 @@ class AttendanceService {
         token: token,
         userId: userId,
       );
-
-      print('AttendanceService: Fetching attendance from URL: $url');
 
       final response = await dio.get(
         url,
@@ -42,11 +38,6 @@ class AttendanceService {
         ),
       );
 
-      print('AttendanceService: Response status code: ${response.statusCode}');
-      print(
-          'AttendanceService: Response data type: ${response.data.runtimeType}');
-      print('AttendanceService: Full response data: ${response.data}');
-
       if (response.statusCode == 200) {
         final data = response.data;
 
@@ -55,25 +46,13 @@ class AttendanceService {
 
         if (data is List) {
           attendanceList = data;
-          print('AttendanceService: Data is a List with ${data.length} items');
         } else if (data is Map && data['result'] is List) {
           attendanceList = data['result'];
-          print(
-              'AttendanceService: Data is a Map with result list containing ${attendanceList?.length ?? 0} items');
-        } else if (data is Map) {
-          print(
-              'AttendanceService: Data is a Map with keys: ${data.keys.toList()}');
         }
 
         if (attendanceList != null && attendanceList.isNotEmpty) {
-          print(
-              'AttendanceService: Found ${attendanceList.length} attendance records');
-
           // Get first (latest/earliest) record
           final firstAttendance = attendanceList.first;
-          print('AttendanceService: First attendance record: $firstAttendance');
-          print(
-              'AttendanceService: First attendance type: ${firstAttendance.runtimeType}');
 
           // Handle different Map types
           Map<String, dynamic>? attendanceMap;
@@ -86,18 +65,11 @@ class AttendanceService {
           }
 
           if (attendanceMap != null) {
-            print(
-                'AttendanceService: Available keys in first attendance: ${attendanceMap.keys.toList()}');
-
             // Try different possible field names
             final workPlaceId = attendanceMap['work_place_id'] ??
                 attendanceMap['workPlaceId'] ??
                 attendanceMap['workplace_id'] ??
                 attendanceMap['workplaceId'];
-
-            print('AttendanceService: work_place_id value: $workPlaceId');
-            print(
-                'AttendanceService: work_place_id type: ${workPlaceId?.runtimeType}');
 
             if (workPlaceId != null) {
               int? parsedId;
@@ -112,40 +84,18 @@ class AttendanceService {
                 parsedId = int.tryParse(workPlaceId.toString());
               }
 
-              print('AttendanceService: Parsed work_place_id: $parsedId');
-
               if (parsedId != null && parsedId > 0) {
                 return parsedId;
-              } else {
-                print(
-                    'AttendanceService: Invalid work_place_id value: $parsedId');
               }
-            } else {
-              print('AttendanceService: work_place_id is null in the record');
-              print(
-                  'AttendanceService: Full record for debugging: $attendanceMap');
             }
-          } else {
-            print(
-                'AttendanceService: Could not convert first attendance to Map');
           }
-        } else {
-          print(
-              'AttendanceService: attendanceList is ${attendanceList == null ? "null" : "empty"}');
         }
 
-        print(
-            'AttendanceService: No attendance data found or work_place_id is null');
         return null;
       } else {
-        print(
-            'AttendanceService: Failed to fetch attendance list: ${response.statusCode}');
-        print('AttendanceService: Response body: ${response.data}');
         return null;
       }
-    } catch (e, stackTrace) {
-      print('AttendanceService: Error fetching attendance list: $e');
-      print('AttendanceService: Stack trace: $stackTrace');
+    } catch (e) {
       return null;
     }
   }
@@ -157,7 +107,6 @@ class AttendanceService {
       final userId = await AuthService.getCurrentUserId();
 
       if (token == null || userId == null) {
-        print('AttendanceService: Token or userId not found');
         return [];
       }
 
@@ -179,21 +128,98 @@ class AttendanceService {
       if (response.statusCode == 200) {
         final data = response.data;
 
+        List<Map<String, dynamic>> attendanceList;
+
         if (data is List) {
-          return List<Map<String, dynamic>>.from(data);
+          attendanceList = List<Map<String, dynamic>>.from(data);
         } else if (data is Map && data['result'] is List) {
-          return List<Map<String, dynamic>>.from(data['result']);
+          attendanceList = List<Map<String, dynamic>>.from(data['result']);
+        } else {
+          return [];
         }
 
-        return [];
+        return attendanceList;
       } else {
-        print(
-            'AttendanceService: Failed to fetch attendance list: ${response.statusCode}');
         return [];
       }
     } catch (e) {
-      print('AttendanceService: Error fetching attendance list: $e');
       return [];
+    }
+  }
+
+  /// Get today's attendance and validate location for checkout
+  Future<Map<String, dynamic>> validateCheckoutLocation() async {
+    try {
+      // Get attendance list from API
+      final attendanceList = await getAttendanceList();
+
+      if (attendanceList.isEmpty) {
+        return {
+          'isValid': false,
+          'message': 'Anda belum melakukan attendance hari ini',
+          'distance': null,
+        };
+      }
+
+      // Get today's date
+      final now = DateTime.now();
+      final todayString =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+      // Find today's attendance
+      Map<String, dynamic>? todayAttendance;
+      for (var attendance in attendanceList) {
+        final attendanceInStr = attendance['attendance_in'] as String?;
+        if (attendanceInStr != null && attendanceInStr.contains(todayString)) {
+          todayAttendance = attendance;
+          break;
+        }
+      }
+
+      if (todayAttendance == null) {
+        return {
+          'isValid': false,
+          'message': 'Anda belum melakukan attendance hari ini',
+          'distance': null,
+        };
+      }
+
+      // Get work place location (kantor)
+      final workPlaceLat = todayAttendance['latitude_work_place'] as String?;
+      final workPlaceLon = todayAttendance['longitude_work_place'] as String?;
+
+      if (workPlaceLat == null || workPlaceLon == null) {
+        return {
+          'isValid': false,
+          'message': 'Lokasi kantor tidak tersedia',
+          'distance': null,
+        };
+      }
+
+      final lat = double.tryParse(workPlaceLat);
+      final lon = double.tryParse(workPlaceLon);
+
+      if (lat == null || lon == null) {
+        return {
+          'isValid': false,
+          'message': 'Koordinat lokasi kantor tidak valid',
+          'distance': null,
+        };
+      }
+
+      // Validate current location with work place location (50 meter radius)
+      final result = await LocationService.validateLocationForCheckout(
+        attendanceLat: lat,
+        attendanceLon: lon,
+      );
+
+      return result;
+    } catch (e) {
+      return {
+        'isValid': false,
+        'message': 'Error validasi lokasi: $e',
+        'distance': null,
+      };
     }
   }
 }

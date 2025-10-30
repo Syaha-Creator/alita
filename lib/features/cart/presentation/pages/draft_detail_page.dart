@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/utils/controller_disposal_mixin.dart';
 import '../../../../core/utils/format_helper.dart';
@@ -279,7 +278,8 @@ class _DraftDetailPageState extends State<DraftDetailPage>
                           children: [
                             Text(
                               'Edit Draft Checkout',
-                              style: GoogleFonts.inter(
+                              style: TextStyle(
+                                fontFamily: 'Inter',
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
                                 color: colorScheme.onSurface,
@@ -287,7 +287,8 @@ class _DraftDetailPageState extends State<DraftDetailPage>
                             ),
                             Text(
                               'Terakhir di edit: ${FormatHelper.formatSimpleDate(DateTime.parse(widget.draft['savedAt'] as String))}',
-                              style: GoogleFonts.inter(
+                              style: TextStyle(
+                                fontFamily: 'Inter',
                                 fontSize: 12,
                                 color: colorScheme.onSurfaceVariant,
                               ),
@@ -513,7 +514,8 @@ class _DraftDetailPageState extends State<DraftDetailPage>
                               const SizedBox(width: 12),
                               Text(
                                 'Menyimpan...',
-                                style: GoogleFonts.inter(
+                                style: const TextStyle(
+                                  fontFamily: 'Inter',
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -522,7 +524,8 @@ class _DraftDetailPageState extends State<DraftDetailPage>
                           )
                         : Text(
                             'Simpan Perubahan',
-                            style: GoogleFonts.inter(
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                             ),
@@ -558,7 +561,8 @@ class _DraftDetailPageState extends State<DraftDetailPage>
         const SizedBox(width: 12),
         Text(
           title,
-          style: GoogleFonts.inter(
+          style: TextStyle(
+            fontFamily: 'Inter',
             fontSize: 18,
             fontWeight: FontWeight.w600,
             color: colorScheme.onSurface,
@@ -603,7 +607,8 @@ class _DraftDetailPageState extends State<DraftDetailPage>
             const SizedBox(height: 8),
             Text(
               title,
-              style: GoogleFonts.inter(
+              style: TextStyle(
+                fontFamily: 'Inter',
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: isSelected ? colorScheme.primary : colorScheme.onSurface,

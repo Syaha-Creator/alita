@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../config/app_constant.dart';
 import '../../../../theme/app_colors.dart';
@@ -67,7 +66,8 @@ class CartBadge extends StatelessWidget {
                   ),
                   child: Text(
                     itemCount > 99 ? '99+' : itemCount.toString(),
-                    style: GoogleFonts.inter(
+                    style: const TextStyle(
+                      fontFamily: 'Inter',
                       color: Colors.white,
                       fontSize: 10,
                       fontWeight: FontWeight.bold,

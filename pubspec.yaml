@@ -33,6 +33,8 @@ dependencies:
   path_provider: ^2.1.5
   pdf: ^3.11.3
   permission_handler: ^11.4.0
+  geolocator: ^13.0.1
+  geocoding: ^3.0.0
   printing: ^5.14.2
   screenshot: ^3.0.0
   share_plus: ^10.1.4
@@ -52,3 +54,9 @@ flutter:
   assets:
     - assets/images/
     - assets/logo/
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/font/Inter-VariableFont_opsz,wght.ttf
+        - asset: assets/font/Inter-Italic-VariableFont_opsz,wght.ttf
+          style: italic

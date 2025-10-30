@@ -1,10 +1,14 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../services/cart_storage_service.dart';
+import '../../../../services/auth_service.dart';
 import '../../../../config/dependency_injection.dart';
 import '../../../product/domain/usecases/get_product_usecase.dart';
 import '../../domain/entities/cart_entity.dart';
 import '../../../product/domain/entities/product_entity.dart';
+import '../../../product/presentation/bloc/product_bloc.dart';
+import '../../../product/presentation/bloc/product_event.dart';
 import 'cart_event.dart';
 import 'cart_state.dart';
 
@@ -20,15 +24,8 @@ class CartBloc extends Bloc<CartEvent, CartState> {
     });
 
     on<AddToCart>((event, emit) async {
-      print('=== ADD TO CART EVENT ===');
-      print('Product: ${event.product.kasur} ${event.product.ukuran}');
-      print('Quantity: ${event.quantity}');
-      print('Net Price: ${event.netPrice}');
-
       if (state is CartLoaded) {
         final currentState = state as CartLoaded;
-        print(
-            'Current cart items before add: ${currentState.cartItems.length}');
 
         // Check if item with same configuration already exists
         final existingItemIndex = currentState.cartItems.indexWhere(
@@ -44,7 +41,6 @@ class CartBloc extends Bloc<CartEvent, CartState> {
 
         if (existingItemIndex != -1) {
           // Update existing item quantity
-          print('Updating existing item at index $existingItemIndex');
           final existingItem = updatedItems[existingItemIndex];
           updatedItems[existingItemIndex] = CartEntity(
             product: existingItem.product,
@@ -53,28 +49,32 @@ class CartBloc extends Bloc<CartEvent, CartState> {
             discountPercentages: existingItem.discountPercentages,
             installmentMonths: existingItem.installmentMonths,
             installmentPerMonth: existingItem.installmentPerMonth,
+            isSelected: existingItem.isSelected,
+            bonusTakeAway: existingItem.bonusTakeAway,
+            selectedItemNumbers: existingItem.selectedItemNumbers,
+            selectedItemNumbersPerUnit: existingItem.selectedItemNumbersPerUnit,
           );
         } else {
-          // Add new item
-          print('Adding new item to cart');
+          final normalizedProduct = _withNormalizedBonusOriginal(event.product);
           updatedItems.add(
             CartEntity(
-              product: event.product,
+              product: normalizedProduct,
               quantity: event.quantity,
               netPrice: event.netPrice,
               discountPercentages: event.discountPercentages,
               installmentMonths: event.installmentMonths,
               installmentPerMonth: event.installmentPerMonth,
+              isSelected: true,
+              bonusTakeAway: null,
+              selectedItemNumbers: null,
+              selectedItemNumbersPerUnit: null,
             ),
           );
         }
 
-        print('Cart items after add: ${updatedItems.length}');
-
         // Save to storage and emit new state
         await CartStorageService.saveCartItems(updatedItems);
         emit(CartLoaded(updatedItems));
-        print('Cart state updated successfully');
       } else {
         // Create new cart
         final newCart = [
@@ -85,6 +85,10 @@ class CartBloc extends Bloc<CartEvent, CartState> {
             discountPercentages: event.discountPercentages,
             installmentMonths: event.installmentMonths,
             installmentPerMonth: event.installmentPerMonth,
+            isSelected: true,
+            bonusTakeAway: null,
+            selectedItemNumbers: null,
+            selectedItemNumbersPerUnit: null,
           )
         ];
 
@@ -96,10 +100,61 @@ class CartBloc extends Bloc<CartEvent, CartState> {
     on<RemoveFromCart>((event, emit) async {
       if (state is CartLoaded) {
         final currentState = state as CartLoaded;
-        final updatedItems = currentState.cartItems
-            .where((item) => !(item.product.id == event.productId &&
-                item.netPrice == event.netPrice))
-            .toList();
+        // Find the index of the item to remove
+        final itemIndex = currentState.cartItems.indexWhere((item) =>
+            item.product.id == event.productId &&
+            item.netPrice == event.netPrice);
+
+        if (itemIndex != -1) {
+          // Remove the specific item by index
+          final updatedItems = List<CartEntity>.from(currentState.cartItems);
+          updatedItems.removeAt(itemIndex);
+
+          await CartStorageService.saveCartItems(updatedItems);
+          emit(CartLoaded(updatedItems));
+        }
+      }
+    });
+
+    // Save user-selected item number (fabric selection) per component
+    on<UpdateCartSelectedItemNumber>((event, emit) async {
+      if (state is CartLoaded) {
+        final currentState = state as CartLoaded;
+        final updatedItems = currentState.cartItems.map((item) {
+          if (item.product.id == event.productId &&
+              item.netPrice == event.netPrice) {
+            if (event.unitIndex != null) {
+              // Per-unit selection
+              final perUnit = Map<String, List<Map<String, String>>>.from(
+                  item.selectedItemNumbersPerUnit ?? {});
+              final list =
+                  List<Map<String, String>>.from(perUnit[event.itemType] ?? []);
+              // Ensure list has length up to quantity
+              while (list.length < item.quantity) {
+                list.add({});
+              }
+              final idx = event.unitIndex!.clamp(0, item.quantity - 1);
+              list[idx] = {
+                'item_number': event.itemNumber,
+                if (event.jenisKain != null) 'jenis_kain': event.jenisKain!,
+                if (event.warnaKain != null) 'warna_kain': event.warnaKain!,
+              };
+              perUnit[event.itemType] = list;
+              return item.copyWith(selectedItemNumbersPerUnit: perUnit);
+            } else {
+              // Legacy per-component selection
+              final currentSelections = Map<String, Map<String, String>>.from(
+                  item.selectedItemNumbers ?? {});
+              currentSelections[event.itemType] = {
+                'item_number': event.itemNumber,
+                if (event.jenisKain != null) 'jenis_kain': event.jenisKain!,
+                if (event.warnaKain != null) 'warna_kain': event.warnaKain!,
+              };
+              return item.copyWith(selectedItemNumbers: currentSelections);
+            }
+          }
+          return item;
+        }).toList();
 
         await CartStorageService.saveCartItems(updatedItems);
         emit(CartLoaded(updatedItems));
@@ -112,13 +167,87 @@ class CartBloc extends Bloc<CartEvent, CartState> {
         final updatedItems = currentState.cartItems.map((item) {
           if (item.product.id == event.productId &&
               item.netPrice == event.netPrice) {
+            // Update bonus quantities to match new product quantity
+            final updatedBonus = item.product.bonus.map((bonus) {
+              // bonus.originalQuantity = bonus per 1 product
+              // maxQuantity = originalQuantity * productQuantity
+              // Calculate new max quantity based on new product quantity
+              final perUnit = bonus.originalQuantity > 0
+                  ? bonus.originalQuantity
+                  : bonus.quantity;
+              final newMaxQuantity = perUnit * 2 * event.quantity;
+
+              // Scale bonus quantity proportionally
+              // Example: if product qty changes from 2→3, bonus qty should scale too
+              final scaleFactor = event.quantity / item.quantity.toDouble();
+              final scaledQuantity = (bonus.quantity * scaleFactor).round();
+
+              // Ensure bonus quantity doesn't exceed new max
+              final finalQuantity = scaledQuantity.clamp(1, newMaxQuantity);
+
+              return BonusItem(
+                name: bonus.name,
+                quantity: finalQuantity,
+                originalQuantity: bonus.originalQuantity,
+                takeAway: bonus.takeAway,
+              );
+            }).toList();
+
+            // Create updated product with new bonus quantities
+            final updatedProduct = ProductEntity(
+              id: item.product.id,
+              area: item.product.area,
+              channel: item.product.channel,
+              brand: item.product.brand,
+              kasur: item.product.kasur,
+              divan: item.product.divan,
+              headboard: item.product.headboard,
+              sorong: item.product.sorong,
+              ukuran: item.product.ukuran,
+              pricelist: item.product.pricelist,
+              program: item.product.program,
+              eupKasur: item.product.eupKasur,
+              eupDivan: item.product.eupDivan,
+              eupHeadboard: item.product.eupHeadboard,
+              endUserPrice: item.product.endUserPrice,
+              bonus: updatedBonus,
+              discounts: item.product.discounts,
+              isSet: item.product.isSet,
+              plKasur: item.product.plKasur,
+              plDivan: item.product.plDivan,
+              plHeadboard: item.product.plHeadboard,
+              plSorong: item.product.plSorong,
+              eupSorong: item.product.eupSorong,
+              bottomPriceAnalyst: item.product.bottomPriceAnalyst,
+              disc1: item.product.disc1,
+              disc2: item.product.disc2,
+              disc3: item.product.disc3,
+              disc4: item.product.disc4,
+              disc5: item.product.disc5,
+              itemNumber: item.product.itemNumber,
+              itemNumberKasur: item.product.itemNumberKasur,
+              itemNumberDivan: item.product.itemNumberDivan,
+              itemNumberHeadboard: item.product.itemNumberHeadboard,
+              itemNumberSorong: item.product.itemNumberSorong,
+              itemNumberAccessories: item.product.itemNumberAccessories,
+              itemNumberBonus1: item.product.itemNumberBonus1,
+              itemNumberBonus2: item.product.itemNumberBonus2,
+              itemNumberBonus3: item.product.itemNumberBonus3,
+              itemNumberBonus4: item.product.itemNumberBonus4,
+              itemNumberBonus5: item.product.itemNumberBonus5,
+            );
+
             return CartEntity(
-              product: item.product,
+              product: updatedProduct,
               quantity: event.quantity,
               netPrice: item.netPrice,
               discountPercentages: item.discountPercentages,
               installmentMonths: item.installmentMonths,
               installmentPerMonth: item.installmentPerMonth,
+              isSelected: item.isSelected,
+              bonusTakeAway: item.bonusTakeAway,
+              selectedItemNumbers: item.selectedItemNumbers,
+              selectedItemNumbersPerUnit: item.selectedItemNumbersPerUnit,
             );
           }
           return item;
@@ -190,6 +319,19 @@ class CartBloc extends Bloc<CartEvent, CartState> {
       }
     });
 
+    on<ClearDraftsAfterCheckout>((event, emit) async {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final userId = await AuthService.getCurrentUserId();
+        if (userId != null) {
+          final key = 'checkout_drafts_$userId';
+          await prefs.remove(key);
+        }
+      } catch (e) {
+        // Silent fail
+      }
+    });
+
     on<ReloadCartForUser>((event, emit) async {
       add(LoadCart());
     });
@@ -209,7 +351,10 @@ class CartBloc extends Bloc<CartEvent, CartState> {
               } else {
                 // Get original bonus to preserve originalQuantity and apply max limit
                 final originalBonus = updatedBonus[event.bonusIndex];
-                final maxQuantity = originalBonus.maxQuantity;
+                final perUnit = originalBonus.originalQuantity > 0
+                    ? originalBonus.originalQuantity
+                    : originalBonus.quantity;
+                final maxQuantity = perUnit * 2 * item.quantity;
                 final finalQuantity = event.bonusQuantity > maxQuantity
                     ? maxQuantity
                     : event.bonusQuantity;
@@ -275,6 +420,9 @@ class CartBloc extends Bloc<CartEvent, CartState> {
               installmentMonths: item.installmentMonths,
               installmentPerMonth: item.installmentPerMonth,
               isSelected: item.isSelected,
+              bonusTakeAway: item.bonusTakeAway,
+              selectedItemNumbers: item.selectedItemNumbers,
+              selectedItemNumbersPerUnit: item.selectedItemNumbersPerUnit,
             );
           }
           return item;
@@ -349,6 +497,9 @@ class CartBloc extends Bloc<CartEvent, CartState> {
               installmentMonths: item.installmentMonths,
               installmentPerMonth: item.installmentPerMonth,
               isSelected: item.isSelected,
+              bonusTakeAway: item.bonusTakeAway,
+              selectedItemNumbers: item.selectedItemNumbers,
+              selectedItemNumbersPerUnit: item.selectedItemNumbersPerUnit,
             );
           }
           return item;
@@ -484,6 +635,24 @@ class CartBloc extends Bloc<CartEvent, CartState> {
               final double recalculatedNet = _applyDiscountsSequentially(
                   basePrice, item.discountPercentages);
 
+              // Determine default bonus sets (old vs new)
+              final currentDefault = products.firstWhere(
+                (p) =>
+                    (p.kasur == item.product.kasur) &&
+                    (p.divan == item.product.divan) &&
+                    (p.headboard == item.product.headboard) &&
+                    (p.sorong == item.product.sorong) &&
+                    (p.ukuran == item.product.ukuran),
+                orElse: () => item.product,
+              );
+
+              final mergedBonus = _mergeBonusWithDefaults(
+                currentDefault,
+                matched,
+                item.product.bonus,
+                item.quantity,
+              );
+
               // Build updated product entity using matched details
               final updatedProduct = ProductEntity(
                 id: item.product.id,
@@ -501,7 +670,7 @@ class CartBloc extends Bloc<CartEvent, CartState> {
                 eupDivan: matched.eupDivan,
                 eupHeadboard: matched.eupHeadboard,
                 endUserPrice: matched.endUserPrice,
-                bonus: item.product.bonus,
+                bonus: mergedBonus,
                 discounts: matched.discounts,
                 isSet: matched.isSet,
                 plKasur: matched.plKasur,
@@ -610,45 +779,197 @@ class CartBloc extends Bloc<CartEvent, CartState> {
     on<UpdateCartPrice>((event, emit) async {
       if (state is CartLoaded) {
         final currentState = state as CartLoaded;
-        final updatedItems = currentState.cartItems.map((item) {
+        final getProductUseCase = locator<GetProductUseCase>();
+        final List<CartEntity> updatedItems = [];
+        for (final item in currentState.cartItems) {
           if (item.product.id == event.productId &&
               item.netPrice == event.oldNetPrice) {
-            return CartEntity(
-              product: item.product,
+            // Rebuild bonus with default mapping logic
+            final products = await getProductUseCase.callWithFilter(
+              area: item.product.area,
+              channel: item.product.channel,
+              brand: item.product.brand,
+            );
+
+            final currentDefault = products.firstWhere(
+              (p) =>
+                  (p.kasur == item.product.kasur) &&
+                  (p.divan == item.product.divan) &&
+                  (p.headboard == item.product.headboard) &&
+                  (p.sorong == item.product.sorong) &&
+                  (p.ukuran == item.product.ukuran),
+              orElse: () => item.product,
+            );
+
+            final updatedBonus = _mergeBonusWithDefaults(
+              currentDefault,
+              item.product, // price changed but detail may be same; keep as new default
+              item.product.bonus,
+              item.quantity,
+            );
+
+            // Create updated product with new bonus quantities
+            final updatedProduct = ProductEntity(
+              id: item.product.id,
+              area: item.product.area,
+              channel: item.product.channel,
+              brand: item.product.brand,
+              kasur: item.product.kasur,
+              divan: item.product.divan,
+              headboard: item.product.headboard,
+              sorong: item.product.sorong,
+              ukuran: item.product.ukuran,
+              pricelist: item.product.pricelist,
+              program: item.product.program,
+              eupKasur: item.product.eupKasur,
+              eupDivan: item.product.eupDivan,
+              eupHeadboard: item.product.eupHeadboard,
+              endUserPrice: item.product.endUserPrice,
+              bonus: updatedBonus,
+              discounts: item.product.discounts,
+              isSet: item.product.isSet,
+              plKasur: item.product.plKasur,
+              plDivan: item.product.plDivan,
+              plHeadboard: item.product.plHeadboard,
+              plSorong: item.product.plSorong,
+              eupSorong: item.product.eupSorong,
+              bottomPriceAnalyst: item.product.bottomPriceAnalyst,
+              disc1: item.product.disc1,
+              disc2: item.product.disc2,
+              disc3: item.product.disc3,
+              disc4: item.product.disc4,
+              disc5: item.product.disc5,
+              itemNumber: item.product.itemNumber,
+              itemNumberKasur: item.product.itemNumberKasur,
+              itemNumberDivan: item.product.itemNumberDivan,
+              itemNumberHeadboard: item.product.itemNumberHeadboard,
+              itemNumberSorong: item.product.itemNumberSorong,
+              itemNumberAccessories: item.product.itemNumberAccessories,
+              itemNumberBonus1: item.product.itemNumberBonus1,
+              itemNumberBonus2: item.product.itemNumberBonus2,
+              itemNumberBonus3: item.product.itemNumberBonus3,
+              itemNumberBonus4: item.product.itemNumberBonus4,
+              itemNumberBonus5: item.product.itemNumberBonus5,
+            );
+            updatedItems.add(CartEntity(
+              product: updatedProduct,
               quantity: item.quantity,
               netPrice: event.newNetPrice,
               discountPercentages: item.discountPercentages,
               installmentMonths: item.installmentMonths,
               installmentPerMonth: item.installmentPerMonth,
               isSelected: item.isSelected,
-            );
+            ));
+          } else {
+            updatedItems.add(item);
           }
-          return item;
-        }).toList();
+        }
 
         await CartStorageService.saveCartItems(updatedItems);
         emit(CartLoaded(updatedItems));
+
+        // Sync ProductBloc rounded price for UI discount panels
+        try {
+          final productBloc = locator<ProductBloc>();
+          productBloc
+              .add(UpdateRoundedPrice(event.productId, event.newNetPrice, 0));
+        } catch (_) {}
       }
     });
 
     on<UpdateCartDiscounts>((event, emit) async {
       if (state is CartLoaded) {
         final currentState = state as CartLoaded;
-        final updatedItems = currentState.cartItems.map((item) {
+        final getProductUseCase = locator<GetProductUseCase>();
+        final List<CartEntity> updatedItems = [];
+        for (final item in currentState.cartItems) {
           if (item.product.id == event.productId &&
               item.netPrice == event.oldNetPrice) {
-            return CartEntity(
-              product: item.product,
+            final products = await getProductUseCase.callWithFilter(
+              area: item.product.area,
+              channel: item.product.channel,
+              brand: item.product.brand,
+            );
+            final currentDefault = products.firstWhere(
+              (p) =>
+                  (p.kasur == item.product.kasur) &&
+                  (p.divan == item.product.divan) &&
+                  (p.headboard == item.product.headboard) &&
+                  (p.sorong == item.product.sorong) &&
+                  (p.ukuran == item.product.ukuran),
+              orElse: () => item.product,
+            );
+            final updatedBonus = _mergeBonusWithDefaults(
+              currentDefault,
+              item.product,
+              item.product.bonus,
+              item.quantity,
+            );
+
+            // Create updated product with new bonus quantities
+            final updatedProduct = ProductEntity(
+              id: item.product.id,
+              area: item.product.area,
+              channel: item.product.channel,
+              brand: item.product.brand,
+              kasur: item.product.kasur,
+              divan: item.product.divan,
+              headboard: item.product.headboard,
+              sorong: item.product.sorong,
+              ukuran: item.product.ukuran,
+              pricelist: item.product.pricelist,
+              program: item.product.program,
+              eupKasur: item.product.eupKasur,
+              eupDivan: item.product.eupDivan,
+              eupHeadboard: item.product.eupHeadboard,
+              endUserPrice: item.product.endUserPrice,
+              bonus: updatedBonus,
+              discounts: item.product.discounts,
+              isSet: item.product.isSet,
+              plKasur: item.product.plKasur,
+              plDivan: item.product.plDivan,
+              plHeadboard: item.product.plHeadboard,
+              plSorong: item.product.plSorong,
+              eupSorong: item.product.eupSorong,
+              bottomPriceAnalyst: item.product.bottomPriceAnalyst,
+              disc1: item.product.disc1,
+              disc2: item.product.disc2,
+              disc3: item.product.disc3,
+              disc4: item.product.disc4,
+              disc5: item.product.disc5,
+              itemNumber: item.product.itemNumber,
+              itemNumberKasur: item.product.itemNumberKasur,
+              itemNumberDivan: item.product.itemNumberDivan,
+              itemNumberHeadboard: item.product.itemNumberHeadboard,
+              itemNumberSorong: item.product.itemNumberSorong,
+              itemNumberAccessories: item.product.itemNumberAccessories,
+              itemNumberBonus1: item.product.itemNumberBonus1,
+              itemNumberBonus2: item.product.itemNumberBonus2,
+              itemNumberBonus3: item.product.itemNumberBonus3,
+              itemNumberBonus4: item.product.itemNumberBonus4,
+              itemNumberBonus5: item.product.itemNumberBonus5,
+            );
+
+            // Recalculate net from pricelist using new discount percentages
+            final double recalculatedNet = _applyDiscountsSequentially(
+                item.product.pricelist, event.discountPercentages);
+
+            updatedItems.add(CartEntity(
+              product: updatedProduct,
               quantity: item.quantity,
-              netPrice: event.newNetPrice,
+              netPrice: recalculatedNet,
               discountPercentages: event.discountPercentages,
               installmentMonths: item.installmentMonths,
               installmentPerMonth: item.installmentPerMonth,
               isSelected: item.isSelected,
-            );
+              bonusTakeAway: item.bonusTakeAway,
+              selectedItemNumbers: item.selectedItemNumbers,
+              selectedItemNumbersPerUnit: item.selectedItemNumbersPerUnit,
+            ));
+          } else {
+            updatedItems.add(item);
           }
-          return item;
-        }).toList();
+        }
 
         await CartStorageService.saveCartItems(updatedItems);
         emit(CartLoaded(updatedItems));
@@ -657,6 +978,62 @@ class CartBloc extends Bloc<CartEvent, CartState> {
 
     // Auto-load cart when bloc is created
     add(LoadCart());
+  }
+
+  /// Ensure each bonus has originalQuantity set; fallback to its default quantity if missing
+  ProductEntity _withNormalizedBonusOriginal(ProductEntity product) {
+    final normalizedBonus = product.bonus
+        .map((b) => BonusItem(
+              name: b.name,
+              quantity: b.quantity,
+              originalQuantity:
+                  b.originalQuantity > 0 ? b.originalQuantity : b.quantity,
+              takeAway: b.takeAway,
+            ))
+        .toList();
+
+    return ProductEntity(
+      id: product.id,
+      area: product.area,
+      channel: product.channel,
+      brand: product.brand,
+      kasur: product.kasur,
+      divan: product.divan,
+      headboard: product.headboard,
+      sorong: product.sorong,
+      ukuran: product.ukuran,
+      pricelist: product.pricelist,
+      program: product.program,
+      eupKasur: product.eupKasur,
+      eupDivan: product.eupDivan,
+      eupHeadboard: product.eupHeadboard,
+      endUserPrice: product.endUserPrice,
+      bonus: normalizedBonus,
+      discounts: product.discounts,
+      isSet: product.isSet,
+      plKasur: product.plKasur,
+      plDivan: product.plDivan,
+      plHeadboard: product.plHeadboard,
+      plSorong: product.plSorong,
+      eupSorong: product.eupSorong,
+      bottomPriceAnalyst: product.bottomPriceAnalyst,
+      disc1: product.disc1,
+      disc2: product.disc2,
+      disc3: product.disc3,
+      disc4: product.disc4,
+      disc5: product.disc5,
+      itemNumber: product.itemNumber,
+      itemNumberKasur: product.itemNumberKasur,
+      itemNumberDivan: product.itemNumberDivan,
+      itemNumberHeadboard: product.itemNumberHeadboard,
+      itemNumberSorong: product.itemNumberSorong,
+      itemNumberAccessories: product.itemNumberAccessories,
+      itemNumberBonus1: product.itemNumberBonus1,
+      itemNumberBonus2: product.itemNumberBonus2,
+      itemNumberBonus3: product.itemNumberBonus3,
+      itemNumberBonus4: product.itemNumberBonus4,
+      itemNumberBonus5: product.itemNumberBonus5,
+    );
   }
 
   // Helper method to compare lists
@@ -679,5 +1056,56 @@ class CartBloc extends Bloc<CartEvent, CartState> {
     // Ensure not negative and round to 2 decimals if needed
     if (price < 0) price = 0;
     return price;
+  }
+
+  List<BonusItem> _mergeBonusWithDefaults(
+    ProductEntity oldDefault,
+    ProductEntity newDefault,
+    List<BonusItem> current,
+    int productQuantity,
+  ) {
+    final int maxLen = newDefault.bonus.length;
+    final bool allUntouched =
+        _areAllBonusNamesUntouched(oldDefault.bonus, current);
+
+    final List<BonusItem> result = [];
+    for (int i = 0; i < maxLen; i++) {
+      final BonusItem newDef = newDefault.bonus.length > i
+          ? newDefault.bonus[i]
+          : BonusItem(name: '', quantity: 1, originalQuantity: 1);
+      final BonusItem oldDef = oldDefault.bonus.length > i
+          ? oldDefault.bonus[i]
+          : BonusItem(name: '', quantity: 1, originalQuantity: 1);
+      final BonusItem currentItem = current.length > i
+          ? current[i]
+          : BonusItem(name: '', quantity: 1, originalQuantity: 1);
+
+      final bool untouchedAtIndex = currentItem.name == oldDef.name;
+      final String finalName =
+          (allUntouched || untouchedAtIndex) ? newDef.name : currentItem.name;
+
+      final int dynamicQty = (newDef.originalQuantity > 0)
+          ? newDef.originalQuantity * productQuantity
+          : currentItem.quantity;
+
+      result.add(BonusItem(
+        name: finalName,
+        quantity: dynamicQty,
+        originalQuantity: newDef.originalQuantity,
+        takeAway: currentItem.takeAway,
+      ));
+    }
+    return result;
+  }
+
+  bool _areAllBonusNamesUntouched(
+      List<BonusItem> defaults, List<BonusItem> current) {
+    final int len = defaults.length;
+    for (int i = 0; i < len; i++) {
+      final String defName = defaults.length > i ? defaults[i].name : '';
+      final String curName = current.length > i ? current[i].name : '';
+      if (defName != curName) return false;
+    }
+    return true;
   }
 }

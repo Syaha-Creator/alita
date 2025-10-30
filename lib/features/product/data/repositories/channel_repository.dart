@@ -11,11 +11,8 @@ class ChannelRepository {
   Future<List<ChannelModel>> fetchChannels() async {
     try {
       final channels = await channelService.fetchChannels();
-      print(
-          "ChannelRepository: Successfully fetched ${channels.length} channels");
       return channels;
     } catch (e) {
-      print("ChannelRepository: API failed: $e");
       // Show error toast to user
       CustomToast.showToast(
         "Gagal memuat data channel. Periksa koneksi internet Anda.",
@@ -64,11 +61,8 @@ class ChannelRepository {
     try {
       final channels = await fetchChannels();
       final channelNames = channels.map((channel) => channel.name).toList();
-      print(
-          "ChannelRepository: Returning all ${channelNames.length} channel names from API");
       return channelNames;
     } catch (e) {
-      print("ChannelRepository: API failed for channel names: $e");
       // Show error toast to user
       CustomToast.showToast(
         "Gagal memuat daftar channel. Periksa koneksi internet Anda.",
@@ -84,11 +78,8 @@ class ChannelRepository {
   Future<List<ChannelModel>> fetchAllChannels() async {
     try {
       final channels = await fetchChannels();
-      print(
-          "ChannelRepository: Returning all ${channels.length} channels from API");
       return channels;
     } catch (e) {
-      print("ChannelRepository: API failed for all channels: $e");
       // Show error toast to user
       CustomToast.showToast(
         "Gagal memuat data channel. Periksa koneksi internet Anda.",

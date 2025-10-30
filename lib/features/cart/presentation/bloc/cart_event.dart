@@ -126,6 +126,8 @@ class Checkout extends CartEvent {
       [totalPrice, promoCode, paymentMethod, shippingAddress];
 }
 
+class ClearDraftsAfterCheckout extends CartEvent {}
+
 class ReloadCartForUser extends CartEvent {}
 
 class UpdateCartBonus extends CartEvent {
@@ -195,6 +197,38 @@ class UpdateCartProductDetail extends CartEvent {
 
   @override
   List<Object?> get props => [productId, netPrice, detailType, detailValue];
+}
+
+/// Update user-selected item number/fabric choice for a component
+class UpdateCartSelectedItemNumber extends CartEvent {
+  final int productId;
+  final double netPrice;
+  final String itemType; // 'kasur' | 'divan' | 'headboard' | 'sorong'
+  final String itemNumber;
+  final String? jenisKain;
+  final String? warnaKain;
+  final int? unitIndex; // optional: select for specific unit (0..quantity-1)
+
+  const UpdateCartSelectedItemNumber({
+    required this.productId,
+    required this.netPrice,
+    required this.itemType,
+    required this.itemNumber,
+    this.jenisKain,
+    this.warnaKain,
+    this.unitIndex,
+  });
+
+  @override
+  List<Object?> get props => [
+        productId,
+        netPrice,
+        itemType,
+        itemNumber,
+        jenisKain,
+        warnaKain,
+        unitIndex
+      ];
 }
 
 class UpdateCartPrice extends CartEvent {

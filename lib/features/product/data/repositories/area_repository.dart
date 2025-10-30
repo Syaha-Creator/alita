@@ -11,10 +11,8 @@ class AreaRepository {
   Future<List<AreaModel>> fetchAreas() async {
     try {
       final areas = await areaService.fetchAreas();
-      print("AreaRepository: Successfully fetched ${areas.length} areas");
       return areas;
     } catch (e) {
-      print("AreaRepository: API failed: $e");
       // Show error toast to user
       CustomToast.showToast(
         "Gagal memuat data area. Periksa koneksi internet Anda.",
@@ -53,11 +51,8 @@ class AreaRepository {
     try {
       final areas = await fetchAreas();
       final areaNames = areas.map((area) => area.name).toList();
-      print(
-          "AreaRepository: Returning all ${areaNames.length} area names from API");
       return areaNames;
     } catch (e) {
-      print("AreaRepository: API failed for area names: $e");
       // Show error toast to user
       CustomToast.showToast(
         "Gagal memuat daftar area. Periksa koneksi internet Anda.",

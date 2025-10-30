@@ -37,11 +37,7 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         List<String> availableAreas = [];
         try {
           availableAreas = await _areaRepository.fetchAllAreaNames();
-          print(
-              "ProductBloc: Successfully fetched ${availableAreas.length} areas from API");
         } catch (e) {
-          print(
-              "ProductBloc: Error fetching areas from API, using hardcoded values: $e");
           availableAreas = [
             "Nasional",
             "Jabodetabek",
@@ -62,11 +58,7 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         try {
           // Get all channel names from API (most direct approach)
           availableChannels = await _channelRepository.fetchAllChannelNames();
-          print(
-              "ProductBloc: Successfully fetched ${availableChannels.length} channels from API");
         } catch (e) {
-          print(
-              "ProductBloc: Error fetching channels from API, no channels available: $e");
           availableChannels = [];
         }
 
@@ -74,11 +66,7 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         try {
           // Get all brand names from API (most direct approach)
           availableBrands = await _brandRepository.fetchAllBrandNames();
-          print(
-              "ProductBloc: Successfully fetched ${availableBrands.length} brands from API");
         } catch (e) {
-          print(
-              "ProductBloc: Error fetching brands from API, no brands available: $e");
           availableBrands = [];
         }
 
@@ -190,8 +178,6 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       try {
         // Fetch fresh areas from API
         final availableAreas = await _areaRepository.fetchAllAreaNames();
-        print(
-            "ProductBloc: Successfully refreshed ${availableAreas.length} areas from API");
 
         // Ensure no duplicate values and create a clean list
         final uniqueAreas = <String>[];
@@ -250,9 +236,10 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         // Determine which area to use based on brand selection
         String areaToUse = event.selectedArea ?? '';
 
-        // If brand is Spring Air or Therapedic, use "nasional" area
+        // If brand is Spring Air, Therapedic, or Sleep Spa, use "nasional" area
         if (event.selectedBrand == "Spring Air" ||
-            event.selectedBrand == "Therapedic") {
+            event.selectedBrand == "Therapedic" ||
+            event.selectedBrand?.toLowerCase().contains('sleep spa') == true) {
           areaToUse = "Nasional";
         }
 
@@ -648,10 +635,11 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
     });
 
     on<UpdateSelectedBrand>((event, emit) {
-      // Show toast for Spring Air and Therapedic brands
+      // Show toast for Spring Air, Therapedic, and Sleep Spa brands
       if (event.brand == "Spring Air" ||
           event.brand == "Therapedic" ||
-          event.brand.toLowerCase().contains('spring air')) {
+          event.brand.toLowerCase().contains('spring air') ||
+          event.brand.toLowerCase().contains('sleep spa')) {
         CustomToast.showToast(
           "Brand ${event.brand} akan menggunakan area nasional untuk pencarian produk.",
           ToastType.info,
@@ -673,14 +661,17 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         selectedSorong: AppStrings.noSorong, // Reset to default
         selectedSize: "", // Reset to empty
         selectedProgram: "", // Reset to empty
+        filteredProducts: [],
+        isFilterApplied: false,
       ));
 
       // Determine which area to use based on brand selection
       String? areaToUse;
       if (event.brand == "Spring Air" ||
           event.brand == "Therapedic" ||
-          event.brand.toLowerCase().contains('spring air')) {
-        // Use nasional area for Spring Air (including European Collection) and Therapedic
+          event.brand.toLowerCase().contains('spring air') ||
+          event.brand.toLowerCase().contains('sleep spa')) {
+        // Use nasional area for Spring Air (including European Collection), Therapedic, and Sleep Spa
         areaToUse = "Nasional";
       } else {
         // Use user's selected area for other brands
@@ -711,11 +702,12 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       // Determine which area to use based on brand selection
       String areaToUse = event.selectedArea ?? '';
 
-      // If brand is Spring Air or Therapedic, use "nasional" area
+      // If brand is Spring Air, Therapedic, or Sleep Spa, use "nasional" area
       if (event.selectedBrand == "Spring Air" ||
           event.selectedBrand == "Therapedic" ||
           (event.selectedBrand?.toLowerCase().contains('spring air') ??
-              false)) {
+              false) ||
+          (event.selectedBrand?.toLowerCase().contains('sleep spa') ?? false)) {
         // Try using "nasional" first, if it fails, fallback to user's area
         areaToUse = "Nasional";
       } else {
@@ -787,11 +779,6 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       }).toList();
 
       // Apply STRICT filtering - only show products that match ALL selected criteria
-      // Debug: Show what filters are active
-      print(
-          "DEBUG: Active filters - Size: '${event.selectedSize}', Program: '${event.selectedProgram}', Kasur: '${event.selectedKasur}', Divan: '${event.selectedDivan}', Headboard: '${event.selectedHeadboard}', Sorong: '${event.selectedSorong}'");
-      print(
-          "DEBUG: Total products before strict filtering: ${filteredProducts.length}");
 
       // Apply additional strict filtering based on the debug analysis
       final strictlyFilteredProducts = filteredProducts.where((product) {
@@ -801,8 +788,6 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         if (event.selectedSize != null && event.selectedSize!.isNotEmpty) {
           if (product.ukuran != event.selectedSize) {
             passesStrictFilter = false;
-            print(
-                "DEBUG: Product ${product.id} rejected - Size mismatch: '${product.ukuran}' vs '${event.selectedSize}'");
           }
         }
 
@@ -811,8 +796,6 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
             event.selectedProgram!.isNotEmpty) {
           if (product.program != event.selectedProgram) {
             passesStrictFilter = false;
-            print(
-                "DEBUG: Product ${product.id} rejected - Program mismatch: '${product.program}' vs '${event.selectedProgram}'");
           }
         }
 
@@ -822,8 +805,6 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
             event.selectedKasur != AppStrings.noKasur) {
           if (product.kasur != event.selectedKasur) {
             passesStrictFilter = false;
-            print(
-                "DEBUG: Product ${product.id} rejected - Kasur mismatch: '${product.kasur}' vs '${event.selectedKasur}'");
           }
         }
 
@@ -831,8 +812,6 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         if (selectedDivan != AppStrings.noDivan) {
           if (product.divan != selectedDivan) {
             passesStrictFilter = false;
-            print(
-                "DEBUG: Product ${product.id} rejected - Divan mismatch: '${product.divan}' vs '$selectedDivan'");
           }
         }
 
@@ -840,8 +819,6 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         if (selectedHeadboard != AppStrings.noHeadboard) {
           if (product.headboard != selectedHeadboard) {
             passesStrictFilter = false;
-            print(
-                "DEBUG: Product ${product.id} rejected - Headboard mismatch: '${product.headboard}' vs '$selectedHeadboard'");
           }
         }
 
@@ -849,8 +826,6 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         if (selectedSorong != AppStrings.noSorong) {
           if (product.sorong != selectedSorong) {
             passesStrictFilter = false;
-            print(
-                "DEBUG: Product ${product.id} rejected - Sorong mismatch: '${product.sorong}' vs '$selectedSorong'");
           }
         }
 
@@ -859,8 +834,6 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
 
       // Update filteredProducts with strictly filtered results
       filteredProducts = strictlyFilteredProducts;
-      print(
-          "DEBUG: After strict filtering: ${filteredProducts.length} products remain");
 
       // Check if products are truly duplicates or actually different
       if (filteredProducts.length > 1) {
@@ -878,18 +851,10 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
           productGroups[uniqueKey]!.add(product);
         }
 
-        print("DEBUG: Found ${productGroups.length} unique product groups");
-
         // If all products have the same key, they are true duplicates - show only 1
         if (productGroups.length == 1) {
-          print("DEBUG: All products are TRUE DUPLICATES - showing only 1");
           final firstProduct = productGroups.values.first.first;
           filteredProducts = [firstProduct];
-        } else {
-          print(
-              "DEBUG: Products are DIFFERENT - showing all ${filteredProducts.length} products");
-          // Products are different, show all of them
-          // filteredProducts remains unchanged
         }
       }
 
@@ -1144,18 +1109,6 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
           ToastType.info,
         );
       }
-    });
-
-    on<SaveProductNote>((event, emit) {
-      final updatedNotes = Map<int, String>.from(state.productNotes)
-        ..[event.productId] = event.note;
-      emit(state.copyWith(productNotes: updatedNotes));
-    });
-
-    on<UpdateProductNote>((event, emit) {
-      final updatedNotes = Map<int, String>.from(state.productNotes);
-      updatedNotes[event.productId] = event.note;
-      emit(state.copyWith(productNotes: updatedNotes));
     });
 
     on<SetUserArea>((event, emit) async {

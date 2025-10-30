@@ -6,7 +6,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
@@ -78,6 +77,8 @@ class PaymentMethod {
   final double amount;
   final String? reference;
   final String receiptImagePath; // Changed from optional to required
+  final String? paymentDate; // Payment date
+  final String? note; // User note
 
   PaymentMethod({
     required this.methodType,
@@ -85,6 +86,8 @@ class PaymentMethod {
     required this.amount,
     this.reference,
     required this.receiptImagePath, // Now required
+    this.paymentDate,
+    this.note,
   });
 
   Map<String, dynamic> toJson() {
@@ -94,6 +97,8 @@ class PaymentMethod {
       'amount': amount,
       'reference': reference,
       'receiptImagePath': receiptImagePath,
+      'paymentDate': paymentDate,
+      'note': note,
     };
   }
 }
@@ -225,25 +230,20 @@ class _CheckoutPagesState extends State<CheckoutPages>
         amount: payment['amount'] as double? ?? 0.0,
         reference: payment['reference'] as String?,
         receiptImagePath: payment['receiptImagePath'] as String? ?? '',
+        paymentDate: payment['paymentDate'] as String?,
+        note: payment['note'] as String?,
       ));
     }
 
     // Cart items will be handled separately
     // We'll restore bonus take away states after cart is loaded
     _restoreCartItemsFromDraft(draft);
-
-    print('Draft loaded successfully: ${draft['customerName']}');
-    print('Payment methods restored: ${_paymentMethods.length}');
-    print('Take away status: ${draft['isTakeAway']}');
   }
 
   // Restore cart items from draft data
   Future<void> _restoreCartItemsFromDraft(Map<String, dynamic> draft) async {
     try {
       final itemsData = draft['selectedItems'] as List<dynamic>? ?? [];
-
-      print('=== RESTORING CART FROM DRAFT ===');
-      print('Total items in draft: ${itemsData.length}');
 
       // Clear current cart first
       context.read<CartBloc>().add(ClearCart());
@@ -254,15 +254,9 @@ class _CheckoutPagesState extends State<CheckoutPages>
       // Add each item back to cart with restored bonus take away data
       for (int i = 0; i < itemsData.length; i++) {
         final itemData = itemsData[i];
-        print('Processing item ${i + 1}/${itemsData.length}');
 
         final item = itemData as Map<String, dynamic>;
         final productData = item['product'] as Map<String, dynamic>;
-
-        print(
-            'Item ${i + 1} - Product: ${productData['kasur']} ${productData['ukuran']}');
-        print('Item ${i + 1} - Quantity: ${item['quantity']}');
-        print('Item ${i + 1} - Net Price: ${item['netPrice']}');
 
         // Reconstruct bonus items
         final bonusData = productData['bonus'] as List<dynamic>? ?? [];
@@ -320,7 +314,6 @@ class _CheckoutPagesState extends State<CheckoutPages>
         }
 
         // Add to cart with bonus take away data
-        print('Adding item ${i + 1} to cart...');
         context.read<CartBloc>().add(AddToCart(
               product: product,
               quantity: item['quantity'] as int,
@@ -331,11 +324,9 @@ class _CheckoutPagesState extends State<CheckoutPages>
                           .toList() ??
                       [],
             ));
-        print('Item ${i + 1} added to cart successfully');
 
         // After adding to cart, update bonus take away if needed
         if (bonusTakeAway != null && bonusTakeAway.isNotEmpty) {
-          print('Updating bonus take away for item ${i + 1}');
           // Wait a bit for cart to be updated
           await Future.delayed(const Duration(milliseconds: 50));
 
@@ -344,17 +335,14 @@ class _CheckoutPagesState extends State<CheckoutPages>
                 netPrice: item['netPrice'] as double,
                 bonusTakeAway: bonusTakeAway,
               ));
-          print('Bonus take away updated for item ${i + 1}');
         }
 
         // Add delay between items to ensure proper processing
         await Future.delayed(const Duration(milliseconds: 100));
       }
-
-      print('=== CART RESTORATION COMPLETED ===');
-      print('Cart items restored from draft: ${itemsData.length} items');
     } catch (e) {
-      print('Error restoring cart items from draft: $e');
+      //
+      throw Exception('Failed to restore cart items from draft: $e');
     }
   }
 
@@ -434,6 +422,8 @@ class _CheckoutPagesState extends State<CheckoutPages>
                   'amount': payment.amount,
                   'reference': payment.reference,
                   'receiptImagePath': payment.receiptImagePath,
+                  'paymentDate': payment.paymentDate,
+                  'note': payment.note,
                 })
             .toList(),
         'paymentType': _paymentType,
@@ -469,16 +459,13 @@ class _CheckoutPagesState extends State<CheckoutPages>
         if (draftIndex != -1) {
           // Replace existing draft
           draftStrings[draftIndex] = jsonEncode(draft);
-          print('Updated existing draft at index $draftIndex');
         } else {
           // If not found, add as new draft
           draftStrings.add(jsonEncode(draft));
-          print('Added new draft (original not found)');
         }
       } else {
         // Add new draft
         draftStrings.add(jsonEncode(draft));
-        print('Added new draft');
       }
 
       await prefs.setStringList(key, draftStrings);
@@ -591,15 +578,12 @@ class _CheckoutPagesState extends State<CheckoutPages>
 
           // Upload payment methods if any
           if (_paymentMethods.isNotEmpty) {
-            print(
-                'CheckoutPage: Uploading ${_paymentMethods.length} payment methods');
             final paymentService = locator<OrderLetterPaymentService>();
             final currentUserId = await AuthService.getCurrentUserId();
 
             if (currentUserId != null) {
               try {
                 final paymentData = _convertPaymentMethodsToApiFormat();
-                print('CheckoutPage: Payment data to upload: $paymentData');
 
                 await paymentService.uploadPaymentMethods(
                   orderLetterId: orderLetterId,
@@ -607,9 +591,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
                   creator: currentUserId,
                   note: 'Payment from checkout',
                 );
-                print('CheckoutPage: Payment methods uploaded successfully');
               } catch (paymentError) {
-                print('CheckoutPage: Error uploading payments: $paymentError');
                 // Show toast to user about payment upload failure
                 if (mounted) {
                   CustomToast.showToast(
@@ -618,15 +600,10 @@ class _CheckoutPagesState extends State<CheckoutPages>
                   );
                 }
               }
-            } else {
-              print('CheckoutPage: Cannot upload payments - user ID is null');
-            }
-          } else {
-            print('CheckoutPage: No payment methods to upload');
-          }
+            } else {}
+          } else {}
         } catch (e) {
           // Log error but don't fail the checkout
-          print('Warning: Failed to upload phone numbers or payments: $e');
         }
       }
 
@@ -636,6 +613,9 @@ class _CheckoutPagesState extends State<CheckoutPages>
 
         // Clear entire cart after successful checkout
         context.read<CartBloc>().add(ClearCart());
+
+        // Clear all drafts after successful checkout
+        context.read<CartBloc>().add(ClearDraftsAfterCheckout());
 
         // Navigate to approval monitoring page to see the new order
         context.go(RoutePaths.approvalMonitoring);
@@ -1553,9 +1533,10 @@ class _CheckoutPagesState extends State<CheckoutPages>
         'payment_bank': payment.methodName,
         'payment_number': payment.reference ?? '',
         'payment_amount': payment.amount,
-        'note':
+        'note': payment.note ??
             'Payment via $categoryDisplayName ${payment.methodName}${payment.reference != null ? ' - Ref: ${payment.reference}' : ''}',
         'receipt_image_path': payment.receiptImagePath,
+        'payment_date': payment.paymentDate,
       };
     }).toList();
   }
@@ -2923,6 +2904,7 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
   final _referenceController = TextEditingController();
+  final _noteController = TextEditingController();
   String _selectedPaymentCategory = 'transfer'; // transfer, credit, paylater
   String _selectedMethodType = 'bri';
   String? _receiptImagePath;
@@ -2932,6 +2914,7 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
   void dispose() {
     _amountController.dispose();
     _referenceController.dispose();
+    _noteController.dispose();
     super.dispose();
   }
 
@@ -2964,7 +2947,7 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
         child: GestureDetector(
           onTap: () {}, // Prevent tap from bubbling up
           child: Container(
-            height: MediaQuery.of(context).size.height * 0.9,
+            height: MediaQuery.of(context).size.height * 0.95,
             margin: EdgeInsets.only(
               top: safePadding.top + 60,
               bottom: 0,
@@ -3033,7 +3016,8 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
                             children: [
                               Text(
                                 'Tambah Pembayaran',
-                                style: GoogleFonts.inter(
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
                                   fontSize:
                                       ResponsiveHelper.getResponsiveFontSize(
                                     context,
@@ -3048,7 +3032,8 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
                               const SizedBox(height: 4),
                               Text(
                                 'Pilih metode dan jumlah pembayaran',
-                                style: GoogleFonts.inter(
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
                                   fontSize: 14,
                                   color: colorScheme.onSurfaceVariant,
                                 ),
@@ -3073,9 +3058,9 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
                     child: SingleChildScrollView(
                       padding: ResponsiveHelper.getResponsivePaddingWithZoom(
                         context,
-                        mobile: const EdgeInsets.all(20),
-                        tablet: const EdgeInsets.all(24),
-                        desktop: const EdgeInsets.all(28),
+                        mobile: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+                        tablet: const EdgeInsets.fromLTRB(24, 24, 24, 50),
+                        desktop: const EdgeInsets.fromLTRB(28, 28, 28, 60),
                       ),
                       child: Form(
                         key: _formKey,
@@ -3085,7 +3070,8 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
                             // Payment Category Selection
                             Text(
                               'Metode Pembayaran',
-                              style: GoogleFonts.inter(
+                              style: TextStyle(
+                                fontFamily: 'Inter',
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,
                                 color: colorScheme.onSurface,
@@ -3133,7 +3119,8 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
                             // Specific Payment Method Selection
                             Text(
                               'Channel Pembayaran',
-                              style: GoogleFonts.inter(
+                              style: TextStyle(
+                                fontFamily: 'Inter',
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,
                                 color: colorScheme.onSurface,
@@ -3209,7 +3196,8 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
                             // Receipt Image Upload
                             Text(
                               'Foto Struk Pembayaran *',
-                              style: GoogleFonts.inter(
+                              style: TextStyle(
+                                fontFamily: 'Inter',
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,
                                 color: colorScheme.onSurface,
@@ -3288,7 +3276,22 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
                                 fillColor: colorScheme.surface,
                               ),
                             ),
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 8),
+
+                            // Note Input (Optional)
+                            TextFormField(
+                              controller: _noteController,
+                              decoration: InputDecoration(
+                                labelText: 'Catatan Pembayaran (Opsional)',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                filled: true,
+                                fillColor: colorScheme.surface,
+                              ),
+                              maxLines: 3,
+                            ),
+                            const SizedBox(height: 16),
 
                             // Action Buttons
                             Row(
@@ -3308,7 +3311,8 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
                                     ),
                                     child: Text(
                                       'Batal',
-                                      style: GoogleFonts.inter(
+                                      style: const TextStyle(
+                                        fontFamily: 'Inter',
                                         fontSize: 14,
                                         fontWeight: FontWeight.w600,
                                       ),
@@ -3330,7 +3334,8 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
                                     ),
                                     child: Text(
                                       'Tambah',
-                                      style: GoogleFonts.inter(
+                                      style: const TextStyle(
+                                        fontFamily: 'Inter',
                                         fontSize: 14,
                                         fontWeight: FontWeight.w600,
                                       ),
@@ -3361,7 +3366,8 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
           SnackBar(
             content: Text(
               'Foto struk pembayaran wajib diisi',
-              style: GoogleFonts.inter(
+              style: const TextStyle(
+                fontFamily: 'Inter',
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
               ),
@@ -3378,6 +3384,12 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
 
       final amount = FormatHelper.parseCurrencyToDouble(_amountController.text);
       final reference = _referenceController.text.trim();
+      final note = _noteController.text.trim();
+
+      // Set payment date automatically to today
+      final today = DateTime.now();
+      final paymentDate =
+          '${today.day.toString().padLeft(2, '0')}/${today.month.toString().padLeft(2, '0')}/${today.year}';
 
       final payment = PaymentMethod(
         methodType: _selectedMethodType,
@@ -3385,6 +3397,8 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
         amount: amount,
         reference: reference.isEmpty ? null : reference,
         receiptImagePath: _receiptImagePath!,
+        paymentDate: paymentDate,
+        note: note.isEmpty ? null : note,
       );
 
       widget.onPaymentAdded(payment);
@@ -3418,7 +3432,8 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
           const SizedBox(height: 8),
           Text(
             'Tap untuk ambil foto atau pilih dari galeri',
-            style: GoogleFonts.inter(
+            style: TextStyle(
+              fontFamily: 'Inter',
               fontSize: 12,
               color: colorScheme.onSurfaceVariant,
             ),
@@ -3426,7 +3441,8 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
           const SizedBox(height: 4),
           Text(
             'Struk pembayaran wajib diisi',
-            style: GoogleFonts.inter(
+            style: TextStyle(
+              fontFamily: 'Inter',
               fontSize: 12,
               color: Colors.red[600],
               fontWeight: FontWeight.w500,
@@ -3470,7 +3486,8 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
               padding: const EdgeInsets.all(16),
               child: Text(
                 'Pilih Sumber Foto',
-                style: GoogleFonts.inter(
+                style: TextStyle(
+                  fontFamily: 'Inter',
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
                   color: colorScheme.onSurface,
@@ -3493,7 +3510,8 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
               ),
               title: Text(
                 'Ambil Foto',
-                style: GoogleFonts.inter(
+                style: TextStyle(
+                  fontFamily: 'Inter',
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
                   color: colorScheme.onSurface,
@@ -3501,7 +3519,8 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
               ),
               subtitle: Text(
                 'Gunakan kamera untuk mengambil foto struk',
-                style: GoogleFonts.inter(
+                style: TextStyle(
+                  fontFamily: 'Inter',
                   fontSize: 12,
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -3526,7 +3545,8 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
               ),
               title: Text(
                 'Pilih dari Galeri',
-                style: GoogleFonts.inter(
+                style: TextStyle(
+                  fontFamily: 'Inter',
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
                   color: colorScheme.onSurface,
@@ -3534,7 +3554,8 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
               ),
               subtitle: Text(
                 'Pilih foto struk dari galeri',
-                style: GoogleFonts.inter(
+                style: TextStyle(
+                  fontFamily: 'Inter',
                   fontSize: 12,
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -3559,7 +3580,8 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
               ),
               title: Text(
                 'Pilih File',
-                style: GoogleFonts.inter(
+                style: TextStyle(
+                  fontFamily: 'Inter',
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
                   color: colorScheme.onSurface,
@@ -3567,7 +3589,8 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
               ),
               subtitle: Text(
                 'Pilih file gambar dari penyimpanan',
-                style: GoogleFonts.inter(
+                style: TextStyle(
+                  fontFamily: 'Inter',
                   fontSize: 12,
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -3597,7 +3620,6 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
         await _saveImageFile(image.path);
       }
     } catch (e) {
-      print('Image picker failed: $e');
       CustomToast.showToast(
           'Gagal mengambil foto: ${e.toString()}', ToastType.error);
     }
@@ -3617,7 +3639,6 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
         }
       }
     } catch (e) {
-      print('File picker failed: $e');
       CustomToast.showToast(
           'Gagal memilih file: ${e.toString()}', ToastType.error);
     }
@@ -3639,7 +3660,6 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
 
       CustomToast.showToast('Foto struk berhasil diupload', ToastType.success);
     } catch (e) {
-      print('Error saving image: $e');
       CustomToast.showToast(
           'Gagal menyimpan gambar: ${e.toString()}', ToastType.error);
     }
@@ -3707,11 +3727,7 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
       // Write compressed image to target path
       final File targetFile = File(targetPath);
       await targetFile.writeAsBytes(compressedBytes);
-
-      print(
-          'Image compressed: ${compressedBytes.length} bytes (target: $targetSizeBytes bytes)');
     } catch (e) {
-      print('Error compressing image: $e');
       // Fallback: copy original file if compression fails
       final File sourceFile = File(sourcePath);
       final File targetFile = File(targetPath);

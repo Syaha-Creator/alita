@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../config/app_constant.dart';
 import '../../../../core/utils/format_helper.dart';
@@ -18,6 +17,7 @@ import 'package:collection/collection.dart';
 import '../../../../core/widgets/custom_toast.dart';
 import '../../../../services/leader_service.dart';
 import '../../../../features/approval/data/models/approval_model.dart';
+import '../../../../services/lookup_item_service.dart' as lookup;
 import '../../domain/entities/cart_entity.dart';
 import '../bloc/cart_bloc.dart';
 import '../bloc/cart_event.dart';
@@ -32,30 +32,12 @@ class CartItemWidget extends StatefulWidget {
 
 class _CartItemWidgetState extends State<CartItemWidget> {
   bool isExpanded = false;
-  late final TextEditingController _noteController;
+  bool _autoFabricChecked = false;
 
   // === KEMBALIKAN KONSTANTA KE SINI AGAR BISA DIAKSES SEMUA METHOD ===
   static const double _avatarSize = 40.0;
   static const Radius radius = Radius.circular(12);
   // =================================================================
-
-  @override
-  void initState() {
-    super.initState();
-    // Inisialisasi controller dengan note dari BLoC secara aman
-    final initialNote = context
-            .read<ProductBloc>()
-            .state
-            .productNotes[widget.item.product.id] ??
-        '';
-    _noteController = TextEditingController(text: initialNote);
-  }
-
-  @override
-  void dispose() {
-    _noteController.dispose();
-    super.dispose();
-  }
 
   // Helper method to compare lists
   bool _listEquals<T>(List<T> a, List<T> b) {
@@ -66,6 +48,151 @@ class _CartItemWidgetState extends State<CartItemWidget> {
     return true;
   }
 
+  bool _isNoneComponent(String value) {
+    final v = (value).trim().toLowerCase();
+    if (v.isEmpty) return true;
+    if (v == '-' || v == 'n/a') return true;
+    if (v.contains('tidak ada')) return true;
+    if (v.contains('tanpa')) return true;
+    return false;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _autoSelectFabricDefaults();
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant CartItemWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // When quantity increases, auto-fill missing units if only one option exists
+    if (widget.item.quantity > oldWidget.item.quantity) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _autoFillNewUnitsIfSingleOption();
+      });
+    }
+  }
+
+  Future<void> _autoSelectFabricDefaults() async {
+    if (_autoFabricChecked) return;
+    _autoFabricChecked = true;
+
+    final product = widget.item.product;
+    final futures = <Future>[];
+
+    Future<void> tryAuto(String itemType, bool enabled) async {
+      if (!enabled) return;
+      if (widget.item.selectedItemNumbers != null &&
+          widget.item.selectedItemNumbers![itemType] != null) {
+        return;
+      }
+      print(
+          '[CartItem] Auto-lookup start itemType=$itemType for product=${product.kasur} ${product.ukuran}');
+      // Gunakan nama tipe sesuai komponen: kasur/divan/headboard/sorong
+      String tipeForLookup;
+      switch (itemType) {
+        case 'divan':
+          tipeForLookup = product.divan;
+          break;
+        case 'headboard':
+          tipeForLookup = product.headboard;
+          break;
+        case 'sorong':
+          tipeForLookup = product.sorong;
+          break;
+        case 'kasur':
+        default:
+          tipeForLookup = product.kasur;
+      }
+      final list = await lookup.LookupItemService().fetchLookupItems(
+        brand: product.brand,
+        kasur: tipeForLookup,
+        divan: product.divan.isNotEmpty ? product.divan : null,
+        headboard: product.headboard.isNotEmpty ? product.headboard : null,
+        sorong: product.sorong.isNotEmpty ? product.sorong : null,
+        ukuran: product.ukuran,
+        contextItemType: itemType,
+      );
+      print(
+          '[CartItem] Auto-lookup result count=${list.length} itemType=$itemType');
+      if (list.length == 1) {
+        final it = list.first;
+        if (!mounted) return;
+        print(
+            '[CartItem] Auto-apply fabric itemType=$itemType item_num=${it.itemNumber} jenis=${it.fabricType} warna=${it.fabricColor}');
+        // Apply for unit 0 (and others if quantity > 1)
+        final qty = widget.item.quantity;
+        for (int idx = 0; idx < qty; idx++) {
+          context.read<CartBloc>().add(UpdateCartSelectedItemNumber(
+                productId: product.id,
+                netPrice: widget.item.netPrice,
+                itemType: itemType,
+                itemNumber: it.itemNumber,
+                jenisKain: it.fabricType,
+                warnaKain: it.fabricColor,
+                unitIndex: idx,
+              ));
+        }
+      }
+    }
+
+    futures.add(tryAuto('kasur', !_isNoneComponent(product.kasur)));
+    futures.add(tryAuto('divan', !_isNoneComponent(product.divan)));
+    futures.add(tryAuto('headboard', !_isNoneComponent(product.headboard)));
+    futures.add(tryAuto('sorong', !_isNoneComponent(product.sorong)));
+
+    await Future.wait(futures);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _autoFillNewUnitsIfSingleOption() async {
+    final product = widget.item.product;
+    Future<void> tryFill(
+        String itemType, String tipeForLookup, bool enabled) async {
+      if (!enabled) return;
+      final perUnit =
+          widget.item.selectedItemNumbersPerUnit?[itemType] ?? const [];
+      final list = await lookup.LookupItemService().fetchLookupItems(
+        brand: product.brand,
+        kasur: tipeForLookup,
+        divan: product.divan.isNotEmpty ? product.divan : null,
+        headboard: product.headboard.isNotEmpty ? product.headboard : null,
+        sorong: product.sorong.isNotEmpty ? product.sorong : null,
+        ukuran: product.ukuran,
+        contextItemType: itemType,
+      );
+      if (list.length == 1) {
+        final it = list.first;
+        for (int idx = 0; idx < widget.item.quantity; idx++) {
+          final sel = idx < perUnit.length ? perUnit[idx] : null;
+          final already =
+              sel != null && (sel['item_number'] ?? '').toString().isNotEmpty;
+          if (already) continue;
+          context.read<CartBloc>().add(UpdateCartSelectedItemNumber(
+                productId: product.id,
+                netPrice: widget.item.netPrice,
+                itemType: itemType,
+                itemNumber: it.itemNumber,
+                jenisKain: it.fabricType,
+                warnaKain: it.fabricColor,
+                unitIndex: idx,
+              ));
+        }
+      }
+    }
+
+    await Future.wait([
+      tryFill('kasur', product.kasur, !_isNoneComponent(product.kasur)),
+      tryFill('divan', product.divan, !_isNoneComponent(product.divan)),
+      tryFill(
+          'headboard', product.headboard, !_isNoneComponent(product.headboard)),
+      tryFill('sorong', product.sorong, !_isNoneComponent(product.sorong)),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -74,12 +201,6 @@ class _CartItemWidgetState extends State<CartItemWidget> {
     // Kita gunakan BlocListener untuk update controller secara aman saat state berubah
     return BlocListener<ProductBloc, ProductState>(
       listener: (context, state) {
-        final newNote = state.productNotes[widget.item.product.id] ?? '';
-        // Hanya update controller jika teksnya berbeda untuk menghindari loop tak terbatas
-        if (_noteController.text != newNote) {
-          _noteController.text = newNote;
-        }
-
         // Check if price has changed and update cart
         final newPrice = state.roundedPrices[widget.item.product.id];
         if (newPrice != null && newPrice != widget.item.netPrice) {
@@ -151,17 +272,246 @@ class _CartItemWidgetState extends State<CartItemWidget> {
   // --- SEMUA METHOD HELPER DIKEMBALIKAN KE DALAM STATE ---
 
   Widget _buildDetailsSection(BuildContext context, bool isDark) {
+    final hasBonus = widget.item.product.bonus.any((b) => b.name.isNotEmpty);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: AppPadding.p10),
         _buildProductDetails(context, isDark),
-        const SizedBox(height: AppPadding.p10),
-        _buildBonusAndNotes(context, isDark),
+        // Fabric selectors per component if available
+        if (!_isNoneComponent(widget.item.product.kasur))
+          _buildFabricSelector(context, isDark, 'kasur'),
+        if (!_isNoneComponent(widget.item.product.divan))
+          _buildFabricSelector(context, isDark, 'divan'),
+        if (!_isNoneComponent(widget.item.product.headboard))
+          _buildFabricSelector(context, isDark, 'headboard'),
+        if (!_isNoneComponent(widget.item.product.sorong))
+          _buildFabricSelector(context, isDark, 'sorong'),
+        if (hasBonus) const SizedBox(height: AppPadding.p10),
+        _buildBonus(context, isDark),
         const SizedBox(height: AppPadding.p10),
         _buildPriceInfo(context, isDark),
       ],
     );
+  }
+
+  Widget _buildFabricSelector(
+      BuildContext context, bool isDark, String itemType) {
+    String buildLabel(Map<String, String>? sel) {
+      if (sel == null) return 'Pilih kain';
+      final jk = (sel['jenis_kain'] ?? '').trim();
+      final wk = (sel['warna_kain'] ?? '').trim();
+      final combined = [jk, wk].where((e) => e.isNotEmpty).join(' - ');
+      return combined.isEmpty ? (sel['item_number'] ?? 'Pilih kain') : combined;
+    }
+
+    final qty = widget.item.quantity;
+    final perUnit = widget.item.selectedItemNumbersPerUnit?[itemType];
+    final selLegacy = widget.item.selectedItemNumbers?[itemType];
+
+    final children = <Widget>[];
+    // Header line
+    children.add(Row(
+      children: [
+        Expanded(
+          child: Text(
+            'Kain ${itemType[0].toUpperCase()}${itemType.substring(1)}',
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: isDark
+                  ? AppColors.textPrimaryDark
+                  : AppColors.textPrimaryLight,
+            ),
+          ),
+        ),
+        // For qty==1, keep single selector; for qty>1, show Unit #1 here
+        TextButton(
+          onPressed: () => _openFabricSelector(context, itemType, 0),
+          child: Text(
+            buildLabel((perUnit != null && perUnit.isNotEmpty)
+                ? perUnit[0]
+                : selLegacy),
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 12,
+              color: isDark ? AppColors.accentDark : AppColors.accentLight,
+            ),
+          ),
+        )
+      ],
+    ));
+
+    // If more than 1 quantity, show selectors per additional unit
+    if (qty > 1) {
+      for (int i = 1; i < qty; i++) {
+        final label = buildLabel(
+            (perUnit != null && i < perUnit.length) ? perUnit[i] : null);
+        children.add(Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Unit #${i + 1}',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 12,
+                    color: isDark
+                        ? AppColors.textSecondaryDark
+                        : AppColors.textSecondaryLight,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => _openFabricSelector(context, itemType, i),
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 12,
+                    color:
+                        isDark ? AppColors.accentDark : AppColors.accentLight,
+                  ),
+                ),
+              )
+            ],
+          ),
+        ));
+      }
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
+      ),
+    );
+  }
+
+  Future<void> _openFabricSelector(
+      BuildContext context, String itemType, int unitIndex) async {
+    try {
+      // ignore: avoid_print
+      print(
+          '[CartItem] Manual open selector itemType=$itemType unitIndex=$unitIndex');
+      // Tentukan tipe yang akan dicocokkan berdasarkan komponen
+      final p = widget.item.product;
+      String tipeForLookup;
+      switch (itemType) {
+        case 'divan':
+          tipeForLookup = p.divan;
+          break;
+        case 'headboard':
+          tipeForLookup = p.headboard;
+          break;
+        case 'sorong':
+          tipeForLookup = p.sorong;
+          break;
+        case 'kasur':
+        default:
+          tipeForLookup = p.kasur;
+      }
+      final list = await lookup.LookupItemService().fetchLookupItems(
+        brand: p.brand,
+        kasur: tipeForLookup,
+        divan: p.divan.isNotEmpty ? p.divan : null,
+        headboard: p.headboard.isNotEmpty ? p.headboard : null,
+        sorong: p.sorong.isNotEmpty ? p.sorong : null,
+        ukuran: p.ukuran,
+        contextItemType: itemType,
+      );
+
+      if (!mounted) return;
+      // Auto-apply when only one option available
+      if (list.length == 1) {
+        final it = list.first;
+        context.read<CartBloc>().add(UpdateCartSelectedItemNumber(
+              productId: widget.item.product.id,
+              netPrice: widget.item.netPrice,
+              itemType: itemType,
+              itemNumber: it.itemNumber,
+              jenisKain: it.fabricType,
+              warnaKain: it.fabricColor,
+              unitIndex: unitIndex,
+            ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Kain default diterapkan')),
+        );
+        return;
+      }
+
+      if (list.isEmpty) {
+        // ignore: avoid_print
+        print('[CartItem] Lookup empty for itemType=$itemType');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Pilihan kain tidak tersedia')),
+        );
+        return;
+      }
+
+      await showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title:
+              const Text('Pilih Kain', style: TextStyle(fontFamily: 'Inter')),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: 340,
+            child: ListView.builder(
+              itemCount: list.length,
+              itemBuilder: (c, i) {
+                final it = list[i];
+                final main = [it.fabricType, it.fabricColor]
+                    .where((e) => (e ?? '').isNotEmpty)
+                    .join(' - ');
+                final sub = it.itemDesc ?? '';
+                return ListTile(
+                  title: Text(
+                    main.isEmpty ? (sub.isEmpty ? it.itemNumber : sub) : main,
+                    style: const TextStyle(fontFamily: 'Inter'),
+                  ),
+                  subtitle: sub.isNotEmpty
+                      ? Text(sub,
+                          style: const TextStyle(
+                              fontFamily: 'Inter', fontSize: 12))
+                      : null,
+                  onTap: () {
+                    // ignore: avoid_print
+                    print(
+                        '[CartItem] User selected fabric itemType=$itemType unitIndex=$unitIndex item_num=${it.itemNumber}');
+                    context.read<CartBloc>().add(UpdateCartSelectedItemNumber(
+                          productId: widget.item.product.id,
+                          netPrice: widget.item.netPrice,
+                          itemType: itemType,
+                          itemNumber: it.itemNumber,
+                          jenisKain: it.fabricType,
+                          warnaKain: it.fabricColor,
+                          unitIndex: unitIndex,
+                        ));
+                    Navigator.pop(ctx);
+                  },
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Tutup', style: TextStyle(fontFamily: 'Inter')),
+            )
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memuat kain: $e')),
+      );
+    }
   }
 
   Widget _buildHeader(BuildContext context, bool isDark) {
@@ -516,41 +866,21 @@ class _CartItemWidgetState extends State<CartItemWidget> {
     );
   }
 
-  Widget _buildBonusAndNotes(BuildContext context, bool isDark) {
+  Widget _buildBonus(BuildContext context, bool isDark) {
     final bonusList = widget.item.product.bonus;
     final hasBonus = bonusList.any((b) => b.name.isNotEmpty);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        hasBonus
-            ? _bonusBox(
-                context,
-                Icons.card_giftcard,
-                'Bonus',
-                '', // Content will be handled inside _bonusBox
-                isDark)
-            : Text(
-                'Bonus: Tidak ada bonus',
-                style: TextStyle(
-                  color: isDark
-                      ? AppColors.textSecondaryDark
-                      : Colors.grey.shade600,
-                ),
-              ),
-        const SizedBox(height: 8),
+    // Hide bonus section if there's no bonus
+    if (!hasBonus) {
+      return const SizedBox.shrink();
+    }
 
-        BlocBuilder<ProductBloc, ProductState>(
-          buildWhen: (prev, current) =>
-              prev.productNotes[widget.item.product.id] !=
-              current.productNotes[widget.item.product.id],
-          builder: (context, state) {
-            final note = state.productNotes[widget.item.product.id] ?? '';
-            return _infoBox(context, Icons.note, 'Catatan', note, isDark);
-          },
-        ),
-        // ===================================
-      ],
+    return _bonusBox(
+      context,
+      Icons.card_giftcard,
+      'Bonus',
+      '',
+      isDark,
     );
   }
 
@@ -589,7 +919,8 @@ class _CartItemWidgetState extends State<CartItemWidget> {
               Expanded(
                 child: Text(
                   title,
-                  style: GoogleFonts.inter(
+                  style: TextStyle(
+                    fontFamily: 'Inter',
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: isDark
@@ -639,7 +970,8 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                               Expanded(
                                 child: Text(
                                   bonus.name,
-                                  style: GoogleFonts.inter(
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
                                     fontSize: 13,
                                     fontWeight: FontWeight.w500,
                                     color: isDark
@@ -719,47 +1051,66 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                               width: 1,
                             ),
                           ),
-                          child: Text(
-                            '${bonus.quantity}x (Max: ${bonus.maxQuantity})',
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: isDark
-                                  ? AppColors.textPrimaryDark
-                                  : AppColors.textPrimaryLight,
-                            ),
+                          child: Builder(
+                            builder: (context) {
+                              final perUnit = bonus.originalQuantity > 0
+                                  ? bonus.originalQuantity
+                                  : bonus.quantity;
+                              final maxQty = perUnit * 2 * widget.item.quantity;
+                              return Text(
+                                '${bonus.quantity}x (Max: $maxQty)',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark
+                                      ? AppColors.textPrimaryDark
+                                      : AppColors.textPrimaryLight,
+                                ),
+                              );
+                            },
                           ),
                         ),
                         // Plus button
-                        IconButton(
-                          onPressed: bonus.quantity < bonus.maxQuantity
-                              ? () {
-                                  context.read<CartBloc>().add(UpdateCartBonus(
-                                        productId: widget.item.product.id,
-                                        netPrice: widget.item.netPrice,
-                                        bonusIndex: index,
-                                        bonusName: bonus.name,
-                                        bonusQuantity: bonus.quantity + 1,
-                                      ));
-                                }
-                              : null,
-                          icon: Icon(
-                            Icons.add_circle_outline,
-                            size: 20,
-                            color: bonus.quantity < bonus.maxQuantity
-                                ? (isDark
-                                    ? AppColors.accentDark
-                                    : AppColors.accentLight)
-                                : Colors.grey,
-                          ),
-                          tooltip: bonus.quantity < bonus.maxQuantity
-                              ? 'Tambah jumlah (Max: ${bonus.maxQuantity})'
-                              : 'Maksimum tercapai (${bonus.maxQuantity})',
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(
-                            minWidth: 32,
-                            minHeight: 32,
-                          ),
+                        Builder(
+                          builder: (context) {
+                            final perUnit = bonus.originalQuantity > 0
+                                ? bonus.originalQuantity
+                                : bonus.quantity;
+                            final maxQty = perUnit * 2 * widget.item.quantity;
+                            return IconButton(
+                              onPressed: bonus.quantity < maxQty
+                                  ? () {
+                                      context
+                                          .read<CartBloc>()
+                                          .add(UpdateCartBonus(
+                                            productId: widget.item.product.id,
+                                            netPrice: widget.item.netPrice,
+                                            bonusIndex: index,
+                                            bonusName: bonus.name,
+                                            bonusQuantity: bonus.quantity + 1,
+                                          ));
+                                    }
+                                  : null,
+                              icon: Icon(
+                                Icons.add_circle_outline,
+                                size: 20,
+                                color: bonus.quantity < maxQty
+                                    ? (isDark
+                                        ? AppColors.accentDark
+                                        : AppColors.accentLight)
+                                    : Colors.grey,
+                              ),
+                              tooltip: bonus.quantity < maxQty
+                                  ? 'Tambah jumlah (Max: $maxQty)'
+                                  : 'Maksimum tercapai ($maxQty)',
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                minWidth: 32,
+                                minHeight: 32,
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ),
@@ -783,7 +1134,8 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                   const SizedBox(width: 8),
                   Text(
                     'Belum ada bonus item',
-                    style: GoogleFonts.inter(
+                    style: TextStyle(
+                      fontFamily: 'Inter',
                       fontSize: 13,
                       color: isDark
                           ? AppColors.textSecondaryDark
@@ -794,59 +1146,6 @@ class _CartItemWidgetState extends State<CartItemWidget> {
               ),
             ),
           ],
-        ],
-      ),
-    );
-  }
-
-  Widget _infoBox(BuildContext context, IconData icon, String title,
-      String content, bool isDark) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppPadding.p10),
-      decoration: BoxDecoration(
-          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-          borderRadius: const BorderRadius.all(radius)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            Icon(icon,
-                size: 20,
-                color:
-                    isDark ? AppColors.accentDark : AppColors.textPrimaryLight),
-            const SizedBox(width: 8),
-            Text(title,
-                style: GoogleFonts.inter(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: isDark
-                        ? AppColors.textPrimaryDark
-                        : AppColors.textPrimaryLight))
-          ]),
-          const SizedBox(height: 4),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  content.isNotEmpty ? content : 'Tidak ada catatan',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: isDark
-                            ? AppColors.textSecondaryDark
-                            : AppColors.textSecondaryLight,
-                      ),
-                ),
-              ),
-              IconButton(
-                  onPressed: () => _showEditNoteDialog(context),
-                  icon: Icon(Icons.edit,
-                      color: isDark
-                          ? AppColors.accentDark
-                          : AppColors.textSecondaryLight)),
-            ],
-          ),
         ],
       ),
     );
@@ -864,11 +1163,13 @@ class _CartItemWidgetState extends State<CartItemWidget> {
         .join(' + ');
     final hasInstallment = (item.installmentMonths ?? 0) > 0;
 
-    final styleLabel = GoogleFonts.inter(
+    final styleLabel = TextStyle(
+        fontFamily: 'Inter',
         fontSize: 14,
         fontWeight: FontWeight.w600,
         color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight);
-    final styleValue = GoogleFonts.inter(
+    final styleValue = TextStyle(
+        fontFamily: 'Inter',
         fontSize: 14,
         color: isDark
             ? AppColors.textSecondaryDark
@@ -987,7 +1288,10 @@ class _CartItemWidgetState extends State<CartItemWidget> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => EditPriceDialog(product: product),
+      builder: (_) => EditPriceDialog(
+        product: product,
+        initialNetPrice: widget.item.netPrice,
+      ),
     );
   }
 
@@ -1053,35 +1357,6 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                       .copyWith(
                           fontWeight: FontWeight.w700,
                           color: AppColors.success)),
-        ],
-      ),
-    );
-  }
-
-  void _showEditNoteDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Edit Catatan',
-            style: Theme.of(context).textTheme.titleMedium),
-        content: TextField(
-          controller: _noteController,
-          decoration: const InputDecoration(
-              hintText: 'Masukkan catatan', border: OutlineInputBorder()),
-          maxLines: 3,
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
-          ElevatedButton(
-            onPressed: () {
-              context.read<ProductBloc>().add(UpdateProductNote(
-                  productId: widget.item.product.id,
-                  note: _noteController.text));
-              Navigator.pop(ctx);
-            },
-            child: const Text('Simpan'),
-          ),
         ],
       ),
     );
@@ -1218,7 +1493,8 @@ class _CartItemWidgetState extends State<CartItemWidget> {
         builder: (ctx) => AlertDialog(
           title: Text(
             'Pilih $type',
-            style: GoogleFonts.inter(
+            style: const TextStyle(
+              fontFamily: 'Inter',
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
@@ -1256,7 +1532,8 @@ class _CartItemWidgetState extends State<CartItemWidget> {
               onPressed: () => Navigator.pop(ctx),
               child: Text(
                 'Batal',
-                style: GoogleFonts.inter(
+                style: const TextStyle(
+                  fontFamily: 'Inter',
                   color: AppColors.textSecondaryLight,
                 ),
               ),
@@ -1317,13 +1594,12 @@ class _CartInfoDialogState extends State<CartInfoDialog> {
   @override
   void initState() {
     super.initState();
-    // Use cart's netPrice as base price
-    basePrice = widget.netPrice;
+    // Use product's original endUserPrice as base price for discount calculations
+    basePrice = widget.product.endUserPrice;
 
     // Initialize with cart's discount percentages
     _initialPercentages = List.from(widget.discountPercentages);
-    _initialNominals =
-        List.filled(5, 0.0); // Will be calculated from percentages
+    _initialNominals = List.filled(5, 0.0);
 
     percentageControllers = List.generate(
       5,
@@ -1469,12 +1745,12 @@ class _CartInfoDialogState extends State<CartInfoDialog> {
           }
           break;
         case 4:
-          if (_leaderData!.controller != null) {
+          if (_leaderData!.analyst1 != null) {
             levelText = "Diskon 4";
           }
           break;
         case 5:
-          if (_leaderData!.analyst != null) {
+          if (_leaderData!.analyst2 != null) {
             levelText = "Diskon 5";
           }
           break;
@@ -1498,8 +1774,10 @@ class _CartInfoDialogState extends State<CartInfoDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text("Input Diskon",
-              style:
-                  GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold)),
+              style: const TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
 
           // Konten di dalam SingleChildScrollView agar tidak overflow
@@ -1694,7 +1972,8 @@ class _BonusSelectorDialogState extends State<_BonusSelectorDialog> {
     return AlertDialog(
       title: Text(
         'Pilih Item Bonus',
-        style: GoogleFonts.inter(
+        style: const TextStyle(
+          fontFamily: 'Inter',
           fontSize: 16,
           fontWeight: FontWeight.w600,
         ),
@@ -1727,7 +2006,8 @@ class _BonusSelectorDialogState extends State<_BonusSelectorDialog> {
                   ? Center(
                       child: Text(
                         'Tidak ada item yang ditemukan',
-                        style: GoogleFonts.inter(
+                        style: TextStyle(
+                          fontFamily: 'Inter',
                           fontSize: 14,
                           color: Colors.grey[600],
                         ),
@@ -1744,14 +2024,16 @@ class _BonusSelectorDialogState extends State<_BonusSelectorDialog> {
                         return ListTile(
                           title: Text(
                             displayText,
-                            style: GoogleFonts.inter(
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
                           subtitle: Text(
                             'Brand: ${accessory.brand}',
-                            style: GoogleFonts.inter(
+                            style: TextStyle(
+                              fontFamily: 'Inter',
                               fontSize: 12,
                               color: Colors.grey[600],
                             ),
@@ -1778,7 +2060,8 @@ class _BonusSelectorDialogState extends State<_BonusSelectorDialog> {
           onPressed: () => Navigator.pop(context),
           child: Text(
             'Batal',
-            style: GoogleFonts.inter(
+            style: const TextStyle(
+              fontFamily: 'Inter',
               color: AppColors.textSecondaryLight,
             ),
           ),

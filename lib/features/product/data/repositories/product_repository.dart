@@ -41,8 +41,6 @@ class ProductRepository {
           brand: brand,
         );
 
-        print("Making API request to: $url");
-
         final response = await apiClient.get(url);
 
         if (response.statusCode != 200) {
@@ -51,8 +49,6 @@ class ProductRepository {
         }
 
         // Debug: Log response structure
-        print("API Response keys: ${response.data.keys.toList()}");
-        print("API Response status: ${response.data['status']}");
 
         // Check API response status
         if (response.data['status'] != 'success') {
@@ -64,8 +60,6 @@ class ProductRepository {
         final rawData = response.data["data"] ?? response.data["result"];
 
         if (rawData is! List) {
-          print("Raw data type: ${rawData.runtimeType}");
-          print("Raw data content: $rawData");
           throw Exception("Data produk tidak ditemukan. Silakan coba lagi.");
         }
 
@@ -73,8 +67,6 @@ class ProductRepository {
           try {
             return ProductModel.fromJson(item as Map<String, dynamic>);
           } catch (e) {
-            print("Error parsing product item: $e");
-            print("Item data: $item");
             rethrow;
           }
         }).toList();
@@ -205,8 +197,6 @@ class ProductRepository {
             try {
               return ProductModel.fromJson(item as Map<String, dynamic>);
             } catch (e) {
-              print("Error parsing product item in token refresh fallback: $e");
-              print("Item data: $item");
               rethrow;
             }
           }).toList();
@@ -262,8 +252,6 @@ class ProductRepository {
         try {
           return ProductModel.fromJson(item as Map<String, dynamic>);
         } catch (e) {
-          print("Error parsing product item in fallback: $e");
-          print("Item data: $item");
           rethrow;
         }
       }).toList();

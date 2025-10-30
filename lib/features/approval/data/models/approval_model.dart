@@ -252,15 +252,15 @@ class LeaderByUserModel {
   final LeaderModel user;
   final LeaderModel? directLeader;
   final LeaderModel? indirectLeader;
-  final LeaderModel? controller;
-  final LeaderModel? analyst;
+  final LeaderModel? analyst1;
+  final LeaderModel? analyst2;
 
   LeaderByUserModel({
     required this.user,
     this.directLeader,
     this.indirectLeader,
-    this.controller,
-    this.analyst,
+    this.analyst1,
+    this.analyst2,
   });
 
   factory LeaderByUserModel.fromJson(Map<String, dynamic> json) {
@@ -272,11 +272,11 @@ class LeaderByUserModel {
       indirectLeader: json['indirect_leader'] != null
           ? LeaderModel.fromJson(json['indirect_leader'])
           : null,
-      controller: json['controller'] != null
-          ? LeaderModel.fromJson(json['controller'])
+      analyst1: json['analyst_1'] != null
+          ? LeaderModel.fromJson(json['analyst_1'])
           : null,
-      analyst: json['analyst'] != null
-          ? LeaderModel.fromJson(json['analyst'])
+      analyst2: json['analyst_2'] != null
+          ? LeaderModel.fromJson(json['analyst_2'])
           : null,
     );
   }
@@ -286,13 +286,13 @@ class LeaderByUserModel {
       'user': user.toJson(),
       'direct_leader': directLeader?.toJson(),
       'indirect_leader': indirectLeader?.toJson(),
-      'controller': controller?.toJson(),
-      'analyst': analyst?.toJson(),
+      'analyst_1': analyst1?.toJson(),
+      'analyst_2': analyst2?.toJson(),
     };
   }
 
   @override
   String toString() {
-    return 'LeaderByUserModel{user: $user, directLeader: $directLeader, indirectLeader: $indirectLeader, controller: $controller, analyst: $analyst}';
+    return 'LeaderByUserModel{user: $user, directLeader: $directLeader, indirectLeader: $indirectLeader, analyst1: $analyst1, analyst2: $analyst2}';
   }
 }

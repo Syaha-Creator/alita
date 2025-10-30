@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
 class AppTheme {
@@ -24,28 +23,33 @@ class AppTheme {
       onSurfaceVariant: AppColors.textSecondaryLight,
       outline: AppColors.borderLight,
     ),
-    textTheme: GoogleFonts.interTextTheme().copyWith(
-      bodyLarge: GoogleFonts.inter(
+    textTheme: const TextTheme().copyWith(
+      bodyLarge: TextStyle(
+        fontFamily: 'Inter',
         color: AppColors.textPrimaryLight,
         fontSize: 16,
         fontWeight: FontWeight.w400,
       ),
-      bodyMedium: GoogleFonts.inter(
+      bodyMedium: TextStyle(
+        fontFamily: 'Inter',
         color: AppColors.textSecondaryLight,
         fontSize: 14,
         fontWeight: FontWeight.w400,
       ),
-      titleLarge: GoogleFonts.inter(
+      titleLarge: TextStyle(
+        fontFamily: 'Inter',
         color: AppColors.textPrimaryLight,
         fontSize: 22,
         fontWeight: FontWeight.w600,
       ),
-      titleMedium: GoogleFonts.inter(
+      titleMedium: TextStyle(
+        fontFamily: 'Inter',
         color: AppColors.textPrimaryLight,
         fontSize: 18,
         fontWeight: FontWeight.w600,
       ),
-      titleSmall: GoogleFonts.inter(
+      titleSmall: TextStyle(
+        fontFamily: 'Inter',
         color: AppColors.textPrimaryLight,
         fontSize: 16,
         fontWeight: FontWeight.w600,
@@ -56,7 +60,8 @@ class AppTheme {
       foregroundColor: Colors.white,
       elevation: 0,
       shadowColor: AppColors.shadowLight,
-      titleTextStyle: GoogleFonts.inter(
+      titleTextStyle: const TextStyle(
+        fontFamily: 'Inter',
         fontSize: 18,
         fontWeight: FontWeight.w600,
         color: Colors.white,
@@ -71,7 +76,8 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
-        textStyle: GoogleFonts.inter(
+        textStyle: const TextStyle(
+          fontFamily: 'Inter',
           fontSize: 16,
           fontWeight: FontWeight.w600,
         ),
@@ -81,12 +87,14 @@ class AppTheme {
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: AppColors.surfaceLight,
-      labelStyle: GoogleFonts.inter(
+      labelStyle: const TextStyle(
+        fontFamily: 'Inter',
         fontSize: 14,
         color: AppColors.textSecondaryLight,
         fontWeight: FontWeight.w500,
       ),
-      hintStyle: GoogleFonts.inter(
+      hintStyle: TextStyle(
+        fontFamily: 'Inter',
         fontSize: 14,
         color: AppColors.textSecondaryLight.withOpacity(0.6),
         fontWeight: FontWeight.w400,
@@ -121,12 +129,14 @@ class AppTheme {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
       ),
-      titleTextStyle: GoogleFonts.inter(
+      titleTextStyle: const TextStyle(
+        fontFamily: 'Inter',
         fontSize: 20,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimaryLight,
       ),
-      contentTextStyle: GoogleFonts.inter(
+      contentTextStyle: const TextStyle(
+        fontFamily: 'Inter',
         fontSize: 14,
         color: AppColors.textSecondaryLight,
         fontWeight: FontWeight.w400,
@@ -136,7 +146,8 @@ class AppTheme {
       color: AppColors.surfaceLight,
       elevation: 8,
       shadowColor: AppColors.shadowLight,
-      textStyle: GoogleFonts.inter(
+      textStyle: const TextStyle(
+        fontFamily: 'Inter',
         fontSize: 14,
         color: AppColors.textPrimaryLight,
         fontWeight: FontWeight.w500,
@@ -182,28 +193,33 @@ class AppTheme {
       onSurfaceVariant: AppColors.textSecondaryDark,
       outline: AppColors.borderDark,
     ),
-    textTheme: GoogleFonts.interTextTheme().copyWith(
-      bodyLarge: GoogleFonts.inter(
+    textTheme: const TextTheme().copyWith(
+      bodyLarge: TextStyle(
+        fontFamily: 'Inter',
         color: AppColors.textPrimaryDark,
         fontSize: 16,
         fontWeight: FontWeight.w400,
       ),
-      bodyMedium: GoogleFonts.inter(
+      bodyMedium: TextStyle(
+        fontFamily: 'Inter',
         color: AppColors.textSecondaryDark,
         fontSize: 14,
         fontWeight: FontWeight.w400,
       ),
-      titleLarge: GoogleFonts.inter(
+      titleLarge: TextStyle(
+        fontFamily: 'Inter',
         color: AppColors.textPrimaryDark,
         fontSize: 22,
         fontWeight: FontWeight.w600,
       ),
-      titleMedium: GoogleFonts.inter(
+      titleMedium: TextStyle(
+        fontFamily: 'Inter',
         color: AppColors.textPrimaryDark,
         fontSize: 18,
         fontWeight: FontWeight.w600,
       ),
-      titleSmall: GoogleFonts.inter(
+      titleSmall: TextStyle(
+        fontFamily: 'Inter',
         color: AppColors.textPrimaryDark,
         fontSize: 16,
         fontWeight: FontWeight.w600,
@@ -214,7 +230,8 @@ class AppTheme {
       foregroundColor: Colors.white,
       elevation: 0,
       shadowColor: AppColors.shadowDark,
-      titleTextStyle: GoogleFonts.inter(
+      titleTextStyle: const TextStyle(
+        fontFamily: 'Inter',
         fontSize: 18,
         fontWeight: FontWeight.w600,
         color: Colors.white,
@@ -229,7 +246,8 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
-        textStyle: GoogleFonts.inter(
+        textStyle: const TextStyle(
+          fontFamily: 'Inter',
           fontSize: 16,
           fontWeight: FontWeight.w600,
         ),
@@ -239,12 +257,14 @@ class AppTheme {
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: AppColors.surfaceDark,
-      labelStyle: GoogleFonts.inter(
+      labelStyle: const TextStyle(
+        fontFamily: 'Inter',
         fontSize: 14,
         color: AppColors.textSecondaryDark,
         fontWeight: FontWeight.w500,
       ),
-      hintStyle: GoogleFonts.inter(
+      hintStyle: TextStyle(
+        fontFamily: 'Inter',
         fontSize: 14,
         color: AppColors.textSecondaryDark.withOpacity(0.6),
         fontWeight: FontWeight.w400,
@@ -279,12 +299,14 @@ class AppTheme {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
       ),
-      titleTextStyle: GoogleFonts.inter(
+      titleTextStyle: const TextStyle(
+        fontFamily: 'Inter',
         fontSize: 20,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimaryDark,
       ),
-      contentTextStyle: GoogleFonts.inter(
+      contentTextStyle: const TextStyle(
+        fontFamily: 'Inter',
         fontSize: 14,
         color: AppColors.textSecondaryDark,
         fontWeight: FontWeight.w400,
@@ -294,7 +316,8 @@ class AppTheme {
       color: AppColors.surfaceDark,
       elevation: 8,
       shadowColor: AppColors.shadowDark,
-      textStyle: GoogleFonts.inter(
+      textStyle: const TextStyle(
+        fontFamily: 'Inter',
         fontSize: 14,
         color: AppColors.textPrimaryDark,
         fontWeight: FontWeight.w500,

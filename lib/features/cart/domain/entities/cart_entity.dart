@@ -9,6 +9,10 @@ class CartEntity {
   final double? installmentPerMonth;
   final bool isSelected;
   final Map<String, bool>? bonusTakeAway; // Map bonus name to take away status
+  // Optional user-selected fabric/item number per component
+  // Keys: 'kasur', 'divan', 'headboard', 'sorong'
+  final Map<String, Map<String, String>>? selectedItemNumbers;
+  final Map<String, List<Map<String, String>>>? selectedItemNumbersPerUnit;
 
   CartEntity copyWith({
     ProductEntity? product,
@@ -19,6 +23,8 @@ class CartEntity {
     double? installmentPerMonth,
     bool? isSelected,
     Map<String, bool>? bonusTakeAway,
+    Map<String, Map<String, String>>? selectedItemNumbers,
+    Map<String, List<Map<String, String>>>? selectedItemNumbersPerUnit,
   }) {
     return CartEntity(
       product: product ?? this.product,
@@ -29,6 +35,9 @@ class CartEntity {
       installmentPerMonth: installmentPerMonth ?? this.installmentPerMonth,
       isSelected: isSelected ?? this.isSelected,
       bonusTakeAway: bonusTakeAway ?? this.bonusTakeAway,
+      selectedItemNumbers: selectedItemNumbers ?? this.selectedItemNumbers,
+      selectedItemNumbersPerUnit:
+          selectedItemNumbersPerUnit ?? this.selectedItemNumbersPerUnit,
     );
   }
 
@@ -41,6 +50,8 @@ class CartEntity {
     this.installmentPerMonth,
     this.isSelected = true,
     this.bonusTakeAway,
+    this.selectedItemNumbers,
+    this.selectedItemNumbersPerUnit,
   });
 
   List<Object?> get props => [
@@ -52,7 +63,22 @@ class CartEntity {
         installmentPerMonth,
         isSelected,
         bonusTakeAway,
+        selectedItemNumbers,
+        selectedItemNumbersPerUnit,
       ];
+
+  /// Get bonus items with their max quantities calculated for this cart item
+  List<({BonusItem bonus, int maxQuantity})> getBonusWithMax() {
+    return product.bonus.map((bonus) {
+      return (
+        bonus: bonus,
+        maxQuantity: bonus.calculateMaxQuantity(quantity),
+      );
+    }).toList();
+  }
+
+  /// Calculate total price for this cart item
+  double get totalPrice => netPrice * quantity;
 
   Map<String, dynamic> toJson() {
     return {
@@ -96,6 +122,8 @@ class CartEntity {
       'installmentPerMonth': installmentPerMonth,
       'isSelected': isSelected,
       'bonusTakeAway': bonusTakeAway,
+      'selectedItemNumbers': selectedItemNumbers,
+      'selectedItemNumbersPerUnit': selectedItemNumbersPerUnit,
     };
   }
 }

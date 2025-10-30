@@ -11,10 +11,8 @@ class BrandRepository {
   Future<List<BrandModel>> fetchBrands() async {
     try {
       final brands = await brandService.fetchBrands();
-      print("BrandRepository: Successfully fetched ${brands.length} brands");
       return brands;
     } catch (e) {
-      print("BrandRepository: API failed: $e");
       // Show error toast to user
       CustomToast.showToast(
         "Gagal memuat data brand. Periksa koneksi internet Anda.",
@@ -63,11 +61,8 @@ class BrandRepository {
     try {
       final brands = await fetchBrands();
       final brandNames = brands.map((brand) => brand.name).toList();
-      print(
-          "BrandRepository: Returning all ${brandNames.length} brand names from API");
       return brandNames;
     } catch (e) {
-      print("BrandRepository: API failed for brand names: $e");
       // Show error toast to user
       CustomToast.showToast(
         "Gagal memuat daftar brand. Periksa koneksi internet Anda.",
@@ -85,7 +80,6 @@ class BrandRepository {
       final brands = await fetchBrands();
       return brands;
     } catch (e) {
-      print("BrandRepository: API failed for all brands: $e");
       // Show error toast to user
       CustomToast.showToast(
         "Gagal memuat data brand. Periksa koneksi internet Anda.",

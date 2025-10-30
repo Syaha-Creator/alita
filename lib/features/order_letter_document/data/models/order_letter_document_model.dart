@@ -5,6 +5,8 @@ class OrderLetterDocumentModel {
   final String creator;
   final String createdAt;
   final String updatedAt;
+  final String orderDate;
+  final String requestDate;
   final String customerName;
   final String phone;
   final String address;
@@ -17,6 +19,7 @@ class OrderLetterDocumentModel {
   final String? spgCode;
   final String? workPlaceName;
   final String? workPlaceAddress;
+  final bool? takeAway; // Boolean (global untuk semua items)
   final List<OrderLetterDetailModel> details;
   final List<OrderLetterDiscountModel> discounts;
   final List<OrderLetterApproveModel> approvals;
@@ -29,6 +32,8 @@ class OrderLetterDocumentModel {
     required this.creator,
     required this.createdAt,
     required this.updatedAt,
+    required this.orderDate,
+    required this.requestDate,
     required this.customerName,
     required this.phone,
     required this.address,
@@ -39,6 +44,7 @@ class OrderLetterDocumentModel {
     this.spgCode,
     this.workPlaceName,
     this.workPlaceAddress,
+    this.takeAway,
     required this.extendedAmount,
     required this.hargaAwal,
     required this.details,
@@ -46,6 +52,23 @@ class OrderLetterDocumentModel {
     required this.approvals,
     required this.contacts,
   });
+
+  /// Helper method to parse take_away field from various formats
+  static bool? _parseTakeAway(dynamic value) {
+    if (value == null) return null;
+    if (value is bool) return value;
+    if (value is String) {
+      final lowerValue = value.toLowerCase();
+      if (lowerValue == 'true' ||
+          lowerValue == 'take away' ||
+          lowerValue == '1') {
+        return true;
+      } else if (lowerValue == 'false' || lowerValue == '0') {
+        return false;
+      }
+    }
+    return null;
+  }
 
   factory OrderLetterDocumentModel.fromJson(Map<String, dynamic> json) {
     return OrderLetterDocumentModel(
@@ -55,6 +78,8 @@ class OrderLetterDocumentModel {
       creator: json['creator'] ?? '',
       createdAt: json['created_at'] ?? '',
       updatedAt: json['updated_at'] ?? '',
+      orderDate: json['order_date'] ?? '',
+      requestDate: json['request_date'] ?? '',
       customerName: json['customer_name'] ?? '',
       phone: json['phone'] ?? '',
       address: json['address'] ?? '',
@@ -65,6 +90,7 @@ class OrderLetterDocumentModel {
       spgCode: json['sales_code'] ?? '',
       workPlaceName: json['work_place_name'],
       workPlaceAddress: json['work_place_address'],
+      takeAway: _parseTakeAway(json['take_away']),
       extendedAmount:
           double.tryParse(json['extended_amount']?.toString() ?? '0.0') ?? 0.0,
       hargaAwal:
@@ -96,6 +122,8 @@ class OrderLetterDocumentModel {
       'creator': creator,
       'created_at': createdAt,
       'updated_at': updatedAt,
+      'order_date': orderDate,
+      'request_date': requestDate,
       'customer_name': customerName,
       'phone': phone,
       'address': address,
@@ -103,6 +131,7 @@ class OrderLetterDocumentModel {
       'ship_to_name': shipToName,
       'email': email,
       'note': note,
+      'take_away': takeAway,
       'extended_amount': extendedAmount,
       'harga_awal': hargaAwal,
       'details': details.map((detail) => detail.toJson()).toList(),
@@ -118,7 +147,8 @@ class OrderLetterDetailModel {
   final int orderLetterId;
   final String noSp;
   final int qty;
-  final double unitPrice;
+  final double unitPrice; // Pricelist (harga asli)
+  final double? netPrice; // Harga setelah discount (nullable)
   final String itemNumber;
   final String desc1;
   final String desc2;
@@ -136,6 +166,7 @@ class OrderLetterDetailModel {
     required this.noSp,
     required this.qty,
     required this.unitPrice,
+    required this.netPrice,
     required this.itemNumber,
     required this.desc1,
     required this.desc2,
@@ -147,6 +178,23 @@ class OrderLetterDetailModel {
     this.takeAway,
     required this.discounts,
   });
+
+  /// Helper method to parse take_away field from various formats
+  static bool? _parseTakeAway(dynamic value) {
+    if (value == null) return null;
+    if (value is bool) return value;
+    if (value is String) {
+      final lowerValue = value.toLowerCase();
+      if (lowerValue == 'true' ||
+          lowerValue == 'take away' ||
+          lowerValue == '1') {
+        return true;
+      } else if (lowerValue == 'false' || lowerValue == '0') {
+        return false;
+      }
+    }
+    return null;
+  }
 
   factory OrderLetterDetailModel.fromJson(Map<String, dynamic> json) {
     // Handle unit_price field that can be string or number
@@ -184,12 +232,24 @@ class OrderLetterDetailModel {
       }
     }
 
+    // Handle net_price field that can be string or number
+    double? netPriceValue;
+    final netPriceData = json['net_price'];
+    if (netPriceData != null) {
+      if (netPriceData is String) {
+        netPriceValue = double.tryParse(netPriceData);
+      } else if (netPriceData is num) {
+        netPriceValue = netPriceData.toDouble();
+      }
+    }
+
     return OrderLetterDetailModel(
       id: json['order_letter_detail_id'] ?? json['id'] ?? 0,
       orderLetterId: json['order_letter_id'] ?? 0,
       noSp: json['no_sp'] ?? '',
       qty: qtyValue,
       unitPrice: unitPriceValue,
+      netPrice: netPriceValue,
       itemNumber: json['item_number'] ?? '',
       desc1: json['desc_1'] ?? '',
       desc2: json['desc_2'] ?? '',
@@ -198,7 +258,7 @@ class OrderLetterDetailModel {
       status: json['status'] ?? '',
       createdAt: json['created_at'] ?? '',
       updatedAt: json['updated_at'] ?? '',
-      takeAway: json['take_away'] == null ? null : json['take_away'] as bool?,
+      takeAway: _parseTakeAway(json['take_away']),
       discounts: discounts,
     );
   }
@@ -210,6 +270,7 @@ class OrderLetterDetailModel {
       'no_sp': noSp,
       'qty': qty,
       'unit_price': unitPrice,
+      'net_price': netPrice,
       'item_number': itemNumber,
       'desc_1': desc1,
       'desc_2': desc2,

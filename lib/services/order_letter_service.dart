@@ -102,12 +102,7 @@ class OrderLetterService {
         detailResults.add(detailResult);
 
         if (detailResult['success']) {
-          print(
-              'OrderLetterService: Detail created successfully: ${detailResult['data']}');
-        } else {
-          print(
-              'OrderLetterService: Failed to create detail: ${detailResult['message']}');
-        }
+        } else {}
       }
 
       // Step 3: POST Order Letter Discounts with Leader Data
@@ -214,20 +209,20 @@ class OrderLetterService {
                   approverWorkTitle = leaderData.indirectLeader!.workTitle;
                 }
                 break;
-              case 3: // Controller
-                if (leaderData.controller != null) {
-                  approverId = leaderData.controller!.id;
-                  approverName = leaderData.controller!.fullName;
-                  approverLevel = 'Controller';
-                  approverWorkTitle = leaderData.controller!.workTitle;
+              case 3: // Analyst 1
+                if (leaderData.analyst1 != null) {
+                  approverId = leaderData.analyst1!.id;
+                  approverName = leaderData.analyst1!.fullName;
+                  approverLevel = 'Analyst 1';
+                  approverWorkTitle = leaderData.analyst1!.workTitle;
                 }
                 break;
-              case 4: // Analyst
-                if (leaderData.analyst != null) {
-                  approverId = leaderData.analyst!.id;
-                  approverName = leaderData.analyst!.fullName;
-                  approverLevel = 'Analyst';
-                  approverWorkTitle = leaderData.analyst!.workTitle;
+              case 4: // Analyst 2
+                if (leaderData.analyst2 != null) {
+                  approverId = leaderData.analyst2!.id;
+                  approverName = leaderData.analyst2!.fullName;
+                  approverLevel = 'Analyst 2';
+                  approverWorkTitle = leaderData.analyst2!.workTitle;
                 }
                 break;
             }
@@ -265,14 +260,6 @@ class OrderLetterService {
           'approved': approvedValue,
           'approved_at': approvedAt,
         };
-
-        // Debug logging to verify data being sent to API
-        print(
-            'OrderLetterService: Creating discount for level ${i + 1} ($approverLevel):');
-        print('  - approved: $approvedValue');
-        print('  - approved_at: $approvedAt');
-        print('  - approver: $approverId ($approverName)');
-        print('  - Full discount data: $discountData');
 
         final discountResult = await createOrderLetterDiscount(discountData);
         discountResults.add(discountResult);
@@ -329,10 +316,6 @@ class OrderLetterService {
       }
 
       final url = ApiConfig.getCreateOrderLetterUrl(token: token);
-      // print(
-      //     'OrderLetterService: Creating order letter with data: $orderLetterData');
-      // print(
-      //     'OrderLetterService: Shipping fields in request: ship_to_code=${orderLetterData['ship_to_code']}, address_ship_to=${orderLetterData['address_ship_to']}');
 
       final response = await dio.post(url, data: orderLetterData);
 
@@ -505,7 +488,6 @@ class OrderLetterService {
           );
           updateResults.add(updateResponse.data);
         } catch (e) {
-          print('OrderLetterService: Error approving discount $discountId: $e');
           // Continue with other discounts even if one fails
         }
       }
@@ -597,8 +579,6 @@ class OrderLetterService {
 
       Map<String, dynamic>? orderLetterUpdateResult;
       if (isFinalApproval) {
-        // print(
-        //     'OrderLetterService: This is the final approval, updating order letter status');
         orderLetterUpdateResult =
             await _updateOrderLetterStatus(orderLetterId, 'Approved');
       }
@@ -623,8 +603,6 @@ class OrderLetterService {
           await getOrderLetterDiscounts(orderLetterId: orderLetterId);
 
       if (discounts.isEmpty) {
-        // print(
-        //     'OrderLetterService: No discounts found for order letter $orderLetterId');
         return false;
       }
 
@@ -637,8 +615,6 @@ class OrderLetterService {
         }
       }
 
-      // print(
-      //     'OrderLetterService: Highest level: $highestLevel, Current level: $currentJobLevelId');
       return currentJobLevelId == highestLevel;
     } catch (e) {
       return false;
@@ -671,8 +647,6 @@ class OrderLetterService {
         ),
       );
 
-      // print(
-      //     'OrderLetterService: Order letter status update response: ${response.data}');
       return response.data;
     } catch (e) {
       return null;
@@ -696,17 +670,11 @@ class OrderLetterService {
 
         if (data is List) {
           final result = List<Map<String, dynamic>>.from(data);
-          // print(
-          //     'OrderLetterService: Returning ${result.length} order letters from list');
           return result;
         } else if (data is Map && data['result'] is List) {
           final result = List<Map<String, dynamic>>.from(data['result']);
-          // print(
-          //     'OrderLetterService: Returning ${result.length} order letters from result map');
           return result;
         }
-        // print(
-        //     'OrderLetterService: No valid order letters data found, returning empty list');
         return [];
       } else {
         throw Exception(
@@ -996,9 +964,6 @@ class OrderLetterService {
     List<int?>? leaderIds,
     int orderLetterId,
   ) async {
-    print(
-        'OrderLetterService: Processing ${itemDiscounts.length} items with structured discounts');
-
     // Track created discounts to prevent duplicates
     final Set<String> createdDiscounts = {};
 
@@ -1011,23 +976,12 @@ class OrderLetterService {
       final productSize = itemDiscount['productSize'] as String? ?? '';
       final uniqueProductKey = '${kasurName}_$productSize';
 
-      print(
-          'OrderLetterService: Processing kasur "$kasurName" ($productSize) with ${discounts.length} discounts');
-
-      // Debug: Print all available detail results
-      print('OrderLetterService: Available detail results:');
       for (int idx = 0; idx < detailResults.length; idx++) {
-        print(
-            '  Raw Detail $idx: success=${detailResults[idx]['success']}, data=${detailResults[idx]['data']}');
         if (detailResults[idx]['success'] &&
             detailResults[idx]['data'] != null) {
           final rawData = detailResults[idx]['data'];
           // Data sebenarnya ada di dalam 'location' field
           final detailData = rawData['location'] ?? rawData;
-          print(
-              '  Detail $idx: type="${detailData['item_type']}", desc_1="${detailData['desc_1']}", desc_2="${detailData['desc_2']}"');
-        } else {
-          print('  Detail $idx: FAILED or NULL DATA');
         }
       }
 
@@ -1039,9 +993,6 @@ class OrderLetterService {
           // Data sebenarnya ada di dalam 'location' field
           final detailData = rawData['location'] ?? rawData;
 
-          print(
-              'OrderLetterService: Checking detail - type: "${detailData['item_type']}", desc_1: "${detailData['desc_1']}", desc_2: "${detailData['desc_2']}" vs kasurName: "$kasurName", size: "$productSize"');
-
           // Match by kasur name, size, and type
           if ((detailData['item_type'] == 'Mattress' ||
                   detailData['item_type'] == 'kasur') &&
@@ -1052,16 +1003,12 @@ class OrderLetterService {
                 detailData['order_letter_detail_id'] ??
                 detailData['detail_id'];
 
-            print(
-                'OrderLetterService: Found detail ID $kasurOrderLetterDetailId for kasur "$kasurName" ($productSize)');
             break;
           }
         }
       }
 
       if (kasurOrderLetterDetailId == null) {
-        print(
-            'OrderLetterService: WARNING - No detail ID found for kasur "$kasurName" ($productSize)');
         continue;
       }
 
@@ -1071,12 +1018,6 @@ class OrderLetterService {
       // Always create up to Direct Leader level (2 levels total: User, Direct Leader)
       // If more discounts are provided (Indirect Leader, Controller, Analyst), create those too
       int maxLevelToCreate = discounts.length > 2 ? discounts.length : 2;
-
-      print(
-          'OrderLetterService: Processing discounts for "$kasurName" ($productSize)');
-      print('  - Total discounts provided: ${discounts.length}');
-      print(
-          '  - Max level to create: $maxLevelToCreate (always up to Direct Leader)');
 
       for (int i = 0; i < maxLevelToCreate; i++) {
         final discount = i < discounts.length ? discounts[i] : 0.0;
@@ -1090,13 +1031,8 @@ class OrderLetterService {
         // Create unique key to prevent duplicates
         final discountKey = '${kasurOrderLetterDetailId}_${i}_$discount';
         if (createdDiscounts.contains(discountKey)) {
-          print(
-              'OrderLetterService: Skipping duplicate discount for "$kasurName" ($productSize) at level ${i + 1}: $discount%');
           continue;
         }
-
-        print(
-            'OrderLetterService: Creating discount for "$kasurName" ($productSize) at level ${i + 1}: $discount%');
 
         await _createSingleDiscount(
           orderLetterId: orderLetterId,
@@ -1122,9 +1058,6 @@ class OrderLetterService {
     List<int?>? leaderIds,
     int orderLetterId,
   ) async {
-    print(
-        'OrderLetterService: Processing ${discounts.length} legacy discounts');
-
     // Find first kasur detail ID
     int? kasurOrderLetterDetailId;
     for (final detailResult in detailResults) {
@@ -1143,8 +1076,6 @@ class OrderLetterService {
     }
 
     if (kasurOrderLetterDetailId == null) {
-      print(
-          'OrderLetterService: WARNING - No kasur detail ID found for legacy discounts');
       return;
     }
 
@@ -1154,11 +1085,6 @@ class OrderLetterService {
     // Always create up to Direct Leader level (2 levels total: User, Direct Leader)
     // If more discounts are provided (Indirect Leader, Controller, Analyst), create those too
     int maxLevelToCreate = discounts.length > 2 ? discounts.length : 2;
-
-    print('OrderLetterService: Processing legacy discounts');
-    print('  - Total discounts provided: ${discounts.length}');
-    print(
-        '  - Max level to create: $maxLevelToCreate (always up to Direct Leader)');
 
     for (int i = 0; i < maxLevelToCreate; i++) {
       final discount = i < discounts.length ? discounts[i] : 0.0;
@@ -1190,28 +1116,17 @@ class OrderLetterService {
     int orderLetterId,
   ) async {
     try {
-      print('OrderLetterService: _createDefaultDiscountEntries called');
-      print('OrderLetterService: detailResults: $detailResults');
-      print('OrderLetterService: orderLetterId: $orderLetterId');
-
       // Process each detail (item) in the order
       for (int idx = 0; idx < detailResults.length; idx++) {
         final detailResult = detailResults[idx];
-        print(
-            'OrderLetterService: Processing detail $idx: ${detailResult['success']}');
 
         if (detailResult['success'] && detailResult['data'] != null) {
           final rawData = detailResult['data'];
-          print('OrderLetterService: rawData: $rawData');
-
           final detailData = rawData['location'] ?? rawData;
-          print('OrderLetterService: detailData: $detailData');
-          print('OrderLetterService: item_type: ${detailData['item_type']}');
 
           // Only create for kasur/mattress items
           if (detailData['item_type'] != 'Mattress' &&
               detailData['item_type'] != 'kasur') {
-            print('OrderLetterService: Skipping non-kasur item');
             continue;
           }
 
@@ -1219,25 +1134,17 @@ class OrderLetterService {
               detailData['order_letter_detail_id'] ??
               detailData['detail_id'];
 
-          print(
-              'OrderLetterService: kasurOrderLetterDetailId: $kasurOrderLetterDetailId');
-
           if (kasurOrderLetterDetailId == null) {
-            print('OrderLetterService: WARNING - No detail ID found, skipping');
             continue;
           }
 
           final kasurName = detailData['desc_1'] ?? 'Unknown';
           final productSize = detailData['desc_2'] ?? '';
 
-          print(
-              'OrderLetterService: Creating default entries for "$kasurName" ($productSize)');
-
           // Create discount entries up to Direct Leader (level 2)
           // Level 0: User (auto-approved)
           // Level 1: Direct Leader (pending)
           for (int i = 0; i < 2; i++) {
-            print('OrderLetterService: Creating discount entry level $i');
             await _createSingleDiscount(
               orderLetterId: orderLetterId,
               kasurOrderLetterDetailId: kasurOrderLetterDetailId,
@@ -1250,11 +1157,8 @@ class OrderLetterService {
           }
         }
       }
-
-      print('OrderLetterService: _createDefaultDiscountEntries completed');
-    } catch (e, stackTrace) {
-      print('OrderLetterService: ERROR in _createDefaultDiscountEntries: $e');
-      print('OrderLetterService: Stack trace: $stackTrace');
+    } catch (e) {
+      print('OrderLetterService: Error creating default discount entries: $e');
     }
   }
 
@@ -1359,7 +1263,6 @@ class OrderLetterService {
 
       return pendingCount;
     } catch (e) {
-      print('OrderLetterService: Error getting pending discount count: $e');
       return 0;
     }
   }

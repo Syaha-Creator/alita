@@ -28,10 +28,6 @@ class ChannelService {
             "Gagal mengambil data channel. Kode error: ${response.statusCode}");
       }
 
-      // Debug: Log response structure
-      print(
-          "ChannelService: API Response keys: ${response.data.keys.toList()}");
-
       // Check API response status
       if (response.data['status'] != 'success') {
         throw Exception(
@@ -57,11 +53,8 @@ class ChannelService {
       final activeChannels =
           channels.where((channel) => channel.isActive ?? true).toList();
 
-      print(
-          "ChannelService: Successfully fetched ${activeChannels.length} channels");
       return activeChannels;
     } on DioException catch (e) {
-
       if (e.type == DioExceptionType.connectionTimeout ||
           e.type == DioExceptionType.sendTimeout ||
           e.type == DioExceptionType.receiveTimeout) {

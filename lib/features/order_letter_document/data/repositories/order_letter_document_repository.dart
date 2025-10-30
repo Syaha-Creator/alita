@@ -42,7 +42,8 @@ class OrderLetterDocumentRepository {
         final detailDiscounts = detail['order_letter_discount'] ?? [];
         for (final discount in detailDiscounts) {
           // Add the order_letter_detail_id to the discount for proper mapping
-          discount['order_letter_detail_id'] = detail['order_letter_detail_id'];
+          discount['order_letter_detail_id'] =
+              detail['order_letter_detail_id'] ?? detail['id'];
           discountsData.add(discount);
         }
       }
@@ -61,9 +62,6 @@ class OrderLetterDocumentRepository {
       // Extract contacts from the response
       final contactsData = result['order_letter_contacts'] ?? [];
 
-      print(
-          'OrderLetterDocumentRepository: Found ${detailsData.length} details, ${discountsData.length} discounts, ${approvalsData.length} approvals, ${contactsData.length} contacts for order letter $orderLetterId');
-
       // Combine all data
       final combinedData = {
         ...orderLetterData,
@@ -78,8 +76,6 @@ class OrderLetterDocumentRepository {
       return OrderLetterDocumentModel.fromJson(
           Map<String, dynamic>.from(combinedData));
     } catch (e) {
-      print(
-          'OrderLetterDocumentRepository: Error getting order letter document: $e');
       return null;
     }
   }
@@ -109,7 +105,6 @@ class OrderLetterDocumentRepository {
           .map((orderLetter) => OrderLetterDocumentModel.fromJson(orderLetter))
           .toList();
     } catch (e) {
-      print('OrderLetterDocumentRepository: Error getting order letters: $e');
       return [];
     }
   }
