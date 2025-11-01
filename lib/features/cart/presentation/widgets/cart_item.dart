@@ -36,6 +36,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
   bool isExpanded = false;
   bool _autoFabricChecked = false;
   final CartItemController _controller = CartItemController();
+  bool _isEditingPrice = false;
 
   // === KEMBALIKAN KONSTANTA KE SINI AGAR BISA DIAKSES SEMUA METHOD ===
   static const double _avatarSize = 40.0;
@@ -104,37 +105,40 @@ class _CartItemWidgetState extends State<CartItemWidget> {
     // Kita gunakan BlocListener untuk update controller secara aman saat state berubah
     return BlocListener<ProductBloc, ProductState>(
       listener: (context, state) {
-        // Check if price has changed and update cart (reset to original behavior)
-        final newPrice = state.roundedPrices[widget.item.product.id];
-        if (newPrice != null && newPrice != widget.item.netPrice) {
-          context.read<CartBloc>().add(UpdateCartPrice(
-                productId: widget.item.product.id,
-                oldNetPrice: widget.item.netPrice,
-                newNetPrice: newPrice,
-                cartLineId: widget.item.cartLineId,
-              ));
-        }
-
-        // Check if discounts have changed and update cart
+        // Avoid live sync while editing price dialog is open
+        if (_isEditingPrice) return;
+        // Prefer discount changes first to avoid re-deriving after reset
         final newDiscountPercentages =
             state.productDiscountsPercentage[widget.item.product.id];
+        final hasPositiveDiscount =
+            (newDiscountPercentages ?? const <double>[]).any((d) => d > 0);
         if (newDiscountPercentages != null &&
+            hasPositiveDiscount &&
             !_listEquals(
                 newDiscountPercentages, widget.item.discountPercentages)) {
-          // Calculate new net price from discounts
           double calculatedPrice = widget.item.product.endUserPrice;
           for (final percentage in newDiscountPercentages) {
             if (percentage > 0) {
               calculatedPrice = calculatedPrice * (1 - (percentage / 100));
             }
           }
-
-          // Update cart item with new discounts and calculated price
           context.read<CartBloc>().add(UpdateCartDiscounts(
                 productId: widget.item.product.id,
                 oldNetPrice: widget.item.netPrice,
                 discountPercentages: newDiscountPercentages,
                 newNetPrice: calculatedPrice,
+                cartLineId: widget.item.cartLineId,
+              ));
+          return;
+        }
+
+        // Then apply pure price changes
+        final newPrice = state.roundedPrices[widget.item.product.id];
+        if (newPrice != null && newPrice != widget.item.netPrice) {
+          context.read<CartBloc>().add(UpdateCartPrice(
+                productId: widget.item.product.id,
+                oldNetPrice: widget.item.netPrice,
+                newNetPrice: newPrice,
                 cartLineId: widget.item.cartLineId,
               ));
         }
@@ -1194,7 +1198,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
   void _openEditPrice(BuildContext context, ProductEntity product) {
     // Ensure product is available in ProductBloc state for editing
     context.read<ProductBloc>().add(SelectProduct(product));
-
+    _isEditingPrice = true;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1205,7 +1209,46 @@ class _CartItemWidgetState extends State<CartItemWidget> {
         product: product,
         initialNetPrice: widget.item.netPrice,
       ),
-    );
+    ).whenComplete(() {
+      // Re-enable sync and apply committed changes from ProductBloc
+      _isEditingPrice = false;
+      _syncFromProductState();
+    });
+  }
+
+  void _syncFromProductState() {
+    final state = context.read<ProductBloc>().state;
+    final pid = widget.item.product.id;
+    final newPrice = state.roundedPrices[pid];
+    final newDiscounts = state.productDiscountsPercentage[pid];
+    final hasPositiveDiscount =
+        (newDiscounts ?? const <double>[]).any((d) => d > 0);
+    if (newDiscounts != null &&
+        hasPositiveDiscount &&
+        !_listEquals(newDiscounts, widget.item.discountPercentages)) {
+      double calculatedPrice = widget.item.product.endUserPrice;
+      for (final percentage in newDiscounts) {
+        if (percentage > 0) {
+          calculatedPrice = calculatedPrice * (1 - (percentage / 100));
+        }
+      }
+      context.read<CartBloc>().add(UpdateCartDiscounts(
+            productId: pid,
+            oldNetPrice: widget.item.netPrice,
+            discountPercentages: newDiscounts,
+            newNetPrice: calculatedPrice,
+            cartLineId: widget.item.cartLineId,
+          ));
+      return;
+    }
+    if (newPrice != null && newPrice != widget.item.netPrice) {
+      context.read<CartBloc>().add(UpdateCartPrice(
+            productId: pid,
+            oldNetPrice: widget.item.netPrice,
+            newNetPrice: newPrice,
+            cartLineId: widget.item.cartLineId,
+          ));
+    }
   }
 
   void _openInfo(BuildContext context, ProductEntity product) {

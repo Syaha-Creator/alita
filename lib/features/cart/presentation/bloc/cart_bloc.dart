@@ -631,7 +631,7 @@ class CartBloc extends Bloc<CartEvent, CartState> {
             final String newDivan = event.detailType == 'divan'
                 ? event.detailValue
                 : item.product.divan;
-            final String newHeadboard = event.detailType == 'headboard'
+            String newHeadboard = event.detailType == 'headboard'
                 ? event.detailValue
                 : item.product.headboard;
             final String newSorong = event.detailType == 'sorong'
@@ -640,6 +640,11 @@ class CartBloc extends Bloc<CartEvent, CartState> {
             final String newUkuran = event.detailType == 'ukuran'
                 ? event.detailValue
                 : item.product.ukuran;
+
+            // Auto-fix: if divan = none, force headboard = none to maintain valid combination
+            if (_isNoneOption(newDivan) && !_isNoneOption(newHeadboard)) {
+              newHeadboard = 'Tanpa Headboard';
+            }
 
             // Fetch products with same filters to find the exact variant
             try {
@@ -727,16 +732,25 @@ class CartBloc extends Bloc<CartEvent, CartState> {
                 itemNumberBonus5: matched.itemNumberBonus5,
               );
 
-              updatedItems.add(CartEntity(
+              // Clamp existing discounts to new variant caps and recalc
+              final clampedDiscounts = _clampDiscountsToCaps(
+                updatedProduct,
+                item.discountPercentages,
+              );
+              final recalculated = _applyDiscountsUsecase.applySequentially(
+                  updatedProduct.endUserPrice, clampedDiscounts);
+
+              final updatedCartItem = CartEntity(
                 cartLineId: item.cartLineId,
                 product: updatedProduct,
                 quantity: item.quantity,
-                netPrice: recalculatedNet,
-                discountPercentages: item.discountPercentages,
+                netPrice: recalculated,
+                discountPercentages: clampedDiscounts,
                 installmentMonths: item.installmentMonths,
                 installmentPerMonth: item.installmentPerMonth,
                 isSelected: item.isSelected,
-              ));
+              );
+              updatedItems.add(updatedCartItem);
             } catch (e) {
               // If matching fails, keep original but update the selected field
               final updatedProduct = ProductEntity(
@@ -782,21 +796,26 @@ class CartBloc extends Bloc<CartEvent, CartState> {
                 itemNumberBonus5: item.product.itemNumberBonus5,
               );
 
-              // Recalculate net from current endUserPrice
-              final double basePrice = updatedProduct.endUserPrice;
-              final double recalculatedNet = _applyDiscountsUsecase
-                  .applySequentially(basePrice, item.discountPercentages);
+              // Recalculate net from current endUserPrice with clamped discounts
+              final clampedDiscounts = _clampDiscountsToCaps(
+                updatedProduct,
+                item.discountPercentages,
+              );
+              final double recalculatedNet =
+                  _applyDiscountsUsecase.applySequentially(
+                      updatedProduct.endUserPrice, clampedDiscounts);
 
-              updatedItems.add(CartEntity(
+              final updatedCartItem = CartEntity(
                 cartLineId: item.cartLineId,
                 product: updatedProduct,
                 quantity: item.quantity,
                 netPrice: recalculatedNet,
-                discountPercentages: item.discountPercentages,
+                discountPercentages: clampedDiscounts,
                 installmentMonths: item.installmentMonths,
                 installmentPerMonth: item.installmentPerMonth,
                 isSelected: item.isSelected,
-              ));
+              );
+              updatedItems.add(updatedCartItem);
             }
           } else {
             updatedItems.add(item);
@@ -889,7 +908,8 @@ class CartBloc extends Bloc<CartEvent, CartState> {
             List<double> derivedDiscounts = item.discountPercentages;
             final bool hasAnyDiscount = derivedDiscounts.any((d) => d > 0.0);
             if (!hasAnyDiscount) {
-              final base = item.product.endUserPrice;
+              // Use variant base price from currentDefault (reflects latest detail selection)
+              final base = currentDefault.endUserPrice;
               if (base > 0 && event.newNetPrice >= 0) {
                 final eff = (1 - (event.newNetPrice / base)) * 100.0; // percent
                 if (eff > 0 && eff < 1000) {
@@ -1062,7 +1082,7 @@ class CartBloc extends Bloc<CartEvent, CartState> {
     final caps = [disc1, disc2, disc3, disc4, disc5]
         .map((d) => (d > 0 ? d * 100.0 : 0.0))
         .toList();
-    final result = List<double>.filled(5, 0.0);
+    final result = List<double>.filled(5, 0.0, growable: true);
     double remaining = effPercent;
     for (int i = 0; i < 5; i++) {
       if (remaining <= 0) break;
@@ -1072,11 +1092,47 @@ class CartBloc extends Bloc<CartEvent, CartState> {
       result[i] = take;
       remaining -= take;
     }
-    // Trim trailing zeros
-    while (result.isNotEmpty && result.last <= 0) {
-      result.removeLast();
+    // Trim trailing zeros safely by creating a growable view
+    int lastIdx = result.length - 1;
+    while (lastIdx >= 0 && result[lastIdx] <= 0) {
+      lastIdx--;
     }
-    return result.isEmpty ? [effPercent] : result;
+    final trimmed = result.sublist(0, lastIdx + 1);
+    return trimmed.isEmpty ? [effPercent] : trimmed;
+  }
+
+  // Clamp provided discount percentages to product caps per level
+  List<double> _clampDiscountsToCaps(ProductEntity p, List<double> discounts) {
+    final caps = [p.disc1, p.disc2, p.disc3, p.disc4, p.disc5]
+        .map((d) => (d > 0 ? d * 100.0 : 0.0))
+        .toList();
+    final result = List<double>.from(discounts);
+    for (int i = 0; i < result.length && i < caps.length; i++) {
+      final cap = caps[i];
+      if (cap <= 0) {
+        result[i] = 0.0;
+      } else if (result[i] > cap) {
+        result[i] = cap;
+      } else if (result[i] < 0) {
+        result[i] = 0.0;
+      }
+    }
+    // Trim trailing zeros
+    int lastIdx = result.length - 1;
+    while (lastIdx >= 0 && result[lastIdx] <= 0) {
+      lastIdx--;
+    }
+    return lastIdx >= 0 ? result.sublist(0, lastIdx + 1) : <double>[];
+  }
+
+  bool _isNoneOption(String? value) {
+    if (value == null) return true;
+    final v = value.trim().toLowerCase();
+    if (v.isEmpty) return true;
+    return v == '-' ||
+        v == 'n/a' ||
+        v.contains('tanpa') ||
+        v.contains('tidak ada');
   }
 
   /// Ensure each bonus has originalQuantity set; fallback to its default quantity if missing
