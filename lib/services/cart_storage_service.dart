@@ -61,6 +61,7 @@ class CartStorageService {
   /// Konversi CartEntity ke Map untuk disimpan.
   static Map<String, dynamic> _cartEntityToJson(CartEntity item) {
     return {
+      'cartLineId': item.cartLineId,
       'product': _productToJson(item.product),
       'quantity': item.quantity,
       'netPrice': item.netPrice,
@@ -76,7 +77,10 @@ class CartStorageService {
 
   /// Konversi Map ke CartEntity.
   static CartEntity _cartEntityFromJson(Map<String, dynamic> json) {
+    final String restoredId = (json['cartLineId'] as String?) ??
+        DateTime.now().microsecondsSinceEpoch.toString();
     return CartEntity(
+      cartLineId: restoredId,
       product: _productFromJson(json['product']),
       quantity: json['quantity'] ?? 1,
       netPrice: (json['netPrice'] ?? 0.0).toDouble(),

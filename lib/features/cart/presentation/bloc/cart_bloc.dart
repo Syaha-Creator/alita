@@ -11,9 +11,15 @@ import '../../../product/presentation/bloc/product_bloc.dart';
 import '../../../product/presentation/bloc/product_event.dart';
 import 'cart_event.dart';
 import 'cart_state.dart';
+import '../../domain/usecases/apply_discounts_usecase.dart';
 
 class CartBloc extends Bloc<CartEvent, CartState> {
-  CartBloc() : super(CartLoaded([])) {
+  final ApplyDiscountsUsecase _applyDiscountsUsecase;
+
+  CartBloc({ApplyDiscountsUsecase? applyDiscountsUsecase})
+      : _applyDiscountsUsecase =
+            applyDiscountsUsecase ?? const ApplyDiscountsUsecase(),
+        super(CartLoaded([])) {
     on<LoadCart>((event, emit) async {
       try {
         final cartItems = await CartStorageService.loadCartItems();
@@ -43,6 +49,7 @@ class CartBloc extends Bloc<CartEvent, CartState> {
           // Update existing item quantity
           final existingItem = updatedItems[existingItemIndex];
           updatedItems[existingItemIndex] = CartEntity(
+            cartLineId: existingItem.cartLineId,
             product: existingItem.product,
             quantity: existingItem.quantity + event.quantity,
             netPrice: existingItem.netPrice,
@@ -58,6 +65,7 @@ class CartBloc extends Bloc<CartEvent, CartState> {
           final normalizedProduct = _withNormalizedBonusOriginal(event.product);
           updatedItems.add(
             CartEntity(
+              cartLineId: _generateCartLineId(),
               product: normalizedProduct,
               quantity: event.quantity,
               netPrice: event.netPrice,
@@ -79,6 +87,7 @@ class CartBloc extends Bloc<CartEvent, CartState> {
         // Create new cart
         final newCart = [
           CartEntity(
+            cartLineId: _generateCartLineId(),
             product: event.product,
             quantity: event.quantity,
             netPrice: event.netPrice,
@@ -102,8 +111,10 @@ class CartBloc extends Bloc<CartEvent, CartState> {
         final currentState = state as CartLoaded;
         // Find the index of the item to remove
         final itemIndex = currentState.cartItems.indexWhere((item) =>
-            item.product.id == event.productId &&
-            item.netPrice == event.netPrice);
+            _matchesLine(item,
+                cartLineId: event.cartLineId,
+                productId: event.productId,
+                netPrice: event.netPrice));
 
         if (itemIndex != -1) {
           // Remove the specific item by index
@@ -121,8 +132,10 @@ class CartBloc extends Bloc<CartEvent, CartState> {
       if (state is CartLoaded) {
         final currentState = state as CartLoaded;
         final updatedItems = currentState.cartItems.map((item) {
-          if (item.product.id == event.productId &&
-              item.netPrice == event.netPrice) {
+          if (_matchesLine(item,
+              cartLineId: event.cartLineId,
+              productId: event.productId,
+              netPrice: event.netPrice)) {
             if (event.unitIndex != null) {
               // Per-unit selection
               final perUnit = Map<String, List<Map<String, String>>>.from(
@@ -165,8 +178,10 @@ class CartBloc extends Bloc<CartEvent, CartState> {
       if (state is CartLoaded) {
         final currentState = state as CartLoaded;
         final updatedItems = currentState.cartItems.map((item) {
-          if (item.product.id == event.productId &&
-              item.netPrice == event.netPrice) {
+          if (_matchesLine(item,
+              cartLineId: event.cartLineId,
+              productId: event.productId,
+              netPrice: event.netPrice)) {
             // Update bonus quantities to match new product quantity
             final updatedBonus = item.product.bonus.map((bonus) {
               // bonus.originalQuantity = bonus per 1 product
@@ -238,6 +253,7 @@ class CartBloc extends Bloc<CartEvent, CartState> {
             );
 
             return CartEntity(
+              cartLineId: item.cartLineId,
               product: updatedProduct,
               quantity: event.quantity,
               netPrice: item.netPrice,
@@ -262,8 +278,10 @@ class CartBloc extends Bloc<CartEvent, CartState> {
       if (state is CartLoaded) {
         final currentState = state as CartLoaded;
         final updatedItems = currentState.cartItems.map((item) {
-          if (item.product.id == event.productId &&
-              item.netPrice == event.netPrice) {
+          if (_matchesLine(item,
+              cartLineId: event.cartLineId,
+              productId: event.productId,
+              netPrice: event.netPrice)) {
             // Gunakan copyWith untuk mengubah status isSelected
             return item.copyWith(isSelected: !item.isSelected);
           }
@@ -284,8 +302,10 @@ class CartBloc extends Bloc<CartEvent, CartState> {
       if (state is CartLoaded) {
         final currentState = state as CartLoaded;
         final updatedItems = currentState.cartItems.map((item) {
-          if (item.product.id == event.productId &&
-              item.netPrice == event.netPrice) {
+          if (_matchesLine(item,
+              cartLineId: event.cartLineId,
+              productId: event.productId,
+              netPrice: event.netPrice)) {
             return item.copyWith(bonusTakeAway: event.bonusTakeAway);
           }
           return item;
@@ -301,9 +321,8 @@ class CartBloc extends Bloc<CartEvent, CartState> {
         final currentState = state as CartLoaded;
         // Remove specific items from cart
         final updatedItems = currentState.cartItems.where((item) {
-          return !event.itemsToRemove.any((removeItem) =>
-              removeItem.product.id == item.product.id &&
-              removeItem.netPrice == item.netPrice);
+          return !event.itemsToRemove
+              .any((removeItem) => removeItem.cartLineId == item.cartLineId);
         }).toList();
 
         await CartStorageService.saveCartItems(updatedItems);
@@ -340,8 +359,10 @@ class CartBloc extends Bloc<CartEvent, CartState> {
       if (state is CartLoaded) {
         final currentState = state as CartLoaded;
         final updatedItems = currentState.cartItems.map((item) {
-          if (item.product.id == event.productId &&
-              item.netPrice == event.netPrice) {
+          if (_matchesLine(item,
+              cartLineId: event.cartLineId,
+              productId: event.productId,
+              netPrice: event.netPrice)) {
             // Create updated bonus list
             final updatedBonus = List<BonusItem>.from(item.product.bonus);
             if (event.bonusIndex < updatedBonus.length) {
@@ -413,6 +434,7 @@ class CartBloc extends Bloc<CartEvent, CartState> {
             );
 
             return CartEntity(
+              cartLineId: item.cartLineId,
               product: updatedProduct,
               quantity: item.quantity,
               netPrice: item.netPrice,
@@ -437,8 +459,10 @@ class CartBloc extends Bloc<CartEvent, CartState> {
       if (state is CartLoaded) {
         final currentState = state as CartLoaded;
         final updatedItems = currentState.cartItems.map((item) {
-          if (item.product.id == event.productId &&
-              item.netPrice == event.netPrice) {
+          if (_matchesLine(item,
+              cartLineId: event.cartLineId,
+              productId: event.productId,
+              netPrice: event.netPrice)) {
             // Create updated bonus list without the specified bonus
             final updatedBonus = List<BonusItem>.from(item.product.bonus);
             if (event.bonusIndex < updatedBonus.length) {
@@ -490,6 +514,7 @@ class CartBloc extends Bloc<CartEvent, CartState> {
             );
 
             return CartEntity(
+              cartLineId: item.cartLineId,
               product: updatedProduct,
               quantity: item.quantity,
               netPrice: item.netPrice,
@@ -514,8 +539,10 @@ class CartBloc extends Bloc<CartEvent, CartState> {
       if (state is CartLoaded) {
         final currentState = state as CartLoaded;
         final updatedItems = currentState.cartItems.map((item) {
-          if (item.product.id == event.productId &&
-              item.netPrice == event.netPrice) {
+          if (_matchesLine(item,
+              cartLineId: event.cartLineId,
+              productId: event.productId,
+              netPrice: event.netPrice)) {
             // Create updated bonus list with new bonus
             final updatedBonus = List<BonusItem>.from(item.product.bonus);
             updatedBonus.add(BonusItem(
@@ -570,6 +597,7 @@ class CartBloc extends Bloc<CartEvent, CartState> {
             );
 
             return CartEntity(
+              cartLineId: item.cartLineId,
               product: updatedProduct,
               quantity: item.quantity,
               netPrice: item.netPrice,
@@ -595,8 +623,10 @@ class CartBloc extends Bloc<CartEvent, CartState> {
         final List<CartEntity> updatedItems = [];
 
         for (final item in currentState.cartItems) {
-          if (item.product.id == event.productId &&
-              item.netPrice == event.netPrice) {
+          if (_matchesLine(item,
+              cartLineId: event.cartLineId,
+              productId: event.productId,
+              netPrice: event.netPrice)) {
             // Update selected detail on current product
             final String newDivan = event.detailType == 'divan'
                 ? event.detailValue
@@ -632,8 +662,8 @@ class CartBloc extends Bloc<CartEvent, CartState> {
 
               // Base price is endUserPrice of matched product
               final double basePrice = matched.endUserPrice;
-              final double recalculatedNet = _applyDiscountsSequentially(
-                  basePrice, item.discountPercentages);
+              final double recalculatedNet = _applyDiscountsUsecase
+                  .applySequentially(basePrice, item.discountPercentages);
 
               // Determine default bonus sets (old vs new)
               final currentDefault = products.firstWhere(
@@ -698,6 +728,7 @@ class CartBloc extends Bloc<CartEvent, CartState> {
               );
 
               updatedItems.add(CartEntity(
+                cartLineId: item.cartLineId,
                 product: updatedProduct,
                 quantity: item.quantity,
                 netPrice: recalculatedNet,
@@ -753,10 +784,11 @@ class CartBloc extends Bloc<CartEvent, CartState> {
 
               // Recalculate net from current endUserPrice
               final double basePrice = updatedProduct.endUserPrice;
-              final double recalculatedNet = _applyDiscountsSequentially(
-                  basePrice, item.discountPercentages);
+              final double recalculatedNet = _applyDiscountsUsecase
+                  .applySequentially(basePrice, item.discountPercentages);
 
               updatedItems.add(CartEntity(
+                cartLineId: item.cartLineId,
                 product: updatedProduct,
                 quantity: item.quantity,
                 netPrice: recalculatedNet,
@@ -782,8 +814,10 @@ class CartBloc extends Bloc<CartEvent, CartState> {
         final getProductUseCase = locator<GetProductUseCase>();
         final List<CartEntity> updatedItems = [];
         for (final item in currentState.cartItems) {
-          if (item.product.id == event.productId &&
-              item.netPrice == event.oldNetPrice) {
+          if (_matchesLine(item,
+              cartLineId: event.cartLineId,
+              productId: event.productId,
+              netPrice: event.oldNetPrice)) {
             // Rebuild bonus with default mapping logic
             final products = await getProductUseCase.callWithFilter(
               area: item.product.area,
@@ -851,11 +885,32 @@ class CartBloc extends Bloc<CartEvent, CartState> {
               itemNumberBonus4: item.product.itemNumberBonus4,
               itemNumberBonus5: item.product.itemNumberBonus5,
             );
+            // Derive effective discount per level if none set yet
+            List<double> derivedDiscounts = item.discountPercentages;
+            final bool hasAnyDiscount = derivedDiscounts.any((d) => d > 0.0);
+            if (!hasAnyDiscount) {
+              final base = item.product.endUserPrice;
+              if (base > 0 && event.newNetPrice >= 0) {
+                final eff = (1 - (event.newNetPrice / base)) * 100.0; // percent
+                if (eff > 0 && eff < 1000) {
+                  derivedDiscounts = _splitAcrossLevels(
+                    eff,
+                    item.product.disc1,
+                    item.product.disc2,
+                    item.product.disc3,
+                    item.product.disc4,
+                    item.product.disc5,
+                  );
+                }
+              }
+            }
+
             updatedItems.add(CartEntity(
+              cartLineId: item.cartLineId,
               product: updatedProduct,
               quantity: item.quantity,
               netPrice: event.newNetPrice,
-              discountPercentages: item.discountPercentages,
+              discountPercentages: derivedDiscounts,
               installmentMonths: item.installmentMonths,
               installmentPerMonth: item.installmentPerMonth,
               isSelected: item.isSelected,
@@ -883,8 +938,10 @@ class CartBloc extends Bloc<CartEvent, CartState> {
         final getProductUseCase = locator<GetProductUseCase>();
         final List<CartEntity> updatedItems = [];
         for (final item in currentState.cartItems) {
-          if (item.product.id == event.productId &&
-              item.netPrice == event.oldNetPrice) {
+          if (_matchesLine(item,
+              cartLineId: event.cartLineId,
+              productId: event.productId,
+              netPrice: event.oldNetPrice)) {
             final products = await getProductUseCase.callWithFilter(
               area: item.product.area,
               channel: item.product.channel,
@@ -950,11 +1007,13 @@ class CartBloc extends Bloc<CartEvent, CartState> {
               itemNumberBonus5: item.product.itemNumberBonus5,
             );
 
-            // Recalculate net from pricelist using new discount percentages
-            final double recalculatedNet = _applyDiscountsSequentially(
-                item.product.pricelist, event.discountPercentages);
+            // Recalculate net from EUP (endUserPrice) using new discount percentages
+            final double recalculatedNet =
+                _applyDiscountsUsecase.applySequentially(
+                    item.product.endUserPrice, event.discountPercentages);
 
             updatedItems.add(CartEntity(
+              cartLineId: item.cartLineId,
               product: updatedProduct,
               quantity: item.quantity,
               netPrice: recalculatedNet,
@@ -978,6 +1037,46 @@ class CartBloc extends Bloc<CartEvent, CartState> {
 
     // Auto-load cart when bloc is created
     add(LoadCart());
+  }
+
+  String _generateCartLineId() {
+    return DateTime.now().microsecondsSinceEpoch.toString();
+  }
+
+  bool _matchesLine(CartEntity item,
+      {String? cartLineId, int? productId, double? netPrice}) {
+    if (cartLineId != null && cartLineId.isNotEmpty) {
+      return item.cartLineId == cartLineId;
+    }
+    if (productId == null || netPrice == null) return false;
+    // Fallback to legacy matching with small epsilon for netPrice
+    const double eps = 0.5; // 50 cents tolerance
+    return item.product.id == productId &&
+        (item.netPrice - netPrice).abs() < eps;
+  }
+
+  // Split an effective discount (percent) into up to 5 levels respecting max per level
+  // discX parameters are fractions (e.g., 0.1 for 10%), convert to percent caps
+  List<double> _splitAcrossLevels(double effPercent, double disc1, double disc2,
+      double disc3, double disc4, double disc5) {
+    final caps = [disc1, disc2, disc3, disc4, disc5]
+        .map((d) => (d > 0 ? d * 100.0 : 0.0))
+        .toList();
+    final result = List<double>.filled(5, 0.0);
+    double remaining = effPercent;
+    for (int i = 0; i < 5; i++) {
+      if (remaining <= 0) break;
+      final cap = caps[i];
+      if (cap <= 0) continue;
+      final take = remaining > cap ? cap : remaining;
+      result[i] = take;
+      remaining -= take;
+    }
+    // Trim trailing zeros
+    while (result.isNotEmpty && result.last <= 0) {
+      result.removeLast();
+    }
+    return result.isEmpty ? [effPercent] : result;
   }
 
   /// Ensure each bonus has originalQuantity set; fallback to its default quantity if missing
@@ -1043,19 +1142,6 @@ class CartBloc extends Bloc<CartEvent, CartState> {
       if (a[i] != b[i]) return false;
     }
     return true;
-  }
-
-  // Apply percentage discounts sequentially to a base price
-  double _applyDiscountsSequentially(
-      double basePrice, List<double> discountPercentages) {
-    double price = basePrice;
-    for (final percent in discountPercentages) {
-      if (percent <= 0) continue;
-      price = price * (1 - (percent / 100.0));
-    }
-    // Ensure not negative and round to 2 decimals if needed
-    if (price < 0) price = 0;
-    return price;
   }
 
   List<BonusItem> _mergeBonusWithDefaults(

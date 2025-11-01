@@ -70,6 +70,8 @@ class LookupItemService {
     String? contextItemType,
   }) async {
     try {
+      print(
+          '[LookupItemService] fetchLookupItems IN => brand=$brand, kasur=$kasur, divan=$divan, headboard=$headboard, sorong=$sorong, ukuran=$ukuran, contextItemType=$contextItemType');
       // Build authenticated URL
       final token = await AuthService.getToken();
       if (token == null) {
@@ -88,21 +90,40 @@ class LookupItemService {
             s.contains('tidak ada');
       }
 
-      // Many backends expect 'tipe' for kasur name; normalize quotes
-      String normTipe = kasur.replaceAll('’', "'").trim();
-      // Normalize size: remove spaces, unify separators (e.g., "120 x 200" -> "120x200")
+      // Determine source tipe based on context component, falling back to kasur
+      String resolveSourceTipe() {
+        String? ctx = (contextItemType ?? '').toLowerCase().trim();
+        bool isInvalidCtxVal(String? v) => isNone(v);
+        if (ctx == 'divan' && !isInvalidCtxVal(divan)) return divan!.trim();
+        if (ctx == 'headboard' && !isInvalidCtxVal(headboard)) {
+          return headboard!.trim();
+        }
+        if (ctx == 'sorong' && !isInvalidCtxVal(sorong)) return sorong!.trim();
+        return kasur.trim();
+      }
+
+      final sourceTipe = resolveSourceTipe();
+      // Many backends expect 'tipe'; normalize quotes
+      String normTipe = sourceTipe.replaceAll('’', "'").trim();
+      // Normalize size: unify separator, remove spaces, strip leading zeros per segment
       String normalizeSize(String value) {
-        final v = value
+        String v = value
             .replaceAll('\u00D7', 'x') // multiplication sign × -> x
             .replaceAll('X', 'x')
             .replaceAll(RegExp(r'\s*[x]\s*'), 'x')
             .replaceAll(' ', '')
             .trim()
             .toLowerCase();
-        return v;
+        final parts = v.split('x').map((p) {
+          final s = p.replaceFirst(RegExp(r'^0+'), '');
+          return s.isEmpty ? '0' : s;
+        }).toList();
+        return parts.join('x');
       }
 
       final normUkuran = normalizeSize(ukuran);
+      print(
+          '[LookupItemService] normalized => tipe="$normTipe", ukuran="$normUkuran"');
       // Parser helper
       List<LookupItem> parseItems(dynamic data) {
         List<dynamic> list = const [];
@@ -128,11 +149,21 @@ class LookupItemService {
       var items = response.statusCode == 200
           ? parseItems(response.data)
           : <LookupItem>[];
+      print('[LookupItemService] parsed count (all) = ${items.length}');
       String k(String? s) => (s ?? '').trim().toLowerCase();
       String kSize(String? s) => normalizeSize(s ?? '');
+      bool isInvalidNum(String? v) {
+        if (v == null) return true;
+        final s = v.trim().toLowerCase();
+        return s.isEmpty || s == '0' || s == '0.0' || s == 'null';
+      }
+
+      // Primary client-side filter by tipe + ukuran only
       items = items
           .where((i) => k(i.type) == k(normTipe) && kSize(i.size) == normUkuran)
           .toList();
+      print(
+          '[LookupItemService] after primary filter => count=${items.length}');
 
       // Fallback 1: tambah brand/komponen via server filter bila kosong
       if (items.isEmpty) {
@@ -150,6 +181,8 @@ class LookupItemService {
           response = await _client.get(url, queryParameters: qpBrand);
           if (response.statusCode == 200) {
             items = parseItems(response.data);
+            print(
+                '[LookupItemService] fallback brand raw count=${items.length}');
           }
         } catch (_) {}
       }
@@ -165,6 +198,7 @@ class LookupItemService {
           response = await _client.get(url, queryParameters: qpAlt);
           if (response.statusCode == 200) {
             items = parseItems(response.data);
+            print('[LookupItemService] fallback alt raw count=${items.length}');
           }
         } catch (_) {}
       }
@@ -179,9 +213,25 @@ class LookupItemService {
           }
           final all = parseItems(response.data);
           items = all.where((i) => k(i.type) == k(normTipe)).toList();
+          // If context present, prefer items whose description matches component keyword
+          final ctx = (contextItemType ?? '').toLowerCase();
+          if (ctx.isNotEmpty) {
+            items = items.where((i) {
+              final d = (i.itemDesc ?? '').toLowerCase();
+              if (ctx == 'divan') return d.contains('divan');
+              if (ctx == 'headboard') return d.contains('headboard');
+              if (ctx == 'sorong') return d.contains('sorong');
+              return true;
+            }).toList();
+          }
+          items = items.where((i) => !isInvalidNum(i.itemNumber)).toList();
+          print(
+              '[LookupItemService] fallback tipe-only after ctx filter => count=${items.length}');
         } catch (_) {}
       }
-      print('[LookupItemService] Response count: ${items.length}');
+      final preview = items.take(3).map((e) => e.itemNumber).toList();
+      print(
+          '[LookupItemService] Response count: ${items.length}, preview=$preview');
       if (contextItemType != null && contextItemType.isNotEmpty) {
         return items
             .map((i) => LookupItem(

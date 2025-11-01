@@ -1,6 +1,7 @@
 import '../../../product/domain/entities/product_entity.dart';
 
 class CartEntity {
+  final String cartLineId; // stable identifier per cart line
   final ProductEntity product;
   final int quantity;
   final double netPrice;
@@ -15,6 +16,7 @@ class CartEntity {
   final Map<String, List<Map<String, String>>>? selectedItemNumbersPerUnit;
 
   CartEntity copyWith({
+    String? cartLineId,
     ProductEntity? product,
     int? quantity,
     double? netPrice,
@@ -27,6 +29,7 @@ class CartEntity {
     Map<String, List<Map<String, String>>>? selectedItemNumbersPerUnit,
   }) {
     return CartEntity(
+      cartLineId: cartLineId ?? this.cartLineId,
       product: product ?? this.product,
       quantity: quantity ?? this.quantity,
       netPrice: netPrice ?? this.netPrice,
@@ -41,7 +44,8 @@ class CartEntity {
     );
   }
 
-  const CartEntity({
+  CartEntity({
+    required this.cartLineId,
     required this.product,
     required this.quantity,
     required this.netPrice,
@@ -55,6 +59,7 @@ class CartEntity {
   });
 
   List<Object?> get props => [
+        cartLineId,
         product,
         quantity,
         netPrice,
@@ -82,6 +87,7 @@ class CartEntity {
 
   Map<String, dynamic> toJson() {
     return {
+      'cartLineId': cartLineId,
       'product': {
         'id': product.id,
         'area': product.area,

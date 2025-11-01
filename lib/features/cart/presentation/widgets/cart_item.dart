@@ -16,6 +16,8 @@ import '../../../product/presentation/widgets/dialogs/edit_price_dialog.dart';
 import 'package:collection/collection.dart';
 import '../../../../core/widgets/custom_toast.dart';
 import '../../../../services/leader_service.dart';
+import '../controllers/cart_item_controller.dart';
+import 'bonus_selector_dialog.dart';
 import '../../../../features/approval/data/models/approval_model.dart';
 import '../../../../services/lookup_item_service.dart' as lookup;
 import '../../domain/entities/cart_entity.dart';
@@ -33,6 +35,7 @@ class CartItemWidget extends StatefulWidget {
 class _CartItemWidgetState extends State<CartItemWidget> {
   bool isExpanded = false;
   bool _autoFabricChecked = false;
+  final CartItemController _controller = CartItemController();
 
   // === KEMBALIKAN KONSTANTA KE SINI AGAR BISA DIAKSES SEMUA METHOD ===
   static const double _avatarSize = 40.0;
@@ -48,14 +51,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
     return true;
   }
 
-  bool _isNoneComponent(String value) {
-    final v = (value).trim().toLowerCase();
-    if (v.isEmpty) return true;
-    if (v == '-' || v == 'n/a') return true;
-    if (v.contains('tidak ada')) return true;
-    if (v.contains('tanpa')) return true;
-    return false;
-  }
+  bool _isNoneComponent(String value) => _controller.isNoneComponent(value);
 
   @override
   void initState() {
@@ -76,120 +72,27 @@ class _CartItemWidgetState extends State<CartItemWidget> {
     }
   }
 
+  // (removed) auto discount sync to restore original product/cart separation
+
   Future<void> _autoSelectFabricDefaults() async {
     if (_autoFabricChecked) return;
     _autoFabricChecked = true;
-
-    final product = widget.item.product;
-    final futures = <Future>[];
-
-    Future<void> tryAuto(String itemType, bool enabled) async {
-      if (!enabled) return;
-      if (widget.item.selectedItemNumbers != null &&
-          widget.item.selectedItemNumbers![itemType] != null) {
-        return;
-      }
-      print(
-          '[CartItem] Auto-lookup start itemType=$itemType for product=${product.kasur} ${product.ukuran}');
-      // Gunakan nama tipe sesuai komponen: kasur/divan/headboard/sorong
-      String tipeForLookup;
-      switch (itemType) {
-        case 'divan':
-          tipeForLookup = product.divan;
-          break;
-        case 'headboard':
-          tipeForLookup = product.headboard;
-          break;
-        case 'sorong':
-          tipeForLookup = product.sorong;
-          break;
-        case 'kasur':
-        default:
-          tipeForLookup = product.kasur;
-      }
-      final list = await lookup.LookupItemService().fetchLookupItems(
-        brand: product.brand,
-        kasur: tipeForLookup,
-        divan: product.divan.isNotEmpty ? product.divan : null,
-        headboard: product.headboard.isNotEmpty ? product.headboard : null,
-        sorong: product.sorong.isNotEmpty ? product.sorong : null,
-        ukuran: product.ukuran,
-        contextItemType: itemType,
-      );
-      print(
-          '[CartItem] Auto-lookup result count=${list.length} itemType=$itemType');
-      if (list.length == 1) {
-        final it = list.first;
-        if (!mounted) return;
-        print(
-            '[CartItem] Auto-apply fabric itemType=$itemType item_num=${it.itemNumber} jenis=${it.fabricType} warna=${it.fabricColor}');
-        // Apply for unit 0 (and others if quantity > 1)
-        final qty = widget.item.quantity;
-        for (int idx = 0; idx < qty; idx++) {
-          context.read<CartBloc>().add(UpdateCartSelectedItemNumber(
-                productId: product.id,
-                netPrice: widget.item.netPrice,
-                itemType: itemType,
-                itemNumber: it.itemNumber,
-                jenisKain: it.fabricType,
-                warnaKain: it.fabricColor,
-                unitIndex: idx,
-              ));
-        }
-      }
-    }
-
-    futures.add(tryAuto('kasur', !_isNoneComponent(product.kasur)));
-    futures.add(tryAuto('divan', !_isNoneComponent(product.divan)));
-    futures.add(tryAuto('headboard', !_isNoneComponent(product.headboard)));
-    futures.add(tryAuto('sorong', !_isNoneComponent(product.sorong)));
-
-    await Future.wait(futures);
+    await _controller.autoSelectFabricDefaults(context, widget.item,
+        mounted: () => mounted);
     if (mounted) setState(() {});
   }
 
   Future<void> _autoFillNewUnitsIfSingleOption() async {
     final product = widget.item.product;
-    Future<void> tryFill(
-        String itemType, String tipeForLookup, bool enabled) async {
-      if (!enabled) return;
-      final perUnit =
-          widget.item.selectedItemNumbersPerUnit?[itemType] ?? const [];
-      final list = await lookup.LookupItemService().fetchLookupItems(
-        brand: product.brand,
-        kasur: tipeForLookup,
-        divan: product.divan.isNotEmpty ? product.divan : null,
-        headboard: product.headboard.isNotEmpty ? product.headboard : null,
-        sorong: product.sorong.isNotEmpty ? product.sorong : null,
-        ukuran: product.ukuran,
-        contextItemType: itemType,
-      );
-      if (list.length == 1) {
-        final it = list.first;
-        for (int idx = 0; idx < widget.item.quantity; idx++) {
-          final sel = idx < perUnit.length ? perUnit[idx] : null;
-          final already =
-              sel != null && (sel['item_number'] ?? '').toString().isNotEmpty;
-          if (already) continue;
-          context.read<CartBloc>().add(UpdateCartSelectedItemNumber(
-                productId: product.id,
-                netPrice: widget.item.netPrice,
-                itemType: itemType,
-                itemNumber: it.itemNumber,
-                jenisKain: it.fabricType,
-                warnaKain: it.fabricColor,
-                unitIndex: idx,
-              ));
-        }
-      }
-    }
-
     await Future.wait([
-      tryFill('kasur', product.kasur, !_isNoneComponent(product.kasur)),
-      tryFill('divan', product.divan, !_isNoneComponent(product.divan)),
-      tryFill(
-          'headboard', product.headboard, !_isNoneComponent(product.headboard)),
-      tryFill('sorong', product.sorong, !_isNoneComponent(product.sorong)),
+      _controller.autoFillNewUnitsIfSingleOption(context, widget.item,
+          itemType: 'kasur', tipeForLookup: product.kasur),
+      _controller.autoFillNewUnitsIfSingleOption(context, widget.item,
+          itemType: 'divan', tipeForLookup: product.divan),
+      _controller.autoFillNewUnitsIfSingleOption(context, widget.item,
+          itemType: 'headboard', tipeForLookup: product.headboard),
+      _controller.autoFillNewUnitsIfSingleOption(context, widget.item,
+          itemType: 'sorong', tipeForLookup: product.sorong),
     ]);
   }
 
@@ -201,14 +104,14 @@ class _CartItemWidgetState extends State<CartItemWidget> {
     // Kita gunakan BlocListener untuk update controller secara aman saat state berubah
     return BlocListener<ProductBloc, ProductState>(
       listener: (context, state) {
-        // Check if price has changed and update cart
+        // Check if price has changed and update cart (reset to original behavior)
         final newPrice = state.roundedPrices[widget.item.product.id];
         if (newPrice != null && newPrice != widget.item.netPrice) {
-          // Update cart item with new price
           context.read<CartBloc>().add(UpdateCartPrice(
                 productId: widget.item.product.id,
                 oldNetPrice: widget.item.netPrice,
                 newNetPrice: newPrice,
+                cartLineId: widget.item.cartLineId,
               ));
         }
 
@@ -232,6 +135,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                 oldNetPrice: widget.item.netPrice,
                 discountPercentages: newDiscountPercentages,
                 newNetPrice: calculatedPrice,
+                cartLineId: widget.item.cartLineId,
               ));
         }
       },
@@ -437,6 +341,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
               jenisKain: it.fabricType,
               warnaKain: it.fabricColor,
               unitIndex: unitIndex,
+              cartLineId: widget.item.cartLineId,
             ));
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Kain default diterapkan')),
@@ -455,56 +360,57 @@ class _CartItemWidgetState extends State<CartItemWidget> {
 
       await showDialog(
         context: context,
-        builder: (ctx) => AlertDialog(
-          title:
-              const Text('Pilih Kain', style: TextStyle(fontFamily: 'Inter')),
-          content: SizedBox(
-            width: double.maxFinite,
-            height: 340,
-            child: ListView.builder(
-              itemCount: list.length,
-              itemBuilder: (c, i) {
-                final it = list[i];
-                final main = [it.fabricType, it.fabricColor]
-                    .where((e) => (e ?? '').isNotEmpty)
-                    .join(' - ');
-                final sub = it.itemDesc ?? '';
-                return ListTile(
-                  title: Text(
-                    main.isEmpty ? (sub.isEmpty ? it.itemNumber : sub) : main,
-                    style: const TextStyle(fontFamily: 'Inter'),
-                  ),
-                  subtitle: sub.isNotEmpty
-                      ? Text(sub,
-                          style: const TextStyle(
-                              fontFamily: 'Inter', fontSize: 12))
-                      : null,
-                  onTap: () {
-                    // ignore: avoid_print
-                    print(
-                        '[CartItem] User selected fabric itemType=$itemType unitIndex=$unitIndex item_num=${it.itemNumber}');
-                    context.read<CartBloc>().add(UpdateCartSelectedItemNumber(
-                          productId: widget.item.product.id,
-                          netPrice: widget.item.netPrice,
-                          itemType: itemType,
-                          itemNumber: it.itemNumber,
-                          jenisKain: it.fabricType,
-                          warnaKain: it.fabricColor,
-                          unitIndex: unitIndex,
-                        ));
-                    Navigator.pop(ctx);
-                  },
-                );
-              },
+        builder: (ctx) {
+          return AlertDialog(
+            title:
+                const Text('Pilih Kain', style: TextStyle(fontFamily: 'Inter')),
+            content: SizedBox(
+              width: double.maxFinite,
+              height: 340,
+              child: ListView.builder(
+                itemCount: list.length,
+                itemBuilder: (c, i) {
+                  final it = list[i];
+                  final main = [it.fabricType, it.fabricColor]
+                      .where((e) => (e ?? '').isNotEmpty)
+                      .join(' - ');
+                  final sub = it.itemDesc ?? '';
+                  return ListTile(
+                    title: Text(
+                      main.isEmpty ? (sub.isEmpty ? it.itemNumber : sub) : main,
+                      style: const TextStyle(fontFamily: 'Inter'),
+                    ),
+                    subtitle: sub.isNotEmpty
+                        ? Text(sub,
+                            style: const TextStyle(
+                                fontFamily: 'Inter', fontSize: 12))
+                        : null,
+                    onTap: () {
+                      context.read<CartBloc>().add(UpdateCartSelectedItemNumber(
+                            productId: widget.item.product.id,
+                            netPrice: widget.item.netPrice,
+                            itemType: itemType,
+                            itemNumber: it.itemNumber,
+                            jenisKain: it.fabricType,
+                            warnaKain: it.fabricColor,
+                            unitIndex: unitIndex,
+                            cartLineId: widget.item.cartLineId,
+                          ));
+                      Navigator.pop(ctx);
+                    },
+                  );
+                },
+              ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Tutup', style: TextStyle(fontFamily: 'Inter')),
-            )
-          ],
-        ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child:
+                    const Text('Tutup', style: TextStyle(fontFamily: 'Inter')),
+              )
+            ],
+          );
+        },
       );
     } catch (e) {
       if (!mounted) return;
@@ -523,6 +429,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
             context.read<CartBloc>().add(ToggleCartItemSelection(
                   productId: widget.item.product.id,
                   netPrice: widget.item.netPrice,
+                  cartLineId: widget.item.cartLineId,
                 ));
           },
         ),
@@ -558,6 +465,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                   productId: widget.item.product.id,
                   netPrice: widget.item.netPrice,
                   quantity: widget.item.quantity + 1,
+                  cartLineId: widget.item.cartLineId,
                 ));
           },
           onDecrement: () => _decrement(context),
@@ -572,6 +480,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
             productId: widget.item.product.id,
             netPrice: widget.item.netPrice,
             quantity: widget.item.quantity - 1,
+            cartLineId: widget.item.cartLineId,
           ));
     } else {
       final theme = Theme.of(context);
@@ -619,7 +528,9 @@ class _CartItemWidgetState extends State<CartItemWidget> {
               ));
       if (confirm == true) {
         context.read<CartBloc>().add(RemoveFromCart(
-            productId: widget.item.product.id, netPrice: widget.item.netPrice));
+            productId: widget.item.product.id,
+            netPrice: widget.item.netPrice,
+            cartLineId: widget.item.cartLineId));
       }
     }
   }
@@ -1007,6 +918,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                                     bonusIndex: index,
                                     bonusName: bonus.name,
                                     bonusQuantity: bonus.quantity - 1,
+                                    cartLineId: widget.item.cartLineId,
                                   ));
                             } else {
                               // Delete bonus when quantity is 1
@@ -1089,6 +1001,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                                             bonusIndex: index,
                                             bonusName: bonus.name,
                                             bonusQuantity: bonus.quantity + 1,
+                                            cartLineId: widget.item.cartLineId,
                                           ));
                                     }
                                   : null,
@@ -1421,12 +1334,13 @@ class _CartItemWidgetState extends State<CartItemWidget> {
       // Create a stateful dialog with search functionality
       showDialog(
         context: context,
-        builder: (ctx) => _BonusSelectorDialog(
+        builder: (ctx) => BonusSelectorDialog(
           accessories: accessories,
           bonusIndex: bonusIndex,
           productId: widget.item.product.id,
           netPrice: widget.item.netPrice,
           currentQuantity: bonus.quantity,
+          cartLineId: widget.item.cartLineId,
         ),
       );
     } catch (e) {
@@ -1519,6 +1433,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                             netPrice: widget.item.netPrice,
                             detailType: type,
                             detailValue: option,
+                            cartLineId: widget.item.cartLineId,
                           ));
                       Navigator.pop(ctx);
                     },
@@ -1911,162 +1826,4 @@ class _CartInfoDialogState extends State<CartInfoDialog> {
 }
 
 // Bonus Selector Dialog Widget
-class _BonusSelectorDialog extends StatefulWidget {
-  final List<AccessoryEntity> accessories;
-  final int bonusIndex;
-  final int productId;
-  final double netPrice;
-  final int currentQuantity;
-
-  const _BonusSelectorDialog({
-    required this.accessories,
-    required this.bonusIndex,
-    required this.productId,
-    required this.netPrice,
-    required this.currentQuantity,
-  });
-
-  @override
-  State<_BonusSelectorDialog> createState() => _BonusSelectorDialogState();
-}
-
-class _BonusSelectorDialogState extends State<_BonusSelectorDialog> {
-  List<AccessoryEntity> filteredAccessories = [];
-  final TextEditingController _searchController = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    filteredAccessories = widget.accessories;
-    _searchController.addListener(_filterAccessories);
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  void _filterAccessories() {
-    final query = _searchController.text.toLowerCase();
-    setState(() {
-      if (query.isEmpty) {
-        filteredAccessories = widget.accessories;
-      } else {
-        filteredAccessories = widget.accessories.where((accessory) {
-          final itemName = accessory.item.toLowerCase();
-          final brand = accessory.brand.toLowerCase();
-          final ukuran = accessory.ukuran.toLowerCase();
-          return itemName.contains(query) ||
-              brand.contains(query) ||
-              ukuran.contains(query);
-        }).toList();
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return AlertDialog(
-      title: Text(
-        'Pilih Item Bonus',
-        style: const TextStyle(
-          fontFamily: 'Inter',
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      content: SizedBox(
-        width: double.maxFinite,
-        height: 400,
-        child: Column(
-          children: [
-            // Search field
-            TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Cari item bonus...',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Items list
-            Expanded(
-              child: filteredAccessories.isEmpty
-                  ? Center(
-                      child: Text(
-                        'Tidak ada item yang ditemukan',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    )
-                  : ListView.builder(
-                      itemCount: filteredAccessories.length,
-                      itemBuilder: (context, index) {
-                        final accessory = filteredAccessories[index];
-                        final displayText = accessory.ukuran.isNotEmpty
-                            ? '${accessory.item} (${accessory.ukuran})'
-                            : accessory.item;
-
-                        return ListTile(
-                          title: Text(
-                            displayText,
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          subtitle: Text(
-                            'Brand: ${accessory.brand}',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                          onTap: () {
-                            context.read<CartBloc>().add(UpdateCartBonus(
-                                  productId: widget.productId,
-                                  netPrice: widget.netPrice,
-                                  bonusIndex: widget.bonusIndex,
-                                  bonusName: displayText,
-                                  bonusQuantity: widget.currentQuantity,
-                                ));
-                            Navigator.pop(context);
-                          },
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(
-            'Batal',
-            style: const TextStyle(
-              fontFamily: 'Inter',
-              color: AppColors.textSecondaryLight,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
+// moved to its own file: bonus_selector_dialog.dart

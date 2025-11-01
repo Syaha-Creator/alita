@@ -891,7 +891,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
                                                         ),
                                                   ),
                                                   Text(
-                                                    'Qty: ${bonus.quantity * item.quantity}',
+                                                    'Qty: ${bonus.quantity}',
                                                     style: Theme.of(context)
                                                         .textTheme
                                                         .bodyMedium

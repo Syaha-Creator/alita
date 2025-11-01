@@ -42,42 +42,48 @@ class AddToCart extends CartEvent {
 class RemoveFromCart extends CartEvent {
   final int productId;
   final double netPrice;
+  final String? cartLineId;
 
   const RemoveFromCart({
     required this.productId,
     required this.netPrice,
+    this.cartLineId,
   });
 
   @override
-  List<Object?> get props => [productId, netPrice];
+  List<Object?> get props => [productId, netPrice, cartLineId];
 }
 
 class UpdateCartQuantity extends CartEvent {
   final int productId;
   final double netPrice;
   final int quantity;
+  final String? cartLineId;
 
   const UpdateCartQuantity({
     required this.productId,
     required this.netPrice,
     required this.quantity,
+    this.cartLineId,
   });
 
   @override
-  List<Object?> get props => [productId, netPrice, quantity];
+  List<Object?> get props => [productId, netPrice, quantity, cartLineId];
 }
 
 class ToggleCartItemSelection extends CartEvent {
   final int productId;
   final double netPrice;
+  final String? cartLineId;
 
   const ToggleCartItemSelection({
     required this.productId,
     required this.netPrice,
+    this.cartLineId,
   });
 
   @override
-  List<Object?> get props => [productId, netPrice];
+  List<Object?> get props => [productId, netPrice, cartLineId];
 }
 
 class ClearCart extends CartEvent {}
@@ -86,15 +92,17 @@ class UpdateBonusTakeAway extends CartEvent {
   final int productId;
   final double netPrice;
   final Map<String, bool> bonusTakeAway;
+  final String? cartLineId;
 
   const UpdateBonusTakeAway({
     required this.productId,
     required this.netPrice,
     required this.bonusTakeAway,
+    this.cartLineId,
   });
 
   @override
-  List<Object?> get props => [productId, netPrice, bonusTakeAway];
+  List<Object?> get props => [productId, netPrice, bonusTakeAway, cartLineId];
 }
 
 class RemoveSelectedItems extends CartEvent {
@@ -136,6 +144,7 @@ class UpdateCartBonus extends CartEvent {
   final int bonusIndex;
   final String bonusName;
   final int bonusQuantity;
+  final String? cartLineId;
 
   const UpdateCartBonus({
     required this.productId,
@@ -143,11 +152,12 @@ class UpdateCartBonus extends CartEvent {
     required this.bonusIndex,
     required this.bonusName,
     required this.bonusQuantity,
+    this.cartLineId,
   });
 
   @override
   List<Object?> get props =>
-      [productId, netPrice, bonusIndex, bonusName, bonusQuantity];
+      [productId, netPrice, bonusIndex, bonusName, bonusQuantity, cartLineId];
 }
 
 class AddCartBonus extends CartEvent {
@@ -155,31 +165,36 @@ class AddCartBonus extends CartEvent {
   final double netPrice;
   final String bonusName;
   final int bonusQuantity;
+  final String? cartLineId;
 
   const AddCartBonus({
     required this.productId,
     required this.netPrice,
     required this.bonusName,
     required this.bonusQuantity,
+    this.cartLineId,
   });
 
   @override
-  List<Object?> get props => [productId, netPrice, bonusName, bonusQuantity];
+  List<Object?> get props =>
+      [productId, netPrice, bonusName, bonusQuantity, cartLineId];
 }
 
 class RemoveCartBonus extends CartEvent {
   final int productId;
   final double netPrice;
   final int bonusIndex;
+  final String? cartLineId;
 
   const RemoveCartBonus({
     required this.productId,
     required this.netPrice,
     required this.bonusIndex,
+    this.cartLineId,
   });
 
   @override
-  List<Object?> get props => [productId, netPrice, bonusIndex];
+  List<Object?> get props => [productId, netPrice, bonusIndex, cartLineId];
 }
 
 class UpdateCartProductDetail extends CartEvent {
@@ -187,16 +202,19 @@ class UpdateCartProductDetail extends CartEvent {
   final double netPrice;
   final String detailType;
   final String detailValue;
+  final String? cartLineId;
 
   const UpdateCartProductDetail({
     required this.productId,
     required this.netPrice,
     required this.detailType,
     required this.detailValue,
+    this.cartLineId,
   });
 
   @override
-  List<Object?> get props => [productId, netPrice, detailType, detailValue];
+  List<Object?> get props =>
+      [productId, netPrice, detailType, detailValue, cartLineId];
 }
 
 /// Update user-selected item number/fabric choice for a component
@@ -208,6 +226,7 @@ class UpdateCartSelectedItemNumber extends CartEvent {
   final String? jenisKain;
   final String? warnaKain;
   final int? unitIndex; // optional: select for specific unit (0..quantity-1)
+  final String? cartLineId;
 
   const UpdateCartSelectedItemNumber({
     required this.productId,
@@ -217,6 +236,7 @@ class UpdateCartSelectedItemNumber extends CartEvent {
     this.jenisKain,
     this.warnaKain,
     this.unitIndex,
+    this.cartLineId,
   });
 
   @override
@@ -227,7 +247,8 @@ class UpdateCartSelectedItemNumber extends CartEvent {
         itemNumber,
         jenisKain,
         warnaKain,
-        unitIndex
+        unitIndex,
+        cartLineId
       ];
 }
 
@@ -235,15 +256,17 @@ class UpdateCartPrice extends CartEvent {
   final int productId;
   final double oldNetPrice;
   final double newNetPrice;
+  final String? cartLineId;
 
   const UpdateCartPrice({
     required this.productId,
     required this.oldNetPrice,
     required this.newNetPrice,
+    this.cartLineId,
   });
 
   @override
-  List<Object?> get props => [productId, oldNetPrice, newNetPrice];
+  List<Object?> get props => [productId, oldNetPrice, newNetPrice, cartLineId];
 }
 
 class UpdateCartDiscounts extends CartEvent {
@@ -251,15 +274,17 @@ class UpdateCartDiscounts extends CartEvent {
   final double oldNetPrice;
   final List<double> discountPercentages;
   final double newNetPrice;
+  final String? cartLineId;
 
   const UpdateCartDiscounts({
     required this.productId,
     required this.oldNetPrice,
     required this.discountPercentages,
     required this.newNetPrice,
+    this.cartLineId,
   });
 
   @override
   List<Object?> get props =>
-      [productId, oldNetPrice, discountPercentages, newNetPrice];
+      [productId, oldNetPrice, discountPercentages, newNetPrice, cartLineId];
 }

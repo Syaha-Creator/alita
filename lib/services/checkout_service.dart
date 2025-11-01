@@ -20,12 +20,21 @@ class CheckoutService {
 
   // Resolve item number using product's prefilled number or lookup service (legacy per-component)
   Future<String> _resolveItemNumberFor(CartEntity item, String itemType) async {
+    print(
+        '[CheckoutService] _resolveItemNumberFor type=$itemType, brand=${item.product.brand}, tipe=${item.product.kasur}, ukuran=${item.product.ukuran}');
+    bool isInvalid(String? v) {
+      if (v == null) return true;
+      final s = v.trim();
+      return s.isEmpty || s == '0' || s == '0.0';
+    }
+
     String? prefilled;
     // Prefer user selection stored in cart
     final selected = item.selectedItemNumbers?[itemType];
-    if (selected != null) {
-      final selNum = selected['item_number'];
-      if (selNum != null && selNum.isNotEmpty) return selNum;
+    if (selected != null && !isInvalid(selected['item_number'])) {
+      print(
+          '[CheckoutService] using user-selected number for $itemType => ${selected['item_number']}');
+      return selected['item_number']!;
     }
     switch (itemType) {
       case 'kasur':
@@ -41,9 +50,14 @@ class CheckoutService {
         prefilled = item.product.itemNumberSorong;
         break;
     }
-    if (prefilled != null && prefilled.isNotEmpty) return prefilled;
+    if (!isInvalid(prefilled)) {
+      print(
+          '[CheckoutService] using prefilled number for $itemType => $prefilled');
+      return prefilled!;
+    }
     try {
       final lookup = LookupItemService(client: locator<ApiClient>());
+      print('[CheckoutService] lookup for $itemType with context and size...');
       final list = await lookup.fetchLookupItems(
         brand: item.product.brand,
         kasur: item.product.kasur,
@@ -54,10 +68,14 @@ class CheckoutService {
         ukuran: item.product.ukuran,
         contextItemType: itemType,
       );
-      if (list.isNotEmpty && list.first.itemNumber.isNotEmpty) {
+      if (list.isNotEmpty && !isInvalid(list.first.itemNumber)) {
+        print(
+            '[CheckoutService] chosen number for $itemType => ${list.first.itemNumber}');
         return list.first.itemNumber;
       }
     } catch (_) {}
+    print(
+        '[CheckoutService] fallback to product.id for $itemType => ${item.product.id}');
     return item.product.id.toString();
   }
 
@@ -65,6 +83,8 @@ class CheckoutService {
   Future<List<String>> _resolveItemNumbersPerUnit(
       CartEntity item, String itemType) async {
     final qty = item.quantity;
+    print(
+        '[CheckoutService] _resolveItemNumbersPerUnit type=$itemType, qty=$qty');
     // If per-unit selections exist, use them (fill gaps via legacy or lookup)
     final perUnit = item.selectedItemNumbersPerUnit?[itemType];
     if (perUnit != null && perUnit.isNotEmpty) {
@@ -79,11 +99,15 @@ class CheckoutService {
           results.add(await _resolveItemNumberFor(item, itemType));
         }
       }
+      print('[CheckoutService] per-unit numbers for $itemType => $results');
       return results;
     }
     // No per-unit selections; reuse single resolution for all units
     final one = await _resolveItemNumberFor(item, itemType);
-    return List<String>.filled(qty, one);
+    final all = List<String>.filled(qty, one);
+    print(
+        '[CheckoutService] single number for $itemType => $one (reused x$qty)');
+    return all;
   }
 
   /// Create Order Letter from Cart Items
@@ -377,14 +401,61 @@ class CheckoutService {
               takeAwayString = null;
             }
 
+            bool isInvalidItemNum(String? v) {
+              if (v == null) return true;
+              final s = v.trim();
+              return s.isEmpty || s == '0' || s == '0.0';
+            }
+
+            // Resolve missing/invalid bonus item number via lookup by type (bonus name)
+            String resolvedBonusNumber = bonusItemNumber ?? '';
+            if (isInvalidItemNum(resolvedBonusNumber)) {
+              try {
+                final lookup = LookupItemService(client: locator<ApiClient>());
+                final list = await lookup.fetchLookupItems(
+                  brand: item.product.brand,
+                  kasur: bonus.name, // treat bonus name as 'tipe'
+                  ukuran: item.product.ukuran,
+                );
+                // Prefer entries that clearly match bonus by description and brand
+                String norm(String s) => s.toLowerCase().trim();
+                final normBonus = norm(bonus.name);
+                final normBrand = norm(item.product.brand.split(' - ').first);
+                bool descMatches(String? d) {
+                  final desc = norm(d ?? '');
+                  // All words in bonus name should appear in desc
+                  final tokens = normBonus.split(RegExp(r"\s+"));
+                  return tokens.every((t) => t.isEmpty || desc.contains(t));
+                }
+
+                final filtered = list.where((e) {
+                  final brandOk =
+                      e.brand != null && norm(e.brand!) == normBrand;
+                  final descOk = descMatches(e.itemDesc);
+                  return descOk && brandOk && !isInvalidItemNum(e.itemNumber);
+                }).toList();
+                if (filtered.isNotEmpty) {
+                  resolvedBonusNumber = filtered.first.itemNumber;
+                } else if (list.isNotEmpty &&
+                    !isInvalidItemNum(list.first.itemNumber)) {
+                  // fallback to first valid from API
+                  resolvedBonusNumber = list.first.itemNumber;
+                } else {
+                  resolvedBonusNumber = item.product.id.toString();
+                }
+              } catch (_) {
+                resolvedBonusNumber = item.product.id.toString();
+              }
+            }
+
             detailsData.add({
-              'item_number': bonusItemNumber ?? item.product.id.toString(),
+              'item_number': resolvedBonusNumber,
               'desc_1': bonus.name,
               'desc_2': 'Bonus',
               'brand': item.product.brand,
               'unit_price': 0,
               'net_price': 0,
-              'qty': bonus.quantity * item.quantity,
+              'qty': bonus.quantity,
               'item_type': 'Bonus',
               'take_away': takeAwayString,
             });

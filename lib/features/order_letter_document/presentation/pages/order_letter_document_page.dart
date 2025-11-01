@@ -2071,6 +2071,8 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         }
 
         cartItems.add(CartEntity(
+          cartLineId:
+              'doc_${kasurDetail.id}_${i}_${DateTime.now().microsecondsSinceEpoch}',
           product: ProductEntity(
             id: kasurDetail.id, // This is the order_letter_detail_id we need
             area: '',

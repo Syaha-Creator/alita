@@ -124,6 +124,7 @@ class EnhancedCheckoutService {
 
       // Buat cart item baru dengan product yang sudah di-mapping
       final mappedCartItem = CartEntity(
+        cartLineId: originalItem.cartLineId,
         product: mappedProduct,
         quantity: originalItem.quantity,
         netPrice: originalItem.netPrice,
@@ -132,6 +133,8 @@ class EnhancedCheckoutService {
         installmentPerMonth: originalItem.installmentPerMonth,
         isSelected: originalItem.isSelected,
         bonusTakeAway: originalItem.bonusTakeAway,
+        selectedItemNumbers: originalItem.selectedItemNumbers,
+        selectedItemNumbersPerUnit: originalItem.selectedItemNumbersPerUnit,
       );
 
       mappedCartItems.add(mappedCartItem);
