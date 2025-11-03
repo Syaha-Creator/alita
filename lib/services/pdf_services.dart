@@ -5,6 +5,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:printing/printing.dart';
 
 import '../config/app_constant.dart';
 import '../core/utils/format_helper.dart';
@@ -1147,6 +1148,17 @@ class PDFService {
       );
     } catch (e) {
       throw Exception('Failed to share PDF: $e');
+    }
+  }
+
+  /// Print PDF langsung ke printer.
+  static Future<void> printPDF(Uint8List pdfBytes, String fileName) async {
+    try {
+      await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => pdfBytes,
+      );
+    } catch (e) {
+      throw Exception('Failed to print PDF: $e');
     }
   }
 }

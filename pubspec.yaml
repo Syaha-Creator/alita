@@ -3,7 +3,7 @@ description: "Alita Price List"
 
 publish_to: 'none'
 
-version: 1.5.7+22
+version: 1.6.0+23
 environment:
   sdk: ^3.6.1
 
@@ -43,7 +43,6 @@ dependencies:
   url_launcher: ^6.3.1
   googleapis_auth: ^1.4.1
   image: ^4.1.7
-  upgrader: ^10.3.0
 
 dev_dependencies:
   flutter_lints: ^5.0.0

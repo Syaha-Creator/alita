@@ -2225,7 +2225,6 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         showApprovalColumn: showApprovalColumn,
       );
 
-      // Save and share PDF with proper positioning for iOS
       final pdfType = showApprovalColumn ? 'Approval' : 'Customer';
       final fileName =
           '${_document!.customerName}_${_document!.noSp}_$pdfType.pdf';

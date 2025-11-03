@@ -16,7 +16,6 @@ import 'services/auth_service.dart';
 // import 'services/core_notification_service.dart';
 import 'theme/app_theme.dart';
 import 'firebase_options.dart';
-import 'package:upgrader/upgrader.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -62,15 +61,13 @@ class MyApp extends StatelessWidget {
       child: ValueListenableBuilder<bool>(
         valueListenable: AuthService.authChangeNotifier,
         builder: (context, isLoggedIn, child) {
-          return UpgradeAlert(
-            child: MaterialApp.router(
-              debugShowCheckedModeBanner: false,
-              title: 'Alita Pricelist',
-              routerConfig: AppRouter.router,
-              theme: AppTheme.lightTheme,
-              darkTheme: AppTheme.darkTheme,
-              themeMode: ThemeMode.system,
-            ),
+          return MaterialApp.router(
+            debugShowCheckedModeBanner: false,
+            title: 'Alita Pricelist',
+            routerConfig: AppRouter.router,
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: ThemeMode.system,
           );
         },
       ),
