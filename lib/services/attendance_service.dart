@@ -161,18 +161,59 @@ class AttendanceService {
         };
       }
 
-      // Get today's date
+      // Get today's date in local timezone
       final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+
+      // Also get today string for string comparison (fallback)
       final todayString =
           '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+      print('AttendanceService: Looking for attendance on date: $todayString');
+      print(
+          'AttendanceService: Total attendance records: ${attendanceList.length}');
 
       // Find today's attendance
       Map<String, dynamic>? todayAttendance;
       for (var attendance in attendanceList) {
         final attendanceInStr = attendance['attendance_in'] as String?;
-        if (attendanceInStr != null && attendanceInStr.contains(todayString)) {
-          todayAttendance = attendance;
-          break;
+
+        if (attendanceInStr == null || attendanceInStr.isEmpty) {
+          continue;
+        }
+
+        print('AttendanceService: Checking attendance_in: $attendanceInStr');
+
+        // Try parsing as DateTime first (more accurate)
+        DateTime? attendanceDate;
+        try {
+          attendanceDate = DateTime.parse(attendanceInStr);
+          // Convert to local date only (ignore time)
+          final attendanceDateOnly = DateTime(
+            attendanceDate.year,
+            attendanceDate.month,
+            attendanceDate.day,
+          );
+
+          // Compare dates (year, month, day only)
+          if (attendanceDateOnly.year == today.year &&
+              attendanceDateOnly.month == today.month &&
+              attendanceDateOnly.day == today.day) {
+            print(
+                'AttendanceService: Found today attendance via date comparison');
+            todayAttendance = attendance;
+            break;
+          }
+        } catch (e) {
+          // If parsing fails, fall back to string contains
+          print(
+              'AttendanceService: Failed to parse date, using string comparison: $e');
+          if (attendanceInStr.contains(todayString)) {
+            print(
+                'AttendanceService: Found today attendance via string comparison');
+            todayAttendance = attendance;
+            break;
+          }
         }
       }
 

@@ -25,7 +25,7 @@ class ApprovalMonitoringPage extends StatefulWidget {
 }
 
 class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   String _selectedFilter = 'All';
   final List<String> _filterOptions = [
     'All',
@@ -65,9 +65,14 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
   // Flag to prevent duplicate initial load
   bool _hasInitialLoadCompleted = false;
 
+  // Track previous app lifecycle state to detect resume from background
+  AppLifecycleState? _previousLifecycleState;
+
   @override
   void initState() {
     super.initState();
+    // Add lifecycle observer
+    WidgetsBinding.instance.addObserver(this);
     _initializeAnimations();
     _loadUserInfo();
     _loadApprovalsWithCache();
@@ -149,9 +154,35 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
 
   @override
   void dispose() {
+    // Remove lifecycle observer
+    WidgetsBinding.instance.removeObserver(this);
     _mainController.dispose();
     _backgroundSyncTimer?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    // When app resumes from background/paused/terminated, refresh approval data
+    if (state == AppLifecycleState.resumed) {
+      if (_previousLifecycleState != null &&
+          _previousLifecycleState != AppLifecycleState.resumed) {
+        _refreshApprovalsOnResume();
+      }
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached) {}
+
+    // Update previous state
+    _previousLifecycleState = state;
+  }
+
+  /// Refresh approvals when app resumes from background
+  void _refreshApprovalsOnResume() {
+    if (!mounted) return;
+    _loadApprovals(forceRefresh: true);
   }
 
   Future<void> _loadUserInfo() async {
@@ -204,6 +235,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
     final cacheStats = ApprovalCache.getCacheStats();
     final cacheTimestamp = cacheStats['approval_cache_timestamp'] as String?;
 
+    bool shouldForceRefresh = false;
     if (cachedApprovals != null &&
         cachedApprovals.isNotEmpty &&
         cacheTimestamp != null) {
@@ -212,12 +244,11 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
         final now = DateTime.now();
         final difference = now.difference(cacheTime);
 
-        // If cache is less than 2 minutes old, use cache immediately and check for new data
-        if (difference.inMinutes < 2) {
-          // Use cached data immediately (repository will return cached data)
+        if (difference.inSeconds > 30) {
+          shouldForceRefresh = true;
+        } else {
           context.read<ApprovalBloc>().add(LoadApprovals());
 
-          // Check for status updates after a short delay
           Future.delayed(const Duration(milliseconds: 1000), () {
             if (mounted) {
               setState(() {
@@ -242,11 +273,18 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
           stopwatch.stop();
           return;
         }
+      } else {
+        shouldForceRefresh = true;
       }
+    } else {
+      shouldForceRefresh = true;
     }
 
-    // No cache or cache is old, do normal load (repository will handle caching)
-    context.read<ApprovalBloc>().add(LoadApprovals());
+    if (shouldForceRefresh) {
+      _loadApprovals(forceRefresh: true);
+    } else {
+      context.read<ApprovalBloc>().add(LoadApprovals());
+    }
     stopwatch.stop();
   }
 

@@ -74,9 +74,11 @@ class PDFService {
     ];
 
     // Hitung subtotal dan PPN dari grandTotal
-    // Asumsi: grandTotal sudah termasuk PPN 11%
-    final subtotal = grandTotal / 1.11; // Subtotal sebelum PPN
-    final ppn = grandTotal - subtotal; // PPN 11% dari subtotal
+    final subtotal = ((grandTotal / 1.11) * 100).roundToDouble() /
+        100; // Subtotal sebelum PPN (dibulatkan 2 desimal)
+    final ppn = ((grandTotal - subtotal) * 100).roundToDouble() /
+        100; // PPN (dibulatkan 2 desimal)
+    final grandTotalWithPPN = grandTotal;
     // Hitung total EUP semua item (untuk proporsi harga net)
     final selectedItems = cartItems.where((item) => item.isSelected).toList();
     final totalEup = selectedItems.fold<double>(
@@ -147,13 +149,14 @@ class PDFService {
           pw.SizedBox(height: 12),
           _buildItemsTable(cartItems, subtotal, totalEup,
               orderLetterExtendedAmount: orderLetterExtendedAmount,
-              discountData: discountData),
+              discountData: discountData,
+              showApprovalColumn: showApprovalColumn),
           pw.SizedBox(height: 8),
           _buildNotesAndTotals(
             keterangan: keterangan ?? '-',
             subtotal: subtotal,
             ppn: ppn,
-            grandTotal: grandTotal,
+            grandTotal: grandTotalWithPPN,
             paymentMethod: paymentMethod,
             paymentAmount: paymentAmount,
             repaymentDate: repaymentDate,
@@ -523,7 +526,8 @@ class PDFService {
   static pw.Widget _buildItemsTable(
       List<CartEntity> items, double subtotal, double totalEup,
       {double? orderLetterExtendedAmount,
-      List<Map<String, dynamic>>? discountData}) {
+      List<Map<String, dynamic>>? discountData,
+      bool showApprovalColumn = false}) {
     const tableHeaders = [
       'BRAND',
       'ORDER',
@@ -557,11 +561,13 @@ class PDFService {
     for (var item in items) {
       final product = item.product;
 
+      // Product key untuk mencari discount data (sama untuk semua kondisi)
+      final productKey = '${product.kasur}_${product.ukuran}';
+
       // Jika ada order letter extended amount, gunakan perhitungan yang sesuai
       if (orderLetterExtendedAmount != null && orderLetterExtendedAmount > 0) {
         // Calculate original pricelist from unit_price using discount data
         // Use product description as key (same format as order letter document)
-        final productKey = '${product.kasur}_${product.ukuran}';
 
         double kasurPricelistPerUnit = _calculateOriginalPricelistByProductKey(
           item.netPrice,
@@ -590,8 +596,9 @@ class PDFService {
                 align: pw.TextAlign.center),
             _buildTableCell(FormatHelper.formatCurrency(kasurPricelist),
                 align: pw.TextAlign.right),
-            _buildTableCell(FormatHelper.formatCurrency(kasurDiscount),
-                align: pw.TextAlign.right),
+            _buildDiscountCell(kasurDiscount, productKey, discountData,
+                align: pw.TextAlign.right,
+                showApprovalColumn: showApprovalColumn),
             _buildTableCell(FormatHelper.formatCurrency(kasurNet),
                 align: pw.TextAlign.right),
           ],
@@ -613,8 +620,9 @@ class PDFService {
                 align: pw.TextAlign.center),
             _buildTableCell(FormatHelper.formatCurrency(kasurPricelist),
                 align: pw.TextAlign.right),
-            _buildTableCell(FormatHelper.formatCurrency(kasurDiscount),
-                align: pw.TextAlign.right),
+            _buildDiscountCell(kasurDiscount, productKey, discountData,
+                align: pw.TextAlign.right,
+                showApprovalColumn: showApprovalColumn),
             _buildTableCell(FormatHelper.formatCurrency(kasurNet),
                 align: pw.TextAlign.right),
           ],
@@ -632,8 +640,9 @@ class PDFService {
           _buildTableCell(item.quantity.toString(), align: pw.TextAlign.center),
           _buildTableCell(FormatHelper.formatCurrency(divanPricelist),
               align: pw.TextAlign.right),
-          _buildTableCell(FormatHelper.formatCurrency(divanDiscount),
-              align: pw.TextAlign.right),
+          _buildDiscountCell(divanDiscount, null, discountData,
+              align: pw.TextAlign.right,
+              showApprovalColumn: showApprovalColumn),
           _buildTableCell(FormatHelper.formatCurrency(divanNet),
               align: pw.TextAlign.right),
         ];
@@ -653,8 +662,9 @@ class PDFService {
           _buildTableCell(item.quantity.toString(), align: pw.TextAlign.center),
           _buildTableCell(FormatHelper.formatCurrency(headboardPricelist),
               align: pw.TextAlign.right),
-          _buildTableCell(FormatHelper.formatCurrency(headboardDiscount),
-              align: pw.TextAlign.right),
+          _buildDiscountCell(headboardDiscount, null, discountData,
+              align: pw.TextAlign.right,
+              showApprovalColumn: showApprovalColumn),
           _buildTableCell(FormatHelper.formatCurrency(headboardNet),
               align: pw.TextAlign.right),
         ];
@@ -673,8 +683,9 @@ class PDFService {
           _buildTableCell(item.quantity.toString(), align: pw.TextAlign.center),
           _buildTableCell(FormatHelper.formatCurrency(sorongPricelist),
               align: pw.TextAlign.right),
-          _buildTableCell(FormatHelper.formatCurrency(sorongDiscount),
-              align: pw.TextAlign.right),
+          _buildDiscountCell(sorongDiscount, null, discountData,
+              align: pw.TextAlign.right,
+              showApprovalColumn: showApprovalColumn),
           _buildTableCell(FormatHelper.formatCurrency(sorongNet),
               align: pw.TextAlign.right),
         ];
@@ -772,6 +783,66 @@ class PDFService {
         text,
         style: const pw.TextStyle(fontSize: 8),
         textAlign: align,
+      ),
+    );
+  }
+
+  static pw.Widget _buildDiscountCell(double totalDiscount, String? productKey,
+      List<Map<String, dynamic>>? discountData,
+      {pw.TextAlign align = pw.TextAlign.right,
+      bool showApprovalColumn = false}) {
+    // Get discount details for this product
+    List<String> discountDetails = [];
+    if (productKey != null && discountData != null && discountData.isNotEmpty) {
+      final itemDiscounts = discountData.where((discount) {
+        final discountProductKey = discount['product_key'] as String?;
+        return discountProductKey == productKey;
+      }).toList();
+
+      // Sort by approver_level_id to ensure consistent order
+      itemDiscounts.sort((a, b) =>
+          (a['approver_level_id'] ?? 0).compareTo(b['approver_level_id'] ?? 0));
+
+      // Extract discount percentages
+      for (final discount in itemDiscounts) {
+        final discountPercentage = (discount['discount'] is String)
+            ? double.tryParse(discount['discount']) ?? 0.0
+            : (discount['discount'] ?? 0.0).toDouble();
+
+        if (discountPercentage > 0) {
+          // Format discount as percentage (if whole number, show as int, else with decimal)
+          if (discountPercentage % 1 == 0) {
+            discountDetails.add('${discountPercentage.toInt()}%');
+          } else {
+            discountDetails.add(
+                '${discountPercentage.toStringAsFixed(2).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '')}%');
+          }
+        }
+      }
+    }
+
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(4),
+      child: pw.Column(
+        crossAxisAlignment: align == pw.TextAlign.right
+            ? pw.CrossAxisAlignment.end
+            : pw.CrossAxisAlignment.start,
+        mainAxisSize: pw.MainAxisSize.min,
+        children: [
+          // Baris 1: Total discount
+          pw.Text(
+            FormatHelper.formatCurrency(totalDiscount),
+            style: const pw.TextStyle(fontSize: 8),
+            textAlign: align,
+          ),
+          // Baris 2: Detail discount (hanya untuk PDF approval)
+          if (showApprovalColumn && discountDetails.isNotEmpty)
+            pw.Text(
+              discountDetails.join(' + '),
+              style: const pw.TextStyle(fontSize: 6, color: PdfColors.grey700),
+              textAlign: align,
+            ),
+        ],
       ),
     );
   }

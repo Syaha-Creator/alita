@@ -159,6 +159,14 @@ class _DraftDetailPageState extends State<DraftDetailPage>
         };
       }).toList();
 
+      // Preserve the original savedAt to find the draft in SharedPreferences
+      final originalSavedAt = widget.draft['savedAt'] as String?;
+      if (originalSavedAt == null) {
+        CustomToast.showToast(
+            'Gagal menyimpan draft: Data tidak valid', ToastType.error);
+        return;
+      }
+
       final updatedDraft = {
         'customerName': _customerNameController.text,
         'customerPhone': _customerPhoneController.text,
@@ -172,14 +180,31 @@ class _DraftDetailPageState extends State<DraftDetailPage>
         'selectedItems': selectedItems,
         'grandTotal': double.tryParse(_grandTotalController.text) ?? 0.0,
         'isTakeAway': _shippingSameAsCustomer,
-        'savedAt': DateTime.now().toIso8601String(),
+        'savedAt': originalSavedAt,
       };
 
-      if (widget.index < draftStrings.length) {
-        draftStrings[widget.index] = jsonEncode(updatedDraft);
+      // Find and update draft by savedAt (unique identifier) instead of index
+      int foundIndex = -1;
+      for (int i = 0; i < draftStrings.length; i++) {
+        try {
+          final draft = jsonDecode(draftStrings[i]) as Map<String, dynamic>;
+          if (draft['savedAt'] == originalSavedAt) {
+            foundIndex = i;
+            break;
+          }
+        } catch (e) {
+          // Skip invalid draft data
+          continue;
+        }
+      }
+
+      if (foundIndex != -1) {
+        draftStrings[foundIndex] = jsonEncode(updatedDraft);
         await prefs.setStringList(key, draftStrings);
         CustomToast.showToast('Draft berhasil diupdate', ToastType.success);
         Navigator.pop(context);
+      } else {
+        CustomToast.showToast('Draft tidak ditemukan', ToastType.error);
       }
     } catch (e) {
       CustomToast.showToast('Gagal menyimpan draft: $e', ToastType.error);

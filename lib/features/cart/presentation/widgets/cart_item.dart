@@ -1690,26 +1690,26 @@ class _CartInfoDialogState extends State<CartInfoDialog> {
     if (_leaderData != null) {
       switch (discountLevel) {
         case 1:
-          levelText = "Diskon 1";
+          levelText = "Diskon SPG";
           break;
         case 2:
           if (_leaderData!.directLeader != null) {
-            levelText = "Diskon 2";
+            levelText = "Diskon SPV";
           }
           break;
         case 3:
           if (_leaderData!.indirectLeader != null) {
-            levelText = "Diskon 3";
+            levelText = "Diskon RSM";
           }
           break;
         case 4:
           if (_leaderData!.analyst1 != null) {
-            levelText = "Diskon 4";
+            levelText = "Diskon Analyst";
           }
           break;
         case 5:
           if (_leaderData!.analyst2 != null) {
-            levelText = "Diskon 5";
+            levelText = "Diskon Analyst";
           }
           break;
       }

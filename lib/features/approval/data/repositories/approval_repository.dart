@@ -81,13 +81,26 @@ class ApprovalRepository {
 
       final List<ApprovalEntity> approvals = [];
 
-      for (final orderLetter in filteredOrderLetters) {
+      // Process order letters in parallel for better performance
+      final approvalFutures = filteredOrderLetters.map((orderLetter) async {
         final orderLetterId = orderLetter['id'];
         final noSp = orderLetter['no_sp'];
 
-        // Get details for this order letter
-        final allDetails = await _orderLetterService.getOrderLetterDetails(
-            orderLetterId: orderLetterId);
+        // Make parallel API calls for details, discounts, and approvals
+        final futures = [
+          _orderLetterService.getOrderLetterDetails(
+              orderLetterId: orderLetterId),
+          _orderLetterService.getOrderLetterDiscounts(
+              orderLetterId: orderLetterId),
+          _orderLetterService.getOrderLetterApproves(
+              orderLetterId: orderLetterId),
+        ];
+
+        // Wait for all API calls in parallel
+        final results = await Future.wait(futures);
+        final allDetails = results[0];
+        final allDiscounts = results[1];
+        final allApprovalHistory = results[2];
 
         // Filter details that belong to this specific order letter
         final details = allDetails
@@ -111,10 +124,6 @@ class ApprovalRepository {
           }
         }
 
-        // Get discounts for this order letter
-        final allDiscounts = await _orderLetterService.getOrderLetterDiscounts(
-            orderLetterId: orderLetterId);
-
         // Filter discounts that belong to this specific order letter
         final apiDiscounts = allDiscounts
             .where((discount) => discount['order_letter_id'] == orderLetterId)
@@ -122,10 +131,6 @@ class ApprovalRepository {
 
         // Combine extracted discounts with API discounts
         final discounts = [...extractedDiscounts, ...apiDiscounts];
-
-        // Get approval history for this order letter
-        final allApprovalHistory = await _orderLetterService
-            .getOrderLetterApproves(orderLetterId: orderLetterId);
 
         // Filter approval history that belongs to this specific order letter
         final approvalHistory = allApprovalHistory
@@ -140,8 +145,11 @@ class ApprovalRepository {
           'approval_history': approvalHistory,
         });
 
-        approvals.add(approval);
-      }
+        return approval;
+      }).toList();
+
+      // Wait for all order letters to be processed
+      approvals.addAll(await Future.wait(approvalFutures));
 
       // Sort approvals by creation time (newest first) with improved date parsing
       approvals.sort((a, b) {
@@ -785,28 +793,58 @@ class ApprovalRepository {
         }
 
         // If data is not included, fall back to individual API calls for this order letter
-        if (details.isEmpty) {
-          final allDetails = await _orderLetterService.getOrderLetterDetails(
-              orderLetterId: orderLetterId);
-          details = allDetails
-              .where((detail) => detail['order_letter_id'] == orderLetterId)
-              .toList();
-        }
+        // Use parallel calls for better performance
+        if (details.isEmpty || discounts.isEmpty || approvalHistory.isEmpty) {
+          final futures = <Future>[];
 
-        if (discounts.isEmpty) {
-          final allDiscounts = await _orderLetterService
-              .getOrderLetterDiscounts(orderLetterId: orderLetterId);
-          discounts = allDiscounts
-              .where((discount) => discount['order_letter_id'] == orderLetterId)
-              .toList();
-        }
+          Future<List<Map<String, dynamic>>>? detailsFuture;
+          Future<List<Map<String, dynamic>>>? discountsFuture;
+          Future<List<Map<String, dynamic>>>? approvalHistoryFuture;
 
-        if (approvalHistory.isEmpty) {
-          final allApprovalHistory = await _orderLetterService
-              .getOrderLetterApproves(orderLetterId: orderLetterId);
-          approvalHistory = allApprovalHistory
-              .where((approval) => approval['order_letter_id'] == orderLetterId)
-              .toList();
+          if (details.isEmpty) {
+            detailsFuture = _orderLetterService.getOrderLetterDetails(
+                orderLetterId: orderLetterId);
+            futures.add(detailsFuture);
+          }
+
+          if (discounts.isEmpty) {
+            discountsFuture = _orderLetterService.getOrderLetterDiscounts(
+                orderLetterId: orderLetterId);
+            futures.add(discountsFuture);
+          }
+
+          if (approvalHistory.isEmpty) {
+            approvalHistoryFuture = _orderLetterService.getOrderLetterApproves(
+                orderLetterId: orderLetterId);
+            futures.add(approvalHistoryFuture);
+          }
+
+          // Wait for all API calls in parallel
+          await Future.wait(futures);
+
+          // Process results
+          if (details.isEmpty && detailsFuture != null) {
+            final allDetails = await detailsFuture;
+            details = allDetails
+                .where((detail) => detail['order_letter_id'] == orderLetterId)
+                .toList();
+          }
+
+          if (discounts.isEmpty && discountsFuture != null) {
+            final allDiscounts = await discountsFuture;
+            discounts = allDiscounts
+                .where(
+                    (discount) => discount['order_letter_id'] == orderLetterId)
+                .toList();
+          }
+
+          if (approvalHistory.isEmpty && approvalHistoryFuture != null) {
+            final allApprovalHistory = await approvalHistoryFuture;
+            approvalHistory = allApprovalHistory
+                .where(
+                    (approval) => approval['order_letter_id'] == orderLetterId)
+                .toList();
+          }
         }
 
         // Create approval model

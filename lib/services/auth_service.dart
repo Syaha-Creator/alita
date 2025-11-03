@@ -3,8 +3,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import '../config/api_config.dart';
 import '../config/app_constant.dart';
+import '../config/dependency_injection.dart';
 import '../features/approval/data/cache/approval_cache.dart';
 import 'cart_storage_service.dart';
+import 'team_hierarchy_service.dart';
 
 /// Service untuk autentikasi, penyimpanan token, dan session user.
 class AuthService {
@@ -253,6 +255,10 @@ class AuthService {
 
       // Clear cart storage (optional but recommended for clean logout)
       CartStorageService.clearCart();
+
+      // Clear team hierarchy cache
+      final teamHierarchyService = locator<TeamHierarchyService>();
+      teamHierarchyService.clearCache();
 
       // Add other cache clearing here if needed in the future
       // Example: ProductCache.clear(), DraftCache.clear(), etc.

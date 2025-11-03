@@ -97,6 +97,18 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
 
   Future<void> _deleteDraft(int index) async {
     try {
+      // Get the draft at this index to find its unique identifier
+      if (index < 0 || index >= _drafts.length) return;
+
+      final draftToDelete = _drafts[index];
+      final savedAt = draftToDelete['savedAt'] as String?;
+
+      if (savedAt == null) {
+        CustomToast.showToast(
+            'Gagal menghapus draft: Data tidak valid', ToastType.error);
+        return;
+      }
+
       final prefs = await SharedPreferences.getInstance();
       final userId = await AuthService.getCurrentUserId();
       if (userId == null) return;
@@ -104,11 +116,28 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
       final key = 'checkout_drafts_$userId';
       final draftStrings = prefs.getStringList(key) ?? [];
 
-      if (index < draftStrings.length) {
-        draftStrings.removeAt(index);
+      // Find and remove draft by savedAt (unique identifier) instead of index
+      int foundIndex = -1;
+      for (int i = 0; i < draftStrings.length; i++) {
+        try {
+          final draft = jsonDecode(draftStrings[i]) as Map<String, dynamic>;
+          if (draft['savedAt'] == savedAt) {
+            foundIndex = i;
+            break;
+          }
+        } catch (e) {
+          // Skip invalid draft data
+          continue;
+        }
+      }
+
+      if (foundIndex != -1) {
+        draftStrings.removeAt(foundIndex);
         await prefs.setStringList(key, draftStrings);
         await _loadDrafts();
         CustomToast.showToast('Draft berhasil dihapus', ToastType.success);
+      } else {
+        CustomToast.showToast('Draft tidak ditemukan', ToastType.error);
       }
     } catch (e) {
       CustomToast.showToast('Gagal menghapus draft: $e', ToastType.error);
@@ -379,7 +408,10 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
     final customerName = draft['customerName'] as String? ?? 'Unknown';
     final customerPhone = draft['customerPhone'] as String? ?? '';
     final grandTotal = draft['grandTotal'] as double? ?? 0.0;
-    final savedAt = DateTime.parse(draft['savedAt'] as String);
+    final savedAtString = draft['savedAt'] as String? ?? '';
+    final savedAt = savedAtString.isNotEmpty
+        ? DateTime.parse(savedAtString)
+        : DateTime.now();
     final items = (draft['selectedItems'] as List<dynamic>?) ?? [];
     final status = _getDraftStatus(draft);
 
@@ -397,8 +429,12 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
       }
     }
 
+    // Use savedAt as unique key instead of index to prevent bugs when list changes
+    final uniqueKey =
+        savedAtString.isNotEmpty ? savedAtString : 'unknown_$index';
+
     return Dismissible(
-      key: Key('draft_$index'),
+      key: Key('draft_$uniqueKey'),
       direction: DismissDirection.endToStart,
       background: Container(
         margin: const EdgeInsets.only(bottom: 16),

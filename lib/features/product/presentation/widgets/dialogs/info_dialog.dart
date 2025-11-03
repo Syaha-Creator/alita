@@ -173,26 +173,26 @@ class _InfoDialogState extends State<InfoDialog> {
     if (_leaderData != null) {
       switch (discountLevel) {
         case 1:
-          levelText = "Diskon 1";
+          levelText = "Diskon SPG";
           break;
         case 2:
           if (_leaderData!.directLeader != null) {
-            levelText = "Diskon 2";
+            levelText = "Diskon SPV";
           }
           break;
         case 3:
           if (_leaderData!.indirectLeader != null) {
-            levelText = "Diskon 3";
+            levelText = "Diskon RSM";
           }
           break;
         case 4:
           if (_leaderData!.analyst1 != null) {
-            levelText = "Diskon 4";
+            levelText = "Diskon Analyst";
           }
           break;
         case 5:
           if (_leaderData!.analyst2 != null) {
-            levelText = "Diskon 5";
+            levelText = "Diskon Analyst";
           }
           break;
       }
@@ -244,8 +244,10 @@ class _InfoDialogState extends State<InfoDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text("Input Diskon",
-                style: const TextStyle(fontFamily: 'Inter',
-                    fontSize: 20, fontWeight: FontWeight.bold)),
+                style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
 
             // Konten di dalam SingleChildScrollView agar tidak overflow
