@@ -54,7 +54,7 @@ class QuantityControl extends StatelessWidget {
       {String? tooltip}) {
     return Material(
       shape: const CircleBorder(),
-      color: color.withOpacity(0.1),
+      color: color.withValues(alpha: 0.1),
       child: InkResponse(
         onTap: onTap,
         radius: 20,

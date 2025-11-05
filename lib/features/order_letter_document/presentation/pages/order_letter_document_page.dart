@@ -198,18 +198,18 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
       foregroundColor: isDark ? colorScheme.onSurface : Colors.grey[800],
       elevation: 2,
       shadowColor: isDark
-          ? Colors.black.withOpacity(0.3)
-          : Colors.black.withOpacity(0.1),
+          ? Colors.black.withValues(alpha: 0.3)
+          : Colors.black.withValues(alpha: 0.1),
       toolbarHeight: 80,
       leading: IconButton(
         icon: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: isDark ? colorScheme.surfaceVariant : Colors.grey[100],
+            color: isDark ? colorScheme.surfaceContainerHighest : Colors.grey[100],
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
                 color: isDark
-                    ? colorScheme.outline.withOpacity(0.3)
+                    ? colorScheme.outline.withValues(alpha: 0.3)
                     : Colors.grey[200]!),
           ),
           child: Icon(Icons.arrow_back_ios_new,
@@ -227,7 +227,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                   color: isDark
-                      ? colorScheme.outline.withOpacity(0.3)
+                      ? colorScheme.outline.withValues(alpha: 0.3)
                       : Colors.blue[200]!),
             ),
             child: Icon(Icons.refresh,
@@ -252,7 +252,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                       color: isDark
-                          ? colorScheme.outline.withOpacity(0.3)
+                          ? colorScheme.outline.withValues(alpha: 0.3)
                           : Colors.blue[200]!),
                 ),
                 child: Row(
@@ -288,11 +288,11 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: _getStatusColor(_document!.status).withOpacity(0.1),
+                    color: _getStatusColor(_document!.status).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                         color: _getStatusColor(_document!.status)
-                            .withOpacity(0.3)),
+                            .withValues(alpha: 0.3)),
                   ),
                   child: Text(
                     _document!.status.toUpperCase(),
@@ -325,11 +325,11 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: isDark ? colorScheme.surfaceVariant : Colors.grey[50],
+            color: isDark ? colorScheme.surfaceContainerHighest : Colors.grey[50],
             border: Border(
               top: BorderSide(
                   color: isDark
-                      ? colorScheme.outline.withOpacity(0.2)
+                      ? colorScheme.outline.withValues(alpha: 0.2)
                       : Colors.grey[200]!),
             ),
           ),
@@ -347,7 +347,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                 width: 1,
                 height: 30,
                 color: isDark
-                    ? colorScheme.outline.withOpacity(0.3)
+                    ? colorScheme.outline.withValues(alpha: 0.3)
                     : Colors.grey[300],
                 margin: const EdgeInsets.symmetric(horizontal: 16),
               ),
@@ -382,10 +382,10 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: isDark ? colorScheme.surface : color.withOpacity(0.1),
+            color: isDark ? colorScheme.surface : color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
             border: isDark
-                ? Border.all(color: colorScheme.outline.withOpacity(0.2))
+                ? Border.all(color: colorScheme.outline.withValues(alpha: 0.2))
                 : null,
           ),
           child: Icon(
@@ -444,13 +444,13 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
                 color: isDark
-                    ? colorScheme.outline.withOpacity(0.2)
+                    ? colorScheme.outline.withValues(alpha: 0.2)
                     : Colors.grey[200]!),
             boxShadow: [
               BoxShadow(
                 color: isDark
-                    ? Colors.black.withOpacity(0.2)
-                    : Colors.grey.withOpacity(0.08),
+                    ? Colors.black.withValues(alpha: 0.2)
+                    : Colors.grey.withValues(alpha: 0.08),
                 spreadRadius: 1,
                 blurRadius: 6,
                 offset: const Offset(0, 2),
@@ -465,7 +465,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 decoration: BoxDecoration(
-                  color: isDark ? colorScheme.surfaceVariant : Colors.grey[50],
+                  color: isDark ? colorScheme.surfaceContainerHighest : Colors.grey[50],
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(12),
                     topRight: Radius.circular(12),
@@ -473,7 +473,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                   border: Border(
                       bottom: BorderSide(
                           color: isDark
-                              ? colorScheme.outline.withOpacity(0.2)
+                              ? colorScheme.outline.withValues(alpha: 0.2)
                               : Colors.grey[200]!)),
                 ),
                 child: Row(
@@ -546,13 +546,13 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
                 color: isDark
-                    ? colorScheme.outline.withOpacity(0.2)
+                    ? colorScheme.outline.withValues(alpha: 0.2)
                     : Colors.grey[200]!),
             boxShadow: [
               BoxShadow(
                 color: isDark
-                    ? Colors.black.withOpacity(0.2)
-                    : Colors.grey.withOpacity(0.08),
+                    ? Colors.black.withValues(alpha: 0.2)
+                    : Colors.grey.withValues(alpha: 0.08),
                 spreadRadius: 1,
                 blurRadius: 6,
                 offset: const Offset(0, 2),
@@ -571,13 +571,13 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
                 color: isDark
-                    ? colorScheme.outline.withOpacity(0.2)
+                    ? colorScheme.outline.withValues(alpha: 0.2)
                     : Colors.grey[200]!),
             boxShadow: [
               BoxShadow(
                 color: isDark
-                    ? Colors.black.withOpacity(0.2)
-                    : Colors.grey.withOpacity(0.08),
+                    ? Colors.black.withValues(alpha: 0.2)
+                    : Colors.grey.withValues(alpha: 0.08),
                 spreadRadius: 1,
                 blurRadius: 6,
                 offset: const Offset(0, 2),
@@ -596,13 +596,13 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
                 color: isDark
-                    ? colorScheme.outline.withOpacity(0.2)
+                    ? colorScheme.outline.withValues(alpha: 0.2)
                     : Colors.grey[200]!),
             boxShadow: [
               BoxShadow(
                 color: isDark
-                    ? Colors.black.withOpacity(0.2)
-                    : Colors.grey.withOpacity(0.08),
+                    ? Colors.black.withValues(alpha: 0.2)
+                    : Colors.grey.withValues(alpha: 0.08),
                 spreadRadius: 1,
                 blurRadius: 6,
                 offset: const Offset(0, 2),
@@ -632,13 +632,13 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
               color: isDark
-                  ? colorScheme.outline.withOpacity(0.2)
+                  ? colorScheme.outline.withValues(alpha: 0.2)
                   : Colors.grey[200]!),
           boxShadow: [
             BoxShadow(
               color: isDark
-                  ? Colors.black.withOpacity(0.2)
-                  : Colors.grey.withOpacity(0.08),
+                  ? Colors.black.withValues(alpha: 0.2)
+                  : Colors.grey.withValues(alpha: 0.08),
               spreadRadius: 1,
               blurRadius: 6,
               offset: const Offset(0, 2),
@@ -675,7 +675,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         border: Border.all(color: Colors.grey[200]!),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.08),
+            color: Colors.grey.withValues(alpha: 0.08),
             spreadRadius: 1,
             blurRadius: 6,
             offset: const Offset(0, 2),
@@ -691,7 +691,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             decoration: BoxDecoration(
               color: isDark
-                  ? colorScheme.surfaceVariant.withOpacity(0.3)
+                  ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
                   : Colors.blue[50],
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(12),
@@ -700,7 +700,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
               border: Border(
                 bottom: BorderSide(
                   color: isDark
-                      ? colorScheme.outline.withOpacity(0.2)
+                      ? colorScheme.outline.withValues(alpha: 0.2)
                       : Colors.blue[100]!,
                 ),
               ),
@@ -711,7 +711,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: isDark
-                        ? colorScheme.primary.withOpacity(0.15)
+                        ? colorScheme.primary.withValues(alpha: 0.15)
                         : Colors.blue[100],
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -736,7 +736,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: isDark
-                        ? colorScheme.primary.withOpacity(0.15)
+                        ? colorScheme.primary.withValues(alpha: 0.15)
                         : Colors.blue[100],
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -804,23 +804,13 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                   d.desc2.toString().contains(kasurDetail.desc2.toString())))
           .toList();
 
-      // Method 4: Show all non-kasur, non-bonus items
-      var allAccessories = details
-          .where((d) => d.itemType != 'kasur' && d.itemType != 'Bonus')
-          .toList();
-
       // Gunakan method yang paling banyak hasilnya
       if (accessories3.isNotEmpty) {
         relatedAccessories = accessories3;
-        print('Using Method 3: ${relatedAccessories.length} accessories');
       } else if (accessories2.isNotEmpty) {
         relatedAccessories = accessories2;
-        print('Using Method 2: ${relatedAccessories.length} accessories');
       } else if (accessories1.isNotEmpty) {
         relatedAccessories = accessories1;
-        print('Using Method 1: ${relatedAccessories.length} accessories');
-      } else {
-        print('No accessories found with any method!');
       }
 
       // Cari bonus yang terkait dengan kasur ini berdasarkan urutan item
@@ -853,15 +843,6 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         }
       }
 
-      final allBonus = details.where((d) => d.itemType == 'Bonus').toList();
-      final bonusLower = details.where((d) => d.itemType == 'bonus').toList();
-      final bonusUpper = details.where((d) => d.itemType == 'Bonus').toList();
-      final bonusAny = details
-          .where((d) => d.itemType.toString().toLowerCase() == 'bonus')
-          .toList();
-
-      final allItemTypes = details.map((d) => d.itemType).toSet().toList();
-
       cards.add(_buildOrderItemCard(
         kasurIndex: kasurIndex,
         kasurDetail: kasurDetail,
@@ -882,9 +863,6 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final colorScheme = theme.colorScheme;
-    final pricelist = kasurDetail.unitPrice * kasurDetail.qty;
-    final nett = _document!.extendedAmount;
-    final discount = pricelist - nett;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -893,13 +871,13 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
             color: isDark
-                ? colorScheme.outline.withOpacity(0.2)
+                ? colorScheme.outline.withValues(alpha: 0.2)
                 : Colors.grey[200]!),
         boxShadow: [
           BoxShadow(
             color: isDark
-                ? Colors.black.withOpacity(0.2)
-                : Colors.grey.withOpacity(0.08),
+                ? Colors.black.withValues(alpha: 0.2)
+                : Colors.grey.withValues(alpha: 0.08),
             spreadRadius: 1,
             blurRadius: 4,
             offset: const Offset(0, 2),
@@ -963,7 +941,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                       const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                   decoration: BoxDecoration(
                     color:
-                        isDark ? colorScheme.surfaceVariant : Colors.grey[100],
+                        isDark ? colorScheme.surfaceContainerHighest : Colors.grey[100],
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -1068,14 +1046,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
     // Get discounts directly from the kasur detail
     final kasurDiscounts = kasurDetail.discounts;
 
-    print(
-        'Kasur: ${kasurDetail.desc1} ${kasurDetail.desc2} (ID: ${kasurDetail.id}) - Found ${kasurDiscounts.length} discounts');
-
-    // Log discount values for debugging
-    for (final discount in kasurDiscounts) {
-      print(
-          '  - Discount ${discount.approverLevelId}: ${discount.discount}% (${discount.approverLevel})');
-    }
+    // Discount information logged for debugging if needed
 
     if (kasurDiscounts.isEmpty) {
       return const SizedBox.shrink();
@@ -1087,11 +1058,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
       return discount.discount > 0.0;
     }).toList();
 
-    print(
-        'Filtered discounts: ${filteredDiscounts.length} out of ${kasurDiscounts.length}');
-
     if (filteredDiscounts.isEmpty) {
-      print('No valid discounts to display - hiding discount section');
       return const SizedBox.shrink();
     }
 
@@ -1152,7 +1119,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: isDark ? Colors.grey[800] : Colors.grey[50],
-              border: Border.all(color: statusColor.withOpacity(0.3)),
+              border: Border.all(color: statusColor.withValues(alpha: 0.3)),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Row(
@@ -1292,7 +1259,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           decoration: BoxDecoration(
             color: isDark
-                ? colorScheme.surfaceVariant.withOpacity(0.3)
+                ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
                 : Colors.green[50],
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(12),
@@ -1301,7 +1268,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
             border: Border(
               bottom: BorderSide(
                 color: isDark
-                    ? colorScheme.outline.withOpacity(0.2)
+                    ? colorScheme.outline.withValues(alpha: 0.2)
                     : Colors.green[100]!,
               ),
             ),
@@ -1312,7 +1279,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: isDark
-                      ? colorScheme.primary.withOpacity(0.15)
+                      ? colorScheme.primary.withValues(alpha: 0.15)
                       : Colors.green[100],
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -1363,7 +1330,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                 Container(
                   height: 1,
                   color: isDark
-                      ? colorScheme.outline.withOpacity(0.3)
+                      ? colorScheme.outline.withValues(alpha: 0.3)
                       : Colors.grey[300],
                 ),
                 const SizedBox(height: 12),
@@ -1389,7 +1356,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                       color: isDark
-                          ? colorScheme.outline.withOpacity(0.3)
+                          ? colorScheme.outline.withValues(alpha: 0.3)
                           : Colors.blue[200]!),
                 ),
                 child: Row(
@@ -1442,13 +1409,13 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
       decoration: BoxDecoration(
         color: isDark
             ? (isTotal
-                ? colorScheme.surfaceVariant.withOpacity(0.25)
-                : colorScheme.surfaceVariant.withOpacity(0.2))
+                ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.25)
+                : colorScheme.surfaceContainerHighest.withValues(alpha: 0.2))
             : (isTotal ? Colors.green[50] : Colors.grey[50]),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: isDark
-              ? colorScheme.outline.withOpacity(0.2)
+              ? colorScheme.outline.withValues(alpha: 0.2)
               : (isTotal ? Colors.green[200]! : Colors.grey[200]!),
           width: isTotal ? 2 : 1,
         ),
@@ -1492,7 +1459,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                         const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: isDark
-                          ? AppColors.error.withOpacity(0.15)
+                          ? AppColors.error.withValues(alpha: 0.15)
                           : Colors.red[100],
                       borderRadius: BorderRadius.circular(4),
                     ),
@@ -1554,7 +1521,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           decoration: BoxDecoration(
             color: isDark
-                ? colorScheme.surfaceVariant.withOpacity(0.3)
+                ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
                 : Colors.orange[50],
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(12),
@@ -1563,7 +1530,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
             border: Border(
               bottom: BorderSide(
                 color: isDark
-                    ? colorScheme.outline.withOpacity(0.2)
+                    ? colorScheme.outline.withValues(alpha: 0.2)
                     : Colors.orange[100]!,
               ),
             ),
@@ -1574,7 +1541,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: isDark
-                      ? colorScheme.primary.withOpacity(0.15)
+                      ? colorScheme.primary.withValues(alpha: 0.15)
                       : Colors.orange[100],
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -1673,7 +1640,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isDark
-                  ? colorScheme.outline.withOpacity(0.2)
+                  ? colorScheme.outline.withValues(alpha: 0.2)
                   : Colors.grey[200]!,
             ),
           ),
@@ -1871,8 +1838,6 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
       });
 
       final currentUserId = await AuthService.getCurrentUserId();
-      final currentUserName = await AuthService.getCurrentUserName() ?? '';
-
       if (currentUserId == null) {
         _showErrorSnackBar('User information not available');
         return;
@@ -2001,7 +1966,6 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
 
       for (int i = 0; i < kasurDetails.length; i++) {
         final kasurDetail = kasurDetails[i];
-        final kasurIndex = i + 1;
 
         // Find position of this kasur in the details list
         final kasurIndexInDetails = _document!.details.indexWhere((d) =>
@@ -2110,13 +2074,6 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
           isSelected: true,
         ));
       }
-
-      // Validate total calculation
-      final calculatedTotal = cartItems.fold<double>(
-          0.0, (sum, item) => sum + (item.netPrice * item.quantity));
-
-      // Use extended amount from order letter as grand total
-      final grandTotal = _document!.extendedAmount;
 
       // Convert approval data to format expected by PDF service
       final approvalData =
@@ -2230,6 +2187,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
           '${_document!.customerName}_${_document!.noSp}_$pdfType.pdf';
 
       // Get the render box for proper positioning on iOS
+      if (!buttonContext.mounted) return;
       final RenderBox? box = buttonContext.findRenderObject() as RenderBox?;
       final Rect sharePositionOrigin = box != null
           ? box.localToGlobal(Offset.zero) & box.size
@@ -2240,20 +2198,24 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
           pdfBytes, fileName, sharePositionOrigin);
 
       // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('PDF berhasil dibuat dan dibagikan!'),
           backgroundColor: Colors.green,
         ),
       );
+      }
     } catch (e) {
       // Show error message
-      ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: $e'),
           backgroundColor: Colors.red,
         ),
       );
+      }
     }
   }
 
@@ -2299,11 +2261,11 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
           height: 40,
           decoration: BoxDecoration(
             color: isDark
-                ? colorScheme.surfaceVariant
-                : iconColor.withOpacity(0.1),
+                ? colorScheme.surfaceContainerHighest
+                : iconColor.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
             border: isDark
-                ? Border.all(color: colorScheme.outline.withOpacity(0.2))
+                ? Border.all(color: colorScheme.outline.withValues(alpha: 0.2))
                 : null,
           ),
           child: Icon(

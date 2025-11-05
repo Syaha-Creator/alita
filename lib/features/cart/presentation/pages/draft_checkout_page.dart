@@ -179,25 +179,6 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
 
   Future<void> _sharePDF(Map<String, dynamic> draft) async {
     try {
-      final items = (draft['selectedItems'] as List<dynamic>?)
-              ?.map((item) => item as Map<String, dynamic>)
-              .toList() ??
-          [];
-
-      // Convert items to CartEntity format for PDF generation
-      final cartItems = items.map((item) {
-        final product = item['product'] as Map<String, dynamic>;
-        final quantity = item['quantity'] as int? ?? 1;
-        final netPrice = item['netPrice'] as double? ?? 0.0;
-
-        // Create a simple CartEntity-like structure
-        return {
-          'product': product,
-          'quantity': quantity,
-          'netPrice': netPrice,
-        };
-      }).toList();
-
       // For now, we'll skip PDF generation for drafts and just show a message
       CustomToast.showToast(
           'Fitur PDF untuk draft akan segera hadir', ToastType.info);
@@ -249,21 +230,21 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
         'status': 'Expired',
         'color': AppColors.error,
         'icon': Icons.schedule_rounded,
-        'bgColor': AppColors.error.withOpacity(0.1),
+        'bgColor': AppColors.error.withValues(alpha: 0.1),
       };
     } else if (difference.inDays > 3) {
       return {
         'status': 'Pending',
         'color': AppColors.warning,
         'icon': Icons.pending_rounded,
-        'bgColor': AppColors.warning.withOpacity(0.1),
+        'bgColor': AppColors.warning.withValues(alpha: 0.1),
       };
     } else {
       return {
         'status': 'Recent',
         'color': AppColors.success,
         'icon': Icons.check_circle_rounded,
-        'bgColor': AppColors.success.withOpacity(0.1),
+        'bgColor': AppColors.success.withValues(alpha: 0.1),
       };
     }
   }
@@ -272,7 +253,6 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
@@ -327,7 +307,7 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: colorScheme.primary.withOpacity(0.1),
+              color: colorScheme.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
             ),
             child: CircularProgressIndicator(
@@ -359,7 +339,7 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: colorScheme.primary.withOpacity(0.1),
+                color: colorScheme.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Icon(
@@ -462,18 +442,18 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
           color: colorScheme.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: status['color'].withOpacity(0.2),
+            color: status['color'].withValues(alpha: 0.2),
             width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
-              color: status['color'].withOpacity(0.1),
+              color: status['color'].withValues(alpha: 0.1),
               blurRadius: 15,
               offset: const Offset(0, 6),
               spreadRadius: 0,
             ),
             BoxShadow(
-              color: colorScheme.shadow.withOpacity(0.08),
+              color: colorScheme.shadow.withValues(alpha: 0.08),
               blurRadius: 8,
               offset: const Offset(0, 2),
               spreadRadius: 0,
@@ -502,7 +482,7 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
                       borderRadius: BorderRadius.circular(10),
                       boxShadow: [
                         BoxShadow(
-                          color: status['color'].withOpacity(0.3),
+                          color: status['color'].withValues(alpha: 0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -555,7 +535,7 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: status['color'].withOpacity(0.2),
+                                color: status['color'].withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
@@ -629,10 +609,10 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
                     child: Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: colorScheme.surfaceVariant.withOpacity(0.3),
+                        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: colorScheme.outline.withOpacity(0.1),
+                          color: colorScheme.outline.withValues(alpha: 0.1),
                           width: 1,
                         ),
                       ),
@@ -650,7 +630,7 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
                           Container(
                             width: 1,
                             height: 40,
-                            color: colorScheme.outline.withOpacity(0.2),
+                            color: colorScheme.outline.withValues(alpha: 0.2),
                           ),
                           Expanded(
                             child: _buildCompactInfoCard(
@@ -674,7 +654,7 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
                       Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: colorScheme.primary.withOpacity(0.1),
+                          color: colorScheme.primary.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(
@@ -709,7 +689,7 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
                 ),
                 border: Border(
                   top: BorderSide(
-                    color: colorScheme.outline.withOpacity(0.1),
+                    color: colorScheme.outline.withValues(alpha: 0.1),
                     width: 1,
                   ),
                 ),
@@ -782,14 +762,14 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [color, color.withOpacity(0.8)],
+          colors: [color, color.withValues(alpha: 0.8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.3),
+            color: color.withValues(alpha: 0.3),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -868,7 +848,7 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 20,
               offset: const Offset(0, -5),
             ),
@@ -887,11 +867,11 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
                     width: 50,
                     height: 5,
                     decoration: BoxDecoration(
-                      color: colorScheme.onSurfaceVariant.withOpacity(0.4),
+                      color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
                       borderRadius: BorderRadius.circular(3),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withValues(alpha: 0.1),
                           blurRadius: 4,
                           offset: const Offset(0, 2),
                         ),
@@ -908,8 +888,8 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    colorScheme.primary.withOpacity(0.08),
-                    colorScheme.primary.withOpacity(0.03),
+                    colorScheme.primary.withValues(alpha: 0.08),
+                    colorScheme.primary.withValues(alpha: 0.03),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -927,7 +907,7 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
                       gradient: LinearGradient(
                         colors: [
                           colorScheme.primary,
-                          colorScheme.primary.withOpacity(0.8),
+                          colorScheme.primary.withValues(alpha: 0.8),
                         ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
@@ -935,7 +915,7 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: colorScheme.primary.withOpacity(0.3),
+                          color: colorScheme.primary.withValues(alpha: 0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 4),
                         ),
@@ -986,10 +966,10 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
-                                color: AppColors.success.withOpacity(0.1),
+                                color: AppColors.success.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: AppColors.success.withOpacity(0.3),
+                                  color: AppColors.success.withValues(alpha: 0.3),
                                   width: 1,
                                 ),
                               ),
@@ -1009,10 +989,10 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
                   ),
                   Container(
                     decoration: BoxDecoration(
-                      color: colorScheme.surfaceVariant.withOpacity(0.5),
+                      color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: colorScheme.outline.withOpacity(0.1),
+                        color: colorScheme.outline.withValues(alpha: 0.1),
                         width: 1,
                       ),
                     ),
@@ -1059,12 +1039,12 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
                       color: colorScheme.surface,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: colorScheme.outline.withOpacity(0.1),
+                        color: colorScheme.outline.withValues(alpha: 0.1),
                         width: 1,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
+                          color: Colors.black.withValues(alpha: 0.05),
                           blurRadius: 10,
                           offset: const Offset(0, 2),
                         ),
@@ -1078,8 +1058,8 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: [
-                                colorScheme.primary.withOpacity(0.05),
-                                colorScheme.primary.withOpacity(0.02),
+                                colorScheme.primary.withValues(alpha: 0.05),
+                                colorScheme.primary.withValues(alpha: 0.02),
                               ],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
@@ -1094,7 +1074,7 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
                               Container(
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: colorScheme.primary.withOpacity(0.1),
+                                  color: colorScheme.primary.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Icon(
@@ -1135,7 +1115,7 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
                                   gradient: LinearGradient(
                                     colors: [
                                       colorScheme.primary,
-                                      colorScheme.primary.withOpacity(0.8),
+                                      colorScheme.primary.withValues(alpha: 0.8),
                                     ],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
@@ -1144,7 +1124,7 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
                                   boxShadow: [
                                     BoxShadow(
                                       color:
-                                          colorScheme.primary.withOpacity(0.3),
+                                          colorScheme.primary.withValues(alpha: 0.3),
                                       blurRadius: 6,
                                       offset: const Offset(0, 2),
                                     ),
@@ -1198,11 +1178,11 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: colorScheme.surfaceVariant
-                                      .withOpacity(0.3),
+                                  color: colorScheme.surfaceContainerHighest
+                                      .withValues(alpha: 0.3),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: colorScheme.outline.withOpacity(0.1),
+                                    color: colorScheme.outline.withValues(alpha: 0.1),
                                     width: 1,
                                   ),
                                 ),
@@ -1221,7 +1201,7 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
                                       width: 1,
                                       height: 40,
                                       color:
-                                          colorScheme.outline.withOpacity(0.2),
+                                          colorScheme.outline.withValues(alpha: 0.2),
                                     ),
                                     Expanded(
                                       child: _buildEnhancedPriceRow(
@@ -1244,8 +1224,8 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
                                   decoration: BoxDecoration(
                                     gradient: LinearGradient(
                                       colors: [
-                                        colorScheme.secondary.withOpacity(0.1),
-                                        colorScheme.secondary.withOpacity(0.05),
+                                        colorScheme.secondary.withValues(alpha: 0.1),
+                                        colorScheme.secondary.withValues(alpha: 0.05),
                                       ],
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight,
@@ -1253,7 +1233,7 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
                                       color: colorScheme.secondary
-                                          .withOpacity(0.2),
+                                          .withValues(alpha: 0.2),
                                       width: 1,
                                     ),
                                   ),
@@ -1267,7 +1247,7 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
                                             padding: const EdgeInsets.all(6),
                                             decoration: BoxDecoration(
                                               color: colorScheme.secondary
-                                                  .withOpacity(0.2),
+                                                  .withValues(alpha: 0.2),
                                               borderRadius:
                                                   BorderRadius.circular(8),
                                             ),
@@ -1306,7 +1286,7 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
                                                   BorderRadius.circular(8),
                                               border: Border.all(
                                                 color: colorScheme.outline
-                                                    .withOpacity(0.1),
+                                                    .withValues(alpha: 0.1),
                                                 width: 1,
                                               ),
                                             ),
@@ -1337,7 +1317,7 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
                                                       vertical: 2),
                                                   decoration: BoxDecoration(
                                                     color: colorScheme.secondary
-                                                        .withOpacity(0.1),
+                                                        .withValues(alpha: 0.1),
                                                     borderRadius:
                                                         BorderRadius.circular(
                                                             6),
@@ -1380,14 +1360,14 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
                 gradient: LinearGradient(
                   colors: [
                     colorScheme.surface,
-                    colorScheme.surfaceVariant.withOpacity(0.3),
+                    colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                   ],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                 ),
                 border: Border(
                   top: BorderSide(
-                    color: colorScheme.outline.withOpacity(0.1),
+                    color: colorScheme.outline.withValues(alpha: 0.1),
                     width: 1,
                   ),
                 ),
@@ -1401,12 +1381,12 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
                         color: colorScheme.surface,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: colorScheme.outline.withOpacity(0.1),
+                          color: colorScheme.outline.withValues(alpha: 0.1),
                           width: 1,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
+                            color: Colors.black.withValues(alpha: 0.05),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -1420,7 +1400,7 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
                               Container(
                                 padding: const EdgeInsets.all(6),
                                 decoration: BoxDecoration(
-                                  color: AppColors.info.withOpacity(0.1),
+                                  color: AppColors.info.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Icon(
@@ -1461,7 +1441,7 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
                         gradient: LinearGradient(
                           colors: [
                             colorScheme.primary,
-                            colorScheme.primary.withOpacity(0.8),
+                            colorScheme.primary.withValues(alpha: 0.8),
                           ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
@@ -1469,7 +1449,7 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: colorScheme.primary.withOpacity(0.3),
+                            color: colorScheme.primary.withValues(alpha: 0.3),
                             blurRadius: 8,
                             offset: const Offset(0, 4),
                           ),
@@ -1483,7 +1463,7 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
                               Container(
                                 padding: const EdgeInsets.all(6),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
+                                  color: Colors.white.withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: const Icon(
@@ -1530,10 +1510,10 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceVariant.withOpacity(0.3),
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: colorScheme.outline.withOpacity(0.1),
+          color: colorScheme.outline.withValues(alpha: 0.1),
           width: 1,
         ),
       ),
@@ -1542,7 +1522,7 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
           Container(
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: colorScheme.primary.withOpacity(0.1),
+              color: colorScheme.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Icon(
@@ -1630,7 +1610,7 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
       );
     } catch (e) {
       CustomToast.showToast('Gagal memuat draft: $e', ToastType.error);
-      print('Error loading draft for checkout: $e');
+      // Error already handled via CustomToast
     }
   }
 }

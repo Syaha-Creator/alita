@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../../config/api_config.dart';
 import '../../../../core/error/exceptions.dart';
@@ -28,18 +29,12 @@ class ItemLookupRepositoryImpl implements ItemLookupRepository {
 
         final url = ApiConfig.getPlLookupItemNumsUrl(token: token);
 
-        print("Making API request to: $url");
-
         final response = await apiClient.get(url);
 
         if (response.statusCode != 200) {
           throw Exception(
               "Gagal mengambil data item lookup. Kode error: ${response.statusCode}");
         }
-
-        // Debug: Log response structure
-        print("API Response keys: ${response.data.keys.toList()}");
-        print("API Response status: ${response.data['status']}");
 
         // Check API response status
         if (response.data['status'] != 'success') {
@@ -51,8 +46,10 @@ class ItemLookupRepositoryImpl implements ItemLookupRepository {
         final rawData = response.data["data"] ?? response.data["result"];
 
         if (rawData is! List) {
-          print("Raw data type: ${rawData.runtimeType}");
-          print("Raw data content: $rawData");
+          if (kDebugMode) {
+            if (kDebugMode) { print("Raw data type: ${rawData.runtimeType}"); }
+            if (kDebugMode) { print("Raw data content: $rawData"); }
+          }
           throw Exception(
               "Data item lookup tidak ditemukan. Silakan coba lagi.");
         }
@@ -61,8 +58,10 @@ class ItemLookupRepositoryImpl implements ItemLookupRepository {
           try {
             return ItemLookupModel.fromJson(item as Map<String, dynamic>);
           } catch (e) {
-            print("Error parsing item lookup: $e");
-            print("Item data: $item");
+            if (kDebugMode) {
+              if (kDebugMode) { print("Error parsing item lookup: $e"); }
+              if (kDebugMode) { print("Item data: $item"); }
+            }
             rethrow;
           }
         }).toList();

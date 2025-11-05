@@ -24,6 +24,7 @@ class CartItemController {
   Future<void> autoSelectFabricDefaults(BuildContext context, CartEntity item,
       {required bool Function() mounted}) async {
     final product = item.product;
+    final cartBloc = context.read<CartBloc>();
 
     Future<void> tryAuto(String itemType, bool enabled) async {
       if (!enabled) return;
@@ -59,16 +60,17 @@ class CartItemController {
         if (!mounted()) return;
         final qty = item.quantity;
         for (int idx = 0; idx < qty; idx++) {
-          context.read<CartBloc>().add(UpdateCartSelectedItemNumber(
-                productId: product.id,
-                netPrice: item.netPrice,
-                itemType: itemType,
-                itemNumber: it.itemNumber,
-                jenisKain: it.fabricType,
-                warnaKain: it.fabricColor,
-                unitIndex: idx,
-                cartLineId: item.cartLineId,
-              ));
+          if (!mounted()) break;
+          cartBloc.add(UpdateCartSelectedItemNumber(
+            productId: product.id,
+            netPrice: item.netPrice,
+            itemType: itemType,
+            itemNumber: it.itemNumber,
+            jenisKain: it.fabricType,
+            warnaKain: it.fabricColor,
+            unitIndex: idx,
+            cartLineId: item.cartLineId,
+          ));
         }
       }
     }
@@ -83,8 +85,11 @@ class CartItemController {
 
   Future<void> autoFillNewUnitsIfSingleOption(
       BuildContext context, CartEntity item,
-      {required String itemType, required String tipeForLookup}) async {
+      {required String itemType,
+      required String tipeForLookup,
+      required bool Function() mounted}) async {
     final product = item.product;
+    final cartBloc = context.read<CartBloc>();
     final perUnit = item.selectedItemNumbersPerUnit?[itemType] ?? const [];
     final list = await _lookup.fetchByContext(
         brand: product.brand,
@@ -96,21 +101,23 @@ class CartItemController {
         contextItemType: itemType);
     if (list.length == 1) {
       final it = list.first;
+      if (!mounted()) return;
       for (int idx = 0; idx < item.quantity; idx++) {
         final sel = idx < perUnit.length ? perUnit[idx] : null;
         final already =
             sel != null && (sel['item_number'] ?? '').toString().isNotEmpty;
         if (already) continue;
-        context.read<CartBloc>().add(UpdateCartSelectedItemNumber(
-              productId: product.id,
-              netPrice: item.netPrice,
-              itemType: itemType,
-              itemNumber: it.itemNumber,
-              jenisKain: it.fabricType,
-              warnaKain: it.fabricColor,
-              unitIndex: idx,
-              cartLineId: item.cartLineId,
-            ));
+        if (!mounted()) break;
+        cartBloc.add(UpdateCartSelectedItemNumber(
+          productId: product.id,
+          netPrice: item.netPrice,
+          itemType: itemType,
+          itemNumber: it.itemNumber,
+          jenisKain: it.fabricType,
+          warnaKain: it.fabricColor,
+          unitIndex: idx,
+          cartLineId: item.cartLineId,
+        ));
       }
     }
   }

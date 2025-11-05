@@ -103,6 +103,7 @@ class _DraftDetailPageState extends State<DraftDetailPage>
       final draftStrings = prefs.getStringList(key) ?? [];
 
       // Get current cart items from CartBloc
+      if (!mounted) return;
       final cartState = context.read<CartBloc>().state;
       List<dynamic> currentCartItems = [];
 
@@ -201,8 +202,10 @@ class _DraftDetailPageState extends State<DraftDetailPage>
       if (foundIndex != -1) {
         draftStrings[foundIndex] = jsonEncode(updatedDraft);
         await prefs.setStringList(key, draftStrings);
-        CustomToast.showToast('Draft berhasil diupdate', ToastType.success);
-        Navigator.pop(context);
+        if (mounted) {
+          CustomToast.showToast('Draft berhasil diupdate', ToastType.success);
+          Navigator.pop(context);
+        }
       } else {
         CustomToast.showToast('Draft tidak ditemukan', ToastType.error);
       }
@@ -219,7 +222,6 @@ class _DraftDetailPageState extends State<DraftDetailPage>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
@@ -276,10 +278,10 @@ class _DraftDetailPageState extends State<DraftDetailPage>
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: colorScheme.primary.withOpacity(0.05),
+                    color: colorScheme.primary.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: colorScheme.primary.withOpacity(0.1),
+                      color: colorScheme.primary.withValues(alpha: 0.1),
                     ),
                   ),
                   child: Row(
@@ -574,7 +576,7 @@ class _DraftDetailPageState extends State<DraftDetailPage>
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: colorScheme.primary.withOpacity(0.1),
+            color: colorScheme.primary.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
@@ -610,13 +612,13 @@ class _DraftDetailPageState extends State<DraftDetailPage>
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: isSelected
-              ? colorScheme.primary.withOpacity(0.1)
+              ? colorScheme.primary.withValues(alpha: 0.1)
               : colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected
                 ? colorScheme.primary
-                : colorScheme.outline.withOpacity(0.2),
+                : colorScheme.outline.withValues(alpha: 0.2),
             width: 2,
           ),
         ),

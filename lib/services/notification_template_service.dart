@@ -252,13 +252,13 @@ class NotificationTemplateService {
     Map<String, dynamic>? data,
   }) {
     if (kDebugMode) {
-      print('=== NOTIFICATION TEMPLATE: $templateType ===');
-      print('Title: ${template['title']}');
-      print('Body: ${template['body']}');
+      if (kDebugMode) { print('=== NOTIFICATION TEMPLATE: $templateType ==='); }
+      if (kDebugMode) { print('Title: ${template['title']}'); }
+      if (kDebugMode) { print('Body: ${template['body']}'); }
       if (data != null) {
-        print('Data: $data');
+        if (kDebugMode) { print('Data: $data'); }
       }
-      print('=====================================');
+      if (kDebugMode) { print('====================================='); }
     }
   }
 }

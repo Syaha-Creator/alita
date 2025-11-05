@@ -29,10 +29,6 @@ class ProductCard extends StatelessWidget {
     final cardColor = isDark ? AppColors.cardDark : AppColors.cardLight;
     final accent = isDark ? AppColors.accentDark : AppColors.accentLight;
     final border = isDark ? AppColors.borderDark : AppColors.borderLight;
-    final textPrimary =
-        isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight;
-    final textSecondary =
-        isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight;
     final surface = isDark ? AppColors.surfaceDark : AppColors.surfaceLight;
 
     return BlocBuilder<ProductBloc, ProductState>(
@@ -73,7 +69,7 @@ class ProductCard extends StatelessWidget {
                 desktop: 3.0,
               ),
               margin: ResponsiveHelper.getResponsiveMargin(context),
-              shadowColor: accent.withOpacity(0.13),
+              shadowColor: accent.withValues(alpha: 0.13),
               color: cardColor,
               child: InkWell(
                 onTap: () {
@@ -84,8 +80,8 @@ class ProductCard extends StatelessWidget {
                   );
                 },
                 borderRadius: BorderRadius.circular(22),
-                splashColor: accent.withOpacity(0.08),
-                highlightColor: accent.withOpacity(0.04),
+                splashColor: accent.withValues(alpha: 0.08),
+                highlightColor: accent.withValues(alpha: 0.04),
                 child: Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(22),
@@ -139,7 +135,7 @@ class ProductCard extends StatelessWidget {
                                             boxShadow: [
                                               BoxShadow(
                                                 color: AppColors.info
-                                                    .withOpacity(0.13),
+                                                    .withValues(alpha: 0.13),
                                                 blurRadius: 8,
                                                 offset: const Offset(0, 2),
                                               ),
@@ -172,7 +168,7 @@ class ProductCard extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: surface,
                             borderRadius: BorderRadius.circular(15),
-                            border: Border.all(color: border.withOpacity(0.7)),
+                            border: Border.all(color: border.withValues(alpha: 0.7)),
                           ),
                           child: Column(
                             children: [
@@ -197,10 +193,10 @@ class ProductCard extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: surface,
                             borderRadius: BorderRadius.circular(15),
-                            border: Border.all(color: accent.withOpacity(0.18)),
+                            border: Border.all(color: accent.withValues(alpha: 0.18)),
                             boxShadow: [
                               BoxShadow(
-                                color: accent.withOpacity(0.04),
+                                color: accent.withValues(alpha: 0.04),
                                 blurRadius: 10,
                                 offset: const Offset(0, 2),
                               ),
@@ -317,7 +313,6 @@ class ProductCard extends StatelessWidget {
   Widget _buildSetComparison(
       BuildContext context, ProductEntity setProduct, ProductState state,
       {bool isDark = false}) {
-    final theme = Theme.of(context);
     final setNetPrice =
         state.roundedPrices[setProduct.id] ?? setProduct.endUserPrice;
     final currentNetPrice =
@@ -333,12 +328,12 @@ class ProductCard extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppColors.info.withOpacity(0.1),
-            AppColors.info.withOpacity(0.05),
+            AppColors.info.withValues(alpha: 0.1),
+            AppColors.info.withValues(alpha: 0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.info.withOpacity(0.3)),
+        border: Border.all(color: AppColors.info.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -402,8 +397,8 @@ class ProductCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: isMoreExpensive
-                  ? AppColors.error.withOpacity(0.1)
-                  : AppColors.success.withOpacity(0.1),
+                  ? AppColors.error.withValues(alpha: 0.1)
+                  : AppColors.success.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
@@ -426,7 +421,6 @@ class ProductCard extends StatelessWidget {
   Widget _buildIndividualComparison(
       BuildContext context, ProductEntity individualProduct, ProductState state,
       {bool isDark = false}) {
-    final theme = Theme.of(context);
     final individualNetPrice = state.roundedPrices[individualProduct.id] ??
         individualProduct.endUserPrice;
     final currentNetPrice =
@@ -435,8 +429,8 @@ class ProductCard extends StatelessWidget {
     final isMoreExpensive = priceDifference > 0;
     final savingsPercentage = ((priceDifference.abs() / currentNetPrice) * 100);
     final cardBg = isDark
-        ? AppColors.primaryDark.withOpacity(0.13)
-        : AppColors.accentLight.withOpacity(0.25);
+        ? AppColors.primaryDark.withValues(alpha: 0.13)
+        : AppColors.accentLight.withValues(alpha: 0.25);
     final border = isDark ? AppColors.primaryDark : AppColors.accentLight;
     final iconColor = isDark ? AppColors.primaryDark : AppColors.primaryLight;
     final textColor =
@@ -446,7 +440,7 @@ class ProductCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: border.withOpacity(0.7)),
+        border: Border.all(color: border.withValues(alpha: 0.7)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -537,8 +531,8 @@ class ProductCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: isMoreExpensive
-                  ? AppColors.error.withOpacity(0.1)
-                  : AppColors.success.withOpacity(0.1),
+                  ? AppColors.error.withValues(alpha: 0.1)
+                  : AppColors.success.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
@@ -559,13 +553,12 @@ class ProductCard extends StatelessWidget {
 
   // Widget untuk menampilkan harga individual
   Widget _buildIndividualPricingSection(BuildContext context) {
-    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.success.withOpacity(0.1),
+        color: AppColors.success.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.success.withOpacity(0.3)),
+        border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -613,7 +606,6 @@ class ProductCard extends StatelessWidget {
   }
 
   Widget _buildBonusInfo(BuildContext context, {bool isDark = false}) {
-    final theme = Theme.of(context);
     final hasBonus =
         product.bonus.isNotEmpty && product.bonus.any((b) => b.name.isNotEmpty);
     final cardBg = isDark ? AppColors.surfaceDark : AppColors.surfaceLight;
@@ -626,7 +618,7 @@ class ProductCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: border.withOpacity(0.5)),
+        border: Border.all(color: border.withValues(alpha: 0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

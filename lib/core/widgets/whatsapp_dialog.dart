@@ -75,19 +75,23 @@ class WhatsAppDialog extends StatelessWidget {
                 area: area,
                 channel: channel,
               );
-              Navigator.of(context).pop(true);
+              if (context.mounted) {
+                Navigator.of(context).pop(true);
+              }
             } catch (e) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content:
-                      const Text('Gagal membuka WhatsApp. Silakan coba lagi.'),
-                  backgroundColor: colorScheme.error,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text(
+                        'Gagal membuka WhatsApp. Silakan coba lagi.'),
+                    backgroundColor: colorScheme.error,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
-                ),
-              );
+                );
+              }
             }
           },
           icon: const Icon(Icons.message, size: 18),

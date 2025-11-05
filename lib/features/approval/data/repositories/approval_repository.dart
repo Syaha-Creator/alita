@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../../../../config/dependency_injection.dart';
 import '../../../../services/order_letter_service.dart';
 import '../../../../services/auth_service.dart';
@@ -84,7 +86,6 @@ class ApprovalRepository {
       // Process order letters in parallel for better performance
       final approvalFutures = filteredOrderLetters.map((orderLetter) async {
         final orderLetterId = orderLetter['id'];
-        final noSp = orderLetter['no_sp'];
 
         // Make parallel API calls for details, discounts, and approvals
         final futures = [
@@ -389,7 +390,7 @@ class ApprovalRepository {
     final stopwatch = Stopwatch()..start();
 
     // Test cache access
-    final cachedData = ApprovalCache.getCachedApprovals();
+    ApprovalCache.getCachedApprovals();
     stopwatch.stop();
   }
 
@@ -677,18 +678,31 @@ class ApprovalRepository {
 
     if (teamData == null) {
       // If team hierarchy data is not available, fallback to showing only current user's orders
-      print(
-          'ApprovalRepository: Team hierarchy data not available, showing only current user orders');
+      if (kDebugMode) {
+        if (kDebugMode) {
+          print(
+              'ApprovalRepository: Team hierarchy data not available, showing only current user orders');
+        }
+      }
       return _filterByCurrentUserOnly(orderLetters, currentUserId);
     }
 
     // Get all subordinate user IDs (including nested teams)
     final subordinateUserIds = teamData.getAllSubordinateUserIds();
 
-    print('ApprovalRepository: Current user ID: $currentUserId');
-    print(
-        'ApprovalRepository: Has subordinates: ${teamData.hasSubordinates()}');
-    print('ApprovalRepository: Subordinate user IDs: $subordinateUserIds');
+    if (kDebugMode) {
+      if (kDebugMode) {
+        print('ApprovalRepository: Current user ID: $currentUserId');
+      }
+      if (kDebugMode) {
+        print(
+            'ApprovalRepository: Has subordinates: ${teamData.hasSubordinates()}');
+        if (kDebugMode) {
+          print(
+              'ApprovalRepository: Subordinate user IDs: $subordinateUserIds');
+        }
+      }
+    }
 
     // Filter orders based on hierarchy
     for (final orderLetter in orderLetters) {
@@ -714,8 +728,12 @@ class ApprovalRepository {
       }
     }
 
-    print(
-        'ApprovalRepository: Filtered ${filteredLetters.length} orders out of ${orderLetters.length} total orders');
+    if (kDebugMode) {
+      if (kDebugMode) {
+        print(
+            'ApprovalRepository: Filtered ${filteredLetters.length} orders out of ${orderLetters.length} total orders');
+      }
+    }
     return filteredLetters;
   }
 
@@ -950,11 +968,6 @@ class ApprovalRepository {
           await _orderLetterService.createOrderLetterApprove(approvalData);
 
       if (result['success']) {
-        // Update order letter status
-        final updateData = {
-          'status': action == 'approve' ? 'Approved' : 'Rejected',
-        };
-
         // Note: We need to implement updateOrderLetter method in OrderLetterService
         // For now, we'll just return the approval result
         return result;

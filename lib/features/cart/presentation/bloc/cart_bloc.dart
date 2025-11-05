@@ -665,11 +665,6 @@ class CartBloc extends Bloc<CartEvent, CartState> {
                 orElse: () => item.product,
               );
 
-              // Base price is endUserPrice of matched product
-              final double basePrice = matched.endUserPrice;
-              final double recalculatedNet = _applyDiscountsUsecase
-                  .applySequentially(basePrice, item.discountPercentages);
-
               // Determine default bonus sets (old vs new)
               final currentDefault = products.firstWhere(
                 (p) =>

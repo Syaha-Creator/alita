@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 import '../config/app_constant.dart';
@@ -104,12 +105,16 @@ class AccessoriesService {
       final dio = Dio();
       final url = ApiConfig.getAccessoriesUrl(token: token);
 
-      print('Fetching accessories from new API: $url');
+      if (kDebugMode) {
+        print('Fetching accessories from new API: $url');
+      }
       final response = await dio.get(url);
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = response.data;
-        print('Accessories API response: $responseData');
+        if (kDebugMode) {
+          print('Accessories API response: $responseData');
+        }
 
         if (responseData['status'] == 'success' &&
             responseData['result'] != null) {
@@ -119,7 +124,9 @@ class AccessoriesService {
               .map((accessory) => AccessoryEntity.fromJson(accessory))
               .toList();
 
-          print('Found ${accessories.length} accessories from new API');
+          if (kDebugMode) {
+            print('Found ${accessories.length} accessories from new API');
+          }
           return accessories;
         } else {
           throw Exception('Invalid response format from accessories API');

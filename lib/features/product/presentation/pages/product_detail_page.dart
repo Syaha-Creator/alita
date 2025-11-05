@@ -39,8 +39,6 @@ class ProductDetailPage extends StatelessWidget {
             state.roundedPrices[product.id] ?? product.endUserPrice;
         final discountPercentages =
             state.productDiscountsPercentage[product.id] ?? [];
-        final editPopupDiscount =
-            state.priceChangePercentages[product.id] ?? 0.0;
         final totalDiscount = product.pricelist - netPrice;
         final installmentMonths = state.installmentMonths[product.id];
 
@@ -87,7 +85,6 @@ class ProductDetailPage extends StatelessWidget {
   /// Build custom AppBar with centered product name
   Widget _buildCustomAppBar(
       BuildContext context, ProductEntity product, bool isDark) {
-    final theme = Theme.of(context);
     return SafeArea(
       child: Container(
         height: ResponsiveHelper.getAppBarHeight(context) + 20,
@@ -113,7 +110,7 @@ class ProductDetailPage extends StatelessWidget {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -194,47 +191,47 @@ class ProductDetailPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
           // Product name - single line dengan ukuran font dinamis
-                  Text(
-                    productName,
-                    style: theme.textTheme.titleLarge?.copyWith(
+          Text(
+            productName,
+            style: theme.textTheme.titleLarge?.copyWith(
               color: isDark ? AppColors.primaryDark : AppColors.primaryLight,
               fontSize: nameFontSize,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.2,
-                    ),
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.2,
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
           const SizedBox(height: 2),
           // Product size - selalu terlihat di bawah
-                  if (productSize.isNotEmpty)
-                    Text(
-                      '($productSize)',
-                      style: theme.textTheme.titleMedium?.copyWith(
+          if (productSize.isNotEmpty)
+            Text(
+              '($productSize)',
+              style: theme.textTheme.titleMedium?.copyWith(
                 color: (isDark ? AppColors.primaryDark : AppColors.primaryLight)
-                            .withOpacity(0.8),
+                    .withValues(alpha: 0.8),
                 fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.1,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                ],
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.1,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+        ],
       ),
     );
   }
@@ -256,7 +253,7 @@ class ProductDetailPage extends StatelessWidget {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha: 0.1),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -283,7 +280,7 @@ class ProductDetailPage extends StatelessWidget {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha: 0.1),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -316,7 +313,6 @@ class ProductDetailPage extends StatelessWidget {
       ProductState state, bool isDark) {
     final mediaQuery = MediaQuery.of(context);
     final bottomPadding = mediaQuery.padding.bottom;
-    final viewInsets = mediaQuery.viewInsets.bottom;
 
     // Detect if device has gesture navigation (home indicator)
     final hasGestureNavigation = bottomPadding > 0;
@@ -331,7 +327,7 @@ class ProductDetailPage extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, -2),
           ),
@@ -397,7 +393,6 @@ class ProductDetailPage extends StatelessWidget {
       List<String> combinedDiscounts,
       int? installmentMonths,
       bool isDark) {
-    final theme = Theme.of(context);
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -479,7 +474,6 @@ class ProductDetailPage extends StatelessWidget {
 
   Widget _buildDetailCard(
       BuildContext context, ProductEntity product, bool isDark) {
-    final theme = Theme.of(context);
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -524,7 +518,6 @@ class ProductDetailPage extends StatelessWidget {
 
   Widget _buildBonusAndNotesCard(
       BuildContext context, ProductEntity product, bool isDark) {
-    final theme = Theme.of(context);
     final hasBonus =
         product.bonus.isNotEmpty && product.bonus.any((b) => b.name.isNotEmpty);
     return Card(
@@ -595,7 +588,6 @@ class ProductDetailPage extends StatelessWidget {
       bool isBold = false,
       double valueSize = 16,
       bool isDark = false}) {
-    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
@@ -631,7 +623,6 @@ class ProductDetailPage extends StatelessWidget {
 
   Widget _buildSpecRow(BuildContext context, IconData icon, String title,
       String value, bool isDark) {
-    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
@@ -682,7 +673,7 @@ class ProductDetailPage extends StatelessWidget {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -713,7 +704,7 @@ class ProductDetailPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),

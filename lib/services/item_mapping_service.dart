@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../features/product/domain/entities/item_lookup_entity.dart';
 import '../features/product/domain/entities/product_entity.dart';
 import '../features/product/domain/usecases/get_item_lookup_usecase.dart';
@@ -15,7 +17,9 @@ class ItemMappingService {
       try {
         _cachedItemLookups = await _getItemLookupUsecase();
       } catch (e) {
-        print('Error loading item lookups: $e');
+        if (kDebugMode) {
+          print('Error loading item lookups: $e');
+        }
         _cachedItemLookups = [];
       }
     }

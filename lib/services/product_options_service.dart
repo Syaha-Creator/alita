@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../../config/api_config.dart';
 import '../../config/app_constant.dart';
 import '../../services/api_client.dart';
@@ -48,7 +50,9 @@ class ProductOptionsService {
 
       return divanOptions;
     } catch (e) {
-      print('Error getting divan options: $e');
+      if (kDebugMode) {
+        print('Error getting divan options: $e');
+      }
       return [];
     }
   }
@@ -92,7 +96,9 @@ class ProductOptionsService {
 
       return headboardOptions;
     } catch (e) {
-      print('Error getting headboard options: $e');
+      if (kDebugMode) {
+        print('Error getting headboard options: $e');
+      }
       return [];
     }
   }
@@ -144,7 +150,9 @@ class ProductOptionsService {
 
       return sorongOptions;
     } catch (e) {
-      print('Error getting sorong options: $e');
+      if (kDebugMode) {
+        print('Error getting sorong options: $e');
+      }
       return [];
     }
   }
@@ -202,7 +210,9 @@ class ProductOptionsService {
 
       return ukuranOptions;
     } catch (e) {
-      print('Error getting ukuran options: $e');
+      if (kDebugMode) {
+        print('Error getting ukuran options: $e');
+      }
       return [];
     }
   }

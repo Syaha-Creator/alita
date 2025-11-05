@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geocoding/geocoding.dart';
@@ -38,16 +39,24 @@ class LocationService {
   /// Get current location
   static Future<Position?> getCurrentLocation() async {
     try {
-      print('LocationService: Starting location request...');
+      if (kDebugMode) {
+        print('LocationService: Starting location request...');
+      }
 
       // Check if location permission is granted
       final permissionStatus = await Permission.locationWhenInUse.status;
-      print('LocationService: Permission status: $permissionStatus');
+      if (kDebugMode) {
+        print('LocationService: Permission status: $permissionStatus');
+      }
 
       if (!permissionStatus.isGranted) {
-        print('LocationService: Requesting location permission...');
+        if (kDebugMode) {
+          print('LocationService: Requesting location permission...');
+        }
         final granted = await requestLocationPermission();
-        print('LocationService: Permission granted: $granted');
+        if (kDebugMode) {
+          print('LocationService: Permission granted: $granted');
+        }
         if (!granted) {
           // Cek apakah permission ditolak secara permanen
           final finalStatus = await Permission.locationWhenInUse.status;
@@ -63,23 +72,33 @@ class LocationService {
 
       // Check if location services are enabled
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      print('LocationService: Location services enabled: $serviceEnabled');
+      if (kDebugMode) {
+        print('LocationService: Location services enabled: $serviceEnabled');
+      }
       if (!serviceEnabled) {
         throw Exception('Location services are disabled');
       }
 
-      print('LocationService: Getting current position...');
+      if (kDebugMode) {
+        print('LocationService: Getting current position...');
+      }
       // Get current position
       Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 10),
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 10),
+        ),
       );
 
-      print(
-          'LocationService: Position obtained: ${position.latitude}, ${position.longitude}');
+      if (kDebugMode) {
+        print(
+            'LocationService: Position obtained: ${position.latitude}, ${position.longitude}');
+      }
       return position;
     } catch (e) {
-      print('LocationService: Error getting current location: $e');
+      if (kDebugMode) {
+        print('LocationService: Error getting current location: $e');
+      }
       return null;
     }
   }
@@ -114,7 +133,9 @@ class LocationService {
 
       return distance <= _radiusMeters;
     } catch (e) {
-      print('Error checking attendance radius: $e');
+      if (kDebugMode) {
+        print('Error checking attendance radius: $e');
+      }
       return false;
     }
   }
@@ -129,7 +150,9 @@ class LocationService {
       }
       return null;
     } catch (e) {
-      print('Error getting location address: $e');
+      if (kDebugMode) {
+        print('Error getting location address: $e');
+      }
       return null;
     }
   }
@@ -153,7 +176,9 @@ class LocationService {
         'timestamp': position.timestamp,
       };
     } catch (e) {
-      print('Error getting location info: $e');
+      if (kDebugMode) {
+        print('Error getting location info: $e');
+      }
       return null;
     }
   }
@@ -164,13 +189,19 @@ class LocationService {
     required double attendanceLon,
   }) async {
     try {
-      print('LocationService: Validating location for checkout...');
-      print(
-          'LocationService: Attendance location: $attendanceLat, $attendanceLon');
+      if (kDebugMode) {
+        print('LocationService: Validating location for checkout...');
+      }
+      if (kDebugMode) {
+        print(
+            'LocationService: Attendance location: $attendanceLat, $attendanceLon');
+      }
 
       final currentPosition = await getCurrentLocation();
       if (currentPosition == null) {
-        print('LocationService: Failed to get current position');
+        if (kDebugMode) {
+          print('LocationService: Failed to get current position');
+        }
         return {
           'isValid': false,
           'message':
@@ -179,8 +210,10 @@ class LocationService {
         };
       }
 
-      print(
-          'LocationService: Current position: ${currentPosition.latitude}, ${currentPosition.longitude}');
+      if (kDebugMode) {
+        print(
+            'LocationService: Current position: ${currentPosition.latitude}, ${currentPosition.longitude}');
+      }
 
       final distance = calculateDistance(
         currentPosition.latitude,
@@ -189,12 +222,16 @@ class LocationService {
         attendanceLon,
       );
 
-      print(
-          'LocationService: Distance calculated: ${distance.toStringAsFixed(2)} meters');
+      if (kDebugMode) {
+        print(
+            'LocationService: Distance calculated: ${distance.toStringAsFixed(2)} meters');
+      }
 
       final isWithinRadius = distance <= _radiusMeters;
-      print(
-          'LocationService: Within radius: $isWithinRadius (max: $_radiusMeters meters)');
+      if (kDebugMode) {
+        print(
+            'LocationService: Within radius: $isWithinRadius (max: $_radiusMeters meters)');
+      }
 
       return {
         'isValid': isWithinRadius,
@@ -208,7 +245,9 @@ class LocationService {
         'attendanceLon': attendanceLon,
       };
     } catch (e) {
-      print('LocationService: Error in validateLocationForCheckout: $e');
+      if (kDebugMode) {
+        print('LocationService: Error in validateLocationForCheckout: $e');
+      }
       return {
         'isValid': false,
         'message': 'Error validasi lokasi: $e',

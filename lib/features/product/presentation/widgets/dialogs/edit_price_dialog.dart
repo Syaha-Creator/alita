@@ -108,10 +108,10 @@ class _EditPriceDialogState extends State<EditPriceDialog> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.error.withOpacity(0.1),
+                color: Theme.of(context).colorScheme.error.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: Theme.of(context).colorScheme.error.withOpacity(0.3),
+                  color: Theme.of(context).colorScheme.error.withValues(alpha: 0.3),
                 ),
               ),
               child: Row(

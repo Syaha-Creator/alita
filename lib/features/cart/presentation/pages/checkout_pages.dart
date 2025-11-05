@@ -314,27 +314,31 @@ class _CheckoutPagesState extends State<CheckoutPages>
         }
 
         // Add to cart with bonus take away data
-        context.read<CartBloc>().add(AddToCart(
-              product: product,
-              quantity: item['quantity'] as int,
-              netPrice: item['netPrice'] as double,
-              discountPercentages:
-                  (item['discountPercentages'] as List<dynamic>?)
-                          ?.map((d) => d as double)
-                          .toList() ??
-                      [],
-            ));
+        if (mounted) {
+          context.read<CartBloc>().add(AddToCart(
+                product: product,
+                quantity: item['quantity'] as int,
+                netPrice: item['netPrice'] as double,
+                discountPercentages:
+                    (item['discountPercentages'] as List<dynamic>?)
+                            ?.map((d) => d as double)
+                            .toList() ??
+                        [],
+              ));
+        }
 
         // After adding to cart, update bonus take away if needed
         if (bonusTakeAway != null && bonusTakeAway.isNotEmpty) {
           // Wait a bit for cart to be updated
           await Future.delayed(const Duration(milliseconds: 50));
 
-          context.read<CartBloc>().add(UpdateBonusTakeAway(
-                productId: product.id,
-                netPrice: item['netPrice'] as double,
-                bonusTakeAway: bonusTakeAway,
-              ));
+          if (mounted) {
+            context.read<CartBloc>().add(UpdateBonusTakeAway(
+                  productId: product.id,
+                  netPrice: item['netPrice'] as double,
+                  bonusTakeAway: bonusTakeAway,
+                ));
+          }
         }
 
         // Add delay between items to ensure proper processing
@@ -473,15 +477,17 @@ class _CheckoutPagesState extends State<CheckoutPages>
       CustomToast.showToast('Draft berhasil disimpan', ToastType.success);
 
       // Clear all items from cart after saving to draft
-      context.read<CartBloc>().add(ClearCart());
+      if (mounted) {
+        context.read<CartBloc>().add(ClearCart());
 
-      // Navigate to draft checkout page
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const DraftCheckoutPage(),
-        ),
-      );
+        // Navigate to draft checkout page
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const DraftCheckoutPage(),
+          ),
+        );
+      }
     } catch (e) {
       CustomToast.showToast('Gagal menyimpan draft: $e', ToastType.error);
     }
@@ -757,7 +763,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
+                              color: Colors.black.withValues(alpha: 0.05),
                               blurRadius: 10,
                               offset: const Offset(0, 2),
                             ),
@@ -918,7 +924,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
                                       color: (isDark
                                               ? Colors.blue[900]
                                               : Colors.blue[50])
-                                          ?.withOpacity(0.5),
+                                          ?.withValues(alpha: 0.5),
                                       borderRadius: BorderRadius.circular(8),
                                       border: Border.all(
                                         color: isDark
@@ -1015,18 +1021,18 @@ class _CheckoutPagesState extends State<CheckoutPages>
           end: Alignment.bottomRight,
           colors: [
             isDark
-                ? AppColors.primaryDark.withOpacity(0.1)
-                : AppColors.primaryLight.withOpacity(0.05),
+                ? AppColors.primaryDark.withValues(alpha: 0.1)
+                : AppColors.primaryLight.withValues(alpha: 0.05),
             isDark
-                ? AppColors.primaryDark.withOpacity(0.05)
-                : AppColors.primaryLight.withOpacity(0.02),
+                ? AppColors.primaryDark.withValues(alpha: 0.05)
+                : AppColors.primaryLight.withValues(alpha: 0.02),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isDark
-              ? AppColors.primaryDark.withOpacity(0.2)
-              : AppColors.primaryLight.withOpacity(0.2),
+              ? AppColors.primaryDark.withValues(alpha: 0.2)
+              : AppColors.primaryLight.withValues(alpha: 0.2),
           width: 1,
         ),
       ),
@@ -1034,8 +1040,8 @@ class _CheckoutPagesState extends State<CheckoutPages>
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: isDark
-              ? AppColors.surfaceDark.withOpacity(0.8)
-              : AppColors.surfaceLight.withOpacity(0.9),
+              ? AppColors.surfaceDark.withValues(alpha: 0.8)
+              : AppColors.surfaceLight.withValues(alpha: 0.9),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -1088,9 +1094,10 @@ class _CheckoutPagesState extends State<CheckoutPages>
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.success.withOpacity(0.1),
+                  color: AppColors.success.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.success.withOpacity(0.3)),
+                  border: Border.all(
+                      color: AppColors.success.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -1124,7 +1131,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -1229,7 +1236,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -1368,7 +1375,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -1656,9 +1663,9 @@ class _CheckoutPagesState extends State<CheckoutPages>
               height: 48,
               decoration: BoxDecoration(
                 color: _showSecondPhone
-                    ? Colors.red.withOpacity(0.1)
+                    ? Colors.red.withValues(alpha: 0.1)
                     : (isDark ? AppColors.primaryDark : AppColors.primaryLight)
-                        .withOpacity(0.1),
+                        .withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: _showSecondPhone
@@ -1860,7 +1867,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -2085,7 +2092,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
         decoration: BoxDecoration(
           color: isSelected
               ? (isDark ? AppColors.primaryDark : AppColors.primaryLight)
-                  .withOpacity(0.1)
+                  .withValues(alpha: 0.1)
               : (isDark ? AppColors.cardDark : AppColors.cardLight),
           border: Border.all(
             color: isSelected
@@ -2118,7 +2125,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
                         ? (isDark
                                 ? AppColors.primaryDark
                                 : AppColors.primaryLight)
-                            .withOpacity(0.8)
+                            .withValues(alpha: 0.8)
                         : (isDark ? Colors.grey[400] : Colors.grey[600]),
                   ),
               textAlign: TextAlign.center,
@@ -2169,7 +2176,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
             ),
             decoration: BoxDecoration(
               color: (isDark ? AppColors.primaryDark : AppColors.primaryLight)
-                  .withOpacity(0.1),
+                  .withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(
                 ResponsiveHelper.getResponsiveBorderRadius(
                   context,
@@ -2379,11 +2386,11 @@ class _CheckoutPagesState extends State<CheckoutPages>
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isFullyPaid
-              ? AppColors.success.withOpacity(0.3)
+              ? AppColors.success.withValues(alpha: 0.3)
               : isOverPaid
-                  ? AppColors.warning.withOpacity(0.3)
+                  ? AppColors.warning.withValues(alpha: 0.3)
                   : (isDark ? AppColors.primaryDark : AppColors.primaryLight)
-                      .withOpacity(0.3),
+                      .withValues(alpha: 0.3),
         ),
       ),
       child: Column(
@@ -2476,12 +2483,12 @@ class _CheckoutPagesState extends State<CheckoutPages>
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 color: (isDark ? AppColors.primaryDark : AppColors.primaryLight)
-                    .withOpacity(0.1),
+                    .withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color:
                       (isDark ? AppColors.primaryDark : AppColors.primaryLight)
-                          .withOpacity(0.3),
+                          .withValues(alpha: 0.3),
                 ),
               ),
               child: Row(
@@ -2715,7 +2722,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
         color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 16,
             offset: const Offset(0, -4),
           ),
@@ -2736,8 +2743,8 @@ class _CheckoutPagesState extends State<CheckoutPages>
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: isDark
-                        ? AppColors.primaryDark.withOpacity(0.2)
-                        : AppColors.primaryLight.withOpacity(0.2),
+                        ? AppColors.primaryDark.withValues(alpha: 0.2)
+                        : AppColors.primaryLight.withValues(alpha: 0.2),
                   ),
                 ),
                 child: Row(
@@ -2774,8 +2781,8 @@ class _CheckoutPagesState extends State<CheckoutPages>
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         color: isDark
-                            ? AppColors.primaryDark.withOpacity(0.1)
-                            : AppColors.primaryLight.withOpacity(0.1),
+                            ? AppColors.primaryDark.withValues(alpha: 0.1)
+                            : AppColors.primaryLight.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
@@ -2868,8 +2875,8 @@ class _CheckoutPagesState extends State<CheckoutPages>
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         elevation: _isPaymentComplete(grandTotal) ? 3 : 0,
                         shadowColor: isDark
-                            ? AppColors.primaryDark.withOpacity(0.4)
-                            : AppColors.primaryLight.withOpacity(0.4),
+                            ? AppColors.primaryDark.withValues(alpha: 0.4)
+                            : AppColors.primaryLight.withValues(alpha: 0.4),
                       ),
                     ),
                   ),
@@ -2935,9 +2942,7 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     final colorScheme = theme.colorScheme;
-    final availableHeight = ResponsiveHelper.getSafeModalHeight(context);
     final safePadding = ResponsiveHelper.getSafeAreaPadding(context);
 
     return GestureDetector(
@@ -2984,7 +2989,7 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
                       desktop: const EdgeInsets.all(28),
                     ),
                     decoration: BoxDecoration(
-                      color: colorScheme.surfaceVariant,
+                      color: colorScheme.surfaceContainerHighest,
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(20),
                         topRight: Radius.circular(20),
@@ -3079,7 +3084,7 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
                             ),
                             const SizedBox(height: 12),
                             DropdownButtonFormField<String>(
-                              value: _selectedPaymentCategory,
+                              initialValue: _selectedPaymentCategory,
                               decoration: InputDecoration(
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
@@ -3128,7 +3133,7 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
                             ),
                             const SizedBox(height: 12),
                             DropdownButtonFormField<String>(
-                              value: _selectedMethodType,
+                              initialValue: _selectedMethodType,
                               decoration: InputDecoration(
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
@@ -3239,7 +3244,7 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
                                             child: Container(
                                               decoration: BoxDecoration(
                                                 color: Colors.black
-                                                    .withOpacity(0.6),
+                                                    .withValues(alpha: 0.6),
                                                 borderRadius:
                                                     BorderRadius.circular(12),
                                               ),
@@ -3499,7 +3504,7 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
               leading: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppColors.success.withOpacity(0.1),
+                  color: AppColors.success.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -3534,7 +3539,7 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
               leading: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: colorScheme.primary.withOpacity(0.1),
+                  color: colorScheme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -3569,7 +3574,7 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
               leading: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
+                  color: Colors.orange.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -3730,7 +3735,6 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
     } catch (e) {
       // Fallback: copy original file if compression fails
       final File sourceFile = File(sourcePath);
-      final File targetFile = File(targetPath);
       await sourceFile.copy(targetPath);
     }
   }

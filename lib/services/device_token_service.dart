@@ -20,7 +20,9 @@ class DeviceTokenService {
 
       if (token == null) {
         if (kDebugMode) {
-          print('No auth token found');
+          if (kDebugMode) {
+            print('No auth token found');
+          }
         }
         return [];
       }
@@ -28,14 +30,20 @@ class DeviceTokenService {
       final url = ApiConfig.getDeviceTokensUrl(token: token, userId: userId);
 
       if (kDebugMode) {
-        print('GET Device Tokens URL: $url');
+        if (kDebugMode) {
+          print('GET Device Tokens URL: $url');
+        }
       }
 
       final response = await _apiClient.get(url);
 
       if (kDebugMode) {
-        print('GET Device Tokens Response: ${response.statusCode}');
-        print('Response Body: ${response.data}');
+        if (kDebugMode) {
+          print('GET Device Tokens Response: ${response.statusCode}');
+        }
+        if (kDebugMode) {
+          print('Response Body: ${response.data}');
+        }
       }
 
       if (response.statusCode == 200) {
@@ -56,18 +64,24 @@ class DeviceTokenService {
         }
 
         if (kDebugMode) {
-          print('No result found in response or unexpected format');
+          if (kDebugMode) {
+            print('No result found in response or unexpected format');
+          }
         }
         return [];
       } else {
         if (kDebugMode) {
-          print('Error getting device tokens: ${response.statusCode}');
+          if (kDebugMode) {
+            print('Error getting device tokens: ${response.statusCode}');
+          }
         }
         return [];
       }
     } catch (e) {
       if (kDebugMode) {
-        print('Exception getting device tokens: $e');
+        if (kDebugMode) {
+          print('Exception getting device tokens: $e');
+        }
       }
       return [];
     }
@@ -82,7 +96,9 @@ class DeviceTokenService {
 
       if (authToken == null) {
         if (kDebugMode) {
-          print('No auth token found');
+          if (kDebugMode) {
+            print('No auth token found');
+          }
         }
         return false;
       }
@@ -101,14 +117,20 @@ class DeviceTokenService {
       });
 
       if (kDebugMode) {
-        print('POST Device Token Response: ${response.statusCode}');
-        print('Response Body: ${response.data}');
+        if (kDebugMode) {
+          print('POST Device Token Response: ${response.statusCode}');
+        }
+        if (kDebugMode) {
+          print('Response Body: ${response.data}');
+        }
       }
 
       return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
       if (kDebugMode) {
-        print('Exception posting device token: $e');
+        if (kDebugMode) {
+          print('Exception posting device token: $e');
+        }
       }
       return false;
     }
@@ -127,7 +149,9 @@ class DeviceTokenService {
       if (existingTokens.isEmpty) {
         // No tokens found, create new one
         if (kDebugMode) {
-          print('No existing tokens found, creating new one');
+          if (kDebugMode) {
+            print('No existing tokens found, creating new one');
+          }
         }
         return await postDeviceToken(userId, currentToken);
       }
@@ -152,7 +176,9 @@ class DeviceTokenService {
       return true;
     } catch (e) {
       if (kDebugMode) {
-        print('Exception checking/updating token: $e');
+        if (kDebugMode) {
+          print('Exception checking/updating token: $e');
+        }
       }
       return false;
     }
@@ -167,7 +193,9 @@ class DeviceTokenService {
 
       if (token == null) {
         if (kDebugMode) {
-          print('No auth token found');
+          if (kDebugMode) {
+            print('No auth token found');
+          }
         }
         return [];
       }
@@ -176,14 +204,20 @@ class DeviceTokenService {
           ApiConfig.getLeaderByUserUrl(token: token, userId: currentUserId);
 
       if (kDebugMode) {
-        print('GET Leader User IDs URL: $url');
+        if (kDebugMode) {
+          print('GET Leader User IDs URL: $url');
+        }
       }
 
       final response = await _apiClient.get(url);
 
       if (kDebugMode) {
-        print('GET Leader User IDs Response: ${response.statusCode}');
-        print('Response Body: ${response.data}');
+        if (kDebugMode) {
+          print('GET Leader User IDs Response: ${response.statusCode}');
+        }
+        if (kDebugMode) {
+          print('Response Body: ${response.data}');
+        }
       }
 
       if (response.statusCode == 200) {
@@ -211,25 +245,33 @@ class DeviceTokenService {
           }
 
           if (kDebugMode) {
-            print('Extracted leader IDs: $leaderIds');
+            if (kDebugMode) {
+              print('Extracted leader IDs: $leaderIds');
+            }
           }
 
           return leaderIds;
         }
 
         if (kDebugMode) {
-          print('No result found in response');
+          if (kDebugMode) {
+            print('No result found in response');
+          }
         }
         return [];
       } else {
         if (kDebugMode) {
-          print('Error getting leader user IDs: ${response.statusCode}');
+          if (kDebugMode) {
+            print('Error getting leader user IDs: ${response.statusCode}');
+          }
         }
         return [];
       }
     } catch (e) {
       if (kDebugMode) {
-        print('Exception getting leader user IDs: $e');
+        if (kDebugMode) {
+          print('Exception getting leader user IDs: $e');
+        }
       }
       return [];
     }

@@ -355,12 +355,14 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
       final moreApprovals =
           await repository.getApprovalsWithPagination(page: nextPage);
 
-      if (moreApprovals.isNotEmpty) {
-        _currentPage = nextPage;
-        // Trigger bloc to load more data
-        context.read<ApprovalBloc>().add(LoadApprovals());
-      } else {
-        _hasMoreData = false;
+      if (mounted) {
+        if (moreApprovals.isNotEmpty) {
+          _currentPage = nextPage;
+          // Trigger bloc to load more data
+          context.read<ApprovalBloc>().add(LoadApprovals());
+        } else {
+          _hasMoreData = false;
+        }
       }
     } catch (e) {
       // Silent error handling for pagination
@@ -415,8 +417,6 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
       }
     }
 
-    // Get pending discount count before showing modal
-    int pendingCount = 0;
     try {
       final currentUserId = await AuthService.getCurrentUserId();
       if (currentUserId != null) {
@@ -436,21 +436,24 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
           }
         }
 
-        pendingCount = await orderLetterService.getPendingDiscountCount(
+        // Get pending count (for future use or debugging)
+        await orderLetterService.getPendingDiscountCount(
           orderLetterId: approval.id,
           leaderId: currentUserId,
           jobLevelId: jobLevelId,
         );
       }
     } catch (e) {
-      // Continue with pendingCount = 0 if error
+      // Continue if error
     }
 
     // Redirect to order letter document page for approval instead of showing modal
-    context.push(
-      RoutePaths.orderLetterDocument,
-      extra: approval.id,
-    );
+    if (mounted) {
+      context.push(
+        RoutePaths.orderLetterDocument,
+        extra: approval.id,
+      );
+    }
   }
 
   void _showApprovalTimeline(ApprovalEntity approval) {
@@ -491,7 +494,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: colorScheme.onSurfaceVariant.withOpacity(0.3),
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -503,7 +506,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: colorScheme.primary.withOpacity(0.05),
+              color: colorScheme.primary.withValues(alpha: 0.05),
             ),
             child: Row(
               children: [
@@ -550,8 +553,8 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                     size: 24,
                   ),
                   style: IconButton.styleFrom(
-                    backgroundColor: colorScheme.surfaceVariant.withOpacity(
-                      0.3,
+                    backgroundColor: colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.3,
                     ),
                     padding: const EdgeInsets.all(8),
                   ),
@@ -766,7 +769,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                           width: 40,
                           height: 40,
                           decoration: BoxDecoration(
-                            color: statusColor.withOpacity(0.1),
+                            color: statusColor.withValues(alpha: 0.1),
                             shape: BoxShape.circle,
                             border: Border.all(color: statusColor, width: 2),
                           ),
@@ -776,7 +779,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                           Container(
                             width: 2,
                             height: 60,
-                            color: statusColor.withOpacity(0.3),
+                            color: statusColor.withValues(alpha: 0.3),
                           ),
                       ],
                     ),
@@ -887,7 +890,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 20,
             offset: const Offset(0, -5),
           ),
@@ -906,11 +909,11 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                   width: 50,
                   height: 5,
                   decoration: BoxDecoration(
-                    color: colorScheme.onSurfaceVariant.withOpacity(0.4),
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
                     borderRadius: BorderRadius.circular(3),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: Colors.black.withValues(alpha: 0.1),
                         blurRadius: 4,
                         offset: const Offset(0, 2),
                       ),
@@ -927,8 +930,8 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  colorScheme.primary.withOpacity(0.08),
-                  colorScheme.primary.withOpacity(0.03),
+                  colorScheme.primary.withValues(alpha: 0.08),
+                  colorScheme.primary.withValues(alpha: 0.03),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -946,7 +949,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                     gradient: LinearGradient(
                       colors: [
                         colorScheme.primary,
-                        colorScheme.primary.withOpacity(0.8),
+                        colorScheme.primary.withValues(alpha: 0.8),
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -954,7 +957,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: colorScheme.primary.withOpacity(0.3),
+                        color: colorScheme.primary.withValues(alpha: 0.3),
                         blurRadius: 8,
                         offset: const Offset(0, 4),
                       ),
@@ -1004,10 +1007,10 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: AppColors.warning.withOpacity(0.1),
+                              color: AppColors.warning.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: AppColors.warning.withOpacity(0.3),
+                                color: AppColors.warning.withValues(alpha: 0.3),
                                 width: 1,
                               ),
                             ),
@@ -1027,10 +1030,10 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                 ),
                 Container(
                   decoration: BoxDecoration(
-                    color: colorScheme.surfaceVariant.withOpacity(0.5),
+                    color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: colorScheme.outline.withOpacity(0.1),
+                      color: colorScheme.outline.withValues(alpha: 0.1),
                       width: 1,
                     ),
                   ),
@@ -1064,8 +1067,6 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                 final sorong = item['sorong'] as String;
                 final bonus = item['bonus'] as List<Map<String, dynamic>>;
                 final quantity = item['quantity'] as int;
-                final netPrice = item['netPrice'] as double;
-                final totalPrice = item['totalPrice'] as double;
 
                 return Container(
                   margin: const EdgeInsets.only(bottom: 16),
@@ -1073,12 +1074,12 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                     color: colorScheme.surface,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: colorScheme.outline.withOpacity(0.1),
+                      color: colorScheme.outline.withValues(alpha: 0.1),
                       width: 1,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
                         blurRadius: 10,
                         offset: const Offset(0, 2),
                       ),
@@ -1092,8 +1093,8 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              colorScheme.primary.withOpacity(0.05),
-                              colorScheme.primary.withOpacity(0.02),
+                              colorScheme.primary.withValues(alpha: 0.05),
+                              colorScheme.primary.withValues(alpha: 0.02),
                             ],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
@@ -1108,7 +1109,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: colorScheme.primary.withOpacity(0.1),
+                                color: colorScheme.primary.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Icon(
@@ -1149,7 +1150,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                                 gradient: LinearGradient(
                                   colors: [
                                     colorScheme.primary,
-                                    colorScheme.primary.withOpacity(0.8),
+                                    colorScheme.primary.withValues(alpha: 0.8),
                                   ],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
@@ -1157,7 +1158,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: colorScheme.primary.withOpacity(0.3),
+                                    color: colorScheme.primary.withValues(alpha: 0.3),
                                     blurRadius: 6,
                                     offset: const Offset(0, 2),
                                   ),
@@ -1214,8 +1215,8 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                                 decoration: BoxDecoration(
                                   gradient: LinearGradient(
                                     colors: [
-                                      colorScheme.secondary.withOpacity(0.1),
-                                      colorScheme.secondary.withOpacity(0.05),
+                                      colorScheme.secondary.withValues(alpha: 0.1),
+                                      colorScheme.secondary.withValues(alpha: 0.05),
                                     ],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
@@ -1223,7 +1224,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
                                     color:
-                                        colorScheme.secondary.withOpacity(0.2),
+                                        colorScheme.secondary.withValues(alpha: 0.2),
                                     width: 1,
                                   ),
                                 ),
@@ -1236,7 +1237,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                                           padding: const EdgeInsets.all(6),
                                           decoration: BoxDecoration(
                                             color: colorScheme.secondary
-                                                .withOpacity(0.2),
+                                                .withValues(alpha: 0.2),
                                             borderRadius:
                                                 BorderRadius.circular(8),
                                           ),
@@ -1275,7 +1276,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                                                 BorderRadius.circular(8),
                                             border: Border.all(
                                               color: colorScheme.outline
-                                                  .withOpacity(0.1),
+                                                  .withValues(alpha: 0.1),
                                               width: 1,
                                             ),
                                           ),
@@ -1305,7 +1306,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                                                         vertical: 2),
                                                 decoration: BoxDecoration(
                                                   color: colorScheme.secondary
-                                                      .withOpacity(0.1),
+                                                      .withValues(alpha: 0.1),
                                                   borderRadius:
                                                       BorderRadius.circular(6),
                                                 ),
@@ -1346,14 +1347,14 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
               gradient: LinearGradient(
                 colors: [
                   colorScheme.surface,
-                  colorScheme.surfaceVariant.withOpacity(0.3),
+                  colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                 ],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
               ),
               border: Border(
                 top: BorderSide(
-                  color: colorScheme.outline.withOpacity(0.1),
+                  color: colorScheme.outline.withValues(alpha: 0.1),
                   width: 1,
                 ),
               ),
@@ -1367,12 +1368,12 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                       color: colorScheme.surface,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: colorScheme.outline.withOpacity(0.1),
+                        color: colorScheme.outline.withValues(alpha: 0.1),
                         width: 1,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
+                          color: Colors.black.withValues(alpha: 0.05),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -1386,7 +1387,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                             Container(
                               padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
-                                color: AppColors.info.withOpacity(0.1),
+                                color: AppColors.info.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Icon(
@@ -1427,7 +1428,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                       gradient: LinearGradient(
                         colors: [
                           colorScheme.primary,
-                          colorScheme.primary.withOpacity(0.8),
+                          colorScheme.primary.withValues(alpha: 0.8),
                         ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
@@ -1435,7 +1436,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: colorScheme.primary.withOpacity(0.3),
+                          color: colorScheme.primary.withValues(alpha: 0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 4),
                         ),
@@ -1450,8 +1451,8 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                               padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
                                 color: isDark
-                                    ? AppColors.primaryDark.withOpacity(0.2)
-                                    : Colors.white.withOpacity(0.2),
+                                    ? AppColors.primaryDark.withValues(alpha: 0.2)
+                                    : Colors.white.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Icon(
@@ -1511,7 +1512,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
         Container(
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: colorScheme.primary.withOpacity(0.1),
+            color: colorScheme.primary.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
@@ -1578,10 +1579,10 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                 padding:
                     const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
                 decoration: BoxDecoration(
-                  color: colorScheme.primary.withOpacity(0.1),
+                  color: colorScheme.primary.withValues(alpha: 0.1),
                   border: Border(
                     bottom: BorderSide(
-                      color: colorScheme.primary.withOpacity(0.2),
+                      color: colorScheme.primary.withValues(alpha: 0.2),
                       width: 1,
                     ),
                   ),
@@ -1716,7 +1717,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                 color: colorScheme.surface,
                 border: Border(
                   bottom: BorderSide(
-                    color: colorScheme.outline.withOpacity(0.06),
+                    color: colorScheme.outline.withValues(alpha: 0.06),
                     width: 1,
                   ),
                 ),
@@ -1729,7 +1730,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                       // Back Button
                       Container(
                         decoration: BoxDecoration(
-                          color: colorScheme.primary.withOpacity(0.06),
+                          color: colorScheme.primary.withValues(alpha: 0.06),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: IconButton(
@@ -1852,9 +1853,9 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.06),
+                color: color.withValues(alpha: 0.06),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: color.withOpacity(0.1), width: 1),
+                border: Border.all(color: color.withValues(alpha: 0.1), width: 1),
               ),
               child: Column(
                 children: [
@@ -1897,7 +1898,6 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 children: _filterOptions.asMap().entries.map((entry) {
-                  final index = entry.key;
                   final filter = entry.value;
                   final isSelected = _selectedFilter == filter;
 
@@ -1921,8 +1921,8 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                               ? (isDark
                                   ? AppColors.primaryDark
                                   : AppColors.primaryLight)
-                              : colorScheme.surfaceVariant.withOpacity(
-                                  0.3,
+                              : colorScheme.surfaceContainerHighest.withValues(
+                                  alpha: 0.3,
                                 ),
                           borderRadius: BorderRadius.circular(10),
                         ),
@@ -2010,7 +2010,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                 'Showing ${approvals.length} of ${paginationInfo['total_items']} items',
                 style: TextStyle(
                   fontSize: 12,
-                  color: colorScheme.onSurface.withOpacity(0.7),
+                  color: colorScheme.onSurface.withValues(alpha: 0.7),
                 ),
               ),
               const Spacer(),
@@ -2062,7 +2062,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                 Text(
                   'Loading more...',
                   style: TextStyle(
-                    color: colorScheme.onSurface.withOpacity(0.7),
+                    color: colorScheme.onSurface.withValues(alpha: 0.7),
                     fontSize: 14,
                   ),
                 ),
@@ -2169,7 +2169,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: colorScheme.primary.withOpacity(0.1),
+              color: colorScheme.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
             ),
             child: CircularProgressIndicator(
@@ -2211,7 +2211,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: AppColors.error.withOpacity(0.1),
+                color: AppColors.error.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Icon(
@@ -2284,7 +2284,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: colorScheme.primary.withOpacity(0.1),
+                color: colorScheme.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Icon(
@@ -2315,7 +2315,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
             Text(
               'Check back later or try a different filter',
               style: TextStyle(
-                color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                 fontSize: 12,
               ),
               textAlign: TextAlign.center,

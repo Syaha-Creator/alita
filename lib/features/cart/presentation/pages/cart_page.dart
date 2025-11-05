@@ -90,7 +90,7 @@ class CartPage extends StatelessWidget {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),
@@ -153,7 +153,7 @@ class CartPage extends StatelessWidget {
                   elevation: 8,
                   shadowColor:
                       (isDark ? AppColors.buttonDark : AppColors.buttonLight)
-                          .withOpacity(0.3),
+                          .withValues(alpha: 0.3),
                 ),
               ),
             ),
@@ -171,8 +171,6 @@ class CartPage extends StatelessWidget {
       0.0,
       (sum, item) => sum + (item.netPrice * item.quantity),
     );
-    final totalItems =
-        selectedItems.fold(0, (sum, item) => sum + item.quantity);
 
     return Column(
       children: [
@@ -224,7 +222,7 @@ class CartPage extends StatelessWidget {
             color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 0.1),
                 blurRadius: 20,
                 offset: const Offset(0, -5),
               ),
@@ -276,7 +274,7 @@ class CartPage extends StatelessWidget {
                             context: context,
                             builder: (context) => CheckoutUserInfoDialog(),
                           );
-                          if (result != null) {
+                          if (result != null && context.mounted) {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -295,7 +293,7 @@ class CartPage extends StatelessWidget {
                     backgroundColor:
                         isDark ? AppColors.buttonDark : AppColors.buttonLight,
                     disabledBackgroundColor: isDark
-                        ? AppColors.textSecondaryDark.withOpacity(0.3)
+                        ? AppColors.textSecondaryDark.withValues(alpha: 0.3)
                         : Colors.grey.shade300,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -303,7 +301,7 @@ class CartPage extends StatelessWidget {
                     elevation: 8,
                     shadowColor:
                         (isDark ? AppColors.buttonDark : AppColors.buttonLight)
-                            .withOpacity(0.3),
+                            .withValues(alpha: 0.3),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -433,7 +431,7 @@ class CartPage extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppColors.error.withOpacity(0.1),
+                  color: AppColors.error.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(Icons.warning, color: AppColors.error, size: 24),

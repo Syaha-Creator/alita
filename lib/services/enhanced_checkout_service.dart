@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../features/product/domain/entities/product_entity.dart';
 import '../features/cart/domain/entities/cart_entity.dart';
 import 'item_mapping_service.dart';
@@ -52,7 +54,10 @@ class EnhancedCheckoutService {
         isTakeAway: isTakeAway,
       );
     } catch (e) {
-      print('EnhancedCheckoutService: Error during checkout with mapping: $e');
+      if (kDebugMode) {
+        print(
+            'EnhancedCheckoutService: Error during checkout with mapping: $e');
+      }
       rethrow;
     }
   }

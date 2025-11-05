@@ -135,6 +135,7 @@ class ProductActions {
                   );
                   // Capture screenshot
                   final imageBytes = await screenshotController.capture();
+                  if (!dialogContext.mounted) return;
                   Navigator.pop(dialogContext); // Close loading
                   if (imageBytes == null) {
                     CustomToast.showToast(
@@ -152,6 +153,7 @@ class ProductActions {
                       mimeType: 'image/png', name: 'product_${product.id}.png');
 
                   // Get the render box for proper positioning on iOS
+                  if (!buttonContext.mounted) return;
                   final RenderBox? box =
                       buttonContext.findRenderObject() as RenderBox?;
                   final Rect sharePositionOrigin = box != null
@@ -163,10 +165,12 @@ class ProductActions {
                     text: shareText,
                     sharePositionOrigin: sharePositionOrigin,
                   );
+                  if (!dialogContext.mounted) return;
                   Navigator.pop(dialogContext); // Close share dialog
                   CustomToast.showToast(
                       "Produk berhasil dibagikan!", ToastType.success);
                 } catch (e) {
+                  if (!dialogContext.mounted) return;
                   Navigator.pop(dialogContext);
                   CustomToast.showToast(
                       "Gagal membagikan: $e", ToastType.error);

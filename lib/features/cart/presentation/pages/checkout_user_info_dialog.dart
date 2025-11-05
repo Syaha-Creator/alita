@@ -69,15 +69,20 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
 
       if (validationResult['isValid'] == true) {
         // Location is valid, now validate prices
+        if (!mounted) return false;
+        if (!context.mounted) return false;
         await _revalidateCartPrices(context);
+        if (!mounted) return false;
 
         // Allow checkout directly without dialog
         return true;
       } else {
         // Location is not valid, show error message
+        if (!mounted) return false;
         final message =
             validationResult['message'] as String? ?? 'Lokasi tidak valid';
-
+        if (!mounted) return false;
+        if (!context.mounted) return false;
         _showLocationErrorDialog(
           context,
           'Lokasi tidak valid',
@@ -86,6 +91,8 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
         return false;
       }
     } catch (e) {
+      if (!mounted) return false;
+      if (!context.mounted) return false;
       _showLocationErrorDialog(
         context,
         'Error validasi lokasi',
@@ -97,6 +104,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
 
   /// Revalidate cart prices with latest from API
   Future<void> _revalidateCartPrices(BuildContext context) async {
+    if (!mounted) return;
     final cartBloc = context.read<CartBloc>();
     final productBloc = context.read<ProductBloc>();
 
@@ -157,7 +165,6 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     final colorScheme = theme.colorScheme;
     final availableHeight = ResponsiveHelper.getSafeModalHeight(context);
     final safePadding = ResponsiveHelper.getSafeAreaPadding(context);
@@ -205,7 +212,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
                 desktop: const EdgeInsets.all(28),
               ),
               decoration: BoxDecoration(
-                color: colorScheme.surfaceVariant,
+                color: colorScheme.surfaceContainerHighest,
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(20),
                   topRight: Radius.circular(20),
@@ -267,7 +274,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
                     child: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: colorScheme.surfaceVariant,
+                        color: colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Icon(
@@ -433,19 +440,19 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
                               // Validate location before proceeding
                               final locationValid =
                                   await _validateLocation(context);
+                              if (!mounted) return;
+                              if (!context.mounted) return;
                               if (locationValid) {
-                                if (mounted) {
-                                  Navigator.pop(
-                                    context,
-                                    CheckoutDialogResult(
-                                      name: _nameController.text.trim(),
-                                      phone: _phoneController.text.trim(),
-                                      email: _emailController.text.trim(),
-                                      isTakeAway: _isTakeAway,
-                                      isExistingCustomer: _isExistingCustomer,
-                                    ),
-                                  );
-                                }
+                                Navigator.pop(
+                                  context,
+                                  CheckoutDialogResult(
+                                    name: _nameController.text.trim(),
+                                    phone: _phoneController.text.trim(),
+                                    email: _emailController.text.trim(),
+                                    isTakeAway: _isTakeAway,
+                                    isExistingCustomer: _isExistingCustomer,
+                                  ),
+                                );
                               }
                               // If location not valid, stay in dialog
                             } finally {
@@ -603,7 +610,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
           fontSize: 12,
         ),
         filled: true,
-        fillColor: colorScheme.surfaceVariant,
+        fillColor: colorScheme.surfaceContainerHighest,
       ),
     );
   }
@@ -621,7 +628,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
         decoration: BoxDecoration(
           color: isSelected
               ? colorScheme.primaryContainer
-              : colorScheme.surfaceVariant,
+              : colorScheme.surfaceContainerHighest,
           border: Border.all(
             color: isSelected ? colorScheme.primary : colorScheme.outline,
             width: isSelected ? 2 : 1,
@@ -659,7 +666,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
         decoration: BoxDecoration(
           color: isSelected
               ? colorScheme.primaryContainer
-              : colorScheme.surfaceVariant,
+              : colorScheme.surfaceContainerHighest,
           border: Border.all(
             color: isSelected ? colorScheme.primary : colorScheme.outline,
             width: isSelected ? 2 : 1,
@@ -695,7 +702,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
                 fontFamily: 'Inter',
                 fontSize: 11,
                 color: isSelected
-                    ? colorScheme.onPrimaryContainer.withOpacity(0.8)
+                    ? colorScheme.onPrimaryContainer.withValues(alpha: 0.8)
                     : colorScheme.onSurfaceVariant,
               ),
               textAlign: TextAlign.center,

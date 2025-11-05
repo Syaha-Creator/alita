@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import '../config/api_config.dart';
@@ -19,8 +19,6 @@ class AuthService {
   static Future<bool> isLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
     bool isLoggedIn = prefs.getBool(StorageKeys.isLoggedIn) ?? false;
-    int? loginTimestamp = prefs.getInt(StorageKeys.loginTimestamp);
-    String? token = prefs.getString(StorageKeys.authToken);
 
     authChangeNotifier.value = isLoggedIn;
     return isLoggedIn;
@@ -264,7 +262,9 @@ class AuthService {
       // Example: ProductCache.clear(), DraftCache.clear(), etc.
     } catch (e) {
       // Silent error - cache clearing is not critical for logout
-      print('AuthService: Warning - Failed to clear caches on logout: $e');
+      if (kDebugMode) {
+        print('AuthService: Warning - Failed to clear caches on logout: $e');
+      }
     }
   }
 

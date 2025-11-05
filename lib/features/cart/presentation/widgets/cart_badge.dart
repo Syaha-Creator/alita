@@ -18,8 +18,6 @@ class CartBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return BlocBuilder<CartBloc, CartState>(
       buildWhen: (previous, current) {
         if (previous is CartLoaded && current is CartLoaded) {

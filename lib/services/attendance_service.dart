@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import '../config/api_config.dart';
 import 'auth_service.dart';
 import 'location_service.dart';
@@ -169,9 +170,14 @@ class AttendanceService {
       final todayString =
           '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
-      print('AttendanceService: Looking for attendance on date: $todayString');
-      print(
-          'AttendanceService: Total attendance records: ${attendanceList.length}');
+      if (kDebugMode) {
+        print(
+            'AttendanceService: Looking for attendance on date: $todayString');
+      }
+      if (kDebugMode) {
+        print(
+            'AttendanceService: Total attendance records: ${attendanceList.length}');
+      }
 
       // Find today's attendance
       Map<String, dynamic>? todayAttendance;
@@ -182,7 +188,9 @@ class AttendanceService {
           continue;
         }
 
-        print('AttendanceService: Checking attendance_in: $attendanceInStr');
+        if (kDebugMode) {
+          print('AttendanceService: Checking attendance_in: $attendanceInStr');
+        }
 
         // Try parsing as DateTime first (more accurate)
         DateTime? attendanceDate;
@@ -199,18 +207,24 @@ class AttendanceService {
           if (attendanceDateOnly.year == today.year &&
               attendanceDateOnly.month == today.month &&
               attendanceDateOnly.day == today.day) {
-            print(
-                'AttendanceService: Found today attendance via date comparison');
+            if (kDebugMode) {
+              print(
+                  'AttendanceService: Found today attendance via date comparison');
+            }
             todayAttendance = attendance;
             break;
           }
         } catch (e) {
           // If parsing fails, fall back to string contains
-          print(
-              'AttendanceService: Failed to parse date, using string comparison: $e');
-          if (attendanceInStr.contains(todayString)) {
+          if (kDebugMode) {
             print(
-                'AttendanceService: Found today attendance via string comparison');
+                'AttendanceService: Failed to parse date, using string comparison: $e');
+          }
+          if (attendanceInStr.contains(todayString)) {
+            if (kDebugMode) {
+              print(
+                  'AttendanceService: Found today attendance via string comparison');
+            }
             todayAttendance = attendance;
             break;
           }

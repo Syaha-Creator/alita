@@ -62,10 +62,12 @@ class _LoginFormState extends State<LoginForm> with ControllerDisposalMixin {
         await AuthService.clearSavedEmail();
       }
 
-      setState(() => isLoading = true);
-      context.read<AuthBloc>().add(
-            AuthLoginRequested(emailController.text, passwordController.text),
-          );
+      if (mounted) {
+        setState(() => isLoading = true);
+        context.read<AuthBloc>().add(
+              AuthLoginRequested(emailController.text, passwordController.text),
+            );
+      }
     }
   }
 

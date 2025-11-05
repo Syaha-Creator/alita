@@ -124,12 +124,12 @@ class _ApprovalCardState extends State<ApprovalCard>
                 color: colorScheme.surface,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: colorScheme.outline.withOpacity(0.1),
+                  color: colorScheme.outline.withValues(alpha: 0.1),
                   width: 1,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: colorScheme.shadow.withOpacity(0.05),
+                    color: colorScheme.shadow.withValues(alpha: 0.05),
                     blurRadius: 10 + (5 * _hoverAnimation.value),
                     offset: Offset(0, 4 + (2 * _hoverAnimation.value)),
                   ),
@@ -224,10 +224,10 @@ class _ApprovalCardState extends State<ApprovalCard>
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: colorScheme.secondary.withOpacity(0.1),
+            color: colorScheme.secondary.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: colorScheme.secondary.withOpacity(0.2),
+              color: colorScheme.secondary.withValues(alpha: 0.2),
               width: 1,
             ),
           ),
@@ -279,10 +279,10 @@ class _ApprovalCardState extends State<ApprovalCard>
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: colorScheme.primary.withOpacity(0.05),
+        color: colorScheme.primary.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: colorScheme.primary.withOpacity(0.1),
+          color: colorScheme.primary.withValues(alpha: 0.1),
           width: 1,
         ),
       ),
@@ -379,10 +379,10 @@ class _ApprovalCardState extends State<ApprovalCard>
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: color.withOpacity(0.2),
+          color: color.withValues(alpha: 0.2),
           width: 1,
         ),
       ),
@@ -428,10 +428,10 @@ class _ApprovalCardState extends State<ApprovalCard>
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: color.withOpacity(0.2),
+          color: color.withValues(alpha: 0.2),
           width: 1,
         ),
       ),
@@ -482,7 +482,7 @@ class _ApprovalCardState extends State<ApprovalCard>
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceVariant.withOpacity(0.3),
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -891,10 +891,10 @@ class _ApprovalCardState extends State<ApprovalCard>
       margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.info.withOpacity(0.1),
+        color: AppColors.info.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppColors.info.withOpacity(0.2),
+          color: AppColors.info.withValues(alpha: 0.2),
           width: 1,
         ),
       ),

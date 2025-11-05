@@ -226,7 +226,7 @@ class ResponsiveHelper {
 
   // Mendapatkan text scale factor
   static double getTextScaleFactor(BuildContext context) {
-    return MediaQuery.of(context).textScaleFactor;
+    return MediaQuery.of(context).textScaler.scale(1.0);
   }
 
   // Cek apakah user menggunakan zoom besar
@@ -257,7 +257,6 @@ class ResponsiveHelper {
       baseSize = desktop;
     }
 
-    final textScaleFactor = getTextScaleFactor(context);
     if (isExtraLargeZoom(context) && extraLargeZoomMultiplier != null) {
       return baseSize * extraLargeZoomMultiplier;
     } else if (isLargeZoom(context) && largeZoomMultiplier != null) {

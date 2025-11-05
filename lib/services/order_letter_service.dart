@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import '../config/api_config.dart';
 import '../config/dependency_injection.dart';
 import 'auth_service.dart';
@@ -232,13 +233,11 @@ class OrderLetterService {
         }
 
         // Smart approval logic - Modified to ensure all orders require Direct Leader approval
-        bool isApproved = false;
         String? approvedAt;
         String? approvedValue;
 
         if (i == 0) {
           // User level - always auto-approved (user created the order)
-          isApproved = true;
           approvedAt = DateTime.now().toIso8601String();
           approvedValue = 'true';
         } else {
@@ -968,22 +967,8 @@ class OrderLetterService {
     final Set<String> createdDiscounts = {};
 
     for (final itemDiscount in itemDiscounts) {
-      final productId = itemDiscount['productId'];
       final kasurName = itemDiscount['kasurName'] as String;
       final discounts = itemDiscount['discounts'] as List<double>;
-
-      // Get product size from the original cart item to create unique key
-      final productSize = itemDiscount['productSize'] as String? ?? '';
-      final uniqueProductKey = '${kasurName}_$productSize';
-
-      for (int idx = 0; idx < detailResults.length; idx++) {
-        if (detailResults[idx]['success'] &&
-            detailResults[idx]['data'] != null) {
-          final rawData = detailResults[idx]['data'];
-          // Data sebenarnya ada di dalam 'location' field
-          final detailData = rawData['location'] ?? rawData;
-        }
-      }
 
       // Find kasur detail ID for this specific kasur with matching size
       int? kasurOrderLetterDetailId;
@@ -993,11 +978,10 @@ class OrderLetterService {
           // Data sebenarnya ada di dalam 'location' field
           final detailData = rawData['location'] ?? rawData;
 
-          // Match by kasur name, size, and type
+          // Match by kasur name and type
           if ((detailData['item_type'] == 'Mattress' ||
                   detailData['item_type'] == 'kasur') &&
-              detailData['desc_1'] == kasurName &&
-              detailData['desc_2'] == productSize) {
+              detailData['desc_1'] == kasurName) {
             // detailData sudah berisi data location, jadi langsung akses ID
             kasurOrderLetterDetailId = detailData['id'] ??
                 detailData['order_letter_detail_id'] ??
@@ -1139,7 +1123,6 @@ class OrderLetterService {
           }
 
           final kasurName = detailData['desc_1'] ?? 'Unknown';
-          final productSize = detailData['desc_2'] ?? '';
 
           // Create discount entries up to Direct Leader (level 2)
           // Level 0: User (auto-approved)
@@ -1158,7 +1141,7 @@ class OrderLetterService {
         }
       }
     } catch (e) {
-      print('OrderLetterService: Error creating default discount entries: $e');
+      if (kDebugMode) { print('OrderLetterService: Error creating default discount entries: $e'); }
     }
   }
 

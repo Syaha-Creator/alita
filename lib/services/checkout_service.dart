@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../config/dependency_injection.dart';
 import 'api_client.dart';
 import 'lookup_item_service.dart';
@@ -20,8 +22,10 @@ class CheckoutService {
 
   // Resolve item number using product's prefilled number or lookup service (legacy per-component)
   Future<String> _resolveItemNumberFor(CartEntity item, String itemType) async {
-    print(
-        '[CheckoutService] _resolveItemNumberFor type=$itemType, brand=${item.product.brand}, tipe=${item.product.kasur}, ukuran=${item.product.ukuran}');
+    if (kDebugMode) {
+      print(
+          '[CheckoutService] _resolveItemNumberFor type=$itemType, brand=${item.product.brand}, tipe=${item.product.kasur}, ukuran=${item.product.ukuran}');
+    }
     bool isInvalid(String? v) {
       if (v == null) return true;
       final s = v.trim();
@@ -32,8 +36,10 @@ class CheckoutService {
     // Prefer user selection stored in cart
     final selected = item.selectedItemNumbers?[itemType];
     if (selected != null && !isInvalid(selected['item_number'])) {
-      print(
-          '[CheckoutService] using user-selected number for $itemType => ${selected['item_number']}');
+      if (kDebugMode) {
+        print(
+            '[CheckoutService] using user-selected number for $itemType => ${selected['item_number']}');
+      }
       return selected['item_number']!;
     }
     switch (itemType) {
@@ -51,13 +57,18 @@ class CheckoutService {
         break;
     }
     if (!isInvalid(prefilled)) {
-      print(
-          '[CheckoutService] using prefilled number for $itemType => $prefilled');
+      if (kDebugMode) {
+        print(
+            '[CheckoutService] using prefilled number for $itemType => $prefilled');
+      }
       return prefilled!;
     }
     try {
       final lookup = LookupItemService(client: locator<ApiClient>());
-      print('[CheckoutService] lookup for $itemType with context and size...');
+      if (kDebugMode) {
+        print(
+            '[CheckoutService] lookup for $itemType with context and size...');
+      }
       final list = await lookup.fetchLookupItems(
         brand: item.product.brand,
         kasur: item.product.kasur,
@@ -69,13 +80,17 @@ class CheckoutService {
         contextItemType: itemType,
       );
       if (list.isNotEmpty && !isInvalid(list.first.itemNumber)) {
-        print(
-            '[CheckoutService] chosen number for $itemType => ${list.first.itemNumber}');
+        if (kDebugMode) {
+          print(
+              '[CheckoutService] chosen number for $itemType => ${list.first.itemNumber}');
+        }
         return list.first.itemNumber;
       }
     } catch (_) {}
-    print(
-        '[CheckoutService] fallback to product.id for $itemType => ${item.product.id}');
+    if (kDebugMode) {
+      print(
+          '[CheckoutService] fallback to product.id for $itemType => ${item.product.id}');
+    }
     return item.product.id.toString();
   }
 
@@ -83,8 +98,10 @@ class CheckoutService {
   Future<List<String>> _resolveItemNumbersPerUnit(
       CartEntity item, String itemType) async {
     final qty = item.quantity;
-    print(
-        '[CheckoutService] _resolveItemNumbersPerUnit type=$itemType, qty=$qty');
+    if (kDebugMode) {
+      print(
+          '[CheckoutService] _resolveItemNumbersPerUnit type=$itemType, qty=$qty');
+    }
     // If per-unit selections exist, use them (fill gaps via legacy or lookup)
     final perUnit = item.selectedItemNumbersPerUnit?[itemType];
     if (perUnit != null && perUnit.isNotEmpty) {
@@ -99,14 +116,18 @@ class CheckoutService {
           results.add(await _resolveItemNumberFor(item, itemType));
         }
       }
-      print('[CheckoutService] per-unit numbers for $itemType => $results');
+      if (kDebugMode) {
+        print('[CheckoutService] per-unit numbers for $itemType => $results');
+      }
       return results;
     }
     // No per-unit selections; reuse single resolution for all units
     final one = await _resolveItemNumberFor(item, itemType);
     final all = List<String>.filled(qty, one);
-    print(
-        '[CheckoutService] single number for $itemType => $one (reused x$qty)');
+    if (kDebugMode) {
+      print(
+          '[CheckoutService] single number for $itemType => $one (reused x$qty)');
+    }
     return all;
   }
 

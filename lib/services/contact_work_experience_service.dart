@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../config/api_config.dart';
 import 'api_client.dart';
 
@@ -25,7 +27,9 @@ class ContactWorkExperienceService {
 
       return null;
     } catch (e) {
-      print('Error fetching contact work experience: $e');
+      if (kDebugMode) {
+        print('Error fetching contact work experience: $e');
+      }
       return null;
     }
   }
@@ -49,7 +53,9 @@ class ContactWorkExperienceService {
 
       return null;
     } catch (e) {
-      print('Error getting user job level: $e');
+      if (kDebugMode) {
+        print('Error getting user job level: $e');
+      }
       return null;
     }
   }
@@ -77,7 +83,9 @@ class ContactWorkExperienceService {
 
       return [];
     } catch (e) {
-      print('Error getting user direct leader: $e');
+      if (kDebugMode) {
+        print('Error getting user direct leader: $e');
+      }
       return [];
     }
   }

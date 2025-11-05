@@ -76,7 +76,9 @@ class _ProductPageState extends State<ProductPage> {
                 ),
               ).then((result) {
                 // Hide dialog after user interaction
-                context.read<ProductBloc>().add(HideWhatsAppDialog());
+                if (mounted && context.mounted) {
+                  context.read<ProductBloc>().add(HideWhatsAppDialog());
+                }
               });
             }
           },
@@ -168,7 +170,6 @@ class _ProductPageState extends State<ProductPage> {
           child: BlocBuilder<ProductBloc, ProductState>(
             builder: (context, state) {
               final theme = Theme.of(context);
-              final isDark = theme.brightness == Brightness.dark;
 
               if (state is ProductLoading) {
                 return const Center(child: CircularProgressIndicator());
@@ -260,9 +261,9 @@ class _ProductPageState extends State<ProductPage> {
                                           .contains('sleep spa') ??
                                       false))
                               ? theme.colorScheme.primaryContainer
-                                  .withOpacity(0.3)
+                                  .withValues(alpha: 0.3)
                               : theme.colorScheme.secondaryContainer
-                                  .withOpacity(0.3),
+                                  .withValues(alpha: 0.3),
                           border: Border.all(
                             color: (state.selectedBrand == "Spring Air" ||
                                     state.selectedBrand == "Therapedic" ||
@@ -274,8 +275,10 @@ class _ProductPageState extends State<ProductPage> {
                                             ?.toLowerCase()
                                             .contains('sleep spa') ??
                                         false))
-                                ? theme.colorScheme.primary.withOpacity(0.3)
-                                : theme.colorScheme.secondary.withOpacity(0.3),
+                                ? theme.colorScheme.primary
+                                    .withValues(alpha: 0.3)
+                                : theme.colorScheme.secondary
+                                    .withValues(alpha: 0.3),
                           ),
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -440,10 +443,10 @@ class _ProductPageState extends State<ProductPage> {
                                                             'sleep spa') ??
                                                     false))
                                             ? theme.colorScheme.primaryContainer
-                                                .withOpacity(0.5)
+                                                .withValues(alpha: 0.5)
                                             : theme
                                                 .colorScheme.secondaryContainer
-                                                .withOpacity(0.5),
+                                                .withValues(alpha: 0.5),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Text(
@@ -512,7 +515,7 @@ class _ProductPageState extends State<ProductPage> {
                                         decoration: BoxDecoration(
                                           color: theme
                                               .colorScheme.errorContainer
-                                              .withOpacity(0.3),
+                                              .withValues(alpha: 0.3),
                                           borderRadius: BorderRadius.circular(
                                             8,
                                           ),
@@ -715,9 +718,10 @@ class _ProductPageState extends State<ProductPage> {
                                       await Future.delayed(
                                         const Duration(milliseconds: 100),
                                       );
+                                      if (!mounted) return;
                                       final ctx =
                                           _filterButtonKey.currentContext;
-                                      if (ctx != null) {
+                                      if (ctx != null && ctx.mounted) {
                                         final box = ctx.findRenderObject()
                                             as RenderBox?;
                                         if (box != null) {

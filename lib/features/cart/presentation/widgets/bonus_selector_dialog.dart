@@ -65,8 +65,6 @@ class _BonusSelectorDialogState extends State<BonusSelectorDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return AlertDialog(
       title: const Text(
         'Pilih Item Bonus',

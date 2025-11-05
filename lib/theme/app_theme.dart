@@ -15,11 +15,9 @@ class AppTheme {
       secondary: AppColors.secondaryLight,
       surface: AppColors.surfaceLight,
       onSurface: AppColors.textPrimaryLight,
-      background: AppColors.backgroundLight,
-      onBackground: AppColors.textPrimaryLight,
       error: AppColors.error,
       onError: Colors.white,
-      surfaceVariant: AppColors.surfaceVariantLight,
+      surfaceContainerHighest: AppColors.surfaceVariantLight,
       onSurfaceVariant: AppColors.textSecondaryLight,
       outline: AppColors.borderLight,
     ),
@@ -96,7 +94,7 @@ class AppTheme {
       hintStyle: TextStyle(
         fontFamily: 'Inter',
         fontSize: 14,
-        color: AppColors.textSecondaryLight.withOpacity(0.6),
+        color: AppColors.textSecondaryLight.withValues(alpha: 0.6),
         fontWeight: FontWeight.w400,
       ),
       enabledBorder: OutlineInputBorder(
@@ -185,11 +183,9 @@ class AppTheme {
       secondary: AppColors.secondaryDark,
       surface: AppColors.surfaceDark,
       onSurface: AppColors.textPrimaryDark,
-      background: AppColors.backgroundDark,
-      onBackground: AppColors.textPrimaryDark,
       error: AppColors.error,
       onError: Colors.white,
-      surfaceVariant: AppColors.surfaceVariantDark,
+      surfaceContainerHighest: AppColors.surfaceVariantDark,
       onSurfaceVariant: AppColors.textSecondaryDark,
       outline: AppColors.borderDark,
     ),
@@ -266,7 +262,7 @@ class AppTheme {
       hintStyle: TextStyle(
         fontFamily: 'Inter',
         fontSize: 14,
-        color: AppColors.textSecondaryDark.withOpacity(0.6),
+        color: AppColors.textSecondaryDark.withValues(alpha: 0.6),
         fontWeight: FontWeight.w400,
       ),
       enabledBorder: OutlineInputBorder(

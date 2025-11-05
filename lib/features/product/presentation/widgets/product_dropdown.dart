@@ -114,7 +114,7 @@ class ProductDropdown extends StatelessWidget {
               Switch(
                 value: isSetActive,
                 onChanged: onSetChanged,
-                activeColor: AppColors.primaryLight,
+                activeThumbColor: AppColors.primaryLight,
               ),
             ],
           ),

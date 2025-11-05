@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import '../config/api_config.dart';
 import '../config/dependency_injection.dart';
@@ -70,8 +71,10 @@ class LookupItemService {
     String? contextItemType,
   }) async {
     try {
-      print(
-          '[LookupItemService] fetchLookupItems IN => brand=$brand, kasur=$kasur, divan=$divan, headboard=$headboard, sorong=$sorong, ukuran=$ukuran, contextItemType=$contextItemType');
+      if (kDebugMode) {
+        print(
+            '[LookupItemService] fetchLookupItems IN => brand=$brand, kasur=$kasur, divan=$divan, headboard=$headboard, sorong=$sorong, ukuran=$ukuran, contextItemType=$contextItemType');
+      }
       // Build authenticated URL
       final token = await AuthService.getToken();
       if (token == null) {
@@ -122,8 +125,10 @@ class LookupItemService {
       }
 
       final normUkuran = normalizeSize(ukuran);
-      print(
-          '[LookupItemService] normalized => tipe="$normTipe", ukuran="$normUkuran"');
+      if (kDebugMode) {
+        print(
+            '[LookupItemService] normalized => tipe="$normTipe", ukuran="$normUkuran"');
+      }
       // Parser helper
       List<LookupItem> parseItems(dynamic data) {
         List<dynamic> list = const [];
@@ -144,12 +149,16 @@ class LookupItemService {
       Response response;
 
       // Primary: GET all then local filter by tipe + ukuran (tanpa params)
-      print('[LookupItemService] GET pl_lookup_item_nums params: {}');
+      if (kDebugMode) {
+        print('[LookupItemService] GET pl_lookup_item_nums params: {}');
+      }
       response = await _client.get(url);
       var items = response.statusCode == 200
           ? parseItems(response.data)
           : <LookupItem>[];
-      print('[LookupItemService] parsed count (all) = ${items.length}');
+      if (kDebugMode) {
+        print('[LookupItemService] parsed count (all) = ${items.length}');
+      }
       String k(String? s) => (s ?? '').trim().toLowerCase();
       String kSize(String? s) => normalizeSize(s ?? '');
       bool isInvalidNum(String? v) {
@@ -162,8 +171,10 @@ class LookupItemService {
       items = items
           .where((i) => k(i.type) == k(normTipe) && kSize(i.size) == normUkuran)
           .toList();
-      print(
-          '[LookupItemService] after primary filter => count=${items.length}');
+      if (kDebugMode) {
+        print(
+            '[LookupItemService] after primary filter => count=${items.length}');
+      }
 
       // Fallback 1: tambah brand/komponen via server filter bila kosong
       if (items.isEmpty) {
@@ -176,13 +187,17 @@ class LookupItemService {
         if (!isNone(divan)) qpBrand['divan'] = divan;
         if (!isNone(headboard)) qpBrand['headboard'] = headboard;
         if (!isNone(sorong)) qpBrand['sorong'] = sorong;
-        print('[LookupItemService] Fallback brand params: $qpBrand');
+        if (kDebugMode) {
+          print('[LookupItemService] Fallback brand params: $qpBrand');
+        }
         try {
           response = await _client.get(url, queryParameters: qpBrand);
           if (response.statusCode == 200) {
             items = parseItems(response.data);
-            print(
-                '[LookupItemService] fallback brand raw count=${items.length}');
+            if (kDebugMode) {
+              print(
+                  '[LookupItemService] fallback brand raw count=${items.length}');
+            }
           }
         } catch (_) {}
       }
@@ -193,19 +208,26 @@ class LookupItemService {
           'type': normTipe,
           'ukuran': ukuran,
         };
-        print('[LookupItemService] Fallback alt key params: $qpAlt');
+        if (kDebugMode) {
+          print('[LookupItemService] Fallback alt key params: $qpAlt');
+        }
         try {
           response = await _client.get(url, queryParameters: qpAlt);
           if (response.statusCode == 200) {
             items = parseItems(response.data);
-            print('[LookupItemService] fallback alt raw count=${items.length}');
+            if (kDebugMode) {
+              print(
+                  '[LookupItemService] fallback alt raw count=${items.length}');
+            }
           }
         } catch (_) {}
       }
 
       // Fallback 3: client-side relax size filter (match by tipe only)
       if (items.isEmpty) {
-        print('[LookupItemService] Fallback tipe-only filter (client-side)');
+        if (kDebugMode) {
+          print('[LookupItemService] Fallback tipe-only filter (client-side)');
+        }
         try {
           // Ensure we have a source list to filter from
           if (response.statusCode != 200) {
@@ -225,13 +247,17 @@ class LookupItemService {
             }).toList();
           }
           items = items.where((i) => !isInvalidNum(i.itemNumber)).toList();
-          print(
-              '[LookupItemService] fallback tipe-only after ctx filter => count=${items.length}');
+          if (kDebugMode) {
+            print(
+                '[LookupItemService] fallback tipe-only after ctx filter => count=${items.length}');
+          }
         } catch (_) {}
       }
       final preview = items.take(3).map((e) => e.itemNumber).toList();
-      print(
-          '[LookupItemService] Response count: ${items.length}, preview=$preview');
+      if (kDebugMode) {
+        print(
+            '[LookupItemService] Response count: ${items.length}, preview=$preview');
+      }
       if (contextItemType != null && contextItemType.isNotEmpty) {
         return items
             .map((i) => LookupItem(

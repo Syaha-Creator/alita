@@ -93,9 +93,9 @@ class _AreaSelectorWidgetState extends State<AreaSelectorWidget> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.error.withOpacity(0.1),
+        color: AppColors.error.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.error.withOpacity(0.3)),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -118,7 +118,7 @@ class _AreaSelectorWidgetState extends State<AreaSelectorWidget> {
 
   Widget _buildAreaDropdown() {
     return DropdownButtonFormField<AreaModel>(
-      value: _selectedArea,
+      initialValue: _selectedArea,
       decoration: const InputDecoration(
         border: OutlineInputBorder(),
         labelText: 'Area',
@@ -148,9 +148,9 @@ class _AreaSelectorWidgetState extends State<AreaSelectorWidget> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.primaryLight.withOpacity(0.1),
+        color: AppColors.primaryLight.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.primaryLight.withOpacity(0.3)),
+        border: Border.all(color: AppColors.primaryLight.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

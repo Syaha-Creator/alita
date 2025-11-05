@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
@@ -1162,17 +1163,31 @@ class PDFService {
       await file.writeAsBytes(pdfBytes);
 
       // 📁 LOG: Tampilkan lokasi file PDF yang disimpan permanen
-      print('💾 PDF Saved to Device Successfully!');
-      print('📄 File Name: $fileName');
-      print('📂 Full Path: $filePath');
-      print(
-          '🗂️  ${Platform.isAndroid ? 'Android' : 'iOS'} Storage: ${directory.path}');
-      if (Platform.isMacOS || Platform.isIOS) {
-        print('🍎 Finder: Cmd+Shift+G → ${directory.path}');
-        print('📱 iOS Files App: On My iPhone → [App Name] → Documents');
-      } else if (Platform.isAndroid) {
+      if (kDebugMode) {
+        print('💾 PDF Saved to Device Successfully!');
+      }
+      if (kDebugMode) {
+        print('📄 File Name: $fileName');
+      }
+      if (kDebugMode) {
+        print('📂 Full Path: $filePath');
+      }
+      if (kDebugMode) {
         print(
-            '🤖 File Manager: Internal Storage → Android → data → [package] → files');
+            '🗂️  ${Platform.isAndroid ? 'Android' : 'iOS'} Storage: ${directory.path}');
+      }
+      if (Platform.isMacOS || Platform.isIOS) {
+        if (kDebugMode) {
+          print('🍎 Finder: Cmd+Shift+G → ${directory.path}');
+        }
+        if (kDebugMode) {
+          print('📱 iOS Files App: On My iPhone → [App Name] → Documents');
+        }
+      } else if (Platform.isAndroid) {
+        if (kDebugMode) {
+          print(
+              '🤖 File Manager: Internal Storage → Android → data → [package] → files');
+        }
       }
 
       return filePath;
@@ -1199,14 +1214,26 @@ class PDFService {
       await tempFile.writeAsBytes(pdfBytes);
 
       // 📁 LOG: Tampilkan lokasi file PDF untuk debugging
-      print('🔍 PDF Generated Successfully!');
-      print('📄 File Name: $fileName');
-      print('📂 Full Path: $tempPath');
-      print('🗂️  Temp Directory: ${tempDir.path}');
+      if (kDebugMode) {
+        print('🔍 PDF Generated Successfully!');
+      }
+      if (kDebugMode) {
+        print('📄 File Name: $fileName');
+      }
+      if (kDebugMode) {
+        print('📂 Full Path: $tempPath');
+      }
+      if (kDebugMode) {
+        print('🗂️  Temp Directory: ${tempDir.path}');
+      }
       if (Platform.isMacOS || Platform.isIOS) {
-        print('🍎 Finder: Cmd+Shift+G → ${tempDir.path}');
+        if (kDebugMode) {
+          print('🍎 Finder: Cmd+Shift+G → ${tempDir.path}');
+        }
       } else if (Platform.isAndroid) {
-        print('🤖 File Manager: Navigate to temp directory');
+        if (kDebugMode) {
+          print('🤖 File Manager: Navigate to temp directory');
+        }
       }
 
       // Set default position if not provided (fallback for iOS)

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -87,13 +88,21 @@ class _CartItemWidgetState extends State<CartItemWidget> {
     final product = widget.item.product;
     await Future.wait([
       _controller.autoFillNewUnitsIfSingleOption(context, widget.item,
-          itemType: 'kasur', tipeForLookup: product.kasur),
+          itemType: 'kasur',
+          tipeForLookup: product.kasur,
+          mounted: () => mounted),
       _controller.autoFillNewUnitsIfSingleOption(context, widget.item,
-          itemType: 'divan', tipeForLookup: product.divan),
+          itemType: 'divan',
+          tipeForLookup: product.divan,
+          mounted: () => mounted),
       _controller.autoFillNewUnitsIfSingleOption(context, widget.item,
-          itemType: 'headboard', tipeForLookup: product.headboard),
+          itemType: 'headboard',
+          tipeForLookup: product.headboard,
+          mounted: () => mounted),
       _controller.autoFillNewUnitsIfSingleOption(context, widget.item,
-          itemType: 'sorong', tipeForLookup: product.sorong),
+          itemType: 'sorong',
+          tipeForLookup: product.sorong,
+          mounted: () => mounted),
     ]);
   }
 
@@ -304,8 +313,10 @@ class _CartItemWidgetState extends State<CartItemWidget> {
       BuildContext context, String itemType, int unitIndex) async {
     try {
       // ignore: avoid_print
-      print(
-          '[CartItem] Manual open selector itemType=$itemType unitIndex=$unitIndex');
+      if (kDebugMode) {
+        print(
+            '[CartItem] Manual open selector itemType=$itemType unitIndex=$unitIndex');
+      }
       // Tentukan tipe yang akan dicocokkan berdasarkan komponen
       final p = widget.item.product;
       String tipeForLookup;
@@ -323,6 +334,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
         default:
           tipeForLookup = p.kasur;
       }
+      final cartBloc = context.read<CartBloc>();
       final list = await lookup.LookupItemService().fetchLookupItems(
         brand: p.brand,
         kasur: tipeForLookup,
@@ -336,17 +348,20 @@ class _CartItemWidgetState extends State<CartItemWidget> {
       if (!mounted) return;
       // Auto-apply when only one option available
       if (list.length == 1) {
+        if (!mounted) return;
         final it = list.first;
-        context.read<CartBloc>().add(UpdateCartSelectedItemNumber(
-              productId: widget.item.product.id,
-              netPrice: widget.item.netPrice,
-              itemType: itemType,
-              itemNumber: it.itemNumber,
-              jenisKain: it.fabricType,
-              warnaKain: it.fabricColor,
-              unitIndex: unitIndex,
-              cartLineId: widget.item.cartLineId,
-            ));
+        cartBloc.add(UpdateCartSelectedItemNumber(
+          productId: widget.item.product.id,
+          netPrice: widget.item.netPrice,
+          itemType: itemType,
+          itemNumber: it.itemNumber,
+          jenisKain: it.fabricType,
+          warnaKain: it.fabricColor,
+          unitIndex: unitIndex,
+          cartLineId: widget.item.cartLineId,
+        ));
+        if (!mounted) return;
+        if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Kain default diterapkan')),
         );
@@ -354,14 +369,16 @@ class _CartItemWidgetState extends State<CartItemWidget> {
       }
 
       if (list.isEmpty) {
-        // ignore: avoid_print
-        print('[CartItem] Lookup empty for itemType=$itemType');
+        if (!mounted) return;
+        if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Pilihan kain tidak tersedia')),
         );
         return;
       }
 
+      if (!mounted) return;
+      if (!context.mounted) return;
       await showDialog(
         context: context,
         builder: (ctx) {
@@ -418,6 +435,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
       );
     } catch (e) {
       if (!mounted) return;
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Gagal memuat kain: $e')),
       );
@@ -531,7 +549,10 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                 ],
               ));
       if (confirm == true) {
-        context.read<CartBloc>().add(RemoveFromCart(
+        if (!mounted) return;
+        if (!context.mounted) return;
+        final cartBloc = context.read<CartBloc>();
+        cartBloc.add(RemoveFromCart(
             productId: widget.item.product.id,
             netPrice: widget.item.netPrice,
             cartLineId: widget.item.cartLineId));
@@ -658,8 +679,8 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: isDark
-                        ? AppColors.accentDark.withOpacity(0.3)
-                        : AppColors.accentLight.withOpacity(0.3),
+                        ? AppColors.accentDark.withValues(alpha: 0.3)
+                        : AppColors.accentLight.withValues(alpha: 0.3),
                     width: 1,
                   ),
                 ),
@@ -810,12 +831,12 @@ class _CartItemWidgetState extends State<CartItemWidget> {
       decoration: BoxDecoration(
         color: isDark
             ? AppColors.surfaceDark
-            : AppColors.accentLight.withOpacity(0.05),
+            : AppColors.accentLight.withValues(alpha: 0.05),
         borderRadius: const BorderRadius.all(radius),
         border: Border.all(
           color: isDark
-              ? AppColors.accentDark.withOpacity(0.2)
-              : AppColors.accentLight.withOpacity(0.2),
+              ? AppColors.accentDark.withValues(alpha: 0.2)
+              : AppColors.accentLight.withValues(alpha: 0.2),
           width: 1,
         ),
       ),
@@ -875,8 +896,9 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
                               color: isDark
-                                  ? AppColors.accentDark.withOpacity(0.3)
-                                  : AppColors.accentLight.withOpacity(0.3),
+                                  ? AppColors.accentDark.withValues(alpha: 0.3)
+                                  : AppColors.accentLight
+                                      .withValues(alpha: 0.3),
                               width: 1,
                             ),
                           ),
@@ -962,8 +984,9 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
                               color: isDark
-                                  ? AppColors.accentDark.withOpacity(0.3)
-                                  : AppColors.accentLight.withOpacity(0.3),
+                                  ? AppColors.accentDark.withValues(alpha: 0.3)
+                                  : AppColors.accentLight
+                                      .withValues(alpha: 0.3),
                               width: 1,
                             ),
                           ),
@@ -1294,7 +1317,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
       decoration: BoxDecoration(
           color: isDark
               ? AppColors.surfaceDark
-              : AppColors.success.withOpacity(0.1),
+              : AppColors.success.withValues(alpha: 0.1),
           borderRadius: const BorderRadius.all(radius)),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1375,6 +1398,8 @@ class _CartItemWidgetState extends State<CartItemWidget> {
       if (!mounted) return;
 
       // Create a stateful dialog with search functionality
+      if (!mounted) return;
+      if (!context.mounted) return;
       showDialog(
         context: context,
         builder: (ctx) => BonusSelectorDialog(
@@ -1387,11 +1412,11 @@ class _CartItemWidgetState extends State<CartItemWidget> {
         ),
       );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading accessories: $e')),
-        );
-      }
+      if (!mounted) return;
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading accessories: $e')),
+      );
     }
   }
 
@@ -1439,12 +1464,16 @@ class _CartItemWidgetState extends State<CartItemWidget> {
       if (!mounted) return;
 
       if (options.isEmpty) {
+        if (!mounted) return;
+        if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Tidak ada opsi $type yang tersedia')),
         );
         return;
       }
 
+      if (!mounted) return;
+      if (!context.mounted) return;
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -1500,11 +1529,11 @@ class _CartItemWidgetState extends State<CartItemWidget> {
         ),
       );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading $type options: $e')),
-        );
-      }
+      if (!mounted) return;
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading $type options: $e')),
+      );
     }
   }
 }
