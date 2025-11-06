@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -33,18 +32,18 @@ class CartItemWidget extends StatefulWidget {
   State<CartItemWidget> createState() => _CartItemWidgetState();
 }
 
-class _CartItemWidgetState extends State<CartItemWidget> {
+class _CartItemWidgetState extends State<CartItemWidget>
+    with AutomaticKeepAliveClientMixin {
   bool isExpanded = false;
   bool _autoFabricChecked = false;
   final CartItemController _controller = CartItemController();
   bool _isEditingPrice = false;
 
-  // === KEMBALIKAN KONSTANTA KE SINI AGAR BISA DIAKSES SEMUA METHOD ===
+  @override
+  bool get wantKeepAlive => true;
   static const double _avatarSize = 40.0;
   static const Radius radius = Radius.circular(12);
-  // =================================================================
 
-  // Helper method to compare lists
   bool _listEquals<T>(List<T> a, List<T> b) {
     if (a.length != b.length) return false;
     for (int i = 0; i < a.length; i++) {
@@ -66,15 +65,17 @@ class _CartItemWidgetState extends State<CartItemWidget> {
   @override
   void didUpdateWidget(covariant CartItemWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // When quantity increases, auto-fill missing units if only one option exists
-    if (widget.item.quantity > oldWidget.item.quantity) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _autoFillNewUnitsIfSingleOption();
-      });
+    if (widget.item.quantity != oldWidget.item.quantity) {
+      if (mounted) {
+        setState(() {});
+      }
+      if (widget.item.quantity > oldWidget.item.quantity) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _autoFillNewUnitsIfSingleOption();
+        });
+      }
     }
   }
-
-  // (removed) auto discount sync to restore original product/cart separation
 
   Future<void> _autoSelectFabricDefaults() async {
     if (_autoFabricChecked) return;
@@ -108,15 +109,13 @@ class _CartItemWidgetState extends State<CartItemWidget> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    // Kita gunakan BlocListener untuk update controller secara aman saat state berubah
     return BlocListener<ProductBloc, ProductState>(
       listener: (context, state) {
-        // Avoid live sync while editing price dialog is open
         if (_isEditingPrice) return;
-        // Prefer discount changes first to avoid re-deriving after reset
         final newDiscountPercentages =
             state.productDiscountsPercentage[widget.item.product.id];
         final hasPositiveDiscount =
@@ -141,7 +140,6 @@ class _CartItemWidgetState extends State<CartItemWidget> {
           return;
         }
 
-        // Then apply pure price changes
         final newPrice = state.roundedPrices[widget.item.product.id];
         if (newPrice != null && newPrice != widget.item.netPrice) {
           context.read<CartBloc>().add(UpdateCartPrice(
@@ -152,34 +150,53 @@ class _CartItemWidgetState extends State<CartItemWidget> {
               ));
         }
       },
-      child: InkWell(
-        onTap: () => setState(() => isExpanded = !isExpanded),
-        child: Card(
-          margin: const EdgeInsets.symmetric(
-              horizontal: AppPadding.p10, vertical: AppPadding.p10 / 2),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          elevation: 4,
-          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-          child: Padding(
-            padding: const EdgeInsets.all(AppPadding.p10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(context, isDark),
-                // Animasi buka-tutup detail
-                AnimatedCrossFade(
-                  duration: const Duration(milliseconds: 300),
-                  firstChild: const SizedBox.shrink(),
-                  secondChild: _buildDetailsSection(context, isDark),
-                  crossFadeState: isExpanded
-                      ? CrossFadeState.showSecond
-                      : CrossFadeState.showFirst,
-                ),
-                const SizedBox(height: AppPadding.p10),
-                _buildTotalPrice(context, isDark),
-              ],
-            ),
+      child: Card(
+        margin: const EdgeInsets.symmetric(
+            horizontal: AppPadding.p10, vertical: AppPadding.p10 / 2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        elevation: 4,
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        child: Padding(
+          padding: const EdgeInsets.all(AppPadding.p10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Flexible(
+                    child: GestureDetector(
+                      onTap: () => setState(() => isExpanded = !isExpanded),
+                      child: _buildHeaderWithoutQuantity(context, isDark),
+                    ),
+                  ),
+                  Builder(
+                    builder: (builderContext) => QuantityControl(
+                      quantity: widget.item.quantity,
+                      onIncrement: () {
+                        builderContext.read<CartBloc>().add(UpdateCartQuantity(
+                              productId: widget.item.product.id,
+                              netPrice: widget.item.netPrice,
+                              quantity: widget.item.quantity + 1,
+                              cartLineId: widget.item.cartLineId,
+                            ));
+                      },
+                      onDecrement: () => _decrement(builderContext),
+                    ),
+                  ),
+                ],
+              ),
+              // Animasi buka-tutup detail
+              AnimatedCrossFade(
+                duration: const Duration(milliseconds: 300),
+                firstChild: const SizedBox.shrink(),
+                secondChild: _buildDetailsSection(context, isDark),
+                crossFadeState: isExpanded
+                    ? CrossFadeState.showSecond
+                    : CrossFadeState.showFirst,
+              ),
+              const SizedBox(height: AppPadding.p10),
+              _buildTotalPrice(context, isDark),
+            ],
           ),
         ),
       ),
@@ -312,11 +329,6 @@ class _CartItemWidgetState extends State<CartItemWidget> {
   Future<void> _openFabricSelector(
       BuildContext context, String itemType, int unitIndex) async {
     try {
-      // ignore: avoid_print
-      if (kDebugMode) {
-        print(
-            '[CartItem] Manual open selector itemType=$itemType unitIndex=$unitIndex');
-      }
       // Tentukan tipe yang akan dicocokkan berdasarkan komponen
       final p = widget.item.product;
       String tipeForLookup;
@@ -442,7 +454,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
     }
   }
 
-  Widget _buildHeader(BuildContext context, bool isDark) {
+  Widget _buildHeaderWithoutQuantity(BuildContext context, bool isDark) {
     return Row(
       children: [
         Checkbox(
@@ -479,18 +491,6 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                       : AppColors.textPrimaryLight,
                 ),
           ),
-        ),
-        QuantityControl(
-          quantity: widget.item.quantity,
-          onIncrement: () {
-            context.read<CartBloc>().add(UpdateCartQuantity(
-                  productId: widget.item.product.id,
-                  netPrice: widget.item.netPrice,
-                  quantity: widget.item.quantity + 1,
-                  cartLineId: widget.item.cartLineId,
-                ));
-          },
-          onDecrement: () => _decrement(context),
         ),
       ],
     );

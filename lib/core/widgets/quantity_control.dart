@@ -55,9 +55,9 @@ class QuantityControl extends StatelessWidget {
     return Material(
       shape: const CircleBorder(),
       color: color.withValues(alpha: 0.1),
-      child: InkResponse(
+      child: InkWell(
         onTap: onTap,
-        radius: 20,
+        customBorder: const CircleBorder(),
         child: Padding(
           padding: const EdgeInsets.all(AppPadding.p8),
           child: Tooltip(

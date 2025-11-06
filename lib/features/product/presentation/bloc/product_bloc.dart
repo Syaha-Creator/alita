@@ -488,6 +488,9 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
               (event.divan == AppStrings.noDivan
                   ? (p.divan.isEmpty || p.divan == AppStrings.noDivan)
                   : p.divan == event.divan) &&
+              (state.selectedSize != null && state.selectedSize!.isNotEmpty
+                  ? p.ukuran == state.selectedSize
+                  : true) &&
               (!state.isSetActive || p.isSet == true))
           .toList();
       final headboards =
@@ -537,6 +540,9 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
                   ? (p.headboard.isEmpty ||
                       p.headboard == AppStrings.noHeadboard)
                   : p.headboard == event.headboard) &&
+              (state.selectedSize != null && state.selectedSize!.isNotEmpty
+                  ? p.ukuran == state.selectedSize
+                  : true) &&
               (!state.isSetActive || p.isSet == true))
           .toList();
       final sorongs = filteredProducts.map((p) => p.sorong).toSet().toList();
@@ -582,6 +588,9 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
               (event.sorong == AppStrings.noSorong
                   ? (p.sorong.isEmpty || p.sorong == AppStrings.noSorong)
                   : p.sorong == event.sorong) &&
+              (state.selectedSize != null && state.selectedSize!.isNotEmpty
+                  ? p.ukuran == state.selectedSize
+                  : true) &&
               (!state.isSetActive || p.isSet == true))
           .toList();
       final sizes = filteredProducts.map((p) => p.ukuran).toSet().toList();
@@ -614,23 +623,22 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
 
     on<UpdateSelectedChannel>((event, emit) {
       emit(state.copyWith(
-        selectedChannel: event.channel, // User selected channel
-        selectedChannelModel: null, // Will be set when needed
-        // Don't reset brands - keep the ones from API
-        selectedBrand: "", // Reset to empty
+        selectedChannel: event.channel,
+        selectedChannelModel: null,
+        selectedBrand: "",
         selectedBrandModel: null,
-        availableKasurs: [], // Will be populated when brand is selected
-        availableDivans: [], // Will be populated when kasur is selected
-        availableHeadboards: [], // Will be populated when divan is selected
-        availableSorongs: [], // Will be populated when headboard is selected
-        availableSizes: [], // Will be populated when sorong is selected
-        availablePrograms: [], // Will be populated when kasur is selected
-        selectedKasur: AppStrings.noKasur, // Reset to default
-        selectedDivan: AppStrings.noDivan, // Reset to default
-        selectedHeadboard: AppStrings.noHeadboard, // Reset to default
-        selectedSorong: AppStrings.noSorong, // Reset to default
-        selectedSize: "", // Reset to empty
-        selectedProgram: "", // Reset to empty
+        availableKasurs: [],
+        availableDivans: [],
+        availableHeadboards: [],
+        availableSorongs: [],
+        availableSizes: [],
+        availablePrograms: [],
+        selectedKasur: AppStrings.noKasur,
+        selectedDivan: AppStrings.noDivan,
+        selectedHeadboard: AppStrings.noHeadboard,
+        selectedSorong: AppStrings.noSorong,
+        selectedSize: "",
+        selectedProgram: "",
       ));
     });
 
@@ -648,33 +656,30 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
 
       emit(state.copyWith(
         selectedBrand: event.brand,
-        selectedBrandModel: null, // Will be set when needed
-        availableKasurs: [], // Will be populated after fetch
-        availableDivans: [], // Will be populated when kasur is selected
-        availableHeadboards: [], // Will be populated when divan is selected
-        availableSorongs: [], // Will be populated when headboard is selected
-        availableSizes: [], // Will be populated when sorong is selected
-        availablePrograms: [], // Will be populated when kasur is selected
-        selectedKasur: AppStrings.noKasur, // Reset to default
-        selectedDivan: AppStrings.noDivan, // Reset to default
-        selectedHeadboard: AppStrings.noHeadboard, // Reset to default
-        selectedSorong: AppStrings.noSorong, // Reset to default
-        selectedSize: "", // Reset to empty
-        selectedProgram: "", // Reset to empty
+        selectedBrandModel: null,
+        availableKasurs: [],
+        availableDivans: [],
+        availableHeadboards: [],
+        availableSorongs: [],
+        availableSizes: [],
+        availablePrograms: [],
+        selectedKasur: AppStrings.noKasur,
+        selectedDivan: AppStrings.noDivan,
+        selectedHeadboard: AppStrings.noHeadboard,
+        selectedSorong: AppStrings.noSorong,
+        selectedSize: "",
+        selectedProgram: "",
         filteredProducts: [],
         isFilterApplied: false,
       ));
 
-      // Determine which area to use based on brand selection
       String? areaToUse;
       if (event.brand == "Spring Air" ||
           event.brand == "Therapedic" ||
           event.brand.toLowerCase().contains('spring air') ||
           event.brand.toLowerCase().contains('sleep spa')) {
-        // Use nasional area for Spring Air (including European Collection), Therapedic, and Sleep Spa
         areaToUse = "Nasional";
       } else {
-        // Use user's selected area for other brands
         areaToUse = state.userSelectedArea ?? state.selectedArea;
       }
 
@@ -687,7 +692,45 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
     });
 
     on<UpdateSelectedUkuran>((event, emit) {
-      emit(state.copyWith(selectedSize: event.ukuran));
+      // Filter produk berdasarkan semua selection sebelumnya DAN ukuran yang baru dipilih
+      final filteredProducts = state.products
+          .where((p) =>
+              (state.selectedKasur == AppStrings.noKasur
+                  ? (p.kasur.isEmpty || p.kasur == AppStrings.noKasur)
+                  : p.kasur == state.selectedKasur) &&
+              (state.selectedDivan == AppStrings.noDivan
+                  ? (p.divan.isEmpty || p.divan == AppStrings.noDivan)
+                  : p.divan == state.selectedDivan) &&
+              (state.selectedHeadboard == AppStrings.noHeadboard
+                  ? (p.headboard.isEmpty ||
+                      p.headboard == AppStrings.noHeadboard)
+                  : p.headboard == state.selectedHeadboard) &&
+              (state.selectedSorong == AppStrings.noSorong
+                  ? (p.sorong.isEmpty || p.sorong == AppStrings.noSorong)
+                  : p.sorong == state.selectedSorong) &&
+              (event.ukuran.isNotEmpty ? p.ukuran == event.ukuran : true) &&
+              (!state.isSetActive || p.isSet == true))
+          .toList();
+
+      // Ambil program unik dari produk yang sudah difilter berdasarkan ukuran
+      final programs = filteredProducts.map((p) => p.program).toSet().toList();
+
+      // Pilih program secara otomatis berdasarkan filter (selalu pilih yang baru, jangan keep program lama)
+      String selectedProgram = "";
+      if (programs.isNotEmpty) {
+        // Pilih program yang bukan set (atau program pertama jika semua set)
+        final nonSet = programs.firstWhere(
+          (prog) => !prog.toLowerCase().contains('set'),
+          orElse: () => programs.first,
+        );
+        selectedProgram = nonSet;
+      }
+
+      emit(state.copyWith(
+        selectedSize: event.ukuran,
+        availablePrograms: programs,
+        selectedProgram: selectedProgram,
+      ));
     });
 
     on<UpdateSelectedProgram>((event, emit) {
@@ -1060,6 +1103,7 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         selectedHeadboard: AppStrings.noHeadboard, // Reset to default
         selectedSorong: AppStrings.noSorong, // Reset to default
         selectedSize: "", // Reset to empty
+        selectedProgram: "", // Reset to empty
         availableDivans: [],
         availableHeadboards: [],
         availableSorongs: [],

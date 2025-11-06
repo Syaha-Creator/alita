@@ -187,7 +187,7 @@ class CartPage extends StatelessWidget {
                   vertical: AppPadding.p4,
                 ),
                 child: Dismissible(
-                  key: Key('${cartItem.product.id}-${cartItem.netPrice}'),
+                  key: ValueKey(cartItem.cartLineId),
                   direction: DismissDirection.endToStart,
                   background: Container(
                     decoration: BoxDecoration(

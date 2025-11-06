@@ -184,20 +184,17 @@ class CartBloc extends Bloc<CartEvent, CartState> {
               netPrice: event.netPrice)) {
             // Update bonus quantities to match new product quantity
             final updatedBonus = item.product.bonus.map((bonus) {
-              // bonus.originalQuantity = bonus per 1 product
-              // maxQuantity = originalQuantity * productQuantity
-              // Calculate new max quantity based on new product quantity
               final perUnit = bonus.originalQuantity > 0
                   ? bonus.originalQuantity
-                  : bonus.quantity;
-              final newMaxQuantity = perUnit * 2 * event.quantity;
+                  : (bonus.quantity > 0 ? bonus.quantity : 1);
+              final calculatedMax = perUnit * 2 * event.quantity;
+              final newMaxQuantity = calculatedMax > 0 ? calculatedMax : 1;
 
-              // Scale bonus quantity proportionally
-              // Example: if product qty changes from 2→3, bonus qty should scale too
-              final scaleFactor = event.quantity / item.quantity.toDouble();
+              final scaleFactor = item.quantity > 0
+                  ? event.quantity / item.quantity.toDouble()
+                  : 1.0;
               final scaledQuantity = (bonus.quantity * scaleFactor).round();
 
-              // Ensure bonus quantity doesn't exceed new max
               final finalQuantity = scaledQuantity.clamp(1, newMaxQuantity);
 
               return BonusItem(

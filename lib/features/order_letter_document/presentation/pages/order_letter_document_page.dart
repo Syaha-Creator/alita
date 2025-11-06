@@ -205,7 +205,8 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         icon: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: isDark ? colorScheme.surfaceContainerHighest : Colors.grey[100],
+            color:
+                isDark ? colorScheme.surfaceContainerHighest : Colors.grey[100],
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
                 color: isDark
@@ -288,7 +289,8 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: _getStatusColor(_document!.status).withValues(alpha: 0.1),
+                    color: _getStatusColor(_document!.status)
+                        .withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                         color: _getStatusColor(_document!.status)
@@ -325,7 +327,8 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: isDark ? colorScheme.surfaceContainerHighest : Colors.grey[50],
+            color:
+                isDark ? colorScheme.surfaceContainerHighest : Colors.grey[50],
             border: Border(
               top: BorderSide(
                   color: isDark
@@ -465,7 +468,9 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 decoration: BoxDecoration(
-                  color: isDark ? colorScheme.surfaceContainerHighest : Colors.grey[50],
+                  color: isDark
+                      ? colorScheme.surfaceContainerHighest
+                      : Colors.grey[50],
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(12),
                     topRight: Radius.circular(12),
@@ -940,8 +945,9 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                   decoration: BoxDecoration(
-                    color:
-                        isDark ? colorScheme.surfaceContainerHighest : Colors.grey[100],
+                    color: isDark
+                        ? colorScheme.surfaceContainerHighest
+                        : Colors.grey[100],
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -2200,21 +2206,21 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
       // Show success message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('PDF berhasil dibuat dan dibagikan!'),
-          backgroundColor: Colors.green,
-        ),
-      );
+          const SnackBar(
+            content: Text('PDF berhasil dibuat dan dibagikan!'),
+            backgroundColor: Colors.green,
+          ),
+        );
       }
     } catch (e) {
       // Show error message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
