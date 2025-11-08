@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:permission_handler/permission_handler.dart'
+    as permission_handler;
 import 'package:geocoding/geocoding.dart';
 
 class LocationService {
@@ -8,32 +11,30 @@ class LocationService {
 
   /// Check if location permission is granted
   static Future<bool> isLocationPermissionGranted() async {
-    // Cek permission yang lebih spesifik dulu
-    final statusWhenInUse = await Permission.locationWhenInUse.status;
-    if (statusWhenInUse.isGranted) {
-      return true;
-    }
-
-    // Jika tidak, cek permission umum
-    final status = await Permission.location.status;
-    return status.isGranted;
+    final permission = await Geolocator.checkPermission();
+    return permission == LocationPermission.always ||
+        permission == LocationPermission.whileInUse;
   }
 
   /// Request location permission
   static Future<bool> requestLocationPermission() async {
-    // Request permission dengan cara yang lebih eksplisit
-    final status = await Permission.locationWhenInUse.request();
-    if (status.isGranted) {
-      return true;
+    LocationPermission permission = await Geolocator.checkPermission();
+
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
     }
 
-    // Jika tidak granted, coba request permission yang lebih spesifik
-    if (status.isDenied) {
-      final status2 = await Permission.location.request();
-      return status2.isGranted;
+    if (permission == LocationPermission.deniedForever) {
+      return false;
     }
 
-    return false;
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.unableToDetermine) {
+      return false;
+    }
+
+    return permission == LocationPermission.always ||
+        permission == LocationPermission.whileInUse;
   }
 
   /// Get current location
@@ -44,30 +45,27 @@ class LocationService {
       }
 
       // Check if location permission is granted
-      final permissionStatus = await Permission.locationWhenInUse.status;
+      var permission = await Geolocator.checkPermission();
       if (kDebugMode) {
-        print('LocationService: Permission status: $permissionStatus');
+        print('LocationService: Permission status: $permission');
       }
 
-      if (!permissionStatus.isGranted) {
+      if (permission == LocationPermission.denied) {
         if (kDebugMode) {
           print('LocationService: Requesting location permission...');
         }
-        final granted = await requestLocationPermission();
-        if (kDebugMode) {
-          print('LocationService: Permission granted: $granted');
-        }
-        if (!granted) {
-          // Cek apakah permission ditolak secara permanen
-          final finalStatus = await Permission.locationWhenInUse.status;
-          if (finalStatus.isPermanentlyDenied) {
-            throw Exception(
-                'Location permission permanently denied. Please enable location permission in app settings.');
-          } else {
-            throw Exception(
-                'Location permission denied. Please enable location permission in settings.');
-          }
-        }
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        throw Exception(
+            'Location permission permanently denied. Please enable location permission in app settings.');
+      }
+
+      if (permission != LocationPermission.always &&
+          permission != LocationPermission.whileInUse) {
+        throw Exception(
+            'Location permission denied. Please enable location permission in settings.');
       }
 
       // Check if location services are enabled
@@ -82,13 +80,25 @@ class LocationService {
       if (kDebugMode) {
         print('LocationService: Getting current position...');
       }
-      // Get current position
-      Position position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 10),
-        ),
-      );
+      late final Position position;
+      try {
+        position = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.best,
+            timeLimit: Duration(seconds: 15),
+          ),
+        );
+      } on TimeoutException catch (timeoutError) {
+        if (kDebugMode) {
+          print(
+              'LocationService: Timeout getting current position: $timeoutError');
+        }
+        final fallback = await Geolocator.getLastKnownPosition();
+        if (fallback == null) {
+          rethrow;
+        }
+        position = fallback;
+      }
 
       if (kDebugMode) {
         print(
@@ -258,6 +268,6 @@ class LocationService {
 
   /// Open app settings if permission is permanently denied
   static Future<void> openAppSettings() async {
-    await openAppSettings();
+    await permission_handler.openAppSettings();
   }
 }
