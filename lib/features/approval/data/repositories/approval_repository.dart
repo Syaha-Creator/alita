@@ -726,6 +726,12 @@ class ApprovalRepository {
         filteredLetters.add(orderLetter);
         continue;
       }
+
+      // Check if current user is assigned as approver (e.g. analyst) for this order letter
+      if (await _isUserApproverForOrderLetter(orderLetter, currentUserId)) {
+        filteredLetters.add(orderLetter);
+        continue;
+      }
     }
 
     if (kDebugMode) {
@@ -735,6 +741,83 @@ class ApprovalRepository {
       }
     }
     return filteredLetters;
+  }
+
+  Future<bool> _isUserApproverForOrderLetter(
+    Map<String, dynamic> orderLetter,
+    int currentUserId,
+  ) async {
+    final orderLetterId = orderLetter['id'] as int?;
+    if (orderLetterId == null) {
+      return false;
+    }
+
+    bool matchesCurrentUser(dynamic value) {
+      if (value == null) return false;
+      final parsed = int.tryParse(value.toString());
+      return parsed == currentUserId;
+    }
+
+    bool checkDiscountList(dynamic discountsData) {
+      if (discountsData is List) {
+        for (final discount in discountsData) {
+          if (discount is Map<String, dynamic>) {
+            final approver = discount['approver'] ?? discount['leader'];
+            if (matchesCurrentUser(approver)) {
+              return true;
+            }
+          }
+        }
+      }
+      return false;
+    }
+
+    // Check discounts included directly in the order letter payload
+    if (checkDiscountList(orderLetter['discounts'])) {
+      return true;
+    }
+
+    // Check nested discounts inside details if present
+    final detailsData = orderLetter['details'];
+    if (detailsData is List) {
+      for (final detail in detailsData) {
+        if (detail is Map<String, dynamic>) {
+          if (checkDiscountList(detail['order_letter_discount'])) {
+            return true;
+          }
+        }
+      }
+    }
+
+    // Check approval records if included
+    final approvalsData = orderLetter['approvals'];
+    if (approvalsData is List) {
+      for (final approval in approvalsData) {
+        if (approval is Map<String, dynamic>) {
+          final leader = approval['leader'] ?? approval['approver'];
+          if (matchesCurrentUser(leader)) {
+            return true;
+          }
+        }
+      }
+    }
+
+    // Fallback: fetch discounts from API for this order letter
+    try {
+      final discounts = await _orderLetterService.getOrderLetterDiscounts(
+        orderLetterId: orderLetterId,
+      );
+      for (final discount in discounts) {
+        final approver = discount['approver'] ?? discount['leader'];
+        if (matchesCurrentUser(approver)) {
+          return true;
+        }
+      }
+    } catch (e) {
+      // Ignore errors and treat as no match
+    }
+
+    return false;
   }
 
   /// Fallback method to filter only current user's orders
