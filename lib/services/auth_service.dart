@@ -7,6 +7,7 @@ import '../config/dependency_injection.dart';
 import '../features/approval/data/cache/approval_cache.dart';
 import 'cart_storage_service.dart';
 import 'team_hierarchy_service.dart';
+import 'notification_service.dart';
 
 /// Service untuk autentikasi, penyimpanan token, dan session user.
 class AuthService {
@@ -44,6 +45,17 @@ class AuthService {
         await prefs.setInt(_userAreaIdKey, areaId);
       }
       authChangeNotifier.value = true;
+
+      // Register FCM token ke backend setelah login berhasil
+      try {
+        final notificationService = NotificationService();
+        await notificationService.registerTokenToBackend();
+      } catch (e) {
+        // Jangan gagalkan login jika register token gagal
+        if (kDebugMode) {
+          print('Error registering FCM token after login: $e');
+        }
+      }
 
       return true;
     } catch (e) {

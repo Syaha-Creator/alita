@@ -567,9 +567,6 @@ class PDFService {
 
       // Jika ada order letter extended amount, gunakan perhitungan yang sesuai
       if (orderLetterExtendedAmount != null && orderLetterExtendedAmount > 0) {
-        // Calculate original pricelist from unit_price using discount data
-        // Use product description as key (same format as order letter document)
-
         double kasurPricelistPerUnit = _calculateOriginalPricelistByProductKey(
           item.netPrice,
           productKey,
@@ -582,8 +579,7 @@ class PDFService {
         }
 
         double kasurPricelist = kasurPricelistPerUnit * item.quantity;
-        double kasurNet =
-            item.netPrice * item.quantity; // Gunakan netPrice dari CartEntity
+        double kasurNet = item.netPrice * item.quantity;
         double kasurDiscount = kasurPricelist - kasurNet;
 
         tableRows.add(pw.TableRow(

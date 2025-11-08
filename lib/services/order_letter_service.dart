@@ -4,6 +4,7 @@ import '../config/api_config.dart';
 import '../config/dependency_injection.dart';
 import 'auth_service.dart';
 import 'leader_service.dart';
+import 'notification_service.dart';
 
 class OrderLetterService {
   final Dio dio;
@@ -500,6 +501,62 @@ class OrderLetterService {
             await _updateOrderLetterStatus(orderLetterId, 'Approved');
       }
 
+      // Send notification after approval
+      try {
+        // Get approver name and level
+        String approverName = 'Unknown';
+        String approvalLevel = 'Level $jobLevelId';
+
+        // Try to get from discount data or current user
+        if (discountIdsToApprove.isNotEmpty) {
+          final discounts = await getOrderLetterDiscounts(
+            orderLetterId: orderLetterId,
+          );
+          final firstDiscount = discounts.firstWhere(
+            (d) => discountIdsToApprove
+                .contains(d['id'] ?? d['order_letter_discount_id']),
+            orElse: () => {},
+          );
+
+          if (firstDiscount.isNotEmpty) {
+            approverName = firstDiscount['approver_name'] as String? ??
+                await AuthService.getCurrentUserName() ??
+                'Unknown';
+            approvalLevel = firstDiscount['approver_level'] as String? ??
+                'Level $jobLevelId';
+          }
+        }
+
+        // Get order letter info for notification
+        final orderLetters = await getOrderLetters();
+        final orderLetter = orderLetters.firstWhere(
+          (ol) => (ol['id'] ?? ol['order_letter_id']) == orderLetterId,
+          orElse: () => {},
+        );
+
+        final notificationService = NotificationService();
+        await notificationService.notifyOnApproval(
+          orderLetterId: orderLetterId,
+          approvedLevelId: jobLevelId,
+          approverName: approverName,
+          approvalLevel: approvalLevel,
+          isFinalApproval: isFinalApproval,
+          orderId: orderLetter['id']?.toString() ??
+              orderLetter['order_letter_id']?.toString(),
+          noSp: orderLetter['no_sp'] ?? orderLetter['no_sp_number'],
+          customerName: orderLetter['customer_name'],
+          totalAmount: orderLetter['total'] != null
+              ? double.tryParse(orderLetter['total'].toString())
+              : null,
+          creatorUserId: orderLetter['creator'] ?? orderLetter['creator_id'],
+        );
+      } catch (e) {
+        // Don't fail approval if notification fails
+        if (kDebugMode) {
+          print('Error sending approval notification: $e');
+        }
+      }
+
       return {
         'success': true,
         'message': 'Batch approval completed successfully',
@@ -580,6 +637,58 @@ class OrderLetterService {
       if (isFinalApproval) {
         orderLetterUpdateResult =
             await _updateOrderLetterStatus(orderLetterId, 'Approved');
+      }
+
+      // Send notification after approval
+      try {
+        // Get approver name and level
+        String approverName =
+            await AuthService.getCurrentUserName() ?? 'Unknown';
+        String approvalLevel = 'Level $jobLevelId';
+
+        // Get discount info
+        final discounts = await getOrderLetterDiscounts(
+          orderLetterId: orderLetterId,
+        );
+        final discount = discounts.firstWhere(
+          (d) => (d['id'] ?? d['order_letter_discount_id']) == discountId,
+          orElse: () => {},
+        );
+
+        if (discount.isNotEmpty) {
+          approverName = discount['approver_name'] as String? ?? approverName;
+          approvalLevel =
+              discount['approver_level'] as String? ?? approvalLevel;
+        }
+
+        // Get order letter info for notification
+        final orderLetters = await getOrderLetters();
+        final orderLetter = orderLetters.firstWhere(
+          (ol) => (ol['id'] ?? ol['order_letter_id']) == orderLetterId,
+          orElse: () => {},
+        );
+
+        final notificationService = NotificationService();
+        await notificationService.notifyOnApproval(
+          orderLetterId: orderLetterId,
+          approvedLevelId: jobLevelId,
+          approverName: approverName,
+          approvalLevel: approvalLevel,
+          isFinalApproval: isFinalApproval,
+          orderId: orderLetter['id']?.toString() ??
+              orderLetter['order_letter_id']?.toString(),
+          noSp: orderLetter['no_sp'] ?? orderLetter['no_sp_number'],
+          customerName: orderLetter['customer_name'],
+          totalAmount: orderLetter['total'] != null
+              ? double.tryParse(orderLetter['total'].toString())
+              : null,
+          creatorUserId: orderLetter['creator'] ?? orderLetter['creator_id'],
+        );
+      } catch (e) {
+        // Don't fail approval if notification fails
+        if (kDebugMode) {
+          print('Error sending approval notification: $e');
+        }
       }
 
       return {
@@ -1141,7 +1250,10 @@ class OrderLetterService {
         }
       }
     } catch (e) {
-      if (kDebugMode) { print('OrderLetterService: Error creating default discount entries: $e'); }
+      if (kDebugMode) {
+        print(
+            'OrderLetterService: Error creating default discount entries: $e');
+      }
     }
   }
 

@@ -9,6 +9,7 @@ import '../features/approval/data/repositories/approval_repository.dart';
 import '../services/auth_service.dart';
 import '../services/order_letter_service.dart';
 import '../services/attendance_service.dart';
+import '../services/notification_service.dart';
 
 class CheckoutService {
   late final OrderLetterService _orderLetterService;
@@ -518,6 +519,38 @@ class CheckoutService {
           approvalRepository.clearCache();
         } catch (e) {
           // Don't fail if cache clear fails
+        }
+
+        // Send notification to leaders about new order letter
+        try {
+          final notificationService = NotificationService();
+          final orderLetterId = result['orderLetterId']?.toString() ??
+              result['id']?.toString() ??
+              'Unknown';
+          final noSp = result['noSp'] ?? result['no_sp'] ?? 'Unknown';
+          final customerName = orderLetterData['customer_name'] as String?;
+          final totalAmount = orderLetterData['total'] != null
+              ? double.tryParse(orderLetterData['total'].toString())
+              : null;
+
+          // Get leader IDs from the result or use the ones we passed
+          List<int>? leaderIdsForNotification;
+          if (leaderIds.isNotEmpty) {
+            leaderIdsForNotification = leaderIds.whereType<int>().toList();
+          }
+
+          await notificationService.notifyLeadersOnOrderLetterCreated(
+            orderId: orderLetterId,
+            noSp: noSp,
+            customerName: customerName,
+            totalAmount: totalAmount,
+            leaderIds: leaderIdsForNotification,
+          );
+        } catch (e) {
+          // Don't fail checkout if notification fails
+          if (kDebugMode) {
+            print('Error sending notification: $e');
+          }
         }
       }
 

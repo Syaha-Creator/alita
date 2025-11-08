@@ -11,8 +11,12 @@ class LocalNotificationService {
   final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
-  Future<void> initialize() async {
+  void Function(String? payload)? _onTapCallback;
+
+  Future<void> initialize({void Function(String? payload)? onTap}) async {
     try {
+      _onTapCallback = onTap;
+
       // Initialize settings for Android
       const AndroidInitializationSettings initializationSettingsAndroid =
           AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -42,11 +46,11 @@ class LocalNotificationService {
       await _createNotificationChannels();
 
       if (kDebugMode) {
-        if (kDebugMode) { print('Local Notification Service initialized successfully'); }
+        print('Local Notification Service initialized successfully');
       }
     } catch (e) {
       if (kDebugMode) {
-        if (kDebugMode) { print('Error initializing Local Notification Service: $e'); }
+        print('Error initializing Local Notification Service: $e');
       }
     }
   }
@@ -88,21 +92,20 @@ class LocalNotificationService {
           ?.createNotificationChannel(fcmChannel);
 
       if (kDebugMode) {
-        if (kDebugMode) { print('Notification channels created successfully'); }
+        print('Notification channels created successfully');
       }
     } catch (e) {
       if (kDebugMode) {
-        if (kDebugMode) { print('Error creating notification channels: $e'); }
+        print('Error creating notification channels: $e');
       }
     }
   }
 
   void _onNotificationTapped(NotificationResponse response) {
     if (kDebugMode) {
-      if (kDebugMode) { print('Notification tapped: ${response.payload}'); }
+      print('Notification tapped: ${response.payload}');
     }
-    // Handle notification tap here
-    // You can navigate to specific screen based on payload
+    _onTapCallback?.call(response.payload);
   }
 
   // Show simple notification
@@ -145,11 +148,11 @@ class LocalNotificationService {
       );
 
       if (kDebugMode) {
-        if (kDebugMode) { print('Simple notification shown: $title - $body'); }
+        print('Simple notification shown: $title - $body');
       }
     } catch (e) {
       if (kDebugMode) {
-        if (kDebugMode) { print('Error showing simple notification: $e'); }
+        print('Error showing simple notification: $e');
       }
     }
   }
@@ -195,11 +198,11 @@ class LocalNotificationService {
       );
 
       if (kDebugMode) {
-        if (kDebugMode) { print('Custom notification shown: $title - $body'); }
+        print('Custom notification shown: $title - $body');
       }
     } catch (e) {
       if (kDebugMode) {
-        if (kDebugMode) { print('Error showing custom notification: $e'); }
+        print('Error showing custom notification: $e');
       }
     }
   }
@@ -249,11 +252,11 @@ class LocalNotificationService {
       );
 
       if (kDebugMode) {
-        if (kDebugMode) { print('Scheduled notification set for: ${delay.inSeconds} seconds'); }
+        print('Scheduled notification set for: ${delay.inSeconds} seconds');
       }
     } catch (e) {
       if (kDebugMode) {
-        if (kDebugMode) { print('Error scheduling notification: $e'); }
+        print('Error scheduling notification: $e');
       }
     }
   }
@@ -302,11 +305,11 @@ class LocalNotificationService {
       );
 
       if (kDebugMode) {
-        if (kDebugMode) { print('Action notification shown: $title - $body'); }
+        print('Action notification shown: $title - $body');
       }
     } catch (e) {
       if (kDebugMode) {
-        if (kDebugMode) { print('Error showing action notification: $e'); }
+        print('Error showing action notification: $e');
       }
     }
   }
@@ -316,11 +319,11 @@ class LocalNotificationService {
     try {
       await _flutterLocalNotificationsPlugin.cancelAll();
       if (kDebugMode) {
-        if (kDebugMode) { print('All notifications cancelled'); }
+        print('All notifications cancelled');
       }
     } catch (e) {
       if (kDebugMode) {
-        if (kDebugMode) { print('Error cancelling notifications: $e'); }
+        print('Error cancelling notifications: $e');
       }
     }
   }
@@ -330,11 +333,11 @@ class LocalNotificationService {
     try {
       await _flutterLocalNotificationsPlugin.cancel(id);
       if (kDebugMode) {
-        if (kDebugMode) { print('Notification $id cancelled'); }
+        print('Notification $id cancelled');
       }
     } catch (e) {
       if (kDebugMode) {
-        if (kDebugMode) { print('Error cancelling notification $id: $e'); }
+        print('Error cancelling notification $id: $e');
       }
     }
   }
@@ -345,12 +348,12 @@ class LocalNotificationService {
       final pendingNotifications =
           await _flutterLocalNotificationsPlugin.pendingNotificationRequests();
       if (kDebugMode) {
-        if (kDebugMode) { print('Pending notifications: ${pendingNotifications.length}'); }
+        print('Pending notifications: ${pendingNotifications.length}');
       }
       return pendingNotifications;
     } catch (e) {
       if (kDebugMode) {
-        if (kDebugMode) { print('Error getting pending notifications: $e'); }
+        print('Error getting pending notifications: $e');
       }
       return [];
     }

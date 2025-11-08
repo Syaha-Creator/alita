@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'config/env_config.dart';
 import 'config/dependency_injection.dart';
 import 'features/authentication/presentation/bloc/auth_bloc.dart';
 import 'features/cart/presentation/bloc/cart_bloc.dart';
@@ -12,13 +13,16 @@ import 'features/approval/presentation/bloc/approval_bloc.dart';
 
 import 'navigation/app_router.dart';
 import 'services/auth_service.dart';
-// TEMPORARILY DISABLED - No iOS physical device for testing
-// import 'services/core_notification_service.dart';
+import 'services/notification_service.dart';
 import 'theme/app_theme.dart';
 import 'firebase_options.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Load environment variables
+  await EnvConfig().load();
 
   // Prevent runtime font fetching to avoid crashes when offline / no DNS
   GoogleFonts.config.allowRuntimeFetching = false;
@@ -28,10 +32,13 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Initialize Core Notification Service (replaces multiple notification services)
-  // await CoreNotificationService().initialize();
+  // Register background message handler
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
   setupLocator();
+
+  // Initialize Notification Service
+  await NotificationService().initialize();
 
   await AuthService.isLoggedIn();
 

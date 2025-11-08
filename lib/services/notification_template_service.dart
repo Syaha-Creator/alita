@@ -7,12 +7,12 @@ class NotificationTemplateService {
 
   /// Template for when order letter is created (Local notification to creator)
   static Map<String, String> orderLetterCreated({
-    required String orderId,
+    required String noSp,
     String? customerName,
     double? totalAmount,
   }) {
     String title = "📋 Order Letter Berhasil Dibuat";
-    String body = "Order #$orderId telah dibuat";
+    String body = "Nomor SP: $noSp telah dibuat";
 
     if (customerName != null && customerName.isNotEmpty) {
       body += " untuk $customerName";
@@ -32,14 +32,15 @@ class NotificationTemplateService {
 
   /// Template for new approval request to leader (FCM to approver)
   static Map<String, String> newApprovalRequest({
-    required String orderId,
+    required String noSp,
     required String approvalLevel,
     String? customerName,
     double? totalAmount,
   }) {
+    final displayLevel = getApprovalLevelDisplayName(approvalLevel);
     String title = "🔔 Approval Order Letter Baru";
-    String body = "Order #$orderId memerlukan persetujuan Anda";
-    body += "\n📊 Level: $approvalLevel";
+    String body = "Nomor SP: $noSp memerlukan persetujuan Anda";
+    body += "\n📊 Level: $displayLevel";
 
     if (customerName != null && customerName.isNotEmpty) {
       body += "\n👤 Customer: $customerName";
@@ -61,9 +62,9 @@ class NotificationTemplateService {
 
   /// Template for approval status update to creator (FCM to creator)
   static Map<String, String> approvalStatusUpdate({
-    required String orderId,
+    required String noSp,
     required String approverName,
-    required String approvalAction, // 'approve' or 'reject'
+    required String approvalAction,
     required String approvalLevel,
     String? comment,
     String? customerName,
@@ -72,10 +73,11 @@ class NotificationTemplateService {
     String emoji = approvalAction.toLowerCase() == 'approve' ? '✅' : '❌';
     String action =
         approvalAction.toLowerCase() == 'approve' ? 'Disetujui' : 'Ditolak';
+    final displayLevel = getApprovalLevelDisplayName(approvalLevel);
 
     String title = "$emoji Order Letter $action";
-    String body = "Order #$orderId telah $action oleh $approverName";
-    body += "\n📊 Level: $approvalLevel";
+    String body = "Nomor SP: $noSp telah $action oleh $approverName";
+    body += "\n📊 Level: $displayLevel";
 
     if (comment != null && comment.isNotEmpty) {
       body += "\n💬 Komentar: $comment";
@@ -95,14 +97,46 @@ class NotificationTemplateService {
     };
   }
 
+  /// Template for approval status update with next level pending
+  static Map<String, String> approvalStatusUpdateWithNextLevel({
+    required String noSp,
+    required String approverName,
+    required String approvedLevel,
+    required String nextLevel,
+    String? customerName,
+    double? totalAmount,
+  }) {
+    final displayApprovedLevel = getApprovalLevelDisplayName(approvedLevel);
+    final displayNextLevel = getApprovalLevelDisplayName(nextLevel);
+
+    String title = "✅ Order Letter Disetujui - Menunggu Level Berikutnya";
+    String body = "Nomor SP: $noSp telah disetujui oleh $approverName";
+    body += "\n📊 Level: $displayApprovedLevel";
+
+    body += "\n⏳ Sedang menunggu approval dari $displayNextLevel";
+
+    if (customerName != null && customerName.isNotEmpty) {
+      body += "\n👤 Customer: $customerName";
+    }
+
+    if (totalAmount != null) {
+      body += "\n💰 Total: ${_formatCurrency(totalAmount)}";
+    }
+
+    return {
+      'title': title,
+      'body': body,
+    };
+  }
+
   /// Template for final approval completion
   static Map<String, String> finalApprovalCompleted({
-    required String orderId,
+    required String noSp,
     String? customerName,
     double? totalAmount,
   }) {
     String title = "🎉 Order Letter Selesai";
-    String body = "Order #$orderId telah mendapat semua persetujuan";
+    String body = "Nomor SP: $noSp telah mendapat semua persetujuan";
 
     if (customerName != null && customerName.isNotEmpty) {
       body += "\n👤 Customer: $customerName";
@@ -190,7 +224,8 @@ class NotificationTemplateService {
   /// Generate notification data payload
   static Map<String, dynamic> generateNotificationData({
     required String type,
-    String? orderId,
+    String? noSp,
+    String? orderId, // Keep for backward compatibility, but prefer noSp
     String? approvalLevel,
     String? approverUserId,
     String? creatorUserId,
@@ -207,8 +242,12 @@ class NotificationTemplateService {
       'app_name': _appName,
     };
 
-    // Add optional fields if provided
-    if (orderId != null) data['order_id'] = orderId;
+    // Prefer noSp over orderId, but keep both for navigation compatibility
+    final finalNoSp = noSp ?? orderId;
+    if (finalNoSp != null) {
+      data['no_sp'] = finalNoSp;
+      data['order_id'] = finalNoSp; // Keep for navigation handler compatibility
+    }
     if (approvalLevel != null) data['approval_level'] = approvalLevel;
     if (approverUserId != null) data['approver_user_id'] = approverUserId;
     if (creatorUserId != null) data['creator_user_id'] = creatorUserId;
@@ -228,17 +267,38 @@ class NotificationTemplateService {
 
   /// Get approval level display name
   static String getApprovalLevelDisplayName(String level) {
-    switch (level.toLowerCase()) {
+    final levelLower = level.toLowerCase().trim();
+    switch (levelLower) {
       case 'direct leader':
         return 'Atasan Langsung';
       case 'indirect leader':
         return 'Atasan Tidak Langsung';
       case 'controller':
         return 'Controller';
+      case 'analyst 1':
+        return 'Analyst 1';
+      case 'analyst 2':
+        return 'Analyst 2';
       case 'analyst':
         return 'Analyst';
+      case 'user':
+        return 'User';
       default:
-        if (level.toLowerCase().contains('level')) {
+        // Handle partial matches for Analyst 1, Analyst 2
+        if (levelLower.contains('analyst 1')) {
+          return 'Analyst 1';
+        }
+        if (levelLower.contains('analyst 2')) {
+          return 'Analyst 2';
+        }
+        if (levelLower.contains('direct leader')) {
+          return 'Atasan Langsung';
+        }
+        if (levelLower.contains('indirect leader')) {
+          return 'Atasan Tidak Langsung';
+        }
+        // Return original if contains 'level' or is already formatted
+        if (levelLower.contains('level') || level.contains(' ')) {
           return level;
         }
         return 'Level $level';
@@ -252,13 +312,23 @@ class NotificationTemplateService {
     Map<String, dynamic>? data,
   }) {
     if (kDebugMode) {
-      if (kDebugMode) { print('=== NOTIFICATION TEMPLATE: $templateType ==='); }
-      if (kDebugMode) { print('Title: ${template['title']}'); }
-      if (kDebugMode) { print('Body: ${template['body']}'); }
-      if (data != null) {
-        if (kDebugMode) { print('Data: $data'); }
+      if (kDebugMode) {
+        print('=== NOTIFICATION TEMPLATE: $templateType ===');
       }
-      if (kDebugMode) { print('====================================='); }
+      if (kDebugMode) {
+        print('Title: ${template['title']}');
+      }
+      if (kDebugMode) {
+        print('Body: ${template['body']}');
+      }
+      if (data != null) {
+        if (kDebugMode) {
+          print('Data: $data');
+        }
+      }
+      if (kDebugMode) {
+        print('=====================================');
+      }
     }
   }
 }

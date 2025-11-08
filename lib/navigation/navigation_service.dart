@@ -10,9 +10,17 @@ class NavigationService {
     AppRouter.router.push(routeName);
   }
 
+  static void pushWithExtra(String routeName, {Object? extra}) {
+    AppRouter.router.push(routeName, extra: extra);
+  }
+
   // Menggunakan go akan "melompat" ke halaman, bisa jadi mengganti stack
   static void go(String routeName) {
     AppRouter.router.go(routeName);
+  }
+
+  static void goWithExtra(String routeName, {Object? extra}) {
+    AppRouter.router.go(routeName, extra: extra);
   }
 
   static void goBack() {
