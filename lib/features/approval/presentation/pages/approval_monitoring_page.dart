@@ -114,7 +114,9 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
             _isUpdatingStatuses = true;
           });
 
-          context.read<ApprovalBloc>().add(const UpdateApprovalStatusesOnly());
+          final bloc = context.read<ApprovalBloc>();
+          bloc.add(const UpdateApprovalStatusesOnly());
+          bloc.add(const LoadNewApprovalsIncremental());
 
           // Reset loading state after a delay
           Future.delayed(const Duration(seconds: 2), () {
@@ -244,10 +246,12 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
         final now = DateTime.now();
         final difference = now.difference(cacheTime);
 
-        if (difference.inSeconds > 30) {
+        if (difference > const Duration(minutes: 2)) {
           shouldForceRefresh = true;
         } else {
-          context.read<ApprovalBloc>().add(LoadApprovals());
+          context
+              .read<ApprovalBloc>()
+              .add(const LoadApprovals(forceRefresh: false));
 
           Future.delayed(const Duration(milliseconds: 1000), () {
             if (mounted) {
@@ -283,7 +287,9 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
     if (shouldForceRefresh) {
       _loadApprovals(forceRefresh: true);
     } else {
-      context.read<ApprovalBloc>().add(LoadApprovals());
+      context
+          .read<ApprovalBloc>()
+          .add(const LoadApprovals(forceRefresh: false));
     }
     stopwatch.stop();
   }
@@ -291,15 +297,12 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
   void _loadApprovals({bool forceRefresh = false}) {
     final stopwatch = Stopwatch()..start();
 
-    if (forceRefresh) {
-      // Clear cache untuk force refresh
-      locator<ApprovalRepository>().clearCache();
-    } else {
+    if (!forceRefresh) {
       // Test cache performance
       locator<ApprovalRepository>().testCachePerformance();
     }
 
-    context.read<ApprovalBloc>().add(LoadApprovals());
+    context.read<ApprovalBloc>().add(LoadApprovals(forceRefresh: forceRefresh));
 
     stopwatch.stop();
   }
@@ -334,7 +337,9 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
 
       // Trigger UI update if needed
       if (mounted) {
-        context.read<ApprovalBloc>().add(LoadApprovals());
+        final bloc = context.read<ApprovalBloc>();
+        bloc.add(const LoadApprovals(forceRefresh: false));
+        bloc.add(const LoadNewApprovalsIncremental());
       }
     } catch (e) {
       // Silent error handling
@@ -359,7 +364,9 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
         if (moreApprovals.isNotEmpty) {
           _currentPage = nextPage;
           // Trigger bloc to load more data
-          context.read<ApprovalBloc>().add(LoadApprovals());
+          context
+              .read<ApprovalBloc>()
+              .add(const LoadApprovals(forceRefresh: false));
         } else {
           _hasMoreData = false;
         }
@@ -553,7 +560,8 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                     size: 24,
                   ),
                   style: IconButton.styleFrom(
-                    backgroundColor: colorScheme.surfaceContainerHighest.withValues(
+                    backgroundColor:
+                        colorScheme.surfaceContainerHighest.withValues(
                       alpha: 0.3,
                     ),
                     padding: const EdgeInsets.all(8),
@@ -1030,7 +1038,8 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                 ),
                 Container(
                   decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                    color: colorScheme.surfaceContainerHighest
+                        .withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: colorScheme.outline.withValues(alpha: 0.1),
@@ -1109,7 +1118,8 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: colorScheme.primary.withValues(alpha: 0.1),
+                                color:
+                                    colorScheme.primary.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Icon(
@@ -1158,7 +1168,8 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: colorScheme.primary.withValues(alpha: 0.3),
+                                    color: colorScheme.primary
+                                        .withValues(alpha: 0.3),
                                     blurRadius: 6,
                                     offset: const Offset(0, 2),
                                   ),
@@ -1215,16 +1226,18 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                                 decoration: BoxDecoration(
                                   gradient: LinearGradient(
                                     colors: [
-                                      colorScheme.secondary.withValues(alpha: 0.1),
-                                      colorScheme.secondary.withValues(alpha: 0.05),
+                                      colorScheme.secondary
+                                          .withValues(alpha: 0.1),
+                                      colorScheme.secondary
+                                          .withValues(alpha: 0.05),
                                     ],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                   ),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color:
-                                        colorScheme.secondary.withValues(alpha: 0.2),
+                                    color: colorScheme.secondary
+                                        .withValues(alpha: 0.2),
                                     width: 1,
                                   ),
                                 ),
@@ -1451,7 +1464,8 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                               padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
                                 color: isDark
-                                    ? AppColors.primaryDark.withValues(alpha: 0.2)
+                                    ? AppColors.primaryDark
+                                        .withValues(alpha: 0.2)
                                     : Colors.white.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(8),
                               ),
@@ -1855,7 +1869,8 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.06),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: color.withValues(alpha: 0.1), width: 1),
+                border:
+                    Border.all(color: color.withValues(alpha: 0.1), width: 1),
               ),
               child: Column(
                 children: [

@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../theme/app_colors.dart';
 import '../../domain/entities/approval_entity.dart';
 import '../../data/models/approval_model.dart';
 import '../../../../config/dependency_injection.dart';
-import '../../../../services/order_letter_service.dart';
 import '../../../../services/leader_service.dart';
+import '../../data/cache/approval_cache.dart';
 import '../../../order_letter_document/presentation/pages/order_letter_document_page.dart';
+import '../../data/repositories/approval_repository.dart';
+import '../bloc/approval_bloc.dart';
+import '../bloc/approval_event.dart';
 
 class ApprovalCard extends StatefulWidget {
   final ApprovalEntity approval;
@@ -33,6 +37,7 @@ class _ApprovalCardState extends State<ApprovalCard>
   late AnimationController _bounceController;
   late Animation<double> _hoverAnimation;
   late Animation<double> _bounceAnimation;
+  String? _overriddenStatus;
 
   // Add state for timeline data
   List<Map<String, dynamic>>? _cachedDiscountData;
@@ -54,6 +59,9 @@ class _ApprovalCardState extends State<ApprovalCard>
     // Reload timeline data if approval ID changed
     if (oldWidget.approval.id != widget.approval.id) {
       _loadTimelineData();
+      _overriddenStatus = null;
+    } else if (oldWidget.approval.status != widget.approval.status) {
+      _overriddenStatus = null;
     }
   }
 
@@ -188,26 +196,27 @@ class _ApprovalCardState extends State<ApprovalCard>
   }
 
   Widget _buildHeader(ThemeData theme, ColorScheme colorScheme, bool isDark) {
+    final status = _overriddenStatus ?? widget.approval.status;
     return Row(
       children: [
         // Status Badge
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: _getStatusColor(widget.approval.status),
+            color: _getStatusColor(status),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                _getStatusIcon(widget.approval.status),
+                _getStatusIcon(status),
                 color: theme.colorScheme.onPrimary,
                 size: 14,
               ),
               const SizedBox(width: 6),
               Text(
-                widget.approval.status,
+                status,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onPrimary,
                   fontWeight: FontWeight.w600,
@@ -779,18 +788,31 @@ class _ApprovalCardState extends State<ApprovalCard>
     );
   }
 
-  Future<void> _loadTimelineData() async {
+  Future<void> _loadTimelineData({bool forceRefresh = false}) async {
     if (!mounted) return;
+
+    if (forceRefresh) {
+      ApprovalCache.clearDiscountCache(widget.approval.id);
+    } else {
+      final cached = ApprovalCache.getCachedDiscounts(widget.approval.id);
+      if (cached != null) {
+        setState(() {
+          _cachedDiscountData = cached;
+          _isLoadingTimeline = false;
+          _timelineError = null;
+        });
+        return;
+      }
+    }
 
     setState(() {
       _isLoadingTimeline = true;
       _timelineError = null;
     });
     try {
-      final orderLetterService = locator<OrderLetterService>();
-      final result = await orderLetterService.getOrderLetterDiscounts(
-        orderLetterId: widget.approval.id,
-      );
+      final repository = locator<ApprovalRepository>();
+      final result =
+          await repository.getDiscountsForTimeline(widget.approval.id);
 
       if (mounted) {
         setState(() {
@@ -840,7 +862,7 @@ class _ApprovalCardState extends State<ApprovalCard>
 
   // Public method to refresh timeline data
   Future<void> refreshTimelineData() async {
-    await _loadTimelineData();
+    await _loadTimelineData(forceRefresh: true);
   }
 
   Color _getStatusColor(String status) {
@@ -887,6 +909,7 @@ class _ApprovalCardState extends State<ApprovalCard>
   }
 
   Widget _buildApprovalInfoSection(ThemeData theme, ColorScheme colorScheme) {
+    final status = _overriddenStatus ?? widget.approval.status;
     return Container(
       margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.all(12),
@@ -924,16 +947,16 @@ class _ApprovalCardState extends State<ApprovalCard>
           Row(
             children: [
               Icon(
-                _getStatusIcon(widget.approval.status),
+                _getStatusIcon(status),
                 size: 14,
-                color: _getStatusColor(widget.approval.status),
+                color: _getStatusColor(status),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Status: ${widget.approval.status}',
+                  'Status: $status',
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: _getStatusColor(widget.approval.status),
+                    color: _getStatusColor(status),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -1026,7 +1049,37 @@ class _ApprovalCardState extends State<ApprovalCard>
                       orderLetterId: widget.approval.id,
                     ),
                   ),
-                );
+                ).then((result) {
+                  if (!mounted) return;
+
+                  bool shouldRefresh = false;
+                  String? updatedStatus;
+
+                  if (result is Map) {
+                    shouldRefresh = result['changed'] == true;
+                    final statusResult = result['status'];
+                    if (statusResult is String && statusResult.isNotEmpty) {
+                      updatedStatus = statusResult;
+                    }
+                  } else if (result == true) {
+                    shouldRefresh = true;
+                  }
+
+                  if (!shouldRefresh) return;
+
+                  if (updatedStatus != null &&
+                      updatedStatus != widget.approval.status) {
+                    setState(() {
+                      _overriddenStatus = updatedStatus;
+                    });
+                  }
+
+                  refreshTimelineData();
+
+                  context
+                      .read<ApprovalBloc>()
+                      .add(UpdateSingleApproval(widget.approval.id));
+                });
               },
               icon: const Icon(Icons.description, size: 16),
               label: const Text('Lihat Dokumen'),

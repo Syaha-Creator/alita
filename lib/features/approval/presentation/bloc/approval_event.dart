@@ -9,11 +9,12 @@ abstract class ApprovalEvent extends Equatable {
 
 class LoadApprovals extends ApprovalEvent {
   final String? creator;
+  final bool forceRefresh;
 
-  const LoadApprovals({this.creator});
+  const LoadApprovals({this.creator, this.forceRefresh = false});
 
   @override
-  List<Object?> get props => [creator];
+  List<Object?> get props => [creator, forceRefresh];
 }
 
 class LoadPendingApprovals extends ApprovalEvent {}

@@ -31,6 +31,8 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
   String? _error;
   bool _isApprovalLoading = false;
   String? _creatorName; // Cache creator name
+  bool _hasApprovalChanged = false;
+  String? _updatedApprovalStatus;
 
   @override
   void initState() {
@@ -57,6 +59,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
       setState(() {
         _document = document;
         _isLoading = false;
+        _updatedApprovalStatus = document?.status;
       });
     } catch (e) {
       setState(() {
@@ -101,89 +104,96 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
     final isDark = theme.brightness == Brightness.dark;
     final colorScheme = theme.colorScheme;
 
-    return Scaffold(
-      backgroundColor: isDark ? colorScheme.surface : Colors.grey[50],
-      appBar: _document != null ? _buildCustomAppBar() : null,
-      floatingActionButton: _document != null
-          ? Builder(
-              builder: (buttonContext) => FloatingActionButton.extended(
-                onPressed: () => _showPDFOptionsDialog(buttonContext),
-                backgroundColor: Colors.red[600],
-                foregroundColor: Colors.white,
-                icon: const Icon(Icons.picture_as_pdf),
-                elevation: 8,
-                label: const Text('Generate PDF'),
-              ),
-            )
-          : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        size: 64,
-                        color: Colors.red[300],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Error: $_error',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: Colors.red,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        Navigator.of(context).pop(_buildPopResult());
+      },
+      child: Scaffold(
+        backgroundColor: isDark ? colorScheme.surface : Colors.grey[50],
+        appBar: _document != null ? _buildCustomAppBar() : null,
+        floatingActionButton: _document != null
+            ? Builder(
+                builder: (buttonContext) => FloatingActionButton.extended(
+                  onPressed: () => _showPDFOptionsDialog(buttonContext),
+                  backgroundColor: Colors.red[600],
+                  foregroundColor: Colors.white,
+                  icon: const Icon(Icons.picture_as_pdf),
+                  elevation: 8,
+                  label: const Text('Generate PDF'),
+                ),
+              )
+            : null,
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _error != null
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          size: 64,
+                          color: Colors.red[300],
                         ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton.icon(
-                        onPressed: _loadDocument,
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Retry'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: colorScheme.primary,
-                          foregroundColor: colorScheme.onPrimary,
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error: $_error',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: Colors.red,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
-                      ),
-                    ],
-                  ),
-                )
-              : _document == null
-                  ? const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.description_outlined,
-                            size: 64,
-                            color: Colors.grey,
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: _loadDocument,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: colorScheme.primary,
+                            foregroundColor: colorScheme.onPrimary,
                           ),
-                          SizedBox(height: 16),
-                          Text(
-                            'Dokumen tidak ditemukan',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey,
-                            ),
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Pastikan order letter ID valid',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : SingleChildScrollView(
-                      padding: const EdgeInsets.only(bottom: 100),
-                      child: _buildDocumentContent(),
+                        ),
+                      ],
                     ),
+                  )
+                : _document == null
+                    ? const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.description_outlined,
+                              size: 64,
+                              color: Colors.grey,
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              'Dokumen tidak ditemukan',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Pastikan order letter ID valid',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : SingleChildScrollView(
+                        padding: const EdgeInsets.only(bottom: 100),
+                        child: _buildDocumentContent(),
+                      ),
+      ),
     );
   }
 
@@ -217,7 +227,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
               color: isDark ? colorScheme.onSurfaceVariant : Colors.grey[700],
               size: 18),
         ),
-        onPressed: () => Navigator.of(context).pop(),
+        onPressed: _handleBackNavigation,
       ),
       actions: [
         IconButton(
@@ -1893,8 +1903,12 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         _showSuccessSnackBar(
             '$action - $approvedCount diskon berhasil diproses');
 
-        // Reload document to show updated status
-        _loadDocument();
+        await _loadDocument();
+
+        setState(() {
+          _hasApprovalChanged = true;
+          _updatedApprovalStatus = _document?.status;
+        });
       } else {
         _showErrorSnackBar(result['message'] ?? 'Approval failed');
       }
@@ -1905,6 +1919,20 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         _isApprovalLoading = false;
       });
     }
+  }
+
+  void _handleBackNavigation() {
+    Navigator.of(context).pop(_buildPopResult());
+  }
+
+  dynamic _buildPopResult() {
+    if (_hasApprovalChanged) {
+      return {
+        'changed': true,
+        'status': _updatedApprovalStatus ?? _document?.status,
+      };
+    }
+    return false;
   }
 
   void _showErrorSnackBar(String message) {

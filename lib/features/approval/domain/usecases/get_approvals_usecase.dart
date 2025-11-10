@@ -6,8 +6,14 @@ class GetApprovalsUseCase {
 
   GetApprovalsUseCase(this.repository);
 
-  Future<List<ApprovalEntity>> call({String? creator}) async {
-    return await repository.getApprovals(creator: creator);
+  Future<List<ApprovalEntity>> call({
+    String? creator,
+    bool forceRefresh = false,
+  }) async {
+    return await repository.getApprovals(
+      creator: creator,
+      forceRefresh: forceRefresh,
+    );
   }
 }
 

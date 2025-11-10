@@ -39,9 +39,16 @@ class ApprovalBloc extends Bloc<ApprovalEvent, ApprovalState> {
   Future<void> _onLoadApprovals(
       LoadApprovals event, Emitter<ApprovalState> emit) async {
     try {
-      emit(ApprovalLoading());
+      final currentState = state;
+      final shouldShowLoading = currentState is! ApprovalLoaded;
+      if (shouldShowLoading) {
+        emit(ApprovalLoading());
+      }
 
-      final approvals = await _getApprovalsUseCase(creator: event.creator);
+      final approvals = await _getApprovalsUseCase(
+        creator: event.creator,
+        forceRefresh: event.forceRefresh,
+      );
 
       if (approvals.isEmpty) {
         emit(const ApprovalEmpty('Tidak ada data approval'));
