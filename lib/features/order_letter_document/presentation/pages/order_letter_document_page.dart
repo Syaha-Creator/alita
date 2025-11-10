@@ -532,6 +532,18 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                       iconColor: Colors.orange[600]!,
                       isAddress: true,
                     ),
+                    const SizedBox(height: 16),
+                    // Showroom / Pameran row
+                    _buildInfoRow(
+                      icon: Icons.storefront_outlined,
+                      label: 'Showroom / Pameran',
+                      value:
+                          (document.workPlaceName?.trim().isNotEmpty ?? false)
+                              ? document.workPlaceName!.trim()
+                              : '-',
+                      iconColor: Colors.purple[600]!,
+                      isAddress: true,
+                    ),
                   ],
                 ),
               ),
