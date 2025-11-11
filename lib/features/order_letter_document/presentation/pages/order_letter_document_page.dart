@@ -793,89 +793,50 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
 
   List<Widget> _buildOrderItemCards(List<OrderLetterDetailModel> details) {
     final List<Widget> cards = [];
+    final seenAccessIds = <int>{};
+    final seenBonusIds = <int>{};
 
-    // Kelompokkan detail berdasarkan kasur utama
-    final kasurDetails = details.where((d) => d.itemType == 'kasur').toList();
+    // Kasur utama ditandai berdasarkan urutan kemunculan
+    final kasurDetails =
+        details.where((d) => d.itemType.toLowerCase() == 'kasur').toList();
 
     for (int i = 0; i < kasurDetails.length; i++) {
       final kasurDetail = kasurDetails[i];
       final kasurIndex = i + 1;
 
-      // Coba berbagai cara matching untuk aksesoris
-      List<OrderLetterDetailModel> relatedAccessories = [];
+      final kasurPosition = details.indexWhere((d) => d.id == kasurDetail.id);
+      final nextKasurPosition = details.indexWhere(
+        (d) => d.itemType.toLowerCase() == 'kasur' && d.id != kasurDetail.id,
+        kasurPosition + 1,
+      );
+      final endExclusive =
+          nextKasurPosition == -1 ? details.length : nextKasurPosition;
 
-      // Method 1: Exact desc1 match
-      var accessories1 = details
-          .where((d) =>
-              d.itemType != 'kasur' &&
-              d.itemType != 'Bonus' &&
-              d.desc1 == kasurDetail.desc1)
-          .toList();
+      final relatedAccessories = <OrderLetterDetailModel>[];
+      final relatedBonus = <OrderLetterDetailModel>[];
 
-      // Method 2: Partial desc1 match
-      var accessories2 = details
-          .where((d) =>
-              d.itemType != 'kasur' &&
-              d.itemType != 'Bonus' &&
-              d.desc1.toString().contains(kasurDetail.desc1.toString()))
-          .toList();
-
-      // Method 3: Any field match
-      var accessories3 = details
-          .where((d) =>
-              d.itemType != 'kasur' &&
-              d.itemType != 'Bonus' &&
-              (d.desc1.toString().contains(kasurDetail.desc1.toString()) ||
-                  d.desc2.toString().contains(kasurDetail.desc1.toString()) ||
-                  d.desc1.toString().contains(kasurDetail.desc2.toString()) ||
-                  d.desc2.toString().contains(kasurDetail.desc2.toString())))
-          .toList();
-
-      // Gunakan method yang paling banyak hasilnya
-      if (accessories3.isNotEmpty) {
-        relatedAccessories = accessories3;
-      } else if (accessories2.isNotEmpty) {
-        relatedAccessories = accessories2;
-      } else if (accessories1.isNotEmpty) {
-        relatedAccessories = accessories1;
-      }
-
-      // Cari bonus yang terkait dengan kasur ini berdasarkan urutan item
-      var relatedBonus = <OrderLetterDetailModel>[];
-
-      // Cari posisi kasur saat ini dalam array details
-      final kasurIndexInDetails = details.indexWhere((d) =>
-          d.itemType == 'kasur' &&
-          d.desc1 == kasurDetail.desc1 &&
-          d.desc2 == kasurDetail.desc2);
-
-      // Cari posisi kasur berikutnya (jika ada)
-      int nextKasurIndex = -1;
-      for (int i = kasurIndexInDetails + 1; i < details.length; i++) {
-        if (details[i].itemType == 'kasur') {
-          nextKasurIndex = i;
-          break;
+      for (var j = kasurPosition + 1; j < endExclusive; j++) {
+        final item = details[j];
+        final type = item.itemType.toLowerCase();
+        if (type == 'bonus') {
+          if (seenBonusIds.add(item.id)) {
+            relatedBonus.add(item);
+          }
+        } else if (type != 'kasur') {
+          if (seenAccessIds.add(item.id)) {
+            relatedAccessories.add(item);
+          }
         }
       }
 
-      if (nextKasurIndex == -1) {
-        nextKasurIndex = details
-            .length; // Jika tidak ada kasur berikutnya, gunakan panjang array
-      }
-
-      // Ambil bonus yang berada antara kasur saat ini dan kasur berikutnya
-      for (int i = kasurIndexInDetails + 1; i < nextKasurIndex; i++) {
-        if (details[i].itemType == 'Bonus') {
-          relatedBonus.add(details[i]);
-        }
-      }
-
-      cards.add(_buildOrderItemCard(
-        kasurIndex: kasurIndex,
-        kasurDetail: kasurDetail,
-        accessories: relatedAccessories,
-        bonus: relatedBonus,
-      ));
+      cards.add(
+        _buildOrderItemCard(
+          kasurIndex: kasurIndex,
+          kasurDetail: kasurDetail,
+          accessories: relatedAccessories,
+          bonus: relatedBonus,
+        ),
+      );
     }
 
     return cards;
