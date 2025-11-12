@@ -14,6 +14,17 @@ import '../features/cart/domain/entities/cart_entity.dart';
 
 /// Service untuk generate, simpan, dan share PDF checkout.
 class PDFService {
+  static String _sanitizeFileName(String fileName) {
+    final sanitized = fileName
+        .trim()
+        .replaceAll(RegExp(r'[<>:"/\\|?*\r\n]'), '_')
+        .replaceAll(RegExp(r'\s+'), ' ');
+    if (sanitized.isEmpty) {
+      return 'document_${DateTime.now().millisecondsSinceEpoch}.pdf';
+    }
+    return sanitized;
+  }
+
   /// Generate PDF checkout dari cart dan detail customer.
   static Future<Uint8List> generateCheckoutPDF({
     required List<CartEntity> cartItems,
@@ -1474,8 +1485,9 @@ class PDFService {
     Rect? sharePositionOrigin,
   ) async {
     try {
+      final sanitizedFileName = _sanitizeFileName(fileName);
       final tempDir = await getTemporaryDirectory();
-      final tempPath = '${tempDir.path}/$fileName';
+      final tempPath = '${tempDir.path}/$sanitizedFileName';
       final tempFile = File(tempPath);
       await tempFile.writeAsBytes(pdfBytes);
 
@@ -1507,7 +1519,7 @@ class PDFService {
           sharePositionOrigin ?? const Rect.fromLTWH(100, 100, 100, 100);
 
       await Share.shareXFiles(
-        [XFile(tempPath)],
+        [XFile(tempPath, name: sanitizedFileName)],
         sharePositionOrigin: defaultPosition,
       );
     } catch (e) {
