@@ -1970,6 +1970,34 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
           .where((d) => d.itemType.toLowerCase() == 'kasur')
           .toList();
       final cartItems = <CartEntity>[];
+      final Map<String, List<Map<String, dynamic>>> pricingSummary = {};
+
+      String pricingKey(String type, String name, String size) =>
+          '${type.toLowerCase()}|${name.trim()}|${size.trim()}';
+
+      void addPricing(
+        String type,
+        String name,
+        String size,
+        int detailId,
+        double unitPrice,
+        double customerPrice,
+        double netPrice,
+        int quantity,
+        bool hasExplicitCustomerPrice,
+      ) {
+        final key = pricingKey(type, name, size);
+        final list =
+            pricingSummary.putIfAbsent(key, () => <Map<String, dynamic>>[]);
+        list.add({
+          'detail_id': detailId,
+          'unit_price_per_unit': unitPrice,
+          'customer_price_per_unit': customerPrice,
+          'net_price_per_unit': netPrice,
+          'quantity': quantity.toDouble(),
+          'has_customer_price': hasExplicitCustomerPrice,
+        });
+      }
 
       for (int i = 0; i < kasurDetails.length; i++) {
         final kasurDetail = kasurDetails[i];
@@ -2002,11 +2030,16 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
             plDivan = 0,
             plHeadboard = 0,
             plSorong = 0;
-        double eupKasur = kasurDetail.netPrice ??
-                kasurDetail.unitPrice, // Harga net (setelah discount)
-            eupDivan = 0,
-            eupHeadboard = 0,
-            eupSorong = 0;
+        double customerKasur =
+            kasurDetail.customerPrice ?? kasurDetail.unitPrice;
+        double netKasur = kasurDetail.netPrice ??
+            kasurDetail.customerPrice ??
+            kasurDetail.unitPrice;
+        final bool kasurHasExplicitCustomerPrice =
+            (kasurDetail.customerPrice != null &&
+                kasurDetail.customerPrice! > 0);
+        double customerDivan = 0, customerHeadboard = 0, customerSorong = 0;
+        double netDivan = 0, netHeadboard = 0, netSorong = 0;
 
         final bonusItems = <BonusItem>[];
 
@@ -2014,22 +2047,61 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         for (final item in relatedItems) {
           switch (item.itemType.toLowerCase()) {
             case 'divan':
-              divan = '${item.desc1} ${item.desc2}';
+              divan = '${item.desc1} ${item.desc2}'.trim();
               plDivan = item.unitPrice; // Pricelist (harga asli)
-              eupDivan = item.netPrice ??
-                  item.unitPrice; // Harga net (setelah discount)
+              customerDivan = item.customerPrice ?? item.unitPrice;
+              netDivan = item.netPrice ?? customerDivan;
+              final bool divanHasExplicit =
+                  (item.customerPrice != null && item.customerPrice! > 0);
+              addPricing(
+                item.itemType,
+                divan,
+                kasurDetail.desc2,
+                item.id,
+                plDivan,
+                customerDivan,
+                netDivan,
+                item.qty,
+                divanHasExplicit,
+              );
               break;
             case 'headboard':
-              headboard = '${item.desc1} ${item.desc2}';
+              headboard = '${item.desc1} ${item.desc2}'.trim();
               plHeadboard = item.unitPrice; // Pricelist (harga asli)
-              eupHeadboard = item.netPrice ??
-                  item.unitPrice; // Harga net (setelah discount)
+              customerHeadboard = item.customerPrice ?? item.unitPrice;
+              netHeadboard = item.netPrice ?? customerHeadboard;
+              final bool headboardHasExplicit =
+                  (item.customerPrice != null && item.customerPrice! > 0);
+              addPricing(
+                item.itemType,
+                headboard,
+                kasurDetail.desc2,
+                item.id,
+                plHeadboard,
+                customerHeadboard,
+                netHeadboard,
+                item.qty,
+                headboardHasExplicit,
+              );
               break;
             case 'sorong':
-              sorong = '${item.desc1} ${item.desc2}';
+              sorong = '${item.desc1} ${item.desc2}'.trim();
               plSorong = item.unitPrice; // Pricelist (harga asli)
-              eupSorong = item.netPrice ??
-                  item.unitPrice; // Harga net (setelah discount)
+              customerSorong = item.customerPrice ?? item.unitPrice;
+              netSorong = item.netPrice ?? customerSorong;
+              final bool sorongHasExplicit =
+                  (item.customerPrice != null && item.customerPrice! > 0);
+              addPricing(
+                item.itemType,
+                sorong,
+                kasurDetail.desc2,
+                item.id,
+                plSorong,
+                customerSorong,
+                netSorong,
+                item.qty,
+                sorongHasExplicit,
+              );
               break;
             case 'bonus':
               bonusItems.add(BonusItem(
@@ -2040,6 +2112,18 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
               break;
           }
         }
+
+        addPricing(
+          'kasur',
+          kasurDetail.desc1,
+          kasurDetail.desc2,
+          kasurDetail.id,
+          plKasur,
+          customerKasur,
+          netKasur,
+          kasurDetail.qty,
+          kasurHasExplicitCustomerPrice,
+        );
 
         cartItems.add(CartEntity(
           cartLineId:
@@ -2056,11 +2140,11 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
             ukuran: kasurDetail.desc2,
             pricelist: kasurDetail.unitPrice,
             program: '',
-            eupKasur: eupKasur,
-            eupDivan: eupDivan,
-            eupHeadboard: eupHeadboard,
-            eupSorong: eupSorong,
-            endUserPrice: kasurDetail.unitPrice,
+            eupKasur: customerKasur,
+            eupDivan: customerDivan,
+            eupHeadboard: customerHeadboard,
+            eupSorong: customerSorong,
+            endUserPrice: netKasur,
             bonus: bonusItems,
             discounts: [],
             isSet: false,
@@ -2076,7 +2160,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
             disc5: 0,
           ),
           quantity: kasurDetail.qty,
-          netPrice: kasurDetail.netPrice ?? kasurDetail.unitPrice,
+          netPrice: netKasur,
           discountPercentages: [],
           isSelected: true,
         ));
@@ -2116,47 +2200,31 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
       }));
 
       // Convert discount data for pricelist calculation
-      // Map discounts by product description (desc_1 + desc_2) instead of order_letter_detail_id
       final discountData = <Map<String, dynamic>>[];
-
-      // Group discounts by product name (desc1) to apply same discounts to all variants
-      final Map<String, List<OrderLetterDiscountModel>> discountsByProduct = {};
+      final Map<int, List<OrderLetterDiscountModel>> discountsByDetailId = {};
 
       for (final discount in _document!.discounts) {
-        // Find the corresponding detail to get desc_1 and desc_2
-        final detail = _document!.details.firstWhere(
-          (d) => d.id == discount.orderLetterDetailId,
-          orElse: () => _document!.details.first, // fallback
-        );
-
-        final productName =
-            detail.desc1; // Use only desc1 (product name) as key
-        if (!discountsByProduct.containsKey(productName)) {
-          discountsByProduct[productName] = [];
-        }
-        discountsByProduct[productName]!.add(discount);
+        discountsByDetailId
+            .putIfAbsent(discount.orderLetterDetailId, () => [])
+            .add(discount);
       }
 
-      // Now create discount data for all product variants
       for (final detail in _document!.details) {
-        final productName = detail.desc1;
+        final detailDiscounts = discountsByDetailId[detail.id];
+        if (detailDiscounts == null || detailDiscounts.isEmpty) {
+          continue;
+        }
+
         final productKey = '${detail.desc1}_${detail.desc2}';
-
-        // Check if we have discounts for this product name
-        if (discountsByProduct.containsKey(productName)) {
-          final productDiscounts = discountsByProduct[productName]!;
-
-          // Apply all discounts for this product to this variant
-          for (final discount in productDiscounts) {
-            discountData.add({
-              'id': discount.id,
-              'order_letter_detail_id': discount.orderLetterDetailId,
-              'order_letter_id': discount.orderLetterId,
-              'discount': discount.discount,
-              'approver_level_id': discount.approverLevelId,
-              'product_key': productKey,
-            });
-          }
+        for (final discount in detailDiscounts) {
+          discountData.add({
+            'id': discount.id,
+            'order_letter_detail_id': discount.orderLetterDetailId,
+            'order_letter_id': discount.orderLetterId,
+            'discount': discount.discount,
+            'approver_level_id': discount.approverLevelId,
+            'product_key': productKey,
+          });
         }
       }
 
@@ -2186,6 +2254,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         orderLetterHargaAwal: _document!.hargaAwal,
         shipToName: _document!.shipToName,
         discountData: discountData,
+        pricingData: pricingSummary,
         showApprovalColumn: showApprovalColumn,
       );
 

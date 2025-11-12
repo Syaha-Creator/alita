@@ -149,6 +149,7 @@ class OrderLetterDetailModel {
   final int qty;
   final double unitPrice; // Pricelist (harga asli)
   final double? netPrice; // Harga setelah discount (nullable)
+  final double? customerPrice;
   final String itemNumber;
   final String desc1;
   final String desc2;
@@ -167,6 +168,7 @@ class OrderLetterDetailModel {
     required this.qty,
     required this.unitPrice,
     required this.netPrice,
+    required this.customerPrice,
     required this.itemNumber,
     required this.desc1,
     required this.desc2,
@@ -243,6 +245,16 @@ class OrderLetterDetailModel {
       }
     }
 
+    double? customerPriceValue;
+    final customerPriceData = json['customer_price'];
+    if (customerPriceData != null) {
+      if (customerPriceData is String) {
+        customerPriceValue = double.tryParse(customerPriceData);
+      } else if (customerPriceData is num) {
+        customerPriceValue = customerPriceData.toDouble();
+      }
+    }
+
     return OrderLetterDetailModel(
       id: json['order_letter_detail_id'] ?? json['id'] ?? 0,
       orderLetterId: json['order_letter_id'] ?? 0,
@@ -250,6 +262,7 @@ class OrderLetterDetailModel {
       qty: qtyValue,
       unitPrice: unitPriceValue,
       netPrice: netPriceValue,
+      customerPrice: customerPriceValue,
       itemNumber: json['item_number'] ?? '',
       desc1: json['desc_1'] ?? '',
       desc2: json['desc_2'] ?? '',
@@ -271,6 +284,7 @@ class OrderLetterDetailModel {
       'qty': qty,
       'unit_price': unitPrice,
       'net_price': netPrice,
+      'customer_price': customerPrice,
       'item_number': itemNumber,
       'desc_1': desc1,
       'desc_2': desc2,

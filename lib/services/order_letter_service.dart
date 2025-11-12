@@ -904,8 +904,14 @@ class OrderLetterService {
         List<Map<String, dynamic>> discountsToReturn = allDiscounts;
         if (orderLetterId != null) {
           discountsToReturn = allDiscounts.where((discount) {
-            final discountOrderLetterId = discount['order_letter_id'];
-            return discountOrderLetterId == orderLetterId;
+            final discountOrderLetterId =
+                discount['order_letter_id'] ?? discount['orderLetterId'];
+            if (discountOrderLetterId == null) {
+              return false;
+            }
+            final parsedId =
+                int.tryParse(discountOrderLetterId.toString().trim());
+            return parsedId == orderLetterId;
           }).toList();
         }
 
@@ -1072,32 +1078,68 @@ class OrderLetterService {
     List<int?>? leaderIds,
     int orderLetterId,
   ) async {
-    // Track created discounts to prevent duplicates
     final Set<String> createdDiscounts = {};
 
+    String normalize(String value) => value.trim().toLowerCase();
+
+    final Map<String, List<int>> availableDetailIds = {};
+
+    for (final detailResult in detailResults) {
+      if (detailResult['success'] && detailResult['data'] != null) {
+        final rawData = detailResult['data'];
+        final detailData = rawData['location'] ?? rawData;
+
+        final detailType =
+            (detailData['item_type'] ?? '').toString().toLowerCase();
+        if (detailType != 'mattress' && detailType != 'kasur') {
+          continue;
+        }
+
+        final detailName = normalize((detailData['desc_1'] ?? '').toString());
+        final detailSize = normalize((detailData['desc_2'] ?? '').toString());
+
+        final rawDetailId = detailData['id'] ??
+            detailData['order_letter_detail_id'] ??
+            detailData['detail_id'];
+        final parsedId = rawDetailId is int
+            ? rawDetailId
+            : int.tryParse(rawDetailId?.toString() ?? '');
+
+        if (parsedId == null) {
+          continue;
+        }
+
+        final primaryKey = '$detailName|$detailSize';
+        final secondaryKey = '$detailName|';
+
+        availableDetailIds.putIfAbsent(primaryKey, () => <int>[]).add(parsedId);
+        if (secondaryKey != primaryKey) {
+          availableDetailIds
+              .putIfAbsent(secondaryKey, () => <int>[])
+              .add(parsedId);
+        }
+      }
+    }
+
     for (final itemDiscount in itemDiscounts) {
-      final kasurName = itemDiscount['kasurName'] as String;
+      final kasurNameRaw = (itemDiscount['kasurName'] ?? '').toString();
+      final productSizeRaw = (itemDiscount['productSize'] ?? '').toString();
+
       final discounts = itemDiscount['discounts'] as List<double>;
 
-      // Find kasur detail ID for this specific kasur with matching size
+      final normalizedName = normalize(kasurNameRaw);
+      final normalizedSize = normalize(productSizeRaw);
+
       int? kasurOrderLetterDetailId;
-      for (final detailResult in detailResults) {
-        if (detailResult['success'] && detailResult['data'] != null) {
-          final rawData = detailResult['data'];
-          // Data sebenarnya ada di dalam 'location' field
-          final detailData = rawData['location'] ?? rawData;
 
-          // Match by kasur name and type
-          if ((detailData['item_type'] == 'Mattress' ||
-                  detailData['item_type'] == 'kasur') &&
-              detailData['desc_1'] == kasurName) {
-            // detailData sudah berisi data location, jadi langsung akses ID
-            kasurOrderLetterDetailId = detailData['id'] ??
-                detailData['order_letter_detail_id'] ??
-                detailData['detail_id'];
+      final primaryKey = '$normalizedName|$normalizedSize';
+      final secondaryKey = '$normalizedName|';
 
-            break;
-          }
+      for (final key in [primaryKey, secondaryKey]) {
+        final pool = availableDetailIds[key];
+        if (pool != null && pool.isNotEmpty) {
+          kasurOrderLetterDetailId = pool.removeAt(0);
+          break;
         }
       }
 
@@ -1105,23 +1147,19 @@ class OrderLetterService {
         continue;
       }
 
-      // Process each discount for this kasur
-      // Modified logic: Always create entries up to Direct Leader (level 2)
+      if (primaryKey != secondaryKey) {
+        availableDetailIds[primaryKey]?.remove(kasurOrderLetterDetailId);
+        availableDetailIds[secondaryKey]?.remove(kasurOrderLetterDetailId);
+      } else {
+        availableDetailIds[primaryKey]?.remove(kasurOrderLetterDetailId);
+      }
 
-      // Always create up to Direct Leader level (2 levels total: User, Direct Leader)
-      // If more discounts are provided (Indirect Leader, Controller, Analyst), create those too
       int maxLevelToCreate = discounts.length > 2 ? discounts.length : 2;
 
       for (int i = 0; i < maxLevelToCreate; i++) {
         final discount = i < discounts.length ? discounts[i] : 0.0;
-
-        // Always create entries for:
-        // - Level 0 (User)
-        // - Level 1 (Direct Leader)
-        // For levels 2+ (Indirect Leader, Controller, Analyst), only create if discount > 0
         if (i > 1 && discount <= 0) continue;
 
-        // Create unique key to prevent duplicates
         final discountKey = '${kasurOrderLetterDetailId}_${i}_$discount';
         if (createdDiscounts.contains(discountKey)) {
           continue;
@@ -1134,10 +1172,9 @@ class OrderLetterService {
           discountIndex: i,
           leaderIds: leaderIds,
           discountResults: discountResults,
-          kasurName: kasurName,
+          kasurName: kasurNameRaw,
         );
 
-        // Mark this discount as created
         createdDiscounts.add(discountKey);
       }
     }

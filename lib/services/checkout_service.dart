@@ -4,6 +4,7 @@ import '../config/dependency_injection.dart';
 import 'api_client.dart';
 import 'lookup_item_service.dart';
 import '../features/cart/domain/entities/cart_entity.dart';
+import '../features/cart/domain/usecases/apply_discounts_usecase.dart';
 import '../features/product/presentation/bloc/product_bloc.dart';
 import '../features/approval/data/repositories/approval_repository.dart';
 import '../services/auth_service.dart';
@@ -163,6 +164,8 @@ class CheckoutService {
           []; // Store discounts with item info
       double totalDiscountPercentage = 0;
 
+      final applyDiscountsUsecase = const ApplyDiscountsUsecase();
+
       for (final item in cartItems) {
         totalExtendedAmount += item.netPrice * item.quantity;
         totalHargaAwal += (item.product.pricelist * item.quantity).toInt();
@@ -239,6 +242,10 @@ class CheckoutService {
           final nums = await _resolveItemNumbersPerUnit(item, 'kasur');
           // If numbers vary per unit, split lines per unit with qty 1
           final bool hasVariety = nums.toSet().length > 1;
+          final double kasurUnitPrice = item.product.plKasur;
+          final double kasurCustomerPrice = item.product.eupKasur;
+          final double kasurNetPrice = applyDiscountsUsecase.applySequentially(
+              kasurCustomerPrice, item.discountPercentages);
           if (hasVariety) {
             for (final n in nums) {
               detailsData.add({
@@ -246,8 +253,9 @@ class CheckoutService {
                 'desc_1': item.product.kasur,
                 'desc_2': item.product.ukuran,
                 'brand': item.product.brand,
-                'unit_price': item.product.pricelist,
-                'net_price': item.netPrice,
+                'unit_price': kasurUnitPrice,
+                'customer_price': kasurCustomerPrice,
+                'net_price': kasurNetPrice,
                 'qty': 1,
                 'item_type': 'kasur',
                 'take_away': takeAwayString,
@@ -259,8 +267,9 @@ class CheckoutService {
               'desc_1': item.product.kasur,
               'desc_2': item.product.ukuran,
               'brand': item.product.brand,
-              'unit_price': item.product.pricelist,
-              'net_price': item.netPrice,
+              'unit_price': kasurUnitPrice,
+              'customer_price': kasurCustomerPrice,
+              'net_price': kasurNetPrice,
               'qty': item.quantity,
               'item_type': 'kasur',
               'take_away': takeAwayString,
@@ -282,6 +291,10 @@ class CheckoutService {
 
           final nums = await _resolveItemNumbersPerUnit(item, 'divan');
           final bool hasVariety = nums.toSet().length > 1;
+          final double divanUnitPrice = item.product.plDivan;
+          final double divanCustomerPrice = item.product.eupDivan;
+          final double divanNetPrice = applyDiscountsUsecase.applySequentially(
+              divanCustomerPrice, item.discountPercentages);
           if (hasVariety) {
             for (final n in nums) {
               detailsData.add({
@@ -289,8 +302,9 @@ class CheckoutService {
                 'desc_1': item.product.divan,
                 'desc_2': item.product.ukuran,
                 'brand': item.product.brand,
-                'unit_price': item.product.plDivan,
-                'net_price': item.product.plDivan,
+                'unit_price': divanUnitPrice,
+                'customer_price': divanCustomerPrice,
+                'net_price': divanNetPrice,
                 'qty': 1,
                 'item_type': 'divan',
                 'take_away': takeAwayString,
@@ -302,8 +316,9 @@ class CheckoutService {
               'desc_1': item.product.divan,
               'desc_2': item.product.ukuran,
               'brand': item.product.brand,
-              'unit_price': item.product.plDivan,
-              'net_price': item.product.plDivan,
+              'unit_price': divanUnitPrice,
+              'customer_price': divanCustomerPrice,
+              'net_price': divanNetPrice,
               'qty': item.quantity,
               'item_type': 'divan',
               'take_away': takeAwayString,
@@ -325,6 +340,11 @@ class CheckoutService {
 
           final nums = await _resolveItemNumbersPerUnit(item, 'headboard');
           final bool hasVariety = nums.toSet().length > 1;
+          final double headboardUnitPrice = item.product.plHeadboard;
+          final double headboardCustomerPrice = item.product.eupHeadboard;
+          final double headboardNetPrice =
+              applyDiscountsUsecase.applySequentially(
+                  headboardCustomerPrice, item.discountPercentages);
           if (hasVariety) {
             for (final n in nums) {
               detailsData.add({
@@ -332,8 +352,9 @@ class CheckoutService {
                 'desc_1': item.product.headboard,
                 'desc_2': item.product.ukuran,
                 'brand': item.product.brand,
-                'unit_price': item.product.plHeadboard,
-                'net_price': item.product.plHeadboard,
+                'unit_price': headboardUnitPrice,
+                'customer_price': headboardCustomerPrice,
+                'net_price': headboardNetPrice,
                 'qty': 1,
                 'item_type': 'headboard',
                 'take_away': takeAwayString,
@@ -345,8 +366,9 @@ class CheckoutService {
               'desc_1': item.product.headboard,
               'desc_2': item.product.ukuran,
               'brand': item.product.brand,
-              'unit_price': item.product.plHeadboard,
-              'net_price': item.product.plHeadboard,
+              'unit_price': headboardUnitPrice,
+              'customer_price': headboardCustomerPrice,
+              'net_price': headboardNetPrice,
               'qty': item.quantity,
               'item_type': 'headboard',
               'take_away': takeAwayString,
@@ -371,9 +393,10 @@ class CheckoutService {
             'desc_1': item.product.sorong,
             'desc_2': item.product.ukuran,
             'brand': item.product.brand,
-            'unit_price': item.product.plSorong, // Pricelist (harga asli)
-            'net_price': item.product
-                .plSorong, // Untuk aksesoris, net_price = unit_price (tidak ada discount)
+            'unit_price': item.product.plSorong,
+            'customer_price': item.product.eupSorong,
+            'net_price': applyDiscountsUsecase.applySequentially(
+                item.product.eupSorong, item.discountPercentages),
             'qty': item.quantity,
             'item_type': 'sorong',
             'take_away': takeAwayString,

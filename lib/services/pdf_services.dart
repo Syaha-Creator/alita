@@ -40,6 +40,7 @@ class PDFService {
     double? orderLetterHargaAwal,
     String? shipToName,
     List<Map<String, dynamic>>? discountData,
+    Map<String, List<Map<String, dynamic>>>? pricingData,
     bool showApprovalColumn = false,
   }) async {
     final pdf = pw.Document();
@@ -151,6 +152,7 @@ class PDFService {
           _buildItemsTable(cartItems, subtotal, totalEup,
               orderLetterExtendedAmount: orderLetterExtendedAmount,
               discountData: discountData,
+              pricingData: pricingData,
               showApprovalColumn: showApprovalColumn),
           pw.SizedBox(height: 8),
           _buildNotesAndTotals(
@@ -528,8 +530,9 @@ class PDFService {
       List<CartEntity> items, double subtotal, double totalEup,
       {double? orderLetterExtendedAmount,
       List<Map<String, dynamic>>? discountData,
+      Map<String, List<Map<String, dynamic>>>? pricingData,
       bool showApprovalColumn = false}) {
-    const tableHeaders = [
+    const defaultHeaders = [
       'BRAND',
       'ORDER',
       'NAMA BARANG',
@@ -538,13 +541,48 @@ class PDFService {
       'DISCOUNT',
       'HARGA TOTAL'
     ];
+
+    final bool useApprovalLayout =
+        showApprovalColumn && pricingData != null && pricingData.isNotEmpty;
+
+    final headers = useApprovalLayout
+        ? [
+            'BRAND',
+            'ORDER',
+            'NAMA BARANG',
+            'QTY',
+            'PRICELIST',
+            'END USER PRICE',
+            'DISCOUNT',
+            'HARGA TOTAL'
+          ]
+        : defaultHeaders;
+
+    final Map<String, List<Map<String, dynamic>>> pricingQueues = {};
+    if (pricingData != null) {
+      for (final entry in pricingData.entries) {
+        pricingQueues[entry.key] =
+            entry.value.map((e) => Map<String, dynamic>.from(e)).toList();
+      }
+    }
+
+    String pricingKey(String type, String name, String size) =>
+        '${type.toLowerCase()}|${name.trim()}|${size.trim()}';
+
+    Map<String, dynamic>? getPricing(String type, String name, String size) {
+      final key = pricingKey(type, name, size);
+      final queue = pricingQueues[key];
+      if (queue == null || queue.isEmpty) return null;
+      return queue.removeAt(0);
+    }
+
     final List<pw.TableRow> tableRows = [];
 
     tableRows.add(
       pw.TableRow(
         verticalAlignment: pw.TableCellVerticalAlignment.middle,
         decoration: const pw.BoxDecoration(color: PdfColors.grey300),
-        children: tableHeaders.map((header) {
+        children: headers.map((header) {
           return pw.Padding(
             padding: const pw.EdgeInsets.all(4),
             child: pw.Text(
@@ -561,141 +599,334 @@ class PDFService {
 
     for (var item in items) {
       final product = item.product;
-
-      // Product key untuk mencari discount data (sama untuk semua kondisi)
       final productKey = '${product.kasur}_${product.ukuran}';
 
-      // Jika ada order letter extended amount, gunakan perhitungan yang sesuai
-      if (orderLetterExtendedAmount != null && orderLetterExtendedAmount > 0) {
-        double kasurPricelistPerUnit = _calculateOriginalPricelistByProductKey(
-          item.netPrice,
-          productKey,
-          discountData,
-        );
+      final kasurPricing = getPricing('kasur', product.kasur, product.ukuran);
+      final double? pricingKasurUnit =
+          (kasurPricing?['unit_price_per_unit'] as num?)?.toDouble();
+      final double? pricingKasurCustomer =
+          (kasurPricing?['customer_price_per_unit'] as num?)?.toDouble();
+      final double? pricingKasurNet =
+          (kasurPricing?['net_price_per_unit'] as num?)?.toDouble();
+      final int? kasurDetailId = (kasurPricing?['detail_id'] as num?)?.toInt();
+      final bool kasurHasExplicitCustomerPrice =
+          (kasurPricing?['has_customer_price'] as bool?) ?? false;
 
-        // If no discount data found, use the original pricelist from product
+      if (useApprovalLayout) {
+        final double unitPricePerUnit = pricingKasurUnit ?? product.plKasur;
+        final double customerPricePerUnit =
+            pricingKasurCustomer ?? product.eupKasur;
+        final double netPricePerUnit = pricingKasurNet ?? item.netPrice;
+        final double kasurPricelist = unitPricePerUnit * item.quantity;
+        final double kasurCustomer = customerPricePerUnit * item.quantity;
+        final double kasurNet = netPricePerUnit * item.quantity;
+        final double kasurDiscount = kasurCustomer - kasurNet;
+        final bool hasKasurCustomerAmount = kasurCustomer > 0;
+        final bool showKasurDiscountDetails = hasKasurCustomerAmount &&
+            kasurHasExplicitCustomerPrice &&
+            showApprovalColumn;
+        final pw.Widget kasurDiscountCell = hasKasurCustomerAmount
+            ? _buildDiscountCell(kasurDiscount, kasurDetailId ?? product.id,
+                productKey, discountData,
+                align: pw.TextAlign.right,
+                showApprovalColumn: showKasurDiscountDetails)
+            : _buildTableCell('-', align: pw.TextAlign.right);
+
+        tableRows.add(pw.TableRow(children: [
+          _buildTableCell(_getBrandAbbreviation(product.brand),
+              align: pw.TextAlign.center),
+          _buildTableCell((itemNumber++).toString(),
+              align: pw.TextAlign.center),
+          _buildTableCell('${product.kasur} ${product.ukuran}'),
+          _buildTableCell(item.quantity.toString(), align: pw.TextAlign.center),
+          _buildTableCell(FormatHelper.formatCurrency(kasurPricelist),
+              align: pw.TextAlign.right),
+          _buildTableCell(
+              hasKasurCustomerAmount
+                  ? FormatHelper.formatCurrency(kasurCustomer)
+                  : '-',
+              align: pw.TextAlign.right),
+          kasurDiscountCell,
+          _buildTableCell(FormatHelper.formatCurrency(kasurNet),
+              align: pw.TextAlign.right),
+        ]));
+      } else if (orderLetterExtendedAmount != null &&
+          orderLetterExtendedAmount > 0) {
+        double kasurPricelistPerUnit = pricingKasurUnit ??
+            _calculateOriginalPricelistByProductKey(
+              item.netPrice,
+              productKey,
+              discountData,
+            );
         if (kasurPricelistPerUnit == item.netPrice) {
           kasurPricelistPerUnit = product.plKasur;
         }
 
-        double kasurPricelist = kasurPricelistPerUnit * item.quantity;
-        double kasurNet = item.netPrice * item.quantity;
-        double kasurDiscount = kasurPricelist - kasurNet;
+        final double kasurNetPerUnit = pricingKasurNet ?? item.netPrice;
+        final double kasurPricelist = kasurPricelistPerUnit * item.quantity;
+        final double kasurNet = kasurNetPerUnit * item.quantity;
+        final double kasurDiscount = kasurPricelist - kasurNet;
 
-        tableRows.add(pw.TableRow(
-          children: [
-            _buildTableCell(_getBrandAbbreviation(product.brand),
-                align: pw.TextAlign.center),
-            _buildTableCell((itemNumber++).toString(),
-                align: pw.TextAlign.center),
-            _buildTableCell('${product.kasur} ${product.ukuran}'),
-            _buildTableCell(item.quantity.toString(),
-                align: pw.TextAlign.center),
-            _buildTableCell(FormatHelper.formatCurrency(kasurPricelist),
-                align: pw.TextAlign.right),
-            _buildDiscountCell(kasurDiscount, productKey, discountData,
-                align: pw.TextAlign.right,
-                showApprovalColumn: showApprovalColumn),
-            _buildTableCell(FormatHelper.formatCurrency(kasurNet),
-                align: pw.TextAlign.right),
-          ],
-        ));
-      } else {
-        // Logic lama untuk cart biasa
-        double kasurPricelist = (product.plKasur) * item.quantity;
-        double kasurNet = (item.netPrice * item.quantity) / 1.11;
-        double kasurDiscount = kasurPricelist - kasurNet;
-
-        tableRows.add(pw.TableRow(
-          children: [
-            _buildTableCell(_getBrandAbbreviation(product.brand),
-                align: pw.TextAlign.center),
-            _buildTableCell((itemNumber++).toString(),
-                align: pw.TextAlign.center),
-            _buildTableCell('${product.kasur} ${product.ukuran}'),
-            _buildTableCell(item.quantity.toString(),
-                align: pw.TextAlign.center),
-            _buildTableCell(FormatHelper.formatCurrency(kasurPricelist),
-                align: pw.TextAlign.right),
-            _buildDiscountCell(kasurDiscount, productKey, discountData,
-                align: pw.TextAlign.right,
-                showApprovalColumn: showApprovalColumn),
-            _buildTableCell(FormatHelper.formatCurrency(kasurNet),
-                align: pw.TextAlign.right),
-          ],
-        ));
-      }
-      if (product.divan.isNotEmpty && product.divan != AppStrings.noDivan) {
-        double divanPricelist = (product.plDivan) * item.quantity;
-        double divanEUP = (product.eupDivan) * item.quantity;
-        double divanDiscount = divanEUP;
-        double divanNet = divanPricelist - divanDiscount;
-        final divanRowChildren = [
-          _buildTableCell('', align: pw.TextAlign.center),
-          _buildTableCell(''),
-          _buildTableCell(product.divan),
+        tableRows.add(pw.TableRow(children: [
+          _buildTableCell(_getBrandAbbreviation(product.brand),
+              align: pw.TextAlign.center),
+          _buildTableCell((itemNumber++).toString(),
+              align: pw.TextAlign.center),
+          _buildTableCell('${product.kasur} ${product.ukuran}'),
           _buildTableCell(item.quantity.toString(), align: pw.TextAlign.center),
-          _buildTableCell(FormatHelper.formatCurrency(divanPricelist),
+          _buildTableCell(FormatHelper.formatCurrency(kasurPricelist),
               align: pw.TextAlign.right),
-          _buildDiscountCell(divanDiscount, null, discountData,
+          _buildDiscountCell(kasurDiscount, null, productKey, discountData,
               align: pw.TextAlign.right,
               showApprovalColumn: showApprovalColumn),
-          _buildTableCell(FormatHelper.formatCurrency(divanNet),
+          _buildTableCell(FormatHelper.formatCurrency(kasurNet),
               align: pw.TextAlign.right),
-        ];
+        ]));
+      } else {
+        final double kasurPricelistPerUnit =
+            pricingKasurUnit ?? product.plKasur;
+        final double kasurNetPerUnit = pricingKasurNet ?? item.netPrice;
+        final double kasurPricelist = kasurPricelistPerUnit * item.quantity;
+        final double kasurNet = kasurNetPerUnit * item.quantity;
+        final double kasurDiscount = kasurPricelist - kasurNet;
 
-        tableRows.add(pw.TableRow(children: divanRowChildren));
+        tableRows.add(pw.TableRow(children: [
+          _buildTableCell(_getBrandAbbreviation(product.brand),
+              align: pw.TextAlign.center),
+          _buildTableCell((itemNumber++).toString(),
+              align: pw.TextAlign.center),
+          _buildTableCell('${product.kasur} ${product.ukuran}'),
+          _buildTableCell(item.quantity.toString(), align: pw.TextAlign.center),
+          _buildTableCell(FormatHelper.formatCurrency(kasurPricelist),
+              align: pw.TextAlign.right),
+          _buildDiscountCell(kasurDiscount, null, productKey, discountData,
+              align: pw.TextAlign.right,
+              showApprovalColumn: showApprovalColumn),
+          _buildTableCell(FormatHelper.formatCurrency(kasurNet),
+              align: pw.TextAlign.right),
+        ]));
+      }
+
+      if (product.divan.isNotEmpty && product.divan != AppStrings.noDivan) {
+        if (useApprovalLayout) {
+          final divanPricing =
+              getPricing('divan', product.divan, product.ukuran);
+          final double unitPricePerUnit =
+              (divanPricing?['unit_price_per_unit'] as num?)?.toDouble() ??
+                  product.plDivan;
+          final double customerPricePerUnit =
+              (divanPricing?['customer_price_per_unit'] as num?)?.toDouble() ??
+                  product.eupDivan;
+          final double netPricePerUnit =
+              (divanPricing?['net_price_per_unit'] as num?)?.toDouble() ??
+                  (customerPricePerUnit > 0 ? customerPricePerUnit : 0);
+          final int? detailId = (divanPricing?['detail_id'] as num?)?.toInt();
+          final bool divanHasExplicitCustomerPrice =
+              (divanPricing?['has_customer_price'] as bool?) ?? false;
+
+          final double divanPricelist = unitPricePerUnit * item.quantity;
+          final double divanCustomer = customerPricePerUnit * item.quantity;
+          final double divanNet = netPricePerUnit * item.quantity;
+          final double divanDiscount = divanCustomer - divanNet;
+          final bool hasDivanCustomerAmount = divanCustomer > 0;
+          final bool showDivanDiscountDetails = hasDivanCustomerAmount &&
+              divanHasExplicitCustomerPrice &&
+              showApprovalColumn;
+          final pw.Widget divanDiscountCell = hasDivanCustomerAmount
+              ? _buildDiscountCell(
+                  divanDiscount, detailId, productKey, discountData,
+                  align: pw.TextAlign.right,
+                  showApprovalColumn: showDivanDiscountDetails)
+              : _buildTableCell('-', align: pw.TextAlign.right);
+
+          tableRows.add(pw.TableRow(children: [
+            _buildTableCell('', align: pw.TextAlign.center),
+            _buildTableCell(''),
+            _buildTableCell(product.divan),
+            _buildTableCell(item.quantity.toString(),
+                align: pw.TextAlign.center),
+            _buildTableCell(FormatHelper.formatCurrency(divanPricelist),
+                align: pw.TextAlign.right),
+            _buildTableCell(
+                divanCustomer > 0
+                    ? FormatHelper.formatCurrency(divanCustomer)
+                    : '-',
+                align: pw.TextAlign.right),
+            divanDiscountCell,
+            _buildTableCell(FormatHelper.formatCurrency(divanNet),
+                align: pw.TextAlign.right),
+          ]));
+        } else {
+          double divanPricelist = (product.plDivan) * item.quantity;
+          double divanEUP = (product.eupDivan) * item.quantity;
+          double divanDiscount = divanEUP;
+          double divanNet = divanPricelist - divanDiscount;
+          tableRows.add(pw.TableRow(children: [
+            _buildTableCell('', align: pw.TextAlign.center),
+            _buildTableCell(''),
+            _buildTableCell(product.divan),
+            _buildTableCell(item.quantity.toString(),
+                align: pw.TextAlign.center),
+            _buildTableCell(FormatHelper.formatCurrency(divanPricelist),
+                align: pw.TextAlign.right),
+            _buildDiscountCell(divanDiscount, null, null, discountData,
+                align: pw.TextAlign.right,
+                showApprovalColumn: showApprovalColumn),
+            _buildTableCell(FormatHelper.formatCurrency(divanNet),
+                align: pw.TextAlign.right),
+          ]));
+        }
       }
       if (product.headboard.isNotEmpty &&
           product.headboard != AppStrings.noHeadboard) {
-        double headboardPricelist = (product.plHeadboard) * item.quantity;
-        double headboardEUP = (product.eupHeadboard) * item.quantity;
-        double headboardDiscount = headboardEUP;
-        double headboardNet = headboardPricelist - headboardDiscount;
-        final headboardRowChildren = [
-          _buildTableCell('', align: pw.TextAlign.center),
-          _buildTableCell(''),
-          _buildTableCell(product.headboard),
-          _buildTableCell(item.quantity.toString(), align: pw.TextAlign.center),
-          _buildTableCell(FormatHelper.formatCurrency(headboardPricelist),
-              align: pw.TextAlign.right),
-          _buildDiscountCell(headboardDiscount, null, discountData,
-              align: pw.TextAlign.right,
-              showApprovalColumn: showApprovalColumn),
-          _buildTableCell(FormatHelper.formatCurrency(headboardNet),
-              align: pw.TextAlign.right),
-        ];
+        if (useApprovalLayout) {
+          final headboardPricing =
+              getPricing('headboard', product.headboard, product.ukuran);
+          final double unitPricePerUnit =
+              (headboardPricing?['unit_price_per_unit'] as num?)?.toDouble() ??
+                  product.plHeadboard;
+          final double customerPricePerUnit =
+              (headboardPricing?['customer_price_per_unit'] as num?)
+                      ?.toDouble() ??
+                  product.eupHeadboard;
+          final double netPricePerUnit =
+              (headboardPricing?['net_price_per_unit'] as num?)?.toDouble() ??
+                  (customerPricePerUnit > 0 ? customerPricePerUnit : 0);
+          final int? detailId =
+              (headboardPricing?['detail_id'] as num?)?.toInt();
+          final bool headboardHasExplicitCustomerPrice =
+              (headboardPricing?['has_customer_price'] as bool?) ?? false;
 
-        tableRows.add(pw.TableRow(children: headboardRowChildren));
+          final double headboardPricelist = unitPricePerUnit * item.quantity;
+          final double headboardCustomer = customerPricePerUnit * item.quantity;
+          final double headboardNet = netPricePerUnit * item.quantity;
+          final double headboardDiscount = headboardCustomer - headboardNet;
+          final bool hasHeadboardCustomerAmount = headboardCustomer > 0;
+          final bool showHeadboardDiscountDetails =
+              hasHeadboardCustomerAmount &&
+                  headboardHasExplicitCustomerPrice &&
+                  showApprovalColumn;
+          final pw.Widget headboardDiscountCell = hasHeadboardCustomerAmount
+              ? _buildDiscountCell(
+                  headboardDiscount, detailId, productKey, discountData,
+                  align: pw.TextAlign.right,
+                  showApprovalColumn: showHeadboardDiscountDetails)
+              : _buildTableCell('-', align: pw.TextAlign.right);
+
+          tableRows.add(pw.TableRow(children: [
+            _buildTableCell('', align: pw.TextAlign.center),
+            _buildTableCell(''),
+            _buildTableCell(product.headboard),
+            _buildTableCell(item.quantity.toString(),
+                align: pw.TextAlign.center),
+            _buildTableCell(FormatHelper.formatCurrency(headboardPricelist),
+                align: pw.TextAlign.right),
+            _buildTableCell(
+                headboardCustomer > 0
+                    ? FormatHelper.formatCurrency(headboardCustomer)
+                    : '-',
+                align: pw.TextAlign.right),
+            headboardDiscountCell,
+            _buildTableCell(FormatHelper.formatCurrency(headboardNet),
+                align: pw.TextAlign.right),
+          ]));
+        } else {
+          double headboardPricelist = (product.plHeadboard) * item.quantity;
+          double headboardEUP = (product.eupHeadboard) * item.quantity;
+          double headboardDiscount = headboardEUP;
+          double headboardNet = headboardPricelist - headboardDiscount;
+          tableRows.add(pw.TableRow(children: [
+            _buildTableCell('', align: pw.TextAlign.center),
+            _buildTableCell(''),
+            _buildTableCell(product.headboard),
+            _buildTableCell(item.quantity.toString(),
+                align: pw.TextAlign.center),
+            _buildTableCell(FormatHelper.formatCurrency(headboardPricelist),
+                align: pw.TextAlign.right),
+            _buildDiscountCell(headboardDiscount, null, null, discountData,
+                align: pw.TextAlign.right,
+                showApprovalColumn: showApprovalColumn),
+            _buildTableCell(FormatHelper.formatCurrency(headboardNet),
+                align: pw.TextAlign.right),
+          ]));
+        }
       }
       if (product.sorong.isNotEmpty && product.sorong != AppStrings.noSorong) {
-        double sorongPricelist = (product.plSorong) * item.quantity;
-        double sorongEUP = (product.eupSorong) * item.quantity;
-        double sorongDiscount = sorongEUP;
-        double sorongNet = sorongPricelist - sorongDiscount;
-        final sorongRowChildren = [
-          _buildTableCell('', align: pw.TextAlign.center),
-          _buildTableCell(''),
-          _buildTableCell(product.sorong),
-          _buildTableCell(item.quantity.toString(), align: pw.TextAlign.center),
-          _buildTableCell(FormatHelper.formatCurrency(sorongPricelist),
-              align: pw.TextAlign.right),
-          _buildDiscountCell(sorongDiscount, null, discountData,
-              align: pw.TextAlign.right,
-              showApprovalColumn: showApprovalColumn),
-          _buildTableCell(FormatHelper.formatCurrency(sorongNet),
-              align: pw.TextAlign.right),
-        ];
+        if (useApprovalLayout) {
+          final sorongPricing =
+              getPricing('sorong', product.sorong, product.ukuran);
+          final double unitPricePerUnit =
+              (sorongPricing?['unit_price_per_unit'] as num?)?.toDouble() ??
+                  product.plSorong;
+          final double customerPricePerUnit =
+              (sorongPricing?['customer_price_per_unit'] as num?)?.toDouble() ??
+                  product.eupSorong;
+          final double netPricePerUnit =
+              (sorongPricing?['net_price_per_unit'] as num?)?.toDouble() ??
+                  (customerPricePerUnit > 0 ? customerPricePerUnit : 0);
+          final int? detailId = (sorongPricing?['detail_id'] as num?)?.toInt();
+          final bool sorongHasExplicitCustomerPrice =
+              (sorongPricing?['has_customer_price'] as bool?) ?? false;
 
-        tableRows.add(pw.TableRow(children: sorongRowChildren));
+          final double sorongPricelist = unitPricePerUnit * item.quantity;
+          final double sorongCustomer = customerPricePerUnit * item.quantity;
+          final double sorongNet = netPricePerUnit * item.quantity;
+          final double sorongDiscount = sorongCustomer - sorongNet;
+          final bool hasSorongCustomerAmount = sorongCustomer > 0;
+          final bool showSorongDiscountDetails = hasSorongCustomerAmount &&
+              sorongHasExplicitCustomerPrice &&
+              showApprovalColumn;
+          final pw.Widget sorongDiscountCell = hasSorongCustomerAmount
+              ? _buildDiscountCell(
+                  sorongDiscount, detailId, productKey, discountData,
+                  align: pw.TextAlign.right,
+                  showApprovalColumn: showSorongDiscountDetails)
+              : _buildTableCell('-', align: pw.TextAlign.right);
+
+          tableRows.add(pw.TableRow(children: [
+            _buildTableCell('', align: pw.TextAlign.center),
+            _buildTableCell(''),
+            _buildTableCell(product.sorong),
+            _buildTableCell(item.quantity.toString(),
+                align: pw.TextAlign.center),
+            _buildTableCell(FormatHelper.formatCurrency(sorongPricelist),
+                align: pw.TextAlign.right),
+            _buildTableCell(
+                sorongCustomer > 0
+                    ? FormatHelper.formatCurrency(sorongCustomer)
+                    : '-',
+                align: pw.TextAlign.right),
+            sorongDiscountCell,
+            _buildTableCell(FormatHelper.formatCurrency(sorongNet),
+                align: pw.TextAlign.right),
+          ]));
+        } else {
+          double sorongPricelist = (product.plSorong) * item.quantity;
+          double sorongEUP = (product.eupSorong) * item.quantity;
+          double sorongDiscount = sorongEUP;
+          double sorongNet = sorongPricelist - sorongDiscount;
+          tableRows.add(pw.TableRow(children: [
+            _buildTableCell('', align: pw.TextAlign.center),
+            _buildTableCell(''),
+            _buildTableCell(product.sorong),
+            _buildTableCell(item.quantity.toString(),
+                align: pw.TextAlign.center),
+            _buildTableCell(FormatHelper.formatCurrency(sorongPricelist),
+                align: pw.TextAlign.right),
+            _buildDiscountCell(sorongDiscount, null, null, discountData,
+                align: pw.TextAlign.right,
+                showApprovalColumn: showApprovalColumn),
+            _buildTableCell(FormatHelper.formatCurrency(sorongNet),
+                align: pw.TextAlign.right),
+          ]));
+        }
       }
 
       if (product.bonus.isNotEmpty) {
         for (var bonus in product.bonus) {
           final bonusQuantity = bonus.quantity * item.quantity;
-          const String bonusPrice = "0";
+          final String zeroPrice = FormatHelper.formatCurrency(0);
 
-          // Add take away indicator if applicable
           String bonusName = bonus.name;
           if (bonus.takeAway == true) {
             bonusName = '${bonus.name} (BONUS - TAKE AWAY)';
@@ -703,33 +934,58 @@ class PDFService {
             bonusName = '${bonus.name} (BONUS)';
           }
 
-          final bonusRowChildren = [
-            _buildTableCell('', align: pw.TextAlign.center),
-            _buildTableCell(''),
-            _buildTableCell(bonusName),
-            _buildTableCell(bonusQuantity.toString(),
-                align: pw.TextAlign.center),
-            _buildTableCell(bonusPrice, align: pw.TextAlign.right),
-            _buildTableCell(bonusPrice, align: pw.TextAlign.right),
-            _buildTableCell(bonusPrice, align: pw.TextAlign.right),
-          ];
+          final bonusRowChildren = useApprovalLayout
+              ? [
+                  _buildTableCell('', align: pw.TextAlign.center),
+                  _buildTableCell(''),
+                  _buildTableCell(bonusName),
+                  _buildTableCell(bonusQuantity.toString(),
+                      align: pw.TextAlign.center),
+                  _buildTableCell(zeroPrice, align: pw.TextAlign.right),
+                  _buildTableCell(zeroPrice, align: pw.TextAlign.right),
+                  _buildTableCell(zeroPrice, align: pw.TextAlign.right),
+                  _buildTableCell(zeroPrice, align: pw.TextAlign.right),
+                ]
+              : [
+                  _buildTableCell('', align: pw.TextAlign.center),
+                  _buildTableCell(''),
+                  _buildTableCell(bonusName),
+                  _buildTableCell(bonusQuantity.toString(),
+                      align: pw.TextAlign.center),
+                  _buildTableCell(zeroPrice, align: pw.TextAlign.right),
+                  _buildTableCell(zeroPrice, align: pw.TextAlign.right),
+                  _buildTableCell(zeroPrice, align: pw.TextAlign.right),
+                ];
 
           tableRows.add(pw.TableRow(children: bonusRowChildren));
         }
       }
     }
 
+    final columnWidths = useApprovalLayout
+        ? {
+            0: const pw.FlexColumnWidth(0.8),
+            1: const pw.FlexColumnWidth(0.6),
+            2: const pw.FlexColumnWidth(3.0),
+            3: const pw.FlexColumnWidth(0.6),
+            4: const pw.FlexColumnWidth(1.2),
+            5: const pw.FlexColumnWidth(1.2),
+            6: const pw.FlexColumnWidth(1.2),
+            7: const pw.FlexColumnWidth(1.2),
+          }
+        : {
+            0: const pw.FlexColumnWidth(0.8),
+            1: const pw.FlexColumnWidth(0.6),
+            2: const pw.FlexColumnWidth(3.2),
+            3: const pw.FlexColumnWidth(0.6),
+            4: const pw.FlexColumnWidth(1.3),
+            5: const pw.FlexColumnWidth(1.3),
+            6: const pw.FlexColumnWidth(1.3),
+          };
+
     return pw.Table(
       border: pw.TableBorder.all(color: PdfColors.black, width: 0.5),
-      columnWidths: {
-        0: const pw.FlexColumnWidth(0.8),
-        1: const pw.FlexColumnWidth(0.6),
-        2: const pw.FlexColumnWidth(3.2),
-        3: const pw.FlexColumnWidth(0.6),
-        4: const pw.FlexColumnWidth(1.3),
-        5: const pw.FlexColumnWidth(1.3),
-        6: const pw.FlexColumnWidth(1.3),
-      },
+      columnWidths: columnWidths,
       children: tableRows,
     );
   }
@@ -784,24 +1040,38 @@ class PDFService {
     );
   }
 
-  static pw.Widget _buildDiscountCell(double totalDiscount, String? productKey,
-      List<Map<String, dynamic>>? discountData,
+  static pw.Widget _buildDiscountCell(double totalDiscount, int? detailId,
+      String? productKey, List<Map<String, dynamic>>? discountData,
       {pw.TextAlign align = pw.TextAlign.right,
       bool showApprovalColumn = false}) {
     // Get discount details for this product
     List<String> discountDetails = [];
-    if (productKey != null && discountData != null && discountData.isNotEmpty) {
-      final itemDiscounts = discountData.where((discount) {
-        final discountProductKey = discount['product_key'] as String?;
-        return discountProductKey == productKey;
-      }).toList();
+    if (discountData != null && discountData.isNotEmpty) {
+      Iterable<Map<String, dynamic>> itemDiscounts = const [];
+      if (detailId != null) {
+        itemDiscounts = discountData.where((discount) =>
+            (discount['order_letter_detail_id'] ?? discount['detail_id']) ==
+            detailId);
+        if (itemDiscounts.isEmpty && productKey != null) {
+          itemDiscounts = discountData.where((discount) {
+            final discountProductKey = discount['product_key'] as String?;
+            return discountProductKey == productKey;
+          });
+        }
+      } else if (productKey != null) {
+        itemDiscounts = discountData.where((discount) {
+          final discountProductKey = discount['product_key'] as String?;
+          return discountProductKey == productKey;
+        });
+      }
 
       // Sort by approver_level_id to ensure consistent order
-      itemDiscounts.sort((a, b) =>
-          (a['approver_level_id'] ?? 0).compareTo(b['approver_level_id'] ?? 0));
+      final sortedDiscounts = itemDiscounts.toList()
+        ..sort((a, b) => (a['approver_level_id'] ?? 0)
+            .compareTo(b['approver_level_id'] ?? 0));
 
       // Extract discount percentages
-      for (final discount in itemDiscounts) {
+      for (final discount in sortedDiscounts) {
         final discountPercentage = (discount['discount'] is String)
             ? double.tryParse(discount['discount']) ?? 0.0
             : (discount['discount'] ?? 0.0).toDouble();
