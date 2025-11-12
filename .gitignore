@@ -82,10 +82,6 @@ ios/Runner.xcodeproj/xcuserdata/
 **/xcuserdata/
 **/xcshareddata/
 
-# Sensitive credentials
-lib/config/fcm_credentials.dart
-lib/config/firebase_credentials.dart
-
 # Firebase generated files (keep these)
 # android/app/google-services.json
 # ios/Runner/GoogleService-Info.plist
