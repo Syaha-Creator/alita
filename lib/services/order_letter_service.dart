@@ -5,6 +5,7 @@ import '../config/dependency_injection.dart';
 import 'auth_service.dart';
 import 'leader_service.dart';
 import 'notification_service.dart';
+import 'location_service.dart';
 
 class OrderLetterService {
   final Dio dio;
@@ -442,6 +443,32 @@ class OrderLetterService {
       final List<Map<String, dynamic>> approveResults = [];
       final List<Map<String, dynamic>> updateResults = [];
 
+      // Get current location for approval
+      String? approvalLocation;
+      try {
+        final locationInfo = await LocationService.getLocationInfo();
+        if (locationInfo != null) {
+          // Format location as address string, or include coordinates if needed
+          final address = locationInfo['address'] as String?;
+          if (address != null && address.isNotEmpty) {
+            approvalLocation = address;
+          } else {
+            // Fallback to coordinates if address is not available
+            final lat = locationInfo['latitude'] as double?;
+            final lon = locationInfo['longitude'] as double?;
+            if (lat != null && lon != null) {
+              approvalLocation = '$lat,$lon';
+            }
+          }
+        }
+      } catch (e) {
+        // If location cannot be obtained, continue without it
+        // Location will be null
+        if (kDebugMode) {
+          print('OrderLetterService: Failed to get location for approval: $e');
+        }
+      }
+
       // Approve all discounts in batch
       for (final discountId in discountIdsToApprove) {
         try {
@@ -452,6 +479,7 @@ class OrderLetterService {
             'order_letter_discount_id': discountId,
             'leader': leaderId,
             'job_level_id': jobLevelId,
+            if (approvalLocation != null) 'location': approvalLocation,
           };
 
           final approveResponse = await dio.post(
@@ -590,12 +618,35 @@ class OrderLetterService {
 
       final currentTime = DateTime.now().toIso8601String();
 
+      // Get current location for approval
+      String? approvalLocation;
+      try {
+        final locationInfo = await LocationService.getLocationInfo();
+        if (locationInfo != null) {
+          final address = locationInfo['address'] as String?;
+          if (address != null && address.isNotEmpty) {
+            approvalLocation = address;
+          } else {
+            final lat = locationInfo['latitude'] as double?;
+            final lon = locationInfo['longitude'] as double?;
+            if (lat != null && lon != null) {
+              approvalLocation = '$lat,$lon';
+            }
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('OrderLetterService: Failed to get location for approval: $e');
+        }
+      }
+
       // POST to order_letter_approves endpoint
       final approveUrl = ApiConfig.getCreateOrderLetterApproveUrl(token: token);
       final approveData = {
         'order_letter_discount_id': discountId,
         'leader': leaderId,
         'job_level_id': jobLevelId,
+        if (approvalLocation != null) 'location': approvalLocation,
       };
 
       final approveResponse = await dio.post(

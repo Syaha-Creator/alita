@@ -4,6 +4,7 @@ import '../../../../config/dependency_injection.dart';
 import '../../../../services/order_letter_service.dart';
 import '../../../../services/auth_service.dart';
 import '../../../../services/team_hierarchy_service.dart';
+import '../../../../services/location_service.dart';
 import '../models/approval_model.dart';
 import '../../domain/entities/approval_entity.dart';
 import '../cache/approval_cache.dart';
@@ -1080,12 +1081,33 @@ class ApprovalRepository {
     String? comment,
   }) async {
     try {
+      // Get current location for approval
+      String? approvalLocation;
+      try {
+        final locationInfo = await LocationService.getLocationInfo();
+        if (locationInfo != null) {
+          final address = locationInfo['address'] as String?;
+          if (address != null && address.isNotEmpty) {
+            approvalLocation = address;
+          } else {
+            final lat = locationInfo['latitude'] as double?;
+            final lon = locationInfo['longitude'] as double?;
+            if (lat != null && lon != null) {
+              approvalLocation = '$lat,$lon';
+            }
+          }
+        }
+      } catch (e) {
+        // If location cannot be obtained, continue without it
+      }
+
       final approvalData = {
         'order_letter_id': orderLetterId,
         'approver_name': approverName,
         'approver_email': approverEmail,
         'action': action,
         'comment': comment,
+        if (approvalLocation != null) 'location': approvalLocation,
       };
 
       final result =
