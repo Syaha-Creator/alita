@@ -11,18 +11,23 @@ class NotificationTemplateService {
     String? customerName,
     double? totalAmount,
   }) {
-    String title = "📋 Order Letter Berhasil Dibuat";
-    String body = "Nomor SP: $noSp telah dibuat";
+    String title = "📋 Surat Pesanan Berhasil Dikirim!";
 
+    String body = "";
+
+    // Customer section
     if (customerName != null && customerName.isNotEmpty) {
-      body += " untuk $customerName";
+      body += "👤 Customer: $customerName";
+    } else {
+      body += "👤 Customer: -";
     }
 
-    if (totalAmount != null) {
-      body += "\n💰 Total: ${_formatCurrency(totalAmount)}";
-    }
+    // Nomor SP section
+    body += "\n📄 Nomor SP: $noSp";
 
-    body += "\n⏳ Menunggu approval atasan";
+    // Status section
+    body += "\n📊 Status:";
+    body += "\n⏳ Sedang Menunggu Approval Atasan";
 
     return {
       'title': title,
@@ -35,22 +40,34 @@ class NotificationTemplateService {
     required String noSp,
     required String approvalLevel,
     String? customerName,
+    String? creatorName,
     double? totalAmount,
   }) {
-    final displayLevel = getApprovalLevelDisplayName(approvalLevel);
-    String title = "🔔 Approval Order Letter Baru";
-    String body = "Nomor SP: $noSp memerlukan persetujuan Anda";
-    body += "\n📊 Level: $displayLevel";
+    String title = "🔔 Surat Pesanan butuh Approval";
 
+    String body = "";
+
+    // Customer section
     if (customerName != null && customerName.isNotEmpty) {
-      body += "\n👤 Customer: $customerName";
+      body += "👤 Customer: $customerName";
+    } else {
+      body += "👤 Customer: -";
     }
 
-    if (totalAmount != null) {
-      body += "\n💰 Total: ${_formatCurrency(totalAmount)}";
+    // Nomor SP section
+    body += "\n📄 Nomor SP: $noSp";
+
+    // Nama SC (Creator) section
+    if (creatorName != null && creatorName.isNotEmpty) {
+      body += "\n👨‍💼 Nama SC: $creatorName";
+    } else {
+      body += "\n👨‍💼 Nama SC: -";
     }
 
-    body += "\n⚡ Silakan buka aplikasi untuk review";
+    // Status section
+    body += "\n\n📊 Status:";
+    body += "\n⏳ Menunggu Approval Anda..";
+    body += "\n📱 Silahkan membuka aplikasi";
 
     return {
       'title': title,
@@ -68,7 +85,6 @@ class NotificationTemplateService {
     required String approvalLevel,
     String? comment,
     String? customerName,
-    double? totalAmount,
   }) {
     String emoji = approvalAction.toLowerCase() == 'approve' ? '✅' : '❌';
     String action =
@@ -87,10 +103,6 @@ class NotificationTemplateService {
       body += "\n👤 Customer: $customerName";
     }
 
-    if (totalAmount != null) {
-      body += "\n💰 Total: ${_formatCurrency(totalAmount)}";
-    }
-
     return {
       'title': title,
       'body': body,
@@ -98,29 +110,61 @@ class NotificationTemplateService {
   }
 
   /// Template for approval status update with next level pending
+  /// approvalHistory: List of approved levels with format: {'level': 'Direct Leader', 'approverName': 'Muhammad Zen'}
   static Map<String, String> approvalStatusUpdateWithNextLevel({
     required String noSp,
     required String approverName,
     required String approvedLevel,
     required String nextLevel,
+    List<Map<String, String>>? approvalHistory,
+    String? nextApproverName,
     String? customerName,
     double? totalAmount,
   }) {
-    final displayApprovedLevel = getApprovalLevelDisplayName(approvedLevel);
     final displayNextLevel = getApprovalLevelDisplayName(nextLevel);
+    final displayNextApproverName = nextApproverName ?? displayNextLevel;
 
-    String title = "✅ Order Letter Disetujui - Menunggu Level Berikutnya";
-    String body = "Nomor SP: $noSp telah disetujui oleh $approverName";
-    body += "\n📊 Level: $displayApprovedLevel";
+    String title =
+        "✅ Surat Pesanan Disetujui - Menunggu Approval Selanjutnya...";
 
-    body += "\n⏳ Sedang menunggu approval dari $displayNextLevel";
+    String body = "";
 
+    // Customer section
     if (customerName != null && customerName.isNotEmpty) {
-      body += "\n👤 Customer: $customerName";
+      body += "👤 Customer: $customerName";
+    } else {
+      body += "👤 Customer: -";
     }
 
-    if (totalAmount != null) {
-      body += "\n💰 Total: ${_formatCurrency(totalAmount)}";
+    // Nomor SP section
+    body += "\n📄 Nomor SP: $noSp";
+
+    // Status section with approval history
+    body += "\n📊 Status:";
+
+    // Show all approved levels (history)
+    if (approvalHistory != null && approvalHistory.isNotEmpty) {
+      for (final approval in approvalHistory) {
+        final levelName = approval['level'] ?? '';
+        final approver = approval['approverName'] ?? '';
+        if (levelName.isNotEmpty && approver.isNotEmpty) {
+          final displayLevel = getApprovalLevelDisplayName(levelName);
+          body += "\n✅ Telah disetujui oleh $displayLevel ($approver)";
+        }
+      }
+    } else {
+      // Fallback: show only the current approval
+      final displayApprovedLevel = getApprovalLevelDisplayName(approvedLevel);
+      body += "\n✅ Telah disetujui oleh $displayApprovedLevel ($approverName)";
+    }
+
+    // Show next pending approval
+    if (displayNextApproverName.isNotEmpty &&
+        displayNextApproverName != displayNextLevel) {
+      body +=
+          "\n⏳ Sedang Menunggu Approval dari $displayNextLevel ($displayNextApproverName)";
+    } else {
+      body += "\n⏳ Sedang Menunggu Approval dari $displayNextLevel";
     }
 
     return {
@@ -135,18 +179,24 @@ class NotificationTemplateService {
     String? customerName,
     double? totalAmount,
   }) {
-    String title = "🎉 Order Letter Selesai";
-    String body = "Nomor SP: $noSp telah mendapat semua persetujuan";
+    String title = "🎉 Surat Pesanan Sudah Siap!";
 
+    String body = "";
+
+    // Customer section
     if (customerName != null && customerName.isNotEmpty) {
-      body += "\n👤 Customer: $customerName";
+      body += "👤 Customer: $customerName";
+    } else {
+      body += "👤 Customer: -";
     }
 
-    if (totalAmount != null) {
-      body += "\n💰 Total: ${_formatCurrency(totalAmount)}";
-    }
+    // Nomor SP section
+    body += "\n📄 Nomor SP: $noSp";
 
-    body += "\n📦 Siap untuk diproses lebih lanjut";
+    // Status section
+    body += "\n📊 Status:";
+    body += "\n✅ Approval Lengkap";
+    body += "\n📦 Silahkan diproses lebih lanjut";
 
     return {
       'title': title,
@@ -199,27 +249,6 @@ class NotificationTemplateService {
   }
 
   // === UTILITY METHODS ===
-
-  /// Format currency to Indonesian Rupiah
-  static String _formatCurrency(double amount) {
-    if (amount >= 1000000) {
-      double millions = amount / 1000000;
-      if (millions == millions.floor()) {
-        return "Rp ${millions.toInt()}jt";
-      } else {
-        return "Rp ${millions.toStringAsFixed(1)}jt";
-      }
-    } else if (amount >= 1000) {
-      double thousands = amount / 1000;
-      if (thousands == thousands.floor()) {
-        return "Rp ${thousands.toInt()}rb";
-      } else {
-        return "Rp ${thousands.toStringAsFixed(1)}rb";
-      }
-    } else {
-      return "Rp ${amount.toStringAsFixed(0)}";
-    }
-  }
 
   /// Generate notification data payload
   static Map<String, dynamic> generateNotificationData({

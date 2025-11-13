@@ -563,6 +563,21 @@ class OrderLetterService {
         );
 
         final notificationService = NotificationService();
+
+        // Parse creator user ID - handle both String and int
+        int? creatorUserId;
+        final creatorValue =
+            orderLetter['creator'] ?? orderLetter['creator_id'];
+        if (creatorValue != null) {
+          if (creatorValue is int) {
+            creatorUserId = creatorValue;
+          } else if (creatorValue is String) {
+            creatorUserId = int.tryParse(creatorValue);
+          } else {
+            creatorUserId = int.tryParse(creatorValue.toString());
+          }
+        }
+
         await notificationService.notifyOnApproval(
           orderLetterId: orderLetterId,
           approvedLevelId: jobLevelId,
@@ -576,7 +591,7 @@ class OrderLetterService {
           totalAmount: orderLetter['total'] != null
               ? double.tryParse(orderLetter['total'].toString())
               : null,
-          creatorUserId: orderLetter['creator'] ?? orderLetter['creator_id'],
+          creatorUserId: creatorUserId,
         );
       } catch (e) {
         // Don't fail approval if notification fails
@@ -720,6 +735,21 @@ class OrderLetterService {
         );
 
         final notificationService = NotificationService();
+
+        // Parse creator user ID - handle both String and int
+        int? creatorUserId;
+        final creatorValue =
+            orderLetter['creator'] ?? orderLetter['creator_id'];
+        if (creatorValue != null) {
+          if (creatorValue is int) {
+            creatorUserId = creatorValue;
+          } else if (creatorValue is String) {
+            creatorUserId = int.tryParse(creatorValue);
+          } else {
+            creatorUserId = int.tryParse(creatorValue.toString());
+          }
+        }
+
         await notificationService.notifyOnApproval(
           orderLetterId: orderLetterId,
           approvedLevelId: jobLevelId,
@@ -733,7 +763,7 @@ class OrderLetterService {
           totalAmount: orderLetter['total'] != null
               ? double.tryParse(orderLetter['total'].toString())
               : null,
-          creatorUserId: orderLetter['creator'] ?? orderLetter['creator_id'],
+          creatorUserId: creatorUserId,
         );
       } catch (e) {
         // Don't fail approval if notification fails

@@ -246,8 +246,6 @@ class LocalNotificationService {
         tz.TZDateTime.now(tz.local).add(delay),
         platformChannelSpecifics,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
         payload: payload,
       );
 

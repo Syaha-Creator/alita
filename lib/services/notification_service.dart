@@ -427,12 +427,30 @@ class NotificationService {
         return false;
       }
 
+      // Get creator name (current user who created the order letter)
+      String? creatorName;
+      try {
+        final currentUserId = await AuthService.getCurrentUserId();
+        if (currentUserId != null) {
+          final leaderService = locator<LeaderService>();
+          final leaderData = await leaderService.getLeaderByUser();
+          if (leaderData != null) {
+            creatorName = leaderData.user.fullName;
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('Error fetching creator name: $e');
+        }
+      }
+
       // Get notification template
       final notificationTemplate =
           NotificationTemplateService.newApprovalRequest(
         noSp: noSp,
         approvalLevel: 'Direct Leader',
         customerName: customerName,
+        creatorName: creatorName,
         totalAmount: totalAmount,
       );
 
@@ -500,6 +518,8 @@ class NotificationService {
       // Get order letter info if not provided
       String finalOrderId = orderId ?? orderLetterId.toString();
 
+      List<Map<String, dynamic>>? cachedDiscounts;
+
       if (creatorUserId == null ||
           noSp == null ||
           customerName == null ||
@@ -517,7 +537,9 @@ class NotificationService {
         );
 
         if (orderLetter.isNotEmpty) {
-          creatorUserId ??= orderLetter['creator'] ?? orderLetter['creator_id'];
+          final creatorValue =
+              orderLetter['creator'] ?? orderLetter['creator_id'];
+          creatorUserId ??= _parseInt(creatorValue);
           noSp ??= orderLetter['no_sp'] ?? orderLetter['no_sp_number'];
           customerName ??= orderLetter['customer_name'];
           if (totalAmount == null) {
@@ -529,6 +551,10 @@ class NotificationService {
               orderLetter['id']?.toString() ??
               orderLetter['order_letter_id']?.toString() ??
               orderLetterId.toString();
+        } else {
+          cachedDiscounts ??= await orderLetterService.getOrderLetterDiscounts(
+            orderLetterId: orderLetterId,
+          );
         }
       }
 
@@ -568,68 +594,203 @@ class NotificationService {
         );
       } else {
         // Not final - notify creator about status and notify next approver
-        final nextLevelInfo = await _getNextApprovalLevel(
-          orderLetterId,
+        cachedDiscounts ??=
+            await locator<OrderLetterService>().getOrderLetterDiscounts(
+          orderLetterId: orderLetterId,
+        );
+
+        if (kDebugMode) {
+          print(
+              'notifyOnApproval: Fetched ${cachedDiscounts.length} discounts');
+        }
+
+        creatorUserId ??= _extractCreatorUserId(cachedDiscounts);
+
+        if (kDebugMode) {
+          print('notifyOnApproval: Creator User ID: $creatorUserId');
+          print('notifyOnApproval: Approved Level ID: $approvedLevelId');
+        }
+
+        final nextLevelInfo = _findNextApprovalLevel(
+          cachedDiscounts,
           approvedLevelId,
         );
 
-        if (nextLevelInfo != null) {
-          final nextLevelName = nextLevelInfo['level_name'] as String;
-          final nextApproverId = nextLevelInfo['approver_id'] as int?;
+        String? nextLevelName = nextLevelInfo != null
+            ? nextLevelInfo['level_name'] as String?
+            : null;
+        int? nextApproverId =
+            nextLevelInfo != null ? nextLevelInfo['approver_id'] as int? : null;
+        String? nextApproverName = nextLevelInfo != null
+            ? nextLevelInfo['approver_name'] as String?
+            : null;
 
-          // Notify creator that current level approved, waiting for next level
-          final creatorNotification =
-              NotificationTemplateService.approvalStatusUpdateWithNextLevel(
+        if (kDebugMode) {
+          print('notifyOnApproval: Next Level Name: $nextLevelName');
+          print('notifyOnApproval: Next Approver ID: $nextApproverId');
+          print('notifyOnApproval: Next Approver Name: $nextApproverName');
+        }
+
+        // Collect approval history from discounts that are already approved
+        List<Map<String, String>> approvalHistory = [];
+        if (cachedDiscounts.isNotEmpty) {
+          // Map to track unique level-approver combinations (avoid duplicates)
+          final Map<String, Map<String, String>> uniqueApprovals = {};
+
+          for (final discount in cachedDiscounts) {
+            final isApproved = _isApprovedStatus(discount['approved']);
+            if (isApproved) {
+              final levelName = discount['approver_level']?.toString() ?? '';
+              final approverNameFromDiscount =
+                  discount['approver_name']?.toString() ?? '';
+              final levelId = _parseInt(discount['approver_level_id']);
+
+              if (levelName.isNotEmpty &&
+                  approverNameFromDiscount.isNotEmpty &&
+                  levelId != null) {
+                // Use level as key to avoid duplicates (one approval per level)
+                final key = levelName.toLowerCase().trim();
+                if (!uniqueApprovals.containsKey(key)) {
+                  uniqueApprovals[key] = {
+                    'level': levelName,
+                    'approverName': approverNameFromDiscount,
+                    'levelId': levelId.toString(),
+                  };
+                }
+              }
+            }
+          }
+
+          // Convert to list and sort by level ID
+          approvalHistory = uniqueApprovals.values.toList();
+          approvalHistory.sort((a, b) {
+            final aLevelId = int.tryParse(a['levelId'] ?? '0') ?? 0;
+            final bLevelId = int.tryParse(b['levelId'] ?? '0') ?? 0;
+            return aLevelId.compareTo(bLevelId);
+          });
+
+          // Remove levelId from final result
+          approvalHistory = approvalHistory.map((item) {
+            return {
+              'level': item['level'] ?? '',
+              'approverName': item['approverName'] ?? '',
+            };
+          }).toList();
+        }
+
+        // Always notify creator if we have the ID
+        if (creatorUserId != null) {
+          final creatorNotification = nextLevelName != null
+              ? NotificationTemplateService.approvalStatusUpdateWithNextLevel(
+                  noSp: finalNoSp,
+                  approverName: approverName,
+                  approvedLevel: approvalLevel,
+                  nextLevel: nextLevelName,
+                  approvalHistory:
+                      approvalHistory.isNotEmpty ? approvalHistory : null,
+                  nextApproverName: nextApproverName,
+                  customerName: customerName,
+                  totalAmount: totalAmount,
+                )
+              : NotificationTemplateService.approvalStatusUpdate(
+                  noSp: finalNoSp,
+                  approverName: approverName,
+                  approvalAction: 'approve',
+                  approvalLevel: approvalLevel,
+                  customerName: customerName,
+                );
+
+          if (kDebugMode) {
+            print(
+                'notifyOnApproval: Sending notification to creator (User ID: $creatorUserId)');
+          }
+
+          final creatorSuccess = await sendNotificationToUsers(
+            userIds: [creatorUserId.toString()],
+            title: creatorNotification['title']!,
+            body: creatorNotification['body']!,
+            data: NotificationTemplateService.generateNotificationData(
+              type: 'approval_status_update',
+              noSp: finalNoSp,
+              orderId: finalOrderId,
+              approvalLevel: approvalLevel,
+              approvalAction: 'approve',
+              customerName: customerName,
+              totalAmount: totalAmount,
+              additionalData:
+                  nextLevelName != null ? {'next_level': nextLevelName} : null,
+            ),
+            notificationType: 'approval_status_update',
+          );
+
+          if (kDebugMode) {
+            print(
+                'notifyOnApproval: Creator notification sent: $creatorSuccess');
+          }
+        } else {
+          if (kDebugMode) {
+            print(
+                'notifyOnApproval: WARNING - Creator User ID is null, cannot send notification');
+          }
+        }
+
+        // Notify next approver about new approval request
+        if (nextLevelName != null && nextApproverId != null) {
+          if (kDebugMode) {
+            print(
+                'notifyOnApproval: Sending notification to next approver (User ID: $nextApproverId, Level: $nextLevelName)');
+          }
+
+          // Get creator name from creatorUserId
+          String? creatorName;
+          if (creatorUserId != null) {
+            try {
+              final leaderService = locator<LeaderService>();
+              final leaderData = await leaderService.getLeaderByUser(
+                userId: creatorUserId.toString(),
+              );
+              if (leaderData != null) {
+                creatorName = leaderData.user.fullName;
+              }
+            } catch (e) {
+              if (kDebugMode) {
+                print('Error fetching creator name for notification: $e');
+              }
+            }
+          }
+
+          final nextApproverNotification =
+              NotificationTemplateService.newApprovalRequest(
             noSp: finalNoSp,
-            approverName: approverName,
-            approvedLevel: approvalLevel,
-            nextLevel: nextLevelName,
+            approvalLevel: nextLevelName,
             customerName: customerName,
+            creatorName: creatorName,
             totalAmount: totalAmount,
           );
 
-          if (creatorUserId != null) {
-            await sendNotificationToUsers(
-              userIds: [creatorUserId.toString()],
-              title: creatorNotification['title']!,
-              body: creatorNotification['body']!,
-              data: NotificationTemplateService.generateNotificationData(
-                type: 'approval_status_update',
-                noSp: finalNoSp,
-                orderId: finalOrderId,
-                approvalLevel: approvalLevel,
-                approvalAction: 'approve',
-                customerName: customerName,
-                totalAmount: totalAmount,
-              ),
-              notificationType: 'approval_status_update',
-            );
-          }
-
-          // Notify next approver about new approval request
-          if (nextApproverId != null) {
-            final nextApproverNotification =
-                NotificationTemplateService.newApprovalRequest(
+          final nextApproverSuccess = await sendNotificationToUsers(
+            userIds: [nextApproverId.toString()],
+            title: nextApproverNotification['title']!,
+            body: nextApproverNotification['body']!,
+            data: NotificationTemplateService.generateNotificationData(
+              type: 'approval_request',
               noSp: finalNoSp,
+              orderId: finalOrderId,
               approvalLevel: nextLevelName,
               customerName: customerName,
               totalAmount: totalAmount,
-            );
+            ),
+            notificationType: 'approval_request',
+          );
 
-            await sendNotificationToUsers(
-              userIds: [nextApproverId.toString()],
-              title: nextApproverNotification['title']!,
-              body: nextApproverNotification['body']!,
-              data: NotificationTemplateService.generateNotificationData(
-                type: 'approval_request',
-                noSp: finalNoSp,
-                orderId: finalOrderId,
-                approvalLevel: nextLevelName,
-                customerName: customerName,
-                totalAmount: totalAmount,
-              ),
-              notificationType: 'approval_request',
-            );
+          if (kDebugMode) {
+            print(
+                'notifyOnApproval: Next approver notification sent: $nextApproverSuccess');
+          }
+        } else {
+          if (kDebugMode) {
+            print(
+                'notifyOnApproval: No next approver to notify (Level: $nextLevelName, Approver ID: $nextApproverId)');
           }
         }
       }
@@ -640,59 +801,163 @@ class NotificationService {
     }
   }
 
-  /// Get next approval level information
-  Future<Map<String, dynamic>?> _getNextApprovalLevel(
-    int orderLetterId,
+  /// Find next approval level information
+  Map<String, dynamic>? _findNextApprovalLevel(
+    List<Map<String, dynamic>>? discounts,
     int currentLevelId,
-  ) async {
-    try {
-      final orderLetterService = locator<OrderLetterService>();
-      final discounts = await orderLetterService.getOrderLetterDiscounts(
-        orderLetterId: orderLetterId,
-      );
-
-      // Find next pending level
-      int? nextLevelId;
-      String? nextLevelName;
-      int? nextApproverId;
-      String? nextApproverName;
-
-      for (final discount in discounts) {
-        final levelId = discount['approver_level_id'] as int?;
-        final approved = discount['approved'];
-        final approverId = discount['approver'] as int?;
-        final approverLevel = discount['approver_level'] as String?;
-
-        if (levelId != null &&
-            levelId > currentLevelId &&
-            (approved == null || approved == false)) {
-          // This is a pending level higher than current
-          if (nextLevelId == null || levelId < nextLevelId) {
-            // Take the lowest pending level (next in sequence)
-            nextLevelId = levelId;
-            nextLevelName = approverLevel ?? 'Level $levelId';
-            nextApproverId = approverId;
-            nextApproverName = discount['approver_name'] as String?;
-          }
-        }
-      }
-
-      if (nextLevelId != null) {
-        return {
-          'level_id': nextLevelId,
-          'level_name': nextLevelName ?? 'Level $nextLevelId',
-          'approver_id': nextApproverId,
-          'approver_name': nextApproverName,
-        };
-      }
-
-      return null;
-    } catch (e) {
+  ) {
+    if (discounts == null || discounts.isEmpty) {
       if (kDebugMode) {
-        print('Error getting next approval level: $e');
+        print('_findNextApprovalLevel: No discounts provided');
       }
       return null;
     }
+
+    int? nextLevelId;
+    String? nextLevelName;
+    int? nextApproverId;
+    String? nextApproverName;
+
+    if (kDebugMode) {
+      print(
+          '_findNextApprovalLevel: Looking for next level after $currentLevelId');
+      print('_findNextApprovalLevel: Total discounts: ${discounts.length}');
+    }
+
+    for (final discount in discounts) {
+      final levelId = _parseInt(discount['approver_level_id']);
+      final approverLevel = discount['approver_level']?.toString();
+      final approvedValue = discount['approved'];
+      final approverValue = discount['approver'] ??
+          discount['approver_id'] ??
+          discount['approver_user_id'] ??
+          discount['leader'] ??
+          discount['leader_id'];
+
+      if (levelId == null) {
+        continue;
+      }
+
+      if (levelId <= currentLevelId) {
+        if (kDebugMode) {
+          print(
+              '_findNextApprovalLevel: Skipping level $levelId (<= current $currentLevelId)');
+        }
+        continue;
+      }
+
+      final isApproved = _isApprovedStatus(approvedValue);
+      if (isApproved) {
+        if (kDebugMode) {
+          print(
+              '_findNextApprovalLevel: Skipping level $levelId (already approved)');
+        }
+        continue;
+      }
+
+      if (nextLevelId == null || levelId < nextLevelId) {
+        // Take the lowest pending level (next in sequence)
+        nextLevelId = levelId;
+        nextLevelName = approverLevel ?? 'Level $levelId';
+        nextApproverId = _parseInt(approverValue);
+        nextApproverName = discount['approver_name']?.toString();
+
+        if (kDebugMode) {
+          print(
+              '_findNextApprovalLevel: Found candidate - Level $levelId, Approver ID: $nextApproverId, Name: $nextApproverName');
+        }
+      }
+    }
+
+    if (nextLevelId != null) {
+      if (kDebugMode) {
+        print(
+            '_findNextApprovalLevel: Returning next level - Level $nextLevelId, Approver ID: $nextApproverId');
+      }
+      return {
+        'level_id': nextLevelId,
+        'level_name': nextLevelName ?? 'Level $nextLevelId',
+        'approver_id': nextApproverId,
+        'approver_name': nextApproverName,
+      };
+    }
+
+    if (kDebugMode) {
+      print('_findNextApprovalLevel: No next level found');
+    }
+    return null;
+  }
+
+  /// Extract creator user ID from discounts (level 1 / User level)
+  int? _extractCreatorUserId(List<Map<String, dynamic>>? discounts) {
+    if (discounts == null || discounts.isEmpty) {
+      if (kDebugMode) {
+        print('_extractCreatorUserId: No discounts provided');
+      }
+      return null;
+    }
+
+    if (kDebugMode) {
+      print(
+          '_extractCreatorUserId: Searching for creator in ${discounts.length} discounts');
+    }
+
+    // Find level 1 (User level) - this is the creator
+    // Also check level 0 as fallback
+    for (final levelToCheck in [0, 1]) {
+      for (final discount in discounts) {
+        final levelId = _parseInt(discount['approver_level_id']);
+        if (levelId == levelToCheck) {
+          // Level 0 or 1 is the creator (User level)
+          final creatorId = _parseInt(discount['approver'] ??
+              discount['approver_id'] ??
+              discount['approver_user_id'] ??
+              discount['leader'] ??
+              discount['leader_id']);
+          if (creatorId != null) {
+            if (kDebugMode) {
+              print(
+                  '_extractCreatorUserId: Found creator ID $creatorId at level $levelId');
+            }
+            return creatorId;
+          }
+        }
+      }
+    }
+
+    if (kDebugMode) {
+      print('_extractCreatorUserId: Creator ID not found');
+    }
+    return null;
+  }
+
+  int? _parseInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) {
+      final trimmed = value.trim();
+      if (trimmed.isEmpty) return null;
+      return int.tryParse(trimmed);
+    }
+    return null;
+  }
+
+  bool _isApprovedStatus(dynamic value) {
+    if (value == null) return false;
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      if (normalized.isEmpty || normalized == 'null') return false;
+      return normalized == 'true' ||
+          normalized == '1' ||
+          normalized == 'approved' ||
+          normalized == 'approve' ||
+          normalized == 'accepted' ||
+          normalized == 'yes';
+    }
+    return false;
   }
 
   /// Show local notification (for immediate feedback)
