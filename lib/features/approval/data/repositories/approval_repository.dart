@@ -15,19 +15,19 @@ class ApprovalRepository {
   Future<List<ApprovalEntity>> getApprovals(
       {String? creator, bool forceRefresh = false}) async {
     try {
-      // Check cache first (if not force refresh)
-      if (!forceRefresh) {
-        final cachedApprovals = ApprovalCache.getCachedApprovals();
-        if (cachedApprovals != null) {
-          return cachedApprovals;
-        }
-      }
-
       final currentUserId = await AuthService.getCurrentUserId();
       final currentUserName = await AuthService.getCurrentUserName();
 
       if (currentUserId == null || currentUserName == null) {
         return [];
+      }
+
+      // Check cache first (if not force refresh)
+      if (!forceRefresh) {
+        final cachedApprovals = ApprovalCache.getCachedApprovals(currentUserId);
+        if (cachedApprovals != null) {
+          return cachedApprovals;
+        }
       }
 
       List<ApprovalEntity> approvals = [];
@@ -59,12 +59,14 @@ class ApprovalRepository {
       }
 
       // Cache the results
-      ApprovalCache.cacheApprovals(approvals);
+      ApprovalCache.cacheApprovals(currentUserId, approvals);
 
       return approvals;
     } catch (e) {
       // Return cached data if available, even if expired
-      return ApprovalCache.getCachedApprovals() ?? [];
+      final currentUserId = await AuthService.getCurrentUserId();
+      if (currentUserId == null) return [];
+      return ApprovalCache.getCachedApprovals(currentUserId) ?? [];
     }
   }
 
@@ -260,8 +262,12 @@ class ApprovalRepository {
   Future<List<Map<String, dynamic>>> getDiscountsForTimeline(
       int orderLetterId) async {
     try {
+      final currentUserId = await AuthService.getCurrentUserId();
+      if (currentUserId == null) return [];
+
       // Check cache first
-      final cachedDiscounts = ApprovalCache.getCachedDiscounts(orderLetterId);
+      final cachedDiscounts =
+          ApprovalCache.getCachedDiscounts(currentUserId, orderLetterId);
       if (cachedDiscounts != null) {
         return cachedDiscounts;
       }
@@ -272,22 +278,29 @@ class ApprovalRepository {
       );
 
       // Cache the results
-      ApprovalCache.cacheDiscounts(orderLetterId, discounts);
+      ApprovalCache.cacheDiscounts(currentUserId, orderLetterId, discounts);
 
       return discounts;
     } catch (e) {
-      return ApprovalCache.getCachedDiscounts(orderLetterId) ?? [];
+      final currentUserId = await AuthService.getCurrentUserId();
+      if (currentUserId == null) return [];
+      return ApprovalCache.getCachedDiscounts(currentUserId, orderLetterId) ??
+          [];
     }
   }
 
   /// Get cached user info
-  Map<String, dynamic>? getCachedUserInfo() {
-    return ApprovalCache.getCachedUserInfo();
+  Future<Map<String, dynamic>?> getCachedUserInfo() async {
+    final currentUserId = await AuthService.getCurrentUserId();
+    if (currentUserId == null) return null;
+    return ApprovalCache.getCachedUserInfo(currentUserId);
   }
 
   /// Cache user info
-  void cacheUserInfo(Map<String, dynamic> userInfo) {
-    ApprovalCache.cacheUserInfo(userInfo);
+  Future<void> cacheUserInfo(Map<String, dynamic> userInfo) async {
+    final currentUserId = await AuthService.getCurrentUserId();
+    if (currentUserId == null) return;
+    ApprovalCache.cacheUserInfo(currentUserId, userInfo);
   }
 
   /// Get approvals with pagination support
@@ -297,16 +310,20 @@ class ApprovalRepository {
     int page = 1,
   }) async {
     try {
+      final currentUserId = await AuthService.getCurrentUserId();
+      if (currentUserId == null) return [];
+
       // First, ensure we have all data loaded
       await getApprovals(creator: creator, forceRefresh: forceRefresh);
 
       // Check if pagination should be used
-      if (ApprovalCache.shouldUsePagination()) {
-        final paginatedApprovals = ApprovalCache.getPaginatedApprovals(page);
+      if (ApprovalCache.shouldUsePagination(currentUserId)) {
+        final paginatedApprovals =
+            ApprovalCache.getPaginatedApprovals(currentUserId, page);
         return paginatedApprovals;
       } else {
         // Return all data if pagination not needed
-        return ApprovalCache.getCachedApprovals() ?? [];
+        return ApprovalCache.getCachedApprovals(currentUserId) ?? [];
       }
     } catch (e) {
       return [];
@@ -314,12 +331,23 @@ class ApprovalRepository {
   }
 
   /// Get pagination info
-  Map<String, dynamic> getPaginationInfo() {
+  Future<Map<String, dynamic>> getPaginationInfo() async {
+    final currentUserId = await AuthService.getCurrentUserId();
+    if (currentUserId == null) {
+      return {
+        'should_use_pagination': false,
+        'total_pages': 0,
+        'items_per_page': ApprovalCache.itemsPerPage,
+        'total_items': 0,
+        'lazy_load_threshold': ApprovalCache.lazyLoadThreshold,
+      };
+    }
     return {
-      'should_use_pagination': ApprovalCache.shouldUsePagination(),
-      'total_pages': ApprovalCache.getTotalPages(),
+      'should_use_pagination': ApprovalCache.shouldUsePagination(currentUserId),
+      'total_pages': ApprovalCache.getTotalPages(currentUserId),
       'items_per_page': ApprovalCache.itemsPerPage,
-      'total_items': ApprovalCache.getCachedApprovals()?.length ?? 0,
+      'total_items':
+          ApprovalCache.getCachedApprovals(currentUserId)?.length ?? 0,
       'lazy_load_threshold': ApprovalCache.lazyLoadThreshold,
     };
   }
@@ -327,15 +355,17 @@ class ApprovalRepository {
   /// Background sync - refresh cache if needed
   Future<void> backgroundSync() async {
     try {
-      if (!ApprovalCache.needsBackgroundSync()) {
+      final currentUserId = await AuthService.getCurrentUserId();
+      if (currentUserId == null) return;
+
+      if (!ApprovalCache.needsBackgroundSync(currentUserId)) {
         return;
       }
 
       // Refresh data in background without clearing cache immediately
-      final currentUserId = await AuthService.getCurrentUserId();
       final currentUserName = await AuthService.getCurrentUserName();
 
-      if (currentUserId == null || currentUserName == null) {
+      if (currentUserName == null) {
         return;
       }
 
@@ -364,12 +394,12 @@ class ApprovalRepository {
       }
 
       // Smart update: only update cache if data actually changed
-      final currentCache = ApprovalCache.getCachedApprovals();
+      final currentCache = ApprovalCache.getCachedApprovals(currentUserId);
       if (currentCache == null || _hasDataChanged(currentCache, newApprovals)) {
-        ApprovalCache.cacheApprovals(newApprovals);
+        ApprovalCache.cacheApprovals(currentUserId, newApprovals);
       }
 
-      ApprovalCache.markBackgroundSyncCompleted();
+      ApprovalCache.markBackgroundSyncCompleted(currentUserId);
     } catch (e) {
       //
     }
@@ -377,7 +407,9 @@ class ApprovalRepository {
 
   /// Force use cache only (for testing cache effectiveness)
   Future<List<ApprovalEntity>> getApprovalsFromCacheOnly() async {
-    final cachedApprovals = ApprovalCache.getCachedApprovals();
+    final currentUserId = await AuthService.getCurrentUserId();
+    if (currentUserId == null) return [];
+    final cachedApprovals = ApprovalCache.getCachedApprovals(currentUserId);
     if (cachedApprovals != null) {
       return cachedApprovals;
     } else {
@@ -386,11 +418,13 @@ class ApprovalRepository {
   }
 
   /// Test cache performance
-  void testCachePerformance() async {
+  Future<void> testCachePerformance() async {
+    final currentUserId = await AuthService.getCurrentUserId();
+    if (currentUserId == null) return;
     final stopwatch = Stopwatch()..start();
 
     // Test cache access
-    ApprovalCache.getCachedApprovals();
+    ApprovalCache.getCachedApprovals(currentUserId);
     stopwatch.stop();
   }
 
@@ -430,10 +464,11 @@ class ApprovalRepository {
       });
 
       // Update in cache
-      final updated = ApprovalCache.updateApprovalInCache(updatedApproval);
+      final updated =
+          ApprovalCache.updateApprovalInCache(currentUserId, updatedApproval);
       if (updated) {
         // Also clear discount cache for this order letter to force refresh
-        ApprovalCache.clearDiscountCache(orderLetterId);
+        ApprovalCache.clearDiscountCache(currentUserId, orderLetterId);
       }
 
       return updatedApproval;
@@ -475,16 +510,15 @@ class ApprovalRepository {
   /// Load new approvals incrementally (for after checkout)
   Future<List<ApprovalEntity>> loadNewApprovalsIncremental() async {
     try {
-      // Set loading state
-      ApprovalCache.setLoadingNewData(true);
-
       final currentUserId = await AuthService.getCurrentUserId();
       final currentUserName = await AuthService.getCurrentUserName();
 
       if (currentUserId == null || currentUserName == null) {
-        ApprovalCache.setLoadingNewData(false);
-        return ApprovalCache.getCachedApprovals() ?? [];
+        return [];
       }
+
+      // Set loading state
+      ApprovalCache.setLoadingNewData(currentUserId, true);
 
       // Get fresh data from server
       List<ApprovalEntity> freshApprovals = [];
@@ -511,39 +545,42 @@ class ApprovalRepository {
       }
 
       // Find new approvals that are not in cache
-      final cachedApprovals = ApprovalCache.getCachedApprovals() ?? [];
+      final cachedApprovals =
+          ApprovalCache.getCachedApprovals(currentUserId) ?? [];
       final newApprovals = freshApprovals
           .where((fresh) =>
               !cachedApprovals.any((cached) => cached.id == fresh.id))
           .toList();
 
       // Store pending new approvals
-      ApprovalCache.setPendingNewApprovals(newApprovals);
+      ApprovalCache.setPendingNewApprovals(currentUserId, newApprovals);
 
       // Merge and update cache
-      ApprovalCache.mergePendingApprovals();
+      ApprovalCache.mergePendingApprovals(currentUserId);
 
-      return ApprovalCache.getCachedApprovals() ?? [];
+      return ApprovalCache.getCachedApprovals(currentUserId) ?? [];
     } catch (e) {
-      ApprovalCache.setLoadingNewData(false);
-      return ApprovalCache.getCachedApprovals() ?? [];
+      final currentUserId = await AuthService.getCurrentUserId();
+      if (currentUserId == null) return [];
+      ApprovalCache.setLoadingNewData(currentUserId, false);
+      return ApprovalCache.getCachedApprovals(currentUserId) ?? [];
     }
   }
 
   /// Update only approval statuses (lightweight operation)
   Future<List<ApprovalEntity>> updateApprovalStatusesOnly() async {
     try {
-      // Get current cached approvals
-      final cachedApprovals = ApprovalCache.getCachedApprovals();
-      if (cachedApprovals == null || cachedApprovals.isEmpty) {
-        // If cache is empty, do a full refresh instead
-        return await getApprovals(forceRefresh: true);
-      }
-
       final currentUserId = await AuthService.getCurrentUserId();
       final currentUserName = await AuthService.getCurrentUserName();
       if (currentUserId == null || currentUserName == null) {
-        return cachedApprovals;
+        return [];
+      }
+
+      // Get current cached approvals
+      final cachedApprovals = ApprovalCache.getCachedApprovals(currentUserId);
+      if (cachedApprovals == null || cachedApprovals.isEmpty) {
+        // If cache is empty, do a full refresh instead
+        return await getApprovals(forceRefresh: true);
       }
 
       // Get order letters with minimal data (just status)
@@ -650,18 +687,22 @@ class ApprovalRepository {
       });
 
       // Update cache with combined data
-      ApprovalCache.cacheApprovals(combinedApprovals);
+      ApprovalCache.cacheApprovals(currentUserId, combinedApprovals);
 
       return combinedApprovals;
     } catch (e) {
       // If status update fails, return cached data
-      return ApprovalCache.getCachedApprovals() ?? [];
+      final currentUserId = await AuthService.getCurrentUserId();
+      if (currentUserId == null) return [];
+      return ApprovalCache.getCachedApprovals(currentUserId) ?? [];
     }
   }
 
   /// Clear cache (useful for refresh)
-  void clearCache() {
-    ApprovalCache.clearAllCache();
+  Future<void> clearCache() async {
+    final currentUserId = await AuthService.getCurrentUserId();
+    if (currentUserId == null) return;
+    ApprovalCache.clearAllCache(currentUserId);
   }
 
   /// Filter order letters based on team hierarchy (creator + subordinates)

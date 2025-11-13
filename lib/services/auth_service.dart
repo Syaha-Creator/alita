@@ -30,7 +30,7 @@ class AuthService {
       String userName, int? areaId) async {
     try {
       // Clear all caches from previous user BEFORE saving new login data
-      _clearAllUserRelatedCaches();
+      _clearAllUserRelatedCaches(); // Fire and forget - async but we don't wait
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(StorageKeys.isLoggedIn, true);
@@ -249,7 +249,7 @@ class AuthService {
       authChangeNotifier.value = false;
 
       // Clear all approval cache for security and privacy
-      _clearAllUserRelatedCaches();
+      _clearAllUserRelatedCaches(); // Fire and forget
 
       return true;
     } catch (e) {
@@ -258,10 +258,13 @@ class AuthService {
   }
 
   /// Clear all user-related caches when logging out
-  static void _clearAllUserRelatedCaches() {
+  static Future<void> _clearAllUserRelatedCaches() async {
     try {
       // Clear approval cache to prevent data leakage between users
-      ApprovalCache.clearAllCache();
+      final userId = await getCurrentUserId();
+      if (userId != null) {
+        ApprovalCache.clearAllCache(userId);
+      }
 
       // Clear cart storage (optional but recommended for clean logout)
       CartStorageService.clearCart();

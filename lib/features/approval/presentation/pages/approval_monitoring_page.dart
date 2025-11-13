@@ -91,7 +91,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
   }
 
   /// Check for new data when returning to page
-  void _checkForNewData() {
+  Future<void> _checkForNewData() async {
     // Only check for new data if we already have loaded data
     final currentState = context.read<ApprovalBloc>().state;
     if (currentState is! ApprovalLoaded) {
@@ -99,7 +99,9 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
     }
 
     // If cache is older than 30 seconds, load new data incrementally
-    final cacheStats = ApprovalCache.getCacheStats();
+    final currentUserId = await AuthService.getCurrentUserId();
+    if (currentUserId == null) return;
+    final cacheStats = ApprovalCache.getCacheStats(currentUserId);
     final cacheTimestamp = cacheStats['approval_cache_timestamp'] as String?;
 
     if (cacheTimestamp != null) {
@@ -110,10 +112,12 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
 
         if (difference.inSeconds > 30) {
           // Update only approval statuses (lightweight operation)
+          if (!mounted) return;
           setState(() {
             _isUpdatingStatuses = true;
           });
 
+          if (!mounted) return;
           final bloc = context.read<ApprovalBloc>();
           bloc.add(const UpdateApprovalStatusesOnly());
           bloc.add(const LoadNewApprovalsIncremental());
@@ -190,7 +194,8 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
   Future<void> _loadUserInfo() async {
     try {
       // Check cache first
-      final cachedUserInfo = locator<ApprovalRepository>().getCachedUserInfo();
+      final cachedUserInfo =
+          await locator<ApprovalRepository>().getCachedUserInfo();
       if (cachedUserInfo != null) {
         setState(() {
           _isStaffLevel = cachedUserInfo['isStaffLevel'] ?? false;
@@ -229,12 +234,17 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
     }
   }
 
-  void _loadApprovalsWithCache() {
+  void _loadApprovalsWithCache() async {
     final stopwatch = Stopwatch()..start();
 
     // Check if we have cached data
-    final cachedApprovals = ApprovalCache.getCachedApprovals();
-    final cacheStats = ApprovalCache.getCacheStats();
+    final currentUserId = await AuthService.getCurrentUserId();
+    if (currentUserId == null) {
+      _loadApprovals(forceRefresh: true);
+      return;
+    }
+    final cachedApprovals = ApprovalCache.getCachedApprovals(currentUserId);
+    final cacheStats = ApprovalCache.getCacheStats(currentUserId);
     final cacheTimestamp = cacheStats['approval_cache_timestamp'] as String?;
 
     bool shouldForceRefresh = false;
@@ -249,6 +259,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
         if (difference > const Duration(minutes: 2)) {
           shouldForceRefresh = true;
         } else {
+          if (!mounted) return;
           context
               .read<ApprovalBloc>()
               .add(const LoadApprovals(forceRefresh: false));
@@ -287,6 +298,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
     if (shouldForceRefresh) {
       _loadApprovals(forceRefresh: true);
     } else {
+      if (!mounted) return;
       context
           .read<ApprovalBloc>()
           .add(const LoadApprovals(forceRefresh: false));
@@ -1665,11 +1677,10 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                         .length;
 
                     // Check pagination info
-                    final paginationInfo =
-                        locator<ApprovalRepository>().getPaginationInfo();
-
-                    // Update state for header and pagination
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                    locator<ApprovalRepository>()
+                        .getPaginationInfo()
+                        .then((paginationInfo) {
+                      // Update state for header and pagination
                       if (mounted) {
                         setState(() {
                           _pendingCount = pending;
@@ -1685,11 +1696,25 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                     final filteredApprovals = _filterApprovals(state.approvals);
                     return RefreshIndicator(
                       onRefresh: _onRefresh,
-                      child: _buildPaginatedContentState(
-                        context,
-                        filteredApprovals,
-                        colorScheme,
-                        paginationInfo,
+                      child: FutureBuilder<Map<String, dynamic>>(
+                        future:
+                            locator<ApprovalRepository>().getPaginationInfo(),
+                        builder: (context, snapshot) {
+                          final paginationInfo = snapshot.data ??
+                              {
+                                'should_use_pagination': false,
+                                'total_pages': 0,
+                                'items_per_page': 20,
+                                'total_items': 0,
+                                'lazy_load_threshold': 50,
+                              };
+                          return _buildPaginatedContentState(
+                            context,
+                            filteredApprovals,
+                            colorScheme,
+                            paginationInfo,
+                          );
+                        },
                       ),
                     );
                   } else if (state is ApprovalError) {
@@ -2101,27 +2126,15 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
   }
 
   Widget _buildApprovalsList(List<ApprovalEntity> approvals) {
-    // Check if loading new data
-    final isLoadingNewData = ApprovalCache.isLoadingNewData();
-    final totalItems = approvals.length + (isLoadingNewData ? 1 : 0);
+    final totalItems = approvals.length;
 
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       itemCount: totalItems,
       itemBuilder: (context, index) {
-        // Show skeleton at top if loading new data
-        if (index == 0 && isLoadingNewData) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: ApprovalSkeletonCard(),
-          );
-        }
+        if (index >= approvals.length) return const SizedBox.shrink();
 
-        // Adjust index for actual approval data
-        final approvalIndex = isLoadingNewData ? index - 1 : index;
-        if (approvalIndex >= approvals.length) return const SizedBox.shrink();
-
-        final approval = approvals[approvalIndex];
+        final approval = approvals[index];
 
         // Create key for this approval card if not exists
         if (!_approvalCardKeys.containsKey(approval.id)) {

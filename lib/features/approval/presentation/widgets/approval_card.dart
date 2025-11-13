@@ -5,6 +5,7 @@ import '../../domain/entities/approval_entity.dart';
 import '../../data/models/approval_model.dart';
 import '../../../../config/dependency_injection.dart';
 import '../../../../services/leader_service.dart';
+import '../../../../services/auth_service.dart';
 import '../../data/cache/approval_cache.dart';
 import '../../../order_letter_document/presentation/pages/order_letter_document_page.dart';
 import '../../data/repositories/approval_repository.dart';
@@ -791,10 +792,14 @@ class _ApprovalCardState extends State<ApprovalCard>
   Future<void> _loadTimelineData({bool forceRefresh = false}) async {
     if (!mounted) return;
 
+    final currentUserId = await AuthService.getCurrentUserId();
+    if (currentUserId == null) return;
+
     if (forceRefresh) {
-      ApprovalCache.clearDiscountCache(widget.approval.id);
+      ApprovalCache.clearDiscountCache(currentUserId, widget.approval.id);
     } else {
-      final cached = ApprovalCache.getCachedDiscounts(widget.approval.id);
+      final cached =
+          ApprovalCache.getCachedDiscounts(currentUserId, widget.approval.id);
       if (cached != null) {
         setState(() {
           _cachedDiscountData = cached;
