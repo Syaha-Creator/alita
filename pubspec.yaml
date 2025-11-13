@@ -60,6 +60,6 @@ flutter:
   fonts:
     - family: Inter
       fonts:
-        - asset: assets/font/Inter-VariableFont_opsz,wght.ttf
-        - asset: assets/font/Inter-Italic-VariableFont_opsz,wght.ttf
+        - asset: assets/fonts/Inter-VariableFont_opsz,wght.ttf
+        - asset: assets/fonts/Inter-Italic-VariableFont_opsz,wght.ttf
           style: italic

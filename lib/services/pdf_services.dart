@@ -101,7 +101,7 @@ class PDFService {
 
     // Use local Inter font from assets for offline-safe PDF generation
     final interData =
-        await rootBundle.load('assets/font/Inter-VariableFont_opsz,wght.ttf');
+        await rootBundle.load('assets/fonts/Inter-VariableFont_opsz,wght.ttf');
     final font = pw.Font.ttf(interData);
     final boldFont = font; // variable font used for bold as well
 
