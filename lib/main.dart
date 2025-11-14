@@ -14,6 +14,8 @@ import 'features/approval/presentation/bloc/approval_bloc.dart';
 import 'navigation/app_router.dart';
 import 'services/auth_service.dart';
 import 'services/notification_service.dart';
+import 'services/app_update_service.dart';
+import 'core/widgets/force_update_dialog.dart';
 import 'theme/app_theme.dart';
 import 'firebase_options.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -45,8 +47,64 @@ void main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  bool _isCheckingUpdate = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkForUpdate();
+  }
+
+  Future<void> _checkForUpdate() async {
+    try {
+      final updateService = locator<AppUpdateService>();
+      final needsUpdate = await updateService.checkForUpdate();
+
+      if (mounted) {
+        setState(() {
+          _isCheckingUpdate = false;
+        });
+
+        // Show force update dialog if needed
+        if (needsUpdate) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _showForceUpdateDialog();
+          });
+        }
+      }
+    } catch (e) {
+      // If check fails, continue with app (don't block)
+      if (mounted) {
+        setState(() {
+          _isCheckingUpdate = false;
+        });
+      }
+    }
+  }
+
+  void _showForceUpdateDialog() {
+    // Use navigatorKey from router to show dialog
+    final navigatorKey = AppRouter.router.routerDelegate.navigatorKey;
+    if (navigatorKey.currentContext != null) {
+      showDialog(
+        context: navigatorKey.currentContext!,
+        barrierDismissible: false,
+        builder: (context) => const ForceUpdateDialog(
+          isForceUpdate: true,
+          message:
+              'Versi aplikasi Anda sudah tidak didukung. Silakan update aplikasi ke versi terbaru untuk melanjutkan.',
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,6 +133,19 @@ class MyApp extends StatelessWidget {
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: ThemeMode.system,
+            builder: (context, child) {
+              // Show loading indicator while checking for update
+              if (_isCheckingUpdate) {
+                return const MaterialApp(
+                  home: Scaffold(
+                    body: Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  ),
+                );
+              }
+              return child ?? const SizedBox.shrink();
+            },
           );
         },
       ),
