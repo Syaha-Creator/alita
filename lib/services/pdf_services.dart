@@ -731,7 +731,6 @@ class PDFService {
           final double netPricePerUnit =
               (divanPricing?['net_price_per_unit'] as num?)?.toDouble() ??
                   (customerPricePerUnit > 0 ? customerPricePerUnit : 0);
-          final int? detailId = (divanPricing?['detail_id'] as num?)?.toInt();
           final bool divanHasExplicitCustomerPrice =
               (divanPricing?['has_customer_price'] as bool?) ?? false;
 
@@ -745,7 +744,7 @@ class PDFService {
               showApprovalColumn;
           final pw.Widget divanDiscountCell = hasDivanCustomerAmount
               ? _buildDiscountCell(
-                  divanDiscount, detailId, productKey, discountData,
+                  divanDiscount, kasurDetailId, null, discountData,
                   align: pw.TextAlign.right,
                   showApprovalColumn: showDivanDiscountDetails)
               : _buildTableCell('-', align: pw.TextAlign.right);
@@ -803,8 +802,6 @@ class PDFService {
           final double netPricePerUnit =
               (headboardPricing?['net_price_per_unit'] as num?)?.toDouble() ??
                   (customerPricePerUnit > 0 ? customerPricePerUnit : 0);
-          final int? detailId =
-              (headboardPricing?['detail_id'] as num?)?.toInt();
           final bool headboardHasExplicitCustomerPrice =
               (headboardPricing?['has_customer_price'] as bool?) ?? false;
 
@@ -819,7 +816,7 @@ class PDFService {
                   showApprovalColumn;
           final pw.Widget headboardDiscountCell = hasHeadboardCustomerAmount
               ? _buildDiscountCell(
-                  headboardDiscount, detailId, productKey, discountData,
+                  headboardDiscount, kasurDetailId, null, discountData,
                   align: pw.TextAlign.right,
                   showApprovalColumn: showHeadboardDiscountDetails)
               : _buildTableCell('-', align: pw.TextAlign.right);
@@ -875,7 +872,6 @@ class PDFService {
           final double netPricePerUnit =
               (sorongPricing?['net_price_per_unit'] as num?)?.toDouble() ??
                   (customerPricePerUnit > 0 ? customerPricePerUnit : 0);
-          final int? detailId = (sorongPricing?['detail_id'] as num?)?.toInt();
           final bool sorongHasExplicitCustomerPrice =
               (sorongPricing?['has_customer_price'] as bool?) ?? false;
 
@@ -889,7 +885,7 @@ class PDFService {
               showApprovalColumn;
           final pw.Widget sorongDiscountCell = hasSorongCustomerAmount
               ? _buildDiscountCell(
-                  sorongDiscount, detailId, productKey, discountData,
+                  sorongDiscount, kasurDetailId, null, discountData,
                   align: pw.TextAlign.right,
                   showApprovalColumn: showSorongDiscountDetails)
               : _buildTableCell('-', align: pw.TextAlign.right);
@@ -1056,20 +1052,22 @@ class PDFService {
       {pw.TextAlign align = pw.TextAlign.right,
       bool showApprovalColumn = false}) {
     // Get discount details for this product
+    // Note: For accessories (divan/headboard/sorong), discount only exists for kasur
+    // So we should use productKey to get discount details, not detailId
     List<String> discountDetails = [];
     if (discountData != null && discountData.isNotEmpty) {
       Iterable<Map<String, dynamic>> itemDiscounts = const [];
+
+      // First try to find discount by detailId (for kasur items)
       if (detailId != null) {
         itemDiscounts = discountData.where((discount) =>
             (discount['order_letter_detail_id'] ?? discount['detail_id']) ==
             detailId);
-        if (itemDiscounts.isEmpty && productKey != null) {
-          itemDiscounts = discountData.where((discount) {
-            final discountProductKey = discount['product_key'] as String?;
-            return discountProductKey == productKey;
-          });
-        }
-      } else if (productKey != null) {
+      }
+
+      // If not found by detailId, or if detailId is null, use productKey
+      // This ensures accessories (divan/headboard/sorong) use kasur's discount
+      if (itemDiscounts.isEmpty && productKey != null) {
         itemDiscounts = discountData.where((discount) {
           final discountProductKey = discount['product_key'] as String?;
           return discountProductKey == productKey;
