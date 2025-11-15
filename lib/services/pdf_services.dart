@@ -103,7 +103,23 @@ class PDFService {
     final interData =
         await rootBundle.load('assets/fonts/Inter-VariableFont_opsz,wght.ttf');
     final font = pw.Font.ttf(interData);
-    final boldFont = font; // variable font used for bold as well
+
+    // Try to load bold font separately, fallback to regular font if not available
+    pw.Font boldFont = font;
+    try {
+      final boldFontData = await rootBundle.load('assets/fonts/Inter-Bold.ttf');
+      boldFont = pw.Font.ttf(boldFontData);
+    } catch (e) {
+      // If Inter-Bold.ttf doesn't exist, try Inter_18pt-Bold.ttf
+      try {
+        final boldFontData =
+            await rootBundle.load('assets/fonts/Inter_18pt-Bold.ttf');
+        boldFont = pw.Font.ttf(boldFontData);
+      } catch (e2) {
+        // Fallback to regular font if bold font not available
+        boldFont = font;
+      }
+    }
 
     // Load watermark image berdasarkan status
     pw.Widget? watermarkWidget;
@@ -641,7 +657,7 @@ class PDFService {
                 productKey, discountData,
                 align: pw.TextAlign.right,
                 showApprovalColumn: showKasurDiscountDetails)
-            : _buildTableCell('-', align: pw.TextAlign.right);
+            : _buildTableCell('0', align: pw.TextAlign.right);
 
         tableRows.add(pw.TableRow(children: [
           _buildTableCell(_getBrandAbbreviation(product.brand),
@@ -655,7 +671,7 @@ class PDFService {
           _buildTableCell(
               hasKasurCustomerAmount
                   ? FormatHelper.formatCurrency(kasurCustomer)
-                  : '-',
+                  : '0',
               align: pw.TextAlign.right),
           kasurDiscountCell,
           _buildTableCell(FormatHelper.formatCurrency(kasurNet),
@@ -733,10 +749,14 @@ class PDFService {
                   (customerPricePerUnit > 0 ? customerPricePerUnit : 0);
           final bool divanHasExplicitCustomerPrice =
               (divanPricing?['has_customer_price'] as bool?) ?? false;
+          // Use qty from pricingData if available (already aggregated), otherwise use item.quantity
+          final double divanQty =
+              (divanPricing?['quantity'] as num?)?.toDouble() ??
+                  item.quantity.toDouble();
 
-          final double divanPricelist = unitPricePerUnit * item.quantity;
-          final double divanCustomer = customerPricePerUnit * item.quantity;
-          final double divanNet = netPricePerUnit * item.quantity;
+          final double divanPricelist = unitPricePerUnit * divanQty;
+          final double divanCustomer = customerPricePerUnit * divanQty;
+          final double divanNet = netPricePerUnit * divanQty;
           final double divanDiscount = divanCustomer - divanNet;
           final bool hasDivanCustomerAmount = divanCustomer > 0;
           final bool showDivanDiscountDetails = hasDivanCustomerAmount &&
@@ -747,35 +767,47 @@ class PDFService {
                   divanDiscount, kasurDetailId, null, discountData,
                   align: pw.TextAlign.right,
                   showApprovalColumn: showDivanDiscountDetails)
-              : _buildTableCell('-', align: pw.TextAlign.right);
+              : _buildTableCell('0', align: pw.TextAlign.right);
 
           tableRows.add(pw.TableRow(children: [
             _buildTableCell('', align: pw.TextAlign.center),
             _buildTableCell(''),
             _buildTableCell(product.divan),
-            _buildTableCell(item.quantity.toString(),
+            _buildTableCell(divanQty.toInt().toString(),
                 align: pw.TextAlign.center),
             _buildTableCell(FormatHelper.formatCurrency(divanPricelist),
                 align: pw.TextAlign.right),
             _buildTableCell(
                 divanCustomer > 0
                     ? FormatHelper.formatCurrency(divanCustomer)
-                    : '-',
+                    : '0',
                 align: pw.TextAlign.right),
             divanDiscountCell,
             _buildTableCell(FormatHelper.formatCurrency(divanNet),
                 align: pw.TextAlign.right),
           ]));
         } else {
-          double divanPricelist = (product.plDivan) * item.quantity;
-          double divanEUP = (product.eupDivan) * item.quantity;
-          double divanDiscount = divanEUP;
-          double divanNet = divanPricelist - divanDiscount;
+          // Use qty from pricingData if available (already aggregated), otherwise use item.quantity
+          final divanPricing =
+              getPricing('divan', product.divan, product.ukuran);
+          final double unitPricePerUnit =
+              (divanPricing?['unit_price_per_unit'] as num?)?.toDouble() ??
+                  product.plDivan;
+          final double netPricePerUnit =
+              (divanPricing?['net_price_per_unit'] as num?)?.toDouble() ??
+                  (product.eupDivan > 0 ? product.eupDivan : product.plDivan);
+          final double divanQty =
+              (divanPricing?['quantity'] as num?)?.toDouble() ??
+                  item.quantity.toDouble();
+
+          double divanPricelist = unitPricePerUnit * divanQty;
+          double divanNet = netPricePerUnit * divanQty;
+          double divanDiscount = divanPricelist - divanNet;
           tableRows.add(pw.TableRow(children: [
             _buildTableCell('', align: pw.TextAlign.center),
             _buildTableCell(''),
             _buildTableCell(product.divan),
-            _buildTableCell(item.quantity.toString(),
+            _buildTableCell(divanQty.toInt().toString(),
                 align: pw.TextAlign.center),
             _buildTableCell(FormatHelper.formatCurrency(divanPricelist),
                 align: pw.TextAlign.right),
@@ -804,10 +836,14 @@ class PDFService {
                   (customerPricePerUnit > 0 ? customerPricePerUnit : 0);
           final bool headboardHasExplicitCustomerPrice =
               (headboardPricing?['has_customer_price'] as bool?) ?? false;
+          // Use qty from pricingData if available (already aggregated), otherwise use item.quantity
+          final double headboardQty =
+              (headboardPricing?['quantity'] as num?)?.toDouble() ??
+                  item.quantity.toDouble();
 
-          final double headboardPricelist = unitPricePerUnit * item.quantity;
-          final double headboardCustomer = customerPricePerUnit * item.quantity;
-          final double headboardNet = netPricePerUnit * item.quantity;
+          final double headboardPricelist = unitPricePerUnit * headboardQty;
+          final double headboardCustomer = customerPricePerUnit * headboardQty;
+          final double headboardNet = netPricePerUnit * headboardQty;
           final double headboardDiscount = headboardCustomer - headboardNet;
           final bool hasHeadboardCustomerAmount = headboardCustomer > 0;
           final bool showHeadboardDiscountDetails =
@@ -819,35 +855,49 @@ class PDFService {
                   headboardDiscount, kasurDetailId, null, discountData,
                   align: pw.TextAlign.right,
                   showApprovalColumn: showHeadboardDiscountDetails)
-              : _buildTableCell('-', align: pw.TextAlign.right);
+              : _buildTableCell('0', align: pw.TextAlign.right);
 
           tableRows.add(pw.TableRow(children: [
             _buildTableCell('', align: pw.TextAlign.center),
             _buildTableCell(''),
             _buildTableCell(product.headboard),
-            _buildTableCell(item.quantity.toString(),
+            _buildTableCell(headboardQty.toInt().toString(),
                 align: pw.TextAlign.center),
             _buildTableCell(FormatHelper.formatCurrency(headboardPricelist),
                 align: pw.TextAlign.right),
             _buildTableCell(
                 headboardCustomer > 0
                     ? FormatHelper.formatCurrency(headboardCustomer)
-                    : '-',
+                    : '0',
                 align: pw.TextAlign.right),
             headboardDiscountCell,
             _buildTableCell(FormatHelper.formatCurrency(headboardNet),
                 align: pw.TextAlign.right),
           ]));
         } else {
-          double headboardPricelist = (product.plHeadboard) * item.quantity;
-          double headboardEUP = (product.eupHeadboard) * item.quantity;
-          double headboardDiscount = headboardEUP;
-          double headboardNet = headboardPricelist - headboardDiscount;
+          // Use qty from pricingData if available (already aggregated), otherwise use item.quantity
+          final headboardPricing =
+              getPricing('headboard', product.headboard, product.ukuran);
+          final double unitPricePerUnit =
+              (headboardPricing?['unit_price_per_unit'] as num?)?.toDouble() ??
+                  product.plHeadboard;
+          final double netPricePerUnit =
+              (headboardPricing?['net_price_per_unit'] as num?)?.toDouble() ??
+                  (product.eupHeadboard > 0
+                      ? product.eupHeadboard
+                      : product.plHeadboard);
+          final double headboardQty =
+              (headboardPricing?['quantity'] as num?)?.toDouble() ??
+                  item.quantity.toDouble();
+
+          double headboardPricelist = unitPricePerUnit * headboardQty;
+          double headboardNet = netPricePerUnit * headboardQty;
+          double headboardDiscount = headboardPricelist - headboardNet;
           tableRows.add(pw.TableRow(children: [
             _buildTableCell('', align: pw.TextAlign.center),
             _buildTableCell(''),
             _buildTableCell(product.headboard),
-            _buildTableCell(item.quantity.toString(),
+            _buildTableCell(headboardQty.toInt().toString(),
                 align: pw.TextAlign.center),
             _buildTableCell(FormatHelper.formatCurrency(headboardPricelist),
                 align: pw.TextAlign.right),
@@ -874,10 +924,14 @@ class PDFService {
                   (customerPricePerUnit > 0 ? customerPricePerUnit : 0);
           final bool sorongHasExplicitCustomerPrice =
               (sorongPricing?['has_customer_price'] as bool?) ?? false;
+          // Use qty from pricingData if available (already aggregated), otherwise use item.quantity
+          final double sorongQty =
+              (sorongPricing?['quantity'] as num?)?.toDouble() ??
+                  item.quantity.toDouble();
 
-          final double sorongPricelist = unitPricePerUnit * item.quantity;
-          final double sorongCustomer = customerPricePerUnit * item.quantity;
-          final double sorongNet = netPricePerUnit * item.quantity;
+          final double sorongPricelist = unitPricePerUnit * sorongQty;
+          final double sorongCustomer = customerPricePerUnit * sorongQty;
+          final double sorongNet = netPricePerUnit * sorongQty;
           final double sorongDiscount = sorongCustomer - sorongNet;
           final bool hasSorongCustomerAmount = sorongCustomer > 0;
           final bool showSorongDiscountDetails = hasSorongCustomerAmount &&
@@ -888,35 +942,49 @@ class PDFService {
                   sorongDiscount, kasurDetailId, null, discountData,
                   align: pw.TextAlign.right,
                   showApprovalColumn: showSorongDiscountDetails)
-              : _buildTableCell('-', align: pw.TextAlign.right);
+              : _buildTableCell('0', align: pw.TextAlign.right);
 
           tableRows.add(pw.TableRow(children: [
             _buildTableCell('', align: pw.TextAlign.center),
             _buildTableCell(''),
             _buildTableCell(product.sorong),
-            _buildTableCell(item.quantity.toString(),
+            _buildTableCell(sorongQty.toInt().toString(),
                 align: pw.TextAlign.center),
             _buildTableCell(FormatHelper.formatCurrency(sorongPricelist),
                 align: pw.TextAlign.right),
             _buildTableCell(
                 sorongCustomer > 0
                     ? FormatHelper.formatCurrency(sorongCustomer)
-                    : '-',
+                    : '0',
                 align: pw.TextAlign.right),
             sorongDiscountCell,
             _buildTableCell(FormatHelper.formatCurrency(sorongNet),
                 align: pw.TextAlign.right),
           ]));
         } else {
-          double sorongPricelist = (product.plSorong) * item.quantity;
-          double sorongEUP = (product.eupSorong) * item.quantity;
-          double sorongDiscount = sorongEUP;
-          double sorongNet = sorongPricelist - sorongDiscount;
+          // Use qty from pricingData if available (already aggregated), otherwise use item.quantity
+          final sorongPricing =
+              getPricing('sorong', product.sorong, product.ukuran);
+          final double unitPricePerUnit =
+              (sorongPricing?['unit_price_per_unit'] as num?)?.toDouble() ??
+                  product.plSorong;
+          final double netPricePerUnit =
+              (sorongPricing?['net_price_per_unit'] as num?)?.toDouble() ??
+                  (product.eupSorong > 0
+                      ? product.eupSorong
+                      : product.plSorong);
+          final double sorongQty =
+              (sorongPricing?['quantity'] as num?)?.toDouble() ??
+                  item.quantity.toDouble();
+
+          double sorongPricelist = unitPricePerUnit * sorongQty;
+          double sorongNet = netPricePerUnit * sorongQty;
+          double sorongDiscount = sorongPricelist - sorongNet;
           tableRows.add(pw.TableRow(children: [
             _buildTableCell('', align: pw.TextAlign.center),
             _buildTableCell(''),
             _buildTableCell(product.sorong),
-            _buildTableCell(item.quantity.toString(),
+            _buildTableCell(sorongQty.toInt().toString(),
                 align: pw.TextAlign.center),
             _buildTableCell(FormatHelper.formatCurrency(sorongPricelist),
                 align: pw.TextAlign.right),
@@ -931,7 +999,7 @@ class PDFService {
 
       if (product.bonus.isNotEmpty) {
         for (var bonus in product.bonus) {
-          final bonusQuantity = bonus.quantity * item.quantity;
+          final bonusQuantity = bonus.quantity;
           final String zeroPrice = FormatHelper.formatCurrency(0);
 
           String bonusName = bonus.name;

@@ -51,6 +51,11 @@ android {
         release {
             // Signing with release config
             signingConfig = signingConfigs.release
+            // Enable minify and shrink to reduce app size
+            minifyEnabled true
+            shrinkResources true
+            // Use ProGuard rules
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
         debug {
             // Keep debug signing for debug builds

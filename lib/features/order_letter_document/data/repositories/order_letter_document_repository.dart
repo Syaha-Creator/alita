@@ -62,6 +62,9 @@ class OrderLetterDocumentRepository {
       // Extract contacts from the response
       final contactsData = result['order_letter_contacts'] ?? [];
 
+      // Extract payments from the response
+      final paymentsData = result['order_letter_payments'] ?? [];
+
       // Combine all data
       final combinedData = {
         ...orderLetterData,
@@ -69,6 +72,7 @@ class OrderLetterDocumentRepository {
         'discounts': discountsData,
         'approvals': approvalsData,
         'contacts': contactsData,
+        'payments': paymentsData,
         'work_place_name': workPlaceName,
         'work_place_address': workPlaceAddress,
       };

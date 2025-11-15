@@ -3,7 +3,7 @@ description: "Alita Price List"
 
 publish_to: 'none'
 
-version: 1.7.1+29
+version: 1.7.4+32
 environment:
   sdk: ^3.6.1
 
@@ -65,3 +65,7 @@ flutter:
         - asset: assets/fonts/Inter-VariableFont_opsz,wght.ttf
         - asset: assets/fonts/Inter-Italic-VariableFont_opsz,wght.ttf
           style: italic
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Inter_18pt-Bold.ttf
+          weight: 700

@@ -12,6 +12,21 @@ import '../../data/repositories/order_letter_document_repository.dart';
 import '../../../cart/domain/entities/cart_entity.dart';
 import '../../../product/domain/entities/product_entity.dart';
 
+/// Helper class to represent a grouped package
+class _GroupedPackage {
+  final List<OrderLetterDetailModel> kasurDetails;
+  final List<OrderLetterDetailModel> accessories;
+  final List<OrderLetterDetailModel> bonus;
+  final int totalQty;
+
+  _GroupedPackage({
+    required this.kasurDetails,
+    required this.accessories,
+    required this.bonus,
+    required this.totalQty,
+  });
+}
+
 class OrderLetterDocumentPage extends StatefulWidget {
   final int orderLetterId;
 
@@ -791,41 +806,137 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
     );
   }
 
-  List<Widget> _buildOrderItemCards(List<OrderLetterDetailModel> details) {
-    final List<Widget> cards = [];
-    final seenAccessIds = <int>{};
-    final seenBonusIds = <int>{};
-
-    // Kasur utama ditandai berdasarkan urutan kemunculan
+  List<_GroupedPackage> _groupKasurByPackage(
+      List<OrderLetterDetailModel> details) {
     final kasurDetails =
         details.where((d) => d.itemType.toLowerCase() == 'kasur').toList();
+    final List<_GroupedPackage> groups = [];
+    final processedKasurIds = <int>{};
+
+    // Helper function to get accessories and bonus for a kasur (by position in details list)
+    List<OrderLetterDetailModel> getRelatedItems(OrderLetterDetailModel kasur) {
+      final kasurPosition = details.indexWhere((d) => d.id == kasur.id);
+      int nextKasurPosition = details.length;
+      for (int j = kasurPosition + 1; j < details.length; j++) {
+        if (details[j].itemType.toLowerCase() == 'kasur') {
+          nextKasurPosition = j;
+          break;
+        }
+      }
+      return details.sublist(kasurPosition + 1, nextKasurPosition);
+    }
+
+    // Create package key - ONLY uses desc1, desc2, brand (IGNORES item_number and accessories)
+    String createPackageKey(OrderLetterDetailModel kasur) {
+      // Key only uses desc1, desc2, brand - NOT item_number, NOT accessories
+      return '${kasur.desc1}_${kasur.desc2}_${kasur.brand}';
+    }
 
     for (int i = 0; i < kasurDetails.length; i++) {
       final kasurDetail = kasurDetails[i];
+      if (processedKasurIds.contains(kasurDetail.id)) continue;
+
+      // Create package key for this kasur (only desc1, desc2, brand)
+      final packageKey = createPackageKey(kasurDetail);
+
+      // Find all kasur with the same package key
+      final matchingKasur = <OrderLetterDetailModel>[];
+      final matchingAccessories = <OrderLetterDetailModel>[];
+      final matchingBonus = <OrderLetterDetailModel>[];
+      int totalQty = 0;
+
+      // First, add the current kasur
+      matchingKasur.add(kasurDetail);
+      totalQty += kasurDetail.qty;
+      processedKasurIds.add(kasurDetail.id);
+
+      // Add accessories and bonus from first kasur
+      final relatedItems = getRelatedItems(kasurDetail);
+      for (final item in relatedItems) {
+        if (item.itemType.toLowerCase() == 'bonus') {
+          matchingBonus.add(item);
+        } else {
+          // Add all accessories (including duplicates) - qty will be summed in _buildPdf
+          matchingAccessories.add(item);
+        }
+      }
+
+      // Now find all other kasur with the same package key (only desc1, desc2, brand)
+      for (int j = i + 1; j < kasurDetails.length; j++) {
+        final otherKasur = kasurDetails[j];
+        if (processedKasurIds.contains(otherKasur.id)) continue;
+
+        // Check if this kasur matches the package key (only desc1, desc2, brand)
+        final otherPackageKey = createPackageKey(otherKasur);
+
+        if (otherPackageKey == packageKey) {
+          matchingKasur.add(otherKasur);
+          totalQty += otherKasur.qty;
+          processedKasurIds.add(otherKasur.id);
+
+          final otherRelatedItems = getRelatedItems(otherKasur);
+          for (final item in otherRelatedItems) {
+            if (item.itemType.toLowerCase() == 'bonus') {
+              matchingBonus.add(item);
+            } else {
+              // Add all accessories (including duplicates) - qty will be summed in _buildPdf
+              matchingAccessories.add(item);
+            }
+          }
+        }
+      }
+
+      groups.add(_GroupedPackage(
+        kasurDetails: matchingKasur,
+        accessories: matchingAccessories,
+        bonus: matchingBonus,
+        totalQty: totalQty,
+      ));
+    }
+
+    return groups;
+  }
+
+  List<Widget> _buildOrderItemCards(List<OrderLetterDetailModel> details) {
+    final List<Widget> cards = [];
+
+    // Group kasur by package (same desc1, desc2, brand, and accessories)
+    final groups = _groupKasurByPackage(details);
+
+    for (int i = 0; i < groups.length; i++) {
+      final group = groups[i];
       final kasurIndex = i + 1;
 
-      final kasurPosition = details.indexWhere((d) => d.id == kasurDetail.id);
-      final nextKasurPosition = details.indexWhere(
-        (d) => d.itemType.toLowerCase() == 'kasur' && d.id != kasurDetail.id,
-        kasurPosition + 1,
-      );
-      final endExclusive =
-          nextKasurPosition == -1 ? details.length : nextKasurPosition;
+      // Use the first kasur as representative (they're all the same)
+      final kasurDetail = group.kasurDetails.first;
 
-      final relatedAccessories = <OrderLetterDetailModel>[];
-      final relatedBonus = <OrderLetterDetailModel>[];
+      // Calculate total qty for each accessory type in the group
+      final Map<String, int> accessoryQtyMap = {};
+      for (final acc in group.accessories) {
+        final key = '${acc.itemType}_${acc.desc1}_${acc.desc2}_${acc.brand}';
+        accessoryQtyMap[key] = (accessoryQtyMap[key] ?? 0) + acc.qty;
+      }
 
-      for (var j = kasurPosition + 1; j < endExclusive; j++) {
-        final item = details[j];
-        final type = item.itemType.toLowerCase();
-        if (type == 'bonus') {
-          if (seenBonusIds.add(item.id)) {
-            relatedBonus.add(item);
-          }
-        } else if (type != 'kasur') {
-          if (seenAccessIds.add(item.id)) {
-            relatedAccessories.add(item);
-          }
+      // Create accessory list with aggregated qty
+      final Map<String, OrderLetterDetailModel> uniqueAccessories = {};
+      for (final acc in group.accessories) {
+        final key = '${acc.itemType}_${acc.desc1}_${acc.desc2}_${acc.brand}';
+        if (!uniqueAccessories.containsKey(key)) {
+          uniqueAccessories[key] = acc;
+        }
+      }
+
+      // Calculate total qty for each bonus type in the group
+      final Map<String, int> bonusQtyMap = {};
+      for (final b in group.bonus) {
+        bonusQtyMap[b.desc1] = (bonusQtyMap[b.desc1] ?? 0) + b.qty;
+      }
+
+      // Create bonus list with aggregated qty
+      final Map<String, OrderLetterDetailModel> uniqueBonus = {};
+      for (final b in group.bonus) {
+        if (!uniqueBonus.containsKey(b.desc1)) {
+          uniqueBonus[b.desc1] = b;
         }
       }
 
@@ -833,8 +944,11 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         _buildOrderItemCard(
           kasurIndex: kasurIndex,
           kasurDetail: kasurDetail,
-          accessories: relatedAccessories,
-          bonus: relatedBonus,
+          accessories: uniqueAccessories.values.toList(),
+          bonus: uniqueBonus.values.toList(),
+          totalQty: group.totalQty, // Pass total qty for grouped items
+          accessoryQtyMap: accessoryQtyMap, // Pass qty map for accessories
+          bonusQtyMap: bonusQtyMap, // Pass qty map for bonus
         ),
       );
     }
@@ -847,6 +961,9 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
     required OrderLetterDetailModel kasurDetail,
     required List<OrderLetterDetailModel> accessories,
     required List<OrderLetterDetailModel> bonus,
+    int? totalQty,
+    Map<String, int>? accessoryQtyMap,
+    Map<String, int>? bonusQtyMap,
   }) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -934,7 +1051,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    'Qty: ${kasurDetail.qty}',
+                    'Qty: ${totalQty ?? kasurDetail.qty}',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
@@ -960,8 +1077,12 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                 ),
               ),
               const SizedBox(height: 6),
-              ...accessories
-                  .map((acc) => _buildAccessoryRow(acc, isDark, colorScheme)),
+              ...accessories.map((acc) {
+                final key =
+                    '${acc.itemType}_${acc.desc1}_${acc.desc2}_${acc.brand}';
+                final qty = accessoryQtyMap?[key] ?? acc.qty;
+                return _buildAccessoryRow(acc, isDark, colorScheme, qty: qty);
+              }),
               const SizedBox(height: 8),
             ],
 
@@ -987,38 +1108,41 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                 ],
               ),
               const SizedBox(height: 6),
-              ...bonus.map((b) => Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.green[600],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          '${b.qty}x',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
+              ...bonus.map((b) {
+                final qty = bonusQtyMap?[b.desc1] ?? b.qty;
+                return Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.green[600],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '${qty}x',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          b.desc1, // Hanya tampilkan desc1 untuk bonus
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color:
-                                isDark ? colorScheme.onSurface : Colors.black87,
-                          ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        b.desc1, // Hanya tampilkan desc1 untuk bonus
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color:
+                              isDark ? colorScheme.onSurface : Colors.black87,
                         ),
                       ),
-                    ],
-                  )),
+                    ),
+                  ],
+                );
+              }),
               const SizedBox(height: 8),
             ],
 
@@ -1176,7 +1300,9 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
   }
 
   Widget _buildAccessoryRow(
-      OrderLetterDetailModel acc, bool isDark, ColorScheme colorScheme) {
+      OrderLetterDetailModel acc, bool isDark, ColorScheme colorScheme,
+      {int? qty}) {
+    final displayQty = qty ?? acc.qty;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -1198,7 +1324,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
             ),
           ),
           Text(
-            '${acc.qty}x',
+            '${displayQty}x',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
@@ -1966,9 +2092,6 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
       );
 
       // Group order letter details by kasur and create single CartEntity per group
-      final kasurDetails = _document!.details
-          .where((d) => d.itemType.toLowerCase() == 'kasur')
-          .toList();
       final cartItems = <CartEntity>[];
       final Map<String, List<Map<String, dynamic>>> pricingSummary = {};
 
@@ -1989,37 +2112,55 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         final key = pricingKey(type, name, size);
         final list =
             pricingSummary.putIfAbsent(key, () => <Map<String, dynamic>>[]);
-        list.add({
-          'detail_id': detailId,
-          'unit_price_per_unit': unitPrice,
-          'customer_price_per_unit': customerPrice,
-          'net_price_per_unit': netPrice,
-          'quantity': quantity.toDouble(),
-          'has_customer_price': hasExplicitCustomerPrice,
-        });
-      }
 
-      for (int i = 0; i < kasurDetails.length; i++) {
-        final kasurDetail = kasurDetails[i];
-
-        // Find position of this kasur in the details list
-        final kasurIndexInDetails = _document!.details.indexWhere((d) =>
-            d.id == kasurDetail.id && d.itemType.toLowerCase() == 'kasur');
-
-        // Find next kasur position (or end of list)
-        int nextKasurIndex = _document!.details.length;
-        for (int j = kasurIndexInDetails + 1;
-            j < _document!.details.length;
-            j++) {
-          if (_document!.details[j].itemType.toLowerCase() == 'kasur') {
-            nextKasurIndex = j;
-            break;
-          }
+        // Helper function to compare doubles with tolerance (for floating point precision)
+        bool isDoubleEqual(double a, double b) {
+          return (a - b).abs() < 0.01;
         }
 
-        // Get accessories and bonus for this kasur (items between this kasur and next kasur)
-        final relatedItems =
-            _document!.details.sublist(kasurIndexInDetails + 1, nextKasurIndex);
+        final existingEntry = list.firstWhere(
+          (entry) {
+            final entryUnitPrice =
+                (entry['unit_price_per_unit'] as num).toDouble();
+            final entryCustomerPrice =
+                (entry['customer_price_per_unit'] as num).toDouble();
+            final entryNetPrice =
+                (entry['net_price_per_unit'] as num).toDouble();
+            final entryHasCustomerPrice = (entry['has_customer_price'] as bool);
+
+            return isDoubleEqual(entryUnitPrice, unitPrice) &&
+                isDoubleEqual(entryCustomerPrice, customerPrice) &&
+                isDoubleEqual(entryNetPrice, netPrice) &&
+                entryHasCustomerPrice == hasExplicitCustomerPrice;
+          },
+          orElse: () => <String, dynamic>{},
+        );
+
+        if (existingEntry.isNotEmpty) {
+          // Merge: add quantity to existing entry
+          existingEntry['quantity'] =
+              (existingEntry['quantity'] as num).toDouble() +
+                  quantity.toDouble();
+        } else {
+          // Add new entry
+          list.add({
+            'detail_id': detailId,
+            'unit_price_per_unit': unitPrice,
+            'customer_price_per_unit': customerPrice,
+            'net_price_per_unit': netPrice,
+            'quantity': quantity.toDouble(),
+            'has_customer_price': hasExplicitCustomerPrice,
+          });
+        }
+      }
+
+      // Group kasur by package (same desc1, desc2, brand, and accessories)
+      final groups = _groupKasurByPackage(_document!.details);
+
+      for (int i = 0; i < groups.length; i++) {
+        final group = groups[i];
+        final kasurDetail =
+            group.kasurDetails.first; // Use first kasur as representative
 
         // Initialize product fields
         String kasur = kasurDetail.desc1;
@@ -2043,9 +2184,35 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
 
         final bonusItems = <BonusItem>[];
 
-        // Process related items (accessories and bonus)
-        for (final item in relatedItems) {
-          switch (item.itemType.toLowerCase()) {
+        // Process related items (accessories and bonus) from the group
+        // Group accessories by itemType+desc1+desc2+brand to handle duplicates correctly
+        final Map<String, Map<String, dynamic>> accessoryGroups = {};
+        for (final item in group.accessories) {
+          final itemType = item.itemType.toLowerCase();
+          if (itemType == 'bonus') continue; // Bonus handled separately
+
+          // Create key: itemType_desc1_desc2_brand (IGNORES item_number)
+          final accessoryKey =
+              '${itemType}_${item.desc1}_${item.desc2}_${item.brand}';
+
+          if (!accessoryGroups.containsKey(accessoryKey)) {
+            accessoryGroups[accessoryKey] = {
+              'item': item,
+              'total_qty': 0,
+            };
+          }
+          // Sum qty for same accessory
+          accessoryGroups[accessoryKey]!['total_qty'] =
+              (accessoryGroups[accessoryKey]!['total_qty'] as int) + item.qty;
+        }
+
+        // Process each unique accessory group
+        for (final entry in accessoryGroups.values) {
+          final item = entry['item'] as OrderLetterDetailModel;
+          final totalQty = entry['total_qty'] as int;
+          final itemType = item.itemType.toLowerCase();
+
+          switch (itemType) {
             case 'divan':
               divan = '${item.desc1} ${item.desc2}'.trim();
               plDivan = item.unitPrice; // Pricelist (harga asli)
@@ -2061,7 +2228,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                 plDivan,
                 customerDivan,
                 netDivan,
-                item.qty,
+                totalQty,
                 divanHasExplicit,
               );
               break;
@@ -2080,7 +2247,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                 plHeadboard,
                 customerHeadboard,
                 netHeadboard,
-                item.qty,
+                totalQty,
                 headboardHasExplicit,
               );
               break;
@@ -2099,20 +2266,40 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                 plSorong,
                 customerSorong,
                 netSorong,
-                item.qty,
+                totalQty,
                 sorongHasExplicit,
               );
-              break;
-            case 'bonus':
-              bonusItems.add(BonusItem(
-                name: item.desc1,
-                quantity: item.qty,
-                takeAway: item.takeAway ?? false, // Add take away status
-              ));
               break;
           }
         }
 
+        // Process bonus items - group by desc1 and sum qty
+        final Map<String, Map<String, dynamic>> bonusGroups = {};
+        for (final item in group.bonus) {
+          final bonusKey = item.desc1;
+          if (!bonusGroups.containsKey(bonusKey)) {
+            bonusGroups[bonusKey] = {
+              'item': item,
+              'total_qty': 0,
+            };
+          }
+          // Sum qty for same bonus
+          bonusGroups[bonusKey]!['total_qty'] =
+              (bonusGroups[bonusKey]!['total_qty'] as int) + item.qty;
+        }
+
+        // Add unique bonus items with aggregated qty
+        for (final entry in bonusGroups.values) {
+          final item = entry['item'] as OrderLetterDetailModel;
+          final totalQty = entry['total_qty'] as int;
+          bonusItems.add(BonusItem(
+            name: item.desc1,
+            quantity: totalQty,
+            takeAway: item.takeAway ?? false, // Add take away status
+          ));
+        }
+
+        // Add pricing for kasur (sum all kasur in this group)
         addPricing(
           'kasur',
           kasurDetail.desc1,
@@ -2121,7 +2308,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
           plKasur,
           customerKasur,
           netKasur,
-          kasurDetail.qty,
+          group.totalQty, // Use total qty from group
           kasurHasExplicitCustomerPrice,
         );
 
@@ -2159,7 +2346,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
             disc4: 0,
             disc5: 0,
           ),
-          quantity: kasurDetail.qty,
+          quantity: group.totalQty, // Use total qty from group
           netPrice: netKasur,
           discountPercentages: [],
           isSelected: true,
@@ -2228,6 +2415,20 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         }
       }
 
+      // Get payment date from payments (use first payment with payment_date, fallback to requestDate)
+      String repaymentDate = _formatDate(_document!.requestDate);
+      if (_document!.payments.isNotEmpty) {
+        final paymentWithDate = _document!.payments.firstWhere(
+          (payment) =>
+              payment.paymentDate != null && payment.paymentDate!.isNotEmpty,
+          orElse: () => _document!.payments.first,
+        );
+        if (paymentWithDate.paymentDate != null &&
+            paymentWithDate.paymentDate!.isNotEmpty) {
+          repaymentDate = _formatDate(paymentWithDate.paymentDate!);
+        }
+      }
+
       // Generate PDF using existing service with order letter info
       final pdfBytes = await PDFService.generateCheckoutPDF(
         cartItems: cartItems,
@@ -2239,7 +2440,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         orderDate: _formatDate(_document!.orderDate),
         paymentMethod: 'Transfer',
         paymentAmount: _document!.extendedAmount,
-        repaymentDate: _formatDate(_document!.requestDate),
+        repaymentDate: repaymentDate,
         grandTotal: _document!.extendedAmount,
         email: _document!.email,
         keterangan: _document!.note,

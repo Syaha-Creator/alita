@@ -24,6 +24,7 @@ class OrderLetterDocumentModel {
   final List<OrderLetterDiscountModel> discounts;
   final List<OrderLetterApproveModel> approvals;
   final List<OrderLetterContactModel> contacts;
+  final List<OrderLetterPaymentModel> payments;
 
   OrderLetterDocumentModel({
     required this.id,
@@ -51,6 +52,7 @@ class OrderLetterDocumentModel {
     required this.discounts,
     required this.approvals,
     required this.contacts,
+    required this.payments,
   });
 
   /// Helper method to parse take_away field from various formats
@@ -111,6 +113,10 @@ class OrderLetterDocumentModel {
               ?.map((contact) => OrderLetterContactModel.fromJson(contact))
               .toList() ??
           [],
+      payments: (json['payments'] as List<dynamic>?)
+              ?.map((payment) => OrderLetterPaymentModel.fromJson(payment))
+              .toList() ??
+          [],
     );
   }
 
@@ -138,6 +144,7 @@ class OrderLetterDocumentModel {
       'discounts': discounts.map((discount) => discount.toJson()).toList(),
       'approvals': approvals.map((approval) => approval.toJson()).toList(),
       'contacts': contacts.map((contact) => contact.toJson()).toList(),
+      'payments': payments.map((payment) => payment.toJson()).toList(),
     };
   }
 }
@@ -464,6 +471,97 @@ class OrderLetterContactModel {
     return {
       'order_letter_contact_id': orderLetterContactId,
       'phone': phone,
+    };
+  }
+}
+
+class OrderLetterPaymentModel {
+  final int orderLetterPaymentId;
+  final String paymentMethod;
+  final String? paymentBank;
+  final String? paymentNumber;
+  final double paymentAmount;
+  final String? paymentDate;
+  final String? verified;
+  final String? verifiedAt;
+  final int? verifiedBy;
+  final String? verifiedNote;
+  final String? note;
+  final String? image;
+  final String createdAt;
+  final int createdBy;
+  final String updatedAt;
+  final int? updatedBy;
+
+  OrderLetterPaymentModel({
+    required this.orderLetterPaymentId,
+    required this.paymentMethod,
+    this.paymentBank,
+    this.paymentNumber,
+    required this.paymentAmount,
+    this.paymentDate,
+    this.verified,
+    this.verifiedAt,
+    this.verifiedBy,
+    this.verifiedNote,
+    this.note,
+    this.image,
+    required this.createdAt,
+    required this.createdBy,
+    required this.updatedAt,
+    this.updatedBy,
+  });
+
+  factory OrderLetterPaymentModel.fromJson(Map<String, dynamic> json) {
+    // Handle payment_amount field that can be string or number
+    double paymentAmountValue = 0.0;
+    final paymentAmountData = json['payment_amount'];
+    if (paymentAmountData != null) {
+      if (paymentAmountData is String) {
+        paymentAmountValue = double.tryParse(paymentAmountData) ?? 0.0;
+      } else if (paymentAmountData is num) {
+        paymentAmountValue = paymentAmountData.toDouble();
+      }
+    }
+
+    return OrderLetterPaymentModel(
+      orderLetterPaymentId: json['order_letter_payment_id'] ?? 0,
+      paymentMethod: json['payment_method'] ?? '',
+      paymentBank: json['payment_bank'],
+      paymentNumber: json['payment_number'],
+      paymentAmount: paymentAmountValue,
+      paymentDate: json['payment_date'],
+      verified: json['verified'],
+      verifiedAt: json['verified_at'],
+      verifiedBy: json['verified_by'],
+      verifiedNote: json['verified_note'],
+      note: json['note'],
+      image: json['image'],
+      createdAt: json['created_at'] ?? '',
+      createdBy: json['created_by'] ?? 0,
+      updatedAt: json['updated_at'] ?? '',
+      updatedBy: json['updated_by'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'order_letter_payment_id': orderLetterPaymentId,
+      'payment_method': paymentMethod,
+      'payment_bank': paymentBank,
+      'payment_number': paymentNumber,
+      'payment_amount': paymentAmount.toString(),
+      'payment_date': paymentDate,
+      'verified': verified,
+      'verified_at': verifiedAt,
+      'verified_by': verifiedBy,
+      'verified_note': verifiedNote,
+      'note': note,
+      'image': image,
+      'created_at': createdAt,
+      'created_by': createdBy,
+      'updated_at': updatedAt,
+      'updated_by': updatedBy,
     };
   }
 }
