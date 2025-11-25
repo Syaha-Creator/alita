@@ -146,6 +146,7 @@ class CheckoutService {
     required String note,
     String? spgCode,
     bool isTakeAway = false,
+    double? postage,
   }) async {
     try {
       // Get current user ID for creator field
@@ -201,8 +202,16 @@ class CheckoutService {
       // Get work_place_id from attendance API
       final workPlaceId = await _attendanceService.getWorkPlaceId();
 
+      // Parse postage value (ensure it's a number, not null)
+      final double postageValue = postage ?? 0.0;
+
+      // Add postage to total extended amount
+      if (postageValue > 0) {
+        totalExtendedAmount += postageValue;
+      }
+
       // Prepare Order Letter Data
-      final orderLetterData = {
+      final orderLetterData = <String, dynamic>{
         'order_date': orderDateStr,
         'request_date': requestDateStr,
         'creator': creatorId,
@@ -219,9 +228,8 @@ class CheckoutService {
         'status': orderStatus,
         'sales_code': spgCode ?? '',
         'work_place_id': workPlaceId,
-        'take_away': isTakeAway
-            ? 'TAKE AWAY'
-            : null, // Global take away status as string
+        'take_away': isTakeAway,
+        'postage': postageValue,
       };
 
       // Prepare Details Data

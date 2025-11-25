@@ -572,223 +572,6 @@ class _ApprovalCardState extends State<ApprovalCard>
     );
   }
 
-  Widget _buildHorizontalTimeline(
-      ThemeData theme, ColorScheme colorScheme, bool isDark) {
-    if (_isLoadingTimeline) {
-      return SizedBox(
-        height: 45, // Increased height to prevent overflow
-        child: Center(
-          child: SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                theme.colorScheme.primary,
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    if (_timelineError != null) {
-      return SizedBox(
-        height: 45, // Increased height to prevent overflow
-        child: Center(
-          child: Text(
-            'Error loading timeline',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.error,
-              fontSize: 12,
-            ),
-          ),
-        ),
-      );
-    }
-
-    if (_cachedDiscountData == null || _cachedDiscountData!.isEmpty) {
-      return SizedBox(
-        height: 45, // Increased height to prevent overflow
-        child: Center(
-          child: Text(
-            'No approval data',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontSize: 12,
-            ),
-          ),
-        ),
-      );
-    }
-
-    // Sort discounts by approver_level_id for sequential display
-    final sortedDiscounts =
-        List<Map<String, dynamic>>.from(_cachedDiscountData!)
-          ..sort((a, b) {
-            final levelA = a['approver_level_id'] ?? 0;
-            final levelB = b['approver_level_id'] ?? 0;
-            return levelA.compareTo(levelB);
-          });
-
-    final Map<int, Map<String, dynamic>> approvalLevelsMap = {};
-
-    // Add creator (User level) as the first level
-    approvalLevelsMap[1] = {
-      'level': 1,
-      'title': 'User',
-      'name': _creatorName ?? widget.approval.creator,
-      'status': 'completed'
-    };
-
-    // Add levels based on actual discount data with sequential logic
-    bool previousLevelApproved = true; // User level is always approved
-
-    for (final discount in sortedDiscounts) {
-      final approverLevelId = discount['approver_level_id'];
-      final approved = discount['approved'];
-      final approverName = discount['approver_name'];
-      final approverId = discount['approver'];
-
-      if (approverLevelId != null) {
-        String title = '';
-        switch (approverLevelId) {
-          case 1:
-            title = 'User';
-            break;
-          case 2:
-            title = 'Direct';
-            break; // Compact title for horizontal
-          case 3:
-            title = 'Indirect';
-            break;
-          case 4:
-            title = 'Controller';
-            break;
-          case 5:
-            title = 'Analyst';
-            break;
-          default:
-            title = 'Level $approverLevelId';
-        }
-
-        String status = 'pending';
-        if (approved == true) {
-          status = 'completed';
-          previousLevelApproved = true;
-        } else if (approved == false) {
-          status = 'rejected';
-          previousLevelApproved = false;
-        } else if (approverId != null) {
-          // Check if previous level is approved for sequential logic
-          if (previousLevelApproved) {
-            status = 'pending';
-          } else {
-            status =
-                'blocked'; // Cannot approve until previous level is approved
-          }
-        }
-
-        approvalLevelsMap[approverLevelId] = {
-          'level': approverLevelId,
-          'title': title,
-          'name': approverName ?? 'Pending',
-          'status': status
-        };
-      }
-    }
-
-    // Convert map to sorted list
-    final approvalLevels = approvalLevelsMap.values.toList()
-      ..sort((a, b) => (a['level'] as int).compareTo(b['level'] as int));
-
-    // Ensure User level is always completed
-    if (approvalLevels.isNotEmpty) {
-      approvalLevels[0]['status'] = 'completed';
-    }
-
-    return SizedBox(
-      height: 45, // Increased height to prevent overflow
-      child: Row(
-        children: approvalLevels.asMap().entries.map((entry) {
-          final index = entry.key;
-          final level = entry.value;
-          final isLast = index == approvalLevels.length - 1;
-
-          Color dotColor;
-          Color lineColor;
-          IconData iconData;
-
-          switch (level['status']) {
-            case 'completed':
-              dotColor = AppColors.success;
-              lineColor = AppColors.success;
-              iconData = Icons.check_circle;
-              break;
-            case 'rejected':
-              dotColor = AppColors.error;
-              lineColor = AppColors.error;
-              iconData = Icons.cancel;
-              break;
-            case 'blocked':
-              dotColor = theme.colorScheme.onSurfaceVariant;
-              lineColor = theme.colorScheme.onSurfaceVariant;
-              iconData = Icons.lock;
-              break;
-            case 'pending':
-            default:
-              dotColor = AppColors.warning;
-              lineColor = AppColors.warning;
-              iconData = Icons.schedule;
-              break;
-          }
-
-          return Expanded(
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min, // Prevent overflow
-                    children: [
-                      Icon(
-                        iconData,
-                        size: 16,
-                        color: dotColor,
-                      ),
-                      const SizedBox(height: 2),
-                      Flexible(
-                        child: Text(
-                          level['title'],
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: dotColor,
-                          ),
-                          textAlign: TextAlign.center,
-                          overflow:
-                              TextOverflow.ellipsis, // Handle text overflow
-                          maxLines: 1, // Limit to 1 line
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (!isLast)
-                  Expanded(
-                    child: Container(
-                      height: 2,
-                      color: lineColor,
-                    ),
-                  ),
-              ],
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
   Future<void> _loadTimelineData({bool forceRefresh = false}) async {
     if (!mounted) return;
 
@@ -913,6 +696,220 @@ class _ApprovalCardState extends State<ApprovalCard>
     }
   }
 
+  Widget _buildHorizontalTimeline(
+      ThemeData theme, ColorScheme colorScheme, bool isDark) {
+    if (_isLoadingTimeline) {
+      return SizedBox(
+        height: 45,
+        child: Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                theme.colorScheme.primary,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (_timelineError != null) {
+      return SizedBox(
+        height: 45,
+        child: Center(
+          child: Text(
+            'Error loading timeline',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.error,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (_cachedDiscountData == null || _cachedDiscountData!.isEmpty) {
+      return SizedBox(
+        height: 45,
+        child: Center(
+          child: Text(
+            'No approval data',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Sort discounts by approver_level_id for sequential display
+    final sortedDiscounts =
+        List<Map<String, dynamic>>.from(_cachedDiscountData!)
+          ..sort((a, b) {
+            final levelA = a['approver_level_id'] ?? 0;
+            final levelB = b['approver_level_id'] ?? 0;
+            return levelA.compareTo(levelB);
+          });
+
+    final Map<int, Map<String, dynamic>> approvalLevelsMap = {};
+
+    // Add creator (User level) as the first level
+    approvalLevelsMap[1] = {
+      'level': 1,
+      'title': 'User',
+      'name': _creatorName ?? widget.approval.creator,
+      'status': 'completed'
+    };
+
+    // Add levels based on actual discount data with sequential logic
+    bool previousLevelApproved = true; // User level is always approved
+
+    for (final discount in sortedDiscounts) {
+      final approverLevelId = discount['approver_level_id'];
+      final approved = discount['approved'];
+      final approverName = discount['approver_name'];
+      final approverId = discount['approver'];
+
+      if (approverLevelId != null) {
+        String title = '';
+        switch (approverLevelId) {
+          case 1:
+            title = 'User';
+            break;
+          case 2:
+            title = 'Direct';
+            break;
+          case 3:
+            title = 'Indirect';
+            break;
+          case 4:
+            title = 'Analyst';
+            break;
+          case 5:
+            title = 'Controller';
+            break;
+          default:
+            title = 'Level $approverLevelId';
+        }
+
+        String status = 'pending';
+        if (approved == true) {
+          status = 'completed';
+          previousLevelApproved = true;
+        } else if (approved == false) {
+          status = 'rejected';
+          previousLevelApproved = false;
+        } else if (approverId != null) {
+          if (previousLevelApproved) {
+            status = 'pending';
+          } else {
+            status = 'blocked';
+          }
+        }
+
+        approvalLevelsMap[approverLevelId] = {
+          'level': approverLevelId,
+          'title': title,
+          'name': approverName ?? 'Pending',
+          'status': status
+        };
+      }
+    }
+
+    // Convert map to sorted list
+    final approvalLevels = approvalLevelsMap.values.toList()
+      ..sort((a, b) => (a['level'] as int).compareTo(b['level'] as int));
+
+    // Ensure User level is always completed
+    if (approvalLevels.isNotEmpty) {
+      approvalLevels[0]['status'] = 'completed';
+    }
+
+    return SizedBox(
+      height: 45,
+      child: Row(
+        children: approvalLevels.asMap().entries.map((entry) {
+          final index = entry.key;
+          final level = entry.value;
+          final isLast = index == approvalLevels.length - 1;
+
+          Color dotColor;
+          Color lineColor;
+          IconData iconData;
+
+          switch (level['status']) {
+            case 'completed':
+              dotColor = AppColors.success;
+              lineColor = AppColors.success;
+              iconData = Icons.check_circle;
+              break;
+            case 'rejected':
+              dotColor = AppColors.error;
+              lineColor = AppColors.error;
+              iconData = Icons.cancel;
+              break;
+            case 'blocked':
+              dotColor = theme.colorScheme.onSurfaceVariant;
+              lineColor = theme.colorScheme.onSurfaceVariant;
+              iconData = Icons.lock;
+              break;
+            case 'pending':
+            default:
+              dotColor = AppColors.warning;
+              lineColor = AppColors.warning;
+              iconData = Icons.schedule;
+              break;
+          }
+
+          return Expanded(
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        iconData,
+                        size: 16,
+                        color: dotColor,
+                      ),
+                      const SizedBox(height: 2),
+                      Flexible(
+                        child: Text(
+                          level['title'],
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: dotColor,
+                          ),
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (!isLast)
+                  Expanded(
+                    child: Container(
+                      height: 2,
+                      color: lineColor,
+                    ),
+                  ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
   Widget _buildApprovalInfoSection(ThemeData theme, ColorScheme colorScheme) {
     final status = _overriddenStatus ?? widget.approval.status;
     return Container(
@@ -947,8 +944,6 @@ class _ApprovalCardState extends State<ApprovalCard>
             ],
           ),
           const SizedBox(height: 8),
-
-          // Status Info
           Row(
             children: [
               Icon(
@@ -968,10 +963,7 @@ class _ApprovalCardState extends State<ApprovalCard>
               ),
             ],
           ),
-
           const SizedBox(height: 8),
-
-          // Leader Info
           if (widget.leaderData?.directLeader != null) ...[
             Row(
               children: [
@@ -1046,45 +1038,65 @@ class _ApprovalCardState extends State<ApprovalCard>
         children: [
           Expanded(
             child: ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => OrderLetterDocumentPage(
-                      orderLetterId: widget.approval.id,
+              onPressed: () async {
+                try {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => OrderLetterDocumentPage(
+                        orderLetterId: widget.approval.id,
+                      ),
                     ),
-                  ),
-                ).then((result) {
-                  if (!mounted) return;
+                  ).then((result) {
+                    if (!mounted) return;
 
-                  bool shouldRefresh = false;
-                  String? updatedStatus;
+                    bool shouldRefresh = false;
+                    String? updatedStatus;
 
-                  if (result is Map) {
-                    shouldRefresh = result['changed'] == true;
-                    final statusResult = result['status'];
-                    if (statusResult is String && statusResult.isNotEmpty) {
-                      updatedStatus = statusResult;
+                    if (result is Map) {
+                      shouldRefresh = result['changed'] == true;
+                      final statusResult = result['status'];
+                      if (statusResult is String && statusResult.isNotEmpty) {
+                        updatedStatus = statusResult;
+                      }
+                    } else if (result == true) {
+                      shouldRefresh = true;
                     }
-                  } else if (result == true) {
-                    shouldRefresh = true;
+
+                    if (!shouldRefresh) return;
+
+                    if (updatedStatus != null &&
+                        updatedStatus != widget.approval.status) {
+                      setState(() {
+                        _overriddenStatus = updatedStatus;
+                      });
+                    }
+
+                    refreshTimelineData();
+
+                    context
+                        .read<ApprovalBloc>()
+                        .add(UpdateSingleApproval(widget.approval.id));
+                  });
+                } catch (e) {
+                  // Show error message if navigation fails
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Gagal membuka dokumen: ${e.toString()}',
+                        ),
+                        backgroundColor: Colors.red,
+                        duration: const Duration(seconds: 3),
+                        action: SnackBarAction(
+                          label: 'Tutup',
+                          textColor: Colors.white,
+                          onPressed: () {},
+                        ),
+                      ),
+                    );
                   }
-
-                  if (!shouldRefresh) return;
-
-                  if (updatedStatus != null &&
-                      updatedStatus != widget.approval.status) {
-                    setState(() {
-                      _overriddenStatus = updatedStatus;
-                    });
-                  }
-
-                  refreshTimelineData();
-
-                  context
-                      .read<ApprovalBloc>()
-                      .add(UpdateSingleApproval(widget.approval.id));
-                });
+                }
               },
               icon: const Icon(Icons.description, size: 16),
               label: const Text('Lihat Dokumen'),

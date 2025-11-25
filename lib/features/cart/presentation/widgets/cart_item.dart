@@ -1732,13 +1732,13 @@ class _CartInfoDialogState extends State<CartInfoDialog> {
           }
           break;
         case 4:
-          if (_leaderData!.analyst1 != null) {
+          if (_leaderData!.analyst != null) {
             levelText = "Diskon Analyst";
           }
           break;
         case 5:
-          if (_leaderData!.analyst2 != null) {
-            levelText = "Diskon Analyst";
+          if (_leaderData!.controller != null) {
+            levelText = "Diskon Controller";
           }
           break;
       }
@@ -1896,6 +1896,3 @@ class _CartInfoDialogState extends State<CartInfoDialog> {
     );
   }
 }
-
-// Bonus Selector Dialog Widget
-// moved to its own file: bonus_selector_dialog.dart

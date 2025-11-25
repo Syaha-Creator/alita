@@ -23,6 +23,8 @@ class ApprovalModel extends ApprovalEntity {
     required super.details,
     required super.discounts,
     required super.approvalHistory,
+    super.takeAway,
+    super.postage,
   });
 
   factory ApprovalModel.fromJson(Map<String, dynamic> json) {
@@ -63,6 +65,12 @@ class ApprovalModel extends ApprovalEntity {
               .map((history) => ApprovalHistoryModel.fromJson(history))
               .toList()
           : [],
+      takeAway: json['take_away'] is bool
+          ? json['take_away'] as bool
+          : (json['take_away'] == 'true' || json['take_away'] == true),
+      postage: json['postage'] != null
+          ? double.tryParse(json['postage'].toString())
+          : null,
     );
   }
 
@@ -252,15 +260,15 @@ class LeaderByUserModel {
   final LeaderModel user;
   final LeaderModel? directLeader;
   final LeaderModel? indirectLeader;
-  final LeaderModel? analyst1;
-  final LeaderModel? analyst2;
+  final LeaderModel? controller;
+  final LeaderModel? analyst;
 
   LeaderByUserModel({
     required this.user,
     this.directLeader,
     this.indirectLeader,
-    this.analyst1,
-    this.analyst2,
+    this.controller,
+    this.analyst,
   });
 
   factory LeaderByUserModel.fromJson(Map<String, dynamic> json) {
@@ -272,11 +280,11 @@ class LeaderByUserModel {
       indirectLeader: json['indirect_leader'] != null
           ? LeaderModel.fromJson(json['indirect_leader'])
           : null,
-      analyst1: json['analyst_1'] != null
-          ? LeaderModel.fromJson(json['analyst_1'])
+      controller: json['controller'] != null
+          ? LeaderModel.fromJson(json['controller'])
           : null,
-      analyst2: json['analyst_2'] != null
-          ? LeaderModel.fromJson(json['analyst_2'])
+      analyst: json['analyst'] != null
+          ? LeaderModel.fromJson(json['analyst'])
           : null,
     );
   }
@@ -286,13 +294,13 @@ class LeaderByUserModel {
       'user': user.toJson(),
       'direct_leader': directLeader?.toJson(),
       'indirect_leader': indirectLeader?.toJson(),
-      'analyst_1': analyst1?.toJson(),
-      'analyst_2': analyst2?.toJson(),
+      'controller': controller?.toJson(),
+      'analyst': analyst?.toJson(),
     };
   }
 
   @override
   String toString() {
-    return 'LeaderByUserModel{user: $user, directLeader: $directLeader, indirectLeader: $indirectLeader, analyst1: $analyst1, analyst2: $analyst2}';
+    return 'LeaderByUserModel{user: $user, directLeader: $directLeader, indirectLeader: $indirectLeader, controller: $controller, analyst: $analyst}';
   }
 }

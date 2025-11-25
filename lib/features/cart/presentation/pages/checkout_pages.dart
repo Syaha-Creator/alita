@@ -152,6 +152,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
   late final TextEditingController _emailController;
   late final TextEditingController _customerAddressController;
   late final TextEditingController _spgCodeController;
+  late final TextEditingController _postageController;
   bool _shippingSameAsCustomer = false;
   bool _showSecondPhone = false;
 
@@ -173,6 +174,14 @@ class _CheckoutPagesState extends State<CheckoutPages>
     _deliveryDateController = registerController();
     _customerAddressController = registerController();
     _spgCodeController = registerController();
+    _postageController = registerController();
+
+    // Add listener to postage controller to auto-update UI
+    _postageController.addListener(() {
+      setState(() {
+        // Trigger rebuild when postage changes
+      });
+    });
 
     // Load from draft if available, otherwise use widget parameters
     if (widget.draftData != null) {
@@ -208,6 +217,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
     _shippingAddressController.text = draft['shippingAddress'] as String? ?? '';
     _notesController.text = draft['notes'] as String? ?? '';
     _deliveryDateController.text = draft['deliveryDate'] as String? ?? '';
+    _postageController.text = draft['postage'] as String? ?? '';
     _shippingSameAsCustomer = draft['shippingSameAsCustomer'] as bool? ?? false;
     _showSecondPhone = draft['showSecondPhone'] as bool? ?? false;
 
@@ -380,6 +390,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
         'shippingAddress': _shippingAddressController.text,
         'notes': _notesController.text,
         'deliveryDate': _deliveryDateController.text,
+        'postage': _postageController.text,
         'shippingSameAsCustomer': _shippingSameAsCustomer,
         'showSecondPhone': _showSecondPhone,
 
@@ -434,8 +445,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
         'totalPaid': _totalPaid,
 
         // Totals
-        'grandTotal': selectedItems.fold(
-            0.0, (sum, item) => sum + (item.netPrice * item.quantity)),
+        'grandTotal': _calculateGrandTotal(selectedItems),
 
         // Settings
         'isTakeAway': widget.isTakeAway,
@@ -538,6 +548,13 @@ class _CheckoutPagesState extends State<CheckoutPages>
 
       // Create Order Letter with Item Mapping (without phone - will be uploaded separately)
       final enhancedCheckoutService = locator<EnhancedCheckoutService>();
+
+      // Parse postage from currency format
+      double? postage;
+      if (_postageController.text.isNotEmpty) {
+        postage = FormatHelper.parseCurrencyToDouble(_postageController.text);
+      }
+
       final orderLetterResult =
           await enhancedCheckoutService.checkoutWithItemMapping(
         cartItems: selectedItems,
@@ -551,6 +568,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
         requestDate: _deliveryDateController.text,
         note: _notesController.text,
         isTakeAway: widget.isTakeAway,
+        postage: postage,
       );
 
       if (orderLetterResult['success'] != true) {
@@ -695,8 +713,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
           builder: (context, state) {
             if (state is CartLoaded) {
               final selectedItems = state.selectedItems;
-              final grandTotal = selectedItems.fold(
-                  0.0, (sum, item) => sum + (item.netPrice * item.quantity));
+              final grandTotal = _calculateGrandTotal(selectedItems);
 
               return SingleChildScrollView(
                 child: Column(
@@ -725,17 +742,18 @@ class _CheckoutPagesState extends State<CheckoutPages>
                       ),
                     ),
 
-                    // Shipping Info Section
-                    _buildShippingInfoSection(isDark),
-
-                    SizedBox(
-                      height: ResponsiveHelper.getResponsiveSpacing(
-                        context,
-                        mobile: 16,
-                        tablet: 20,
-                        desktop: 24,
+                    // Shipping Info Section (only show if not take away)
+                    if (!widget.isTakeAway) ...[
+                      _buildShippingInfoSection(isDark),
+                      SizedBox(
+                        height: ResponsiveHelper.getResponsiveSpacing(
+                          context,
+                          mobile: 16,
+                          tablet: 20,
+                          desktop: 24,
+                        ),
                       ),
-                    ),
+                    ],
 
                     // Order Summary Section
                     _buildOrderSummarySection(
@@ -1000,8 +1018,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
           builder: (context, state) {
             if (state is CartLoaded) {
               final selectedItems = state.selectedItems;
-              final grandTotal = selectedItems.fold(
-                  0.0, (sum, item) => sum + (item.netPrice * item.quantity));
+              final grandTotal = _calculateGrandTotal(selectedItems);
               return _buildBottomButton(selectedItems, grandTotal, isDark);
             }
             return const SizedBox.shrink();
@@ -1009,6 +1026,20 @@ class _CheckoutPagesState extends State<CheckoutPages>
         ),
       ),
     );
+  }
+
+  /// Calculate grand total including postage
+  double _calculateGrandTotal(List<CartEntity> selectedItems) {
+    final itemsTotal = selectedItems.fold(
+        0.0, (sum, item) => sum + (item.netPrice * item.quantity));
+
+    // Parse postage from currency format
+    double postage = 0.0;
+    if (_postageController.text.isNotEmpty) {
+      postage = FormatHelper.parseCurrencyToDouble(_postageController.text);
+    }
+
+    return itemsTotal + postage;
   }
 
   Widget _buildHeaderSummary(
@@ -1275,17 +1306,17 @@ class _CheckoutPagesState extends State<CheckoutPages>
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                _buildModernTextField(
-                  controller: _customerReceiverController,
-                  label: 'Nama Penerima',
-                  icon: Icons.person_pin,
-                  validator: (val) => val == null || val.isEmpty
-                      ? 'Nama penerima wajib diisi'
-                      : null,
-                  isDark: isDark,
-                ),
-                const SizedBox(height: 16),
                 if (!widget.isTakeAway) ...[
+                  _buildModernTextField(
+                    controller: _customerReceiverController,
+                    label: 'Nama Penerima',
+                    icon: Icons.person_pin,
+                    validator: (val) => val == null || val.isEmpty
+                        ? 'Nama penerima wajib diisi'
+                        : null,
+                    isDark: isDark,
+                  ),
+                  const SizedBox(height: 16),
                   CheckboxListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text(
@@ -1349,6 +1380,15 @@ class _CheckoutPagesState extends State<CheckoutPages>
                     },
                     isDark: isDark,
                   ),
+                ),
+                const SizedBox(height: 16),
+                _buildModernTextField(
+                  controller: _postageController,
+                  label: 'Ongkir',
+                  icon: Icons.local_shipping,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [CurrencyInputFormatter()],
+                  isDark: isDark,
                 ),
                 const SizedBox(height: 16),
                 _buildModernTextField(
@@ -1730,6 +1770,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
     int maxLines = 1,
     bool enabled = true,
     String? Function(String?)? validator,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return TextFormField(
       controller: controller,
@@ -1737,6 +1778,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
       maxLines: maxLines,
       enabled: enabled,
       validator: validator,
+      inputFormatters: inputFormatters,
       textInputAction:
           maxLines > 1 ? TextInputAction.newline : TextInputAction.next,
       onFieldSubmitted: (_) {
@@ -2375,9 +2417,14 @@ class _CheckoutPagesState extends State<CheckoutPages>
   Widget _buildPaymentSummary(double grandTotal, bool isDark) {
     _totalPaid =
         _paymentMethods.fold(0.0, (sum, payment) => sum + payment.amount);
-    final remaining = grandTotal - _totalPaid;
-    final isFullyPaid = _totalPaid >= grandTotal;
-    final isOverPaid = _totalPaid > grandTotal;
+
+    // Use epsilon for floating point comparison to handle precision issues
+    const double epsilon = 0.01; // 1 cent tolerance
+    final roundedTotalPaid = double.parse(_totalPaid.toStringAsFixed(2));
+    final roundedGrandTotal = double.parse(grandTotal.toStringAsFixed(2));
+    final remaining = roundedGrandTotal - roundedTotalPaid;
+    final isFullyPaid = roundedTotalPaid >= (roundedGrandTotal - epsilon);
+    final isOverPaid = roundedTotalPaid > roundedGrandTotal;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -2569,7 +2616,13 @@ class _CheckoutPagesState extends State<CheckoutPages>
 
     _totalPaid =
         _paymentMethods.fold(0.0, (sum, payment) => sum + payment.amount);
-    return _totalPaid >= grandTotal;
+
+    // Use epsilon for floating point comparison to handle precision issues
+    const double epsilon = 0.01; // 1 cent tolerance
+    final roundedTotalPaid = double.parse(_totalPaid.toStringAsFixed(2));
+    final roundedGrandTotal = double.parse(grandTotal.toStringAsFixed(2));
+
+    return roundedTotalPaid >= (roundedGrandTotal - epsilon);
   }
 
   String _getPaymentStatusText(double grandTotal) {
@@ -2579,9 +2632,14 @@ class _CheckoutPagesState extends State<CheckoutPages>
 
     _totalPaid =
         _paymentMethods.fold(0.0, (sum, payment) => sum + payment.amount);
-    final remaining = grandTotal - _totalPaid;
 
-    if (_totalPaid >= grandTotal) {
+    // Use epsilon for floating point comparison to handle precision issues
+    const double epsilon = 0.01; // 1 cent tolerance
+    final roundedTotalPaid = double.parse(_totalPaid.toStringAsFixed(2));
+    final roundedGrandTotal = double.parse(grandTotal.toStringAsFixed(2));
+    final remaining = roundedGrandTotal - roundedTotalPaid;
+
+    if (roundedTotalPaid >= (roundedGrandTotal - epsilon)) {
       return 'Pembayaran lengkap';
     } else {
       return 'Sisa: ${FormatHelper.formatCurrency(remaining)}';

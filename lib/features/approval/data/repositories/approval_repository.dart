@@ -1,9 +1,7 @@
-import 'package:flutter/foundation.dart';
-
 import '../../../../config/dependency_injection.dart';
 import '../../../../services/order_letter_service.dart';
 import '../../../../services/auth_service.dart';
-import '../../../../services/team_hierarchy_service.dart';
+import '../../../../services/leader_service.dart';
 import '../../../../services/location_service.dart';
 import '../models/approval_model.dart';
 import '../../domain/entities/approval_entity.dart';
@@ -12,7 +10,13 @@ import '../cache/approval_cache.dart';
 class ApprovalRepository {
   final OrderLetterService _orderLetterService = locator<OrderLetterService>();
 
-  /// Get all order letters (approvals) filtered by current user's hierarchy (optimized version with caching)
+  /// Get all order letters (approvals) filtered by current user's role
+  /// The backend API automatically filters based on user role:
+  /// - order_letters_by_direct_leader (supervisor with subordinates)
+  /// - order_letters_by_indirect_leader (Regional Manager/Manager)
+  /// - order_letters_by_analyst (Analyst)
+  /// - order_letters_by_controller (Controller)
+  /// - order_letters (Staff - default)
   Future<List<ApprovalEntity>> getApprovals(
       {String? creator, bool forceRefresh = false}) async {
     try {
@@ -31,131 +35,94 @@ class ApprovalRepository {
         }
       }
 
-      List<ApprovalEntity> approvals = [];
+      // Get order letters with new format (includes details, discounts, etc.)
+      final response = await _orderLetterService.getOrderLetters();
 
-      // Try to get order letters with complete data first (optimized approach)
-      try {
-        final orderLettersWithData =
-            await _orderLetterService.getOrderLettersWithCompleteData(
-          includeDetails: true,
-          includeDiscounts: true,
-          includeApprovals: true,
-        );
-
-        if (orderLettersWithData.isNotEmpty) {
-          approvals = await _processOrderLettersWithCompleteData(
-            orderLettersWithData,
-            currentUserId,
-            currentUserName,
-          );
-        }
-      } catch (e) {
-        // Silently fall back to individual API calls
-      }
-
-      // Fallback to original approach if optimized method fails
-      if (approvals.isEmpty) {
-        approvals = await _getApprovalsOriginalMethod(
-            currentUserId, currentUserName, creator);
-      }
-
-      // Cache the results
-      ApprovalCache.cacheApprovals(currentUserId, approvals);
-
-      return approvals;
-    } catch (e) {
-      // Return cached data if available, even if expired
-      final currentUserId = await AuthService.getCurrentUserId();
-      if (currentUserId == null) return [];
-      return ApprovalCache.getCachedApprovals(currentUserId) ?? [];
-    }
-  }
-
-  /// Original method for getting approvals (fallback)
-  Future<List<ApprovalEntity>> _getApprovalsOriginalMethod(
-    int currentUserId,
-    String currentUserName,
-    String? creator,
-  ) async {
-    try {
-      // Get all order letters (without creator filter to see all orders where current user is approver)
-      final allOrderLetters = await _orderLetterService.getOrderLetters();
-
-      final filteredOrderLetters = await _filterOrderLettersByCreatorOrApprover(
-          allOrderLetters, currentUserId, currentUserName);
-
+      // Process new response format: { status: "success", result: [...] }
+      // Each result item has: order_letter, order_letter_details, order_letter_contacts, etc.
+      // Convert filtered order letters to ApprovalEntity with complete data
       final List<ApprovalEntity> approvals = [];
 
-      // Process order letters in parallel for better performance
-      final approvalFutures = filteredOrderLetters.map((orderLetter) async {
-        final orderLetterId = orderLetter['id'];
+      for (final item in response) {
+        // Check if this is the new format with nested structure
+        if (item.containsKey('order_letter')) {
+          // New format: extract order_letter and related data
+          final orderLetter = item['order_letter'] as Map<String, dynamic>;
 
-        // Make parallel API calls for details, discounts, and approvals
-        final futures = [
-          _orderLetterService.getOrderLetterDetails(
-              orderLetterId: orderLetterId),
-          _orderLetterService.getOrderLetterDiscounts(
-              orderLetterId: orderLetterId),
-          _orderLetterService.getOrderLetterApproves(
-              orderLetterId: orderLetterId),
-        ];
+          // Filter order letters by creator or approver (with full item data for approver check)
+          final shouldInclude = await _shouldIncludeOrderLetter(
+              orderLetter, item, currentUserId, currentUserName);
+          if (!shouldInclude) continue;
 
-        // Wait for all API calls in parallel
-        final results = await Future.wait(futures);
-        final allDetails = results[0];
-        final allDiscounts = results[1];
-        final allApprovalHistory = results[2];
+          final orderLetterDetails =
+              item['order_letter_details'] as List<dynamic>? ?? [];
 
-        // Filter details that belong to this specific order letter
-        final details = allDetails
-            .where((detail) => detail['order_letter_id'] == orderLetterId)
-            .toList();
+          // Extract discounts from order_letter_details (nested in each detail)
+          final List<Map<String, dynamic>> allDiscounts = [];
+          final List<Map<String, dynamic>> allDetails = [];
 
-        // Extract discount IDs from order_letter_discount in details
-        final List<Map<String, dynamic>> extractedDiscounts = [];
-        for (final detail in details) {
-          if (detail['order_letter_discount'] != null) {
-            final orderLetterDiscounts =
-                detail['order_letter_discount'] as List;
-            for (final discount in orderLetterDiscounts) {
-              extractedDiscounts.add({
-                'id': discount['order_letter_discount_id'],
-                'order_letter_id': orderLetterId,
-                'order_letter_detail_id': detail['order_letter_detail_id'],
-                'discount': discount['discount'],
-              });
+          for (final detailData in orderLetterDetails) {
+            if (detailData is Map<String, dynamic>) {
+              // Extract detail
+              final detail = Map<String, dynamic>.from(detailData);
+              final orderLetterDiscounts =
+                  detail['order_letter_discount'] as List<dynamic>? ?? [];
+
+              // Remove nested discount from detail
+              final detailWithoutDiscount = Map<String, dynamic>.from(detail);
+              detailWithoutDiscount.remove('order_letter_discount');
+              allDetails.add(detailWithoutDiscount);
+
+              // Extract discounts from this detail
+              for (final discountData in orderLetterDiscounts) {
+                if (discountData is Map<String, dynamic>) {
+                  final discount = Map<String, dynamic>.from(discountData);
+                  discount['order_letter_detail_id'] =
+                      detail['order_letter_detail_id'] ?? detail['id'];
+                  allDiscounts.add(discount);
+                }
+              }
             }
           }
+
+          // Extract approval history from discounts
+          final List<Map<String, dynamic>> allApprovalHistory = [];
+          for (final discount in allDiscounts) {
+            final orderLetterApproves =
+                discount['order_letter_approves'] as List<dynamic>? ?? [];
+            for (final approveData in orderLetterApproves) {
+              if (approveData is Map<String, dynamic>) {
+                final approval = Map<String, dynamic>.from(approveData);
+                approval['order_letter_id'] = orderLetter['id'];
+                approval['order_letter_discount_id'] =
+                    discount['order_letter_discount_id'] ?? discount['id'];
+                allApprovalHistory.add(approval);
+              }
+            }
+          }
+
+          // Convert to ApprovalEntity with complete data
+          final approval = ApprovalModel.fromJson({
+            ...orderLetter,
+            'details': allDetails,
+            'discounts': allDiscounts,
+            'approval_history': allApprovalHistory,
+          });
+
+          approvals.add(approval);
+        } else {
+          // Old format: direct order letter object
+          // Filter order letters by creator or approver
+          final shouldInclude = await _shouldIncludeOrderLetter(
+              item, item, currentUserId, currentUserName);
+          if (!shouldInclude) continue;
+
+          final approval = _convertOrderLetterToApprovalEntity(item);
+          approvals.add(approval);
         }
+      }
 
-        // Filter discounts that belong to this specific order letter
-        final apiDiscounts = allDiscounts
-            .where((discount) => discount['order_letter_id'] == orderLetterId)
-            .toList();
-
-        // Combine extracted discounts with API discounts
-        final discounts = [...extractedDiscounts, ...apiDiscounts];
-
-        // Filter approval history that belongs to this specific order letter
-        final approvalHistory = allApprovalHistory
-            .where((history) => history['order_letter_id'] == orderLetterId)
-            .toList();
-
-        // Create approval model
-        final approval = ApprovalModel.fromJson({
-          ...orderLetter,
-          'details': details,
-          'discounts': discounts,
-          'approval_history': approvalHistory,
-        });
-
-        return approval;
-      }).toList();
-
-      // Wait for all order letters to be processed
-      approvals.addAll(await Future.wait(approvalFutures));
-
-      // Sort approvals by creation time (newest first) with improved date parsing
+      // Sort approvals by creation time (newest first)
       approvals.sort((a, b) {
         // Primary: Use createdAt (actual creation time) for most accurate sorting
         DateTime? dateA = _parseDate(a.createdAt);
@@ -186,10 +153,148 @@ class ApprovalRepository {
         return b.id.compareTo(a.id);
       });
 
+      // Only cache if we have approvals (don't overwrite cache with empty list)
+      if (approvals.isNotEmpty) {
+        ApprovalCache.cacheApprovals(currentUserId, approvals);
+      }
+
+      // If we got empty list but have cached data, return cached data instead
+      if (approvals.isEmpty) {
+        final cachedApprovals = ApprovalCache.getCachedApprovals(currentUserId);
+        if (cachedApprovals != null && cachedApprovals.isNotEmpty) {
+          return cachedApprovals;
+        }
+      }
+
       return approvals;
     } catch (e) {
+      // Return cached data if available, even if expired (don't return empty list)
+      final currentUserId = await AuthService.getCurrentUserId();
+      if (currentUserId == null) return [];
+      final cachedApprovals = ApprovalCache.getCachedApprovals(currentUserId);
+      if (cachedApprovals != null && cachedApprovals.isNotEmpty) {
+        return cachedApprovals;
+      }
+      // Only return empty list if there's really no cached data
       return [];
     }
+  }
+
+  /// Convert order letter Map to ApprovalEntity (simplified version - for backward compatibility)
+  ApprovalEntity _convertOrderLetterToApprovalEntity(
+      Map<String, dynamic> orderLetter) {
+    final id = orderLetter['id'] as int? ?? 0;
+    final noSp = orderLetter['no_sp']?.toString() ?? '';
+    final orderDate = orderLetter['order_date']?.toString() ?? '';
+    final requestDate = orderLetter['request_date']?.toString() ?? '';
+    final creator = orderLetter['creator']?.toString() ?? '';
+    final customerName = orderLetter['customer_name']?.toString() ?? '';
+    final phone = orderLetter['phone']?.toString() ?? '';
+    final email = orderLetter['email']?.toString() ?? '';
+    final address = orderLetter['address']?.toString() ?? '';
+    final shipToName = orderLetter['ship_to_name']?.toString();
+    final addressShipTo = orderLetter['address_ship_to']?.toString();
+
+    // Parse extended_amount (can be String or double)
+    double extendedAmount = 0.0;
+    final extendedAmountValue = orderLetter['extended_amount'];
+    if (extendedAmountValue != null) {
+      if (extendedAmountValue is double) {
+        extendedAmount = extendedAmountValue;
+      } else if (extendedAmountValue is String) {
+        extendedAmount = double.tryParse(extendedAmountValue) ?? 0.0;
+      } else if (extendedAmountValue is int) {
+        extendedAmount = extendedAmountValue.toDouble();
+      }
+    }
+
+    // Parse harga_awal
+    int hargaAwal = 0;
+    final hargaAwalValue = orderLetter['harga_awal'];
+    if (hargaAwalValue != null) {
+      if (hargaAwalValue is int) {
+        hargaAwal = hargaAwalValue;
+      } else if (hargaAwalValue is String) {
+        hargaAwal = int.tryParse(hargaAwalValue) ?? 0;
+      } else if (hargaAwalValue is double) {
+        hargaAwal = hargaAwalValue.toInt();
+      }
+    }
+
+    // Parse discount (can be String or double)
+    double? discount;
+    final discountValue = orderLetter['discount'];
+    if (discountValue != null) {
+      if (discountValue is double) {
+        discount = discountValue;
+      } else if (discountValue is String) {
+        discount = double.tryParse(discountValue);
+      } else if (discountValue is int) {
+        discount = discountValue.toDouble();
+      }
+    }
+
+    final note = orderLetter['note']?.toString() ?? '';
+    final status = orderLetter['status']?.toString() ?? 'Pending';
+    final spgCode = orderLetter['sales_code']?.toString();
+    final keterangan = orderLetter['keterangan']?.toString();
+    final createdAt = orderLetter['created_at']?.toString();
+
+    // Parse take_away (can be bool, String, or null)
+    bool? takeAway;
+    final takeAwayValue = orderLetter['take_away'];
+    if (takeAwayValue != null) {
+      if (takeAwayValue is bool) {
+        takeAway = takeAwayValue;
+      } else if (takeAwayValue is String) {
+        final lowerValue = takeAwayValue.toLowerCase();
+        takeAway = lowerValue == 'true' ||
+            lowerValue == 'take away' ||
+            lowerValue == '1';
+      } else if (takeAwayValue is int) {
+        takeAway = takeAwayValue == 1;
+      }
+    }
+
+    // Parse postage (can be String or double)
+    double? postage;
+    final postageValue = orderLetter['postage'];
+    if (postageValue != null) {
+      if (postageValue is double) {
+        postage = postageValue;
+      } else if (postageValue is String) {
+        postage = double.tryParse(postageValue);
+      } else if (postageValue is int) {
+        postage = postageValue.toDouble();
+      }
+    }
+
+    return ApprovalEntity(
+      id: id,
+      noSp: noSp,
+      orderDate: orderDate,
+      requestDate: requestDate,
+      creator: creator,
+      customerName: customerName,
+      phone: phone,
+      email: email,
+      address: address,
+      shipToName: shipToName,
+      addressShipTo: addressShipTo,
+      extendedAmount: extendedAmount,
+      hargaAwal: hargaAwal,
+      discount: discount,
+      note: note,
+      status: status,
+      spgCode: spgCode,
+      keterangan: keterangan,
+      createdAt: createdAt,
+      details: [], // Empty - not fetched
+      discounts: [], // Empty - not fetched
+      approvalHistory: [], // Empty - not fetched
+      takeAway: takeAway,
+      postage: postage,
+    );
   }
 
   /// Parse date string with multiple format support including ISO datetime with timezone
@@ -363,6 +468,22 @@ class ApprovalRepository {
         return;
       }
 
+      // Get current cached approvals first - NEVER clear cache if it exists
+      final cachedApprovals = ApprovalCache.getCachedApprovals(currentUserId);
+      if (cachedApprovals == null || cachedApprovals.isEmpty) {
+        // If cache is empty, do a full refresh
+        try {
+          final newApprovals = await getApprovals(forceRefresh: true);
+          if (newApprovals.isNotEmpty) {
+            ApprovalCache.cacheApprovals(currentUserId, newApprovals);
+          }
+        } catch (e) {
+          // If error, keep existing cache (don't clear)
+        }
+        ApprovalCache.markBackgroundSyncCompleted(currentUserId);
+        return;
+      }
+
       // Refresh data in background without clearing cache immediately
       final currentUserName = await AuthService.getCurrentUserName();
 
@@ -370,35 +491,26 @@ class ApprovalRepository {
         return;
       }
 
+      // Use getApprovals which handles new format correctly
       List<ApprovalEntity> newApprovals = [];
-
-      // Try optimized approach first
       try {
-        final orderLettersWithData =
-            await _orderLetterService.getOrderLettersWithCompleteData(
-          includeDetails: true,
-          includeDiscounts: true,
-          includeApprovals: true,
-        );
-
-        if (orderLettersWithData.isNotEmpty) {
-          newApprovals = await _processOrderLettersWithCompleteData(
-            orderLettersWithData,
-            currentUserId,
-            currentUserName,
-          );
-        }
+        newApprovals = await getApprovals(forceRefresh: true);
       } catch (e) {
-        // Fallback to original method
-        newApprovals = await _getApprovalsOriginalMethod(
-            currentUserId, currentUserName, null);
+        // If error, don't update cache - keep existing cache
+        ApprovalCache.markBackgroundSyncCompleted(currentUserId);
+        return;
       }
 
-      // Smart update: only update cache if data actually changed
-      final currentCache = ApprovalCache.getCachedApprovals(currentUserId);
-      if (currentCache == null || _hasDataChanged(currentCache, newApprovals)) {
-        ApprovalCache.cacheApprovals(currentUserId, newApprovals);
+      // Smart update: only update cache if we have data and data actually changed
+      // NEVER update cache with empty list - always preserve existing cache
+      if (newApprovals.isNotEmpty) {
+        final currentCache = ApprovalCache.getCachedApprovals(currentUserId);
+        if (currentCache == null ||
+            _hasDataChanged(currentCache, newApprovals)) {
+          ApprovalCache.cacheApprovals(currentUserId, newApprovals);
+        }
       }
+      // If newApprovals is empty, don't update cache (keep existing cache)
 
       ApprovalCache.markBackgroundSyncCompleted(currentUserId);
     } catch (e) {
@@ -440,21 +552,84 @@ class ApprovalRepository {
       }
 
       // Get updated data for this specific order letter
-      final orderLetters = await _orderLetterService.getOrderLetters();
-      final orderLetter = orderLetters.firstWhere(
-        (ol) => ol['id'] == orderLetterId,
-        orElse: () => {},
-      );
+      final response = await _orderLetterService.getOrderLetters();
 
-      if (orderLetter.isEmpty) return null;
+      // Find the order letter in response (handle new format)
+      Map<String, dynamic>? orderLetter;
+      Map<String, dynamic>? fullItem;
 
-      // Get updated details, discounts, and approvals for this order letter
-      final details = await _orderLetterService.getOrderLetterDetails(
-          orderLetterId: orderLetterId);
-      final discounts = await _orderLetterService.getOrderLetterDiscounts(
-          orderLetterId: orderLetterId);
-      final approvalHistory = await _orderLetterService.getOrderLetterApproves(
-          orderLetterId: orderLetterId);
+      for (final item in response) {
+        if (item.containsKey('order_letter')) {
+          final ol = item['order_letter'] as Map<String, dynamic>;
+          if ((ol['id'] as int?) == orderLetterId) {
+            orderLetter = ol;
+            fullItem = item;
+            break;
+          }
+        } else {
+          if ((item['id'] as int?) == orderLetterId) {
+            orderLetter = item;
+            break;
+          }
+        }
+      }
+
+      if (orderLetter == null || orderLetter.isEmpty) return null;
+
+      // If we have full item with details (new format), use it
+      List<Map<String, dynamic>> details = [];
+      List<Map<String, dynamic>> discounts = [];
+      List<Map<String, dynamic>> approvalHistory = [];
+
+      if (fullItem != null) {
+        // Extract from new format
+        final orderLetterDetails =
+            fullItem['order_letter_details'] as List<dynamic>? ?? [];
+
+        for (final detailData in orderLetterDetails) {
+          if (detailData is Map<String, dynamic>) {
+            final detail = Map<String, dynamic>.from(detailData);
+            final orderLetterDiscounts =
+                detail['order_letter_discount'] as List<dynamic>? ?? [];
+
+            // Remove nested discount from detail
+            final detailWithoutDiscount = Map<String, dynamic>.from(detail);
+            detailWithoutDiscount.remove('order_letter_discount');
+            details.add(detailWithoutDiscount);
+
+            // Extract discounts from this detail
+            for (final discountData in orderLetterDiscounts) {
+              if (discountData is Map<String, dynamic>) {
+                final discount = Map<String, dynamic>.from(discountData);
+                discount['order_letter_detail_id'] =
+                    detail['order_letter_detail_id'] ?? detail['id'];
+                discounts.add(discount);
+
+                // Extract approval history from discounts
+                final orderLetterApproves =
+                    discount['order_letter_approves'] as List<dynamic>? ?? [];
+                for (final approveData in orderLetterApproves) {
+                  if (approveData is Map<String, dynamic>) {
+                    final approval = Map<String, dynamic>.from(approveData);
+                    approval['order_letter_id'] = orderLetterId;
+                    approval['order_letter_discount_id'] =
+                        discount['order_letter_discount_id'] ?? discount['id'];
+                    approvalHistory.add(approval);
+                  }
+                }
+              }
+            }
+          }
+        }
+      } else {
+        // Old format: fetch separately
+        details = await _orderLetterService.getOrderLetterDetails(
+            orderLetterId: orderLetterId);
+        discounts = await _orderLetterService.getOrderLetterDiscounts(
+            orderLetterId: orderLetterId);
+        approvalHistory = await _orderLetterService.getOrderLetterApproves(
+            orderLetterId: orderLetterId);
+      }
 
       // Create updated approval model
       final updatedApproval = ApprovalModel.fromJson({
@@ -521,28 +696,15 @@ class ApprovalRepository {
       // Set loading state
       ApprovalCache.setLoadingNewData(currentUserId, true);
 
-      // Get fresh data from server
       List<ApprovalEntity> freshApprovals = [];
-
       try {
-        final orderLettersWithData =
-            await _orderLetterService.getOrderLettersWithCompleteData(
-          includeDetails: true,
-          includeDiscounts: true,
-          includeApprovals: true,
-        );
-
-        if (orderLettersWithData.isNotEmpty) {
-          freshApprovals = await _processOrderLettersWithCompleteData(
-            orderLettersWithData,
-            currentUserId,
-            currentUserName,
-          );
-        }
+        freshApprovals = await getApprovals(forceRefresh: true);
       } catch (e) {
-        // Fallback to original method
-        freshApprovals = await _getApprovalsOriginalMethod(
-            currentUserId, currentUserName, null);
+        // If error, return cached data instead of empty list
+        final cachedApprovals =
+            ApprovalCache.getCachedApprovals(currentUserId) ?? [];
+        ApprovalCache.setLoadingNewData(currentUserId, false);
+        return cachedApprovals;
       }
 
       // Find new approvals that are not in cache
@@ -574,6 +736,11 @@ class ApprovalRepository {
       final currentUserId = await AuthService.getCurrentUserId();
       final currentUserName = await AuthService.getCurrentUserName();
       if (currentUserId == null || currentUserName == null) {
+        // Return cached data if available (but currentUserId might be null)
+        if (currentUserId != null) {
+          final cached = ApprovalCache.getCachedApprovals(currentUserId);
+          return cached ?? [];
+        }
         return [];
       }
 
@@ -581,26 +748,47 @@ class ApprovalRepository {
       final cachedApprovals = ApprovalCache.getCachedApprovals(currentUserId);
       if (cachedApprovals == null || cachedApprovals.isEmpty) {
         // If cache is empty, do a full refresh instead
-        return await getApprovals(forceRefresh: true);
+        try {
+          return await getApprovals(forceRefresh: true);
+        } catch (e) {
+          // If error, return empty list (don't return cached because it's already empty)
+          return [];
+        }
       }
 
-      // Get order letters with minimal data (just status)
-      final orderLetters = await _orderLetterService.getOrderLetters();
+      // Get order letters with new format (includes details, discounts, etc.)
+      final response = await _orderLetterService.getOrderLetters();
 
-      // Filter order letters for current user
-      final filteredOrderLetters = await _filterOrderLettersByCreatorOrApprover(
-          orderLetters, currentUserId, currentUserName);
-
-      // Create a map of order letter ID to status and full data
+      // Create a map of order letter ID to status (only for filtered order letters)
       final statusMap = <int, String>{};
       final orderLetterMap = <int, Map<String, dynamic>>{};
 
-      for (final orderLetter in filteredOrderLetters) {
-        final id = orderLetter['id'] as int?;
-        final status = orderLetter['status'] as String?;
-        if (id != null && status != null) {
-          statusMap[id] = status;
-          orderLetterMap[id] = orderLetter;
+      // Process response with proper filtering using full item data
+      for (final item in response) {
+        Map<String, dynamic> orderLetter;
+        Map<String, dynamic> fullItem;
+
+        if (item.containsKey('order_letter')) {
+          // New format: extract order_letter
+          orderLetter = item['order_letter'] as Map<String, dynamic>;
+          fullItem = item;
+        } else {
+          // Old format: direct order letter object
+          orderLetter = item;
+          fullItem = item;
+        }
+
+        // Check if this order letter should be included for current user
+        final shouldInclude = await _shouldIncludeOrderLetter(
+            orderLetter, fullItem, currentUserId, currentUserName);
+
+        if (shouldInclude) {
+          final id = orderLetter['id'] as int?;
+          final status = orderLetter['status'] as String?;
+          if (id != null && status != null) {
+            statusMap[id] = status;
+            orderLetterMap[id] = orderLetter;
+          }
         }
       }
 
@@ -609,37 +797,113 @@ class ApprovalRepository {
       final newOrderLetterIds =
           statusMap.keys.where((id) => !cachedIds.contains(id)).toList();
 
-      // Fetch full data for new order letters
+      // Fetch full data for new order letters (only if there are new ones)
       List<ApprovalEntity> newApprovals = [];
-      for (final orderLetterId in newOrderLetterIds) {
-        try {
-          final orderLetter = orderLetterMap[orderLetterId];
-          if (orderLetter == null) continue;
+      if (newOrderLetterIds.isNotEmpty) {
+        // Get full response again to extract complete data for new order letters
+        for (final item in response) {
+          Map<String, dynamic>? orderLetter;
+          Map<String, dynamic>? fullItem;
 
-          // Get details, discounts, and approval history for new order letter
-          final details = await _orderLetterService.getOrderLetterDetails(
-              orderLetterId: orderLetterId);
-          final discounts = await _orderLetterService.getOrderLetterDiscounts(
-              orderLetterId: orderLetterId);
-          final approvalHistory = await _orderLetterService
-              .getOrderLetterApproves(orderLetterId: orderLetterId);
+          if (item.containsKey('order_letter')) {
+            orderLetter = item['order_letter'] as Map<String, dynamic>;
+            fullItem = item;
+          } else {
+            orderLetter = item;
+            fullItem = item;
+          }
 
-          // Create approval model for new order letter
-          final newApproval = ApprovalModel.fromJson({
-            ...orderLetter,
-            'details': details,
-            'discounts': discounts,
-            'approval_history': approvalHistory,
-          });
+          final orderLetterId = orderLetter['id'] as int?;
+          if (orderLetterId == null ||
+              !newOrderLetterIds.contains(orderLetterId)) {
+            continue;
+          }
 
-          newApprovals.add(newApproval);
-        } catch (e) {
-          // Skip this order letter if there's an error
-          continue;
+          // Check if should include (double check)
+          final shouldInclude = await _shouldIncludeOrderLetter(
+              orderLetter, fullItem, currentUserId, currentUserName);
+          if (!shouldInclude) continue;
+
+          try {
+            // Extract data from new format if available
+            if (fullItem.containsKey('order_letter_details')) {
+              final orderLetterDetails =
+                  fullItem['order_letter_details'] as List<dynamic>? ?? [];
+
+              final List<Map<String, dynamic>> allDiscounts = [];
+              final List<Map<String, dynamic>> allDetails = [];
+
+              for (final detailData in orderLetterDetails) {
+                if (detailData is Map<String, dynamic>) {
+                  final detail = Map<String, dynamic>.from(detailData);
+                  final orderLetterDiscounts =
+                      detail['order_letter_discount'] as List<dynamic>? ?? [];
+
+                  final detailWithoutDiscount =
+                      Map<String, dynamic>.from(detail);
+                  detailWithoutDiscount.remove('order_letter_discount');
+                  allDetails.add(detailWithoutDiscount);
+
+                  for (final discountData in orderLetterDiscounts) {
+                    if (discountData is Map<String, dynamic>) {
+                      final discount = Map<String, dynamic>.from(discountData);
+                      discount['order_letter_detail_id'] =
+                          detail['order_letter_detail_id'] ?? detail['id'];
+                      allDiscounts.add(discount);
+                    }
+                  }
+                }
+              }
+
+              final List<Map<String, dynamic>> allApprovalHistory = [];
+              for (final discount in allDiscounts) {
+                final orderLetterApproves =
+                    discount['order_letter_approves'] as List<dynamic>? ?? [];
+                for (final approveData in orderLetterApproves) {
+                  if (approveData is Map<String, dynamic>) {
+                    final approval = Map<String, dynamic>.from(approveData);
+                    approval['order_letter_id'] = orderLetterId;
+                    approval['order_letter_discount_id'] =
+                        discount['order_letter_discount_id'] ?? discount['id'];
+                    allApprovalHistory.add(approval);
+                  }
+                }
+              }
+
+              final newApproval = ApprovalModel.fromJson({
+                ...orderLetter,
+                'details': allDetails,
+                'discounts': allDiscounts,
+                'approval_history': allApprovalHistory,
+              });
+
+              newApprovals.add(newApproval);
+            } else {
+              // Old format: fetch separately
+              final details = await _orderLetterService.getOrderLetterDetails(
+                  orderLetterId: orderLetterId);
+              final discounts = await _orderLetterService
+                  .getOrderLetterDiscounts(orderLetterId: orderLetterId);
+              final approvalHistory = await _orderLetterService
+                  .getOrderLetterApproves(orderLetterId: orderLetterId);
+
+              final newApproval = ApprovalModel.fromJson({
+                ...orderLetter,
+                'details': details,
+                'discounts': discounts,
+                'approval_history': approvalHistory,
+              });
+
+              newApprovals.add(newApproval);
+            }
+          } catch (e) {
+            // Skip this order letter if there's an error
+            continue;
+          }
         }
       }
 
-      // Update cached approvals with new statuses
+      // Update cached approvals with new statuses (preserve all existing approvals)
       final updatedApprovals = cachedApprovals.map((cachedApproval) {
         final newStatus = statusMap[cachedApproval.id];
         if (newStatus != null && newStatus != cachedApproval.status) {
@@ -666,12 +930,16 @@ class ApprovalRepository {
             details: cachedApproval.details,
             discounts: cachedApproval.discounts,
             approvalHistory: cachedApproval.approvalHistory,
+            takeAway: cachedApproval.takeAway,
+            postage: cachedApproval.postage,
           );
         }
         return cachedApproval;
       }).toList();
 
       // Combine new approvals with updated approvals (new ones at the top)
+      // IMPORTANT: Always include all cached approvals, even if they're not in statusMap
+      // This ensures we don't lose data when filtering doesn't match
       final combinedApprovals = [...newApprovals, ...updatedApprovals];
 
       // Sort by creation time to ensure newest first
@@ -687,15 +955,19 @@ class ApprovalRepository {
         return b.id.compareTo(a.id);
       });
 
-      // Update cache with combined data
-      ApprovalCache.cacheApprovals(currentUserId, combinedApprovals);
+      // NEVER update cache with empty list - always preserve existing cache
+      // Only update if we have data
+      if (combinedApprovals.isNotEmpty) {
+        ApprovalCache.cacheApprovals(currentUserId, combinedApprovals);
+      }
 
       return combinedApprovals;
     } catch (e) {
-      // If status update fails, return cached data
+      // If status update fails, return cached data (never return empty list if cache exists)
       final currentUserId = await AuthService.getCurrentUserId();
       if (currentUserId == null) return [];
-      return ApprovalCache.getCachedApprovals(currentUserId) ?? [];
+      final cached = ApprovalCache.getCachedApprovals(currentUserId);
+      return cached ?? [];
     }
   }
 
@@ -706,318 +978,274 @@ class ApprovalRepository {
     ApprovalCache.clearAllCache(currentUserId);
   }
 
-  /// Filter order letters based on team hierarchy (creator + subordinates)
-  Future<List<Map<String, dynamic>>> _filterOrderLettersByCreatorOrApprover(
-    List<Map<String, dynamic>> orderLetters,
+  /// Check if order letter should be included for current user (creator or approver)
+  /// Note: Team hierarchy filtering is now handled by the backend API endpoints
+  /// based on user role (direct_leader, indirect_leader, analyst, controller, staff)
+  Future<bool> _shouldIncludeOrderLetter(
+    Map<String, dynamic> orderLetter,
+    Map<String, dynamic> fullItem,
     int currentUserId,
     String currentUserName,
   ) async {
-    final List<Map<String, dynamic>> filteredLetters = [];
-
-    // Get team hierarchy data
-    final teamHierarchyService = locator<TeamHierarchyService>();
-    final teamData = await teamHierarchyService.getTeamHierarchy();
-
-    if (teamData == null) {
-      // If team hierarchy data is not available, fallback to showing only current user's orders
-      if (kDebugMode) {
-        if (kDebugMode) {
-          print(
-              'ApprovalRepository: Team hierarchy data not available, showing only current user orders');
-        }
-      }
-      return _filterByCurrentUserOnly(orderLetters, currentUserId);
-    }
-
-    // Get all subordinate user IDs (including nested teams)
-    final subordinateUserIds = teamData.getAllSubordinateUserIds();
-
-    if (kDebugMode) {
-      if (kDebugMode) {
-        print('ApprovalRepository: Current user ID: $currentUserId');
-      }
-      if (kDebugMode) {
-        print(
-            'ApprovalRepository: Has subordinates: ${teamData.hasSubordinates()}');
-        if (kDebugMode) {
-          print(
-              'ApprovalRepository: Subordinate user IDs: $subordinateUserIds');
-        }
-      }
-    }
-
-    // Filter orders based on hierarchy
-    for (final orderLetter in orderLetters) {
-      final orderLetterId = orderLetter['id'] as int?;
-      if (orderLetterId == null) continue;
-
-      final creator = orderLetter['creator'];
-      if (creator == null) continue;
-
-      final creatorId = int.tryParse(creator.toString());
-      if (creatorId == null) continue;
-
-      // Check if creator is current user
-      if (creatorId == currentUserId) {
-        filteredLetters.add(orderLetter);
-        continue;
-      }
-
-      // Check if creator is one of the subordinates
-      if (subordinateUserIds.contains(creatorId)) {
-        filteredLetters.add(orderLetter);
-        continue;
-      }
-
-      // Check if current user is assigned as approver (e.g. analyst) for this order letter
-      if (await _isUserApproverForOrderLetter(orderLetter, currentUserId)) {
-        filteredLetters.add(orderLetter);
-        continue;
-      }
-    }
-
-    if (kDebugMode) {
-      if (kDebugMode) {
-        print(
-            'ApprovalRepository: Filtered ${filteredLetters.length} orders out of ${orderLetters.length} total orders');
-      }
-    }
-    return filteredLetters;
-  }
-
-  Future<bool> _isUserApproverForOrderLetter(
-    Map<String, dynamic> orderLetter,
-    int currentUserId,
-  ) async {
     final orderLetterId = orderLetter['id'] as int?;
-    if (orderLetterId == null) {
-      return false;
-    }
+    if (orderLetterId == null) return false;
 
-    bool matchesCurrentUser(dynamic value) {
-      if (value == null) return false;
-      final parsed = int.tryParse(value.toString());
-      return parsed == currentUserId;
-    }
+    final creator = orderLetter['creator'];
+    if (creator == null) return false;
 
-    bool checkDiscountList(dynamic discountsData) {
-      if (discountsData is List) {
-        for (final discount in discountsData) {
-          if (discount is Map<String, dynamic>) {
-            final approver = discount['approver'] ?? discount['leader'];
-            if (matchesCurrentUser(approver)) {
-              return true;
-            }
-          }
-        }
-      }
-      return false;
-    }
+    final creatorId = int.tryParse(creator.toString());
+    if (creatorId == null) return false;
 
-    // Check discounts included directly in the order letter payload
-    if (checkDiscountList(orderLetter['discounts'])) {
+    // Check if creator is current user
+    if (creatorId == currentUserId) {
       return true;
     }
 
-    // Check nested discounts inside details if present
-    final detailsData = orderLetter['details'];
-    if (detailsData is List) {
-      for (final detail in detailsData) {
-        if (detail is Map<String, dynamic>) {
-          if (checkDiscountList(detail['order_letter_discount'])) {
-            return true;
-          }
-        }
-      }
-    }
-
-    // Check approval records if included
-    final approvalsData = orderLetter['approvals'];
-    if (approvalsData is List) {
-      for (final approval in approvalsData) {
-        if (approval is Map<String, dynamic>) {
-          final leader = approval['leader'] ?? approval['approver'];
-          if (matchesCurrentUser(leader)) {
-            return true;
-          }
-        }
-      }
-    }
-
-    // Fallback: fetch discounts from API for this order letter
-    try {
-      final discounts = await _orderLetterService.getOrderLetterDiscounts(
-        orderLetterId: orderLetterId,
-      );
-      for (final discount in discounts) {
-        final approver = discount['approver'] ?? discount['leader'];
-        if (matchesCurrentUser(approver)) {
-          return true;
-        }
-      }
-    } catch (e) {
-      // Ignore errors and treat as no match
+    // Check if current user is assigned as approver for this order letter
+    // Using fullItem to check nested structure: order_letter_details -> order_letter_discount
+    // Note: Team hierarchy/subordinate filtering is now handled by backend API
+    // (order_letters_by_direct_leader, order_letters_by_indirect_leader, etc.)
+    if (await _isUserApproverForOrderLetterWithFullData(
+        orderLetter, fullItem, currentUserId)) {
+      return true;
     }
 
     return false;
   }
 
-  /// Fallback method to filter only current user's orders
-  List<Map<String, dynamic>> _filterByCurrentUserOnly(
-    List<Map<String, dynamic>> orderLetters,
+  /// Check if user is approver for order letter using full item data (nested structure)
+  Future<bool> _isUserApproverForOrderLetterWithFullData(
+    Map<String, dynamic> orderLetter,
+    Map<String, dynamic> fullItem,
     int currentUserId,
-  ) {
-    final List<Map<String, dynamic>> filteredLetters = [];
+  ) async {
+    final currentUserName = await AuthService.getCurrentUserName();
+    if (currentUserName == null) return false;
 
-    for (final orderLetter in orderLetters) {
+    // Normalize current user name for comparison (trim, lowercase, and remove extra spaces)
+    final normalizedCurrentUserName =
+        currentUserName.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+
+    // Get leader data to match user_id by approver_level
+    LeaderByUserModel? leaderData;
+    try {
+      final leaderService = locator<LeaderService>();
+      leaderData = await leaderService.getLeaderByUser();
+    } catch (e) {
+      // Continue without leader data
+    }
+
+    // Check nested structure: order_letter_details -> order_letter_discount -> approver_name
+    final orderLetterDetails =
+        fullItem['order_letter_details'] as List<dynamic>? ?? [];
+
+    // If order_letter_details is empty, try to check if fullItem itself contains discounts
+    // (for old format or different API response structure)
+    if (orderLetterDetails.isEmpty) {
+      // Try to check discounts directly in fullItem (for old format)
+      final discounts =
+          fullItem['order_letter_discounts'] as List<dynamic>? ?? [];
+      if (discounts.isNotEmpty) {
+        for (final discountData in discounts) {
+          if (discountData is Map<String, dynamic>) {
+            if (await _checkIfUserIsApproverWithLeaderData(discountData,
+                normalizedCurrentUserName, currentUserId, leaderData)) {
+              return true;
+            }
+          }
+        }
+      }
+
+      // If still not found and we have order letter ID, try fetching discounts separately
       final orderLetterId = orderLetter['id'] as int?;
-      if (orderLetterId == null) continue;
+      if (orderLetterId != null) {
+        try {
+          final discounts = await getDiscountsForTimeline(orderLetterId);
+          for (final discountData in discounts) {
+            if (await _checkIfUserIsApproverWithLeaderData(discountData,
+                normalizedCurrentUserName, currentUserId, leaderData)) {
+              return true;
+            }
+          }
+        } catch (e) {
+          // If fetching fails, continue with other checks
+        }
+      }
+    } else {
+      // New format: check nested structure
+      for (final detailData in orderLetterDetails) {
+        if (detailData is Map<String, dynamic>) {
+          final orderLetterDiscounts =
+              detailData['order_letter_discount'] as List<dynamic>? ?? [];
 
-      final creator = orderLetter['creator'];
-
-      // Check if creator is current user
-      if (creator != null && creator.toString() == currentUserId.toString()) {
-        filteredLetters.add(orderLetter);
+          for (final discountData in orderLetterDiscounts) {
+            if (discountData is Map<String, dynamic>) {
+              if (await _checkIfUserIsApproverWithLeaderData(discountData,
+                  normalizedCurrentUserName, currentUserId, leaderData)) {
+                return true;
+              }
+            }
+          }
+        }
       }
     }
 
-    return filteredLetters;
+    return false;
   }
 
-  /// Process order letters that already contain complete data (optimized approach)
-  Future<List<ApprovalEntity>> _processOrderLettersWithCompleteData(
-    List<Map<String, dynamic>> orderLettersWithData,
+  /// Check if user is approver with leader data to match user_id by approver_level
+  Future<bool> _checkIfUserIsApproverWithLeaderData(
+    Map<String, dynamic> discountData,
+    String normalizedCurrentUserName,
     int currentUserId,
-    String currentUserName,
+    LeaderByUserModel? leaderData,
   ) async {
-    try {
-      // Filter order letters for current user (creator or approver)
-      final filteredOrderLetters = await _filterOrderLettersByCreatorOrApprover(
-          orderLettersWithData, currentUserId, currentUserName);
-
-      final List<ApprovalEntity> approvals = [];
-
-      for (final orderLetter in filteredOrderLetters) {
-        final orderLetterId = orderLetter['id'];
-
-        // Extract data that should already be included in the response
-        List<Map<String, dynamic>> details = [];
-        List<Map<String, dynamic>> discounts = [];
-        List<Map<String, dynamic>> approvalHistory = [];
-
-        // Check if data is already included in the response
-        if (orderLetter['details'] != null) {
-          final detailsData = orderLetter['details'];
-          if (detailsData is List) {
-            details = List<Map<String, dynamic>>.from(detailsData)
-                .where((detail) => detail['order_letter_id'] == orderLetterId)
-                .toList();
-          }
-        }
-
-        if (orderLetter['discounts'] != null) {
-          final discountsData = orderLetter['discounts'];
-          if (discountsData is List) {
-            discounts = List<Map<String, dynamic>>.from(discountsData)
-                .where(
-                    (discount) => discount['order_letter_id'] == orderLetterId)
-                .toList();
-          }
-        }
-
-        if (orderLetter['approvals'] != null) {
-          final approvalsData = orderLetter['approvals'];
-          if (approvalsData is List) {
-            approvalHistory = List<Map<String, dynamic>>.from(approvalsData)
-                .where(
-                    (approval) => approval['order_letter_id'] == orderLetterId)
-                .toList();
-          }
-        }
-
-        // If data is not included, fall back to individual API calls for this order letter
-        // Use parallel calls for better performance
-        if (details.isEmpty || discounts.isEmpty || approvalHistory.isEmpty) {
-          final futures = <Future>[];
-
-          Future<List<Map<String, dynamic>>>? detailsFuture;
-          Future<List<Map<String, dynamic>>>? discountsFuture;
-          Future<List<Map<String, dynamic>>>? approvalHistoryFuture;
-
-          if (details.isEmpty) {
-            detailsFuture = _orderLetterService.getOrderLetterDetails(
-                orderLetterId: orderLetterId);
-            futures.add(detailsFuture);
-          }
-
-          if (discounts.isEmpty) {
-            discountsFuture = _orderLetterService.getOrderLetterDiscounts(
-                orderLetterId: orderLetterId);
-            futures.add(discountsFuture);
-          }
-
-          if (approvalHistory.isEmpty) {
-            approvalHistoryFuture = _orderLetterService.getOrderLetterApproves(
-                orderLetterId: orderLetterId);
-            futures.add(approvalHistoryFuture);
-          }
-
-          // Wait for all API calls in parallel
-          await Future.wait(futures);
-
-          // Process results
-          if (details.isEmpty && detailsFuture != null) {
-            final allDetails = await detailsFuture;
-            details = allDetails
-                .where((detail) => detail['order_letter_id'] == orderLetterId)
-                .toList();
-          }
-
-          if (discounts.isEmpty && discountsFuture != null) {
-            final allDiscounts = await discountsFuture;
-            discounts = allDiscounts
-                .where(
-                    (discount) => discount['order_letter_id'] == orderLetterId)
-                .toList();
-          }
-
-          if (approvalHistory.isEmpty && approvalHistoryFuture != null) {
-            final allApprovalHistory = await approvalHistoryFuture;
-            approvalHistory = allApprovalHistory
-                .where(
-                    (approval) => approval['order_letter_id'] == orderLetterId)
-                .toList();
-          }
-        }
-
-        // Create approval model
-        final approval = ApprovalModel.fromJson({
-          ...orderLetter,
-          'details': details,
-          'discounts': discounts,
-          'approval_history': approvalHistory,
-        });
-
-        approvals.add(approval);
+    // First check: approver/leader ID if available (most reliable)
+    final approverId = discountData['approver'] ?? discountData['leader'];
+    if (approverId != null) {
+      int? parsedId;
+      if (approverId is int) {
+        parsedId = approverId;
+      } else if (approverId is String) {
+        parsedId = int.tryParse(approverId);
+      } else {
+        parsedId = int.tryParse(approverId.toString());
       }
 
-      // Sort approvals by creation time (newest first)
-      approvals.sort((a, b) {
-        DateTime? dateA = _parseDate(a.createdAt);
-        DateTime? dateB = _parseDate(b.createdAt);
-
-        if (dateA != null && dateB != null) {
-          return dateB.compareTo(dateA);
-        }
-
-        // Fallback sorting by ID if dates are not available
-        return b.id.compareTo(a.id);
-      });
-
-      return approvals;
-    } catch (e) {
-      return [];
+      if (parsedId != null && parsedId == currentUserId) {
+        return true;
+      }
     }
+
+    // Second check: match user_id by approver_level using leader data
+    if (leaderData != null) {
+      final approverLevel = discountData['approver_level'] as String? ?? '';
+      final approverLevelId = discountData['approver_level_id'] as int?;
+
+      // Try to get leader ID by level
+      int? expectedLeaderId;
+      if (approverLevelId != null) {
+        final leaderService = locator<LeaderService>();
+        expectedLeaderId = leaderService.getLeaderIdByDiscountLevel(
+            leaderData, approverLevelId);
+      } else if (approverLevel.isNotEmpty) {
+        // Map approver_level string to level ID
+        int? levelId;
+        switch (approverLevel.toLowerCase()) {
+          case 'user':
+            levelId = 1;
+            break;
+          case 'direct leader':
+            levelId = 2;
+            break;
+          case 'indirect leader':
+            levelId = 3;
+            break;
+          case 'analyst':
+            levelId = 4;
+            break;
+          case 'controller':
+            levelId = 5;
+            break;
+        }
+        if (levelId != null) {
+          final leaderService = locator<LeaderService>();
+          expectedLeaderId =
+              leaderService.getLeaderIdByDiscountLevel(leaderData, levelId);
+        }
+      }
+
+      if (expectedLeaderId != null && expectedLeaderId == currentUserId) {
+        return true;
+      }
+    }
+
+    // Third check: approver_name matching (fallback)
+    return _checkIfUserIsApprover(
+        discountData, normalizedCurrentUserName, currentUserId);
+  }
+
+  /// Helper method to check if user is approver for a discount
+  /// Checks both approver_name (with partial matching for name variations) and approver/leader ID
+  bool _checkIfUserIsApprover(
+    Map<String, dynamic> discountData,
+    String normalizedCurrentUserName,
+    int currentUserId,
+  ) {
+    final approverName = discountData['approver_name'] as String? ?? '';
+    if (approverName.isNotEmpty) {
+      // Normalize: trim, lowercase, and remove extra spaces
+      final normalizedApproverName =
+          approverName.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+
+      // Exact match
+      if (normalizedApproverName == normalizedCurrentUserName) {
+        return true;
+      }
+
+      // Partial match: check if approver_name contains user name or vice versa
+      // This handles cases where user_name is "Arikmadi" but approver_name is "Arikmadi Tri Widodo"
+      if (normalizedApproverName.contains(normalizedCurrentUserName) ||
+          normalizedCurrentUserName.contains(normalizedApproverName)) {
+        // Additional validation: ensure it's a meaningful match (not just single character)
+        if (normalizedCurrentUserName.length >= 3) {
+          return true;
+        }
+      }
+
+      // Word-based matching: split by space and check if any word matches
+      // This handles cases where names might be in different order
+      final approverWords = normalizedApproverName
+          .split(RegExp(r'\s+'))
+          .where((w) => w.isNotEmpty)
+          .toList();
+      final userWords = normalizedCurrentUserName
+          .split(RegExp(r'\s+'))
+          .where((w) => w.isNotEmpty)
+          .toList();
+
+      // Check if any word from user name matches any word from approver name
+      for (final userWord in userWords) {
+        if (userWord.length >= 3 && approverWords.contains(userWord)) {
+          return true;
+        }
+      }
+
+      // Special case: check if first word of approver name matches user name (or first word of user name)
+      // This handles "Arikmadi" matching "Arikmadi Tri Widodo"
+      if (approverWords.isNotEmpty && userWords.isNotEmpty) {
+        final approverFirstWord = approverWords.first;
+        final userFirstWord = userWords.first;
+        if (approverFirstWord == userFirstWord && userFirstWord.length >= 3) {
+          return true;
+        }
+        // Also check if approver name starts with user first word
+        if (normalizedApproverName.startsWith(userFirstWord) &&
+            userFirstWord.length >= 3) {
+          return true;
+        }
+      }
+    }
+
+    // Also check approver/leader ID if available (for backward compatibility)
+    final approverId = discountData['approver'] ?? discountData['leader'];
+    if (approverId != null) {
+      // Handle different types: int, String, or null
+      int? parsedId;
+      if (approverId is int) {
+        parsedId = approverId;
+      } else if (approverId is String) {
+        parsedId = int.tryParse(approverId);
+      } else {
+        parsedId = int.tryParse(approverId.toString());
+      }
+
+      if (parsedId != null && parsedId == currentUserId) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   /// Get single approval by ID

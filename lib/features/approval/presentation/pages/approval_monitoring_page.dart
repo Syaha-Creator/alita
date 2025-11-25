@@ -676,10 +676,10 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                 title = 'Indirect Leader';
                 break;
               case 4:
-                title = 'Controller';
+                title = 'Analyst';
                 break;
               case 5:
-                title = 'Analyst';
+                title = 'Controller';
                 break;
               default:
                 title = 'Level $approverLevelId';

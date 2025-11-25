@@ -21,6 +21,8 @@ class ApprovalEntity {
   final List<ApprovalDetailEntity> details;
   final List<ApprovalDiscountEntity> discounts;
   final List<ApprovalHistoryEntity> approvalHistory;
+  final bool? takeAway;
+  final double? postage;
 
   ApprovalEntity({
     required this.id,
@@ -45,6 +47,8 @@ class ApprovalEntity {
     required this.details,
     required this.discounts,
     required this.approvalHistory,
+    this.takeAway,
+    this.postage,
   });
 
   /// Get formatted discount display string showing discount values

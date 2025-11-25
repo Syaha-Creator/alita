@@ -304,21 +304,21 @@ class NotificationTemplateService {
         return 'Atasan Tidak Langsung';
       case 'controller':
         return 'Controller';
-      case 'analyst 1':
-        return 'Analyst 1';
-      case 'analyst 2':
-        return 'Analyst 2';
       case 'analyst':
         return 'Analyst';
+      case 'analyst 1':
+        return 'Controller'; // Backward compatibility: map Analyst 1 to Controller
+      case 'analyst 2':
+        return 'Analyst'; // Backward compatibility: map Analyst 2 to Analyst
       case 'user':
         return 'User';
       default:
-        // Handle partial matches for Analyst 1, Analyst 2
+        // Handle partial matches for backward compatibility
         if (levelLower.contains('analyst 1')) {
-          return 'Analyst 1';
+          return 'Controller'; // Backward compatibility
         }
         if (levelLower.contains('analyst 2')) {
-          return 'Analyst 2';
+          return 'Analyst'; // Backward compatibility
         }
         if (levelLower.contains('direct leader')) {
           return 'Atasan Langsung';

@@ -98,4 +98,87 @@ class ContactWorkExperienceService {
     final jobLevelId = await getUserJobLevel(token: token, userId: userId);
     return jobLevelId == 4;
   }
+
+  // Helper method to determine user role for order letters API
+  // Returns: 'controller', 'analyst', 'indirect_leader', 'direct_leader', or 'staff'
+  Future<String> getUserRoleForOrderLetters({
+    required String token,
+    required int userId,
+  }) async {
+    try {
+      final data = await getContactWorkExperience(token: token, userId: userId);
+
+      if (data != null && data['result'] != null) {
+        final result = data['result'] as List<dynamic>;
+        if (result.isNotEmpty) {
+          final workExperience = result.first as Map<String, dynamic>;
+
+          // Get work title (more reliable for analyst/controller detection)
+          final workTitle = workExperience['work_title'] as String? ?? '';
+          final normalizedWorkTitle = workTitle.toUpperCase().trim();
+
+          // Get job level name
+          final jobLevel = workExperience['job_level'] as Map<String, dynamic>?;
+          final jobLevelName = jobLevel?['name'] as String? ?? '';
+          final normalizedJobLevelName = jobLevelName.toUpperCase().trim();
+
+          // Priority 1: Check work_title for Controller (contains "CONTROLLER")
+          // Example: "Regional Budget Controller Supervisor" -> Controller
+          if (normalizedWorkTitle.contains('CONTROLLER')) {
+            return 'controller';
+          }
+
+          // Priority 2: Check work_title for Analyst (contains "ANALYST")
+          // Example: "Corporate Analyst Manager" -> Analyst
+          if (normalizedWorkTitle.contains('ANALYST')) {
+            return 'analyst';
+          }
+
+          // Fallback: Check job_level.name for Controller
+          if (normalizedJobLevelName == 'CONTROLLER') {
+            return 'controller';
+          }
+
+          // Fallback: Check job_level.name for Analyst
+          if (normalizedJobLevelName == 'ANALYST') {
+            return 'analyst';
+          }
+
+          // Priority 3: Check if Regional Manager or Manager (indirect leader)
+          // Note: Manager yang work_title mengandung ANALYST sudah terdeteksi di Priority 2
+          if (normalizedJobLevelName == 'REGIONAL MANAGER' ||
+              normalizedJobLevelName == 'MANAGER') {
+            return 'indirect_leader';
+          }
+
+          // Priority 3.5: Check if Staff, Sleep Consultant (from work_title or job_level)
+          // Sleep Consultant harus pakai STAFF endpoint meskipun punya direct_leader
+          // Check work_title first (more flexible)
+          if (normalizedWorkTitle.contains('SLEEP CONSULTANT')) {
+            return 'staff';
+          }
+          // Then check job_level.name
+          if (normalizedJobLevelName == 'STAFF' ||
+              normalizedJobLevelName == 'SLEEP CONSULTANT REGULAR' ||
+              normalizedJobLevelName == 'SLEEP CONSULTANT FREELANCE') {
+            return 'staff';
+          }
+
+          // Priority 4: Check if has direct_leader entries (supervisor with subordinates)
+          // Only check if not already detected as staff above
+          final directLeader =
+              workExperience['direct_leader'] as List<dynamic>?;
+          if (directLeader != null && directLeader.isNotEmpty) {
+            return 'direct_leader';
+          }
+        }
+      }
+
+      // Default: staff
+      return 'staff';
+    } catch (e) {
+      // Default: staff on error
+      return 'staff';
+    }
+  }
 }

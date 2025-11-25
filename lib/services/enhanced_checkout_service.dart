@@ -28,6 +28,7 @@ class EnhancedCheckoutService {
     required String note,
     String? spgCode,
     bool isTakeAway = false,
+    double? postage,
   }) async {
     try {
       // Mapping semua item ke item lookup
@@ -52,6 +53,7 @@ class EnhancedCheckoutService {
         note: note,
         spgCode: spgCode,
         isTakeAway: isTakeAway,
+        postage: postage,
       );
     } catch (e) {
       if (kDebugMode) {

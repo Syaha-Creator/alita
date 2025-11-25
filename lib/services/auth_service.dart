@@ -3,10 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import '../config/api_config.dart';
 import '../config/app_constant.dart';
-import '../config/dependency_injection.dart';
 import '../features/approval/data/cache/approval_cache.dart';
-import 'cart_storage_service.dart';
-import 'team_hierarchy_service.dart';
 import 'notification_service.dart';
 
 /// Service untuk autentikasi, penyimpanan token, dan session user.
@@ -29,8 +26,9 @@ class AuthService {
   static Future<bool> login(String token, String refreshToken, int userId,
       String userName, int? areaId) async {
     try {
-      // Clear all caches from previous user BEFORE saving new login data
-      _clearAllUserRelatedCaches(); // Fire and forget - async but we don't wait
+      // Clear all caches from ALL users BEFORE saving new login data
+      // This prevents data leakage between different users
+      ApprovalCache.clearAllCacheForAllUsers();
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(StorageKeys.isLoggedIn, true);
@@ -249,37 +247,17 @@ class AuthService {
       authChangeNotifier.value = false;
 
       // Clear all approval cache for security and privacy
-      _clearAllUserRelatedCaches(); // Fire and forget
-
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  /// Clear all user-related caches when logging out
-  static Future<void> _clearAllUserRelatedCaches() async {
-    try {
-      // Clear approval cache to prevent data leakage between users
+      // Clear cache for current user first, then clear all
       final userId = await getCurrentUserId();
       if (userId != null) {
         ApprovalCache.clearAllCache(userId);
       }
+      // Also clear all cache to ensure no data leakage
+      ApprovalCache.clearAllCacheForAllUsers();
 
-      // Clear cart storage (optional but recommended for clean logout)
-      CartStorageService.clearCart();
-
-      // Clear team hierarchy cache
-      final teamHierarchyService = locator<TeamHierarchyService>();
-      teamHierarchyService.clearCache();
-
-      // Add other cache clearing here if needed in the future
-      // Example: ProductCache.clear(), DraftCache.clear(), etc.
+      return true;
     } catch (e) {
-      // Silent error - cache clearing is not critical for logout
-      if (kDebugMode) {
-        print('AuthService: Warning - Failed to clear caches on logout: $e');
-      }
+      return false;
     }
   }
 

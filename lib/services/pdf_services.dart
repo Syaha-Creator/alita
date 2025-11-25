@@ -53,6 +53,7 @@ class PDFService {
     List<Map<String, dynamic>>? discountData,
     Map<String, List<Map<String, dynamic>>>? pricingData,
     bool showApprovalColumn = false,
+    double? postage,
   }) async {
     final pdf = pw.Document();
 
@@ -87,10 +88,13 @@ class PDFService {
     ];
 
     // Hitung subtotal dan PPN dari grandTotal
-    final subtotal = ((grandTotal / 1.11) * 100).roundToDouble() /
-        100; // Subtotal sebelum PPN (dibulatkan 2 desimal)
-    final ppn = ((grandTotal - subtotal) * 100).roundToDouble() /
-        100; // PPN (dibulatkan 2 desimal)
+    // grandTotal sudah termasuk PPN 11%, jadi kita extract subtotal dengan membagi 1.11
+    // Subtotal sebelum PPN (dibulatkan 2 desimal)
+    final double subtotalItems =
+        ((grandTotal / 1.11) * 100).roundToDouble() / 100;
+    // PPN (dibulatkan 2 desimal)
+    // Karena grandTotal sudah include PPN, PPN adalah selisih antara grandTotal dan subtotal
+    final ppn = ((grandTotal - subtotalItems) * 100).roundToDouble() / 100;
     final grandTotalWithPPN = grandTotal;
     // Hitung total EUP semua item (untuk proporsi harga net)
     final selectedItems = cartItems.where((item) => item.isSelected).toList();
@@ -176,7 +180,7 @@ class PDFService {
             shipToName: shipToName,
           ),
           pw.SizedBox(height: 12),
-          _buildItemsTable(cartItems, subtotal, totalEup,
+          _buildItemsTable(cartItems, subtotalItems, totalEup,
               orderLetterExtendedAmount: orderLetterExtendedAmount,
               discountData: discountData,
               pricingData: pricingData,
@@ -184,12 +188,13 @@ class PDFService {
           pw.SizedBox(height: 8),
           _buildNotesAndTotals(
             keterangan: keterangan ?? '-',
-            subtotal: subtotal,
+            subtotal: subtotalItems,
             ppn: ppn,
             grandTotal: grandTotalWithPPN,
             paymentMethod: paymentMethod,
             paymentAmount: paymentAmount,
             repaymentDate: repaymentDate,
+            postage: postage,
           ),
           pw.SizedBox(height: 10),
           // Add approval table if needed
@@ -1200,6 +1205,7 @@ class PDFService {
     required String paymentMethod,
     required double paymentAmount,
     required String repaymentDate,
+    double? postage,
   }) {
     final double sisaPembayaran = grandTotal - paymentAmount;
 
@@ -1237,6 +1243,9 @@ class PDFService {
                 _buildTotalRow(
                     'Subtotal', FormatHelper.formatCurrency(subtotal)),
                 _buildTotalRow('PPN 11%', FormatHelper.formatCurrency(ppn)),
+                if (postage != null && postage > 0)
+                  _buildTotalRow(
+                      'Ongkir', FormatHelper.formatCurrency(postage)),
                 _buildTotalRow(
                     'Grand Total', FormatHelper.formatCurrency(grandTotal),
                     isBold: true),

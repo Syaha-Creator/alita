@@ -6,6 +6,7 @@ import 'auth_service.dart';
 import 'leader_service.dart';
 import 'notification_service.dart';
 import 'location_service.dart';
+import 'contact_work_experience_service.dart';
 
 class OrderLetterService {
   final Dio dio;
@@ -212,20 +213,20 @@ class OrderLetterService {
                   approverWorkTitle = leaderData.indirectLeader!.workTitle;
                 }
                 break;
-              case 3: // Analyst 1
-                if (leaderData.analyst1 != null) {
-                  approverId = leaderData.analyst1!.id;
-                  approverName = leaderData.analyst1!.fullName;
-                  approverLevel = 'Analyst 1';
-                  approverWorkTitle = leaderData.analyst1!.workTitle;
+              case 3: // Analyst (Diskon 4)
+                if (leaderData.analyst != null) {
+                  approverId = leaderData.analyst!.id;
+                  approverName = leaderData.analyst!.fullName;
+                  approverLevel = 'Analyst';
+                  approverWorkTitle = leaderData.analyst!.workTitle;
                 }
                 break;
-              case 4: // Analyst 2
-                if (leaderData.analyst2 != null) {
-                  approverId = leaderData.analyst2!.id;
-                  approverName = leaderData.analyst2!.fullName;
-                  approverLevel = 'Analyst 2';
-                  approverWorkTitle = leaderData.analyst2!.workTitle;
+              case 4: // Controller (Diskon 5)
+                if (leaderData.controller != null) {
+                  approverId = leaderData.controller!.id;
+                  approverName = leaderData.controller!.fullName;
+                  approverLevel = 'Controller';
+                  approverWorkTitle = leaderData.controller!.workTitle;
                 }
                 break;
             }
@@ -318,7 +319,31 @@ class OrderLetterService {
 
       final url = ApiConfig.getCreateOrderLetterUrl(token: token);
 
-      final response = await dio.post(url, data: orderLetterData);
+      // Ensure postage is always included in the data
+      // Create a new map to ensure postage is not removed by Dio
+      final Map<String, dynamic> dataToSend =
+          Map<String, dynamic>.from(orderLetterData);
+
+      // Explicitly ensure postage is in the map with proper value
+      final postageValue = orderLetterData['postage'];
+      if (postageValue == null) {
+        dataToSend['postage'] = 0.0;
+      } else {
+        // Ensure it's a number, not null
+        dataToSend['postage'] = postageValue is double
+            ? postageValue
+            : (postageValue as num).toDouble();
+      }
+
+      final response = await dio.post(
+        url,
+        data: dataToSend,
+        options: Options(
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         return {
@@ -443,6 +468,22 @@ class OrderLetterService {
       final List<Map<String, dynamic>> approveResults = [];
       final List<Map<String, dynamic>> updateResults = [];
 
+      // Get approver name for this level
+      String approverName = await AuthService.getCurrentUserName() ?? 'Unknown';
+      try {
+        final leaderService = locator<LeaderService>();
+        final leaderData = await leaderService.getLeaderByUser();
+        if (leaderData != null) {
+          final nameFromLeader = leaderService.getLeaderNameByDiscountLevel(
+              leaderData, jobLevelId);
+          if (nameFromLeader != null && nameFromLeader.isNotEmpty) {
+            approverName = nameFromLeader;
+          }
+        }
+      } catch (e) {
+        // Fallback to current user name
+      }
+
       // Get current location for approval
       String? approvalLocation;
       try {
@@ -502,6 +543,8 @@ class OrderLetterService {
           final updateData = {
             'approved': true,
             'approved_at': currentTime,
+            'approver_level': _getApproverLevelName(jobLevelId),
+            'approver_name': approverName,
           };
 
           final updateResponse = await dio.put(
@@ -633,6 +676,22 @@ class OrderLetterService {
 
       final currentTime = DateTime.now().toIso8601String();
 
+      // Get approver name for this level
+      String approverName = await AuthService.getCurrentUserName() ?? 'Unknown';
+      try {
+        final leaderService = locator<LeaderService>();
+        final leaderData = await leaderService.getLeaderByUser();
+        if (leaderData != null) {
+          final nameFromLeader = leaderService.getLeaderNameByDiscountLevel(
+              leaderData, jobLevelId);
+          if (nameFromLeader != null && nameFromLeader.isNotEmpty) {
+            approverName = nameFromLeader;
+          }
+        }
+      } catch (e) {
+        // Fallback to current user name
+      }
+
       // Get current location for approval
       String? approvalLocation;
       try {
@@ -683,6 +742,8 @@ class OrderLetterService {
       final updateData = {
         'approved': true,
         'approved_at': currentTime,
+        'approver_level': _getApproverLevelName(jobLevelId),
+        'approver_name': approverName,
       };
 
       final updateResponse = await dio.put(
@@ -843,14 +904,51 @@ class OrderLetterService {
   }
 
   /// Get Order Letters
+  /// Automatically determines the correct API endpoint based on user role
   Future<List<Map<String, dynamic>>> getOrderLetters({String? creator}) async {
     try {
       final token = await AuthService.getToken();
+      final currentUserId = await AuthService.getCurrentUserId();
+
       if (token == null) {
         throw Exception('Token not found');
       }
 
-      final url = ApiConfig.getOrderLettersUrl(token: token, creator: creator);
+      if (currentUserId == null) {
+        throw Exception('User ID not found');
+      }
+
+      // Determine user role to select the correct API endpoint
+      final contactWorkExperienceService =
+          locator<ContactWorkExperienceService>();
+      final userRole = await contactWorkExperienceService
+          .getUserRoleForOrderLetters(token: token, userId: currentUserId);
+
+      // Select the appropriate API endpoint based on role
+      String url;
+      switch (userRole) {
+        case 'controller':
+          url = ApiConfig.getOrderLettersByControllerUrl(
+              token: token, userId: currentUserId);
+          break;
+        case 'analyst':
+          url = ApiConfig.getOrderLettersByAnalystUrl(
+              token: token, userId: currentUserId);
+          break;
+        case 'indirect_leader':
+          url = ApiConfig.getOrderLettersByIndirectLeaderUrl(
+              token: token, userId: currentUserId);
+          break;
+        case 'direct_leader':
+          url = ApiConfig.getOrderLettersByDirectLeaderUrl(
+              token: token, userId: currentUserId);
+          break;
+        case 'staff':
+        default:
+          url = ApiConfig.getOrderLettersUrl(
+              token: token, userId: currentUserId, creator: creator);
+          break;
+      }
 
       final response = await dio.get(url);
 
@@ -860,9 +958,23 @@ class OrderLetterService {
         if (data is List) {
           final result = List<Map<String, dynamic>>.from(data);
           return result;
-        } else if (data is Map && data['result'] is List) {
-          final result = List<Map<String, dynamic>>.from(data['result']);
-          return result;
+        } else if (data is Map && data['result'] != null) {
+          // Handle different result formats
+          if (data['result'] is List) {
+            final result = List<Map<String, dynamic>>.from(data['result']);
+            return result;
+          } else if (data['result'] is Map) {
+            // Result is a single order letter object (wrap in List)
+            final result = data['result'] as Map<String, dynamic>;
+            // Check if it has order_letter key (new nested format)
+            if (result.containsKey('order_letter')) {
+              // Return as list with single item containing the full structure
+              return [result];
+            } else {
+              // Direct order letter object, wrap in List
+              return [result];
+            }
+          }
         }
         return [];
       } else {
@@ -1303,7 +1415,7 @@ class OrderLetterService {
       // Always create entries for:
       // - Level 0 (User)
       // - Level 1 (Direct Leader)
-      // For levels 2+ (Indirect Leader, Controller, Analyst), only create if discount > 0
+      // For levels 2+ (Indirect Leader, Analyst, Controller), only create if discount > 0
       if (i > 1 && discount <= 0) continue;
 
       await _createSingleDiscount(
@@ -1404,16 +1516,18 @@ class OrderLetterService {
       final leaderData = await leaderService.getLeaderByUser();
 
       if (leaderData != null) {
+        final approvalLevel =
+            _mapDiscountIndexToApprovalLevel(discountIndex + 1);
+
         // Use leaderId if available, otherwise get from leaderData based on level
         approverId = leaderId ??
-            leaderService.getLeaderIdByDiscountLevel(
-                leaderData, discountIndex + 1);
+            leaderService.getLeaderIdByDiscountLevel(leaderData, approvalLevel);
         approverName = leaderService.getLeaderNameByDiscountLevel(
-                leaderData, discountIndex + 1) ??
+                leaderData, approvalLevel) ??
             '';
-        approverLevel = _getApproverLevelName(discountIndex + 1);
+        approverLevel = _getApproverLevelName(approvalLevel);
         approverWorkTitle = leaderService.getLeaderWorkTitleByDiscountLevel(
-                leaderData, discountIndex + 1) ??
+                leaderData, approvalLevel) ??
             '';
 
         // Level 1 discounts should be auto-approved (user created the order)
@@ -1421,7 +1535,7 @@ class OrderLetterService {
           approvedValue = true; // Auto-approve level 1 (User level)
           approvedAt = DateTime.now().toIso8601String();
         } else {
-          // For all other levels (Direct Leader, Indirect Leader, Controller, Analyst)
+          // For all other levels (Direct Leader, Indirect Leader, Analyst, Controller)
           // Set approved and approved_at to null - they need manual approval
           approvedValue = null;
           approvedAt = null;
@@ -1439,7 +1553,7 @@ class OrderLetterService {
       'discount': discount.toString(),
       'approver': approverId,
       'approver_name': approverName,
-      'approver_level_id': discountIndex + 1,
+      'approver_level_id': _mapDiscountIndexToApprovalLevel(discountIndex + 1),
       'approver_level': approverLevel,
       'approver_work_title': approverWorkTitle,
       'approved': approvedValue,
@@ -1481,6 +1595,23 @@ class OrderLetterService {
   }
 
   /// Get approver level name
+  int _mapDiscountIndexToApprovalLevel(int level) {
+    switch (level) {
+      case 1:
+        return 1; // User
+      case 2:
+        return 2; // Direct Leader
+      case 3:
+        return 3; // Indirect Leader
+      case 4:
+        return 4; // Analyst
+      case 5:
+        return 5; // Controller
+      default:
+        return level;
+    }
+  }
+
   String _getApproverLevelName(int level) {
     switch (level) {
       case 1:
@@ -1490,9 +1621,9 @@ class OrderLetterService {
       case 3:
         return 'Indirect Leader';
       case 4:
-        return 'Controller';
-      case 5:
         return 'Analyst';
+      case 5:
+        return 'Controller';
       default:
         return 'Unknown';
     }

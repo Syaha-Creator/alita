@@ -31,6 +31,14 @@ class ApiConfig {
 
   // Approval Endpoints
   static const String orderLetters = "${baseUrl}api/order_letters";
+  static const String orderLettersByDirectLeader =
+      "${baseUrl}api/order_letters_by_direct_leader";
+  static const String orderLettersByIndirectLeader =
+      "${baseUrl}api/order_letters_by_indirect_leader";
+  static const String orderLettersByAnalyst =
+      "${baseUrl}api/order_letters_by_analyst";
+  static const String orderLettersByController =
+      "${baseUrl}api/order_letters_by_controller";
   static const String orderLetterDetails = "${baseUrl}api/order_letter_details";
   static const String orderLetterDiscounts =
       "${baseUrl}api/order_letter_discounts";
@@ -122,13 +130,46 @@ class ApiConfig {
     return "$plLookupItemNums?access_token=$encodedToken&client_id=$clientId&client_secret=$clientSecret";
   }
 
-  // Helper untuk Order Letters
+  // Helper untuk Order Letters (default - untuk staff)
   static String getOrderLettersUrl({
     required String token,
+    required int userId,
     String? creator,
   }) {
     final creatorParam = creator != null ? "&creator=$creator" : "";
-    return "$orderLetters?access_token=$token&client_id=$clientId&client_secret=$clientSecret$creatorParam";
+    return "$orderLetters?access_token=$token&client_id=$clientId&client_secret=$clientSecret&user_id=$userId$creatorParam";
+  }
+
+  // Helper untuk Order Letters by Direct Leader (untuk supervisor yang punya bawahan)
+  static String getOrderLettersByDirectLeaderUrl({
+    required String token,
+    required int userId,
+  }) {
+    return "$orderLettersByDirectLeader?access_token=$token&client_id=$clientId&client_secret=$clientSecret&user_id=$userId";
+  }
+
+  // Helper untuk Order Letters by Indirect Leader (untuk Regional Manager atau Manager)
+  static String getOrderLettersByIndirectLeaderUrl({
+    required String token,
+    required int userId,
+  }) {
+    return "$orderLettersByIndirectLeader?access_token=$token&client_id=$clientId&client_secret=$clientSecret&user_id=$userId";
+  }
+
+  // Helper untuk Order Letters by Analyst (untuk analyst)
+  static String getOrderLettersByAnalystUrl({
+    required String token,
+    required int userId,
+  }) {
+    return "$orderLettersByAnalyst?access_token=$token&client_id=$clientId&client_secret=$clientSecret&user_id=$userId";
+  }
+
+  // Helper untuk Order Letters by Controller (untuk controller)
+  static String getOrderLettersByControllerUrl({
+    required String token,
+    required int userId,
+  }) {
+    return "$orderLettersByController?access_token=$token&client_id=$clientId&client_secret=$clientSecret&user_id=$userId";
   }
 
   // Helper untuk Order Letter by ID (with complete data including contacts)

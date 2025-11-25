@@ -9,11 +9,11 @@ class AppUpdateService {
 
   // Hardcoded minimum version untuk force update (iOS)
   // Update nilai ini setiap kali release versi baru yang wajib di-update
-  // Versi saat ini: 1.7.4+32
-  // Versi minimum yang wajib di-update: 1.7.4+32
-  // Jika user menggunakan versi < 1.7.4+32, akan di-force update
-  static const String _minRequiredVersion = '1.7.4';
-  static const int _minRequiredBuildNumber = 32;
+  // Versi saat ini: 1.7.6+34
+  // Versi minimum yang wajib di-update: 1.7.6+34
+  // Jika user menggunakan versi < 1.7.6+34, akan di-force update
+  static const String _minRequiredVersion = '1.7.6';
+  static const int _minRequiredBuildNumber = 34;
 
   /// Check if app update is required
   /// Returns true if update is required (force update)

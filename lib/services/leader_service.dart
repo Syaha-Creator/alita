@@ -47,10 +47,10 @@ class LeaderService {
         return leaderData.directLeader?.id;
       case 3: // Diskon 3 - Indirect Leader
         return leaderData.indirectLeader?.id;
-      case 4: // Diskon 4 - Analyst 1
-        return leaderData.analyst1?.id;
-      case 5: // Diskon 5 - Analyst 2
-        return leaderData.analyst2?.id;
+      case 4: // Diskon 4 - Analyst
+        return leaderData.analyst?.id; // analyst from JSON
+      case 5: // Diskon 5 - Controller
+        return leaderData.controller?.id; // controller from JSON
       default:
         return null;
     }
@@ -68,10 +68,10 @@ class LeaderService {
         return leaderData.directLeader?.fullName;
       case 3: // Diskon 3 - Indirect Leader
         return leaderData.indirectLeader?.fullName;
-      case 4: // Diskon 4 - Analyst 1
-        return leaderData.analyst1?.fullName;
-      case 5: // Diskon 5 - Analyst 2
-        return leaderData.analyst2?.fullName;
+      case 4: // Diskon 4 - Analyst
+        return leaderData.analyst?.fullName; // analyst from JSON
+      case 5: // Diskon 5 - Controller
+        return leaderData.controller?.fullName; // controller from JSON
       default:
         return null;
     }
@@ -89,10 +89,10 @@ class LeaderService {
         return leaderData.directLeader?.workTitle;
       case 3: // Diskon 3 - Indirect Leader
         return leaderData.indirectLeader?.workTitle;
-      case 4: // Diskon 4 - Analyst 1
-        return leaderData.analyst1?.workTitle;
-      case 5: // Diskon 5 - Analyst 2
-        return leaderData.analyst2?.workTitle;
+      case 4: // Diskon 4 - Analyst
+        return leaderData.analyst?.workTitle; // analyst from JSON
+      case 5: // Diskon 5 - Controller
+        return leaderData.controller?.workTitle; // controller from JSON
       default:
         return null;
     }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import '../../../../core/utils/format_helper.dart';
 import '../../../../services/pdf_services.dart';
@@ -56,6 +57,8 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
   }
 
   Future<void> _loadDocument() async {
+    if (!mounted) return;
+
     try {
       setState(() {
         _isLoading = true;
@@ -66,19 +69,63 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
       final document =
           await repository.getOrderLetterDocument(widget.orderLetterId);
 
-      // Fetch creator name if creator is user ID
-      if (document != null) {
-        await _fetchCreatorName(document.creator);
+      if (!mounted) return;
+
+      if (document == null) {
+        setState(() {
+          _error = 'Dokumen tidak ditemukan atau tidak dapat dimuat';
+          _isLoading = false;
+        });
+        return;
       }
+
+      // Fetch creator name if creator is user ID
+      try {
+        await _fetchCreatorName(document.creator);
+      } catch (e) {
+        // Don't fail document loading if creator name fetch fails
+        if (kDebugMode) {
+          debugPrint('Failed to fetch creator name: $e');
+        }
+      }
+
+      if (!mounted) return;
 
       setState(() {
         _document = document;
         _isLoading = false;
-        _updatedApprovalStatus = document?.status;
+        _updatedApprovalStatus = document.status;
       });
-    } catch (e) {
+    } catch (e, stackTrace) {
+      if (!mounted) return;
+
+      // Log error for debugging
+      if (kDebugMode) {
+        debugPrint('OrderLetterDocumentPage: Error loading document: $e');
+        debugPrint('Stack trace: $stackTrace');
+      }
+
+      // Provide user-friendly error message
+      String errorMessage = 'Gagal memuat dokumen';
+      final errorString = e.toString();
+      
+      if (errorString.contains('Token not available') || errorString.contains('Token tidak tersedia')) {
+        errorMessage = 'Token tidak tersedia. Silakan login ulang.';
+      } else if (errorString.contains('Status 404') || errorString.contains('tidak ditemukan')) {
+        errorMessage = 'Dokumen tidak ditemukan. ID: ${widget.orderLetterId}';
+      } else if (errorString.contains('Status 401') || errorString.contains('Status 403') || errorString.contains('Tidak memiliki akses')) {
+        errorMessage = 'Tidak memiliki akses untuk melihat dokumen ini';
+      } else if (errorString.contains('Invalid response format') || errorString.contains('Format data')) {
+        errorMessage = 'Format data dari server tidak valid. Silakan coba lagi.';
+      } else if (errorString.contains('order_letter is null') || errorString.contains('Data order letter')) {
+        errorMessage = 'Data order letter tidak ditemukan di server';
+      } else {
+        // Use the error message from exception if it's already user-friendly
+        errorMessage = errorString.replaceAll('Exception: ', '');
+      }
+
       setState(() {
-        _error = e.toString();
+        _error = errorMessage;
         _isLoading = false;
       });
     }
@@ -2457,6 +2504,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         discountData: discountData,
         pricingData: pricingSummary,
         showApprovalColumn: showApprovalColumn,
+        postage: _document!.postage,
       );
 
       final pdfType = showApprovalColumn ? 'Approval' : 'Customer';

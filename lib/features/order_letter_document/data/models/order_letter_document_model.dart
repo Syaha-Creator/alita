@@ -20,6 +20,7 @@ class OrderLetterDocumentModel {
   final String? workPlaceName;
   final String? workPlaceAddress;
   final bool? takeAway; // Boolean (global untuk semua items)
+  final double? postage;
   final List<OrderLetterDetailModel> details;
   final List<OrderLetterDiscountModel> discounts;
   final List<OrderLetterApproveModel> approvals;
@@ -46,6 +47,7 @@ class OrderLetterDocumentModel {
     this.workPlaceName,
     this.workPlaceAddress,
     this.takeAway,
+    this.postage,
     required this.extendedAmount,
     required this.hargaAwal,
     required this.details,
@@ -72,27 +74,44 @@ class OrderLetterDocumentModel {
     return null;
   }
 
+  /// Helper method to safely convert value to String
+  static String _toString(dynamic value, [String defaultValue = '']) {
+    if (value == null) return defaultValue;
+    if (value is String) return value;
+    return value.toString();
+  }
+
+  /// Helper method to safely convert value to nullable String
+  static String? _toNullableString(dynamic value) {
+    if (value == null) return null;
+    if (value is String) return value.isEmpty ? null : value;
+    return value.toString();
+  }
+
   factory OrderLetterDocumentModel.fromJson(Map<String, dynamic> json) {
     return OrderLetterDocumentModel(
       id: json['id'] ?? 0,
-      noSp: json['no_sp'] ?? '',
-      status: json['status'] ?? '',
-      creator: json['creator'] ?? '',
-      createdAt: json['created_at'] ?? '',
-      updatedAt: json['updated_at'] ?? '',
-      orderDate: json['order_date'] ?? '',
-      requestDate: json['request_date'] ?? '',
-      customerName: json['customer_name'] ?? '',
-      phone: json['phone'] ?? '',
-      address: json['address'] ?? '',
-      addressShipTo: json['address_ship_to'] ?? '',
-      shipToName: json['ship_to_name'] ?? '',
-      email: json['email'] ?? '',
-      note: json['note'] ?? '',
-      spgCode: json['sales_code'] ?? '',
-      workPlaceName: json['work_place_name'],
-      workPlaceAddress: json['work_place_address'],
+      noSp: _toString(json['no_sp']),
+      status: _toString(json['status']),
+      creator: _toString(json['creator']),
+      createdAt: _toString(json['created_at']),
+      updatedAt: _toString(json['updated_at']),
+      orderDate: _toString(json['order_date']),
+      requestDate: _toString(json['request_date']),
+      customerName: _toString(json['customer_name']),
+      phone: _toString(json['phone']),
+      address: _toString(json['address']),
+      addressShipTo: _toString(json['address_ship_to']),
+      shipToName: _toString(json['ship_to_name']),
+      email: _toString(json['email']),
+      note: _toString(json['note']),
+      spgCode: _toNullableString(json['sales_code']),
+      workPlaceName: _toNullableString(json['work_place_name']),
+      workPlaceAddress: _toNullableString(json['work_place_address']),
       takeAway: _parseTakeAway(json['take_away']),
+      postage: json['postage'] != null
+          ? double.tryParse(json['postage'].toString())
+          : null,
       extendedAmount:
           double.tryParse(json['extended_amount']?.toString() ?? '0.0') ?? 0.0,
       hargaAwal:
@@ -138,6 +157,7 @@ class OrderLetterDocumentModel {
       'email': email,
       'note': note,
       'take_away': takeAway,
+      'postage': postage,
       'extended_amount': extendedAmount,
       'harga_awal': hargaAwal,
       'details': details.map((detail) => detail.toJson()).toList(),
@@ -265,19 +285,19 @@ class OrderLetterDetailModel {
     return OrderLetterDetailModel(
       id: json['order_letter_detail_id'] ?? json['id'] ?? 0,
       orderLetterId: json['order_letter_id'] ?? 0,
-      noSp: json['no_sp'] ?? '',
+      noSp: OrderLetterDocumentModel._toString(json['no_sp']),
       qty: qtyValue,
       unitPrice: unitPriceValue,
       netPrice: netPriceValue,
       customerPrice: customerPriceValue,
-      itemNumber: json['item_number'] ?? '',
-      desc1: json['desc_1'] ?? '',
-      desc2: json['desc_2'] ?? '',
-      brand: json['brand'] ?? '',
-      itemType: json['item_type'] ?? '',
-      status: json['status'] ?? '',
-      createdAt: json['created_at'] ?? '',
-      updatedAt: json['updated_at'] ?? '',
+      itemNumber: OrderLetterDocumentModel._toString(json['item_number']),
+      desc1: OrderLetterDocumentModel._toString(json['desc_1']),
+      desc2: OrderLetterDocumentModel._toString(json['desc_2']),
+      brand: OrderLetterDocumentModel._toString(json['brand']),
+      itemType: OrderLetterDocumentModel._toString(json['item_type']),
+      status: OrderLetterDocumentModel._toString(json['status']),
+      createdAt: OrderLetterDocumentModel._toString(json['created_at']),
+      updatedAt: OrderLetterDocumentModel._toString(json['updated_at']),
       takeAway: _parseTakeAway(json['take_away']),
       discounts: discounts,
     );
@@ -361,12 +381,14 @@ class OrderLetterDiscountModel {
         approvedValue == true ||
         approvedValue == 'Approved') {
       approved = true;
-      approvedAt = json['approved_at'];
+      approvedAt =
+          OrderLetterDocumentModel._toNullableString(json['approved_at']);
     } else if (approvedValue == 'false' ||
         approvedValue == false ||
         approvedValue == 'Rejected') {
       approved = false;
-      approvedAt = json['approved_at'];
+      approvedAt =
+          OrderLetterDocumentModel._toNullableString(json['approved_at']);
     } else if (approvedValue == 'Pending') {
       approved = null;
       approvedAt = null;
@@ -376,19 +398,22 @@ class OrderLetterDiscountModel {
     }
 
     return OrderLetterDiscountModel(
-      id: json['order_letter_discount_id'] ?? 0,
+      id: json['order_letter_discount_id'] ?? json['id'] ?? 0,
       orderLetterDetailId: json['order_letter_detail_id'] ?? 0,
       orderLetterId: json['order_letter_id'] ?? 0,
       discount: discountValue,
       approver: json['approver'],
-      approverName: json['approver_name'],
+      approverName:
+          OrderLetterDocumentModel._toNullableString(json['approver_name']),
       approverLevelId: json['approver_level_id'],
-      approverLevel: json['approver_level'],
-      approverWorkTitle: json['approver_work_title'],
+      approverLevel:
+          OrderLetterDocumentModel._toNullableString(json['approver_level']),
+      approverWorkTitle: OrderLetterDocumentModel._toNullableString(
+          json['approver_work_title']),
       approved: approved,
-      approvedAt: approvedAt,
-      createdAt: json['created_at'] ?? '',
-      updatedAt: json['updated_at'] ?? '',
+      approvedAt: OrderLetterDocumentModel._toNullableString(approvedAt),
+      createdAt: OrderLetterDocumentModel._toString(json['created_at']),
+      updatedAt: OrderLetterDocumentModel._toString(json['updated_at']),
     );
   }
 
@@ -434,8 +459,8 @@ class OrderLetterApproveModel {
       orderLetterDiscountId: json['order_letter_discount_id'] ?? 0,
       leader: json['leader'] ?? 0,
       jobLevelId: json['job_level_id'] ?? 0,
-      createdAt: json['created_at'] ?? '',
-      updatedAt: json['updated_at'] ?? '',
+      createdAt: OrderLetterDocumentModel._toString(json['created_at']),
+      updatedAt: OrderLetterDocumentModel._toString(json['updated_at']),
     );
   }
 
@@ -463,7 +488,7 @@ class OrderLetterContactModel {
   factory OrderLetterContactModel.fromJson(Map<String, dynamic> json) {
     return OrderLetterContactModel(
       orderLetterContactId: json['order_letter_contact_id'] ?? 0,
-      phone: json['phone'] ?? '',
+      phone: OrderLetterDocumentModel._toString(json['phone']),
     );
   }
 
@@ -526,20 +551,25 @@ class OrderLetterPaymentModel {
 
     return OrderLetterPaymentModel(
       orderLetterPaymentId: json['order_letter_payment_id'] ?? 0,
-      paymentMethod: json['payment_method'] ?? '',
-      paymentBank: json['payment_bank'],
-      paymentNumber: json['payment_number'],
+      paymentMethod: OrderLetterDocumentModel._toString(json['payment_method']),
+      paymentBank:
+          OrderLetterDocumentModel._toNullableString(json['payment_bank']),
+      paymentNumber:
+          OrderLetterDocumentModel._toNullableString(json['payment_number']),
       paymentAmount: paymentAmountValue,
-      paymentDate: json['payment_date'],
-      verified: json['verified'],
-      verifiedAt: json['verified_at'],
+      paymentDate:
+          OrderLetterDocumentModel._toNullableString(json['payment_date']),
+      verified: OrderLetterDocumentModel._toNullableString(json['verified']),
+      verifiedAt:
+          OrderLetterDocumentModel._toNullableString(json['verified_at']),
       verifiedBy: json['verified_by'],
-      verifiedNote: json['verified_note'],
-      note: json['note'],
-      image: json['image'],
-      createdAt: json['created_at'] ?? '',
+      verifiedNote:
+          OrderLetterDocumentModel._toNullableString(json['verified_note']),
+      note: OrderLetterDocumentModel._toNullableString(json['note']),
+      image: OrderLetterDocumentModel._toNullableString(json['image']),
+      createdAt: OrderLetterDocumentModel._toString(json['created_at']),
       createdBy: json['created_by'] ?? 0,
-      updatedAt: json['updated_at'] ?? '',
+      updatedAt: OrderLetterDocumentModel._toString(json['updated_at']),
       updatedBy: json['updated_by'],
     );
   }
