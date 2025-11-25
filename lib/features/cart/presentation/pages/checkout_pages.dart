@@ -161,6 +161,10 @@ class _CheckoutPagesState extends State<CheckoutPages>
   final List<PaymentMethod> _paymentMethods = [];
   double _totalPaid = 0.0;
 
+  // Cache for selected items to use in bottomNavigationBar
+  // This allows bottomNavigationBar to rebuild when setState is called
+  List<CartEntity> _cachedSelectedItems = [];
+
   @override
   void initState() {
     super.initState();
@@ -715,6 +719,10 @@ class _CheckoutPagesState extends State<CheckoutPages>
               final selectedItems = state.selectedItems;
               final grandTotal = _calculateGrandTotal(selectedItems);
 
+              // Update cached values for use in bottomNavigationBar
+              // This ensures bottomNavigationBar has access to latest cart data
+              _cachedSelectedItems = selectedItems;
+
               return SingleChildScrollView(
                 child: Column(
                   children: [
@@ -1014,14 +1022,26 @@ class _CheckoutPagesState extends State<CheckoutPages>
             return const Center(child: CircularProgressIndicator());
           },
         ),
-        bottomNavigationBar: BlocBuilder<CartBloc, CartState>(
-          builder: (context, state) {
-            if (state is CartLoaded) {
-              final selectedItems = state.selectedItems;
-              final grandTotal = _calculateGrandTotal(selectedItems);
-              return _buildBottomButton(selectedItems, grandTotal, isDark);
+        // Use Builder instead of BlocBuilder to ensure rebuild when setState is called
+        bottomNavigationBar: Builder(
+          builder: (context) {
+            // Use cached values from state, recalculate grandTotal with current postage
+            final selectedItems = _cachedSelectedItems;
+            final grandTotal = _calculateGrandTotal(selectedItems);
+
+            // If no items, show nothing
+            if (selectedItems.isEmpty) {
+              return const SizedBox.shrink();
             }
-            return const SizedBox.shrink();
+
+            return _PaymentBottomBar(
+              selectedItems: selectedItems,
+              grandTotal: grandTotal,
+              isDark: isDark,
+              paymentMethods: _paymentMethods,
+              onGeneratePDF: () => _generateAndSharePDF(selectedItems, isDark),
+              onSaveDraft: () => _saveDraft(selectedItems),
+            );
           },
         ),
       ),
@@ -2415,16 +2435,24 @@ class _CheckoutPagesState extends State<CheckoutPages>
   }
 
   Widget _buildPaymentSummary(double grandTotal, bool isDark) {
-    _totalPaid =
+    // Calculate total paid from payment methods
+    final totalPaid =
         _paymentMethods.fold(0.0, (sum, payment) => sum + payment.amount);
 
-    // Use epsilon for floating point comparison to handle precision issues
-    const double epsilon = 0.01; // 1 cent tolerance
-    final roundedTotalPaid = double.parse(_totalPaid.toStringAsFixed(2));
-    final roundedGrandTotal = double.parse(grandTotal.toStringAsFixed(2));
-    final remaining = roundedGrandTotal - roundedTotalPaid;
-    final isFullyPaid = roundedTotalPaid >= (roundedGrandTotal - epsilon);
-    final isOverPaid = roundedTotalPaid > roundedGrandTotal;
+    // Update _totalPaid for consistency
+    _totalPaid = totalPaid;
+
+    // Convert to integer (in rupiah) to avoid floating point precision issues
+    final totalPaidInRupiah = (totalPaid * 100).round();
+    final grandTotalInRupiah = (grandTotal * 100).round();
+
+    // Calculate remaining in rupiah, then convert back to double
+    final remainingInRupiah = grandTotalInRupiah - totalPaidInRupiah;
+    final remaining = remainingInRupiah / 100.0;
+
+    // Use integer comparison for accuracy
+    final isFullyPaid = totalPaidInRupiah >= grandTotalInRupiah;
+    final isOverPaid = totalPaidInRupiah > grandTotalInRupiah;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -2611,41 +2639,6 @@ class _CheckoutPagesState extends State<CheckoutPages>
     });
   }
 
-  bool _isPaymentComplete(double grandTotal) {
-    if (_paymentMethods.isEmpty) return false;
-
-    _totalPaid =
-        _paymentMethods.fold(0.0, (sum, payment) => sum + payment.amount);
-
-    // Use epsilon for floating point comparison to handle precision issues
-    const double epsilon = 0.01; // 1 cent tolerance
-    final roundedTotalPaid = double.parse(_totalPaid.toStringAsFixed(2));
-    final roundedGrandTotal = double.parse(grandTotal.toStringAsFixed(2));
-
-    return roundedTotalPaid >= (roundedGrandTotal - epsilon);
-  }
-
-  String _getPaymentStatusText(double grandTotal) {
-    if (_paymentMethods.isEmpty) {
-      return 'Belum ada pembayaran';
-    }
-
-    _totalPaid =
-        _paymentMethods.fold(0.0, (sum, payment) => sum + payment.amount);
-
-    // Use epsilon for floating point comparison to handle precision issues
-    const double epsilon = 0.01; // 1 cent tolerance
-    final roundedTotalPaid = double.parse(_totalPaid.toStringAsFixed(2));
-    final roundedGrandTotal = double.parse(grandTotal.toStringAsFixed(2));
-    final remaining = roundedGrandTotal - roundedTotalPaid;
-
-    if (roundedTotalPaid >= (roundedGrandTotal - epsilon)) {
-      return 'Pembayaran lengkap';
-    } else {
-      return 'Sisa: ${FormatHelper.formatCurrency(remaining)}';
-    }
-  }
-
   void _showPaymentMethodDialog(double grandTotal, bool isDark) {
     showModalBottomSheet(
       context: context,
@@ -2660,6 +2653,14 @@ class _CheckoutPagesState extends State<CheckoutPages>
         onPaymentAdded: (payment) {
           setState(() {
             _paymentMethods.add(payment);
+            // Force update _totalPaid
+            _totalPaid = _paymentMethods.fold(0.0, (sum, p) => sum + p.amount);
+          });
+          // Force rebuild by calling setState again after a microtask
+          Future.microtask(() {
+            if (mounted) {
+              setState(() {});
+            }
           });
         },
       ),
@@ -2772,9 +2773,65 @@ class _CheckoutPagesState extends State<CheckoutPages>
       ),
     );
   }
+}
 
-  Widget _buildBottomButton(
-      List<CartEntity> selectedItems, double grandTotal, bool isDark) {
+class _PaymentBottomBar extends StatelessWidget {
+  final List<CartEntity> selectedItems;
+  final double grandTotal;
+  final bool isDark;
+  final List<PaymentMethod> paymentMethods;
+  final VoidCallback onGeneratePDF;
+  final VoidCallback onSaveDraft;
+
+  const _PaymentBottomBar({
+    required this.selectedItems,
+    required this.grandTotal,
+    required this.isDark,
+    required this.paymentMethods,
+    required this.onGeneratePDF,
+    required this.onSaveDraft,
+  });
+
+  // Calculate payment completion status inside the widget
+  bool _isPaymentComplete() {
+    if (paymentMethods.isEmpty) return false;
+
+    // Calculate total paid from payment methods
+    final totalPaid =
+        paymentMethods.fold(0.0, (sum, payment) => sum + payment.amount);
+
+    // Convert to integer (in rupiah) to avoid floating point precision issues
+    final totalPaidInRupiah = (totalPaid * 100).round();
+    final grandTotalInRupiah = (grandTotal * 100).round();
+
+    // Payment is complete if total paid is greater than or equal to grand total
+    return totalPaidInRupiah >= grandTotalInRupiah;
+  }
+
+  // Get payment status text
+  String _getPaymentStatusText() {
+    if (paymentMethods.isEmpty) {
+      return 'Belum ada pembayaran';
+    }
+
+    final totalPaid =
+        paymentMethods.fold(0.0, (sum, payment) => sum + payment.amount);
+
+    // Convert to integer (in rupiah) to avoid floating point precision issues
+    final totalPaidInRupiah = (totalPaid * 100).round();
+    final grandTotalInRupiah = (grandTotal * 100).round();
+    final remainingInRupiah = grandTotalInRupiah - totalPaidInRupiah;
+    final remaining = remainingInRupiah / 100.0;
+
+    if (totalPaidInRupiah >= grandTotalInRupiah) {
+      return 'Pembayaran lengkap';
+    } else {
+      return 'Sisa: ${FormatHelper.formatCurrency(remaining)}';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
@@ -2863,7 +2920,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
                   // Draft Button
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () => _saveDraft(selectedItems),
+                      onPressed: onSaveDraft,
                       icon: Icon(
                         Icons.save_outlined,
                         size: 16,
@@ -2899,44 +2956,49 @@ class _CheckoutPagesState extends State<CheckoutPages>
                   const SizedBox(width: 12),
 
                   // Main Action Button
-                  Expanded(
-                    flex: 2,
-                    child: ElevatedButton.icon(
-                      onPressed: _isPaymentComplete(grandTotal)
-                          ? () => _generateAndSharePDF(selectedItems, isDark)
-                          : null,
-                      icon: Icon(
-                        _isPaymentComplete(grandTotal)
-                            ? Icons.shopping_cart_checkout
-                            : Icons.lock,
-                        size: 18,
-                        color: Colors.white,
-                      ),
-                      label: Text(
-                        _isPaymentComplete(grandTotal)
-                            ? 'Buat Surat Pesanan'
-                            : _getPaymentStatusText(grandTotal),
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
+                  Builder(
+                    builder: (context) {
+                      final isComplete = _isPaymentComplete();
+                      final statusText = _getPaymentStatusText();
+                      return Expanded(
+                        flex: 2,
+                        child: ElevatedButton.icon(
+                          onPressed: isComplete ? onGeneratePDF : null,
+                          icon: Icon(
+                            isComplete
+                                ? Icons.shopping_cart_checkout
+                                : Icons.lock,
+                            size: 18,
+                            color: Colors.white,
+                          ),
+                          label: Text(
+                            isComplete ? 'Buat Surat Pesanan' : statusText,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isComplete
+                                ? (isDark
+                                    ? AppColors.primaryDark
+                                    : AppColors.primaryLight)
+                                : Colors.grey[400],
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
                             ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _isPaymentComplete(grandTotal)
-                            ? (isDark
-                                ? AppColors.primaryDark
-                                : AppColors.primaryLight)
-                            : Colors.grey[400],
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            elevation: isComplete ? 3 : 0,
+                            shadowColor: isDark
+                                ? AppColors.primaryDark.withValues(alpha: 0.4)
+                                : AppColors.primaryLight.withValues(alpha: 0.4),
+                          ),
                         ),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        elevation: _isPaymentComplete(grandTotal) ? 3 : 0,
-                        shadowColor: isDark
-                            ? AppColors.primaryDark.withValues(alpha: 0.4)
-                            : AppColors.primaryLight.withValues(alpha: 0.4),
-                      ),
-                    ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -2987,8 +3049,12 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
   double _getRemainingAmount() {
     final totalPaid = widget.existingPayments
         .fold(0.0, (sum, payment) => sum + payment.amount);
-    final remaining = widget.grandTotal - totalPaid;
-    return double.parse(remaining.toStringAsFixed(2));
+    // Use same rounding logic as _buildPaymentSummary for consistency
+    final roundedTotalPaid = double.parse(totalPaid.toStringAsFixed(2));
+    final roundedGrandTotal =
+        double.parse(widget.grandTotal.toStringAsFixed(2));
+    final remaining = roundedGrandTotal - roundedTotalPaid;
+    return remaining;
   }
 
   // Get hint text based on remaining amount
@@ -3241,14 +3307,24 @@ class _PaymentMethodDialogState extends State<_PaymentMethodDialog> {
                                   return 'Jumlah pembayaran tidak valid';
                                 }
                                 final remaining = _getRemainingAmount();
-                                const double tolerance = 0.1;
+                                // Use epsilon for floating point comparison to handle precision issues
+                                const double epsilon = 0.01; // 1 cent tolerance
+                                // Round both values to 2 decimal places for consistent comparison
                                 final roundedAmount =
                                     double.parse(amount.toStringAsFixed(2));
+                                // remaining is already rounded in _getRemainingAmount(), but round again for safety
                                 final roundedRemaining =
                                     double.parse(remaining.toStringAsFixed(2));
 
-                                if (roundedAmount >
-                                    roundedRemaining + tolerance) {
+                                // Allow payment if amount is less than or equal to remaining (with epsilon tolerance)
+                                // This allows exact match: if roundedAmount == roundedRemaining, it's allowed
+                                // Also allows small differences due to floating point precision (within epsilon)
+                                // Check if amount exceeds remaining by more than epsilon
+                                // If roundedAmount == roundedRemaining, then roundedAmount - roundedRemaining = 0, which is <= epsilon, so it's allowed
+                                final difference =
+                                    roundedAmount - roundedRemaining;
+                                if (difference.abs() > epsilon &&
+                                    difference > 0) {
                                   return 'Jumlah tidak boleh melebihi sisa pembayaran (${FormatHelper.formatCurrency(remaining)})';
                                 }
                                 return null;
