@@ -34,11 +34,13 @@ class FormatHelper {
   }
 
   /// Konversi dari format mata uang ke double
+  /// Untuk Rupiah, hasilnya selalu bilangan bulat (tanpa desimal)
   static double parseCurrencyToDouble(String formatted) {
     String cleaned = formatted.replaceAll(RegExp(r'[^0-9]'), '');
-    final value = double.tryParse(cleaned) ?? 0.0;
-    // Round to 2 decimal places to avoid floating point precision issues
-    return double.parse(value.toStringAsFixed(2));
+    // Parse as integer first to avoid floating point issues
+    final intValue = int.tryParse(cleaned) ?? 0;
+    // Return as double but it's always a whole number
+    return intValue.toDouble();
   }
 
   /// Format teks saat pengguna mengetik di TextField (otomatis tambahkan `Rp` dan pemisah ribuan)

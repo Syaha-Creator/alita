@@ -2435,24 +2435,19 @@ class _CheckoutPagesState extends State<CheckoutPages>
   }
 
   Widget _buildPaymentSummary(double grandTotal, bool isDark) {
-    // Calculate total paid from payment methods
-    final totalPaid =
-        _paymentMethods.fold(0.0, (sum, payment) => sum + payment.amount);
+    final totalPaidInt = _paymentMethods.fold<int>(
+        0, (sum, payment) => sum + payment.amount.round());
+    final grandTotalInt = grandTotal.round();
 
     // Update _totalPaid for consistency
-    _totalPaid = totalPaid;
+    _totalPaid = totalPaidInt.toDouble();
 
-    // Convert to integer (in rupiah) to avoid floating point precision issues
-    final totalPaidInRupiah = (totalPaid * 100).round();
-    final grandTotalInRupiah = (grandTotal * 100).round();
-
-    // Calculate remaining in rupiah, then convert back to double
-    final remainingInRupiah = grandTotalInRupiah - totalPaidInRupiah;
-    final remaining = remainingInRupiah / 100.0;
+    // Calculate remaining as integer
+    final remainingInt = grandTotalInt - totalPaidInt;
 
     // Use integer comparison for accuracy
-    final isFullyPaid = totalPaidInRupiah >= grandTotalInRupiah;
-    final isOverPaid = totalPaidInRupiah > grandTotalInRupiah;
+    final isFullyPaid = totalPaidInt >= grandTotalInt;
+    final isOverPaid = totalPaidInt > grandTotalInt;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -2537,7 +2532,8 @@ class _CheckoutPagesState extends State<CheckoutPages>
               Text(
                 isFullyPaid
                     ? '✓'
-                    : FormatHelper.formatCurrency(remaining.abs()),
+                    : FormatHelper.formatCurrency(
+                        remainingInt.abs().toDouble()),
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: isFullyPaid
@@ -2797,15 +2793,14 @@ class _PaymentBottomBar extends StatelessWidget {
     if (paymentMethods.isEmpty) return false;
 
     // Calculate total paid from payment methods
-    final totalPaid =
-        paymentMethods.fold(0.0, (sum, payment) => sum + payment.amount);
-
-    // Convert to integer (in rupiah) to avoid floating point precision issues
-    final totalPaidInRupiah = (totalPaid * 100).round();
-    final grandTotalInRupiah = (grandTotal * 100).round();
+    // Use integer arithmetic to avoid floating point precision issues
+    // Rupiah doesn't have decimal places, so we can safely use integers
+    final totalPaidInt = paymentMethods.fold<int>(
+        0, (sum, payment) => sum + payment.amount.round());
+    final grandTotalInt = grandTotal.round();
 
     // Payment is complete if total paid is greater than or equal to grand total
-    return totalPaidInRupiah >= grandTotalInRupiah;
+    return totalPaidInt >= grandTotalInt;
   }
 
   // Get payment status text
@@ -2814,19 +2809,16 @@ class _PaymentBottomBar extends StatelessWidget {
       return 'Belum ada pembayaran';
     }
 
-    final totalPaid =
-        paymentMethods.fold(0.0, (sum, payment) => sum + payment.amount);
+    // Use integer arithmetic to avoid floating point precision issues
+    final totalPaidInt = paymentMethods.fold<int>(
+        0, (sum, payment) => sum + payment.amount.round());
+    final grandTotalInt = grandTotal.round();
+    final remainingInt = grandTotalInt - totalPaidInt;
 
-    // Convert to integer (in rupiah) to avoid floating point precision issues
-    final totalPaidInRupiah = (totalPaid * 100).round();
-    final grandTotalInRupiah = (grandTotal * 100).round();
-    final remainingInRupiah = grandTotalInRupiah - totalPaidInRupiah;
-    final remaining = remainingInRupiah / 100.0;
-
-    if (totalPaidInRupiah >= grandTotalInRupiah) {
+    if (totalPaidInt >= grandTotalInt) {
       return 'Pembayaran lengkap';
     } else {
-      return 'Sisa: ${FormatHelper.formatCurrency(remaining)}';
+      return 'Sisa: ${FormatHelper.formatCurrency(remainingInt.toDouble())}';
     }
   }
 

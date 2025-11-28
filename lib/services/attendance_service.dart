@@ -196,12 +196,24 @@ class AttendanceService {
         DateTime? attendanceDate;
         try {
           attendanceDate = DateTime.parse(attendanceInStr);
+
+          final localAttendanceDate = attendanceDate.toLocal();
+
           // Convert to local date only (ignore time)
           final attendanceDateOnly = DateTime(
-            attendanceDate.year,
-            attendanceDate.month,
-            attendanceDate.day,
+            localAttendanceDate.year,
+            localAttendanceDate.month,
+            localAttendanceDate.day,
           );
+
+          if (kDebugMode) {
+            print('AttendanceService: Parsed date (UTC): $attendanceDate');
+            print(
+                'AttendanceService: Parsed date (Local): $localAttendanceDate');
+            print(
+                'AttendanceService: Attendance date only: $attendanceDateOnly');
+            print('AttendanceService: Today date only: $today');
+          }
 
           // Compare dates (year, month, day only)
           if (attendanceDateOnly.year == today.year &&

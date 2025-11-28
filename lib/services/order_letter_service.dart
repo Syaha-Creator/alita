@@ -120,8 +120,12 @@ class OrderLetterService {
           await _createDefaultDiscountEntries(
               detailResults, discountResults, leaderIds, orderLetterId);
         } else {
+          // Process items with discounts
           await _processStructuredDiscounts(discountsData, detailResults,
               discountResults, leaderIds, orderLetterId);
+
+          await _createDefaultEntriesForMissingItems(discountsData,
+              detailResults, discountResults, leaderIds, orderLetterId);
         }
       } else if (discountsData is List<double>) {
         // Legacy format - process all discounts for first kasur
@@ -1430,6 +1434,81 @@ class OrderLetterService {
     }
   }
 
+  /// Create default entries for kasur items that were NOT in the itemDiscounts list
+  /// This ensures ALL kasur items get approval entries, not just those with discounts
+  Future<void> _createDefaultEntriesForMissingItems(
+    List<Map<String, dynamic>> itemDiscounts,
+    List<Map<String, dynamic>> detailResults,
+    List<Map<String, dynamic>> discountResults,
+    List<int?>? leaderIds,
+    int orderLetterId,
+  ) async {
+    try {
+      String normalize(String value) => value.trim().toLowerCase();
+
+      // Build a set of kasur names that already have discounts
+      final Set<String> processedKasurNames = {};
+      for (final itemDiscount in itemDiscounts) {
+        final kasurName =
+            normalize((itemDiscount['kasurName'] ?? '').toString());
+        if (kasurName.isNotEmpty) {
+          processedKasurNames.add(kasurName);
+        }
+      }
+
+      // Process each detail to find kasur items that weren't processed
+      for (final detailResult in detailResults) {
+        if (detailResult['success'] && detailResult['data'] != null) {
+          final rawData = detailResult['data'];
+          final detailData = rawData['location'] ?? rawData;
+
+          // Only process kasur/mattress items
+          final itemType =
+              (detailData['item_type'] ?? '').toString().toLowerCase();
+          if (itemType != 'mattress' && itemType != 'kasur') {
+            continue;
+          }
+
+          final kasurName = normalize((detailData['desc_1'] ?? '').toString());
+
+          // Skip if this kasur was already processed (has discounts)
+          if (processedKasurNames.contains(kasurName)) {
+            continue;
+          }
+
+          final kasurOrderLetterDetailId = detailData['id'] ??
+              detailData['order_letter_detail_id'] ??
+              detailData['detail_id'];
+
+          if (kasurOrderLetterDetailId == null) {
+            continue;
+          }
+
+          // Create default discount entries (User and Direct Leader levels)
+          for (int i = 0; i < 2; i++) {
+            await _createSingleDiscount(
+              orderLetterId: orderLetterId,
+              kasurOrderLetterDetailId: kasurOrderLetterDetailId,
+              discount: 0.0,
+              discountIndex: i,
+              leaderIds: leaderIds,
+              discountResults: discountResults,
+              kasurName: detailData['desc_1'] ?? 'Unknown',
+            );
+          }
+
+          // Mark as processed to avoid duplicates
+          processedKasurNames.add(kasurName);
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print(
+            'OrderLetterService: Error creating default entries for missing items: $e');
+      }
+    }
+  }
+
   /// Create default discount entries when no discounts are provided
   /// Creates entries with 0 discount up to Direct Leader level for all items
   Future<void> _createDefaultDiscountEntries(
@@ -1497,11 +1576,6 @@ class OrderLetterService {
     required List<Map<String, dynamic>> discountResults,
     required String kasurName,
   }) async {
-    // Get leader information
-    final leaderId = (leaderIds != null && discountIndex < leaderIds.length)
-        ? leaderIds[discountIndex]
-        : null;
-
     int? approverId;
     String approverName = '';
     String approverLevel = '';
@@ -1510,7 +1584,6 @@ class OrderLetterService {
         approvedValue; // Should be nullable - null for pending, true for approved, false for rejected
     String? approvedAt;
 
-    // Always try to get leader data, regardless of leaderId
     try {
       final leaderService = locator<LeaderService>();
       final leaderData = await leaderService.getLeaderByUser();
@@ -1519,8 +1592,7 @@ class OrderLetterService {
         final approvalLevel =
             _mapDiscountIndexToApprovalLevel(discountIndex + 1);
 
-        // Use leaderId if available, otherwise get from leaderData based on level
-        approverId = leaderId ??
+        approverId =
             leaderService.getLeaderIdByDiscountLevel(leaderData, approvalLevel);
         approverName = leaderService.getLeaderNameByDiscountLevel(
                 leaderData, approvalLevel) ??
