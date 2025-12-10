@@ -221,11 +221,12 @@ class UpdateCartProductDetail extends CartEvent {
 class UpdateCartSelectedItemNumber extends CartEvent {
   final int productId;
   final double netPrice;
-  final String itemType; // 'kasur' | 'divan' | 'headboard' | 'sorong'
+  final String itemType;
   final String itemNumber;
+  final String? itemDescription;
   final String? jenisKain;
   final String? warnaKain;
-  final int? unitIndex; // optional: select for specific unit (0..quantity-1)
+  final int? unitIndex;
   final String? cartLineId;
 
   const UpdateCartSelectedItemNumber({
@@ -233,6 +234,7 @@ class UpdateCartSelectedItemNumber extends CartEvent {
     required this.netPrice,
     required this.itemType,
     required this.itemNumber,
+    this.itemDescription,
     this.jenisKain,
     this.warnaKain,
     this.unitIndex,
@@ -245,6 +247,7 @@ class UpdateCartSelectedItemNumber extends CartEvent {
         netPrice,
         itemType,
         itemNumber,
+        itemDescription,
         jenisKain,
         warnaKain,
         unitIndex,

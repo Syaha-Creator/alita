@@ -3,6 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../config/app_constant.dart';
 import '../../../../core/utils/format_helper.dart';
+import '../../../../core/widgets/confirmation_dialog.dart';
+import '../../../../core/widgets/empty_state.dart';
+import '../../../../core/widgets/standard_app_bar.dart';
 import '../../../../theme/app_colors.dart';
 import '../bloc/cart_bloc.dart';
 import '../bloc/cart_event.dart';
@@ -23,6 +26,7 @@ class CartPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
 
     return BlocListener<CartBloc, CartState>(
@@ -34,40 +38,38 @@ class CartPage extends StatelessWidget {
       child: Scaffold(
         backgroundColor:
             isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-        appBar: AppBar(
-          backgroundColor: theme.colorScheme.surface,
-          elevation: 0,
-          centerTitle: true,
-          title: Text(
-            'Keranjang Belanja',
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          leading: IconButton(
-            icon: Icon(
-              Icons.arrow_back_ios,
-              color: theme.colorScheme.onSurface,
-            ),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-        ),
+        appBar: _buildAppBar(context),
         body: SafeArea(
           child: BlocBuilder<CartBloc, CartState>(
             builder: (context, state) {
               if (state is CartLoaded) {
                 if (state.activeCartItems.isEmpty) {
-                  return _buildEmptyCart(context, isDark);
+                  return _buildEmptyCart(context, colorScheme);
                 } else {
-                  return _buildCartWithItems(context, state, isDark);
+                  return _buildCartWithItems(
+                      context, state, colorScheme, isDark);
                 }
               } else if (state is CartError) {
-                return _buildErrorState(context, state, isDark);
+                return EmptyState.error(
+                  title: 'Terjadi Kesalahan',
+                  subtitle: state.message,
+                  action: ElevatedButton.icon(
+                    onPressed: () => context.read<CartBloc>().add(LoadCart()),
+                    icon: const Icon(Icons.refresh_rounded, size: 18),
+                    label: const Text('Coba Lagi'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colorScheme.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                );
               } else {
-                return _buildLoadingState();
+                return const LoadingState(message: 'Memuat keranjang...');
               }
             },
           ),
@@ -76,324 +78,112 @@ class CartPage extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyCart(BuildContext context, bool isDark) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppPadding.p24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(AppPadding.p24),
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: Icon(
-                Icons.shopping_cart_outlined,
-                size: 80,
-                color:
-                    isDark ? AppColors.textSecondaryDark : Colors.grey.shade400,
-              ),
-            ),
-            const SizedBox(height: 32),
-            Text(
-              'Keranjang Anda kosong',
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 24,
-                fontWeight: FontWeight.w600,
-                color: isDark
-                    ? AppColors.textPrimaryDark
-                    : AppColors.textPrimaryLight,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Tambahkan produk untuk memulai belanja Anda',
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 16,
-                color: isDark
-                    ? AppColors.textSecondaryDark
-                    : AppColors.textSecondaryLight,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 40),
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton.icon(
-                onPressed: () => _navigateToAddProduct(context),
-                icon: const Icon(Icons.add_shopping_cart, size: 24),
-                label: Text(
-                  'Mulai Belanja',
-                  style: const TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      isDark ? AppColors.buttonDark : AppColors.buttonLight,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  elevation: 8,
-                  shadowColor:
-                      (isDark ? AppColors.buttonDark : AppColors.buttonLight)
-                          .withValues(alpha: 0.3),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
-  Widget _buildCartWithItems(
-      BuildContext context, CartLoaded state, bool isDark) {
-    final selectedItems = state
-        .selectedItems; // Use the getter that already filters active + selected items
-    final totalPrice = selectedItems.fold(
-      0.0,
-      (sum, item) => sum + (item.netPrice * item.quantity),
-    );
-
-    return Column(
-      children: [
-        // Cart items list
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(vertical: AppPadding.p4),
-            itemCount: state.activeCartItems.length,
-            itemBuilder: (context, index) {
-              final cartItem = state.activeCartItems[index];
+    return StandardAppBar(
+      title: 'Keranjang',
+      icon: Icons.shopping_cart_rounded,
+      centerTitle: true,
+      onBack: () => Navigator.of(context).pop(),
+      actions: [
+        BlocBuilder<CartBloc, CartState>(
+          buildWhen: (previous, current) {
+            final prevCount =
+                previous is CartLoaded ? previous.activeCartItems.length : 0;
+            final currCount =
+                current is CartLoaded ? current.activeCartItems.length : 0;
+            return prevCount != currCount;
+          },
+          builder: (context, state) {
+            final itemCount =
+                state is CartLoaded ? state.activeCartItems.length : 0;
+            if (itemCount > 0) {
               return Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppPadding.p4,
-                  vertical: AppPadding.p4,
-                ),
-                child: Dismissible(
-                  key: ValueKey(cartItem.cartLineId),
-                  direction: DismissDirection.endToStart,
-                  background: Container(
+                padding: const EdgeInsets.only(right: 8),
+                child: Center(
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppColors.error,
+                      color: isDark ? AppColors.primaryDark : Colors.white,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    alignment: Alignment.centerRight,
-                    padding: const EdgeInsets.only(right: AppPadding.p20),
-                    child:
-                        const Icon(Icons.delete, color: Colors.white, size: 24),
+                    child: Text(
+                      '$itemCount',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: isDark
+                            ? AppColors.textPrimaryDark
+                            : AppColors.primaryLight,
+                      ),
+                    ),
                   ),
-                  confirmDismiss: (direction) async {
-                    return await _showDeleteConfirmationDialog(context, isDark);
-                  },
-                  onDismissed: (direction) {
-                    context.read<CartBloc>().add(RemoveFromCart(
-                          productId: cartItem.product.id,
-                          netPrice: cartItem.netPrice,
-                        ));
-                  },
-                  child: CartItemWidget(item: cartItem),
                 ),
               );
-            },
-          ),
-        ),
-
-        // Bottom action buttons
-        Container(
-          padding: const EdgeInsets.all(AppPadding.p16),
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
-                blurRadius: 20,
-                offset: const Offset(0, -5),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              // Add more products button
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: OutlinedButton.icon(
-                  onPressed: () => _navigateToAddProduct(context),
-                  icon: const Icon(Icons.add_shopping_cart, size: 20),
-                  label: Text(
-                    'Tambah Produk Lain',
-                    style: const TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor:
-                        isDark ? AppColors.buttonDark : AppColors.buttonLight,
-                    side: BorderSide(
-                      color:
-                          isDark ? AppColors.buttonDark : AppColors.buttonLight,
-                      width: 2,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              // Checkout button
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: selectedItems.isEmpty
-                      ? null
-                      : () async {
-                          final result = await showDialog<CheckoutDialogResult>(
-                            context: context,
-                            builder: (context) => CheckoutUserInfoDialog(),
-                          );
-                          if (result != null && context.mounted) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => CheckoutPages(
-                                  userName: result.name,
-                                  userPhone: result.phone,
-                                  userEmail: result.email,
-                                  isTakeAway: result.isTakeAway,
-                                  isExistingCustomer: result.isExistingCustomer,
-                                ),
-                              ),
-                            );
-                          }
-                        },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        isDark ? AppColors.buttonDark : AppColors.buttonLight,
-                    disabledBackgroundColor: isDark
-                        ? AppColors.textSecondaryDark.withValues(alpha: 0.3)
-                        : Colors.grey.shade300,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 8,
-                    shadowColor:
-                        (isDark ? AppColors.buttonDark : AppColors.buttonLight)
-                            .withValues(alpha: 0.3),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Checkout',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          color: selectedItems.isEmpty
-                              ? (isDark
-                                  ? AppColors.textSecondaryDark
-                                  : Colors.grey.shade600)
-                              : Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      if (selectedItems.isNotEmpty) ...[
-                        const SizedBox(width: 8),
-                        Text(
-                          FormatHelper.formatCurrency(totalPrice),
-                          style: const TextStyle(
-                            fontFamily: 'Inter',
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
+            }
+            return const SizedBox.shrink();
+          },
         ),
       ],
     );
   }
 
-  Widget _buildErrorState(BuildContext context, CartError state, bool isDark) {
+  Widget _buildEmptyCart(BuildContext context, ColorScheme colorScheme) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(AppPadding.p24),
+        padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 80,
-              color: AppColors.error,
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: colorScheme.primary.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.shopping_cart_outlined,
+                size: 64,
+                color: colorScheme.primary.withValues(alpha: 0.5),
+              ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppPadding.p24),
             Text(
-              'Terjadi Kesalahan',
+              'Keranjang Kosong',
               style: TextStyle(
-                fontFamily: 'Inter',
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
-                color: isDark
-                    ? AppColors.textPrimaryDark
-                    : AppColors.textPrimaryLight,
+                color: colorScheme.onSurface,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppPadding.p8),
             Text(
-              state.message,
+              'Tambahkan produk untuk memulai',
               style: TextStyle(
-                fontFamily: 'Inter',
                 fontSize: 14,
-                color: isDark
-                    ? AppColors.textSecondaryDark
-                    : AppColors.textSecondaryLight,
+                color: colorScheme.onSurface.withValues(alpha: 0.6),
               ),
-              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: () => context.read<CartBloc>().add(LoadCart()),
-              style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    isDark ? AppColors.buttonDark : AppColors.buttonLight,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+            const SizedBox(height: AppPadding.p32),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _navigateToAddProduct(context),
+                icon: const Icon(Icons.add_rounded, size: 20),
+                label: const Text(
+                  'Mulai Belanja',
+                  style: TextStyle(fontWeight: FontWeight.w600),
                 ),
-              ),
-              child: Text(
-                'Coba Lagi',
-                style: const TextStyle(
-                  fontFamily: 'Inter',
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: colorScheme.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ),
@@ -403,95 +193,212 @@ class CartPage extends StatelessWidget {
     );
   }
 
-  Widget _buildLoadingState() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 16),
-          Text('Memuat keranjang...'),
-        ],
-      ),
+  Widget _buildCartWithItems(BuildContext context, CartLoaded state,
+      ColorScheme colorScheme, bool isDark) {
+    final selectedItems = state.selectedItems;
+    final totalPrice = selectedItems.fold(
+      0.0,
+      (sum, item) => sum + (item.netPrice * item.quantity),
+    );
+    final totalItems = state.activeCartItems.length;
+    final selectedCount = selectedItems.length;
+    final hasPartialSelection = selectedCount < totalItems && selectedCount > 0;
+
+    return Column(
+      children: [
+        // Partial selection indicator (only when needed)
+        if (hasPartialSelection)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.warning.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: AppColors.warning.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline_rounded,
+                    size: 16, color: AppColors.warning),
+                const SizedBox(width: AppPadding.p8),
+                Text(
+                  '$selectedCount dari $totalItems produk dipilih',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.warning,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+        // Cart items list
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: state.activeCartItems.length,
+            itemBuilder: (context, index) {
+              final cartItem = state.activeCartItems[index];
+              return Dismissible(
+                key: ValueKey(cartItem.cartLineId),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.error,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 24),
+                  child: const Icon(Icons.delete_rounded,
+                      color: Colors.white, size: 24),
+                ),
+                confirmDismiss: (direction) async {
+                  return await ConfirmationDialog.showDelete(
+                    context: context,
+                    title: 'Hapus Item',
+                    message:
+                        'Apakah Anda yakin ingin menghapus item ini dari keranjang?',
+                  );
+                },
+                onDismissed: (direction) {
+                  context.read<CartBloc>().add(RemoveFromCart(
+                        productId: cartItem.product.id,
+                        netPrice: cartItem.netPrice,
+                      ));
+                },
+                child: CartItemWidget(item: cartItem),
+              );
+            },
+          ),
+        ),
+
+        // Bottom Action Bar
+        _buildBottomBar(
+            context, colorScheme, isDark, selectedItems, totalPrice),
+      ],
     );
   }
 
-  Future<bool?> _showDeleteConfirmationDialog(
-      BuildContext context, bool isDark) {
-    return showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor:
-              isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.error.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(Icons.warning, color: AppColors.error, size: 24),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Hapus Item',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.w600,
-                  color: isDark
-                      ? AppColors.textPrimaryDark
-                      : AppColors.textPrimaryLight,
-                ),
-              ),
-            ],
+  Widget _buildBottomBar(BuildContext context, ColorScheme colorScheme,
+      bool isDark, List selectedItems, double totalPrice) {
+    final hasSelection = selectedItems.isNotEmpty;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceDark : Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
           ),
-          content: Text(
-            'Apakah Anda yakin ingin menghapus item ini dari keranjang?',
-            style: TextStyle(
-              fontFamily: 'Inter',
-              color: isDark
-                  ? AppColors.textSecondaryDark
-                  : AppColors.textSecondaryLight,
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: Text(
-                'Batal',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  color: isDark
-                      ? AppColors.textSecondaryDark
-                      : AppColors.textSecondaryLight,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              onPressed: () => Navigator.of(context).pop(false),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.error,
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            // Add product button (compact)
+            OutlinedButton(
+              onPressed: () => _navigateToAddProduct(context),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: colorScheme.primary,
+                side: BorderSide(color: colorScheme.primary),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              child: Text(
-                'Hapus',
-                style: const TextStyle(
-                  fontFamily: 'Inter',
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
+              child: const Icon(Icons.add_rounded, size: 20),
+            ),
+
+            const SizedBox(width: AppPadding.p12),
+
+            // Checkout button (expanded)
+            Expanded(
+              child: ElevatedButton(
+                onPressed: hasSelection
+                    ? () async {
+                        final result = await showDialog<CheckoutDialogResult>(
+                          context: context,
+                          builder: (context) => CheckoutUserInfoDialog(),
+                        );
+                        if (result != null && context.mounted) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => CheckoutPages(
+                                userName: result.name,
+                                userPhone: result.phone,
+                                userEmail: result.email,
+                                isTakeAway: result.isTakeAway,
+                                isExistingCustomer: result.isExistingCustomer,
+                              ),
+                            ),
+                          );
+                        }
+                      }
+                    : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: colorScheme.primary,
+                  disabledBackgroundColor:
+                      colorScheme.onSurface.withValues(alpha: 0.12),
+                  foregroundColor: Colors.white,
+                  disabledForegroundColor:
+                      colorScheme.onSurface.withValues(alpha: 0.38),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  elevation: hasSelection ? 2 : 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
+                child: hasSelection
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Checkout',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                          Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 8),
+                            width: 4,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.5),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          Text(
+                            FormatHelper.formatCurrency(totalPrice),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      )
+                    : Text(
+                        'Pilih item untuk checkout',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
               ),
-              onPressed: () => Navigator.of(context).pop(true),
             ),
           ],
-        );
-      },
+        ),
+      ),
     );
   }
 }

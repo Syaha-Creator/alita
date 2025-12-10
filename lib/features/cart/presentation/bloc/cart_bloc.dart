@@ -149,6 +149,8 @@ class CartBloc extends Bloc<CartEvent, CartState> {
               final idx = event.unitIndex!.clamp(0, item.quantity - 1);
               list[idx] = {
                 'item_number': event.itemNumber,
+                if (event.itemDescription != null)
+                  'item_description': event.itemDescription!,
                 if (event.jenisKain != null) 'jenis_kain': event.jenisKain!,
                 if (event.warnaKain != null) 'warna_kain': event.warnaKain!,
               };
@@ -160,6 +162,8 @@ class CartBloc extends Bloc<CartEvent, CartState> {
                   item.selectedItemNumbers ?? {});
               currentSelections[event.itemType] = {
                 'item_number': event.itemNumber,
+                if (event.itemDescription != null)
+                  'item_description': event.itemDescription!,
                 if (event.jenisKain != null) 'jenis_kain': event.jenisKain!,
                 if (event.warnaKain != null) 'warna_kain': event.warnaKain!,
               };
@@ -848,71 +852,120 @@ class CartBloc extends Bloc<CartEvent, CartState> {
 
             final updatedBonus = _mergeBonusWithDefaults(
               currentDefault,
-              item.product, // price changed but detail may be same; keep as new default
+              item.product,
               item.product.bonus,
               item.quantity,
             );
 
-            // Create updated product with new bonus quantities
             final updatedProduct = ProductEntity(
-              id: item.product.id,
-              area: item.product.area,
-              channel: item.product.channel,
-              brand: item.product.brand,
-              kasur: item.product.kasur,
-              divan: item.product.divan,
-              headboard: item.product.headboard,
-              sorong: item.product.sorong,
-              ukuran: item.product.ukuran,
-              pricelist: item.product.pricelist,
-              program: item.product.program,
-              eupKasur: item.product.eupKasur,
-              eupDivan: item.product.eupDivan,
-              eupHeadboard: item.product.eupHeadboard,
-              endUserPrice: item.product.endUserPrice,
+              id: currentDefault.id,
+              area: currentDefault.area,
+              channel: currentDefault.channel,
+              brand: currentDefault.brand,
+              kasur: currentDefault.kasur,
+              divan: currentDefault.divan,
+              headboard: currentDefault.headboard,
+              sorong: currentDefault.sorong,
+              ukuran: currentDefault.ukuran,
+              pricelist: currentDefault.pricelist,
+              program: currentDefault.program,
+              eupKasur: currentDefault.eupKasur,
+              eupDivan: currentDefault.eupDivan,
+              eupHeadboard: currentDefault.eupHeadboard,
+              endUserPrice: currentDefault.endUserPrice,
               bonus: updatedBonus,
-              discounts: item.product.discounts,
-              isSet: item.product.isSet,
-              plKasur: item.product.plKasur,
-              plDivan: item.product.plDivan,
-              plHeadboard: item.product.plHeadboard,
-              plSorong: item.product.plSorong,
-              eupSorong: item.product.eupSorong,
-              bottomPriceAnalyst: item.product.bottomPriceAnalyst,
-              disc1: item.product.disc1,
-              disc2: item.product.disc2,
-              disc3: item.product.disc3,
-              disc4: item.product.disc4,
-              disc5: item.product.disc5,
-              itemNumber: item.product.itemNumber,
-              itemNumberKasur: item.product.itemNumberKasur,
-              itemNumberDivan: item.product.itemNumberDivan,
-              itemNumberHeadboard: item.product.itemNumberHeadboard,
-              itemNumberSorong: item.product.itemNumberSorong,
-              itemNumberAccessories: item.product.itemNumberAccessories,
-              itemNumberBonus1: item.product.itemNumberBonus1,
-              itemNumberBonus2: item.product.itemNumberBonus2,
-              itemNumberBonus3: item.product.itemNumberBonus3,
-              itemNumberBonus4: item.product.itemNumberBonus4,
-              itemNumberBonus5: item.product.itemNumberBonus5,
+              discounts: currentDefault.discounts,
+              isSet: currentDefault.isSet,
+              plKasur: currentDefault.plKasur,
+              plDivan: currentDefault.plDivan,
+              plHeadboard: currentDefault.plHeadboard,
+              plSorong: currentDefault.plSorong,
+              eupSorong: currentDefault.eupSorong,
+              bottomPriceAnalyst: currentDefault.bottomPriceAnalyst,
+              disc1: currentDefault.disc1,
+              disc2: currentDefault.disc2,
+              disc3: currentDefault.disc3,
+              disc4: currentDefault.disc4,
+              disc5: currentDefault.disc5,
+              itemNumber: currentDefault.itemNumber,
+              itemNumberKasur: currentDefault.itemNumberKasur,
+              itemNumberDivan: currentDefault.itemNumberDivan,
+              itemNumberHeadboard: currentDefault.itemNumberHeadboard,
+              itemNumberSorong: currentDefault.itemNumberSorong,
+              itemNumberAccessories: currentDefault.itemNumberAccessories,
+              itemNumberBonus1: currentDefault.itemNumberBonus1,
+              itemNumberBonus2: currentDefault.itemNumberBonus2,
+              itemNumberBonus3: currentDefault.itemNumberBonus3,
+              itemNumberBonus4: currentDefault.itemNumberBonus4,
+              itemNumberBonus5: currentDefault.itemNumberBonus5,
             );
-            // Derive effective discount per level if none set yet
             List<double> derivedDiscounts = item.discountPercentages;
             final bool hasAnyDiscount = derivedDiscounts.any((d) => d > 0.0);
             if (!hasAnyDiscount) {
-              // Use variant base price from currentDefault (reflects latest detail selection)
               final base = currentDefault.endUserPrice;
               if (base > 0 && event.newNetPrice >= 0) {
-                final eff = (1 - (event.newNetPrice / base)) * 100.0; // percent
-                if (eff > 0 && eff < 1000) {
-                  derivedDiscounts = _splitAcrossLevels(
-                    eff,
-                    item.product.disc1,
-                    item.product.disc2,
-                    item.product.disc3,
-                    item.product.disc4,
-                    item.product.disc5,
-                  );
+                double targetPrice = event.newNetPrice;
+                if (targetPrice < currentDefault.bottomPriceAnalyst) {
+                  targetPrice = currentDefault.bottomPriceAnalyst;
+                }
+
+                derivedDiscounts = _splitAcrossLevels(
+                  base,
+                  targetPrice,
+                  currentDefault.disc1,
+                  currentDefault.disc2,
+                  currentDefault.disc3,
+                  currentDefault.disc4,
+                  currentDefault.disc5,
+                );
+
+                // Verify final price matches target (with small tolerance for rounding)
+                double verifyPrice = base;
+                for (final disc in derivedDiscounts) {
+                  if (disc > 0) {
+                    verifyPrice = verifyPrice * (1 - disc / 100);
+                  }
+                }
+
+                if ((verifyPrice - targetPrice).abs() > 0.01 &&
+                    derivedDiscounts.any((d) => d > 0)) {
+                  int lastIndex = -1;
+                  for (int i = derivedDiscounts.length - 1; i >= 0; i--) {
+                    if (derivedDiscounts[i] > 0) {
+                      lastIndex = i;
+                      break;
+                    }
+                  }
+
+                  if (lastIndex >= 0) {
+                    // Recalculate from beginning to lastIndex-1
+                    double priceBeforeLast = base;
+                    for (int i = 0; i < lastIndex; i++) {
+                      if (i < derivedDiscounts.length &&
+                          derivedDiscounts[i] > 0) {
+                        priceBeforeLast =
+                            priceBeforeLast * (1 - derivedDiscounts[i] / 100);
+                      }
+                    }
+
+                    // Calculate exact discount needed for last level
+                    if (priceBeforeLast > targetPrice + 0.01) {
+                      double exactDiscount =
+                          (1 - (targetPrice / priceBeforeLast)) * 100;
+                      final caps = [
+                        currentDefault.disc1,
+                        currentDefault.disc2,
+                        currentDefault.disc3,
+                        currentDefault.disc4,
+                        currentDefault.disc5
+                      ];
+                      double maxAllowed =
+                          lastIndex < caps.length ? caps[lastIndex] * 100 : 0;
+                      derivedDiscounts[lastIndex] = exactDiscount > maxAllowed
+                          ? maxAllowed
+                          : (exactDiscount < 0 ? 0 : exactDiscount);
+                    }
+                  }
                 }
               }
             }
@@ -935,7 +988,6 @@ class CartBloc extends Bloc<CartEvent, CartState> {
         await CartStorageService.saveCartItems(updatedItems);
         emit(CartLoaded(updatedItems));
 
-        // Sync ProductBloc rounded price for UI discount panels
         try {
           final productBloc = locator<ProductBloc>();
           productBloc
@@ -975,54 +1027,54 @@ class CartBloc extends Bloc<CartEvent, CartState> {
               item.quantity,
             );
 
-            // Create updated product with new bonus quantities
             final updatedProduct = ProductEntity(
-              id: item.product.id,
-              area: item.product.area,
-              channel: item.product.channel,
-              brand: item.product.brand,
-              kasur: item.product.kasur,
-              divan: item.product.divan,
-              headboard: item.product.headboard,
-              sorong: item.product.sorong,
-              ukuran: item.product.ukuran,
-              pricelist: item.product.pricelist,
-              program: item.product.program,
-              eupKasur: item.product.eupKasur,
-              eupDivan: item.product.eupDivan,
-              eupHeadboard: item.product.eupHeadboard,
-              endUserPrice: item.product.endUserPrice,
+              id: currentDefault.id,
+              area: currentDefault.area,
+              channel: currentDefault.channel,
+              brand: currentDefault.brand,
+              kasur: currentDefault.kasur,
+              divan: currentDefault.divan,
+              headboard: currentDefault.headboard,
+              sorong: currentDefault.sorong,
+              ukuran: currentDefault.ukuran,
+              pricelist: currentDefault.pricelist,
+              program: currentDefault.program,
+              eupKasur: currentDefault.eupKasur,
+              eupDivan: currentDefault.eupDivan,
+              eupHeadboard: currentDefault.eupHeadboard,
+              endUserPrice: currentDefault.endUserPrice,
               bonus: updatedBonus,
-              discounts: item.product.discounts,
-              isSet: item.product.isSet,
-              plKasur: item.product.plKasur,
-              plDivan: item.product.plDivan,
-              plHeadboard: item.product.plHeadboard,
-              plSorong: item.product.plSorong,
-              eupSorong: item.product.eupSorong,
-              bottomPriceAnalyst: item.product.bottomPriceAnalyst,
-              disc1: item.product.disc1,
-              disc2: item.product.disc2,
-              disc3: item.product.disc3,
-              disc4: item.product.disc4,
-              disc5: item.product.disc5,
-              itemNumber: item.product.itemNumber,
-              itemNumberKasur: item.product.itemNumberKasur,
-              itemNumberDivan: item.product.itemNumberDivan,
-              itemNumberHeadboard: item.product.itemNumberHeadboard,
-              itemNumberSorong: item.product.itemNumberSorong,
-              itemNumberAccessories: item.product.itemNumberAccessories,
-              itemNumberBonus1: item.product.itemNumberBonus1,
-              itemNumberBonus2: item.product.itemNumberBonus2,
-              itemNumberBonus3: item.product.itemNumberBonus3,
-              itemNumberBonus4: item.product.itemNumberBonus4,
-              itemNumberBonus5: item.product.itemNumberBonus5,
+              discounts: currentDefault.discounts,
+              isSet: currentDefault.isSet,
+              plKasur: currentDefault.plKasur,
+              plDivan: currentDefault.plDivan,
+              plHeadboard: currentDefault.plHeadboard,
+              plSorong: currentDefault.plSorong,
+              eupSorong: currentDefault.eupSorong,
+              bottomPriceAnalyst: currentDefault.bottomPriceAnalyst,
+              disc1: currentDefault.disc1,
+              disc2: currentDefault.disc2,
+              disc3: currentDefault.disc3,
+              disc4: currentDefault.disc4,
+              disc5: currentDefault.disc5,
+              itemNumber: currentDefault.itemNumber,
+              itemNumberKasur: currentDefault.itemNumberKasur,
+              itemNumberDivan: currentDefault.itemNumberDivan,
+              itemNumberHeadboard: currentDefault.itemNumberHeadboard,
+              itemNumberSorong: currentDefault.itemNumberSorong,
+              itemNumberAccessories: currentDefault.itemNumberAccessories,
+              itemNumberBonus1: currentDefault.itemNumberBonus1,
+              itemNumberBonus2: currentDefault.itemNumberBonus2,
+              itemNumberBonus3: currentDefault.itemNumberBonus3,
+              itemNumberBonus4: currentDefault.itemNumberBonus4,
+              itemNumberBonus5: currentDefault.itemNumberBonus5,
             );
 
             // Recalculate net from EUP (endUserPrice) using new discount percentages
+            // Use currentDefault.endUserPrice, not item.product.endUserPrice
             final double recalculatedNet =
                 _applyDiscountsUsecase.applySequentially(
-                    item.product.endUserPrice, event.discountPercentages);
+                    currentDefault.endUserPrice, event.discountPercentages);
 
             updatedItems.add(CartEntity(
               cartLineId: item.cartLineId,
@@ -1069,28 +1121,46 @@ class CartBloc extends Bloc<CartEvent, CartState> {
 
   // Split an effective discount (percent) into up to 5 levels respecting max per level
   // discX parameters are fractions (e.g., 0.1 for 10%), convert to percent caps
-  List<double> _splitAcrossLevels(double effPercent, double disc1, double disc2,
-      double disc3, double disc4, double disc5) {
+  // Calculate discounts to reach target price from base price
+  // This ensures the final price after sequential discounts matches the target
+  List<double> _splitAcrossLevels(double basePrice, double targetPrice,
+      double disc1, double disc2, double disc3, double disc4, double disc5) {
     final caps = [disc1, disc2, disc3, disc4, disc5]
         .map((d) => (d > 0 ? d * 100.0 : 0.0))
         .toList();
-    final result = List<double>.filled(5, 0.0, growable: true);
-    double remaining = effPercent;
+    final result = List<double>.filled(5, 0.0);
+    double currentPrice = basePrice;
+
+    // Calculate discounts sequentially to ensure final price matches target
     for (int i = 0; i < 5; i++) {
-      if (remaining <= 0) break;
+      if (currentPrice <= targetPrice + 0.01) {
+        // Already reached or exceeded target price
+        break;
+      }
+
       final cap = caps[i];
       if (cap <= 0) continue;
-      final take = remaining > cap ? cap : remaining;
-      result[i] = take;
-      remaining -= take;
+
+      // Calculate how much discount is needed to reach target price
+      // Formula: currentPrice * (1 - discount/100) = targetPrice
+      // Solving for discount: discount = (1 - targetPrice/currentPrice) * 100
+      double neededDiscount = (1 - (targetPrice / currentPrice)) * 100;
+
+      // Use the minimum of needed discount and max allowed
+      double useDisc = neededDiscount > cap ? cap : neededDiscount;
+      if (useDisc < 0) useDisc = 0;
+
+      result[i] = useDisc;
+      // Update current price after applying this discount
+      currentPrice = currentPrice * (1 - useDisc / 100);
     }
-    // Trim trailing zeros safely by creating a growable view
+
+    // Trim trailing zeros
     int lastIdx = result.length - 1;
     while (lastIdx >= 0 && result[lastIdx] <= 0) {
       lastIdx--;
     }
-    final trimmed = result.sublist(0, lastIdx + 1);
-    return trimmed.isEmpty ? [effPercent] : trimmed;
+    return lastIdx >= 0 ? result.sublist(0, lastIdx + 1) : <double>[];
   }
 
   // Clamp provided discount percentages to product caps per level

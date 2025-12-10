@@ -4,6 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../config/app_constant.dart';
 import '../../../../core/utils/format_helper.dart';
 import '../../../../core/widgets/quantity_control.dart';
+import '../../../../core/widgets/confirmation_dialog.dart';
+import '../../../../core/widgets/price_row.dart';
 import '../../../../services/accessories_service.dart';
 import '../../../../services/product_options_service.dart';
 import '../../../../config/dependency_injection.dart';
@@ -23,6 +25,7 @@ import '../../../../services/lookup_item_service.dart' as lookup;
 import '../../domain/entities/cart_entity.dart';
 import '../bloc/cart_bloc.dart';
 import '../bloc/cart_event.dart';
+import 'cart_item/cart_item_widgets.dart';
 
 class CartItemWidget extends StatefulWidget {
   final CartEntity item;
@@ -42,7 +45,7 @@ class _CartItemWidgetState extends State<CartItemWidget>
   @override
   bool get wantKeepAlive => true;
   static const double _avatarSize = 40.0;
-  static const Radius radius = Radius.circular(12);
+  // radius dipindahkan ke widget-widget yang diekstrak
 
   bool _listEquals<T>(List<T> a, List<T> b) {
     if (a.length != b.length) return false;
@@ -53,6 +56,31 @@ class _CartItemWidgetState extends State<CartItemWidget>
   }
 
   bool _isNoneComponent(String value) => _controller.isNoneComponent(value);
+
+  /// Check if value is valid for display (not empty, "-", "0", or starts with "tanpa")
+  bool _isValidItemValue(String value) {
+    if (value.isEmpty) return false;
+    final trimmed = value.trim();
+    if (trimmed == '-') return false;
+    if (trimmed == '0') return false;
+    final lower = trimmed.toLowerCase();
+    if (lower.startsWith('tanpa')) return false;
+    if (lower == 'tidak ada kasur') return false;
+    if (lower == 'tidak ada divan') return false;
+    if (lower == 'tidak ada headboard') return false;
+    if (lower == 'tidak ada sorong') return false;
+    return true;
+  }
+
+  /// Get primary display name based on priority: Kasur → Divan → Headboard → Sorong
+  String _getPrimaryDisplayName() {
+    final p = widget.item.product;
+    if (_isValidItemValue(p.kasur)) return p.kasur;
+    if (_isValidItemValue(p.divan)) return p.divan;
+    if (_isValidItemValue(p.headboard)) return p.headboard;
+    if (_isValidItemValue(p.sorong)) return p.sorong;
+    return p.brand; // Fallback to brand
+  }
 
   @override
   void initState() {
@@ -120,8 +148,15 @@ class _CartItemWidgetState extends State<CartItemWidget>
             state.productDiscountsPercentage[widget.item.product.id];
         final hasPositiveDiscount =
             (newDiscountPercentages ?? const <double>[]).any((d) => d > 0);
+        final currentHasPositiveDiscount =
+            widget.item.discountPercentages.any((d) => d > 0);
+
+        final isDiscountReset = currentHasPositiveDiscount &&
+            !hasPositiveDiscount &&
+            newDiscountPercentages != null;
+
         if (newDiscountPercentages != null &&
-            hasPositiveDiscount &&
+            (hasPositiveDiscount || isDiscountReset) &&
             !_listEquals(
                 newDiscountPercentages, widget.item.discountPercentages)) {
           double calculatedPrice = widget.item.product.endUserPrice;
@@ -205,126 +240,84 @@ class _CartItemWidgetState extends State<CartItemWidget>
 
   // --- SEMUA METHOD HELPER DIKEMBALIKAN KE DALAM STATE ---
 
+  /// Check if bonus is valid for display
+  bool _isValidBonus(BonusItem b) {
+    if (b.name.isEmpty) return false;
+    if (b.name.trim() == '0') return false;
+    if (b.name.trim() == '-') return false;
+    if (b.quantity <= 0) return false;
+    return true;
+  }
+
   Widget _buildDetailsSection(BuildContext context, bool isDark) {
-    final hasBonus = widget.item.product.bonus.any((b) => b.name.isNotEmpty);
+    final hasBonus = widget.item.product.bonus.any(_isValidBonus);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: AppPadding.p10),
-        _buildProductDetails(context, isDark),
+        // Menggunakan ProductDetailsSection widget yang sudah diekstrak
+        ProductDetailsSection(
+          product: widget.item.product,
+          isDark: isDark,
+          onShowOptions: (type, currentValue) =>
+              _showOptionsDialog(context, type, currentValue, isDark),
+          getSorongOptions: _getSorongOptions,
+        ),
         // Fabric selectors per component if available
         if (!_isNoneComponent(widget.item.product.kasur))
-          _buildFabricSelector(context, isDark, 'kasur'),
+          FabricSelector(
+            item: widget.item,
+            isDark: isDark,
+            itemType: 'kasur',
+            onOpenFabricSelector: (itemType, unitIndex) =>
+                _openFabricSelector(context, itemType, unitIndex),
+          ),
         if (!_isNoneComponent(widget.item.product.divan))
-          _buildFabricSelector(context, isDark, 'divan'),
+          FabricSelector(
+            item: widget.item,
+            isDark: isDark,
+            itemType: 'divan',
+            onOpenFabricSelector: (itemType, unitIndex) =>
+                _openFabricSelector(context, itemType, unitIndex),
+          ),
         if (!_isNoneComponent(widget.item.product.headboard))
-          _buildFabricSelector(context, isDark, 'headboard'),
+          FabricSelector(
+            item: widget.item,
+            isDark: isDark,
+            itemType: 'headboard',
+            onOpenFabricSelector: (itemType, unitIndex) =>
+                _openFabricSelector(context, itemType, unitIndex),
+          ),
         if (!_isNoneComponent(widget.item.product.sorong))
-          _buildFabricSelector(context, isDark, 'sorong'),
+          FabricSelector(
+            item: widget.item,
+            isDark: isDark,
+            itemType: 'sorong',
+            onOpenFabricSelector: (itemType, unitIndex) =>
+                _openFabricSelector(context, itemType, unitIndex),
+          ),
         if (hasBonus) const SizedBox(height: AppPadding.p10),
-        _buildBonus(context, isDark),
-        const SizedBox(height: AppPadding.p10),
-        _buildPriceInfo(context, isDark),
-      ],
-    );
-  }
-
-  Widget _buildFabricSelector(
-      BuildContext context, bool isDark, String itemType) {
-    String buildLabel(Map<String, String>? sel) {
-      if (sel == null) return 'Pilih kain';
-      final jk = (sel['jenis_kain'] ?? '').trim();
-      final wk = (sel['warna_kain'] ?? '').trim();
-      final combined = [jk, wk].where((e) => e.isNotEmpty).join(' - ');
-      return combined.isEmpty ? (sel['item_number'] ?? 'Pilih kain') : combined;
-    }
-
-    final qty = widget.item.quantity;
-    final perUnit = widget.item.selectedItemNumbersPerUnit?[itemType];
-    final selLegacy = widget.item.selectedItemNumbers?[itemType];
-
-    final children = <Widget>[];
-    // Header line
-    children.add(Row(
-      children: [
-        Expanded(
-          child: Text(
-            'Kain ${itemType[0].toUpperCase()}${itemType.substring(1)}',
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: isDark
-                  ? AppColors.textPrimaryDark
-                  : AppColors.textPrimaryLight,
-            ),
-          ),
+        // Menggunakan BonusSection widget yang sudah diekstrak
+        BonusSection(
+          item: widget.item,
+          isDark: isDark,
+          onSelectBonus: (index, bonus) =>
+              _showBonusItemSelector(context, index, bonus),
+          onRemoveBonus: (index) => _removeBonus(context, index),
         ),
-        // For qty==1, keep single selector; for qty>1, show Unit #1 here
-        TextButton(
-          onPressed: () => _openFabricSelector(context, itemType, 0),
-          child: Text(
-            buildLabel((perUnit != null && perUnit.isNotEmpty)
-                ? perUnit[0]
-                : selLegacy),
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 12,
-              color: isDark ? AppColors.accentDark : AppColors.accentLight,
-            ),
-          ),
-        )
+        const SizedBox(height: AppPadding.p10),
+        // Menggunakan PriceInfoSection widget yang sudah diekstrak
+        PriceInfoSection(
+          item: widget.item,
+          isDark: isDark,
+          onShowPriceActions: () => _showPriceActions(context),
+        ),
       ],
-    ));
-
-    // If more than 1 quantity, show selectors per additional unit
-    if (qty > 1) {
-      for (int i = 1; i < qty; i++) {
-        final label = buildLabel(
-            (perUnit != null && i < perUnit.length) ? perUnit[i] : null);
-        children.add(Padding(
-          padding: const EdgeInsets.only(top: 6),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Unit #${i + 1}',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 12,
-                    color: isDark
-                        ? AppColors.textSecondaryDark
-                        : AppColors.textSecondaryLight,
-                  ),
-                ),
-              ),
-              TextButton(
-                onPressed: () => _openFabricSelector(context, itemType, i),
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 12,
-                    color:
-                        isDark ? AppColors.accentDark : AppColors.accentLight,
-                  ),
-                ),
-              )
-            ],
-          ),
-        ));
-      }
-    }
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: children,
-      ),
     );
   }
+
+  // _buildFabricSelector dipindahkan ke FabricSelector widget
 
   Future<void> _openFabricSelector(
       BuildContext context, String itemType, int unitIndex) async {
@@ -367,6 +360,7 @@ class _CartItemWidgetState extends State<CartItemWidget>
           netPrice: widget.item.netPrice,
           itemType: itemType,
           itemNumber: it.itemNumber,
+          itemDescription: it.itemDesc,
           jenisKain: it.fabricType,
           warnaKain: it.fabricColor,
           unitIndex: unitIndex,
@@ -374,18 +368,14 @@ class _CartItemWidgetState extends State<CartItemWidget>
         ));
         if (!mounted) return;
         if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Kain default diterapkan')),
-        );
+        CustomToast.showToast('Kain default diterapkan', ToastType.info);
         return;
       }
 
       if (list.isEmpty) {
         if (!mounted) return;
         if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pilihan kain tidak tersedia')),
-        );
+        CustomToast.showToast('Pilihan kain tidak tersedia', ToastType.warning);
         return;
       }
 
@@ -424,6 +414,7 @@ class _CartItemWidgetState extends State<CartItemWidget>
                             netPrice: widget.item.netPrice,
                             itemType: itemType,
                             itemNumber: it.itemNumber,
+                            itemDescription: it.itemDesc,
                             jenisKain: it.fabricType,
                             warnaKain: it.fabricColor,
                             unitIndex: unitIndex,
@@ -448,9 +439,7 @@ class _CartItemWidgetState extends State<CartItemWidget>
     } catch (e) {
       if (!mounted) return;
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal memuat kain: $e')),
-      );
+      CustomToast.showToast('Gagal memuat kain: $e', ToastType.error);
     }
   }
 
@@ -483,7 +472,7 @@ class _CartItemWidgetState extends State<CartItemWidget>
         const SizedBox(width: AppPadding.p10),
         Expanded(
           child: Text(
-            '${widget.item.product.kasur} - ${widget.item.product.ukuran}',
+            '${_getPrimaryDisplayName()} - ${widget.item.product.ukuran}',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                   color: isDark
@@ -505,49 +494,13 @@ class _CartItemWidgetState extends State<CartItemWidget>
             cartLineId: widget.item.cartLineId,
           ));
     } else {
-      final theme = Theme.of(context);
-      final isDark = theme.brightness == Brightness.dark;
+      // Menggunakan ConfirmationDialog widget yang reusable
+      final confirm = await ConfirmationDialog.showDelete(
+        context: context,
+        title: 'Konfirmasi',
+        message: 'Yakin ingin menghapus item ini?',
+      );
 
-      final confirm = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-                backgroundColor:
-                    isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-                title: Text(
-                  'Konfirmasi',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: isDark
-                            ? AppColors.textPrimaryDark
-                            : AppColors.textPrimaryLight,
-                      ),
-                ),
-                content: Text(
-                  'Yakin ingin menghapus item ini?',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: isDark
-                            ? AppColors.textSecondaryDark
-                            : AppColors.textSecondaryLight,
-                      ),
-                ),
-                actions: [
-                  TextButton(
-                      onPressed: () => Navigator.pop(ctx, false),
-                      child: Text(
-                        'Batal',
-                        style: TextStyle(
-                          color: isDark
-                              ? AppColors.textSecondaryDark
-                              : AppColors.textSecondaryLight,
-                        ),
-                      )),
-                  ElevatedButton(
-                      onPressed: () => Navigator.pop(ctx, true),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.error,
-                      ),
-                      child: const Text('Hapus'))
-                ],
-              ));
       if (confirm == true) {
         if (!mounted) return;
         if (!context.mounted) return;
@@ -558,196 +511,6 @@ class _CartItemWidgetState extends State<CartItemWidget>
             cartLineId: widget.item.cartLineId));
       }
     }
-  }
-
-  Widget _buildProductDetails(BuildContext context, bool isDark) {
-    final p = widget.item.product;
-    final baseTextStyle =
-        Theme.of(context).textTheme.bodyMedium ?? const TextStyle();
-    final TextStyle styleLabel =
-        baseTextStyle.copyWith(fontWeight: FontWeight.w600);
-    final TextStyle styleValue =
-        baseTextStyle.copyWith(fontWeight: FontWeight.w500);
-
-    return Container(
-      padding: const EdgeInsets.all(AppPadding.p10),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : Colors.grey.shade50,
-        borderRadius: const BorderRadius.all(radius),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Detail Produk',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: isDark
-                        ? AppColors.textPrimaryDark
-                        : AppColors.textPrimaryLight,
-                    fontWeight: FontWeight.w600,
-                  )),
-          const SizedBox(height: AppPadding.p10 / 2),
-          _buildDropdownRow(
-            context,
-            Icons.table_chart,
-            'Divan',
-            p.divan,
-            styleLabel,
-            styleValue,
-            isDark,
-            'divan',
-          ),
-          _buildDropdownRow(
-            context,
-            Icons.view_headline,
-            'Headboard',
-            p.headboard,
-            styleLabel,
-            styleValue,
-            isDark,
-            'headboard',
-          ),
-          _buildConditionalSorongDropdown(
-            context,
-            p,
-            styleLabel,
-            styleValue,
-            isDark,
-          ),
-          _buildDropdownRow(
-            context,
-            Icons.straighten,
-            'Ukuran',
-            p.ukuran,
-            styleLabel,
-            styleValue,
-            isDark,
-            'ukuran',
-          ),
-          _detailRow(
-              Icons.local_offer,
-              'Program',
-              p.program.isNotEmpty ? p.program : 'Tidak ada promo',
-              styleLabel,
-              styleValue,
-              isDark),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDropdownRow(
-    BuildContext context,
-    IconData icon,
-    String label,
-    String currentValue,
-    TextStyle labelStyle,
-    TextStyle valueStyle,
-    bool isDark,
-    String type,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppPadding.p4),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            size: 20,
-            color: isDark ? AppColors.textSecondaryDark : Colors.grey.shade600,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              '$label ',
-              style: labelStyle.copyWith(
-                color: isDark
-                    ? AppColors.textPrimaryDark
-                    : AppColors.textPrimaryLight,
-              ),
-            ),
-          ),
-          Expanded(
-            child: InkWell(
-              onTap: () =>
-                  _showOptionsDialog(context, type, currentValue, isDark),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.surfaceDark : Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: isDark
-                        ? AppColors.accentDark.withValues(alpha: 0.3)
-                        : AppColors.accentLight.withValues(alpha: 0.3),
-                    width: 1,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        currentValue.isNotEmpty ? currentValue : '-',
-                        style: valueStyle.copyWith(
-                          color: isDark
-                              ? AppColors.textSecondaryDark
-                              : AppColors.textSecondaryLight,
-                        ),
-                      ),
-                    ),
-                    Icon(
-                      Icons.arrow_drop_down,
-                      size: 20,
-                      color: isDark
-                          ? AppColors.textSecondaryDark
-                          : AppColors.textSecondaryLight,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildConditionalSorongDropdown(
-    BuildContext context,
-    ProductEntity product,
-    TextStyle labelStyle,
-    TextStyle valueStyle,
-    bool isDark,
-  ) {
-    return FutureBuilder<List<String>>(
-      future: _getSorongOptions(product),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          // Loading state - show nothing while loading
-          return const SizedBox.shrink();
-        }
-
-        final sorongOptions = snapshot.data!;
-
-        // Only show sorong dropdown if there are more than 1 option
-        if (sorongOptions.length > 1) {
-          return _buildDropdownRow(
-            context,
-            Icons.storage,
-            'Sorong',
-            product.sorong,
-            labelStyle,
-            valueStyle,
-            isDark,
-            'sorong',
-          );
-        } else {
-          // Don't show sorong dropdown if only 1 option
-          return const SizedBox.shrink();
-        }
-      },
-    );
   }
 
   Future<List<String>> _getSorongOptions(ProductEntity product) async {
@@ -767,419 +530,8 @@ class _CartItemWidgetState extends State<CartItemWidget>
     }
   }
 
-  Widget _detailRow(IconData icon, String label, String value,
-      TextStyle labelStyle, TextStyle valueStyle, bool isDark) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppPadding.p4),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            size: 20,
-            color: isDark ? AppColors.textSecondaryDark : Colors.grey.shade600,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              '$label ',
-              style: labelStyle.copyWith(
-                color: isDark
-                    ? AppColors.textPrimaryDark
-                    : AppColors.textPrimaryLight,
-              ),
-            ),
-          ),
-          Text(
-            value.isNotEmpty ? value : '-',
-            style: (valueStyle).copyWith(
-              color: isDark
-                  ? AppColors.textSecondaryDark
-                  : AppColors.textSecondaryLight,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBonus(BuildContext context, bool isDark) {
-    final bonusList = widget.item.product.bonus;
-    final hasBonus = bonusList.any((b) => b.name.isNotEmpty);
-
-    // Hide bonus section if there's no bonus
-    if (!hasBonus) {
-      return const SizedBox.shrink();
-    }
-
-    return _bonusBox(
-      context,
-      Icons.card_giftcard,
-      'Bonus',
-      '',
-      isDark,
-    );
-  }
-
-  Widget _bonusBox(BuildContext context, IconData icon, String title,
-      String content, bool isDark) {
-    final bonusList = widget.item.product.bonus;
-    final hasBonus = bonusList.any((b) => b.name.isNotEmpty);
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppPadding.p8),
-      decoration: BoxDecoration(
-        color: isDark
-            ? AppColors.surfaceDark
-            : AppColors.accentLight.withValues(alpha: 0.05),
-        borderRadius: const BorderRadius.all(radius),
-        border: Border.all(
-          color: isDark
-              ? AppColors.accentDark.withValues(alpha: 0.2)
-              : AppColors.accentLight.withValues(alpha: 0.2),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Compact header
-          Row(
-            children: [
-              Icon(
-                icon,
-                size: 18,
-                color: isDark ? AppColors.accentDark : AppColors.accentLight,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: isDark
-                        ? AppColors.textPrimaryDark
-                        : AppColors.textPrimaryLight,
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          // Compact bonus items or empty state
-          if (hasBonus) ...[
-            ...bonusList.asMap().entries.map((entry) {
-              final index = entry.key;
-              final bonus = entry.value;
-              if (bonus.name.isEmpty) return const SizedBox.shrink();
-
-              return Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: Row(
-                  children: [
-                    // Bonus name
-                    Expanded(
-                      child: InkWell(
-                        onTap: () =>
-                            _showBonusItemSelector(context, index, bonus),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? AppColors.surfaceDark
-                                : Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: isDark
-                                  ? AppColors.accentDark.withValues(alpha: 0.3)
-                                  : AppColors.accentLight
-                                      .withValues(alpha: 0.3),
-                              width: 1,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  bonus.name,
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                    color: isDark
-                                        ? AppColors.textPrimaryDark
-                                        : AppColors.textPrimaryLight,
-                                  ),
-                                ),
-                              ),
-                              Icon(
-                                Icons.arrow_drop_down,
-                                size: 20,
-                                color: isDark
-                                    ? AppColors.textSecondaryDark
-                                    : AppColors.textSecondaryLight,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    // Quantity controls
-                    Row(
-                      children: [
-                        // Minus button or delete button
-                        IconButton(
-                          onPressed: () {
-                            if (bonus.quantity > 1) {
-                              // Decrease quantity
-                              context.read<CartBloc>().add(UpdateCartBonus(
-                                    productId: widget.item.product.id,
-                                    netPrice: widget.item.netPrice,
-                                    bonusIndex: index,
-                                    bonusName: bonus.name,
-                                    bonusQuantity: bonus.quantity - 1,
-                                    cartLineId: widget.item.cartLineId,
-                                  ));
-                            } else {
-                              // Delete bonus when quantity is 1
-                              _removeBonus(context, index);
-                            }
-                          },
-                          icon: Icon(
-                            bonus.quantity > 1
-                                ? Icons.remove_circle_outline
-                                : Icons.delete_outline,
-                            size: 20,
-                            color: bonus.quantity > 1
-                                ? (isDark
-                                    ? AppColors.accentDark
-                                    : AppColors.accentLight)
-                                : AppColors.error,
-                          ),
-                          tooltip: bonus.quantity > 1
-                              ? 'Kurangi jumlah'
-                              : 'Hapus bonus',
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(
-                            minWidth: 32,
-                            minHeight: 32,
-                          ),
-                        ),
-                        // Quantity display
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? AppColors.surfaceDark
-                                : Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: isDark
-                                  ? AppColors.accentDark.withValues(alpha: 0.3)
-                                  : AppColors.accentLight
-                                      .withValues(alpha: 0.3),
-                              width: 1,
-                            ),
-                          ),
-                          child: Builder(
-                            builder: (context) {
-                              final perUnit = bonus.originalQuantity > 0
-                                  ? bonus.originalQuantity
-                                  : bonus.quantity;
-                              final maxQty = perUnit * 2 * widget.item.quantity;
-                              return Text(
-                                '${bonus.quantity}x (Max: $maxQty)',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: isDark
-                                      ? AppColors.textPrimaryDark
-                                      : AppColors.textPrimaryLight,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        // Plus button
-                        Builder(
-                          builder: (context) {
-                            final perUnit = bonus.originalQuantity > 0
-                                ? bonus.originalQuantity
-                                : bonus.quantity;
-                            final maxQty = perUnit * 2 * widget.item.quantity;
-                            return IconButton(
-                              onPressed: bonus.quantity < maxQty
-                                  ? () {
-                                      context
-                                          .read<CartBloc>()
-                                          .add(UpdateCartBonus(
-                                            productId: widget.item.product.id,
-                                            netPrice: widget.item.netPrice,
-                                            bonusIndex: index,
-                                            bonusName: bonus.name,
-                                            bonusQuantity: bonus.quantity + 1,
-                                            cartLineId: widget.item.cartLineId,
-                                          ));
-                                    }
-                                  : null,
-                              icon: Icon(
-                                Icons.add_circle_outline,
-                                size: 20,
-                                color: bonus.quantity < maxQty
-                                    ? (isDark
-                                        ? AppColors.accentDark
-                                        : AppColors.accentLight)
-                                    : Colors.grey,
-                              ),
-                              tooltip: bonus.quantity < maxQty
-                                  ? 'Tambah jumlah (Max: $maxQty)'
-                                  : 'Maksimum tercapai ($maxQty)',
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(
-                                minWidth: 32,
-                                minHeight: 32,
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              );
-            }),
-          ] else ...[
-            // Compact empty state
-            Padding(
-              padding: const EdgeInsets.only(top: 8.0),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.card_giftcard_outlined,
-                    size: 16,
-                    color: isDark
-                        ? AppColors.textSecondaryDark
-                        : AppColors.textSecondaryLight,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Belum ada bonus item',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 13,
-                      color: isDark
-                          ? AppColors.textSecondaryDark
-                          : AppColors.textSecondaryLight,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPriceInfo(BuildContext context, bool isDark) {
-    final item = widget.item;
-    final netPrice = item.netPrice;
-    final totalDiscount = item.product.pricelist - netPrice;
-
-    final discounts = <double>[...item.discountPercentages];
-    final formattedDiscounts = discounts
-        .where((d) => d > 0)
-        .map((d) => d % 1 == 0 ? '${d.toInt()}%' : '${d.toStringAsFixed(2)}%')
-        .join(' + ');
-    final hasInstallment = (item.installmentMonths ?? 0) > 0;
-
-    final styleLabel = TextStyle(
-        fontFamily: 'Inter',
-        fontSize: 14,
-        fontWeight: FontWeight.w600,
-        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight);
-    final styleValue = TextStyle(
-        fontFamily: 'Inter',
-        fontSize: 14,
-        color: isDark
-            ? AppColors.textSecondaryDark
-            : AppColors.textSecondaryLight);
-
-    return Container(
-      padding: const EdgeInsets.all(AppPadding.p10),
-      decoration: BoxDecoration(
-          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-          borderRadius: const BorderRadius.all(radius)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Informasi Harga',
-                  style: (Theme.of(context).textTheme.titleSmall ??
-                          const TextStyle())
-                      .copyWith(fontWeight: FontWeight.w600)),
-              IconButton(
-                icon: Icon(Icons.edit,
-                    size: 20,
-                    color: isDark
-                        ? AppColors.textSecondaryDark
-                        : AppColors.textSecondaryLight),
-                onPressed: () => _showPriceActions(context),
-                tooltip: 'Edit/Info Harga',
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppPadding.p10 / 2),
-          _priceRow(
-              'Pricelist',
-              FormatHelper.formatCurrency(item.product.pricelist),
-              styleLabel.copyWith(
-                  decoration: TextDecoration.lineThrough,
-                  color: AppColors.error),
-              isDark),
-          _priceRow(
-              'Total Diskon',
-              '-${FormatHelper.formatCurrency(totalDiscount)}',
-              styleValue.copyWith(color: AppColors.warning),
-              isDark),
-          if (formattedDiscounts.isNotEmpty)
-            _priceRow(
-                'Plus Diskon',
-                formattedDiscounts,
-                styleValue.copyWith(
-                    color: isDark ? AppColors.accentDark : AppColors.info),
-                isDark),
-          if (hasInstallment)
-            _priceRow(
-                'Cicilan',
-                '${item.installmentMonths} bulan x ${FormatHelper.formatCurrency(item.installmentPerMonth ?? 0)}',
-                styleValue.copyWith(
-                    color: isDark ? AppColors.accentDark : AppColors.info),
-                isDark),
-          _priceRow(
-              'Harga Net',
-              FormatHelper.formatCurrency(netPrice),
-              styleValue.copyWith(
-                  fontWeight: FontWeight.w700, color: AppColors.success),
-              isDark),
-        ],
-      ),
-    );
-  }
+  // _buildBonus, _bonusBox dipindahkan ke BonusSection widget
+  // _buildPriceInfo dipindahkan ke PriceInfoSection widget
 
   void _showPriceActions(BuildContext context) {
     final product = widget.item.product;
@@ -1210,7 +562,7 @@ class _CartItemWidgetState extends State<CartItemWidget>
                   _openInfo(context, product);
                 },
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppPadding.p8),
             ],
           ),
         );
@@ -1246,8 +598,15 @@ class _CartItemWidgetState extends State<CartItemWidget>
     final newDiscounts = state.productDiscountsPercentage[pid];
     final hasPositiveDiscount =
         (newDiscounts ?? const <double>[]).any((d) => d > 0);
+    final currentHasPositiveDiscount =
+        widget.item.discountPercentages.any((d) => d > 0);
+
+    final isDiscountReset = currentHasPositiveDiscount &&
+        !hasPositiveDiscount &&
+        newDiscounts != null;
+
     if (newDiscounts != null &&
-        hasPositiveDiscount &&
+        (hasPositiveDiscount || isDiscountReset) &&
         !_listEquals(newDiscounts, widget.item.discountPercentages)) {
       double calculatedPrice = widget.item.product.endUserPrice;
       for (final percentage in newDiscounts) {
@@ -1292,101 +651,36 @@ class _CartItemWidgetState extends State<CartItemWidget>
     );
   }
 
-  Widget _priceRow(
-      String label, String value, TextStyle valueStyle, bool isDark) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppPadding.p4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label,
-              style:
-                  (Theme.of(context).textTheme.bodyMedium ?? const TextStyle())
-                      .copyWith(fontWeight: FontWeight.w600)),
-          Text(value, style: valueStyle)
-        ],
-      ),
-    );
-  }
+  // _priceRow dipindahkan ke PriceInfoSection widget
 
   Widget _buildTotalPrice(BuildContext context, bool isDark) {
     final total = widget.item.netPrice * widget.item.quantity;
-    return Container(
+    // Menggunakan TotalPriceContainer widget yang reusable
+    return TotalPriceContainer(
+      value: total,
       padding: const EdgeInsets.symmetric(
           vertical: AppPadding.p10 / 2, horizontal: AppPadding.p10),
-      decoration: BoxDecoration(
-          color: isDark
-              ? AppColors.surfaceDark
-              : AppColors.success.withValues(alpha: 0.1),
-          borderRadius: const BorderRadius.all(radius)),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text('Total Harga:',
-              style:
-                  (Theme.of(context).textTheme.titleSmall ?? const TextStyle())
-                      .copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: isDark
-                              ? AppColors.textPrimaryDark
-                              : AppColors.textPrimaryLight)),
-          Text(FormatHelper.formatCurrency(total),
-              style:
-                  (Theme.of(context).textTheme.titleSmall ?? const TextStyle())
-                      .copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.success)),
-        ],
-      ),
+      borderRadius: 12,
     );
   }
 
-  void _removeBonus(BuildContext context, int bonusIndex) {
-    showDialog(
+  void _removeBonus(BuildContext context, int bonusIndex) async {
+    // Menggunakan ConfirmationDialog widget yang reusable
+    final confirm = await ConfirmationDialog.showDelete(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(
-          'Hapus Bonus',
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-        ),
-        content: Text(
-          'Apakah Anda yakin ingin menghapus bonus ini?',
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(
-              'Batal',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondaryLight,
-                  ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              context.read<CartBloc>().add(RemoveCartBonus(
-                    productId: widget.item.product.id,
-                    netPrice: widget.item.netPrice,
-                    bonusIndex: bonusIndex,
-                  ));
-              Navigator.pop(ctx);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-            ),
-            child: Text('Hapus',
-                style: (Theme.of(context).textTheme.bodyMedium ??
-                        const TextStyle())
-                    .copyWith(fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
+      title: 'Hapus Bonus',
+      message: 'Apakah Anda yakin ingin menghapus bonus ini?',
     );
+
+    if (confirm == true) {
+      if (!mounted) return;
+      if (!context.mounted) return;
+      context.read<CartBloc>().add(RemoveCartBonus(
+            productId: widget.item.product.id,
+            netPrice: widget.item.netPrice,
+            bonusIndex: bonusIndex,
+          ));
+    }
   }
 
   void _showBonusItemSelector(
@@ -1414,9 +708,7 @@ class _CartItemWidgetState extends State<CartItemWidget>
     } catch (e) {
       if (!mounted) return;
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading accessories: $e')),
-      );
+      CustomToast.showToast('Error loading accessories: $e', ToastType.error);
     }
   }
 
@@ -1466,9 +758,8 @@ class _CartItemWidgetState extends State<CartItemWidget>
       if (options.isEmpty) {
         if (!mounted) return;
         if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Tidak ada opsi $type yang tersedia')),
-        );
+        CustomToast.showToast(
+            'Tidak ada opsi $type yang tersedia', ToastType.warning);
         return;
       }
 
@@ -1531,9 +822,7 @@ class _CartItemWidgetState extends State<CartItemWidget>
     } catch (e) {
       if (!mounted) return;
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading $type options: $e')),
-      );
+      CustomToast.showToast('Error loading $type options: $e', ToastType.error);
     }
   }
 }
@@ -1765,7 +1054,7 @@ class _CartInfoDialogState extends State<CartInfoDialog> {
                   fontFamily: 'Inter',
                   fontSize: 20,
                   fontWeight: FontWeight.bold)),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppPadding.p16),
 
           // Konten di dalam SingleChildScrollView agar tidak overflow
           SingleChildScrollView(
@@ -1793,7 +1082,7 @@ class _CartInfoDialogState extends State<CartInfoDialog> {
                                 updateNominal(i);
                                 _checkHasChanged();
                               })),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: AppPadding.p8),
                       Expanded(
                           child: TextField(
                               controller: nominalControllers[i],
@@ -1818,7 +1107,7 @@ class _CartInfoDialogState extends State<CartInfoDialog> {
               }).where((widget) => widget != const SizedBox.shrink()).toList(),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppPadding.p24),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
@@ -1848,11 +1137,11 @@ class _CartInfoDialogState extends State<CartInfoDialog> {
                   child: Text("Reset",
                       style: TextStyle(
                           color: Theme.of(context).colorScheme.error))),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppPadding.p8),
               TextButton(
                   onPressed: () => Navigator.pop(context),
                   child: Text("Batal")),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppPadding.p8),
               ElevatedButton(
                 onPressed: hasChanged
                     ? () {

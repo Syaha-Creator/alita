@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../../../../config/app_constant.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -7,9 +8,12 @@ import '../../../../core/utils/controller_disposal_mixin.dart';
 import '../../../../core/utils/format_helper.dart';
 import '../../../../core/widgets/custom_textfield.dart';
 import '../../../../core/widgets/custom_toast.dart';
+import '../../../../core/widgets/styled_container.dart';
+import '../../../../core/widgets/section_header.dart';
 import '../../../../services/auth_service.dart';
 import '../bloc/cart_bloc.dart';
 import '../bloc/cart_state.dart';
+import '../widgets/checkout_dialog/checkout_dialog_widgets.dart';
 
 class DraftDetailPage extends StatefulWidget {
   final Map<String, dynamic> draft;
@@ -274,16 +278,10 @@ class _DraftDetailPageState extends State<DraftDetailPage>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header with summary
-                Container(
+                // Header with summary - menggunakan StyledContainer.primary
+                StyledContainer.primary(
                   padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primary.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: colorScheme.primary.withValues(alpha: 0.1),
-                    ),
-                  ),
+                  borderWidth: 1,
                   child: Row(
                     children: [
                       Container(
@@ -298,7 +296,7 @@ class _DraftDetailPageState extends State<DraftDetailPage>
                           size: 20,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: AppPadding.p12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -327,12 +325,15 @@ class _DraftDetailPageState extends State<DraftDetailPage>
                   ),
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: AppPadding.p24),
 
                 // Customer Information Section
-                _buildSectionHeader(
-                    'Informasi Customer', Icons.person_rounded, colorScheme),
-                const SizedBox(height: 12),
+                SectionHeader(
+                  icon: Icons.person_rounded,
+                  title: 'Informasi Customer',
+                  iconColor: colorScheme.primary,
+                ),
+                const SizedBox(height: AppPadding.p12),
 
                 CustomTextField(
                   controller: _customerNameController,
@@ -345,7 +346,7 @@ class _DraftDetailPageState extends State<DraftDetailPage>
                     return null;
                   },
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppPadding.p12),
 
                 CustomTextField(
                   controller: _customerPhoneController,
@@ -359,7 +360,7 @@ class _DraftDetailPageState extends State<DraftDetailPage>
                     return null;
                   },
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppPadding.p12),
 
                 CustomTextField(
                   controller: _emailController,
@@ -367,7 +368,7 @@ class _DraftDetailPageState extends State<DraftDetailPage>
                   prefixIcon: Icons.email_rounded,
                   keyboardType: TextInputType.emailAddress,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppPadding.p12),
 
                 CustomTextField(
                   controller: _customerAddressController,
@@ -376,12 +377,15 @@ class _DraftDetailPageState extends State<DraftDetailPage>
                   maxLines: 3,
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: AppPadding.p24),
 
                 // Order Information Section
-                _buildSectionHeader('Informasi Pesanan',
-                    Icons.shopping_cart_rounded, colorScheme),
-                const SizedBox(height: 12),
+                SectionHeader(
+                  icon: Icons.shopping_cart_rounded,
+                  title: 'Informasi Pesanan',
+                  iconColor: colorScheme.primary,
+                ),
+                const SizedBox(height: AppPadding.p12),
 
                 CustomTextField(
                   controller: _grandTotalController,
@@ -398,7 +402,7 @@ class _DraftDetailPageState extends State<DraftDetailPage>
                     return null;
                   },
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppPadding.p12),
 
                 CustomTextField(
                   controller: _notesController,
@@ -407,52 +411,53 @@ class _DraftDetailPageState extends State<DraftDetailPage>
                   maxLines: 3,
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: AppPadding.p24),
 
                 // Delivery Information Section
-                _buildSectionHeader('Informasi Pengiriman',
-                    Icons.local_shipping_rounded, colorScheme),
-                const SizedBox(height: 12),
+                SectionHeader(
+                  icon: Icons.local_shipping_rounded,
+                  title: 'Informasi Pengiriman',
+                  iconColor: colorScheme.primary,
+                ),
+                const SizedBox(height: AppPadding.p12),
 
                 Row(
                   children: [
                     Expanded(
-                      child: _buildDeliveryOption(
-                        'Pengiriman',
-                        Icons.local_shipping_rounded,
-                        !_shippingSameAsCustomer,
-                        () => setState(() => _shippingSameAsCustomer = false),
-                        colorScheme,
+                      child: DeliveryOption(
+                        title: 'Pengiriman',
+                        icon: Icons.local_shipping_rounded,
+                        isSelected: !_shippingSameAsCustomer,
+                        onTap: () => setState(() => _shippingSameAsCustomer = false),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: AppPadding.p12),
                     Expanded(
-                      child: _buildDeliveryOption(
-                        'Bawa Langsung',
-                        Icons.store_rounded,
-                        _shippingSameAsCustomer,
-                        () => setState(() => _shippingSameAsCustomer = true),
-                        colorScheme,
+                      child: DeliveryOption(
+                        title: 'Bawa Langsung',
+                        icon: Icons.store_rounded,
+                        isSelected: _shippingSameAsCustomer,
+                        onTap: () => setState(() => _shippingSameAsCustomer = true),
                       ),
                     ),
                   ],
                 ),
 
                 if (!_shippingSameAsCustomer) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppPadding.p12),
                   CustomTextField(
                     controller: _customerReceiverController,
                     labelText: 'Nama Penerima',
                     prefixIcon: Icons.person_outline_rounded,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppPadding.p12),
                   CustomTextField(
                     controller: _shippingAddressController,
                     labelText: 'Alamat Pengiriman',
                     prefixIcon: Icons.location_on_rounded,
                     maxLines: 3,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppPadding.p12),
                   GestureDetector(
                     onTap: () async {
                       final date = await showDatePicker(
@@ -475,12 +480,15 @@ class _DraftDetailPageState extends State<DraftDetailPage>
                   ),
                 ],
 
-                const SizedBox(height: 24),
+                const SizedBox(height: AppPadding.p24),
 
                 // Payment Information Section
-                _buildSectionHeader(
-                    'Informasi Pembayaran', Icons.payment_rounded, colorScheme),
-                const SizedBox(height: 12),
+                SectionHeader(
+                  icon: Icons.payment_rounded,
+                  title: 'Informasi Pembayaran',
+                  iconColor: colorScheme.primary,
+                ),
+                const SizedBox(height: AppPadding.p12),
 
                 CustomTextField(
                   controller: _paymentAmountController,
@@ -488,7 +496,7 @@ class _DraftDetailPageState extends State<DraftDetailPage>
                   prefixIcon: Icons.attach_money_rounded,
                   keyboardType: TextInputType.number,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppPadding.p12),
 
                 GestureDetector(
                   onTap: () async {
@@ -511,7 +519,7 @@ class _DraftDetailPageState extends State<DraftDetailPage>
                   ),
                 ),
 
-                const SizedBox(height: 32),
+                const SizedBox(height: AppPadding.p32),
 
                 // Save Button
                 SizedBox(
@@ -538,7 +546,7 @@ class _DraftDetailPageState extends State<DraftDetailPage>
                                   color: Colors.white,
                                 ),
                               ),
-                              const SizedBox(width: 12),
+                              const SizedBox(width: AppPadding.p12),
                               Text(
                                 'Menyimpan...',
                                 style: const TextStyle(
@@ -560,7 +568,7 @@ class _DraftDetailPageState extends State<DraftDetailPage>
                   ),
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: AppPadding.p24),
               ],
             ),
           ),
@@ -569,81 +577,4 @@ class _DraftDetailPageState extends State<DraftDetailPage>
     );
   }
 
-  Widget _buildSectionHeader(
-      String title, IconData icon, ColorScheme colorScheme) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: colorScheme.primary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(
-            icon,
-            size: 20,
-            color: colorScheme.primary,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Text(
-          title,
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: colorScheme.onSurface,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDeliveryOption(
-    String title,
-    IconData icon,
-    bool isSelected,
-    VoidCallback onTap,
-    ColorScheme colorScheme,
-  ) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? colorScheme.primary.withValues(alpha: 0.1)
-              : colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected
-                ? colorScheme.primary
-                : colorScheme.outline.withValues(alpha: 0.2),
-            width: 2,
-          ),
-        ),
-        child: Column(
-          children: [
-            Icon(
-              icon,
-              size: 24,
-              color: isSelected
-                  ? colorScheme.primary
-                  : colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: isSelected ? colorScheme.primary : colorScheme.onSurface,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }

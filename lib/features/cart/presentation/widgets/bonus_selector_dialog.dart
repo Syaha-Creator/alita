@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../config/app_constant.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../theme/app_colors.dart';
@@ -41,6 +42,7 @@ class _BonusSelectorDialogState extends State<BonusSelectorDialog> {
 
   @override
   void dispose() {
+    _searchController.removeListener(_filterAccessories);
     _searchController.dispose();
     super.dispose();
   }
@@ -87,7 +89,7 @@ class _BonusSelectorDialogState extends State<BonusSelectorDialog> {
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppPadding.p16),
             Expanded(
               child: filteredAccessories.isEmpty
                   ? Center(
@@ -96,7 +98,9 @@ class _BonusSelectorDialogState extends State<BonusSelectorDialog> {
                         style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 14,
-                            color: Colors.grey[600]),
+                            color: Theme.of(context).brightness == Brightness.dark 
+                                ? AppColors.textSecondaryDark 
+                                : AppColors.textSecondaryLight),
                       ),
                     )
                   : ListView.builder(
@@ -120,7 +124,9 @@ class _BonusSelectorDialogState extends State<BonusSelectorDialog> {
                             style: TextStyle(
                                 fontFamily: 'Inter',
                                 fontSize: 12,
-                                color: Colors.grey[600]),
+                                color: Theme.of(context).brightness == Brightness.dark 
+                                ? AppColors.textSecondaryDark 
+                                : AppColors.textSecondaryLight),
                           ),
                           onTap: () {
                             context.read<CartBloc>().add(UpdateCartBonus(
