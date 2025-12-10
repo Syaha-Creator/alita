@@ -15,6 +15,7 @@ class LoginUseCase {
       refreshToken: authModel.refreshToken,
       expiresIn: authModel.createdAt ?? DateTime.now().millisecondsSinceEpoch,
       areaId: authModel.areaId,
+      areaName: authModel.area,
     );
   }
 }

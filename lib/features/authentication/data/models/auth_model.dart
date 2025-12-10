@@ -44,7 +44,20 @@ class AuthModel {
       userData = json;
     }
 
-    final areaId = userData["area_id"];
+    // Handle area - bisa berupa int (area_id) atau object {id, name}
+    int? areaId;
+    String? areaName;
+
+    final areaData = userData["area"];
+    if (areaData is Map) {
+      areaId = areaData["id"];
+      areaName = areaData["name"];
+    } else if (areaData is String) {
+      areaName = areaData;
+    }
+
+    // Fallback to area_id if area object doesn't exist
+    areaId ??= userData["area_id"];
 
     return AuthModel(
       accessToken: token ?? "",
@@ -56,7 +69,7 @@ class AuthModel {
       name: userData["user_name"] ?? userData["name"] ?? "",
       phone: userData["phone"],
       areaId: areaId,
-      area: userData["area"],
+      area: areaName,
       companyId: userData["company_id"],
     );
   }

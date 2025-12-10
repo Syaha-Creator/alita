@@ -5,6 +5,7 @@ class AuthEntity {
   final String refreshToken;
   final int expiresIn;
   final int? areaId;
+  final String? areaName;
 
   AuthEntity({
     required this.id,
@@ -13,5 +14,6 @@ class AuthEntity {
     required this.refreshToken,
     required this.expiresIn,
     this.areaId,
+    this.areaName,
   });
 }
