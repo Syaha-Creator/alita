@@ -15,6 +15,7 @@ import 'navigation/app_router.dart';
 import 'services/auth_service.dart';
 import 'services/notification_service.dart';
 import 'services/app_update_service.dart';
+import 'services/firebase_error_service.dart';
 import 'core/widgets/force_update_dialog.dart';
 import 'theme/app_theme.dart';
 import 'firebase_options.dart';
@@ -34,6 +35,9 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+  // Initialize Firebase Error Service (Crashlytics & Analytics)
+  await FirebaseErrorService().initialize();
+
   // Register background message handler
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
@@ -41,6 +45,12 @@ void main() async {
 
   // Initialize Notification Service
   await NotificationService().initialize();
+
+  // Set user ID for error tracking (if logged in)
+  final userId = await AuthService.getCurrentUserId();
+  if (userId != null) {
+    await FirebaseErrorService().setUserId(userId.toString());
+  }
 
   await AuthService.isLoggedIn();
 
