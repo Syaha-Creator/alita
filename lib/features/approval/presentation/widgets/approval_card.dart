@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../../../config/app_constant.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../theme/app_colors.dart';
+import '../../../../core/widgets/custom_toast.dart';
 import '../../domain/entities/approval_entity.dart';
 import '../../data/models/approval_model.dart';
 import '../../../../config/dependency_injection.dart';
@@ -11,6 +13,8 @@ import '../../../order_letter_document/presentation/pages/order_letter_document_
 import '../../data/repositories/approval_repository.dart';
 import '../bloc/approval_bloc.dart';
 import '../bloc/approval_event.dart';
+import 'approval_card/approval_card_widgets.dart';
+import '../../../../core/utils/format_helper.dart';
 
 class ApprovalCard extends StatefulWidget {
   final ApprovalEntity approval;
@@ -33,14 +37,11 @@ class ApprovalCard extends StatefulWidget {
 }
 
 class _ApprovalCardState extends State<ApprovalCard>
-    with TickerProviderStateMixin {
-  late AnimationController _hoverController;
-  late AnimationController _bounceController;
-  late Animation<double> _hoverAnimation;
-  late Animation<double> _bounceAnimation;
+    with SingleTickerProviderStateMixin {
+  late AnimationController _pressController;
+  late Animation<double> _scaleAnimation;
   String? _overriddenStatus;
 
-  // Add state for timeline data
   List<Map<String, dynamic>>? _cachedDiscountData;
   bool _isLoadingTimeline = false;
   String? _timelineError;
@@ -49,7 +50,7 @@ class _ApprovalCardState extends State<ApprovalCard>
   @override
   void initState() {
     super.initState();
-    _initializeAnimations();
+    _initAnimation();
     _loadTimelineData();
     _fetchCreatorName();
   }
@@ -57,7 +58,6 @@ class _ApprovalCardState extends State<ApprovalCard>
   @override
   void didUpdateWidget(ApprovalCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Reload timeline data if approval ID changed
     if (oldWidget.approval.id != widget.approval.id) {
       _loadTimelineData();
       _overriddenStatus = null;
@@ -66,53 +66,46 @@ class _ApprovalCardState extends State<ApprovalCard>
     }
   }
 
-  void _initializeAnimations() {
-    _hoverController = AnimationController(
-      duration: const Duration(milliseconds: 300),
+  void _initAnimation() {
+    _pressController = AnimationController(
+      duration: const Duration(milliseconds: 100),
       vsync: this,
     );
-
-    _bounceController = AnimationController(
-      duration: const Duration(milliseconds: 600),
-      vsync: this,
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.98).animate(
+      CurvedAnimation(parent: _pressController, curve: Curves.easeInOut),
     );
-
-    _hoverAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _hoverController,
-      curve: Curves.easeInOut,
-    ));
-
-    _bounceAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _bounceController,
-      curve: Curves.elasticOut,
-    ));
-
-    _bounceController.forward();
   }
 
   @override
   void dispose() {
-    _hoverController.dispose();
-    _bounceController.dispose();
+    _pressController.dispose();
     super.dispose();
   }
 
-  void _onTapDown(TapDownDetails details) {
-    _hoverController.forward();
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'approved':
+        return AppColors.success;
+      case 'rejected':
+        return AppColors.error;
+      case 'pending':
+        return AppColors.warning;
+      default:
+        return AppColors.info;
+    }
   }
 
-  void _onTapUp(TapUpDetails details) {
-    _hoverController.reverse();
-  }
-
-  void _onTapCancel() {
-    _hoverController.reverse();
+  IconData _getStatusIcon(String status) {
+    switch (status.toLowerCase()) {
+      case 'approved':
+        return Icons.check_circle_rounded;
+      case 'rejected':
+        return Icons.cancel_rounded;
+      case 'pending':
+        return Icons.schedule_rounded;
+      default:
+        return Icons.info_rounded;
+    }
   }
 
   @override
@@ -120,72 +113,88 @@ class _ApprovalCardState extends State<ApprovalCard>
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
+    final status = _overriddenStatus ?? widget.approval.status;
+    final statusColor = _getStatusColor(status);
 
     return AnimatedBuilder(
-      animation: Listenable.merge([_hoverController, _bounceController]),
+      animation: _scaleAnimation,
       builder: (context, child) {
         return Transform.scale(
-          scale: 0.98 + (_bounceAnimation.value * 0.02),
-          child: Transform.translate(
-            offset: Offset(0, -4 * _hoverAnimation.value),
+          scale: _scaleAnimation.value,
+          child: GestureDetector(
+            onTapDown: (_) => _pressController.forward(),
+            onTapUp: (_) => _pressController.reverse(),
+            onTapCancel: () => _pressController.reverse(),
+            onTap: widget.onTap,
             child: Container(
               decoration: BoxDecoration(
-                color: colorScheme.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: colorScheme.outline.withValues(alpha: 0.1),
-                  width: 1,
-                ),
+                color: isDark ? AppColors.cardDark : AppColors.surfaceLight, // 30% - Card/Surface
+                borderRadius: BorderRadius.circular(12),
+                border: isDark
+                    ? Border.all(
+                        color: AppColors.borderDark, // 30% - Border
+                        width: 1,
+                      )
+                    : null,
                 boxShadow: [
                   BoxShadow(
-                    color: colorScheme.shadow.withValues(alpha: 0.05),
-                    blurRadius: 10 + (5 * _hoverAnimation.value),
-                    offset: Offset(0, 4 + (2 * _hoverAnimation.value)),
+                    color: isDark ? AppColors.shadowDark : AppColors.shadowLight,
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: widget.onTap,
-                  onTapDown: _onTapDown,
-                  onTapUp: _onTapUp,
-                  onTapCancel: _onTapCancel,
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Header with Status and Amount
-                        _buildHeader(theme, colorScheme, isDark),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Left accent border
+                      Container(
+                        width: 5,
+                        color: statusColor,
+                      ),
 
-                        const SizedBox(height: 16),
+                      // Main content
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Row 1: Status + No. SP
+                              _buildHeaderRow(status, statusColor, colorScheme),
 
-                        // Customer Info
-                        _buildCustomerSection(theme, colorScheme, isDark),
+                              const SizedBox(height: AppPadding.p14),
 
-                        const SizedBox(height: 12),
+                              // Row 2: Customer + Total
+                              _buildCustomerTotalRow(colorScheme),
 
-                        // Order Details
-                        _buildOrderDetails(theme, colorScheme),
+                              const SizedBox(height: AppPadding.p12),
 
-                        const SizedBox(height: 12),
+                              // Row 3: Items & Discount
+                              _buildInfoRow(colorScheme, isDark),
 
-                        // Footer
-                        _buildFooter(theme, colorScheme),
+                              const SizedBox(height: AppPadding.p12),
 
-                        // Approval Timeline (Horizontal)
-                        _buildHorizontalTimeline(theme, colorScheme, isDark),
+                              // Row 4: Creator | Date
+                              _buildMetaRow(colorScheme),
 
-                        // Approval Info Section (for staff level)
-                        if (widget.isStaffLevel)
-                          _buildApprovalInfoSection(theme, colorScheme),
+                              // Timeline
+                              _buildTimeline(isDark),
 
-                        // Action Buttons
-                        _buildActionButtons(theme, colorScheme, isDark),
-                      ],
-                    ),
+                              // Approval Info (staff only)
+                              if (widget.isStaffLevel)
+                                _buildApprovalInfoSection(colorScheme),
+
+                              // Action button
+                              _buildActionButton(colorScheme),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -196,32 +205,32 @@ class _ApprovalCardState extends State<ApprovalCard>
     );
   }
 
-  Widget _buildHeader(ThemeData theme, ColorScheme colorScheme, bool isDark) {
-    final status = _overriddenStatus ?? widget.approval.status;
+  Widget _buildHeaderRow(
+      String status, Color statusColor, ColorScheme colorScheme) {
+    final subtleColor = colorScheme.onSurface.withValues(alpha: 0.5);
+
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Status Badge
+        // Status Badge (left)
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
-            color: _getStatusColor(status),
-            borderRadius: BorderRadius.circular(12),
+            color: statusColor.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(6),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                _getStatusIcon(status),
-                color: theme.colorScheme.onPrimary,
-                size: 14,
-              ),
-              const SizedBox(width: 6),
+              Icon(_getStatusIcon(status), size: 14, color: statusColor),
+              const SizedBox(width: AppPadding.p5),
               Text(
-                status,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onPrimary,
-                  fontWeight: FontWeight.w600,
+                status.toUpperCase(),
+                style: TextStyle(
                   fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: statusColor,
+                  letterSpacing: 0.5,
                 ),
               ),
             ],
@@ -230,346 +239,287 @@ class _ApprovalCardState extends State<ApprovalCard>
 
         const Spacer(),
 
-        // Order ID
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: colorScheme.secondary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: colorScheme.secondary.withValues(alpha: 0.2),
-              width: 1,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.receipt_rounded,
-                color: colorScheme.secondary,
-                size: 14,
+        // No. SP (right, label + value)
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              'No. SP',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+                color: subtleColor,
               ),
-              const SizedBox(width: 6),
-              Text(
-                '#${widget.approval.id}',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.secondary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 11,
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        const Spacer(),
-
-        // Amount
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: colorScheme.primary,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            'Rp ${_formatNumber(widget.approval.extendedAmount.toInt())}',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-              fontSize: 14,
             ),
-          ),
+            const SizedBox(height: AppPadding.p2),
+            Text(
+              widget.approval.noSp,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: colorScheme.onSurface,
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
 
-  Widget _buildCustomerSection(
-      ThemeData theme, ColorScheme colorScheme, bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: colorScheme.primary.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: colorScheme.primary.withValues(alpha: 0.1),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: colorScheme.primary,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              Icons.person_rounded,
-              color: theme.colorScheme.onPrimary,
-              size: 16,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Customer',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 10,
-                  ),
-                ),
-                Text(
-                  widget.approval.customerName,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: colorScheme.onSurface,
-                    fontSize: 14,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildCustomerTotalRow(ColorScheme colorScheme) {
+    final subtleColor = colorScheme.onSurface.withValues(alpha: 0.5);
 
-  Widget _buildOrderDetails(ThemeData theme, ColorScheme colorScheme) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Items Count - Conditional Tappable based on job level
+        // Customer (left)
         Expanded(
-          child: widget.isStaffLevel || widget.onItemsTap == null
-              ? _buildDetailCard(
-                  'Items',
-                  '${widget.approval.details.length} items',
-                  Icons.inventory_2_rounded,
-                  AppColors.info,
-                  theme,
-                )
-              : GestureDetector(
-                  onTap: widget.onItemsTap,
-                  child: _buildTappableDetailCard(
-                    'Items',
-                    '${widget.approval.details.length} items',
-                    Icons.inventory_2_rounded,
-                    AppColors.info,
-                    theme,
-                    colorScheme,
-                  ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Customer',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                  color: subtleColor,
                 ),
+              ),
+              const SizedBox(height: AppPadding.p2),
+              Text(
+                widget.approval.customerName,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: colorScheme.onSurface,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
 
-        const SizedBox(width: 8),
+        const SizedBox(width: AppPadding.p16),
 
-        // Discount (if exists and has valid values > 0)
-        if (widget.approval.discounts.isNotEmpty &&
-            widget.approval.discounts.any((d) => d.discount > 0.0))
-          Expanded(
-            child: _buildDetailCard(
-              'Discount',
-              widget.approval.getDiscountDisplayString(),
-              Icons.discount_rounded,
-              AppColors.error,
-              theme,
+        // Total (right)
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              'Total',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+                color: subtleColor,
+              ),
             ),
-          ),
+            const SizedBox(height: AppPadding.p2),
+            Text(
+              FormatHelper.formatCurrency(widget.approval.extendedAmount),
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: colorScheme.primary,
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
 
-  Widget _buildDetailCard(
-      String label, String value, IconData icon, Color color, ThemeData theme) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: color.withValues(alpha: 0.2),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                icon,
-                size: 12,
-                color: color,
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  label,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 9,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurface,
-              fontWeight: FontWeight.w600,
-              fontSize: 11,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildInfoRow(ColorScheme colorScheme, bool isDark) {
+    final hasDiscount = widget.approval.discounts.isNotEmpty &&
+        widget.approval.discounts.any((d) => d.discount > 0.0);
+    final subtleColor = colorScheme.onSurface.withValues(alpha: 0.5);
 
-  Widget _buildTappableDetailCard(String label, String value, IconData icon,
-      Color color, ThemeData theme, ColorScheme colorScheme) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: color.withValues(alpha: 0.2),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                icon,
-                size: 12,
-                color: color,
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  label,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 9,
-                  ),
-                ),
-              ),
-              if (widget.onItemsTap != null)
-                Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  size: 10,
-                  color: color,
-                ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurface,
-              fontWeight: FontWeight.w600,
-              fontSize: 11,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFooter(ThemeData theme, ColorScheme colorScheme) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          // Creator Info
-          Expanded(
+    return Row(
+      children: [
+        // Items
+        Expanded(
+          child: GestureDetector(
+            onTap: widget.isStaffLevel ? null : widget.onItemsTap,
             child: Row(
               children: [
-                Icon(
-                  Icons.person_outline,
-                  size: 12,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Created by',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 9,
-                        ),
-                      ),
-                      Text(
-                        _creatorName ?? widget.approval.creator,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurface,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 10,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                Icon(Icons.inventory_2_outlined,
+                    size: 16, color: AppColors.info),
+                const SizedBox(width: AppPadding.p6),
+                Text(
+                  '${widget.approval.details.length} items',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: colorScheme.onSurface,
                   ),
                 ),
+                if (widget.onItemsTap != null && !widget.isStaffLevel) ...[
+                  const SizedBox(width: AppPadding.p4),
+                  Icon(Icons.chevron_right, size: 16, color: subtleColor),
+                ],
               ],
             ),
           ),
+        ),
 
-          // Date Info
-          Row(
-            children: [
-              Icon(
-                Icons.calendar_today_outlined,
-                size: 12,
-                color: colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 6),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Date',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w500,
-                      fontSize: 9,
-                    ),
-                  ),
-                  Text(
-                    _formatDate(widget.approval.orderDate),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurface,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 10,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+        // Discount (if any)
+        if (hasDiscount) ...[
+          Icon(Icons.local_offer_outlined, size: 16, color: AppColors.error),
+          const SizedBox(width: AppPadding.p6),
+          Text(
+            widget.approval.getDiscountDisplayString(),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.error,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildMetaRow(ColorScheme colorScheme) {
+    final dateToDisplay =
+        widget.approval.createdAt ?? widget.approval.orderDate;
+    final subtleColor = colorScheme.onSurface.withValues(alpha: 0.5);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(
+            color: colorScheme.onSurface.withValues(alpha: 0.08),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Creator
+          Icon(Icons.person_outline_rounded, size: 14, color: subtleColor),
+          const SizedBox(width: AppPadding.p4),
+          Expanded(
+            child: Text(
+              _creatorName ?? widget.approval.creator,
+              style: TextStyle(fontSize: 12, color: subtleColor),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+
+          // Divider
+          Container(
+            width: 1,
+            height: 12,
+            margin: const EdgeInsets.symmetric(horizontal: 10),
+            color: colorScheme.onSurface.withValues(alpha: 0.15),
+          ),
+
+          // Date
+          Icon(Icons.schedule_rounded, size: 14, color: subtleColor),
+          const SizedBox(width: AppPadding.p4),
+          Text(
+            _formatDateTime(dateToDisplay),
+            style: TextStyle(fontSize: 12, color: subtleColor),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildTimeline(bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: HorizontalTimeline(
+        discountData: _cachedDiscountData,
+        isLoading: _isLoadingTimeline,
+        error: _timelineError,
+        creatorName: _creatorName,
+        fallbackCreator: widget.approval.creator,
+      ),
+    );
+  }
+
+  Widget _buildApprovalInfoSection(ColorScheme colorScheme) {
+    final status = _overriddenStatus ?? widget.approval.status;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: ApprovalInfoSection(
+        status: status,
+        leaderData: widget.leaderData,
+      ),
+    );
+  }
+
+  Widget _buildActionButton(ColorScheme colorScheme) {
+    return SizedBox(
+      width: double.infinity,
+      child: TextButton.icon(
+        onPressed: _navigateToDocument,
+        icon: const Icon(Icons.description_outlined, size: 18),
+        label: const Text(
+          'Lihat Dokumen',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+        style: TextButton.styleFrom(
+          foregroundColor: colorScheme.primary,
+          backgroundColor: colorScheme.primary.withValues(alpha: 0.08),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _navigateToDocument() async {
+    try {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => OrderLetterDocumentPage(
+            orderLetterId: widget.approval.id,
+          ),
+        ),
+      ).then((result) {
+        if (!mounted) return;
+
+        bool shouldRefresh = false;
+        String? updatedStatus;
+
+        if (result is Map) {
+          shouldRefresh = result['changed'] == true;
+          final statusResult = result['status'];
+          if (statusResult is String && statusResult.isNotEmpty) {
+            updatedStatus = statusResult;
+          }
+        } else if (result == true) {
+          shouldRefresh = true;
+        }
+
+        if (!shouldRefresh) return;
+
+        if (updatedStatus != null && updatedStatus != widget.approval.status) {
+          setState(() {
+            _overriddenStatus = updatedStatus;
+          });
+        }
+
+        refreshTimelineData();
+
+        context
+            .read<ApprovalBloc>()
+            .add(UpdateSingleApproval(widget.approval.id));
+      });
+    } catch (e) {
+      if (mounted) {
+        CustomToast.showToast(
+          'Gagal membuka dokumen: ${e.toString()}',
+          ToastType.error,
+          duration: 3,
+        );
+      }
+    }
   }
 
   Future<void> _loadTimelineData({bool forceRefresh = false}) async {
@@ -597,6 +547,7 @@ class _ApprovalCardState extends State<ApprovalCard>
       _isLoadingTimeline = true;
       _timelineError = null;
     });
+
     try {
       final repository = locator<ApprovalRepository>();
       final result =
@@ -622,14 +573,12 @@ class _ApprovalCardState extends State<ApprovalCard>
     }
   }
 
-  /// Fetch creator name from user ID
   Future<void> _fetchCreatorName() async {
     try {
       final creator = widget.approval.creator;
       final creatorUserId = int.tryParse(creator);
 
       if (creatorUserId != null) {
-        // Creator is user ID, fetch user name
         final leaderService = locator<LeaderService>();
         final leaderData = await leaderService.getLeaderByUser(
           userId: creator,
@@ -644,474 +593,26 @@ class _ApprovalCardState extends State<ApprovalCard>
         }
       }
     } catch (e) {
-      // Silent error - will use original creator value
+      // Silent error
     }
   }
 
-  // Public method to refresh timeline data
   Future<void> refreshTimelineData() async {
     await _loadTimelineData(forceRefresh: true);
   }
 
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'pending':
-        return AppColors.warning;
-      case 'approved':
-        return AppColors.success;
-      case 'rejected':
-        return AppColors.error;
-      default:
-        return AppColors.info;
-    }
-  }
-
-  IconData _getStatusIcon(String status) {
-    switch (status.toLowerCase()) {
-      case 'pending':
-        return Icons.pending_actions_rounded;
-      case 'approved':
-        return Icons.check_circle_rounded;
-      case 'rejected':
-        return Icons.cancel_rounded;
-      default:
-        return Icons.info_outline_rounded;
-    }
-  }
-
-  String _formatNumber(int number) {
-    return number.toString().replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (Match m) => '${m[1]},',
-        );
-  }
-
-  String _formatDate(String? date) {
-    if (date == null) return 'Unknown';
+  String _formatDateTime(String? date) {
+    if (date == null) return '-';
     try {
-      final dateTime = DateTime.parse(date);
-      return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
+      final dateTime = DateTime.parse(date).toLocal();
+      final day = dateTime.day.toString().padLeft(2, '0');
+      final month = dateTime.month.toString().padLeft(2, '0');
+      final year = dateTime.year;
+      final hour = dateTime.hour.toString().padLeft(2, '0');
+      final minute = dateTime.minute.toString().padLeft(2, '0');
+      return '$day/$month/$year $hour:$minute';
     } catch (e) {
-      return 'Invalid Date';
+      return '-';
     }
-  }
-
-  Widget _buildHorizontalTimeline(
-      ThemeData theme, ColorScheme colorScheme, bool isDark) {
-    if (_isLoadingTimeline) {
-      return SizedBox(
-        height: 45,
-        child: Center(
-          child: SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                theme.colorScheme.primary,
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    if (_timelineError != null) {
-      return SizedBox(
-        height: 45,
-        child: Center(
-          child: Text(
-            'Error loading timeline',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.error,
-              fontSize: 12,
-            ),
-          ),
-        ),
-      );
-    }
-
-    if (_cachedDiscountData == null || _cachedDiscountData!.isEmpty) {
-      return SizedBox(
-        height: 45,
-        child: Center(
-          child: Text(
-            'No approval data',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontSize: 12,
-            ),
-          ),
-        ),
-      );
-    }
-
-    // Sort discounts by approver_level_id for sequential display
-    final sortedDiscounts =
-        List<Map<String, dynamic>>.from(_cachedDiscountData!)
-          ..sort((a, b) {
-            final levelA = a['approver_level_id'] ?? 0;
-            final levelB = b['approver_level_id'] ?? 0;
-            return levelA.compareTo(levelB);
-          });
-
-    final Map<int, Map<String, dynamic>> approvalLevelsMap = {};
-
-    // Add creator (User level) as the first level
-    approvalLevelsMap[1] = {
-      'level': 1,
-      'title': 'User',
-      'name': _creatorName ?? widget.approval.creator,
-      'status': 'completed'
-    };
-
-    // Add levels based on actual discount data with sequential logic
-    bool previousLevelApproved = true; // User level is always approved
-
-    for (final discount in sortedDiscounts) {
-      final approverLevelId = discount['approver_level_id'];
-      final approved = discount['approved'];
-      final approverName = discount['approver_name'];
-      final approverId = discount['approver'];
-
-      if (approverLevelId != null) {
-        String title = '';
-        switch (approverLevelId) {
-          case 1:
-            title = 'User';
-            break;
-          case 2:
-            title = 'Direct';
-            break;
-          case 3:
-            title = 'Indirect';
-            break;
-          case 4:
-            title = 'Analyst';
-            break;
-          case 5:
-            title = 'Controller';
-            break;
-          default:
-            title = 'Level $approverLevelId';
-        }
-
-        String status = 'pending';
-        if (approved == true) {
-          status = 'completed';
-          previousLevelApproved = true;
-        } else if (approved == false) {
-          status = 'rejected';
-          previousLevelApproved = false;
-        } else if (approverId != null) {
-          if (previousLevelApproved) {
-            status = 'pending';
-          } else {
-            status = 'blocked';
-          }
-        }
-
-        approvalLevelsMap[approverLevelId] = {
-          'level': approverLevelId,
-          'title': title,
-          'name': approverName ?? 'Pending',
-          'status': status
-        };
-      }
-    }
-
-    // Convert map to sorted list
-    final approvalLevels = approvalLevelsMap.values.toList()
-      ..sort((a, b) => (a['level'] as int).compareTo(b['level'] as int));
-
-    // Ensure User level is always completed
-    if (approvalLevels.isNotEmpty) {
-      approvalLevels[0]['status'] = 'completed';
-    }
-
-    return SizedBox(
-      height: 45,
-      child: Row(
-        children: approvalLevels.asMap().entries.map((entry) {
-          final index = entry.key;
-          final level = entry.value;
-          final isLast = index == approvalLevels.length - 1;
-
-          Color dotColor;
-          Color lineColor;
-          IconData iconData;
-
-          switch (level['status']) {
-            case 'completed':
-              dotColor = AppColors.success;
-              lineColor = AppColors.success;
-              iconData = Icons.check_circle;
-              break;
-            case 'rejected':
-              dotColor = AppColors.error;
-              lineColor = AppColors.error;
-              iconData = Icons.cancel;
-              break;
-            case 'blocked':
-              dotColor = theme.colorScheme.onSurfaceVariant;
-              lineColor = theme.colorScheme.onSurfaceVariant;
-              iconData = Icons.lock;
-              break;
-            case 'pending':
-            default:
-              dotColor = AppColors.warning;
-              lineColor = AppColors.warning;
-              iconData = Icons.schedule;
-              break;
-          }
-
-          return Expanded(
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        iconData,
-                        size: 16,
-                        color: dotColor,
-                      ),
-                      const SizedBox(height: 2),
-                      Flexible(
-                        child: Text(
-                          level['title'],
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: dotColor,
-                          ),
-                          textAlign: TextAlign.center,
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (!isLast)
-                  Expanded(
-                    child: Container(
-                      height: 2,
-                      color: lineColor,
-                    ),
-                  ),
-              ],
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildApprovalInfoSection(ThemeData theme, ColorScheme colorScheme) {
-    final status = _overriddenStatus ?? widget.approval.status;
-    return Container(
-      margin: const EdgeInsets.only(top: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.info.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.info.withValues(alpha: 0.2),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.info_outline_rounded,
-                size: 16,
-                color: AppColors.info,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Informasi Approval',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  color: AppColors.info,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Icon(
-                _getStatusIcon(status),
-                size: 14,
-                color: _getStatusColor(status),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Status: $status',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: _getStatusColor(status),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          if (widget.leaderData?.directLeader != null) ...[
-            Row(
-              children: [
-                Icon(
-                  Icons.person_rounded,
-                  size: 14,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Direct Leader: ${widget.leaderData!.directLeader!.fullName}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(
-                  Icons.work_rounded,
-                  size: 14,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Jabatan: ${widget.leaderData!.directLeader!.workTitle}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                      fontSize: 10,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ] else ...[
-            Row(
-              children: [
-                Icon(
-                  Icons.warning_rounded,
-                  size: 14,
-                  color: AppColors.warning,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Tidak ada atasan langsung yang ditemukan',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: AppColors.warning,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButtons(
-      ThemeData theme, ColorScheme colorScheme, bool isDark) {
-    return Container(
-      margin: const EdgeInsets.only(top: 12),
-      child: Row(
-        children: [
-          Expanded(
-            child: ElevatedButton.icon(
-              onPressed: () async {
-                try {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => OrderLetterDocumentPage(
-                        orderLetterId: widget.approval.id,
-                      ),
-                    ),
-                  ).then((result) {
-                    if (!mounted) return;
-
-                    bool shouldRefresh = false;
-                    String? updatedStatus;
-
-                    if (result is Map) {
-                      shouldRefresh = result['changed'] == true;
-                      final statusResult = result['status'];
-                      if (statusResult is String && statusResult.isNotEmpty) {
-                        updatedStatus = statusResult;
-                      }
-                    } else if (result == true) {
-                      shouldRefresh = true;
-                    }
-
-                    if (!shouldRefresh) return;
-
-                    if (updatedStatus != null &&
-                        updatedStatus != widget.approval.status) {
-                      setState(() {
-                        _overriddenStatus = updatedStatus;
-                      });
-                    }
-
-                    refreshTimelineData();
-
-                    context
-                        .read<ApprovalBloc>()
-                        .add(UpdateSingleApproval(widget.approval.id));
-                  });
-                } catch (e) {
-                  // Show error message if navigation fails
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Gagal membuka dokumen: ${e.toString()}',
-                        ),
-                        backgroundColor: Colors.red,
-                        duration: const Duration(seconds: 3),
-                        action: SnackBarAction(
-                          label: 'Tutup',
-                          textColor: Colors.white,
-                          onPressed: () {},
-                        ),
-                      ),
-                    );
-                  }
-                }
-              },
-              icon: const Icon(Icons.description, size: 16),
-              label: const Text('Lihat Dokumen'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: colorScheme.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }

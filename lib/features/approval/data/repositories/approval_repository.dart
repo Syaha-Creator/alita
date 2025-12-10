@@ -17,8 +17,12 @@ class ApprovalRepository {
   /// - order_letters_by_analyst (Analyst)
   /// - order_letters_by_controller (Controller)
   /// - order_letters (Staff - default)
-  Future<List<ApprovalEntity>> getApprovals(
-      {String? creator, bool forceRefresh = false}) async {
+  Future<List<ApprovalEntity>> getApprovals({
+    String? creator,
+    bool forceRefresh = false,
+    String? dateFrom,
+    String? dateTo,
+  }) async {
     try {
       final currentUserId = await AuthService.getCurrentUserId();
       final currentUserName = await AuthService.getCurrentUserName();
@@ -27,8 +31,9 @@ class ApprovalRepository {
         return [];
       }
 
-      // Check cache first (if not force refresh)
-      if (!forceRefresh) {
+      // Check cache first (if not force refresh and no date filter)
+      // Skip cache when date filter is applied to ensure fresh data
+      if (!forceRefresh && dateFrom == null && dateTo == null) {
         final cachedApprovals = ApprovalCache.getCachedApprovals(currentUserId);
         if (cachedApprovals != null) {
           return cachedApprovals;
@@ -36,7 +41,10 @@ class ApprovalRepository {
       }
 
       // Get order letters with new format (includes details, discounts, etc.)
-      final response = await _orderLetterService.getOrderLetters();
+      final response = await _orderLetterService.getOrderLetters(
+        dateFrom: dateFrom,
+        dateTo: dateTo,
+      );
 
       // Process new response format: { status: "success", result: [...] }
       // Each result item has: order_letter, order_letter_details, order_letter_contacts, etc.

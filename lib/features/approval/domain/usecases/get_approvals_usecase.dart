@@ -9,10 +9,14 @@ class GetApprovalsUseCase {
   Future<List<ApprovalEntity>> call({
     String? creator,
     bool forceRefresh = false,
+    String? dateFrom,
+    String? dateTo,
   }) async {
     return await repository.getApprovals(
       creator: creator,
       forceRefresh: forceRefresh,
+      dateFrom: dateFrom,
+      dateTo: dateTo,
     );
   }
 }

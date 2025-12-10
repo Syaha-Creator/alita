@@ -48,12 +48,23 @@ class ApprovalBloc extends Bloc<ApprovalEvent, ApprovalState> {
       final approvals = await _getApprovalsUseCase(
         creator: event.creator,
         forceRefresh: event.forceRefresh,
+        dateFrom: event.dateFrom,
+        dateTo: event.dateTo,
       );
 
-      if (approvals.isEmpty) {
+      // Remove duplicates based on ID
+      final uniqueApprovals = <int, ApprovalEntity>{};
+      for (final approval in approvals) {
+        if (!uniqueApprovals.containsKey(approval.id)) {
+          uniqueApprovals[approval.id] = approval;
+        }
+      }
+      final deduplicatedApprovals = uniqueApprovals.values.toList();
+
+      if (deduplicatedApprovals.isEmpty) {
         emit(const ApprovalEmpty('Tidak ada data approval'));
       } else {
-        emit(ApprovalLoaded(approvals: approvals));
+        emit(ApprovalLoaded(approvals: deduplicatedApprovals));
       }
     } catch (e) {
       emit(ApprovalError('Gagal memuat data approval: $e'));
@@ -166,7 +177,11 @@ class ApprovalBloc extends Bloc<ApprovalEvent, ApprovalState> {
   Future<void> _onRefreshApprovals(
       RefreshApprovals event, Emitter<ApprovalState> emit) async {
     try {
-      final approvals = await _getApprovalsUseCase(creator: event.creator);
+      final approvals = await _getApprovalsUseCase(
+        creator: event.creator,
+        dateFrom: event.dateFrom,
+        dateTo: event.dateTo,
+      );
 
       if (approvals.isEmpty) {
         emit(const ApprovalEmpty('Tidak ada data approval'));
@@ -262,9 +277,18 @@ class ApprovalBloc extends Bloc<ApprovalEvent, ApprovalState> {
       final repository = locator<ApprovalRepository>();
       final updatedApprovals = await repository.loadNewApprovalsIncremental();
 
+      // Remove duplicates based on ID
+      final uniqueApprovals = <int, ApprovalEntity>{};
+      for (final approval in updatedApprovals) {
+        if (!uniqueApprovals.containsKey(approval.id)) {
+          uniqueApprovals[approval.id] = approval;
+        }
+      }
+      final deduplicatedApprovals = uniqueApprovals.values.toList();
+
       // Emit updated state with new approvals at top
       emit(ApprovalLoaded(
-        approvals: updatedApprovals,
+        approvals: deduplicatedApprovals,
         filterStatus: currentState.filterStatus,
       ));
     } catch (e) {
@@ -287,9 +311,18 @@ class ApprovalBloc extends Bloc<ApprovalEvent, ApprovalState> {
       final repository = locator<ApprovalRepository>();
       final updatedApprovals = await repository.updateApprovalStatusesOnly();
 
+      // Remove duplicates based on ID
+      final uniqueApprovals = <int, ApprovalEntity>{};
+      for (final approval in updatedApprovals) {
+        if (!uniqueApprovals.containsKey(approval.id)) {
+          uniqueApprovals[approval.id] = approval;
+        }
+      }
+      final deduplicatedApprovals = uniqueApprovals.values.toList();
+
       // Emit updated state with same data but updated statuses
       emit(ApprovalLoaded(
-        approvals: updatedApprovals,
+        approvals: deduplicatedApprovals,
         filterStatus: currentState.filterStatus,
       ));
     } catch (e) {

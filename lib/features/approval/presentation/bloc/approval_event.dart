@@ -10,11 +10,18 @@ abstract class ApprovalEvent extends Equatable {
 class LoadApprovals extends ApprovalEvent {
   final String? creator;
   final bool forceRefresh;
+  final String? dateFrom;
+  final String? dateTo;
 
-  const LoadApprovals({this.creator, this.forceRefresh = false});
+  const LoadApprovals({
+    this.creator,
+    this.forceRefresh = false,
+    this.dateFrom,
+    this.dateTo,
+  });
 
   @override
-  List<Object?> get props => [creator, forceRefresh];
+  List<Object?> get props => [creator, forceRefresh, dateFrom, dateTo];
 }
 
 class LoadPendingApprovals extends ApprovalEvent {}
@@ -54,11 +61,13 @@ class CreateApproval extends ApprovalEvent {
 
 class RefreshApprovals extends ApprovalEvent {
   final String? creator;
+  final String? dateFrom;
+  final String? dateTo;
 
-  const RefreshApprovals({this.creator});
+  const RefreshApprovals({this.creator, this.dateFrom, this.dateTo});
 
   @override
-  List<Object?> get props => [creator];
+  List<Object?> get props => [creator, dateFrom, dateTo];
 }
 
 class FilterApprovals extends ApprovalEvent {

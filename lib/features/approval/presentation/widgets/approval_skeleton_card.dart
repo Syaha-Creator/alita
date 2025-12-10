@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../config/app_constant.dart';
 
 /// Skeleton loading card untuk approval monitoring
 class ApprovalSkeletonCard extends StatefulWidget {
@@ -70,7 +71,7 @@ class _ApprovalSkeletonCardState extends State<ApprovalSkeletonCard>
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppPadding.p12),
 
                 // Title skeleton
                 _buildSkeletonContainer(
@@ -79,7 +80,7 @@ class _ApprovalSkeletonCardState extends State<ApprovalSkeletonCard>
                   opacity: _animation.value,
                   color: colorScheme.onSurface.withValues(alpha: 0.1),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppPadding.p8),
 
                 // Subtitle skeleton
                 _buildSkeletonContainer(
@@ -88,7 +89,7 @@ class _ApprovalSkeletonCardState extends State<ApprovalSkeletonCard>
                   opacity: _animation.value,
                   color: colorScheme.onSurface.withValues(alpha: 0.05),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppPadding.p16),
 
                 // Content rows skeleton
                 Row(
@@ -103,7 +104,7 @@ class _ApprovalSkeletonCardState extends State<ApprovalSkeletonCard>
                             opacity: _animation.value,
                             color: colorScheme.onSurface.withValues(alpha: 0.05),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: AppPadding.p4),
                           _buildSkeletonContainer(
                             width: 100,
                             height: 14,
@@ -123,7 +124,7 @@ class _ApprovalSkeletonCardState extends State<ApprovalSkeletonCard>
                             opacity: _animation.value,
                             color: colorScheme.onSurface.withValues(alpha: 0.05),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: AppPadding.p4),
                           _buildSkeletonContainer(
                             width: 120,
                             height: 14,
@@ -135,7 +136,7 @@ class _ApprovalSkeletonCardState extends State<ApprovalSkeletonCard>
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppPadding.p12),
 
                 // Bottom row skeleton
                 Row(
@@ -146,7 +147,7 @@ class _ApprovalSkeletonCardState extends State<ApprovalSkeletonCard>
                       opacity: _animation.value,
                       color: colorScheme.onSurface.withValues(alpha: 0.05),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: AppPadding.p8),
                     _buildSkeletonContainer(
                       width: 80,
                       height: 12,

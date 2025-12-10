@@ -7,15 +7,15 @@ import '../../../../config/app_constant.dart';
 import '../../../../config/dependency_injection.dart';
 import '../../../../services/auth_service.dart';
 import '../../../../services/order_letter_service.dart';
-import '../../../../theme/app_colors.dart';
+import '../../../../core/widgets/custom_toast.dart';
 import '../../domain/entities/approval_entity.dart';
 import '../../data/repositories/approval_repository.dart';
 import '../../data/cache/approval_cache.dart';
 import '../bloc/approval_bloc.dart';
 import '../bloc/approval_event.dart';
 import '../bloc/approval_state.dart';
-import '../widgets/approval_card.dart';
 import '../widgets/approval_skeleton_card.dart';
+import '../widgets/monitoring/monitoring_widgets.dart';
 
 class ApprovalMonitoringPage extends StatefulWidget {
   const ApprovalMonitoringPage({super.key});
@@ -46,6 +46,12 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
   // --- Add state for user permissions ---
   bool _isStaffLevel = false;
   bool _isLoadingUserInfo = true;
+
+  // --- Date range filter state ---
+  DateTime? _dateFrom;
+  DateTime? _dateTo;
+  bool _isDateFilterActive = false;
+  bool _isLoadingDateFilter = false;
 
   // Add keys for approval cards to refresh timeline
   final Map<int, GlobalKey> _approvalCardKeys = {};
@@ -345,9 +351,23 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
   /// Perform background sync
   Future<void> _performBackgroundSync() async {
     try {
+      // If date filter is active, sync with the filter parameters
+      if (_isDateFilterActive && _dateFrom != null && _dateTo != null) {
+        if (mounted) {
+          final dateFromStr = _formatDateForApi(_dateFrom!);
+          final dateToStr = _formatDateForApi(_dateTo!);
+          context.read<ApprovalBloc>().add(LoadApprovals(
+                forceRefresh: true,
+                dateFrom: dateFromStr,
+                dateTo: dateToStr,
+              ));
+        }
+        return;
+      }
+
+      // Normal background sync (no filter)
       await locator<ApprovalRepository>().backgroundSync();
 
-      // Trigger UI update if needed
       if (mounted) {
         final bloc = context.read<ApprovalBloc>();
         bloc.add(const LoadApprovals(forceRefresh: false));
@@ -480,368 +500,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => _buildApprovalTimelineModal(context, approval),
-    );
-  }
-
-  Widget _buildApprovalTimelineModal(
-    BuildContext context,
-    ApprovalEntity approval,
-  ) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(24),
-          topRight: Radius.circular(24),
-        ),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Handle Bar
-          Container(
-            margin: const EdgeInsets.only(top: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Header
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: colorScheme.primary.withValues(alpha: 0.05),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primary,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.timeline_rounded,
-                    color: isDark ? AppColors.primaryDark : Colors.white,
-                    size: 16,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Approval Timeline',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: colorScheme.onSurface,
-                        ),
-                      ),
-                      Text(
-                        'Order #${approval.id} - ${approval.customerName}',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  onPressed: () => context.pop(),
-                  icon: Icon(
-                    Icons.close_rounded,
-                    color: colorScheme.onSurfaceVariant,
-                    size: 24,
-                  ),
-                  style: IconButton.styleFrom(
-                    backgroundColor:
-                        colorScheme.surfaceContainerHighest.withValues(
-                      alpha: 0.3,
-                    ),
-                    padding: const EdgeInsets.all(8),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Timeline Content
-          Flexible(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: _buildApprovalTimeline(context, approval),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildApprovalTimeline(BuildContext context, ApprovalEntity approval) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
-
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future:
-          locator<ApprovalRepository>().getDiscountsForTimeline(approval.id),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return SizedBox(
-            height: 300,
-            child: Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        if (snapshot.hasError) {
-          return SizedBox(
-            height: 300,
-            child: Center(
-              child: Text('Error loading timeline: ${snapshot.error}'),
-            ),
-          );
-        }
-
-        final rawDiscounts = snapshot.data ?? [];
-
-        // Sort discounts by approver_level_id for sequential display
-        final sortedDiscounts = List<Map<String, dynamic>>.from(rawDiscounts)
-          ..sort((a, b) {
-            final levelA = a['approver_level_id'] ?? 0;
-            final levelB = b['approver_level_id'] ?? 0;
-            return levelA.compareTo(levelB);
-          });
-
-        final Map<int, Map<String, dynamic>> approvalLevelsMap = {};
-
-        // Initialize User level with creator info (will be overridden if discount data exists)
-        String userLevelName = approval.creator;
-
-        // Check if we have User level (level 1) in discount data to get the real name
-        final userLevelDiscount = sortedDiscounts.firstWhere(
-          (d) => d['approver_level_id'] == 1,
-          orElse: () => {},
-        );
-
-        if (userLevelDiscount.isNotEmpty &&
-            userLevelDiscount['approver_name'] != null) {
-          userLevelName = userLevelDiscount['approver_name'];
-        }
-
-        // Add creator (User level) as the first level
-        approvalLevelsMap[1] = {
-          'level': 1,
-          'title': 'User',
-          'name': userLevelName,
-          'status': 'completed',
-        };
-
-        // Add levels based on actual discount data with sequential logic
-        bool previousLevelApproved = true; // User level is always approved
-
-        for (final discount in sortedDiscounts) {
-          final approverLevelId = discount['approver_level_id'];
-          final approved = discount['approved'];
-          final approverName = discount['approver_name'];
-          final approverId = discount['approver'];
-
-          if (approverLevelId != null) {
-            String title = '';
-            switch (approverLevelId) {
-              case 1:
-                title = 'User';
-                break;
-              case 2:
-                title = 'Direct Leader';
-                break;
-              case 3:
-                title = 'Indirect Leader';
-                break;
-              case 4:
-                title = 'Analyst';
-                break;
-              case 5:
-                title = 'Controller';
-                break;
-              default:
-                title = 'Level $approverLevelId';
-            }
-
-            String status = 'pending';
-            if (approved == true) {
-              status = 'completed';
-              previousLevelApproved = true;
-            } else if (approved == false) {
-              status = 'rejected';
-              previousLevelApproved = false;
-            } else if (approverId != null) {
-              // Check if previous level is approved for sequential logic
-              if (previousLevelApproved) {
-                status = 'pending';
-              } else {
-                status =
-                    'blocked'; // Cannot approve until previous level is approved
-              }
-            }
-
-            approvalLevelsMap[approverLevelId] = {
-              'level': approverLevelId,
-              'title': title,
-              'name': approverName ?? 'Pending',
-              'status': status,
-            };
-          }
-        }
-
-        // Convert map to sorted list
-        final approvalLevels = approvalLevelsMap.values.toList()
-          ..sort(
-            (a, b) => (a['level'] as int).compareTo(b['level'] as int),
-          );
-
-        // Ensure User level is always completed
-        if (approvalLevels.isNotEmpty) {
-          approvalLevels[0]['status'] = 'completed';
-        }
-
-        return Container(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Row(
-                children: [
-                  Icon(Icons.timeline_rounded, color: colorScheme.primary),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Approval Timeline',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: colorScheme.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // Timeline
-              ...approvalLevels.asMap().entries.map((entry) {
-                final index = entry.key;
-                final level = entry.value;
-                final isLast = index == approvalLevels.length - 1;
-                final isDarkMode = isDark; // Capture isDark in closure
-
-                Color statusColor;
-                IconData statusIcon;
-                String statusText;
-
-                switch (level['status']) {
-                  case 'completed':
-                    statusColor = Colors.green;
-                    statusIcon = Icons.check_circle;
-                    statusText = 'Approved';
-                    break;
-                  case 'rejected':
-                    statusColor = Colors.red;
-                    statusIcon = Icons.cancel;
-                    statusText = 'Rejected';
-                    break;
-                  case 'blocked':
-                    statusColor =
-                        isDarkMode ? AppColors.textSecondaryDark : Colors.grey;
-                    statusIcon = Icons.lock;
-                    statusText = 'Blocked (Previous level not approved)';
-                    break;
-                  case 'pending':
-                  default:
-                    statusColor = Colors.orange;
-                    statusIcon = Icons.schedule;
-                    statusText = 'Pending';
-                    break;
-                }
-
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Timeline dot and line
-                    Column(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: statusColor.withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
-                            border: Border.all(color: statusColor, width: 2),
-                          ),
-                          child: Icon(statusIcon, color: statusColor, size: 20),
-                        ),
-                        if (!isLast)
-                          Container(
-                            width: 2,
-                            height: 60,
-                            color: statusColor.withValues(alpha: 0.3),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(width: 16),
-
-                    // Level info
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            level['title'] as String,
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: statusColor,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            level['name'] as String,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: colorScheme.onSurface,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            statusText,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: statusColor,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-              }),
-            ],
-          ),
-        );
-      },
+      builder: (context) => ApprovalTimelineModal(approval: approval),
     );
   }
 
@@ -850,735 +509,23 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => _buildItemDetailsModal(context, approval),
-    );
-  }
-
-  /// Group approval details by kasur (like draft page) to combine all related items
-  List<Map<String, dynamic>> _groupApprovalDetails(
-      List<ApprovalDetailEntity> details) {
-    final Map<String, Map<String, dynamic>> groupedItems = {};
-
-    for (final detail in details) {
-      // Group by kasur (desc1) - same as draft page
-      final kasur = detail.desc1;
-
-      if (groupedItems.containsKey(kasur)) {
-        // If kasur already exists, add to quantity and total price
-        final existingItem = groupedItems[kasur]!;
-        final existingQty = existingItem['quantity'] as int;
-        final existingTotalPrice = existingItem['totalPrice'] as double;
-
-        groupedItems[kasur] = {
-          ...existingItem,
-          'quantity': existingQty + detail.qty,
-          'totalPrice': existingTotalPrice + (detail.unitPrice * detail.qty),
-        };
-      } else {
-        // Create new grouped item based on kasur
-        groupedItems[kasur] = {
-          'kasur': kasur,
-          'ukuran': detail.desc2,
-          'divan': '', // Will be filled from other details
-          'headboard': '', // Will be filled from other details
-          'sorong': '', // Will be filled from other details
-          'bonus':
-              <Map<String, dynamic>>[], // Will be filled from other details
-          'quantity': detail.qty,
-          'netPrice': detail.unitPrice,
-          'totalPrice': detail.unitPrice * detail.qty,
-        };
-      }
-    }
-
-    return groupedItems.values.toList();
-  }
-
-  Widget _buildItemDetailsModal(BuildContext context, ApprovalEntity approval) {
-    final items = _groupApprovalDetails(approval.details);
-    final customerName = approval.customerName;
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(24),
-          topRight: Radius.circular(24),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 20,
-            offset: const Offset(0, -5),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Enhanced Handle Bar
-          Container(
-            margin: const EdgeInsets.only(top: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 50,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(3),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Enhanced Header with Status
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  colorScheme.primary.withValues(alpha: 0.08),
-                  colorScheme.primary.withValues(alpha: 0.03),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(24),
-                topRight: Radius.circular(24),
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        colorScheme.primary,
-                        colorScheme.primary.withValues(alpha: 0.8),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: colorScheme.primary.withValues(alpha: 0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    Icons.inventory_2_rounded,
-                    color: isDark ? AppColors.primaryDark : Colors.white,
-                    size: 18,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Detail Items',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: colorScheme.onSurface,
-                              fontSize: 20,
-                            ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.person_rounded,
-                            size: 14,
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            customerName,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  color: colorScheme.onSurfaceVariant,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
-                                ),
-                          ),
-                          const SizedBox(width: 12),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.warning.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: AppColors.warning.withValues(alpha: 0.3),
-                                width: 1,
-                              ),
-                            ),
-                            child: Text(
-                              approval.status,
-                              style: TextStyle(
-                                color: AppColors.warning,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 10,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHighest
-                        .withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: colorScheme.outline.withValues(alpha: 0.1),
-                      width: 1,
-                    ),
-                  ),
-                  child: IconButton(
-                    onPressed: () => context.pop(),
-                    icon: Icon(
-                      Icons.close_rounded,
-                      color: colorScheme.onSurfaceVariant,
-                      size: 20,
-                    ),
-                    style: IconButton.styleFrom(
-                      padding: const EdgeInsets.all(8),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Enhanced Items List
-          Flexible(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(20),
-              itemCount: items.length,
-              itemBuilder: (context, index) {
-                final item = items[index];
-                final kasur = item['kasur'] as String;
-                final ukuran = item['ukuran'] as String;
-                final divan = item['divan'] as String;
-                final headboard = item['headboard'] as String;
-                final sorong = item['sorong'] as String;
-                final bonus = item['bonus'] as List<Map<String, dynamic>>;
-                final quantity = item['quantity'] as int;
-
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: colorScheme.surface,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: colorScheme.outline.withValues(alpha: 0.1),
-                      width: 1,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      // Item Header with gradient
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              colorScheme.primary.withValues(alpha: 0.05),
-                              colorScheme.primary.withValues(alpha: 0.02),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(16),
-                            topRight: Radius.circular(16),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color:
-                                    colorScheme.primary.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(
-                                Icons.bed_rounded,
-                                color: colorScheme.primary,
-                                size: 16,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Item ${index + 1}',
-                                    style: TextStyle(
-                                      color: colorScheme.onSurfaceVariant,
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    kasur.isNotEmpty ? kasur : 'Tanpa Kasur',
-                                    style: TextStyle(
-                                      color: colorScheme.onSurface,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 6),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    colorScheme.primary,
-                                    colorScheme.primary.withValues(alpha: 0.8),
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: colorScheme.primary
-                                        .withValues(alpha: 0.3),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Text(
-                                'Qty: $quantity',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Item Details
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Specifications (same as draft page)
-                            if (ukuran.isNotEmpty) ...[
-                              _buildSpecificationRow('Ukuran', ukuran,
-                                  Icons.straighten_rounded, colorScheme),
-                              const SizedBox(height: 8),
-                            ],
-                            if (divan.isNotEmpty && divan != 'Tanpa Divan') ...[
-                              _buildSpecificationRow('Divan', divan,
-                                  Icons.chair_rounded, colorScheme),
-                              const SizedBox(height: 8),
-                            ],
-                            if (headboard.isNotEmpty &&
-                                headboard != 'Tanpa Headboard') ...[
-                              _buildSpecificationRow('Headboard', headboard,
-                                  Icons.headset_rounded, colorScheme),
-                              const SizedBox(height: 8),
-                            ],
-                            if (sorong.isNotEmpty &&
-                                sorong != 'Tanpa Sorong') ...[
-                              _buildSpecificationRow('Sorong', sorong,
-                                  Icons.drag_handle_rounded, colorScheme),
-                              const SizedBox(height: 8),
-                            ],
-
-                            // Enhanced Bonus Items (same as draft page)
-                            if (bonus.isNotEmpty) ...[
-                              const SizedBox(height: 12),
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      colorScheme.secondary
-                                          .withValues(alpha: 0.1),
-                                      colorScheme.secondary
-                                          .withValues(alpha: 0.05),
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: colorScheme.secondary
-                                        .withValues(alpha: 0.2),
-                                    width: 1,
-                                  ),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(6),
-                                          decoration: BoxDecoration(
-                                            color: colorScheme.secondary
-                                                .withValues(alpha: 0.2),
-                                            borderRadius:
-                                                BorderRadius.circular(8),
-                                          ),
-                                          child: Icon(
-                                            Icons.card_giftcard_rounded,
-                                            color: colorScheme.secondary,
-                                            size: 14,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          'Bonus Items',
-                                          style: TextStyle(
-                                            color: colorScheme.secondary,
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    ...bonus.map((bonusItem) {
-                                      final name =
-                                          bonusItem['name'] as String? ?? '';
-                                      final qty =
-                                          bonusItem['quantity'] as int? ?? 0;
-                                      if (name.isNotEmpty && qty > 0) {
-                                        return Container(
-                                          margin:
-                                              const EdgeInsets.only(bottom: 4),
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 8, vertical: 6),
-                                          decoration: BoxDecoration(
-                                            color: colorScheme.surface,
-                                            borderRadius:
-                                                BorderRadius.circular(8),
-                                            border: Border.all(
-                                              color: colorScheme.outline
-                                                  .withValues(alpha: 0.1),
-                                              width: 1,
-                                            ),
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              Icon(
-                                                Icons.check_circle_rounded,
-                                                color: colorScheme.secondary,
-                                                size: 12,
-                                              ),
-                                              const SizedBox(width: 6),
-                                              Expanded(
-                                                child: Text(
-                                                  name,
-                                                  style: TextStyle(
-                                                    color:
-                                                        colorScheme.onSurface,
-                                                    fontWeight: FontWeight.w500,
-                                                    fontSize: 11,
-                                                  ),
-                                                ),
-                                              ),
-                                              Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                        horizontal: 6,
-                                                        vertical: 2),
-                                                decoration: BoxDecoration(
-                                                  color: colorScheme.secondary
-                                                      .withValues(alpha: 0.1),
-                                                  borderRadius:
-                                                      BorderRadius.circular(6),
-                                                ),
-                                                child: Text(
-                                                  '${qty}x',
-                                                  style: TextStyle(
-                                                    color:
-                                                        colorScheme.secondary,
-                                                    fontWeight: FontWeight.w600,
-                                                    fontSize: 10,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                      }
-                                      return const SizedBox.shrink();
-                                    }),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-
-          // Enhanced Summary
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  colorScheme.surface,
-                  colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-                ],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-              border: Border(
-                top: BorderSide(
-                  color: colorScheme.outline.withValues(alpha: 0.1),
-                  width: 1,
-                ),
-              ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: colorScheme.surface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: colorScheme.outline.withValues(alpha: 0.1),
-                        width: 1,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: AppColors.info.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(
-                                Icons.inventory_2_rounded,
-                                color: AppColors.info,
-                                size: 14,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Total Items',
-                              style: TextStyle(
-                                color: colorScheme.onSurfaceVariant,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '${items.length} items',
-                          style: TextStyle(
-                            color: colorScheme.onSurface,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          colorScheme.primary,
-                          colorScheme.primary.withValues(alpha: 0.8),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: colorScheme.primary.withValues(alpha: 0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? AppColors.primaryDark
-                                        .withValues(alpha: 0.2)
-                                    : Colors.white.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(
-                                Icons.attach_money_rounded,
-                                color: isDark
-                                    ? AppColors.primaryDark
-                                    : Colors.white,
-                                size: 14,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Total Amount',
-                              style: TextStyle(
-                                color: isDark
-                                    ? AppColors.primaryDark
-                                    : Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Rp ${_formatNumber(approval.extendedAmount.toInt())}',
-                          style: TextStyle(
-                            color:
-                                isDark ? AppColors.primaryDark : Colors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatNumber(int number) {
-    return number.toString().replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (Match m) => '${m[1]},',
-        );
-  }
-
-  Widget _buildSpecificationRow(
-      String label, String value, IconData icon, ColorScheme colorScheme) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: colorScheme.primary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(
-            icon,
-            color: colorScheme.primary,
-            size: 14,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  color: colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 12,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: TextStyle(
-                  color: colorScheme.onSurface,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+      builder: (context) => ItemDetailsModal(approval: approval),
     );
   }
 
   List<ApprovalEntity> _filterApprovals(List<ApprovalEntity> approvals) {
-    if (_selectedFilter == 'All') return approvals;
-    return approvals
+    // Remove duplicates based on ID first
+    final uniqueApprovals = <int, ApprovalEntity>{};
+    for (final approval in approvals) {
+      if (!uniqueApprovals.containsKey(approval.id)) {
+        uniqueApprovals[approval.id] = approval;
+      }
+    }
+    final deduplicatedApprovals = uniqueApprovals.values.toList();
+
+    // Apply filter
+    if (_selectedFilter == 'All') return deduplicatedApprovals;
+    return deduplicatedApprovals
         .where(
           (approval) =>
               approval.status.toLowerCase() == _selectedFilter.toLowerCase(),
@@ -1588,10 +535,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final size = MediaQuery.of(context).size;
-    final isDark = theme.brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
@@ -1599,57 +543,32 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
         child: Column(
           children: [
             // Status Update Loading Indicator
-            if (_isUpdatingStatuses)
-              Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                decoration: BoxDecoration(
-                  color: colorScheme.primary.withValues(alpha: 0.1),
-                  border: Border(
-                    bottom: BorderSide(
-                      color: colorScheme.primary.withValues(alpha: 0.2),
-                      width: 1,
-                    ),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(colorScheme.primary),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Memperbarui status approval...',
-                      style: TextStyle(
-                        color: colorScheme.primary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            if (_isUpdatingStatuses) _buildStatusUpdateIndicator(colorScheme),
 
-            // Compact Header
-            _buildCompactHeader(
-              theme,
-              colorScheme,
-              size,
-              _pendingCount,
-              _approvedCount,
-              _rejectedCount,
+            // Header
+            ApprovalHeader(
+              isStaffLevel: _isStaffLevel,
+              isDateFilterActive: _isDateFilterActive,
+              dateFrom: _dateFrom,
+              dateTo: _dateTo,
+              fadeAnimation: _fadeAnimation,
+              slideAnimation: _slideAnimation,
+              onDateRangePressed: _showDateRangePicker,
+              onClearDateFilter: _clearDateFilter,
             ),
 
-            // Compact Filter Section
-            _buildCompactFilters(colorScheme, isDark),
+            // Filters with integrated stats
+            ApprovalFilters(
+              selectedFilter: _selectedFilter,
+              filterOptions: _filterOptions,
+              onFilterChanged: (filter) =>
+                  setState(() => _selectedFilter = filter),
+              fadeAnimation: _fadeAnimation,
+              slideAnimation: _slideAnimation,
+              pendingCount: _pendingCount,
+              approvedCount: _approvedCount,
+              rejectedCount: _rejectedCount,
+            ),
 
             // Content Area
             Expanded(
@@ -1657,75 +576,37 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                 listener: (context, state) {
                   if (state is ApprovalError) {
                     _showErrorSnackBar(state.message);
+                    // Reset loading state on error
+                    if (_isLoadingDateFilter) {
+                      setState(() {
+                        _isLoadingDateFilter = false;
+                      });
+                    }
+                  } else if (state is ApprovalLoaded) {
+                    // Reset loading state when data is loaded
+                    if (_isLoadingDateFilter) {
+                      setState(() {
+                        _isLoadingDateFilter = false;
+                      });
+                    }
                   }
                 },
                 builder: (context, state) {
                   if (_isLoadingUserInfo) {
-                    return _buildCompactLoadingState(colorScheme);
-                  } else if (state is ApprovalLoading) {
+                    return const ApprovalLoadingState();
+                  } else if (_isLoadingDateFilter || state is ApprovalLoading) {
                     return ApprovalSkeletonList(itemCount: 3);
                   } else if (state is ApprovalLoaded) {
-                    // Calculate stats from API data
-                    final pending = state.approvals
-                        .where((a) => a.status.toLowerCase() == 'pending')
-                        .length;
-                    final approved = state.approvals
-                        .where((a) => a.status.toLowerCase() == 'approved')
-                        .length;
-                    final rejected = state.approvals
-                        .where((a) => a.status.toLowerCase() == 'rejected')
-                        .length;
-
-                    // Check pagination info
-                    locator<ApprovalRepository>()
-                        .getPaginationInfo()
-                        .then((paginationInfo) {
-                      // Update state for header and pagination
-                      if (mounted) {
-                        setState(() {
-                          _pendingCount = pending;
-                          _approvedCount = approved;
-                          _rejectedCount = rejected;
-                          _usePagination =
-                              paginationInfo['should_use_pagination'] ?? false;
-                          _hasInitialLoadCompleted = true;
-                        });
-                      }
-                    });
-
+                    _updateStatsFromState(state);
                     final filteredApprovals = _filterApprovals(state.approvals);
-                    return RefreshIndicator(
-                      onRefresh: _onRefresh,
-                      child: FutureBuilder<Map<String, dynamic>>(
-                        future:
-                            locator<ApprovalRepository>().getPaginationInfo(),
-                        builder: (context, snapshot) {
-                          final paginationInfo = snapshot.data ??
-                              {
-                                'should_use_pagination': false,
-                                'total_pages': 0,
-                                'items_per_page': 20,
-                                'total_items': 0,
-                                'lazy_load_threshold': 50,
-                              };
-                          return _buildPaginatedContentState(
-                            context,
-                            filteredApprovals,
-                            colorScheme,
-                            paginationInfo,
-                          );
-                        },
-                      ),
-                    );
+                    return _buildContentArea(filteredApprovals);
                   } else if (state is ApprovalError) {
-                    return _buildCompactErrorState(
-                      context,
-                      state.message,
-                      colorScheme,
-                      isDark,
+                    return ApprovalErrorState(
+                      message: state.message,
+                      onRetry: _loadApprovals,
                     );
                   }
-                  return _buildCompactEmptyState(colorScheme);
+                  return const ApprovalEmptyState();
                 },
               ),
             ),
@@ -1735,661 +616,198 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
     );
   }
 
-  Widget _buildCompactHeader(
-    ThemeData theme,
-    ColorScheme colorScheme,
-    Size size,
-    int pending,
-    int approved,
-    int rejected,
-  ) {
-    return AnimatedBuilder(
-      animation: _mainController,
-      builder: (context, child) {
-        return Transform.translate(
-          offset: Offset(0, 20 * (1 - _slideAnimation.value)),
-          child: Opacity(
-            opacity: _fadeAnimation.value,
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: colorScheme.surface,
-                border: Border(
-                  bottom: BorderSide(
-                    color: colorScheme.outline.withValues(alpha: 0.06),
-                    width: 1,
-                  ),
-                ),
-              ),
-              child: Column(
-                children: [
-                  // Compact App Bar
-                  Row(
-                    children: [
-                      // Back Button
-                      Container(
-                        decoration: BoxDecoration(
-                          color: colorScheme.primary.withValues(alpha: 0.06),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: IconButton(
-                          onPressed: () => context.go(RoutePaths.product),
-                          icon: Icon(
-                            Icons.arrow_back_ios_new_rounded,
-                            color: colorScheme.primary,
-                            size: 16,
-                          ),
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            padding: const EdgeInsets.all(6),
-                            minimumSize: const Size(36, 36),
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(width: 12),
-
-                      // Title Section
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Approval Hub',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: colorScheme.onSurface,
-                              ),
-                            ),
-                            Text(
-                              _isStaffLevel
-                                  ? 'View Only - Staff Level'
-                                  : 'Manage & Review Orders',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: _isStaffLevel
-                                    ? AppColors.warning
-                                    : colorScheme.onSurfaceVariant,
-                                fontWeight: FontWeight.w400,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Pull-to-refresh available, no need for button
-                    ],
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Mini Stats Section
-                  _buildMiniStats(colorScheme, pending, approved, rejected),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildMiniStats(
-    ColorScheme colorScheme,
-    int pending,
-    int approved,
-    int rejected,
-  ) {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildMiniStatCard(
-            'Pending',
-            pending.toString(),
-            Icons.pending_actions_rounded,
-            AppColors.warning,
-            colorScheme,
+  Widget _buildStatusUpdateIndicator(ColorScheme colorScheme) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      decoration: BoxDecoration(
+        color: colorScheme.primary.withValues(alpha: 0.1),
+        border: Border(
+          bottom: BorderSide(
+            color: colorScheme.primary.withValues(alpha: 0.2),
+            width: 1,
           ),
         ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: _buildMiniStatCard(
-            'Approved',
-            approved.toString(),
-            Icons.check_circle_rounded,
-            AppColors.success,
-            colorScheme,
-          ),
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: _buildMiniStatCard(
-            'Rejected',
-            rejected.toString(),
-            Icons.cancel_rounded,
-            AppColors.error,
-            colorScheme,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMiniStatCard(
-    String title,
-    String value,
-    IconData icon,
-    Color color,
-    ColorScheme colorScheme,
-  ) {
-    return AnimatedBuilder(
-      animation: _mainController,
-      builder: (context, child) {
-        return Transform.translate(
-          offset: Offset(0, 15 * (1 - _slideAnimation.value)),
-          child: Opacity(
-            opacity: _fadeAnimation.value,
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.06),
-                borderRadius: BorderRadius.circular(8),
-                border:
-                    Border.all(color: color.withValues(alpha: 0.1), width: 1),
-              ),
-              child: Column(
-                children: [
-                  Icon(icon, color: color, size: 14),
-                  const SizedBox(height: 2),
-                  Text(
-                    value,
-                    style: TextStyle(
-                      color: color,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                  ),
-                  Text(
-                    title,
-                    style: TextStyle(
-                      color: colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w400,
-                      fontSize: 9,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildCompactFilters(ColorScheme colorScheme, bool isDark) {
-    return AnimatedBuilder(
-      animation: _mainController,
-      builder: (context, child) {
-        return Transform.translate(
-          offset: Offset(0, 20 * (1 - _slideAnimation.value)),
-          child: Opacity(
-            opacity: _fadeAnimation.value,
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: _filterOptions.asMap().entries.map((entry) {
-                  final filter = entry.value;
-                  final isSelected = _selectedFilter == filter;
-
-                  return Expanded(
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _selectedFilter = filter;
-                        });
-                      },
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                        margin: const EdgeInsets.symmetric(horizontal: 2),
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 10,
-                          horizontal: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? (isDark
-                                  ? AppColors.primaryDark
-                                  : AppColors.primaryLight)
-                              : colorScheme.surfaceContainerHighest.withValues(
-                                  alpha: 0.3,
-                                ),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Column(
-                          children: [
-                            Icon(
-                              _getFilterIcon(filter),
-                              color: isSelected
-                                  ? Colors.white
-                                  : colorScheme.onSurfaceVariant,
-                              size: 16,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              filter,
-                              style: TextStyle(
-                                color: isSelected
-                                    ? Colors.white
-                                    : colorScheme.onSurface,
-                                fontWeight: isSelected
-                                    ? FontWeight.w600
-                                    : FontWeight.w500,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  IconData _getFilterIcon(String filter) {
-    switch (filter.toLowerCase()) {
-      case 'all':
-        return Icons.dashboard_rounded;
-      case 'pending':
-        return Icons.pending_actions_rounded;
-      case 'approved':
-        return Icons.check_circle_outline_rounded;
-      case 'rejected':
-        return Icons.cancel_outlined;
-      default:
-        return Icons.filter_list_rounded;
-    }
-  }
-
-  Widget _buildPaginatedContentState(
-    BuildContext context,
-    List<ApprovalEntity> approvals,
-    ColorScheme colorScheme,
-    Map<String, dynamic> paginationInfo,
-  ) {
-    if (paginationInfo['should_use_pagination'] == true) {
-      return _buildPaginatedList(
-          context, approvals, colorScheme, paginationInfo);
-    } else {
-      return _buildCompactContentState(context, approvals, colorScheme);
-    }
-  }
-
-  Widget _buildPaginatedList(
-    BuildContext context,
-    List<ApprovalEntity> approvals,
-    ColorScheme colorScheme,
-    Map<String, dynamic> paginationInfo,
-  ) {
-    return Column(
-      children: [
-        // Pagination info header
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            children: [
-              Icon(Icons.info_outline, size: 16, color: colorScheme.primary),
-              const SizedBox(width: 8),
-              Text(
-                'Showing ${approvals.length} of ${paginationInfo['total_items']} items',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: colorScheme.onSurface.withValues(alpha: 0.7),
-                ),
-              ),
-              const Spacer(),
-              if (_usePagination)
-                Text(
-                  'Page $_currentPage of ${paginationInfo['total_pages']}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: colorScheme.primary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-            ],
-          ),
-        ),
-
-        // List with lazy loading
-        Expanded(
-          child: NotificationListener<ScrollNotification>(
-            onNotification: (ScrollNotification scrollInfo) {
-              if (scrollInfo.metrics.pixels ==
-                      scrollInfo.metrics.maxScrollExtent &&
-                  _hasMoreData &&
-                  !_isLoadingMore) {
-                _loadMoreData();
-              }
-              return false;
-            },
-            child: _buildApprovalsList(approvals),
-          ),
-        ),
-
-        // Loading more indicator
-        if (_isLoadingMore)
-          Container(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: colorScheme.primary,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'Loading more...',
-                  style: TextStyle(
-                    color: colorScheme.onSurface.withValues(alpha: 0.7),
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildCompactContentState(
-    BuildContext context,
-    List<ApprovalEntity> approvals,
-    ColorScheme colorScheme,
-  ) {
-    if (approvals.isEmpty) {
-      return _buildCompactEmptyState(colorScheme);
-    }
-
-    return _buildApprovalsList(approvals);
-  }
-
-  Widget _buildApprovalsList(List<ApprovalEntity> approvals) {
-    final totalItems = approvals.length;
-
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      itemCount: totalItems,
-      itemBuilder: (context, index) {
-        if (index >= approvals.length) return const SizedBox.shrink();
-
-        final approval = approvals[index];
-
-        // Create key for this approval card if not exists
-        if (!_approvalCardKeys.containsKey(approval.id)) {
-          _approvalCardKeys[approval.id] = GlobalKey();
-        }
-
-        // Optimized animation - only animate first few items
-        if (index < 3) {
-          return AnimatedBuilder(
-            animation: _mainController,
-            builder: (context, child) {
-              return Transform.translate(
-                offset: Offset(0, 20 * (1 - _slideAnimation.value)),
-                child: Opacity(
-                  opacity: _fadeAnimation.value,
-                  child: child,
-                ),
-              );
-            },
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: ApprovalCard(
-                key: _approvalCardKeys[approval.id],
-                approval: approval,
-                onTap: _isStaffLevel
-                    ? () => _showItemDetailsModal(approval)
-                    : () => _showApprovalModal(approval),
-                onItemsTap: _isStaffLevel
-                    ? null
-                    : () => _showItemDetailsModal(approval),
-                isStaffLevel: _isStaffLevel,
-              ),
-            ),
-          );
-        } else {
-          // No animation for items beyond index 3 to improve performance
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: ApprovalCard(
-              key: _approvalCardKeys[approval.id],
-              approval: approval,
-              onTap: _isStaffLevel
-                  ? () => _showItemDetailsModal(approval)
-                  : () => _showApprovalModal(approval),
-              onItemsTap:
-                  _isStaffLevel ? null : () => _showItemDetailsModal(approval),
-              isStaffLevel: _isStaffLevel,
-            ),
-          );
-        }
-      },
-    );
-  }
-
-  Widget _buildCompactLoadingState(ColorScheme colorScheme) {
-    return Center(
-      child: Column(
+      ),
+      child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: colorScheme.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(20),
-            ),
+          SizedBox(
+            width: 16,
+            height: 16,
             child: CircularProgressIndicator(
-              color: colorScheme.primary,
-              strokeWidth: 3,
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(width: AppPadding.p8),
           Text(
-            'Loading Approvals...',
+            'Memperbarui status approval...',
             style: TextStyle(
-              color: colorScheme.onSurface,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
+              color: colorScheme.primary,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Please wait while we fetch your data',
-            style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 14),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCompactErrorState(
-    BuildContext context,
-    String message,
-    ColorScheme colorScheme,
-    bool isDark,
-  ) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.error.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Icon(
-                Icons.error_outline_rounded,
-                size: 48,
-                color: AppColors.error,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Oops! Something went wrong',
-              style: TextStyle(
-                color: colorScheme.onSurface,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              message,
-              style: TextStyle(
-                color: colorScheme.onSurfaceVariant,
-                fontSize: 14,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _loadApprovals,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: colorScheme.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.refresh_rounded, color: Colors.white),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Try Again',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+  void _updateStatsFromState(ApprovalLoaded state) {
+    final pending = state.approvals
+        .where((a) => a.status.toLowerCase() == 'pending')
+        .length;
+    final approved = state.approvals
+        .where((a) => a.status.toLowerCase() == 'approved')
+        .length;
+    final rejected = state.approvals
+        .where((a) => a.status.toLowerCase() == 'rejected')
+        .length;
+
+    locator<ApprovalRepository>().getPaginationInfo().then((paginationInfo) {
+      if (mounted) {
+        setState(() {
+          _pendingCount = pending;
+          _approvedCount = approved;
+          _rejectedCount = rejected;
+          _usePagination = paginationInfo['should_use_pagination'] ?? false;
+          _hasInitialLoadCompleted = true;
+        });
+      }
+    });
+  }
+
+  Widget _buildContentArea(List<ApprovalEntity> filteredApprovals) {
+    return RefreshIndicator(
+      onRefresh: _onRefresh,
+      child: FutureBuilder<Map<String, dynamic>>(
+        future: locator<ApprovalRepository>().getPaginationInfo(),
+        builder: (context, snapshot) {
+          final paginationInfo = snapshot.data ??
+              {
+                'should_use_pagination': false,
+                'total_pages': 0,
+                'items_per_page': 20,
+                'total_items': 0,
+                'lazy_load_threshold': 50,
+              };
+          return PaginatedApprovalList(
+            approvals: filteredApprovals,
+            paginationInfo: paginationInfo,
+            usePagination: _usePagination,
+            currentPage: _currentPage,
+            isLoadingMore: _isLoadingMore,
+            hasMoreData: _hasMoreData,
+            isStaffLevel: _isStaffLevel,
+            approvalCardKeys: _approvalCardKeys,
+            fadeAnimation: _fadeAnimation,
+            slideAnimation: _slideAnimation,
+            onApprovalTap: _showApprovalModal,
+            onItemsTap: _showItemDetailsModal,
+            onLoadMore: _loadMoreData,
+          );
+        },
       ),
     );
   }
 
-  Widget _buildCompactEmptyState(ColorScheme colorScheme) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: colorScheme.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Icon(
-                Icons.inbox_outlined,
-                size: 48,
-                color: colorScheme.primary,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'No Approvals Found',
-              style: TextStyle(
-                color: colorScheme.onSurface,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'There are no approvals to display at the moment',
-              style: TextStyle(
-                color: colorScheme.onSurfaceVariant,
-                fontSize: 14,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Check back later or try a different filter',
-              style: TextStyle(
-                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-                fontSize: 12,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
+  void _clearDateFilter() {
+    // Close modal first if open
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
+
+    // Update state and show loading
+    setState(() {
+      _dateFrom = null;
+      _dateTo = null;
+      _isDateFilterActive = false;
+      _isLoadingDateFilter = true;
+    });
+
+    // Show feedback toast
+    CustomToast.showToast(
+      'Filter tanggal dihapus',
+      ToastType.success,
+      duration: 2,
     );
+
+    // Load approvals without filter
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadApprovals(forceRefresh: true);
+    });
   }
 
   void _showErrorSnackBar(String message) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    CustomToast.showToast(message, ToastType.error, duration: 3);
+  }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.error,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.error_outline_rounded,
-                  color: isDark ? AppColors.primaryDark : Colors.white,
-                  size: 24),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  message,
-                  style: TextStyle(
-                    color: isDark ? AppColors.primaryDark : Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        backgroundColor: Colors.transparent,
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(16),
-        elevation: 0,
+  /// Format date to API format (YYYY-M-D like "2025-11-1")
+  String _formatDateForApi(DateTime date) {
+    return '${date.year}-${date.month}-${date.day}';
+  }
+
+  /// Show date range picker dialog
+  void _showDateRangePicker() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DateRangePickerModal(
+        initialDateFrom: _dateFrom,
+        initialDateTo: _dateTo,
+        isDateFilterActive: _isDateFilterActive,
+        onApply: (dateFrom, dateTo) {
+          // Close modal first
+          Navigator.of(context).pop();
+
+          // Update state immediately for instant UI feedback and show loading
+          setState(() {
+            _dateFrom = dateFrom;
+            _dateTo = dateTo;
+            _isDateFilterActive = true;
+            _isLoadingDateFilter = true;
+          });
+
+          // Show feedback toast
+          final dateFromStr = _formatDateForDisplay(dateFrom);
+          final dateToStr = _formatDateForDisplay(dateTo);
+          CustomToast.showToast(
+            'Filter diterapkan: $dateFromStr - $dateToStr',
+            ToastType.success,
+            duration: 2,
+          );
+
+          // Load approvals with filter
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _loadApprovalsWithDateFilter();
+          });
+        },
+        onClear: _clearDateFilter,
       ),
     );
+  }
+
+  /// Format date for display (DD/MM/YYYY)
+  String _formatDateForDisplay(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  }
+
+  /// Load approvals with date filter
+  void _loadApprovalsWithDateFilter() {
+    if (_dateFrom == null || _dateTo == null) {
+      _loadApprovals(forceRefresh: true);
+      return;
+    }
+
+    final dateFromStr = _formatDateForApi(_dateFrom!);
+    final dateToStr = _formatDateForApi(_dateTo!);
+
+    context.read<ApprovalBloc>().add(LoadApprovals(
+          forceRefresh: true,
+          dateFrom: dateFromStr,
+          dateTo: dateToStr,
+        ));
   }
 }
