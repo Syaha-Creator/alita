@@ -135,41 +135,61 @@ class ApiConfig {
     required String token,
     required int userId,
     String? creator,
+    String? dateFrom,
+    String? dateTo,
   }) {
     final creatorParam = creator != null ? "&creator=$creator" : "";
-    return "$orderLetters?access_token=$token&client_id=$clientId&client_secret=$clientSecret&user_id=$userId$creatorParam";
+    final dateFromParam = dateFrom != null ? "&date_from=$dateFrom" : "";
+    final dateToParam = dateTo != null ? "&date_to=$dateTo" : "";
+    return "$orderLetters?access_token=$token&client_id=$clientId&client_secret=$clientSecret&user_id=$userId$creatorParam$dateFromParam$dateToParam";
   }
 
   // Helper untuk Order Letters by Direct Leader (untuk supervisor yang punya bawahan)
   static String getOrderLettersByDirectLeaderUrl({
     required String token,
     required int userId,
+    String? dateFrom,
+    String? dateTo,
   }) {
-    return "$orderLettersByDirectLeader?access_token=$token&client_id=$clientId&client_secret=$clientSecret&user_id=$userId";
+    final dateFromParam = dateFrom != null ? "&date_from=$dateFrom" : "";
+    final dateToParam = dateTo != null ? "&date_to=$dateTo" : "";
+    return "$orderLettersByDirectLeader?access_token=$token&client_id=$clientId&client_secret=$clientSecret&user_id=$userId$dateFromParam$dateToParam";
   }
 
   // Helper untuk Order Letters by Indirect Leader (untuk Regional Manager atau Manager)
   static String getOrderLettersByIndirectLeaderUrl({
     required String token,
     required int userId,
+    String? dateFrom,
+    String? dateTo,
   }) {
-    return "$orderLettersByIndirectLeader?access_token=$token&client_id=$clientId&client_secret=$clientSecret&user_id=$userId";
+    final dateFromParam = dateFrom != null ? "&date_from=$dateFrom" : "";
+    final dateToParam = dateTo != null ? "&date_to=$dateTo" : "";
+    return "$orderLettersByIndirectLeader?access_token=$token&client_id=$clientId&client_secret=$clientSecret&user_id=$userId$dateFromParam$dateToParam";
   }
 
   // Helper untuk Order Letters by Analyst (untuk analyst)
   static String getOrderLettersByAnalystUrl({
     required String token,
     required int userId,
+    String? dateFrom,
+    String? dateTo,
   }) {
-    return "$orderLettersByAnalyst?access_token=$token&client_id=$clientId&client_secret=$clientSecret&user_id=$userId";
+    final dateFromParam = dateFrom != null ? "&date_from=$dateFrom" : "";
+    final dateToParam = dateTo != null ? "&date_to=$dateTo" : "";
+    return "$orderLettersByAnalyst?access_token=$token&client_id=$clientId&client_secret=$clientSecret&user_id=$userId$dateFromParam$dateToParam";
   }
 
   // Helper untuk Order Letters by Controller (untuk controller)
   static String getOrderLettersByControllerUrl({
     required String token,
     required int userId,
+    String? dateFrom,
+    String? dateTo,
   }) {
-    return "$orderLettersByController?access_token=$token&client_id=$clientId&client_secret=$clientSecret&user_id=$userId";
+    final dateFromParam = dateFrom != null ? "&date_from=$dateFrom" : "";
+    final dateToParam = dateTo != null ? "&date_to=$dateTo" : "";
+    return "$orderLettersByController?access_token=$token&client_id=$clientId&client_secret=$clientSecret&user_id=$userId$dateFromParam$dateToParam";
   }
 
   // Helper untuk Order Letter by ID (with complete data including contacts)

@@ -9,6 +9,24 @@ class FormatHelper {
         .replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (match) => '.');
   }
 
+  /// Format integer menjadi string dengan pemisah ribuan (comma separator).
+  /// Contoh: 1000000 -> "1,000,000"
+  static String formatNumberWithComma(int number) {
+    return number.toString().replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]},',
+        );
+  }
+
+  /// Format integer menjadi string dengan pemisah ribuan (dot separator untuk IDR).
+  /// Contoh: 1000000 -> "1.000.000"
+  static String formatNumberWithDot(int number) {
+    return number.toString().replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]}.',
+        );
+  }
+
   /// Format string menjadi kapital pada huruf pertama setiap kata.
   static String capitalizeEachWord(String text) {
     return text.replaceAllMapped(

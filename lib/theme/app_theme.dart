@@ -1,26 +1,52 @@
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
 
+/// AppTheme - Theme Configuration dengan Komposisi Warna 60-30-10
+///
+/// Komposisi Warna:
+/// - 60%: Dominant (Background utama)
+/// - 30%: Secondary (Cards, containers, surface)
+/// - 10%: Accent (Primary, buttons, highlights, CTA)
+
 class AppTheme {
-  // Light Theme
+  // ============================================================================
+  // LIGHT THEME (60-30-10 Composition)
+  // ============================================================================
   static ThemeData lightTheme = ThemeData(
     brightness: Brightness.light,
-    primaryColor: AppColors.primaryLight,
-    scaffoldBackgroundColor: AppColors.backgroundLight,
+
+    // 10% - Accent Color (Primary, buttons, highlights)
+    primaryColor: AppColors.accentLight,
+
+    // 60% - Dominant Color (Background utama)
+    scaffoldBackgroundColor: AppColors.dominantLight,
+
+    // 30% - Secondary Color (Cards, containers)
     cardColor: AppColors.cardLight,
     dividerColor: AppColors.borderLight,
+
+    // ColorScheme dengan komposisi 60-30-10
     colorScheme: ColorScheme.light(
-      primary: AppColors.primaryLight,
+      // 10% - Accent
+      primary: AppColors.accentLight,
       onPrimary: Colors.white,
-      secondary: AppColors.secondaryLight,
+
+      // 30% - Secondary
+      secondary: AppColors.secondaryAccentLight,
       surface: AppColors.surfaceLight,
+      surfaceContainerHighest: AppColors.surfaceVariantLight,
+
+      // Text colors
       onSurface: AppColors.textPrimaryLight,
+      onSurfaceVariant: AppColors.textSecondaryLight,
+
+      // Utility
       error: AppColors.error,
       onError: Colors.white,
-      surfaceContainerHighest: AppColors.surfaceVariantLight,
-      onSurfaceVariant: AppColors.textSecondaryLight,
       outline: AppColors.borderLight,
     ),
+
+    // Text Theme
     textTheme: const TextTheme().copyWith(
       bodyLarge: TextStyle(
         fontFamily: 'Inter',
@@ -53,8 +79,10 @@ class AppTheme {
         fontWeight: FontWeight.w600,
       ),
     ),
+
+    // AppBar Theme (10% - Accent)
     appBarTheme: AppBarTheme(
-      backgroundColor: AppColors.primaryLight,
+      backgroundColor: AppColors.accentLight,
       foregroundColor: Colors.white,
       elevation: 0,
       shadowColor: AppColors.shadowLight,
@@ -65,9 +93,11 @@ class AppTheme {
         color: Colors.white,
       ),
     ),
+
+    // Elevated Button Theme (10% - Accent)
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.buttonLight,
+        backgroundColor: AppColors.accentLight,
         foregroundColor: Colors.white,
         elevation: 2,
         shadowColor: AppColors.shadowLight,
@@ -82,9 +112,11 @@ class AppTheme {
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       ),
     ),
+
+    // Input Decoration Theme (30% - Secondary untuk background, 10% - Accent untuk focus)
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: AppColors.surfaceLight,
+      fillColor: AppColors.surfaceLight, // 30% - Secondary
       labelStyle: const TextStyle(
         fontFamily: 'Inter',
         fontSize: 14,
@@ -103,7 +135,8 @@ class AppTheme {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.primaryLight, width: 2.0),
+        borderSide: const BorderSide(
+            color: AppColors.accentLight, width: 2.0), // 10% - Accent
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -119,6 +152,8 @@ class AppTheme {
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     ),
+
+    // Dialog Theme (30% - Secondary)
     dialogTheme: DialogThemeData(
       backgroundColor: AppColors.surfaceLight,
       surfaceTintColor: AppColors.surfaceLight,
@@ -140,6 +175,8 @@ class AppTheme {
         fontWeight: FontWeight.w400,
       ),
     ),
+
+    // Popup Menu Theme (30% - Secondary)
     popupMenuTheme: PopupMenuThemeData(
       color: AppColors.surfaceLight,
       elevation: 8,
@@ -151,6 +188,8 @@ class AppTheme {
         fontWeight: FontWeight.w500,
       ),
     ),
+
+    // Bottom Sheet Theme (30% - Secondary)
     bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: AppColors.surfaceLight,
       surfaceTintColor: AppColors.surfaceLight,
@@ -160,6 +199,8 @@ class AppTheme {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
     ),
+
+    // Card Theme (30% - Secondary)
     cardTheme: CardThemeData(
       color: AppColors.cardLight,
       elevation: 2,
@@ -170,25 +211,44 @@ class AppTheme {
     ),
   );
 
-  // Dark Theme
+  // ============================================================================
+  // DARK THEME (60-30-10 Composition)
+  // ============================================================================
   static ThemeData darkTheme = ThemeData(
     brightness: Brightness.dark,
-    primaryColor: AppColors.primaryDark,
-    scaffoldBackgroundColor: AppColors.backgroundDark,
+
+    // 10% - Accent Color (Primary, buttons, highlights)
+    primaryColor: AppColors.accentDark,
+
+    // 60% - Dominant Color (Background utama)
+    scaffoldBackgroundColor: AppColors.dominantDark,
+
+    // 30% - Secondary Color (Cards, containers)
     cardColor: AppColors.cardDark,
     dividerColor: AppColors.borderDark,
+
+    // ColorScheme dengan komposisi 60-30-10
     colorScheme: ColorScheme.dark(
-      primary: AppColors.primaryDark,
+      // 10% - Accent
+      primary: AppColors.accentDark,
       onPrimary: Colors.white,
-      secondary: AppColors.secondaryDark,
+
+      // 30% - Secondary
+      secondary: AppColors.secondaryAccentDark,
       surface: AppColors.surfaceDark,
+      surfaceContainerHighest: AppColors.surfaceVariantDark,
+
+      // Text colors
       onSurface: AppColors.textPrimaryDark,
+      onSurfaceVariant: AppColors.textSecondaryDark,
+
+      // Utility
       error: AppColors.error,
       onError: Colors.white,
-      surfaceContainerHighest: AppColors.surfaceVariantDark,
-      onSurfaceVariant: AppColors.textSecondaryDark,
       outline: AppColors.borderDark,
     ),
+
+    // Text Theme
     textTheme: const TextTheme().copyWith(
       bodyLarge: TextStyle(
         fontFamily: 'Inter',
@@ -221,8 +281,10 @@ class AppTheme {
         fontWeight: FontWeight.w600,
       ),
     ),
+
+    // AppBar Theme (10% - Accent)
     appBarTheme: AppBarTheme(
-      backgroundColor: AppColors.primaryDark,
+      backgroundColor: AppColors.accentDark,
       foregroundColor: Colors.white,
       elevation: 0,
       shadowColor: AppColors.shadowDark,
@@ -233,9 +295,11 @@ class AppTheme {
         color: Colors.white,
       ),
     ),
+
+    // Elevated Button Theme (10% - Accent)
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.buttonDark,
+        backgroundColor: AppColors.accentDark,
         foregroundColor: Colors.white,
         elevation: 2,
         shadowColor: AppColors.shadowDark,
@@ -250,9 +314,11 @@ class AppTheme {
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       ),
     ),
+
+    // Input Decoration Theme (30% - Secondary untuk background, 10% - Accent untuk focus)
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: AppColors.surfaceDark,
+      fillColor: AppColors.surfaceDark, // 30% - Secondary
       labelStyle: const TextStyle(
         fontFamily: 'Inter',
         fontSize: 14,
@@ -271,7 +337,8 @@ class AppTheme {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.buttonDark, width: 2.0),
+        borderSide: const BorderSide(
+            color: AppColors.accentDark, width: 2.0), // 10% - Accent
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -287,6 +354,8 @@ class AppTheme {
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     ),
+
+    // Dialog Theme (30% - Secondary)
     dialogTheme: DialogThemeData(
       backgroundColor: AppColors.surfaceDark,
       surfaceTintColor: AppColors.surfaceDark,
@@ -308,6 +377,8 @@ class AppTheme {
         fontWeight: FontWeight.w400,
       ),
     ),
+
+    // Popup Menu Theme (30% - Secondary)
     popupMenuTheme: PopupMenuThemeData(
       color: AppColors.surfaceDark,
       elevation: 8,
@@ -319,6 +390,8 @@ class AppTheme {
         fontWeight: FontWeight.w500,
       ),
     ),
+
+    // Bottom Sheet Theme (30% - Secondary)
     bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: AppColors.surfaceDark,
       surfaceTintColor: AppColors.surfaceDark,
@@ -328,6 +401,8 @@ class AppTheme {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
     ),
+
+    // Card Theme (30% - Secondary)
     cardTheme: CardThemeData(
       color: AppColors.cardDark,
       elevation: 2,

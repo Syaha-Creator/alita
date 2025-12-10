@@ -56,11 +56,11 @@ class ResponsiveHelper {
   // Mendapatkan margin yang responsif
   static EdgeInsets getResponsiveMargin(BuildContext context) {
     if (isMobile(context)) {
-      return const EdgeInsets.symmetric(horizontal: 8, vertical: 4);
+      return const EdgeInsets.symmetric(horizontal: 8, vertical: 8);
     } else if (isTablet(context)) {
-      return const EdgeInsets.symmetric(horizontal: 12, vertical: 6);
+      return const EdgeInsets.symmetric(horizontal: 12, vertical: 10);
     } else {
-      return const EdgeInsets.symmetric(horizontal: 16, vertical: 8);
+      return const EdgeInsets.symmetric(horizontal: 16, vertical: 12);
     }
   }
 

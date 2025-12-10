@@ -1,6 +1,6 @@
 class AppConstants {
   static const String appName = "Alita Pricelist";
-  static const String version = "1.0.0";
+  static const String version = "1.7.14";
 }
 
 class StorageKeys {
@@ -49,11 +49,18 @@ class AppPadding {
   AppPadding._();
 
   static const double p2 = 2.0;
+  static const double p3 = 3.0;
   static const double p4 = 4.0;
+  static const double p5 = 5.0;
+  static const double p6 = 6.0;
   static const double p8 = 8.0;
   static const double p10 = 10.0;
   static const double p12 = 12.0;
+  static const double p14 = 14.0;
   static const double p16 = 16.0;
   static const double p20 = 20.0;
   static const double p24 = 24.0;
+  static const double p32 = 32.0;
+  static const double p40 = 40.0;
+  static const double p100 = 100.0;
 }

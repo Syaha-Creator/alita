@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/whatsapp_service.dart';
 import '../../theme/app_colors.dart';
+import 'custom_toast.dart';
 
 class WhatsAppDialog extends StatelessWidget {
   final String brand;
@@ -80,16 +81,9 @@ class WhatsAppDialog extends StatelessWidget {
               }
             } catch (e) {
               if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text(
-                        'Gagal membuka WhatsApp. Silakan coba lagi.'),
-                    backgroundColor: colorScheme.error,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
+                CustomToast.showToast(
+                  'Gagal membuka WhatsApp. Silakan coba lagi.',
+                  ToastType.error,
                 );
               }
             }

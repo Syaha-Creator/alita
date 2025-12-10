@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'dart:io';
+import '../../theme/app_colors.dart';
 
 /// Dialog untuk menampilkan force update
 class ForceUpdateDialog extends StatelessWidget {
@@ -19,11 +20,11 @@ class ForceUpdateDialog extends StatelessWidget {
     return PopScope(
       canPop: !isForceUpdate, // Prevent back button if force update
       child: AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.system_update, color: Colors.orange),
-            SizedBox(width: 8),
-            Text('Update Diperlukan'),
+            Icon(Icons.system_update, color: AppColors.warning), // Status color
+            const SizedBox(width: 8),
+            const Text('Update Diperlukan'),
           ],
         ),
         content: Column(
@@ -40,11 +41,15 @@ class ForceUpdateDialog extends StatelessWidget {
               future: PackageInfo.fromPlatform(),
               builder: (context, snapshot) {
                 if (snapshot.hasData) {
+                  final theme = Theme.of(context);
+                  final isDark = theme.brightness == Brightness.dark;
                   return Text(
                     'Versi saat ini: ${snapshot.data!.version} (${snapshot.data!.buildNumber})',
                     style: TextStyle(
                       fontSize: 12,
-                      color: Colors.grey[600],
+                      color: isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondaryLight,
                     ),
                   );
                 }
@@ -62,7 +67,8 @@ class ForceUpdateDialog extends StatelessWidget {
           ElevatedButton(
             onPressed: () => _openStore(),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
+              backgroundColor:
+                  Theme.of(context).colorScheme.primary, // 10% - Accent
               foregroundColor: Colors.white,
             ),
             child: const Text('Update Sekarang'),
