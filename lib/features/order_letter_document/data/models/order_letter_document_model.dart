@@ -186,6 +186,7 @@ class OrderLetterDetailModel {
   final String createdAt;
   final String updatedAt;
   final bool? takeAway;
+  final String? itemDescription;
   final List<OrderLetterDiscountModel> discounts;
 
   OrderLetterDetailModel({
@@ -205,6 +206,7 @@ class OrderLetterDetailModel {
     required this.createdAt,
     required this.updatedAt,
     this.takeAway,
+    this.itemDescription,
     required this.discounts,
   });
 
@@ -299,6 +301,7 @@ class OrderLetterDetailModel {
       createdAt: OrderLetterDocumentModel._toString(json['created_at']),
       updatedAt: OrderLetterDocumentModel._toString(json['updated_at']),
       takeAway: _parseTakeAway(json['take_away']),
+      itemDescription: json['item_description'] as String?,
       discounts: discounts,
     );
   }
@@ -321,6 +324,7 @@ class OrderLetterDetailModel {
       'created_at': createdAt,
       'updated_at': updatedAt,
       'take_away': takeAway,
+      'item_description': itemDescription,
       'order_letter_discount':
           discounts.map((discount) => discount.toJson()).toList(),
     };

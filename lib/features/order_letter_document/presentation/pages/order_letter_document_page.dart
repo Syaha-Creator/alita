@@ -1,10 +1,18 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import '../../../../config/app_constant.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../../../core/utils/format_helper.dart';
+import '../../../../core/widgets/custom_toast.dart';
+import '../../../../core/widgets/confirmation_dialog.dart';
+import '../../../../core/widgets/empty_state.dart';
 import '../../../../services/pdf_services.dart';
 import '../../../../services/auth_service.dart';
 import '../../../../services/order_letter_service.dart';
+import '../../../../services/order_letter_payment_service.dart';
 import '../../../../services/leader_service.dart';
 import '../../../../config/dependency_injection.dart';
 import '../../../../theme/app_colors.dart';
@@ -12,6 +20,7 @@ import '../../data/models/order_letter_document_model.dart';
 import '../../data/repositories/order_letter_document_repository.dart';
 import '../../../cart/domain/entities/cart_entity.dart';
 import '../../../product/domain/entities/product_entity.dart';
+import '../widgets/document/document_widgets.dart';
 
 /// Helper class to represent a grouped package
 class _GroupedPackage {
@@ -108,16 +117,23 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
       // Provide user-friendly error message
       String errorMessage = 'Gagal memuat dokumen';
       final errorString = e.toString();
-      
-      if (errorString.contains('Token not available') || errorString.contains('Token tidak tersedia')) {
+
+      if (errorString.contains('Token not available') ||
+          errorString.contains('Token tidak tersedia')) {
         errorMessage = 'Token tidak tersedia. Silakan login ulang.';
-      } else if (errorString.contains('Status 404') || errorString.contains('tidak ditemukan')) {
+      } else if (errorString.contains('Status 404') ||
+          errorString.contains('tidak ditemukan')) {
         errorMessage = 'Dokumen tidak ditemukan. ID: ${widget.orderLetterId}';
-      } else if (errorString.contains('Status 401') || errorString.contains('Status 403') || errorString.contains('Tidak memiliki akses')) {
+      } else if (errorString.contains('Status 401') ||
+          errorString.contains('Status 403') ||
+          errorString.contains('Tidak memiliki akses')) {
         errorMessage = 'Tidak memiliki akses untuk melihat dokumen ini';
-      } else if (errorString.contains('Invalid response format') || errorString.contains('Format data')) {
-        errorMessage = 'Format data dari server tidak valid. Silakan coba lagi.';
-      } else if (errorString.contains('order_letter is null') || errorString.contains('Data order letter')) {
+      } else if (errorString.contains('Invalid response format') ||
+          errorString.contains('Format data')) {
+        errorMessage =
+            'Format data dari server tidak valid. Silakan coba lagi.';
+      } else if (errorString.contains('order_letter is null') ||
+          errorString.contains('Data order letter')) {
         errorMessage = 'Data order letter tidak ditemukan di server';
       } else {
         // Use the error message from exception if it's already user-friendly
@@ -173,13 +189,29 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         Navigator.of(context).pop(_buildPopResult());
       },
       child: Scaffold(
-        backgroundColor: isDark ? colorScheme.surface : Colors.grey[50],
-        appBar: _document != null ? _buildCustomAppBar() : null,
+        backgroundColor: isDark
+            ? colorScheme.surface
+            : AppColors.dominantLight, // 60% - Background
+        appBar: _document != null
+            ? DocumentAppBar(
+                noSp: _document!.noSp,
+                status: _document!.status,
+                createdAt: _document!.createdAt,
+                creatorName: _creatorName ?? _document!.creator,
+                onBack: _handleBackNavigation,
+                onRefresh: _loadDocument,
+              )
+            : null,
         floatingActionButton: _document != null
             ? Builder(
                 builder: (buttonContext) => FloatingActionButton.extended(
-                  onPressed: () => _showPDFOptionsDialog(buttonContext),
-                  backgroundColor: Colors.red[600],
+                  onPressed: () => PDFOptionsDialog.show(
+                    context,
+                    onOptionSelected: (showApprovalColumn) => _generatePDF(
+                        buttonContext,
+                        showApprovalColumn: showApprovalColumn),
+                  ),
+                  backgroundColor: AppColors.error, // Status color
                   foregroundColor: Colors.white,
                   icon: const Icon(Icons.picture_as_pdf),
                   elevation: 8,
@@ -189,67 +221,27 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
             : null,
         floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
         body: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? const LoadingState()
             : _error != null
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.error_outline,
-                          size: 64,
-                          color: Colors.red[300],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Error: $_error',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            color: Colors.red,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: _loadDocument,
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Retry'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: colorScheme.primary,
-                            foregroundColor: colorScheme.onPrimary,
-                          ),
-                        ),
-                      ],
+                ? EmptyState.error(
+                    title: 'Error',
+                    subtitle: _error,
+                    action: ElevatedButton.icon(
+                      onPressed: _loadDocument,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colorScheme.primary,
+                        foregroundColor: colorScheme.onPrimary,
+                      ),
                     ),
                   )
                 : _document == null
-                    ? const Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.description_outlined,
-                              size: 64,
-                              color: Colors.grey,
-                            ),
-                            SizedBox(height: 16),
-                            Text(
-                              'Dokumen tidak ditemukan',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey,
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              'Pastikan order letter ID valid',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          ],
-                        ),
+                    ? const EmptyState(
+                        icon: Icons.description_outlined,
+                        title: 'Dokumen tidak ditemukan',
+                        subtitle: 'Pastikan order letter ID valid',
+                        iconSize: 64,
                       )
                     : SingleChildScrollView(
                         padding: const EdgeInsets.only(bottom: 100),
@@ -259,250 +251,11 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
     );
   }
 
-  /// Build custom AppBar with document information
-  PreferredSizeWidget _buildCustomAppBar() {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final colorScheme = theme.colorScheme;
-
-    return AppBar(
-      backgroundColor: isDark ? colorScheme.surface : Colors.white,
-      foregroundColor: isDark ? colorScheme.onSurface : Colors.grey[800],
-      elevation: 2,
-      shadowColor: isDark
-          ? Colors.black.withValues(alpha: 0.3)
-          : Colors.black.withValues(alpha: 0.1),
-      toolbarHeight: 80,
-      leading: IconButton(
-        icon: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color:
-                isDark ? colorScheme.surfaceContainerHighest : Colors.grey[100],
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-                color: isDark
-                    ? colorScheme.outline.withValues(alpha: 0.3)
-                    : Colors.grey[200]!),
-          ),
-          child: Icon(Icons.arrow_back_ios_new,
-              color: isDark ? colorScheme.onSurfaceVariant : Colors.grey[700],
-              size: 18),
-        ),
-        onPressed: _handleBackNavigation,
-      ),
-      actions: [
-        IconButton(
-          icon: Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: isDark ? colorScheme.primaryContainer : Colors.blue[50],
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                  color: isDark
-                      ? colorScheme.outline.withValues(alpha: 0.3)
-                      : Colors.blue[200]!),
-            ),
-            child: Icon(Icons.refresh,
-                color:
-                    isDark ? colorScheme.onPrimaryContainer : Colors.blue[600],
-                size: 20),
-          ),
-          onPressed: _loadDocument,
-        ),
-      ],
-      title: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color:
-                      isDark ? colorScheme.primaryContainer : Colors.blue[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                      color: isDark
-                          ? colorScheme.outline.withValues(alpha: 0.3)
-                          : Colors.blue[200]!),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.description_outlined,
-                      color: isDark
-                          ? colorScheme.onPrimaryContainer
-                          : Colors.blue[600],
-                      size: 16,
-                    ),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        'SURAT PESANAN',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: isDark
-                              ? colorScheme.onPrimaryContainer
-                              : Colors.blue[700],
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _getStatusColor(_document!.status)
-                        .withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                        color: _getStatusColor(_document!.status)
-                            .withValues(alpha: 0.3)),
-                  ),
-                  child: Text(
-                    _document!.status.toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: _getStatusColor(_document!.status),
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            _document!.noSp,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: isDark ? colorScheme.onSurface : Colors.grey[800],
-            ),
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-      bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(50),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color:
-                isDark ? colorScheme.surfaceContainerHighest : Colors.grey[50],
-            border: Border(
-              top: BorderSide(
-                  color: isDark
-                      ? colorScheme.outline.withValues(alpha: 0.2)
-                      : Colors.grey[200]!),
-            ),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: _buildInfoItem(
-                  icon: Icons.calendar_today_outlined,
-                  label: 'Tanggal',
-                  value: _formatDate(_document!.createdAt),
-                  color: Colors.orange[600]!,
-                ),
-              ),
-              Container(
-                width: 1,
-                height: 30,
-                color: isDark
-                    ? colorScheme.outline.withValues(alpha: 0.3)
-                    : Colors.grey[300],
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-              ),
-              Expanded(
-                child: _buildInfoItem(
-                  icon: Icons.person_outline,
-                  label: 'Creator',
-                  value: _creatorName ?? _document!.creator,
-                  color: Colors.green[600]!,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Build info item for AppBar bottom section
-  Widget _buildInfoItem({
-    required IconData icon,
-    required String label,
-    required String value,
-    required Color color,
-  }) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final colorScheme = theme.colorScheme;
-
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: isDark ? colorScheme.surface : color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
-            border: isDark
-                ? Border.all(color: colorScheme.outline.withValues(alpha: 0.2))
-                : null,
-          ),
-          child: Icon(
-            icon,
-            size: 18,
-            color: isDark ? colorScheme.primary : color,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  color:
-                      isDark ? colorScheme.onSurfaceVariant : Colors.grey[600],
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: isDark ? colorScheme.onSurface : Colors.grey[800],
-                  fontWeight: FontWeight.w600,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
+  // _buildCustomAppBar, _buildInfoItem dipindahkan ke document_widgets
 
   Widget _buildDocumentContent() {
+    if (_document == null) return const SizedBox.shrink();
+
     final document = _document!;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -515,17 +268,19 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
           width: double.infinity,
           margin: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: isDark ? colorScheme.surface : Colors.white,
+            color: isDark
+                ? colorScheme.surface
+                : AppColors.surfaceLight, // 30% - Surface
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
                 color: isDark
                     ? colorScheme.outline.withValues(alpha: 0.2)
-                    : Colors.grey[200]!),
+                    : AppColors.borderLight), // 30% - Border
             boxShadow: [
               BoxShadow(
                 color: isDark
                     ? Colors.black.withValues(alpha: 0.2)
-                    : Colors.grey.withValues(alpha: 0.08),
+                    : AppColors.shadowLight,
                 spreadRadius: 1,
                 blurRadius: 6,
                 offset: const Offset(0, 2),
@@ -542,7 +297,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                 decoration: BoxDecoration(
                   color: isDark
                       ? colorScheme.surfaceContainerHighest
-                      : Colors.grey[50],
+                      : AppColors.cardLight, // 30% - Card
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(12),
                     topRight: Radius.circular(12),
@@ -551,7 +306,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                       bottom: BorderSide(
                           color: isDark
                               ? colorScheme.outline.withValues(alpha: 0.2)
-                              : Colors.grey[200]!)),
+                              : AppColors.borderLight)), // 30% - Border
                 ),
                 child: Row(
                   children: [
@@ -559,17 +314,18 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                       Icons.person_outline,
                       color: isDark
                           ? colorScheme.onSurfaceVariant
-                          : Colors.grey[600],
+                          : AppColors.textSecondaryLight,
                       size: 20,
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: AppPadding.p12),
                     Text(
                       'Informasi Customer',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color:
-                            isDark ? colorScheme.onSurface : Colors.grey[800],
+                        color: isDark
+                            ? colorScheme.onSurface
+                            : AppColors.textPrimaryLight,
                       ),
                     ),
                   ],
@@ -581,39 +337,39 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                 child: Column(
                   children: [
                     // Customer name row
-                    _buildInfoRow(
+                    DocumentInfoRow(
                       icon: Icons.business,
                       label: 'Nama Customer',
                       value: document.customerName,
-                      iconColor: Colors.blue[600]!,
+                      iconColor: AppColors.accentLight, // 10% - Accent
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppPadding.p16),
                     // Phone row
-                    _buildInfoRow(
+                    DocumentInfoRow(
                       icon: Icons.phone,
                       label: 'Nomor Telepon',
                       value: _getAllPhonesForPDF(),
-                      iconColor: Colors.green[600]!,
+                      iconColor: AppColors.success, // Status color
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppPadding.p16),
                     // Address row
-                    _buildInfoRow(
+                    DocumentInfoRow(
                       icon: Icons.location_on,
                       label: 'Alamat',
                       value: document.address,
-                      iconColor: Colors.orange[600]!,
+                      iconColor: AppColors.warning, // Status color
                       isAddress: true,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppPadding.p16),
                     // Showroom / Pameran row
-                    _buildInfoRow(
+                    DocumentInfoRow(
                       icon: Icons.storefront_outlined,
                       label: 'Showroom / Pameran',
                       value:
                           (document.workPlaceName?.trim().isNotEmpty ?? false)
                               ? document.workPlaceName!.trim()
                               : '-',
-                      iconColor: Colors.purple[600]!,
+                      iconColor: AppColors.purple, // Status color
                       isAddress: true,
                     ),
                   ],
@@ -631,17 +387,19 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
           width: double.infinity,
           margin: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: isDark ? colorScheme.surface : Colors.white,
+            color: isDark
+                ? colorScheme.surface
+                : AppColors.surfaceLight, // 30% - Surface
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
                 color: isDark
                     ? colorScheme.outline.withValues(alpha: 0.2)
-                    : Colors.grey[200]!),
+                    : AppColors.borderLight), // 30% - Border
             boxShadow: [
               BoxShadow(
                 color: isDark
                     ? Colors.black.withValues(alpha: 0.2)
-                    : Colors.grey.withValues(alpha: 0.08),
+                    : AppColors.shadowLight,
                 spreadRadius: 1,
                 blurRadius: 6,
                 offset: const Offset(0, 2),
@@ -656,24 +414,26 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
           width: double.infinity,
           margin: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: isDark ? colorScheme.surface : Colors.white,
+            color: isDark
+                ? colorScheme.surface
+                : AppColors.surfaceLight, // 30% - Surface
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
                 color: isDark
                     ? colorScheme.outline.withValues(alpha: 0.2)
-                    : Colors.grey[200]!),
+                    : AppColors.borderLight), // 30% - Border
             boxShadow: [
               BoxShadow(
                 color: isDark
                     ? Colors.black.withValues(alpha: 0.2)
-                    : Colors.grey.withValues(alpha: 0.08),
+                    : AppColors.shadowLight,
                 spreadRadius: 1,
                 blurRadius: 6,
                 offset: const Offset(0, 2),
               ),
             ],
           ),
-          child: _buildTermsAndConditions(),
+          child: const TermsSection(),
         ),
 
         // Approval Section
@@ -681,17 +441,19 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
           width: double.infinity,
           margin: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: isDark ? colorScheme.surface : Colors.white,
+            color: isDark
+                ? colorScheme.surface
+                : AppColors.surfaceLight, // 30% - Surface
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
                 color: isDark
                     ? colorScheme.outline.withValues(alpha: 0.2)
-                    : Colors.grey[200]!),
+                    : AppColors.borderLight), // 30% - Border
             boxShadow: [
               BoxShadow(
                 color: isDark
                     ? Colors.black.withValues(alpha: 0.2)
-                    : Colors.grey.withValues(alpha: 0.08),
+                    : AppColors.shadowLight,
                 spreadRadius: 1,
                 blurRadius: 6,
                 offset: const Offset(0, 2),
@@ -700,12 +462,14 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
           ),
           child: _buildApprovalSection(),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: AppPadding.p20),
       ],
     );
   }
 
   Widget _buildItemsTable() {
+    if (_document == null) return const SizedBox.shrink();
+
     final details = _document!.details;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -717,12 +481,14 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         margin: const EdgeInsets.all(16),
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: isDark ? colorScheme.surface : Colors.white,
+          color: isDark
+              ? colorScheme.surface
+              : AppColors.surfaceLight, // 30% - Surface
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
               color: isDark
                   ? colorScheme.outline.withValues(alpha: 0.2)
-                  : Colors.grey[200]!),
+                  : AppColors.borderLight), // 30% - Border
           boxShadow: [
             BoxShadow(
               color: isDark
@@ -739,14 +505,18 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
             Icon(
               Icons.inventory_2_outlined,
               size: 48,
-              color: isDark ? colorScheme.onSurfaceVariant : Colors.grey[400],
+              color: isDark
+                  ? colorScheme.onSurfaceVariant
+                  : AppColors.textSecondaryLight,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppPadding.p12),
             Text(
               'Tidak ada detail pesanan',
               style: TextStyle(
                 fontSize: 16,
-                color: isDark ? colorScheme.onSurfaceVariant : Colors.grey[600],
+                color: isDark
+                    ? colorScheme.onSurfaceVariant
+                    : AppColors.textSecondaryLight,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -759,9 +529,11 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
       width: double.infinity,
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? colorScheme.surface : Colors.white,
+        color: isDark
+            ? colorScheme.surface
+            : AppColors.surfaceLight, // 30% - Surface
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
+        border: Border.all(color: AppColors.borderLight), // 30% - Border
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withValues(alpha: 0.08),
@@ -781,7 +553,8 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
             decoration: BoxDecoration(
               color: isDark
                   ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
-                  : Colors.blue[50],
+                  : AppColors.accentLight
+                      .withValues(alpha: 0.1), // 10% dengan opacity
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(12),
                 topRight: Radius.circular(12),
@@ -790,7 +563,8 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                 bottom: BorderSide(
                   color: isDark
                       ? colorScheme.outline.withValues(alpha: 0.2)
-                      : Colors.blue[100]!,
+                      : AppColors.accentLight
+                          .withValues(alpha: 0.2), // 10% dengan opacity
                 ),
               ),
             ),
@@ -801,22 +575,27 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                   decoration: BoxDecoration(
                     color: isDark
                         ? colorScheme.primary.withValues(alpha: 0.15)
-                        : Colors.blue[100],
+                        : AppColors.accentLight
+                            .withValues(alpha: 0.2), // 10% dengan opacity
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
                     Icons.shopping_cart_outlined,
-                    color: isDark ? colorScheme.primary : Colors.blue[600],
+                    color: isDark
+                        ? colorScheme.primary
+                        : AppColors.accentLight, // 10% - Accent
                     size: 20,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: AppPadding.p12),
                 Text(
                   'DETAIL PESANAN',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: isDark ? colorScheme.onSurface : Colors.blue[700],
+                    color: isDark
+                        ? colorScheme.onSurface
+                        : AppColors.accentLight, // 10% - Accent
                   ),
                 ),
                 const Spacer(),
@@ -826,15 +605,18 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                   decoration: BoxDecoration(
                     color: isDark
                         ? colorScheme.primary.withValues(alpha: 0.15)
-                        : Colors.blue[100],
+                        : AppColors.accentLight
+                            .withValues(alpha: 0.2), // 10% dengan opacity
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    '${details.where((d) => d.itemType == 'kasur').length} Produk',
+                    '${_groupKasurByPackage(details).length} Produk',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: isDark ? colorScheme.primary : Colors.blue[600],
+                      color: isDark
+                          ? colorScheme.primary
+                          : AppColors.accentLight, // 10% - Accent
                     ),
                   ),
                 ),
@@ -855,89 +637,104 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
 
   List<_GroupedPackage> _groupKasurByPackage(
       List<OrderLetterDetailModel> details) {
-    final kasurDetails =
-        details.where((d) => d.itemType.toLowerCase() == 'kasur').toList();
     final List<_GroupedPackage> groups = [];
-    final processedKasurIds = <int>{};
+    final processedIds = <int>{};
 
-    // Helper function to get accessories and bonus for a kasur (by position in details list)
-    List<OrderLetterDetailModel> getRelatedItems(OrderLetterDetailModel kasur) {
-      final kasurPosition = details.indexWhere((d) => d.id == kasur.id);
-      int nextKasurPosition = details.length;
-      for (int j = kasurPosition + 1; j < details.length; j++) {
-        if (details[j].itemType.toLowerCase() == 'kasur') {
-          nextKasurPosition = j;
-          break;
-        }
-      }
-      return details.sublist(kasurPosition + 1, nextKasurPosition);
+    // Helper: Check if item type is accessory
+    bool isAccessoryType(String type) {
+      final lower = type.toLowerCase();
+      return lower == 'divan' || lower == 'headboard' || lower == 'sorong';
     }
 
-    // Create package key - ONLY uses desc1, desc2, brand (IGNORES item_number and accessories)
-    String createPackageKey(OrderLetterDetailModel kasur) {
-      // Key only uses desc1, desc2, brand - NOT item_number, NOT accessories
-      return '${kasur.desc1}_${kasur.desc2}_${kasur.brand}';
+    // Helper: Check if item type is main item (kasur or accessory)
+    bool isMainItemType(String type) {
+      final lower = type.toLowerCase();
+      return lower == 'kasur' ||
+          lower == 'divan' ||
+          lower == 'headboard' ||
+          lower == 'sorong';
     }
 
-    for (int i = 0; i < kasurDetails.length; i++) {
-      final kasurDetail = kasurDetails[i];
-      if (processedKasurIds.contains(kasurDetail.id)) continue;
+    // Helper: Find accessories that appear IMMEDIATELY after main item (before any bonus)
+    List<OrderLetterDetailModel> findImmediateAccessories(
+        OrderLetterDetailModel mainItem) {
+      final mainPosition = details.indexWhere((d) => d.id == mainItem.id);
+      final List<OrderLetterDetailModel> accessories = [];
 
-      // Create package key for this kasur (only desc1, desc2, brand)
-      final packageKey = createPackageKey(kasurDetail);
+      for (int j = mainPosition + 1; j < details.length; j++) {
+        final d = details[j];
+        final type = d.itemType.toLowerCase();
 
-      // Find all kasur with the same package key
-      final matchingKasur = <OrderLetterDetailModel>[];
-      final matchingAccessories = <OrderLetterDetailModel>[];
-      final matchingBonus = <OrderLetterDetailModel>[];
-      int totalQty = 0;
+        // Stop if we hit a bonus or another kasur - accessories must be IMMEDIATELY after
+        if (type == 'bonus' || type == 'kasur') break;
 
-      // First, add the current kasur
-      matchingKasur.add(kasurDetail);
-      totalQty += kasurDetail.qty;
-      processedKasurIds.add(kasurDetail.id);
-
-      // Add accessories and bonus from first kasur
-      final relatedItems = getRelatedItems(kasurDetail);
-      for (final item in relatedItems) {
-        if (item.itemType.toLowerCase() == 'bonus') {
-          matchingBonus.add(item);
-        } else {
-          // Add all accessories (including duplicates) - qty will be summed in _buildPdf
-          matchingAccessories.add(item);
+        // Only include accessories with matching ukuran and brand
+        if (isAccessoryType(type) &&
+            !processedIds.contains(d.id) &&
+            d.desc2 == mainItem.desc2 &&
+            d.brand == mainItem.brand) {
+          accessories.add(d);
         }
       }
+      return accessories;
+    }
 
-      // Now find all other kasur with the same package key (only desc1, desc2, brand)
-      for (int j = i + 1; j < kasurDetails.length; j++) {
-        final otherKasur = kasurDetails[j];
-        if (processedKasurIds.contains(otherKasur.id)) continue;
-
-        // Check if this kasur matches the package key (only desc1, desc2, brand)
-        final otherPackageKey = createPackageKey(otherKasur);
-
-        if (otherPackageKey == packageKey) {
-          matchingKasur.add(otherKasur);
-          totalQty += otherKasur.qty;
-          processedKasurIds.add(otherKasur.id);
-
-          final otherRelatedItems = getRelatedItems(otherKasur);
-          for (final item in otherRelatedItems) {
-            if (item.itemType.toLowerCase() == 'bonus') {
-              matchingBonus.add(item);
-            } else {
-              // Add all accessories (including duplicates) - qty will be summed in _buildPdf
-              matchingAccessories.add(item);
-            }
-          }
-        }
+    // Helper: Find bonus items after main item and its accessories
+    List<OrderLetterDetailModel> findBonusItems(OrderLetterDetailModel mainItem,
+        List<OrderLetterDetailModel> accessories) {
+      // Find the last position of main item or its accessories
+      int lastPosition = details.indexWhere((d) => d.id == mainItem.id);
+      for (final acc in accessories) {
+        final accPos = details.indexWhere((d) => d.id == acc.id);
+        if (accPos > lastPosition) lastPosition = accPos;
       }
 
+      final List<OrderLetterDetailModel> bonusItems = [];
+      for (int j = lastPosition + 1; j < details.length; j++) {
+        final d = details[j];
+        final type = d.itemType.toLowerCase();
+
+        // Stop at next main item (kasur, divan, headboard, sorong)
+        if (isMainItemType(type)) break;
+
+        if (type == 'bonus' && !processedIds.contains(d.id)) {
+          bonusItems.add(d);
+        }
+      }
+      return bonusItems;
+    }
+
+    // Process each detail in order
+    for (int i = 0; i < details.length; i++) {
+      final item = details[i];
+      if (processedIds.contains(item.id)) continue;
+
+      final type = item.itemType.toLowerCase();
+
+      // Skip bonus items - they will be grouped with main items
+      if (type == 'bonus') continue;
+
+      // This is a main item (kasur, divan, headboard, or sorong)
+      processedIds.add(item.id);
+
+      // Find immediate accessories (only those directly after, before any bonus)
+      final accessories = findImmediateAccessories(item);
+      for (final acc in accessories) {
+        processedIds.add(acc.id);
+      }
+
+      // Find bonus items after this group
+      final bonusItems = findBonusItems(item, accessories);
+      for (final b in bonusItems) {
+        processedIds.add(b.id);
+      }
+
+      // Create the group
       groups.add(_GroupedPackage(
-        kasurDetails: matchingKasur,
-        accessories: matchingAccessories,
-        bonus: matchingBonus,
-        totalQty: totalQty,
+        kasurDetails: [item],
+        accessories: accessories,
+        bonus: bonusItems,
+        totalQty: item.qty,
       ));
     }
 
@@ -993,9 +790,9 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
           kasurDetail: kasurDetail,
           accessories: uniqueAccessories.values.toList(),
           bonus: uniqueBonus.values.toList(),
-          totalQty: group.totalQty, // Pass total qty for grouped items
-          accessoryQtyMap: accessoryQtyMap, // Pass qty map for accessories
-          bonusQtyMap: bonusQtyMap, // Pass qty map for bonus
+          totalQty: group.totalQty,
+          accessoryQtyMap: accessoryQtyMap,
+          bonusQtyMap: bonusQtyMap,
         ),
       );
     }
@@ -1019,12 +816,14 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: isDark ? colorScheme.surface : Colors.white,
+        color: isDark
+            ? colorScheme.surface
+            : AppColors.surfaceLight, // 30% - Surface
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
             color: isDark
                 ? colorScheme.outline.withValues(alpha: 0.2)
-                : Colors.grey[200]!),
+                : AppColors.borderLight), // 30% - Border
         boxShadow: [
           BoxShadow(
             color: isDark
@@ -1050,7 +849,8 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                   decoration: BoxDecoration(
                     color: isDark
                         ? colorScheme.primaryContainer
-                        : Colors.blue[100],
+                        : AppColors.accentLight
+                            .withValues(alpha: 0.2), // 10% dengan opacity
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -1060,31 +860,35 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                       fontWeight: FontWeight.bold,
                       color: isDark
                           ? colorScheme.onPrimaryContainer
-                          : Colors.blue[800],
+                          : AppColors.accentLight, // 10% - Accent
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: AppPadding.p12),
                 CircleAvatar(
                   radius: 18,
-                  backgroundColor:
-                      isDark ? colorScheme.primaryContainer : Colors.blue[100],
+                  backgroundColor: isDark
+                      ? colorScheme.primaryContainer
+                      : AppColors.accentLight
+                          .withValues(alpha: 0.15), // 10% dengan opacity
                   child: Icon(
                     Icons.bed,
                     color: isDark
                         ? colorScheme.onPrimaryContainer
-                        : Colors.blue[800],
+                        : AppColors.accentLight, // 10% - Accent
                     size: 18,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: AppPadding.p12),
                 Expanded(
                   child: Text(
                     '${kasurDetail.desc1} ${kasurDetail.desc2}',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
-                      color: isDark ? colorScheme.onSurface : Colors.black87,
+                      color: isDark
+                          ? colorScheme.onSurface
+                          : AppColors.textPrimaryLight,
                     ),
                   ),
                 ),
@@ -1094,7 +898,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                   decoration: BoxDecoration(
                     color: isDark
                         ? colorScheme.surfaceContainerHighest
-                        : Colors.grey[100],
+                        : AppColors.cardLight, // 30% - Card
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -1104,57 +908,61 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                       fontWeight: FontWeight.bold,
                       color: isDark
                           ? colorScheme.onSurfaceVariant
-                          : Colors.grey[800],
+                          : AppColors.textPrimaryLight,
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppPadding.p8),
 
             // Detail Produk Section - Aksesoris selain kasur
             if (accessories.isNotEmpty) ...[
-              const SizedBox(height: 6),
+              const SizedBox(height: AppPadding.p6),
               Text(
                 'Detail Produk',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: isDark ? colorScheme.onSurface : Colors.black87,
+                  color: isDark
+                      ? colorScheme.onSurface
+                      : AppColors.textPrimaryLight,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: AppPadding.p6),
               ...accessories.map((acc) {
                 final key =
                     '${acc.itemType}_${acc.desc1}_${acc.desc2}_${acc.brand}';
                 final qty = accessoryQtyMap?[key] ?? acc.qty;
                 return _buildAccessoryRow(acc, isDark, colorScheme, qty: qty);
               }),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppPadding.p8),
             ],
 
             // Bonus Section
             if (bonus.isNotEmpty) ...[
-              const SizedBox(height: 6),
+              const SizedBox(height: AppPadding.p6),
               Row(
                 children: [
                   Icon(
                     Icons.card_giftcard,
                     size: 18,
-                    color: isDark ? Colors.green[400] : Colors.green[600],
+                    color: AppColors.success, // Status color
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: AppPadding.p8),
                   Text(
                     'Bonus',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: isDark ? colorScheme.onSurface : Colors.black87,
+                      color: isDark
+                          ? colorScheme.onSurface
+                          : AppColors.textPrimaryLight,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: AppPadding.p6),
               ...bonus.map((b) {
                 final qty = bonusQtyMap?[b.desc1] ?? b.qty;
                 return Row(
@@ -1163,7 +971,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Colors.green[600],
+                        color: AppColors.success, // Status color
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -1175,7 +983,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: AppPadding.p8),
                     Expanded(
                       child: Text(
                         b.desc1, // Hanya tampilkan desc1 untuk bonus
@@ -1190,7 +998,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                   ],
                 );
               }),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppPadding.p8),
             ],
 
             // Discount Section - Menampilkan diskon yang terkait dengan kasur ini
@@ -1230,16 +1038,16 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 12),
+        const SizedBox(height: AppPadding.p12),
         // Header for discount section
         Row(
           children: [
             Icon(
               Icons.discount,
               size: 16,
-              color: isDark ? Colors.orange[400] : Colors.orange[600],
+              color: AppColors.warning, // Status color
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppPadding.p8),
             Text(
               'Diskon',
               style: TextStyle(
@@ -1250,7 +1058,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
             ),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: AppPadding.p6),
         // Tampilkan diskon seperti di rincian biaya (sederhana)
         ...sortedDiscounts.asMap().entries.map((entry) {
           final index = entry.key;
@@ -1278,7 +1086,9 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
             margin: const EdgeInsets.only(left: 16, top: 4, bottom: 4),
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: isDark ? Colors.grey[800] : Colors.grey[50],
+              color: isDark
+                  ? AppColors.cardDark
+                  : AppColors.dominantLight, // 30% atau 60% - Background
               border: Border.all(color: statusColor.withValues(alpha: 0.3)),
               borderRadius: BorderRadius.circular(6),
             ),
@@ -1289,7 +1099,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                   size: 14,
                   color: statusColor,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppPadding.p8),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1316,22 +1126,26 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                         ],
                       ),
                       if (discount.approverName != null) ...[
-                        const SizedBox(height: 2),
+                        const SizedBox(height: AppPadding.p2),
                         Text(
                           discount.approverName!,
                           style: TextStyle(
                             fontSize: 10,
-                            color: isDark ? Colors.grey[400] : Colors.grey[600],
+                            color: isDark
+                                ? AppColors.textSecondaryDark
+                                : AppColors.textSecondaryLight,
                           ),
                         ),
                       ],
                       if (discount.approvedAt != null) ...[
-                        const SizedBox(height: 2),
+                        const SizedBox(height: AppPadding.p2),
                         Text(
                           'Approved: ${_formatDate(discount.approvedAt!)}',
                           style: TextStyle(
                             fontSize: 10,
-                            color: isDark ? Colors.grey[400] : Colors.grey[600],
+                            color: isDark
+                                ? AppColors.textSecondaryDark
+                                : AppColors.textSecondaryLight,
                           ),
                         ),
                       ],
@@ -1359,7 +1173,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
             size: 20,
             color: isDark ? colorScheme.onSurfaceVariant : Colors.grey.shade600,
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppPadding.p8),
           Expanded(
             child: Text(
               '${acc.desc1} ${acc.desc2}', // Tetap gabungkan desc1 dan desc2 untuk accessories
@@ -1375,7 +1189,9 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
-              color: isDark ? colorScheme.onSurfaceVariant : Colors.grey[800],
+              color: isDark
+                  ? colorScheme.onSurfaceVariant
+                  : AppColors.textPrimaryLight,
             ),
           ),
         ],
@@ -1403,6 +1219,8 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
   }
 
   Widget _buildTotalsSection() {
+    if (_document == null) return const SizedBox.shrink();
+
     final hargaAwal = _document!.hargaAwal;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -1411,6 +1229,14 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
     final totalDiscount = hargaAwal - grandTotal;
     final discountPercentage =
         hargaAwal > 0 ? (totalDiscount / hargaAwal) * 100 : 0.0;
+
+    // Calculate total paid from payments
+    final totalPaid = _document!.payments.fold<double>(
+      0.0,
+      (sum, payment) => sum + payment.paymentAmount,
+    );
+    final sisaPembayaran = grandTotal - totalPaid;
+    final isFullyPaid = sisaPembayaran <= 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1422,7 +1248,8 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
           decoration: BoxDecoration(
             color: isDark
                 ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
-                : Colors.green[50],
+                : AppColors.success
+                    .withValues(alpha: 0.1), // Status color dengan opacity
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(12),
               topRight: Radius.circular(12),
@@ -1431,7 +1258,8 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
               bottom: BorderSide(
                 color: isDark
                     ? colorScheme.outline.withValues(alpha: 0.2)
-                    : Colors.green[100]!,
+                    : AppColors.success
+                        .withValues(alpha: 0.3), // Status color dengan opacity
               ),
             ),
           ),
@@ -1442,24 +1270,75 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                 decoration: BoxDecoration(
                   color: isDark
                       ? colorScheme.primary.withValues(alpha: 0.15)
-                      : Colors.green[100],
+                      : AppColors.success.withValues(
+                          alpha: 0.2), // Status color dengan opacity
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
                   Icons.payment_outlined,
-                  color: isDark ? colorScheme.primary : Colors.green[600],
+                  color: isDark
+                      ? colorScheme.primary
+                      : AppColors.success, // Status color
                   size: 20,
                 ),
               ),
-              const SizedBox(width: 12),
-              Text(
-                'RINCIAN PEMBAYARAN',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: isDark ? colorScheme.onSurface : Colors.green[700],
+              const SizedBox(width: AppPadding.p12),
+              Expanded(
+                child: Text(
+                  'RINCIAN PEMBAYARAN',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: isDark
+                        ? colorScheme.onSurface
+                        : AppColors.success, // Status color
+                  ),
                 ),
               ),
+              // Show add payment button if not fully paid
+              if (!isFullyPaid)
+                InkWell(
+                  onTap: () =>
+                      _showAddPaymentDialog(isDark, grandTotal, totalPaid),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? colorScheme.primary.withValues(alpha: 0.15)
+                          : AppColors.primaryLight.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isDark
+                            ? colorScheme.primary.withValues(alpha: 0.3)
+                            : AppColors.primaryLight.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.add,
+                          color: isDark
+                              ? colorScheme.primary
+                              : AppColors.primaryLight,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Bayar',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isDark
+                                ? colorScheme.primary
+                                : AppColors.primaryLight,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -1472,10 +1351,12 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
               _buildPaymentRow(
                 label: 'Harga Awal',
                 amount: hargaAwal,
-                color: Colors.grey[600]!,
+                color: isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondaryLight,
                 isSubtotal: true,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppPadding.p8),
 
               // Diskon (jika ada)
               if (totalDiscount > 0) ...[
@@ -1483,62 +1364,104 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                   label: 'Total Diskon',
                   amount:
                       -totalDiscount, // Negative untuk menunjukkan pengurangan
-                  color: Colors.red[600]!,
+                  color: AppColors.error, // Status color
                   isDiscount: true,
                   percentage: discountPercentage,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppPadding.p12),
                 // Divider
                 Container(
                   height: 1,
                   color: isDark
                       ? colorScheme.outline.withValues(alpha: 0.3)
-                      : Colors.grey[300],
+                      : AppColors.borderLight, // 30% - Border
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppPadding.p12),
               ],
 
               // Grand Total
               _buildPaymentRow(
                 label: 'Total yang Harus Dibayar',
                 amount: grandTotal,
-                color: Colors.green[700]!,
+                color: AppColors.success, // Status color
                 isTotal: true,
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: AppPadding.p12),
 
-              // Info Box
+              // Divider before payment status
+              Container(
+                height: 1,
+                color: isDark
+                    ? colorScheme.outline.withValues(alpha: 0.3)
+                    : AppColors.borderLight,
+              ),
+              const SizedBox(height: AppPadding.p12),
+
+              // Sudah Dibayar
+              _buildPaymentRow(
+                label: 'Sudah Dibayar',
+                amount: totalPaid,
+                color: isDark ? AppColors.accentLight : AppColors.accentLight,
+                isPaid: true,
+              ),
+              const SizedBox(height: AppPadding.p8),
+
+              // Sisa Pembayaran
+              _buildPaymentRow(
+                label: 'Sisa Pembayaran',
+                amount: sisaPembayaran > 0 ? sisaPembayaran : 0,
+                color: isFullyPaid ? AppColors.success : AppColors.warning,
+                isRemaining: true,
+                isFullyPaid: isFullyPaid,
+              ),
+
+              const SizedBox(height: AppPadding.p16),
+
+              // Info Box - dynamic based on payment status
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color:
-                      isDark ? colorScheme.primaryContainer : Colors.blue[50],
+                  color: isDark
+                      ? colorScheme.primaryContainer
+                      : (isFullyPaid
+                          ? AppColors.success.withValues(alpha: 0.1)
+                          : AppColors.warning.withValues(alpha: 0.1)),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                       color: isDark
                           ? colorScheme.outline.withValues(alpha: 0.3)
-                          : Colors.blue[200]!),
+                          : (isFullyPaid
+                              ? AppColors.success.withValues(alpha: 0.3)
+                              : AppColors.warning.withValues(alpha: 0.3))),
                 ),
                 child: Row(
                   children: [
                     Icon(
-                      Icons.info_outline,
+                      isFullyPaid
+                          ? Icons.check_circle_outline
+                          : Icons.info_outline,
                       color: isDark
                           ? colorScheme.onPrimaryContainer
-                          : Colors.blue[600],
+                          : (isFullyPaid
+                              ? AppColors.success
+                              : AppColors.warning),
                       size: 16,
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: AppPadding.p8),
                     Expanded(
                       child: Text(
-                        'Pembayaran dilakukan 100% sebelum pengiriman',
+                        isFullyPaid
+                            ? 'Pembayaran telah lunas'
+                            : 'Masih ada sisa pembayaran ${FormatHelper.formatCurrency(sisaPembayaran)}',
                         style: TextStyle(
                           fontSize: 12,
                           color: isDark
                               ? colorScheme.onPrimaryContainer
-                              : Colors.blue[700],
+                              : (isFullyPaid
+                                  ? AppColors.success
+                                  : AppColors.warning),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -1561,25 +1484,78 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
     bool isSubtotal = false,
     bool isDiscount = false,
     bool isTotal = false,
+    bool isPaid = false,
+    bool isRemaining = false,
+    bool isFullyPaid = false,
     double? percentage,
   }) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final colorScheme = theme.colorScheme;
+
+    // Determine background color
+    Color backgroundColor;
+    if (isDark) {
+      backgroundColor = isTotal || isRemaining
+          ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.25)
+          : colorScheme.surfaceContainerHighest.withValues(alpha: 0.2);
+    } else {
+      if (isTotal) {
+        backgroundColor = AppColors.success.withValues(alpha: 0.1);
+      } else if (isPaid) {
+        backgroundColor = AppColors.accentLight.withValues(alpha: 0.1);
+      } else if (isRemaining) {
+        backgroundColor = isFullyPaid
+            ? AppColors.success.withValues(alpha: 0.1)
+            : AppColors.warning.withValues(alpha: 0.1);
+      } else {
+        backgroundColor = AppColors.cardLight;
+      }
+    }
+
+    // Determine border color
+    Color borderColor;
+    if (isDark) {
+      borderColor = colorScheme.outline.withValues(alpha: 0.2);
+    } else {
+      if (isTotal) {
+        borderColor = AppColors.success.withValues(alpha: 0.3);
+      } else if (isPaid) {
+        borderColor = AppColors.accentLight.withValues(alpha: 0.3);
+      } else if (isRemaining) {
+        borderColor = isFullyPaid
+            ? AppColors.success.withValues(alpha: 0.3)
+            : AppColors.warning.withValues(alpha: 0.3);
+      } else {
+        borderColor = AppColors.borderLight;
+      }
+    }
+
+    // Determine icon
+    IconData? icon;
+    Color? iconColor;
+    if (isDiscount) {
+      icon = Icons.remove_circle_outline;
+      iconColor = AppColors.error;
+    } else if (isTotal) {
+      icon = Icons.check_circle_outline;
+      iconColor = AppColors.success;
+    } else if (isPaid) {
+      icon = Icons.account_balance_wallet_outlined;
+      iconColor = AppColors.accentLight;
+    } else if (isRemaining) {
+      icon = isFullyPaid ? Icons.check_circle : Icons.schedule;
+      iconColor = isFullyPaid ? AppColors.success : AppColors.warning;
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: isDark
-            ? (isTotal
-                ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.25)
-                : colorScheme.surfaceContainerHighest.withValues(alpha: 0.2))
-            : (isTotal ? Colors.green[50] : Colors.grey[50]),
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: isDark
-              ? colorScheme.outline.withValues(alpha: 0.2)
-              : (isTotal ? Colors.green[200]! : Colors.grey[200]!),
-          width: isTotal ? 2 : 1,
+          color: borderColor,
+          width: (isTotal || isRemaining) ? 2 : 1,
         ),
       ),
       child: Row(
@@ -1588,41 +1564,33 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
           Expanded(
             child: Row(
               children: [
-                if (isDiscount) ...[
-                  Icon(
-                    Icons.remove_circle_outline,
-                    color: isDark ? AppColors.error : Colors.red[600],
-                    size: 16,
-                  ),
-                  const SizedBox(width: 8),
-                ] else if (isTotal) ...[
-                  Icon(
-                    Icons.check_circle_outline,
-                    color: isDark ? AppColors.success : Colors.green[600],
-                    size: 16,
-                  ),
-                  const SizedBox(width: 8),
+                if (icon != null) ...[
+                  Icon(icon, color: iconColor, size: 16),
+                  const SizedBox(width: AppPadding.p8),
                 ],
                 Expanded(
                   child: Text(
                     label,
                     style: TextStyle(
-                      fontSize: isTotal ? 16 : 14,
-                      fontWeight: isTotal ? FontWeight.bold : FontWeight.w500,
+                      fontSize: (isTotal || isRemaining) ? 16 : 14,
+                      fontWeight: (isTotal || isRemaining)
+                          ? FontWeight.bold
+                          : FontWeight.w500,
                       color: isDark ? colorScheme.onSurface : color,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 if (percentage != null && percentage > 0) ...[
-                  const SizedBox(width: 8),
+                  const SizedBox(width: AppPadding.p8),
                   Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: isDark
                           ? AppColors.error.withValues(alpha: 0.15)
-                          : Colors.red[100],
+                          : AppColors.error.withValues(
+                              alpha: 0.2), // Status color dengan opacity
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
@@ -1630,7 +1598,27 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
-                        color: isDark ? AppColors.error : Colors.red[700],
+                        color: AppColors.error, // Status color
+                      ),
+                    ),
+                  ),
+                ],
+                // Show "LUNAS" badge if fully paid
+                if (isRemaining && isFullyPaid) ...[
+                  const SizedBox(width: AppPadding.p8),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.success,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      'LUNAS',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
                     ),
                   ),
@@ -1638,18 +1626,621 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
               ],
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppPadding.p12),
           Text(
             isDiscount && amount < 0
                 ? '- ${FormatHelper.formatCurrency(amount.abs())}'
                 : FormatHelper.formatCurrency(amount),
             style: TextStyle(
-              fontSize: isTotal ? 18 : 14,
-              fontWeight: isTotal ? FontWeight.bold : FontWeight.w600,
+              fontSize: (isTotal || isRemaining) ? 18 : 14,
+              fontWeight:
+                  (isTotal || isRemaining) ? FontWeight.bold : FontWeight.w600,
               color: isDark ? colorScheme.onSurface : color,
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Show dialog to add new payment
+  void _showAddPaymentDialog(bool isDark, double grandTotal, double totalPaid) {
+    final sisaPembayaran = grandTotal - totalPaid;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    // Controllers
+    final amountController = TextEditingController(
+      text: FormatHelper.formatCurrency(sisaPembayaran).replaceAll('Rp ', ''),
+    );
+    final referenceController = TextEditingController();
+    final noteController = TextEditingController();
+
+    // State
+    String selectedMethod = 'transfer';
+    String selectedBank = 'BCA';
+    String? receiptImagePath;
+    bool isLoading = false;
+
+    // Bank options by method
+    final bankOptions = {
+      'transfer': ['BCA', 'BRI', 'Mandiri', 'BNI', 'BTN', 'Lainnya'],
+      'credit': ['BCA', 'BRI', 'Mandiri', 'BNI', 'CIMB', 'Lainnya'],
+      'paylater': ['Kredivo', 'Akulaku', 'Indodana', 'Lainnya'],
+      'other': ['QRIS', 'GoPay', 'OVO', 'DANA', 'ShopeePay', 'Lainnya'],
+    };
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          height: MediaQuery.of(context).size.height * 0.85,
+          decoration: BoxDecoration(
+            color: isDark ? colorScheme.surface : AppColors.surfaceLight,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white24 : Colors.black12,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+
+              // Header
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryLight.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        Icons.add_card,
+                        color: AppColors.primaryLight,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Tambah Pembayaran',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                          Text(
+                            'Sisa: ${FormatHelper.formatCurrency(sisaPembayaran)}',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppColors.warning,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: Icon(
+                        Icons.close,
+                        color: isDark ? Colors.white54 : Colors.black54,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const Divider(height: 1),
+
+              // Content
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    // Dismiss keyboard when tapping outside input fields
+                    FocusScope.of(context).unfocus();
+                  },
+                  child: SingleChildScrollView(
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Payment Method Selector
+                        Text(
+                          'Metode Pembayaran',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _buildMethodChip('Transfer Bank', 'transfer',
+                                selectedMethod, isDark, (v) {
+                              setModalState(() {
+                                selectedMethod = v;
+                                selectedBank = bankOptions[v]!.first;
+                              });
+                            }),
+                            _buildMethodChip('Kartu Kredit', 'credit',
+                                selectedMethod, isDark, (v) {
+                              setModalState(() {
+                                selectedMethod = v;
+                                selectedBank = bankOptions[v]!.first;
+                              });
+                            }),
+                            _buildMethodChip(
+                                'PayLater', 'paylater', selectedMethod, isDark,
+                                (v) {
+                              setModalState(() {
+                                selectedMethod = v;
+                                selectedBank = bankOptions[v]!.first;
+                              });
+                            }),
+                            _buildMethodChip(
+                                'Lainnya', 'other', selectedMethod, isDark,
+                                (v) {
+                              setModalState(() {
+                                selectedMethod = v;
+                                selectedBank = bankOptions[v]!.first;
+                              });
+                            }),
+                          ],
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // Bank Selector
+                        Text(
+                          'Bank / Provider',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? colorScheme.surfaceContainerHighest
+                                : AppColors.cardLight,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: isDark
+                                  ? colorScheme.outline.withValues(alpha: 0.3)
+                                  : AppColors.borderLight,
+                            ),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: selectedBank,
+                              isExpanded: true,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
+                              dropdownColor: isDark
+                                  ? colorScheme.surfaceContainerHighest
+                                  : AppColors.cardLight,
+                              items: bankOptions[selectedMethod]!.map((bank) {
+                                return DropdownMenuItem(
+                                  value: bank,
+                                  child: Text(bank),
+                                );
+                              }).toList(),
+                              onChanged: (value) {
+                                setModalState(() => selectedBank = value!);
+                              },
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // Amount Field
+                        Text(
+                          'Nominal Pembayaran',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: amountController,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            prefixText: 'Rp ',
+                            hintText: '0',
+                            filled: true,
+                            fillColor: isDark
+                                ? colorScheme.surfaceContainerHighest
+                                : AppColors.cardLight,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(
+                                color: isDark
+                                    ? colorScheme.outline.withValues(alpha: 0.3)
+                                    : AppColors.borderLight,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(
+                                color: isDark
+                                    ? colorScheme.outline.withValues(alpha: 0.3)
+                                    : AppColors.borderLight,
+                              ),
+                            ),
+                          ),
+                          onChanged: (value) {
+                            // Format currency on change
+                            final numericValue =
+                                value.replaceAll(RegExp(r'[^0-9]'), '');
+                            if (numericValue.isNotEmpty) {
+                              final formatted = FormatHelper.formatCurrency(
+                                      double.parse(numericValue))
+                                  .replaceAll('Rp ', '');
+                              if (formatted != value) {
+                                amountController.value = TextEditingValue(
+                                  text: formatted,
+                                  selection: TextSelection.collapsed(
+                                      offset: formatted.length),
+                                );
+                              }
+                            }
+                          },
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // Reference Field
+                        Text(
+                          'No. Referensi (Opsional)',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: referenceController,
+                          decoration: InputDecoration(
+                            hintText: 'Masukkan nomor referensi',
+                            filled: true,
+                            fillColor: isDark
+                                ? colorScheme.surfaceContainerHighest
+                                : AppColors.cardLight,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(
+                                color: isDark
+                                    ? colorScheme.outline.withValues(alpha: 0.3)
+                                    : AppColors.borderLight,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(
+                                color: isDark
+                                    ? colorScheme.outline.withValues(alpha: 0.3)
+                                    : AppColors.borderLight,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // Note Field
+                        Text(
+                          'Catatan (Opsional)',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: noteController,
+                          maxLines: 2,
+                          decoration: InputDecoration(
+                            hintText: 'Tambahkan catatan',
+                            filled: true,
+                            fillColor: isDark
+                                ? colorScheme.surfaceContainerHighest
+                                : AppColors.cardLight,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(
+                                color: isDark
+                                    ? colorScheme.outline.withValues(alpha: 0.3)
+                                    : AppColors.borderLight,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(
+                                color: isDark
+                                    ? colorScheme.outline.withValues(alpha: 0.3)
+                                    : AppColors.borderLight,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // Receipt Image
+                        Text(
+                          'Foto Struk Pembayaran *',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        GestureDetector(
+                          onTap: () => _showImageSourceDialog(
+                              context, setModalState, colorScheme, isDark,
+                              (path) {
+                            setModalState(() => receiptImagePath = path);
+                          }),
+                          child: Container(
+                            width: double.infinity,
+                            height: 120,
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? colorScheme.surface
+                                  : colorScheme.surface,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: isDark
+                                    ? colorScheme.outline
+                                    : colorScheme.outline,
+                                style: BorderStyle.solid,
+                              ),
+                            ),
+                            child: receiptImagePath != null
+                                ? Stack(
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: Image.file(
+                                          File(receiptImagePath!),
+                                          width: double.infinity,
+                                          height: 120,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                            return _buildImagePlaceholder(
+                                                colorScheme, isDark);
+                                          },
+                                        ),
+                                      ),
+                                      Positioned(
+                                        top: 8,
+                                        right: 8,
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            color: Colors.black
+                                                .withValues(alpha: 0.6),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                          child: IconButton(
+                                            onPressed: () {
+                                              setModalState(() =>
+                                                  receiptImagePath = null);
+                                            },
+                                            icon: const Icon(
+                                              Icons.close,
+                                              color: Colors.white,
+                                              size: 16,
+                                            ),
+                                            constraints: const BoxConstraints(),
+                                            padding: const EdgeInsets.all(4),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : _buildImagePlaceholder(colorScheme, isDark),
+                          ),
+                        ),
+
+                        const SizedBox(height: 100), // Space for bottom button
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              // Submit Button
+              Container(
+                padding: EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  top: 20,
+                  bottom: 20 + MediaQuery.of(context).viewInsets.bottom,
+                ),
+                decoration: BoxDecoration(
+                  color: isDark ? colorScheme.surface : AppColors.surfaceLight,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 10,
+                      offset: const Offset(0, -4),
+                    ),
+                  ],
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: isLoading || receiptImagePath == null
+                          ? null
+                          : () async {
+                              // Validate
+                              final amountText = amountController.text
+                                  .replaceAll(RegExp(r'[^0-9]'), '');
+                              if (amountText.isEmpty ||
+                                  int.parse(amountText) <= 0) {
+                                CustomToast.showToast(
+                                  'Masukkan nominal pembayaran yang valid',
+                                  ToastType.error,
+                                );
+                                return;
+                              }
+
+                              // Validate maximum (cannot exceed remaining balance)
+                              final paymentAmount = double.parse(amountText);
+                              if (paymentAmount > sisaPembayaran) {
+                                CustomToast.showToast(
+                                  'Nominal tidak boleh melebihi sisa pembayaran (${FormatHelper.formatCurrency(sisaPembayaran)})',
+                                  ToastType.error,
+                                );
+                                return;
+                              }
+
+                              // Capture navigator before async operation
+                              final navigator = Navigator.of(context);
+
+                              setModalState(() => isLoading = true);
+
+                              try {
+                                final paymentService =
+                                    GetIt.instance<OrderLetterPaymentService>();
+                                final userId =
+                                    await AuthService.getCurrentUserId();
+
+                                await paymentService.createPayment(
+                                  orderLetterId: _document!.id,
+                                  paymentMethod: selectedMethod,
+                                  paymentBank: selectedBank,
+                                  paymentNumber:
+                                      referenceController.text.isEmpty
+                                          ? '-'
+                                          : referenceController.text,
+                                  paymentAmount: double.parse(amountText),
+                                  creator: userId ?? 0,
+                                  note: noteController.text.isEmpty
+                                      ? null
+                                      : noteController.text,
+                                  receiptImagePath: receiptImagePath,
+                                  paymentDate: DateTime.now()
+                                      .toIso8601String()
+                                      .split('T')
+                                      .first,
+                                );
+
+                                if (mounted) {
+                                  navigator.pop();
+                                  CustomToast.showToast(
+                                    'Pembayaran berhasil ditambahkan',
+                                    ToastType.success,
+                                  );
+                                  // Reload document to refresh payment data
+                                  _loadDocument();
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  CustomToast.showToast(
+                                    'Gagal menambahkan pembayaran: $e',
+                                    ToastType.error,
+                                  );
+                                }
+                              } finally {
+                                if (mounted) {
+                                  setModalState(() => isLoading = false);
+                                }
+                              }
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.success,
+                        disabledBackgroundColor: AppColors.disabledLight,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: isLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text(
+                              'Simpan Pembayaran',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMethodChip(String label, String value, String selected,
+      bool isDark, Function(String) onTap) {
+    final isSelected = value == selected;
+    return InkWell(
+      onTap: () => onTap(value),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.primaryLight.withValues(alpha: 0.15)
+              : (isDark ? Colors.white10 : Colors.grey.shade100),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected
+                ? AppColors.primaryLight
+                : (isDark ? Colors.white24 : Colors.grey.shade300),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            color: isSelected
+                ? AppColors.primaryLight
+                : (isDark ? Colors.white70 : Colors.black54),
+          ),
+        ),
       ),
     );
   }
@@ -1669,119 +2260,6 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
     return trimmed;
   }
 
-  Widget _buildTermsAndConditions() {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final colorScheme = theme.colorScheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Header section
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          decoration: BoxDecoration(
-            color: isDark
-                ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
-                : Colors.orange[50],
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(12),
-              topRight: Radius.circular(12),
-            ),
-            border: Border(
-              bottom: BorderSide(
-                color: isDark
-                    ? colorScheme.outline.withValues(alpha: 0.2)
-                    : Colors.orange[100]!,
-              ),
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? colorScheme.primary.withValues(alpha: 0.15)
-                      : Colors.orange[100],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.description_outlined,
-                  color: isDark ? colorScheme.primary : Colors.orange[600],
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'SYARAT DAN KETENTUAN',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: isDark ? colorScheme.onSurface : Colors.orange[700],
-                ),
-              ),
-            ],
-          ),
-        ),
-        // Content section
-        Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildTermsItem(
-                '1',
-                'Konsumen wajib melunasi 100% nilai pesanan sebelum melakukan pengiriman / penyerahan barang pesanan. Pelunasan dilakukan selambat-lambatnya 3 hari kerja sebelum jadwal pengiriman / penyerahan yang dijadwalkan.',
-              ),
-              const SizedBox(height: 12),
-              _buildTermsItem(
-                '2',
-                'Barang yang sudah dipesan / dibeli, tidak dapat ditukar atau dikembalikan.',
-              ),
-              const SizedBox(height: 12),
-              _buildTermsItem(
-                '3',
-                'Uang muka yang telah dibayarkan tidak dapat dikembalikan.',
-              ),
-              const SizedBox(height: 12),
-              _buildTermsItem(
-                '4',
-                'Sleep Center berhak mengubah tanggal pengiriman dengan sebelumnya memberitahukan kepada konsumen.',
-              ),
-              const SizedBox(height: 12),
-              _buildTermsItem(
-                '5',
-                'Surat Pesanan yang sudah lewat 3 (Tiga) bulan namun belum dikirim harus dilunasi jika tidak akan dianggap batal dan uang muka tidak dapat dikembalikan.',
-              ),
-              const SizedBox(height: 12),
-              _buildTermsItem(
-                '6',
-                'Apabila konsumen menunda pengiriman selama lebih dari 2 (Dua) Bulan dari tanggal kirim awal, SP dianggap batal dan uang muka tidak dapat dikembalikan.',
-              ),
-              const SizedBox(height: 12),
-              _buildTermsItem(
-                '7',
-                'Pembeli akan dikenakan biaya tambahan untuk pengiriman, pembongkaran, pengambilan furnitur dll yang disebabkan adanya kesulitan/ketidakcocokan penempatan furnitur di tempat atau ruangan yang dikehendaki oleh pembeli.',
-              ),
-              const SizedBox(height: 12),
-              _buildTermsItem(
-                '8',
-                'Jika pengiriman dilakukan lebih dari 1 (Satu) kali, konsumen wajib melunasi pembelian sebelum pengiriman pertama.',
-              ),
-              const SizedBox(height: 12),
-              _buildTermsItem(
-                '9',
-                'Untuk tipe dan ukuran khusus, pelunasan harus dilakukan saat pemesanan dan tidak dapat dibatalkan/diganti.',
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildApprovalSection() {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -1798,12 +2276,14 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         return Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: isDark ? colorScheme.surface : Colors.grey[50],
+            color: isDark
+                ? colorScheme.surface
+                : AppColors.dominantLight, // 60% - Background
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isDark
                   ? colorScheme.outline.withValues(alpha: 0.2)
-                  : Colors.grey[200]!,
+                  : AppColors.borderLight, // 30% - Border
             ),
           ),
           child: Column(
@@ -1813,10 +2293,12 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                 children: [
                   Icon(
                     Icons.approval,
-                    color: isDark ? colorScheme.primary : Colors.blue[600],
+                    color: isDark
+                        ? colorScheme.primary
+                        : AppColors.accentLight, // 10% - Accent
                     size: 20,
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: AppPadding.p8),
                   Text(
                     'Approval',
                     style: TextStyle(
@@ -1827,7 +2309,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppPadding.p16),
               Row(
                 children: [
                   Expanded(
@@ -1851,7 +2333,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                         ),
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green[600],
+                        backgroundColor: AppColors.success, // Status color
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -1859,7 +2341,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: AppPadding.p12),
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: _isApprovalLoading
@@ -1874,7 +2356,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                         ),
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red[600],
+                        backgroundColor: AppColors.error, // Status color
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -1958,39 +2440,27 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
     return false;
   }
 
-  void _showApprovalDialog(String action) {
+  void _showApprovalDialog(String action) async {
     final isApprove = action == 'approve';
     final title = isApprove ? 'Approve Order' : 'Reject Order';
     final message = isApprove
         ? 'Are you sure you want to approve this order?'
         : 'Are you sure you want to reject this order?';
     final confirmText = isApprove ? 'Approve' : 'Reject';
-    final confirmColor = isApprove ? Colors.green : Colors.red;
 
-    showDialog(
+    // Menggunakan ConfirmationDialog untuk konsistensi UI
+    final confirmed = await ConfirmationDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _handleApprovalAction(action);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: confirmColor,
-              foregroundColor: Colors.white,
-            ),
-            child: Text(confirmText),
-          ),
-        ],
-      ),
+      title: title,
+      message: message,
+      confirmText: confirmText,
+      cancelText: 'Cancel',
+      type: isApprove ? ConfirmationType.success : ConfirmationType.delete,
     );
+
+    if (confirmed == true) {
+      _handleApprovalAction(action);
+    }
   }
 
   Future<void> _handleApprovalAction(String action) async {
@@ -2070,60 +2540,14 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
   }
 
   void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
-    );
+    CustomToast.showToast(message, ToastType.error);
   }
 
   void _showSuccessSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.green,
-      ),
-    );
+    CustomToast.showToast(message, ToastType.success);
   }
 
-  void _showPDFOptionsDialog(BuildContext buttonContext) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Pilih Jenis PDF'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: Icon(Icons.person, color: Colors.blue[600]),
-              title: const Text('PDF Customer'),
-              subtitle: const Text('PDF untuk customer (tanpa kolom approval)'),
-              onTap: () {
-                Navigator.of(context).pop();
-                _generatePDF(buttonContext, showApprovalColumn: false);
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.approval, color: Colors.green[600]),
-              title: const Text('PDF Approval'),
-              subtitle: const Text('PDF dengan kolom approval dan stempel'),
-              onTap: () {
-                Navigator.of(context).pop();
-                _generatePDF(buttonContext, showApprovalColumn: true);
-              },
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Batal'),
-          ),
-        ],
-      ),
-    );
-  }
+  // _showPDFOptionsDialog dipindahkan ke PDFOptionsDialog widget
 
   Future<void> _generatePDF(BuildContext buttonContext,
       {required bool showApprovalColumn}) async {
@@ -2131,12 +2555,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
 
     try {
       // Show loading
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Generating PDF...'),
-          backgroundColor: Colors.blue,
-        ),
-      );
+      CustomToast.showToast('Generating PDF...', ToastType.info);
 
       // Group order letter details by kasur and create single CartEntity per group
       final cartItems = <CartEntity>[];
@@ -2154,8 +2573,9 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         double customerPrice,
         double netPrice,
         int quantity,
-        bool hasExplicitCustomerPrice,
-      ) {
+        bool hasExplicitCustomerPrice, {
+        String? itemDescription,
+      }) {
         final key = pricingKey(type, name, size);
         final list =
             pricingSummary.putIfAbsent(key, () => <Map<String, dynamic>>[]);
@@ -2197,6 +2617,8 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
             'net_price_per_unit': netPrice,
             'quantity': quantity.toDouble(),
             'has_customer_price': hasExplicitCustomerPrice,
+            if (itemDescription != null && itemDescription.isNotEmpty)
+              'item_description': itemDescription,
           });
         }
       }
@@ -2214,7 +2636,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         String divan = '';
         String headboard = '';
         String sorong = '';
-        double plKasur = kasurDetail.unitPrice, // Pricelist (harga asli)
+        double plKasur = kasurDetail.unitPrice,
             plDivan = 0,
             plHeadboard = 0,
             plSorong = 0;
@@ -2262,7 +2684,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
           switch (itemType) {
             case 'divan':
               divan = '${item.desc1} ${item.desc2}'.trim();
-              plDivan = item.unitPrice; // Pricelist (harga asli)
+              plDivan = item.unitPrice;
               customerDivan = item.customerPrice ?? item.unitPrice;
               netDivan = item.netPrice ?? customerDivan;
               final bool divanHasExplicit =
@@ -2277,11 +2699,12 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                 netDivan,
                 totalQty,
                 divanHasExplicit,
+                itemDescription: item.itemDescription,
               );
               break;
             case 'headboard':
               headboard = '${item.desc1} ${item.desc2}'.trim();
-              plHeadboard = item.unitPrice; // Pricelist (harga asli)
+              plHeadboard = item.unitPrice;
               customerHeadboard = item.customerPrice ?? item.unitPrice;
               netHeadboard = item.netPrice ?? customerHeadboard;
               final bool headboardHasExplicit =
@@ -2296,11 +2719,12 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                 netHeadboard,
                 totalQty,
                 headboardHasExplicit,
+                itemDescription: item.itemDescription,
               );
               break;
             case 'sorong':
               sorong = '${item.desc1} ${item.desc2}'.trim();
-              plSorong = item.unitPrice; // Pricelist (harga asli)
+              plSorong = item.unitPrice;
               customerSorong = item.customerPrice ?? item.unitPrice;
               netSorong = item.netPrice ?? customerSorong;
               final bool sorongHasExplicit =
@@ -2315,6 +2739,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                 netSorong,
                 totalQty,
                 sorongHasExplicit,
+                itemDescription: item.itemDescription,
               );
               break;
           }
@@ -2355,15 +2780,16 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
           plKasur,
           customerKasur,
           netKasur,
-          group.totalQty, // Use total qty from group
+          group.totalQty,
           kasurHasExplicitCustomerPrice,
+          itemDescription: kasurDetail.itemDescription,
         );
 
         cartItems.add(CartEntity(
           cartLineId:
               'doc_${kasurDetail.id}_${i}_${DateTime.now().microsecondsSinceEpoch}',
           product: ProductEntity(
-            id: kasurDetail.id, // This is the order_letter_detail_id we need
+            id: kasurDetail.id,
             area: '',
             channel: '',
             brand: kasurDetail.brand,
@@ -2462,6 +2888,27 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         }
       }
 
+      // Calculate total paid from payments (sync with backend)
+      final totalPaidFromPayments = _document!.payments.fold<double>(
+        0.0,
+        (sum, payment) => sum + payment.paymentAmount,
+      );
+
+      // Get payment method summary for PDF (simplified)
+      String paymentMethodDisplay = '-';
+      if (_document!.payments.isNotEmpty) {
+        if (_document!.payments.length == 1) {
+          // Single payment - show method and bank
+          final p = _document!.payments.first;
+          final bank = p.paymentBank?.isNotEmpty == true ? p.paymentBank! : '';
+          paymentMethodDisplay =
+              bank.isNotEmpty ? bank : _getPaymentMethodLabel(p.paymentMethod);
+        } else {
+          // Multiple payments - show count
+          paymentMethodDisplay = '${_document!.payments.length}x Pembayaran';
+        }
+      }
+
       // Get payment date from payments (use first payment with payment_date, fallback to requestDate)
       String repaymentDate = _formatDate(_document!.requestDate);
       if (_document!.payments.isNotEmpty) {
@@ -2485,8 +2932,9 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         phoneNumber: _getAllPhonesForPDF(),
         deliveryDate: _formatDate(_document!.requestDate),
         orderDate: _formatDate(_document!.orderDate),
-        paymentMethod: 'Transfer',
-        paymentAmount: _document!.extendedAmount,
+        paymentMethod: paymentMethodDisplay,
+        paymentAmount:
+            totalPaidFromPayments, // Use actual paid amount from backend
         repaymentDate: repaymentDate,
         grandTotal: _document!.extendedAmount,
         email: _document!.email,
@@ -2505,6 +2953,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         pricingData: pricingSummary,
         showApprovalColumn: showApprovalColumn,
         postage: _document!.postage,
+        orderLetterCreatedAt: _formatDateTimeWithTime(_document!.createdAt),
       );
 
       final pdfType = showApprovalColumn ? 'Approval' : 'Customer';
@@ -2524,36 +2973,14 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
 
       // Show success message
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('PDF berhasil dibuat dan dibagikan!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        CustomToast.showToast(
+            'PDF berhasil dibuat dan dibagikan!', ToastType.success);
       }
     } catch (e) {
       // Show error message
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        CustomToast.showToast('Error: $e', ToastType.error);
       }
-    }
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'approved':
-        return Colors.green;
-      case 'pending':
-        return Colors.orange;
-      case 'rejected':
-        return Colors.red;
-      default:
-        return Colors.grey;
     }
   }
 
@@ -2566,70 +2993,16 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
     }
   }
 
-  /// Build info row with icon, label and value
-  Widget _buildInfoRow({
-    required IconData icon,
-    required String label,
-    required String value,
-    required Color iconColor,
-    bool isAddress = false,
-  }) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final colorScheme = theme.colorScheme;
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: isDark
-                ? colorScheme.surfaceContainerHighest
-                : iconColor.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
-            border: isDark
-                ? Border.all(color: colorScheme.outline.withValues(alpha: 0.2))
-                : null,
-          ),
-          child: Icon(
-            icon,
-            color: isDark ? colorScheme.primary : iconColor,
-            size: 20,
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color:
-                      isDark ? colorScheme.onSurfaceVariant : Colors.grey[600],
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: isAddress ? 14 : 15,
-                  fontWeight: FontWeight.w600,
-                  color: isDark ? colorScheme.onSurface : Colors.grey[800],
-                  height: isAddress ? 1.3 : 1.2,
-                ),
-                maxLines: isAddress ? 3 : 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
+  String _formatDateTimeWithTime(String dateString) {
+    try {
+      DateTime date = DateTime.parse(dateString);
+      if (date.isUtc) {
+        date = date.toLocal();
+      }
+      return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    } catch (e) {
+      return dateString;
+    }
   }
 
   /// Get all phone numbers from contacts as a formatted string for PDF
@@ -2641,47 +3014,226 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
     return _document?.phone ?? '-';
   }
 
-  /// Build individual terms and conditions item with proper formatting
-  Widget _buildTermsItem(String number, String text) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final colorScheme = theme.colorScheme;
+  /// Get readable label for payment method
+  String _getPaymentMethodLabel(String method) {
+    switch (method.toLowerCase()) {
+      case 'transfer':
+        return 'Transfer';
+      case 'credit':
+        return 'Kartu Kredit';
+      case 'paylater':
+        return 'PayLater';
+      case 'other':
+        return 'Lainnya';
+      default:
+        return method;
+    }
+  }
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 24,
-          height: 24,
-          decoration: BoxDecoration(
-            color: isDark ? colorScheme.primaryContainer : Colors.blue[100],
-            borderRadius: BorderRadius.circular(12),
+  /// Show image source dialog (matching payment_method_dialog)
+  void _showImageSourceDialog(
+    BuildContext context,
+    StateSetter setModalState,
+    ColorScheme colorScheme,
+    bool isDark,
+    Function(String) onImageSelected,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: colorScheme.surface,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
           ),
-          child: Center(
-            child: Text(
-              number,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color:
-                    isDark ? colorScheme.onPrimaryContainer : Colors.blue[800],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              decoration: BoxDecoration(
+                color: colorScheme.onSurfaceVariant,
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
-          ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'Pilih Sumber Foto',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+            ),
+            _buildImageSourceOption(
+              context: context,
+              colorScheme: colorScheme,
+              icon: Icons.camera_alt,
+              iconColor: AppColors.success,
+              title: 'Ambil Foto',
+              subtitle: 'Gunakan kamera untuk mengambil foto struk',
+              onTap: () {
+                Navigator.pop(context);
+                _pickReceiptImage(
+                    ImageSource.camera, setModalState, onImageSelected);
+              },
+            ),
+            _buildImageSourceOption(
+              context: context,
+              colorScheme: colorScheme,
+              icon: Icons.photo_library,
+              iconColor: colorScheme.primary,
+              title: 'Pilih dari Galeri',
+              subtitle: 'Pilih foto struk dari galeri',
+              onTap: () {
+                Navigator.pop(context);
+                _pickReceiptImage(
+                    ImageSource.gallery, setModalState, onImageSelected);
+              },
+            ),
+            _buildImageSourceOption(
+              context: context,
+              colorScheme: colorScheme,
+              icon: Icons.folder_open,
+              iconColor: Colors.orange,
+              title: 'Pilih File',
+              subtitle: 'Pilih file gambar dari penyimpanan',
+              onTap: () {
+                Navigator.pop(context);
+                _pickReceiptImageFromFile(setModalState, onImageSelected);
+              },
+            ),
+            const SizedBox(height: AppPadding.p20),
+          ],
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            text,
-            textAlign: TextAlign.justify, // Rata kanan kiri
+      ),
+    );
+  }
+
+  Widget _buildImageSourceOption({
+    required BuildContext context,
+    required ColorScheme colorScheme,
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: iconColor.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, color: iconColor, size: 24),
+      ),
+      title: Text(
+        title,
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+          color: colorScheme.onSurface,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(
+          fontSize: 12,
+          color: colorScheme.onSurfaceVariant,
+        ),
+      ),
+      onTap: onTap,
+    );
+  }
+
+  Future<void> _pickReceiptImage(
+    ImageSource source,
+    StateSetter setModalState,
+    Function(String) onImageSelected,
+  ) async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: source,
+        maxWidth: 1920,
+        maxHeight: 1920,
+        imageQuality: 85,
+      );
+
+      if (image != null) {
+        onImageSelected(image.path);
+      }
+    } catch (e) {
+      CustomToast.showToast(
+        'Gagal mengambil foto: ${e.toString()}',
+        ToastType.error,
+      );
+    }
+  }
+
+  Future<void> _pickReceiptImageFromFile(
+    StateSetter setModalState,
+    Function(String) onImageSelected,
+  ) async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: false,
+      );
+
+      if (result != null && result.files.isNotEmpty) {
+        final filePath = result.files.first.path;
+        if (filePath != null) {
+          onImageSelected(filePath);
+        }
+      }
+    } catch (e) {
+      CustomToast.showToast(
+        'Gagal memilih file: ${e.toString()}',
+        ToastType.error,
+      );
+    }
+  }
+
+  /// Build image placeholder for receipt upload (matching payment_method_dialog)
+  Widget _buildImagePlaceholder(ColorScheme colorScheme, bool isDark) {
+    return Container(
+      width: double.infinity,
+      height: 120,
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: colorScheme.outline,
+          style: BorderStyle.solid,
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.add_photo_alternate_outlined,
+            size: 32,
+            color: colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(height: AppPadding.p8),
+          Text(
+            'Tap untuk ambil foto atau pilih dari galeri',
             style: TextStyle(
               fontSize: 12,
-              height: 1.4, // Line height for better readability
-              color: isDark ? colorScheme.onSurface : null,
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
