@@ -1,4 +1,5 @@
 import '../../../../services/area_service.dart';
+import '../../../../services/area_cache.dart';
 import '../../../../core/widgets/custom_toast.dart';
 import '../models/area_model.dart';
 
@@ -7,19 +8,34 @@ class AreaRepository {
 
   AreaRepository({required this.areaService});
 
-  /// Fetch areas from API (always fresh data)
+  /// Fetch areas from API with smart caching
+  /// - Sukses: simpan ke cache, return data
+  /// - Gagal: gunakan cache jika ada, kalau tidak return empty
   Future<List<AreaModel>> fetchAreas() async {
     try {
       final areas = await areaService.fetchAreas();
+
+      // Sukses fetch dari API → simpan ke cache
+      if (areas.isNotEmpty) {
+        await AreaCache.cacheAreas(areas);
+      }
+
       return areas;
     } catch (e) {
-      // Show error toast to user
+      // API gagal → coba gunakan cache
+      final cachedAreas = await AreaCache.getCachedAreas();
+
+      if (cachedAreas != null && cachedAreas.isNotEmpty) {
+        // Ada cache, gunakan cache (silent - tidak tampilkan error)
+        return cachedAreas;
+      }
+
+      // Tidak ada cache, tampilkan error
       CustomToast.showToast(
         "Gagal memuat data area. Periksa koneksi internet Anda.",
         ToastType.error,
         duration: 3,
       );
-      // Return empty list if API fails - no hardcoded fallback
       return [];
     }
   }
@@ -46,20 +62,13 @@ class AreaRepository {
     }
   }
 
-  /// Get all area names from API (most direct approach)
+  /// Get all area names from API with smart caching
   Future<List<String>> fetchAllAreaNames() async {
     try {
-      final areas = await fetchAreas();
-      final areaNames = areas.map((area) => area.name).toList();
-      return areaNames;
+      final areas = await fetchAreas(); // Already uses cache internally
+      return areas.map((area) => area.name).toList();
     } catch (e) {
-      // Show error toast to user
-      CustomToast.showToast(
-        "Gagal memuat daftar area. Periksa koneksi internet Anda.",
-        ToastType.error,
-        duration: 3,
-      );
-      // Return empty list if API fails - no hardcoded fallback
+      // fetchAreas already handles cache and error toast
       return [];
     }
   }

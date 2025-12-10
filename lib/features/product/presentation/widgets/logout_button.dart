@@ -1,7 +1,7 @@
 // lib/features/product/presentation/widgets/logout_button.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../core/utils/responsive_helper.dart';
+import '../../../../core/widgets/confirmation_dialog.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/auth_event.dart';
@@ -9,7 +9,9 @@ import '../../../product/presentation/bloc/product_bloc.dart';
 import '../bloc/product_event.dart';
 
 class LogoutButton extends StatelessWidget {
-  const LogoutButton({super.key});
+  final Color? iconColor;
+
+  const LogoutButton({super.key, this.iconColor});
 
   Future<void> _logout(BuildContext context) async {
     // Dialog konfirmasi tetap sama
@@ -24,32 +26,15 @@ class LogoutButton extends StatelessWidget {
   }
 
   Future<bool> _showLogoutDialog(BuildContext context) async {
-    // ... (kode dialog Anda tidak perlu diubah, sudah bagus)
-    final theme = Theme.of(context);
-    return await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            title: Text("Konfirmasi Logout", style: theme.textTheme.titleLarge),
-            content: const Text("Apakah Anda yakin ingin keluar?"),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text("Batal"),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(dialogContext, true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.colorScheme.error,
-                  foregroundColor: theme.colorScheme.onError,
-                ),
-                child: const Text("Logout"),
-              ),
-            ],
-          ),
-        ) ??
-        false;
+    // Menggunakan ConfirmationDialog untuk konsistensi UI
+    final confirmed = await ConfirmationDialog.show(
+      context: context,
+      title: 'Konfirmasi Logout',
+      message: 'Apakah Anda yakin ingin keluar?',
+      confirmText: 'Logout',
+      type: ConfirmationType.warning,
+    );
+    return confirmed ?? false;
   }
 
   @override
@@ -59,17 +44,14 @@ class LogoutButton extends StatelessWidget {
 
     return IconButton(
       icon: Icon(
-        Icons.logout,
-        color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-        size: ResponsiveHelper.getResponsiveIconSize(
-          context,
-          mobile: 20,
-          tablet: 22,
-          desktop: 24,
-        ),
+        Icons.logout_rounded,
+        color: iconColor ??
+            (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight),
+        size: 22,
       ),
       onPressed: () => _logout(context),
       tooltip: 'Logout',
+      splashRadius: 20,
     );
   }
 }

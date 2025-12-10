@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../../config/app_constant.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:collection/collection.dart';
 
@@ -248,7 +249,7 @@ class _InfoDialogState extends State<InfoDialog> {
                     fontFamily: 'Inter',
                     fontSize: 20,
                     fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppPadding.p16),
 
             // Konten di dalam SingleChildScrollView agar tidak overflow
             SingleChildScrollView(
@@ -276,7 +277,7 @@ class _InfoDialogState extends State<InfoDialog> {
                                   updateNominal(i);
                                   _checkHasChanged();
                                 })),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: AppPadding.p8),
                         Expanded(
                             child: TextField(
                                 controller: nominalControllers[i],
@@ -304,7 +305,7 @@ class _InfoDialogState extends State<InfoDialog> {
                     .toList(),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppPadding.p24),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -323,11 +324,11 @@ class _InfoDialogState extends State<InfoDialog> {
                     child: Text("Reset",
                         style: TextStyle(
                             color: Theme.of(context).colorScheme.error))),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppPadding.p8),
                 TextButton(
                     onPressed: () => Navigator.pop(context),
                     child: Text("Batal")),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppPadding.p8),
                 ElevatedButton(
                   onPressed: hasChanged
                       ? () {

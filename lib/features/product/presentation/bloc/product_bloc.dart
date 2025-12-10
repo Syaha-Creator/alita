@@ -30,27 +30,17 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
 
     on<InitializeDropdowns>((event, emit) async {
       try {
-        // Get user area_id from AuthService
+        // Get user area info from AuthService
         final userAreaId = await AuthService.getCurrentUserAreaId();
+        final userAreaNameFromCWE = await AuthService.getCurrentUserAreaName();
 
-        // Fetch areas from API or fallback to hardcoded values
+        // Fetch areas from API (AreaRepository handles cache fallback internally)
         List<String> availableAreas = [];
         try {
           availableAreas = await _areaRepository.fetchAllAreaNames();
         } catch (e) {
-          availableAreas = [
-            "Nasional",
-            "Jabodetabek",
-            "Bandung",
-            "Surabaya",
-            "Semarang",
-            "Yogyakarta",
-            "Solo",
-            "Malang",
-            "Denpasar",
-            "Medan",
-            "Palembang"
-          ];
+          // AreaRepository sudah handle cache, jika gagal total return empty
+          availableAreas = [];
         }
 
         // Fetch channels from API only (no hardcoded fallback)
@@ -81,32 +71,39 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
           }
         }
 
-        // If no areas were found, use hardcoded values
-        if (uniqueAreas.isEmpty) {
-          uniqueAreas.addAll([
-            "Nasional",
-            "Jabodetabek",
-            "Bandung",
-            "Surabaya",
-            "Semarang",
-            "Yogyakarta",
-            "Solo",
-            "Malang",
-            "Denpasar",
-            "Medan",
-            "Palembang"
-          ]);
-        }
-
         // Initialize with empty state and user area if available
-        if (userAreaId != null) {
-          String? userAreaName = _getAreaNameFromId(userAreaId);
-          if (userAreaName != null) {
-            // Ensure user area is in the available areas list
-            if (!uniqueAreas.contains(userAreaName)) {
-              uniqueAreas.add(userAreaName);
-            }
+        if (userAreaId != null || userAreaNameFromCWE != null) {
+          // Smart matching:
+          // 1. Coba match by area name dari CWE (lebih akurat)
+          // 2. Fallback ke match by area ID
+          // 3. Fallback ke Nasional
+          String? userAreaName;
 
+          // Method 1: Match by name dari CWE (e.g., "SUMATRA SELATAN" → "Palembang")
+          if (userAreaNameFromCWE != null && uniqueAreas.isNotEmpty) {
+            userAreaName = _matchAreaByName(userAreaNameFromCWE, uniqueAreas);
+          }
+
+          // Method 2: Match by ID (fallback)
+          if (userAreaName == null && userAreaId != null) {
+            userAreaName =
+                _getAreaNameFromId(userAreaId, availableAreas: uniqueAreas);
+          }
+
+          // Method 3: Fallback ke Nasional atau first area
+          if (userAreaName == null && uniqueAreas.isNotEmpty) {
+            userAreaName = uniqueAreas.contains("Nasional")
+                ? "Nasional"
+                : uniqueAreas.first;
+          }
+
+          // Method 4: Jika masih null tapi ada area Nasional, gunakan Nasional
+          // Ini untuk memastikan user tidak melihat error meskipun area mereka tidak ditemukan
+          if (userAreaName == null && uniqueAreas.contains("Nasional")) {
+            userAreaName = "Nasional";
+          }
+
+          if (userAreaName != null) {
             emit(ProductState(
               userAreaId: userAreaId,
               selectedArea: userAreaName,
@@ -123,41 +120,53 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
               availableHeadboards: [],
               availableSorongs: [],
               availableSizes: [],
-              selectedKasur: AppStrings.noKasur, // Default value
-              selectedDivan: AppStrings.noDivan, // Default value
-              selectedHeadboard: AppStrings.noHeadboard, // Default value
-              selectedSorong: AppStrings.noSorong, // Default value
-              selectedSize: "", // Default value
+              selectedKasur: AppStrings.noKasur,
+              selectedDivan: AppStrings.noDivan,
+              selectedHeadboard: AppStrings.noHeadboard,
+              selectedSorong: AppStrings.noSorong,
+              selectedSize: "",
             ));
           } else {
             emit(ProductState(
               userAreaId: userAreaId,
-              areaNotAvailable: true,
+              areaNotAvailable: uniqueAreas.isEmpty,
+              selectedArea: uniqueAreas.isNotEmpty
+                  ? (uniqueAreas.contains("Nasional")
+                      ? "Nasional"
+                      : uniqueAreas.first)
+                  : null,
               availableAreas: uniqueAreas,
               availableChannels: availableChannels,
-              availableChannelModels: [], // Only API data, no hardcoded enums
+              availableChannelModels: [],
               availableBrands: availableBrands,
-              availableBrandModels: [], // No longer needed
+              availableBrandModels: [],
               availableKasurs: [],
               availableDivans: [],
               availableHeadboards: [],
               availableSorongs: [],
-              selectedKasur: AppStrings.noKasur, // Default value
-              selectedDivan: AppStrings.noDivan, // Default value
-              selectedHeadboard: AppStrings.noHeadboard, // Default value
-              selectedSorong: AppStrings.noSorong, // Default value
-              selectedSize: "", // Default value
+              selectedKasur: AppStrings.noKasur,
+              selectedDivan: AppStrings.noDivan,
+              selectedHeadboard: AppStrings.noHeadboard,
+              selectedSorong: AppStrings.noSorong,
+              selectedSize: "",
             ));
           }
         } else {
-          // No user area, show normal state
+          // No user area (tanpa login) → default ke Nasional atau first area
+          final defaultArea = uniqueAreas.isNotEmpty
+              ? (uniqueAreas.contains("Nasional")
+                  ? "Nasional"
+                  : uniqueAreas.first)
+              : null;
+
           emit(ProductState(
-            userAreaId: userAreaId,
+            userAreaId: null,
+            selectedArea: defaultArea, // Default area untuk guest/tanpa login
             availableAreas: uniqueAreas,
             availableChannels: availableChannels,
-            availableChannelModels: [], // Will be populated from API
+            availableChannelModels: [],
             availableBrands: availableBrands,
-            availableBrandModels: [], // Will be populated from API
+            availableBrandModels: [],
             availableKasurs: [],
             availableDivans: [],
             availableHeadboards: [],
@@ -337,8 +346,9 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
 
     on<ToggleSet>((event, emit) {
       final isSetActive = event.isSetActive;
+
       // Filter produk sesuai kasur yang dipilih dan toggle set
-      final filteredProducts = state.products
+      final baseFilteredProducts = state.products
           .where((p) =>
               (state.selectedKasur == AppStrings.noKasur
                   ? (p.kasur.isEmpty || p.kasur == AppStrings.noKasur)
@@ -346,55 +356,78 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
               (!isSetActive || p.isSet == true))
           .toList();
 
-      final divans = filteredProducts.map((p) => p.divan).toSet().toList();
-      String selectedDivan = divans.contains(AppStrings.noDivan)
-          ? AppStrings.noDivan
-          : (divans.isNotEmpty ? divans.first : AppStrings.noDivan);
+      // Get ALL available divans from base filtered products
+      final divans = baseFilteredProducts.map((p) => p.divan).toSet().toList();
 
-      final filteredByDivan = selectedDivan == AppStrings.noDivan
-          ? filteredProducts
-              .where((p) => p.divan.isEmpty || p.divan == AppStrings.noDivan)
-              .toList()
-          : filteredProducts.where((p) => p.divan == selectedDivan).toList();
+      // Keep current divan selection if still valid, otherwise select default
+      String selectedDivan = divans.contains(state.selectedDivan)
+          ? state.selectedDivan!
+          : (divans.contains(AppStrings.noDivan)
+              ? AppStrings.noDivan
+              : (divans.isNotEmpty ? divans.first : AppStrings.noDivan));
+
+      // Get ALL available headboards from products matching kasur + divan + isSetActive
+      final filteredByDivan = baseFilteredProducts
+          .where((p) => selectedDivan == AppStrings.noDivan
+              ? (p.divan.isEmpty || p.divan == AppStrings.noDivan)
+              : p.divan == selectedDivan)
+          .toList();
       final headboards =
           filteredByDivan.map((p) => p.headboard).toSet().toList();
-      String selectedHeadboard = headboards.contains(AppStrings.noHeadboard)
-          ? AppStrings.noHeadboard
-          : (headboards.isNotEmpty ? headboards.first : AppStrings.noHeadboard);
 
-      final filteredByHeadboard = selectedHeadboard == AppStrings.noHeadboard
-          ? filteredByDivan
-              .where((p) =>
-                  p.headboard.isEmpty || p.headboard == AppStrings.noHeadboard)
-              .toList()
-          : filteredByDivan
-              .where((p) => p.headboard == selectedHeadboard)
-              .toList();
+      // Keep current headboard selection if still valid
+      String selectedHeadboard = headboards.contains(state.selectedHeadboard)
+          ? state.selectedHeadboard!
+          : (headboards.contains(AppStrings.noHeadboard)
+              ? AppStrings.noHeadboard
+              : (headboards.isNotEmpty
+                  ? headboards.first
+                  : AppStrings.noHeadboard));
+
+      // Get ALL available sorongs from products matching kasur + divan + headboard + isSetActive
+      final filteredByHeadboard = filteredByDivan
+          .where((p) => selectedHeadboard == AppStrings.noHeadboard
+              ? (p.headboard.isEmpty || p.headboard == AppStrings.noHeadboard)
+              : p.headboard == selectedHeadboard)
+          .toList();
       final sorongs = filteredByHeadboard.map((p) => p.sorong).toSet().toList();
-      String selectedSorong = sorongs.contains(AppStrings.noSorong)
-          ? AppStrings.noSorong
-          : (sorongs.isNotEmpty ? sorongs.first : AppStrings.noSorong);
 
-      final filteredBySorong = selectedSorong == AppStrings.noSorong
-          ? filteredByHeadboard
-              .where((p) => p.sorong.isEmpty || p.sorong == AppStrings.noSorong)
-              .toList()
-          : filteredByHeadboard
-              .where((p) => p.sorong == selectedSorong)
-              .toList();
+      // Keep current sorong selection if still valid
+      String selectedSorong = sorongs.contains(state.selectedSorong)
+          ? state.selectedSorong!
+          : (sorongs.contains(AppStrings.noSorong)
+              ? AppStrings.noSorong
+              : (sorongs.isNotEmpty ? sorongs.first : AppStrings.noSorong));
+
+      // Get sizes from final filtered products
+      final filteredBySorong = filteredByHeadboard
+          .where((p) => selectedSorong == AppStrings.noSorong
+              ? (p.sorong.isEmpty || p.sorong == AppStrings.noSorong)
+              : p.sorong == selectedSorong)
+          .toList();
       final sizes = filteredBySorong.map((p) => p.ukuran).toSet().toList();
-      String selectedSize = ""; // Don't auto-select size, let user choose
 
-      // Ambil program unik dari hasil filter terakhir
+      // Keep current size if still valid, otherwise reset
+      String selectedSize =
+          sizes.contains(state.selectedSize) ? state.selectedSize! : "";
+
+      // Get programs from final filtered products
       final programs = filteredBySorong.map((p) => p.program).toSet().toList();
       String selectedProgram = "";
       if (programs.isNotEmpty) {
-        // Cari program yang bukan set
-        final nonSet = programs.firstWhere(
-          (prog) => !prog.toLowerCase().contains('set'),
-          orElse: () => programs.first,
-        );
-        selectedProgram = nonSet;
+        // Keep current program if still valid
+        if (programs.contains(state.selectedProgram) &&
+            state.selectedProgram != null &&
+            state.selectedProgram!.isNotEmpty) {
+          selectedProgram = state.selectedProgram!;
+        } else {
+          // Select non-set program by default
+          final nonSet = programs.firstWhere(
+            (prog) => !prog.toLowerCase().contains('set'),
+            orElse: () => programs.first,
+          );
+          selectedProgram = nonSet;
+        }
       }
 
       emit(state.copyWith(
@@ -414,11 +447,15 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
     });
 
     on<UpdateSelectedKasur>((event, emit) {
-      var filteredProducts = event.kasur == AppStrings.noKasur
-          ? state.products
-              .where((p) => p.kasur.isEmpty || p.kasur == AppStrings.noKasur)
-              .toList()
-          : state.products.where((p) => p.kasur == event.kasur).toList();
+      // Filter products by kasur AND respect isSetActive toggle
+      var filteredProducts = state.products
+          .where((p) =>
+              (event.kasur == AppStrings.noKasur
+                  ? (p.kasur.isEmpty || p.kasur == AppStrings.noKasur)
+                  : p.kasur == event.kasur) &&
+              (!state.isSetActive || p.isSet == true)) // Apply Set filter
+          .toList();
+
       // Allow selection even if no products match (e.g., for "Tanpa Kasur")
       if (filteredProducts.isEmpty && event.kasur != AppStrings.noKasur) {
         return;
@@ -447,23 +484,64 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       final sorongs = filteredProducts.map((p) => p.sorong).toSet().toList();
       final sizes = filteredProducts.map((p) => p.ukuran).toSet().toList();
       final programs = filteredProducts.map((p) => p.program).toSet().toList();
-      String selectedDivan = divans.contains(AppStrings.noDivan)
-          ? AppStrings.noDivan
-          : (divans.isNotEmpty ? divans.first : AppStrings.noDivan);
-      String selectedHeadboard = headboards.contains(AppStrings.noHeadboard)
-          ? AppStrings.noHeadboard
-          : (headboards.isNotEmpty ? headboards.first : AppStrings.noHeadboard);
-      String selectedSorong = sorongs.contains(AppStrings.noSorong)
-          ? AppStrings.noSorong
-          : (sorongs.isNotEmpty ? sorongs.first : AppStrings.noSorong);
+
+      // Auto-select ONLY when Set toggle is ON
+      // When Set toggle is OFF, preserve current or use first available (no "Tanpa X" priority)
+      String selectedDivan;
+      if (state.selectedDivan != null && divans.contains(state.selectedDivan)) {
+        selectedDivan = state.selectedDivan!;
+      } else if (state.isSetActive) {
+        // Set ON: prioritize "Tanpa Divan"
+        selectedDivan = divans.contains(AppStrings.noDivan)
+            ? AppStrings.noDivan
+            : (divans.isNotEmpty ? divans.first : AppStrings.noDivan);
+      } else {
+        selectedDivan = divans.isNotEmpty ? divans.first : AppStrings.noDivan;
+      }
+
+      String selectedHeadboard;
+      if (state.selectedHeadboard != null &&
+          headboards.contains(state.selectedHeadboard)) {
+        selectedHeadboard = state.selectedHeadboard!;
+      } else if (state.isSetActive) {
+        selectedHeadboard = headboards.contains(AppStrings.noHeadboard)
+            ? AppStrings.noHeadboard
+            : (headboards.isNotEmpty
+                ? headboards.first
+                : AppStrings.noHeadboard);
+      } else {
+        selectedHeadboard =
+            headboards.isNotEmpty ? headboards.first : AppStrings.noHeadboard;
+      }
+
+      String selectedSorong;
+      if (state.selectedSorong != null &&
+          sorongs.contains(state.selectedSorong)) {
+        selectedSorong = state.selectedSorong!;
+      } else if (state.isSetActive) {
+        selectedSorong = sorongs.contains(AppStrings.noSorong)
+            ? AppStrings.noSorong
+            : (sorongs.isNotEmpty ? sorongs.first : AppStrings.noSorong);
+      } else {
+        selectedSorong =
+            sorongs.isNotEmpty ? sorongs.first : AppStrings.noSorong;
+      }
+
       String selectedProgram = "";
       if (programs.isNotEmpty) {
-        final nonSet = programs.firstWhere(
-          (prog) => !prog.toLowerCase().contains('set'),
-          orElse: () => programs.first,
-        );
-        selectedProgram = nonSet;
+        // Preserve current program if still valid
+        if (state.selectedProgram != null &&
+            programs.contains(state.selectedProgram)) {
+          selectedProgram = state.selectedProgram!;
+        } else {
+          final nonSet = programs.firstWhere(
+            (prog) => !prog.toLowerCase().contains('set'),
+            orElse: () => programs.first,
+          );
+          selectedProgram = nonSet;
+        }
       }
+
       emit(state.copyWith(
         selectedKasur: event.kasur,
         availableDivans: divans,
@@ -473,13 +551,16 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         availableSorongs: sorongs,
         selectedSorong: selectedSorong,
         availableSizes: sizes,
-        selectedSize: "", // Reset size selection when kasur changes
+        selectedSize:
+            sizes.contains(state.selectedSize) ? state.selectedSize : "",
         availablePrograms: programs,
         selectedProgram: selectedProgram,
       ));
     });
 
     on<UpdateSelectedDivan>((event, emit) {
+      // First, filter products by kasur + divan (without size filter)
+      // to get all available options for headboard, sorong, and sizes
       final filteredProducts = state.products
           .where((p) =>
               (state.selectedKasur == AppStrings.noKasur
@@ -488,30 +569,66 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
               (event.divan == AppStrings.noDivan
                   ? (p.divan.isEmpty || p.divan == AppStrings.noDivan)
                   : p.divan == event.divan) &&
-              (state.selectedSize != null && state.selectedSize!.isNotEmpty
-                  ? p.ukuran == state.selectedSize
-                  : true) &&
               (!state.isSetActive || p.isSet == true))
           .toList();
       final headboards =
           filteredProducts.map((p) => p.headboard).toSet().toList();
       final sorongs = filteredProducts.map((p) => p.sorong).toSet().toList();
-      final sizes = filteredProducts.map((p) => p.ukuran).toSet().toList();
-      final programs = filteredProducts.map((p) => p.program).toSet().toList();
-      String selectedHeadboard = headboards.contains(AppStrings.noHeadboard)
-          ? AppStrings.noHeadboard
-          : (headboards.isNotEmpty ? headboards.first : AppStrings.noHeadboard);
-      String selectedSorong = sorongs.contains(AppStrings.noSorong)
-          ? AppStrings.noSorong
-          : (sorongs.isNotEmpty ? sorongs.first : AppStrings.noSorong);
+
+      // Now filter by headboard to get accurate sizes
+      final filteredByHeadboard = filteredProducts
+          .where((p) => (state.selectedHeadboard == AppStrings.noHeadboard
+              ? (p.headboard.isEmpty || p.headboard == AppStrings.noHeadboard)
+              : p.headboard == state.selectedHeadboard))
+          .toList();
+      final sizes = filteredByHeadboard.map((p) => p.ukuran).toSet().toList();
+      final programs =
+          filteredByHeadboard.map((p) => p.program).toSet().toList();
+
+      // Auto-select ONLY when Set toggle is ON
+      String selectedHeadboard;
+      if (state.selectedHeadboard != null &&
+          headboards.contains(state.selectedHeadboard)) {
+        selectedHeadboard = state.selectedHeadboard!;
+      } else if (state.isSetActive) {
+        selectedHeadboard = headboards.contains(AppStrings.noHeadboard)
+            ? AppStrings.noHeadboard
+            : (headboards.isNotEmpty
+                ? headboards.first
+                : AppStrings.noHeadboard);
+      } else {
+        selectedHeadboard =
+            headboards.isNotEmpty ? headboards.first : AppStrings.noHeadboard;
+      }
+
+      String selectedSorong;
+      if (state.selectedSorong != null &&
+          sorongs.contains(state.selectedSorong)) {
+        selectedSorong = state.selectedSorong!;
+      } else if (state.isSetActive) {
+        selectedSorong = sorongs.contains(AppStrings.noSorong)
+            ? AppStrings.noSorong
+            : (sorongs.isNotEmpty ? sorongs.first : AppStrings.noSorong);
+      } else {
+        selectedSorong =
+            sorongs.isNotEmpty ? sorongs.first : AppStrings.noSorong;
+      }
+
       String selectedProgram = "";
       if (programs.isNotEmpty) {
-        final nonSet = programs.firstWhere(
-          (prog) => !prog.toLowerCase().contains('set'),
-          orElse: () => programs.first,
-        );
-        selectedProgram = nonSet;
+        // Preserve current program if still valid
+        if (state.selectedProgram != null &&
+            programs.contains(state.selectedProgram)) {
+          selectedProgram = state.selectedProgram!;
+        } else {
+          final nonSet = programs.firstWhere(
+            (prog) => !prog.toLowerCase().contains('set'),
+            orElse: () => programs.first,
+          );
+          selectedProgram = nonSet;
+        }
       }
+
       emit(state.copyWith(
         selectedDivan: event.divan,
         availableHeadboards: headboards,
@@ -528,6 +645,8 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
     });
 
     on<UpdateSelectedHeadboard>((event, emit) {
+      // First, filter products by kasur + divan + headboard (without size filter)
+      // to get all available options for sorong and sizes
       final filteredProducts = state.products
           .where((p) =>
               (state.selectedKasur == AppStrings.noKasur
@@ -540,25 +659,50 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
                   ? (p.headboard.isEmpty ||
                       p.headboard == AppStrings.noHeadboard)
                   : p.headboard == event.headboard) &&
-              (state.selectedSize != null && state.selectedSize!.isNotEmpty
-                  ? p.ukuran == state.selectedSize
-                  : true) &&
               (!state.isSetActive || p.isSet == true))
           .toList();
       final sorongs = filteredProducts.map((p) => p.sorong).toSet().toList();
-      final sizes = filteredProducts.map((p) => p.ukuran).toSet().toList();
-      final programs = filteredProducts.map((p) => p.program).toSet().toList();
-      String selectedSorong = sorongs.contains(AppStrings.noSorong)
-          ? AppStrings.noSorong
-          : (sorongs.isNotEmpty ? sorongs.first : AppStrings.noSorong);
+
+      // Now filter by sorong to get accurate sizes
+      final filteredBySorong = filteredProducts
+          .where((p) => (state.selectedSorong == AppStrings.noSorong
+              ? (p.sorong.isEmpty || p.sorong == AppStrings.noSorong)
+              : p.sorong == state.selectedSorong))
+          .toList();
+      final sizes = filteredBySorong.map((p) => p.ukuran).toSet().toList();
+      final programs = filteredBySorong.map((p) => p.program).toSet().toList();
+
+      // Auto-select ONLY when Set toggle is ON
+      String selectedSorong;
+      if (state.selectedSorong != null &&
+          sorongs.contains(state.selectedSorong)) {
+        selectedSorong = state.selectedSorong!;
+      } else if (state.isSetActive) {
+        // Set ON: prioritize "Tanpa Sorong"
+        selectedSorong = sorongs.contains(AppStrings.noSorong)
+            ? AppStrings.noSorong
+            : (sorongs.isNotEmpty ? sorongs.first : AppStrings.noSorong);
+      } else {
+        // Set OFF: just use first available
+        selectedSorong =
+            sorongs.isNotEmpty ? sorongs.first : AppStrings.noSorong;
+      }
+
       String selectedProgram = "";
       if (programs.isNotEmpty) {
-        final nonSet = programs.firstWhere(
-          (prog) => !prog.toLowerCase().contains('set'),
-          orElse: () => programs.first,
-        );
-        selectedProgram = nonSet;
+        // Preserve current program if still valid
+        if (state.selectedProgram != null &&
+            programs.contains(state.selectedProgram)) {
+          selectedProgram = state.selectedProgram!;
+        } else {
+          final nonSet = programs.firstWhere(
+            (prog) => !prog.toLowerCase().contains('set'),
+            orElse: () => programs.first,
+          );
+          selectedProgram = nonSet;
+        }
       }
+
       emit(state.copyWith(
         selectedHeadboard: event.headboard,
         availableSorongs: sorongs,
@@ -573,6 +717,8 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
     });
 
     on<UpdateSelectedSorong>((event, emit) {
+      // Filter products by kasur + divan + headboard + sorong (without size filter)
+      // to get all available sizes
       final filteredProducts = state.products
           .where((p) =>
               (state.selectedKasur == AppStrings.noKasur
@@ -588,9 +734,6 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
               (event.sorong == AppStrings.noSorong
                   ? (p.sorong.isEmpty || p.sorong == AppStrings.noSorong)
                   : p.sorong == event.sorong) &&
-              (state.selectedSize != null && state.selectedSize!.isNotEmpty
-                  ? p.ukuran == state.selectedSize
-                  : true) &&
               (!state.isSetActive || p.isSet == true))
           .toList();
       final sizes = filteredProducts.map((p) => p.ukuran).toSet().toList();
@@ -994,6 +1137,12 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       );
       double originalPrice = product.endUserPrice;
       double targetPrice = event.newPrice;
+
+      // Ensure target price is not below bottom price analyst
+      if (targetPrice < product.bottomPriceAnalyst) {
+        targetPrice = product.bottomPriceAnalyst;
+      }
+
       List<double> maxDiscs = [
         product.disc1,
         product.disc2,
@@ -1004,24 +1153,84 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
       List<double> splitDiscs = [];
       List<double> splitNominals = [];
       double currentPrice = originalPrice;
-      for (var max in maxDiscs) {
+
+      // Calculate discounts sequentially to ensure final price matches target
+      for (int i = 0; i < maxDiscs.length; i++) {
         if (currentPrice <= targetPrice + 0.01) {
+          // Already reached or exceeded target price
           splitDiscs.add(0);
           splitNominals.add(0);
           continue;
         }
-        double maxAllowed = max * 100; // persen
-        double needed = (1 - (targetPrice / currentPrice)) * 100;
-        double useDisc = needed > maxAllowed ? maxAllowed : needed;
+
+        double maxAllowed = maxDiscs[i] * 100;
+        if (maxAllowed <= 0) {
+          splitDiscs.add(0);
+          splitNominals.add(0);
+          continue;
+        }
+
+        // Calculate how much discount is needed to reach target price
+        // Formula: currentPrice * (1 - discount/100) = targetPrice
+        // Solving for discount: discount = (1 - targetPrice/currentPrice) * 100
+        double neededDiscount = (1 - (targetPrice / currentPrice)) * 100;
+
+        // Use the minimum of needed discount and max allowed
+        double useDisc =
+            neededDiscount > maxAllowed ? maxAllowed : neededDiscount;
         if (useDisc < 0) useDisc = 0;
+
         splitDiscs.add(useDisc);
         double nominal = currentPrice * (useDisc / 100);
         splitNominals.add(nominal);
+
+        // Update current price after applying this discount
         currentPrice = currentPrice * (1 - useDisc / 100);
       }
+
+      // Verify final price matches target (with small tolerance for rounding)
+      double verifyPrice = originalPrice;
+      for (int i = 0; i < splitDiscs.length; i++) {
+        if (splitDiscs[i] > 0) {
+          verifyPrice = verifyPrice * (1 - splitDiscs[i] / 100);
+        }
+      }
+
+      // If there's a significant difference, adjust the last non-zero discount
+      if ((verifyPrice - targetPrice).abs() > 0.01 &&
+          splitDiscs.any((d) => d > 0)) {
+        // Find last non-zero discount index
+        int lastIndex = -1;
+        for (int i = splitDiscs.length - 1; i >= 0; i--) {
+          if (splitDiscs[i] > 0) {
+            lastIndex = i;
+            break;
+          }
+        }
+
+        if (lastIndex >= 0) {
+          // Recalculate from beginning to lastIndex-1
+          double priceBeforeLast = originalPrice;
+          for (int i = 0; i < lastIndex; i++) {
+            if (splitDiscs[i] > 0) {
+              priceBeforeLast = priceBeforeLast * (1 - splitDiscs[i] / 100);
+            }
+          }
+
+          // Calculate exact discount needed for last level
+          if (priceBeforeLast > targetPrice + 0.01) {
+            double exactDiscount = (1 - (targetPrice / priceBeforeLast)) * 100;
+            double maxAllowed = maxDiscs[lastIndex] * 100;
+            splitDiscs[lastIndex] = exactDiscount > maxAllowed
+                ? maxAllowed
+                : (exactDiscount < 0 ? 0 : exactDiscount);
+            splitNominals[lastIndex] =
+                priceBeforeLast * (splitDiscs[lastIndex] / 100);
+          }
+        }
+      }
+
       updatedDiscounts[event.productId] = splitDiscs;
-      // --- END LOGIC ---
-      // --- LOGIC: UPDATE NOMINAL DISKON ---
       final updatedNominals =
           Map<int, List<double>>.from(state.productDiscountsNominal);
       updatedNominals[event.productId] = splitNominals;
@@ -1156,13 +1365,19 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
     });
 
     on<SetUserArea>((event, emit) async {
-      // Map area_id to area name
+      // Smart matching: cari area yang cocok
       String? userAreaName = _getAreaNameFromId(event.areaId);
 
-      if (userAreaName != null && state.availableAreas.contains(userAreaName)) {
+      if (userAreaName != null) {
         add(UpdateSelectedArea(userAreaName));
+      } else if (state.availableAreas.isNotEmpty) {
+        // Fallback ke Nasional atau first available
+        final fallbackArea = state.availableAreas.contains("Nasional")
+            ? "Nasional"
+            : state.availableAreas.first;
+        add(UpdateSelectedArea(fallbackArea));
       } else {
-        // Emit state with area not available message
+        // Tidak ada areas sama sekali
         emit(state.copyWith(
           userAreaId: event.areaId,
           selectedArea: null,
@@ -1217,35 +1432,152 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
   }
 
   // Helper method to map area_id to area enum
-  String? _getAreaNameFromId(int areaId) {
-    // Map area ID to area name
-    switch (areaId) {
-      case 0:
-        return "Nasional";
-      case 1:
-        return "Jabodetabek";
-      case 2:
-        return "Bandung";
-      case 3:
-        return "Surabaya";
-      case 4:
-        return "Semarang";
-      case 5:
-        return "Yogyakarta";
-      case 6:
-        return "Solo";
-      case 7:
-        return "Malang";
-      case 8:
-        return "Denpasar";
-      case 9:
-        return "Medan";
-      case 10:
-        return "Palembang";
-      default:
-        return null;
+  /// Smart area matching - cocokkan area_id user dengan available areas
+  /// Jika tidak cocok, fallback ke "Nasional"
+  String? _getAreaNameFromId(int areaId, {List<String>? availableAreas}) {
+    final regionToPlArea = <String, String>{
+      // Jabodetabek variants
+      'jabodetabek': 'Jabodetabek',
+      'dki jakarta': 'Jabodetabek',
+      'jakarta': 'Jabodetabek',
+      'bogor': 'Jabodetabek',
+      'depok': 'Jabodetabek',
+      'tangerang': 'Jabodetabek',
+      'bekasi': 'Jabodetabek',
+      // Jawa
+      'bandung': 'Bandung',
+      'jawa barat': 'Bandung',
+      'surabaya': 'Surabaya',
+      'jawa timur': 'Surabaya',
+      'semarang': 'Semarang',
+      'jawa tengah': 'Semarang',
+      'yogyakarta': 'Yogyakarta',
+      'diy': 'Yogyakarta',
+      'solo': 'Solo',
+      'surakarta': 'Solo',
+      'malang': 'Malang',
+      'denpasar': 'Denpasar',
+      'bali': 'Denpasar',
+      // Sumatera - berbagai variasi spelling
+      'medan': 'Medan',
+      'sumatera utara': 'Medan',
+      'sumatra utara': 'Medan',
+      'palembang': 'Palembang',
+      'sumatera selatan': 'Palembang',
+      'sumatra selatan': 'Palembang',
+      'pekanbaru': 'Pekanbaru',
+      'riau': 'Pekanbaru',
+      'padang': 'Padang',
+      'sumatera barat': 'Padang',
+      'sumatra barat': 'Padang',
+      'lampung': 'Lampung',
+      'bandar lampung': 'Lampung',
+    };
+
+    // Legacy ID mapping (untuk backward compatibility)
+    final areaMapping = <int, List<String>>{
+      0: ["Nasional"],
+      1: ["Jabodetabek"],
+      2: ["Bandung"],
+      9: ["Medan"],
+      10: ["Palembang"],
+      11: ["Pekanbaru"],
+      12: ["Padang"],
+      13: ["Lampung"],
+      20: ["Palembang"],
+    };
+
+    // Jika tidak ada availableAreas, gunakan state.availableAreas
+    final areas = availableAreas ?? state.availableAreas;
+
+    // Method 1: Cek dari areaMapping by ID
+    final possibleNames = areaMapping[areaId];
+    if (possibleNames != null) {
+      for (final name in possibleNames) {
+        if (areas.contains(name)) {
+          return name;
+        }
+      }
     }
+
+    // Method 2: Gunakan regionToPlArea mapping (lebih flexible)
+    // Ini akan catch case seperti "SUMATRA SELATAN" → "Palembang"
+    for (final entry in regionToPlArea.entries) {
+      // Cek apakah ada area yang match dengan key (region name)
+      for (final availableArea in areas) {
+        final plAreaName = entry.value;
+        if (availableArea == plAreaName && areas.contains(plAreaName)) {
+          if (possibleNames?.any((n) => n.toLowerCase() == entry.key) ??
+              false) {
+            return plAreaName;
+          }
+        }
+      }
+    }
+
+    // Method 3: Fallback ke "Nasional" jika tersedia
+    if (areas.contains("Nasional")) {
+      return "Nasional";
+    }
+
+    // Last resort: return area pertama yang tersedia
+    if (areas.isNotEmpty) {
+      return areas.first;
+    }
+
+    return null;
   }
 
-  // Helper method to get available channels for a specific area
+  /// Helper: Match user area name dari CWE ke pl_areas name
+  String? _matchAreaByName(String? userAreaName, List<String> availableAreas) {
+    if (userAreaName == null || userAreaName.isEmpty) return null;
+
+    final regionToPlArea = <String, String>{
+      'jabodetabek': 'Jabodetabek',
+      'dki jakarta': 'Jabodetabek',
+      'jakarta': 'Jabodetabek',
+      'bandung': 'Bandung',
+      'jawa barat': 'Bandung',
+      'medan': 'Medan',
+      'sumatera utara': 'Medan',
+      'sumatra utara': 'Medan',
+      'palembang': 'Palembang',
+      'sumatera selatan': 'Palembang',
+      'sumatra selatan': 'Palembang',
+      'pekanbaru': 'Pekanbaru',
+      'riau': 'Pekanbaru',
+      'padang': 'Padang',
+      'sumatera barat': 'Padang',
+      'sumatra barat': 'Padang',
+      'lampung': 'Lampung',
+      'bandar lampung': 'Lampung',
+    };
+
+    final normalizedName = userAreaName.toLowerCase().trim();
+
+    // Exact match first
+    final exactMatch = regionToPlArea[normalizedName];
+    if (exactMatch != null && availableAreas.contains(exactMatch)) {
+      return exactMatch;
+    }
+
+    // Partial match
+    for (final entry in regionToPlArea.entries) {
+      if (normalizedName.contains(entry.key) ||
+          entry.key.contains(normalizedName)) {
+        if (availableAreas.contains(entry.value)) {
+          return entry.value;
+        }
+      }
+    }
+
+    // Direct match with available areas
+    for (final area in availableAreas) {
+      if (area.toLowerCase() == normalizedName) {
+        return area;
+      }
+    }
+
+    return null;
+  }
 }

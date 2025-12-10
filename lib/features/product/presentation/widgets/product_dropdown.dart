@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../config/app_constant.dart';
 import '../../../../core/utils/responsive_helper.dart';
 import '../../../../core/widgets/custom_dropdown.dart';
 import '../../../../theme/app_colors.dart';
@@ -175,7 +176,7 @@ class ProductDropdown extends StatelessWidget {
                           height: 16,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: AppPadding.p8),
                         Text(
                           "Loading Kasur...",
                           style: TextStyle(

@@ -146,8 +146,8 @@ class ProductActions {
                       state.roundedPrices[product.id] ?? product.endUserPrice;
                   String shareText =
                       "🛏️ Produk: ${product.kasur} (${product.ukuran})\n"
-                      "💰 Harga Pricelist: ${product.pricelist}\n"
-                      "💵 Harga Net: $netPrice\n\n"
+                      "💰 Harga Pricelist: ${FormatHelper.formatCurrency(product.pricelist)}\n"
+                      "💵 Harga Net: ${FormatHelper.formatCurrency(netPrice)}\n\n"
                       "📱 Dibagikan dari Alita Pricelist";
                   final imageFile = XFile.fromData(imageBytes,
                       mimeType: 'image/png', name: 'product_${product.id}.png');
@@ -214,7 +214,7 @@ class ProductActions {
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppPadding.p16),
 
           // Price Card
           Card(
@@ -265,7 +265,7 @@ class ProductActions {
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppPadding.p12),
 
           // Detail Card
           Card(
@@ -295,7 +295,7 @@ class ProductActions {
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppPadding.p12),
 
           // Bonus Card
           Card(
@@ -312,7 +312,7 @@ class ProductActions {
                   const Divider(height: 16),
                   const Text("Complimentary:",
                       style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppPadding.p8),
                   if (product.bonus.isNotEmpty &&
                       product.bonus.any((b) => b.name.isNotEmpty))
                     ...product.bonus

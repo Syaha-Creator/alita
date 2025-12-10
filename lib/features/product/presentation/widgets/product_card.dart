@@ -7,12 +7,12 @@ import 'package:go_router/go_router.dart';
 import '../../../../config/app_constant.dart';
 import '../../../../core/utils/format_helper.dart';
 import '../../../../core/utils/responsive_helper.dart';
-import '../../../../core/widgets/detail_info_row.dart';
 import '../../../../theme/app_colors.dart';
 import '../../domain/entities/product_entity.dart';
 import '../bloc/product_bloc.dart';
 import '../bloc/product_event.dart';
 import '../bloc/product_state.dart';
+import 'product_card/product_card_widgets.dart';
 
 class ProductCard extends StatelessWidget {
   final ProductEntity product;
@@ -26,10 +26,6 @@ class ProductCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final cardColor = isDark ? AppColors.cardDark : AppColors.cardLight;
-    final accent = isDark ? AppColors.accentDark : AppColors.accentLight;
-    final border = isDark ? AppColors.borderDark : AppColors.borderLight;
-    final surface = isDark ? AppColors.surfaceDark : AppColors.surfaceLight;
 
     return BlocBuilder<ProductBloc, ProductState>(
       buildWhen: (previous, current) {
@@ -40,6 +36,9 @@ class ProductCard extends StatelessWidget {
         final netPrice =
             state.roundedPrices[product.id] ?? product.endUserPrice;
         final totalDiscount = product.pricelist - netPrice;
+        final discountPercentage = product.pricelist > 0
+            ? ((totalDiscount / product.pricelist) * 100).round()
+            : 0;
         final setProduct = _findSetProduct(state, product);
         final individualKasurProduct =
             _findIndividualKasurProduct(state, product);
@@ -50,209 +49,104 @@ class ProductCard extends StatelessWidget {
               minWidth: ResponsiveHelper.isMobile(context) ? 280 : 320,
               maxWidth: ResponsiveHelper.getResponsiveMaxWidth(context),
             ),
-            child: Card(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(
-                  ResponsiveHelper.getResponsiveBorderRadius(
-                    context,
-                    mobile: 16,
-                    tablet: 20,
-                    desktop: 22,
-                  ),
-                ),
-                side: BorderSide(color: border, width: 1.2),
-              ),
-              elevation: ResponsiveHelper.getResponsiveElevation(
-                context,
-                mobile: 2.0,
-                tablet: 2.5,
-                desktop: 3.0,
-              ),
+            child: Container(
               margin: ResponsiveHelper.getResponsiveMargin(context),
-              shadowColor: accent.withValues(alpha: 0.13),
-              color: cardColor,
-              child: InkWell(
-                onTap: () {
-                  context.read<ProductBloc>().add(SelectProduct(product));
-                  context.pushNamed(
-                    RoutePaths.productDetail,
-                    extra: product,
-                  );
-                },
-                borderRadius: BorderRadius.circular(22),
-                splashColor: accent.withValues(alpha: 0.08),
-                highlightColor: accent.withValues(alpha: 0.04),
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(22),
-                    color: cardColor,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(24),
+                color: isDark
+                    ? AppColors.cardDark
+                    : AppColors.surfaceLight, // 30% - Card/Surface
+                border: isDark
+                    ? Border.all(
+                        color: AppColors.borderDark, // 30% - Border
+                        width: 1,
+                      )
+                    : null,
+                boxShadow: [
+                  BoxShadow(
+                    color: isDark
+                        ? AppColors.shadowDark
+                        : AppColors.accentLight
+                            .withValues(alpha: 0.08), // 10% dengan opacity
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
                   ),
-                  child: Padding(
-                    padding: ResponsiveHelper.getCardPadding(context),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // --- Header ---
-                        Row(
+                  BoxShadow(
+                    color: isDark
+                        ? AppColors.shadowDark.withValues(alpha: 0.5)
+                        : AppColors.shadowLight,
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    context.read<ProductBloc>().add(SelectProduct(product));
+                    context.pushNamed(RoutePaths.productDetail, extra: product);
+                  },
+                  borderRadius: BorderRadius.circular(24),
+                  splashColor: AppColors.accentLight
+                      .withValues(alpha: 0.1), // 10% dengan opacity
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // === HEADER dengan Gradient ===
+                      _buildHeader(context, isDark, discountPercentage),
+
+                      // === CONTENT ===
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // Brand dan program tanpa background, hanya bold dan warna
-                                  Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              product.brand,
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .titleLarge
-                                                  ?.copyWith(
-                                                    fontWeight: FontWeight.w900,
-                                                    color: accent,
-                                                    letterSpacing: 0.5,
-                                                  ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      if (product.isSet)
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 16, vertical: 6),
-                                          decoration: BoxDecoration(
-                                            color: AppColors.info,
-                                            borderRadius:
-                                                BorderRadius.circular(24),
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: AppColors.info
-                                                    .withValues(alpha: 0.13),
-                                                blurRadius: 8,
-                                                offset: const Offset(0, 2),
-                                              ),
-                                            ],
-                                          ),
-                                          child: Text(
-                                            "SET",
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodySmall
-                                                ?.copyWith(
-                                                  color: AppColors.surfaceLight,
-                                                  fontWeight: FontWeight.bold,
-                                                  letterSpacing: 1.2,
-                                                ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ],
+                            // Product Name
+                            _buildProductName(context, isDark),
+
+                            // Specifications (with conditional spacing)
+                            _buildSpecificationsWithSpacing(context, isDark),
+
+                            // Price Section
+                            _buildPriceSection(
+                                context, isDark, netPrice, totalDiscount),
+
+                            // Bonus (with conditional spacing)
+                            _buildBonusWithSpacing(isDark),
+
+                            // Comparison sections
+                            if (product.isSet) ...[
+                              const SizedBox(height: AppPadding.p10),
+                              IndividualPricingSection(product: product),
+                              // Perbandingan dengan Kasur Only
+                              if (individualKasurProduct != null) ...[
+                                const SizedBox(height: AppPadding.p10),
+                                IndividualComparisonSection(
+                                  setNetPrice: netPrice,
+                                  individualNetPrice: state.roundedPrices[
+                                          individualKasurProduct.id] ??
+                                      individualKasurProduct.endUserPrice,
+                                  isDark: isDark,
+                                ),
+                              ],
+                            ],
+
+                            // Perbandingan dengan Set (untuk produk individual)
+                            if (!product.isSet && setProduct != null) ...[
+                              const SizedBox(height: AppPadding.p10),
+                              SetComparisonSection(
+                                setNetPrice:
+                                    state.roundedPrices[setProduct.id] ??
+                                        setProduct.endUserPrice,
+                                currentNetPrice: netPrice,
+                                isDark: isDark,
                               ),
-                            ),
+                            ],
                           ],
                         ),
-                        const SizedBox(height: 20),
-
-                        // --- Informasi Utama Produk ---
-                        Container(
-                          padding: const EdgeInsets.all(15),
-                          decoration: BoxDecoration(
-                            color: surface,
-                            borderRadius: BorderRadius.circular(15),
-                            border: Border.all(color: border.withValues(alpha: 0.7)),
-                          ),
-                          child: Column(
-                            children: [
-                              DetailInfoRow(
-                                  title: "Kasur", value: product.kasur),
-                              DetailInfoRow(
-                                  title: "Divan", value: product.divan),
-                              DetailInfoRow(
-                                  title: "Headboard", value: product.headboard),
-                              DetailInfoRow(
-                                  title: "Sorong", value: product.sorong),
-                              DetailInfoRow(
-                                  title: "Ukuran", value: product.ukuran),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-
-                        // --- Informasi Harga ---
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: surface,
-                            borderRadius: BorderRadius.circular(15),
-                            border: Border.all(color: accent.withValues(alpha: 0.18)),
-                            boxShadow: [
-                              BoxShadow(
-                                color: accent.withValues(alpha: 0.04),
-                                blurRadius: 10,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            children: [
-                              DetailInfoRow(
-                                title: "Pricelist",
-                                value: FormatHelper.formatCurrency(
-                                    product.pricelist),
-                                isStrikethrough: true,
-                                valueColor: AppColors.primaryLight,
-                              ),
-                              const SizedBox(height: 4),
-                              DetailInfoRow(
-                                title: "Harga Net",
-                                value: FormatHelper.formatCurrency(netPrice),
-                                isBoldValue: true,
-                                valueColor: AppColors.success,
-                              ),
-                              const SizedBox(height: 2),
-                              DetailInfoRow(
-                                title: "Total Diskon",
-                                value:
-                                    "- ${FormatHelper.formatCurrency(totalDiscount)}",
-                                valueColor: AppColors.error,
-                                isBoldValue: true,
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 15),
-                        _buildBonusInfo(context, isDark: isDark),
-
-                        const SizedBox(height: 15),
-                        if (product.isSet) ...[
-                          _buildIndividualPricingSection(context),
-                        ],
-
-                        if (!product.isSet && setProduct != null) ...[
-                          const SizedBox(height: 15),
-                          _buildSetComparison(context, setProduct, state,
-                              isDark: isDark),
-                        ],
-
-                        if (product.isSet &&
-                            individualKasurProduct != null) ...[
-                          const SizedBox(height: 15),
-                          _buildIndividualComparison(
-                              context, individualKasurProduct, state,
-                              isDark: isDark),
-                        ],
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -263,11 +157,567 @@ class ProductCard extends StatelessWidget {
     );
   }
 
-  // Method untuk mencari produk set yang sesuai
+  /// Get brand logo from assets
+  Widget _getBrandLogo(String brand) {
+    final lower = brand.toLowerCase();
+    String? logoPath;
+
+    if (lower.contains('comforta')) {
+      logoPath = 'assets/logo/comforta_logo.png';
+    } else if (lower.contains('isleep') || lower.contains('i-sleep')) {
+      logoPath = 'assets/logo/isleep_logo.png';
+    } else if (lower.contains('sleepcenter') ||
+        lower.contains('sleep center')) {
+      logoPath = 'assets/logo/sleepcenter_logo.png';
+    } else if (lower.contains('sleepspa') || lower.contains('sleep spa')) {
+      logoPath = 'assets/logo/sleepspa_logo.png';
+    } else if (lower.contains('springair') || lower.contains('spring air')) {
+      logoPath = 'assets/logo/springair_logo.png';
+    } else if (lower.contains('superfit') || lower.contains('super fit')) {
+      logoPath = 'assets/logo/superfit_logo.png';
+    } else if (lower.contains('therapedic')) {
+      logoPath = 'assets/logo/therapedic_logo.png';
+    }
+
+    if (logoPath != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(6),
+        child: Image.asset(
+          logoPath,
+          width: 28,
+          height: 28,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) {
+            return const Icon(Icons.bed_rounded, color: Colors.white, size: 28);
+          },
+        ),
+      );
+    }
+
+    return const Icon(Icons.bed_rounded, color: Colors.white, size: 28);
+  }
+
+  /// Check if program is valid for display
+  bool _isValidProgram(String program) {
+    if (program.isEmpty) return false;
+    if (program.trim() == '-') return false;
+    return true;
+  }
+
+  /// Header dengan gradient dan badges
+  Widget _buildHeader(
+      BuildContext context, bool isDark, int discountPercentage) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.primaryLight,
+            AppColors.primaryLight.withValues(alpha: 0.85),
+          ],
+        ),
+      ),
+      child: Row(
+        children: [
+          // Brand logo with white background
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.95),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: _getBrandLogo(product.brand),
+          ),
+          const SizedBox(width: AppPadding.p12),
+
+          // Brand name
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  product.brand,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                if (_isValidProgram(product.program))
+                  Text(
+                    product.program,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+              ],
+            ),
+          ),
+
+          // Badges
+          Row(
+            children: [
+              if (discountPercentage > 0)
+                Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.error,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.local_offer,
+                          color: Colors.white, size: 12),
+                      const SizedBox(width: AppPadding.p4),
+                      Text(
+                        "$discountPercentage%",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              if (product.isSet)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    "SET",
+                    style: TextStyle(
+                      color: AppColors.primaryLight,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Helper to check if value is valid for display
+  bool _isValidValue(String value) {
+    if (value.isEmpty) return false;
+    if (value.trim() == '-') return false;
+    if (value.trim().toLowerCase().startsWith('tanpa')) return false;
+    return true;
+  }
+
+  /// Get main display type: 'kasur', 'divan', 'headboard', 'sorong', or 'brand'
+  String _getMainDisplayType() {
+    if (_isValidValue(product.kasur)) return 'kasur';
+    if (_isValidValue(product.divan)) return 'divan';
+    if (_isValidValue(product.headboard)) return 'headboard';
+    if (_isValidValue(product.sorong)) return 'sorong';
+    return 'brand';
+  }
+
+  /// Get display name with fallback: Kasur → Divan → Headboard → Sorong
+  String _getProductDisplayName() {
+    if (_isValidValue(product.kasur)) return product.kasur;
+    if (_isValidValue(product.divan)) return product.divan;
+    if (_isValidValue(product.headboard)) return product.headboard;
+    if (_isValidValue(product.sorong)) return product.sorong;
+    return product.brand;
+  }
+
+  /// Product name dengan ukuran
+  Widget _buildProductName(BuildContext context, bool isDark) {
+    final displayName = _getProductDisplayName();
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isDark
+            ? AppColors.primaryDark.withValues(alpha: 0.1)
+            : AppColors.primaryLight.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark
+              ? AppColors.primaryDark.withValues(alpha: 0.2)
+              : AppColors.primaryLight.withValues(alpha: 0.1),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Kasur icon
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.primaryLight,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.king_bed_rounded,
+              color: Colors.white,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: AppPadding.p12),
+
+          // Name and size
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  displayName,
+                  style: TextStyle(
+                    color: isDark
+                        ? AppColors.textPrimaryDark
+                        : AppColors.textPrimaryLight,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: AppPadding.p2),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.straighten_rounded,
+                      size: 14,
+                      color: isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondaryLight,
+                    ),
+                    const SizedBox(width: AppPadding.p4),
+                    Text(
+                      product.ukuran,
+                      style: TextStyle(
+                        color: isDark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondaryLight,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // Arrow
+          Icon(
+            Icons.arrow_forward_ios_rounded,
+            size: 16,
+            color: AppColors.primaryLight.withValues(alpha: 0.5),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Specifications grid - excludes the main display item
+  Widget _buildSpecifications(BuildContext context, bool isDark) {
+    final specs = <Map<String, dynamic>>[];
+    final mainType = _getMainDisplayType();
+
+    // Only add items that are NOT the main display and are valid
+    // Kasur is never shown in specs (always main or not shown)
+    if (mainType != 'divan' && _isValidValue(product.divan)) {
+      specs.add({
+        'icon': Icons.layers_rounded,
+        'label': 'Divan',
+        'value': product.divan,
+        'color': AppColors.info,
+      });
+    }
+    if (mainType != 'headboard' && _isValidValue(product.headboard)) {
+      specs.add({
+        'icon': Icons.view_headline_rounded,
+        'label': 'Headboard',
+        'value': product.headboard,
+        'color': AppColors.warning,
+      });
+    }
+    if (mainType != 'sorong' && _isValidValue(product.sorong)) {
+      specs.add({
+        'icon': Icons.arrow_downward_rounded,
+        'label': 'Sorong',
+        'value': product.sorong,
+        'color': AppColors.success,
+      });
+    }
+
+    if (specs.isEmpty) return const SizedBox.shrink();
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: specs.map((spec) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: (spec['color'] as Color).withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: (spec['color'] as Color).withValues(alpha: 0.2),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                spec['icon'] as IconData,
+                size: 14,
+                color: spec['color'] as Color,
+              ),
+              const SizedBox(width: AppPadding.p6),
+              Text(
+                spec['value'] as String,
+                style: TextStyle(
+                  color: isDark
+                      ? AppColors.textPrimaryDark
+                      : AppColors.textPrimaryLight,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  /// Check if there are valid specs to show
+  bool _hasValidSpecs() {
+    final mainType = _getMainDisplayType();
+    if (mainType != 'divan' && _isValidValue(product.divan)) return true;
+    if (mainType != 'headboard' && _isValidValue(product.headboard)) {
+      return true;
+    }
+    if (mainType != 'sorong' && _isValidValue(product.sorong)) return true;
+    return false;
+  }
+
+  /// Check if there are valid bonus items
+  bool _hasValidBonus() {
+    return product.bonus.any((b) =>
+        b.name.isNotEmpty &&
+        b.name.trim() != '0' &&
+        b.name.trim() != '-' &&
+        b.quantity > 0);
+  }
+
+  /// Specifications with conditional spacing
+  Widget _buildSpecificationsWithSpacing(BuildContext context, bool isDark) {
+    if (!_hasValidSpecs()) {
+      // No specs - minimal spacing before price
+      return const SizedBox(height: AppPadding.p12);
+    }
+
+    return Column(
+      children: [
+        const SizedBox(height: AppPadding.p12),
+        _buildSpecifications(context, isDark),
+        const SizedBox(height: AppPadding.p12),
+      ],
+    );
+  }
+
+  /// Bonus section with conditional spacing
+  Widget _buildBonusWithSpacing(bool isDark) {
+    if (!_hasValidBonus()) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      children: [
+        const SizedBox(height: AppPadding.p10),
+        BonusInfoSection(product: product, isDark: isDark),
+      ],
+    );
+  }
+
+  /// Price section dengan visual hierarchy
+  Widget _buildPriceSection(BuildContext context, bool isDark, double netPrice,
+      double totalDiscount) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.success.withValues(alpha: 0.1),
+            AppColors.success.withValues(alpha: 0.02),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.success.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Column(
+        children: [
+          // Pricelist (original)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.sell_outlined,
+                      size: 16,
+                      color: isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondaryLight),
+                  const SizedBox(width: AppPadding.p6),
+                  Text(
+                    "Pricelist",
+                    style: TextStyle(
+                      color: isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondaryLight,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                FormatHelper.formatCurrency(product.pricelist),
+                style: TextStyle(
+                  color: isDark
+                      ? AppColors.textSecondaryDark
+                      : AppColors.textSecondaryLight,
+                  fontSize: 13,
+                  decoration: TextDecoration.lineThrough,
+                  decorationColor: isDark
+                      ? AppColors.textSecondaryDark
+                      : AppColors.textSecondaryLight,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppPadding.p10),
+
+          // Net Price (highlighted)
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.success.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: AppColors.success,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.payments_rounded,
+                        size: 16,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: AppPadding.p8),
+                    Text(
+                      "Harga Net",
+                      style: TextStyle(
+                        color: isDark
+                            ? AppColors.textPrimaryDark
+                            : AppColors.textPrimaryLight,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  FormatHelper.formatCurrency(netPrice),
+                  style: TextStyle(
+                    color: AppColors.success,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Discount savings - only show if there's a discount
+          if (totalDiscount > 0) ...[
+            const SizedBox(height: AppPadding.p10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.savings_outlined,
+                        size: 16, color: AppColors.error),
+                    const SizedBox(width: AppPadding.p6),
+                    Text(
+                      "Hemat",
+                      style: TextStyle(
+                        color: AppColors.error,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    "- ${FormatHelper.formatCurrency(totalDiscount)}",
+                    style: TextStyle(
+                      color: AppColors.error,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // Helper methods
   ProductEntity? _findSetProduct(
       ProductState state, ProductEntity currentProduct) {
     try {
-      // Cari produk set dengan spesifikasi yang sama
       return state.products.firstWhere(
         (product) =>
             product.isSet == true &&
@@ -281,16 +731,24 @@ class ProductCard extends StatelessWidget {
             product.area == currentProduct.area,
       );
     } catch (e) {
-      // Return null jika tidak ditemukan produk set yang sesuai
       return null;
     }
   }
 
-  // Method untuk mencari produk kasur individual yang sesuai
   ProductEntity? _findIndividualKasurProduct(
       ProductState state, ProductEntity currentProduct) {
+    // Helper function to check if value indicates "no item"
+    bool isNoItem(String value) {
+      if (value.isEmpty) return true;
+      if (value.trim() == '-') return true;
+      if (value.trim().toLowerCase().startsWith('tanpa')) return true;
+      if (value == AppStrings.noDivan) return true;
+      if (value == AppStrings.noHeadboard) return true;
+      if (value == AppStrings.noSorong) return true;
+      return false;
+    }
+
     try {
-      // Cari produk kasur individual dengan kasur dan ukuran yang sama
       return state.products.firstWhere(
         (product) =>
             product.isSet == false &&
@@ -299,393 +757,12 @@ class ProductCard extends StatelessWidget {
             product.brand == currentProduct.brand &&
             product.channel == currentProduct.channel &&
             product.area == currentProduct.area &&
-            product.divan == AppStrings.noDivan &&
-            product.headboard == AppStrings.noHeadboard &&
-            product.sorong == AppStrings.noSorong,
+            isNoItem(product.divan) &&
+            isNoItem(product.headboard) &&
+            isNoItem(product.sorong),
       );
     } catch (e) {
-      // Return null jika tidak ditemukan produk individual yang sesuai
       return null;
     }
-  }
-
-  // Widget untuk menampilkan perbandingan dengan produk set
-  Widget _buildSetComparison(
-      BuildContext context, ProductEntity setProduct, ProductState state,
-      {bool isDark = false}) {
-    final setNetPrice =
-        state.roundedPrices[setProduct.id] ?? setProduct.endUserPrice;
-    final currentNetPrice =
-        state.roundedPrices[product.id] ?? product.endUserPrice;
-    final priceDifference = setNetPrice - currentNetPrice;
-    final isMoreExpensive = priceDifference > 0;
-    final savingsPercentage = ((priceDifference.abs() / setNetPrice) * 100);
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.info.withValues(alpha: 0.1),
-            AppColors.info.withValues(alpha: 0.05),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.info.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.info,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.compare_arrows,
-                  color: AppColors.surfaceLight,
-                  size: 16,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  "Perbandingan dengan Set",
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text("Harga Set:"),
-              Text(
-                FormatHelper.formatCurrency(setNetPrice),
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text("Selisih:"),
-              Text(
-                "${isMoreExpensive ? '+' : '-'}${FormatHelper.formatCurrency(priceDifference.abs())}",
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color:
-                          isMoreExpensive ? AppColors.error : AppColors.success,
-                    ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: isMoreExpensive
-                  ? AppColors.error.withValues(alpha: 0.1)
-                  : AppColors.success.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              isMoreExpensive
-                  ? "Customer hanya menambah ${FormatHelper.formatCurrency(priceDifference)} (${savingsPercentage.toStringAsFixed(1)}%)"
-                  : "Customer hanya menambah ${FormatHelper.formatCurrency(priceDifference.abs())} (${savingsPercentage.toStringAsFixed(1)}%)",
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color:
-                        isMoreExpensive ? AppColors.error : AppColors.success,
-                    fontWeight: FontWeight.w500,
-                  ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Widget untuk menampilkan perbandingan dengan produk individual
-  Widget _buildIndividualComparison(
-      BuildContext context, ProductEntity individualProduct, ProductState state,
-      {bool isDark = false}) {
-    final individualNetPrice = state.roundedPrices[individualProduct.id] ??
-        individualProduct.endUserPrice;
-    final currentNetPrice =
-        state.roundedPrices[product.id] ?? product.endUserPrice;
-    final priceDifference = currentNetPrice - individualNetPrice;
-    final isMoreExpensive = priceDifference > 0;
-    final savingsPercentage = ((priceDifference.abs() / currentNetPrice) * 100);
-    final cardBg = isDark
-        ? AppColors.primaryDark.withValues(alpha: 0.13)
-        : AppColors.accentLight.withValues(alpha: 0.25);
-    final border = isDark ? AppColors.primaryDark : AppColors.accentLight;
-    final iconColor = isDark ? AppColors.primaryDark : AppColors.primaryLight;
-    final textColor =
-        isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: border.withValues(alpha: 0.7)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: iconColor,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.single_bed,
-                  color: AppColors.surfaceLight,
-                  size: 16,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  "Perbandingan dengan Kasur Only",
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
-                      ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text("Harga Set Kasur:",
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(color: textColor)),
-              Text(
-                FormatHelper.formatCurrency(currentNetPrice),
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(fontWeight: FontWeight.bold, color: textColor),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text("Harga Kasur Only:",
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(color: textColor)),
-              Text(
-                FormatHelper.formatCurrency(individualNetPrice),
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(fontWeight: FontWeight.bold, color: textColor),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text("Selisih:",
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(color: textColor)),
-              Text(
-                "${isMoreExpensive ? '+' : '-'}${FormatHelper.formatCurrency(priceDifference.abs())}",
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color:
-                          isMoreExpensive ? AppColors.error : AppColors.success,
-                    ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: isMoreExpensive
-                  ? AppColors.error.withValues(alpha: 0.1)
-                  : AppColors.success.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              isMoreExpensive
-                  ? "Customer hanya menambah ${FormatHelper.formatCurrency(priceDifference)} (${savingsPercentage.toStringAsFixed(1)}%)"
-                  : "Customer hanya menambah ${FormatHelper.formatCurrency(priceDifference.abs())} (${savingsPercentage.toStringAsFixed(1)}%)",
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color:
-                        isMoreExpensive ? AppColors.error : AppColors.success,
-                    fontWeight: FontWeight.w500,
-                  ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Widget untuk menampilkan harga individual
-  Widget _buildIndividualPricingSection(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.success.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.attach_money,
-                color: AppColors.success,
-                size: 16,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                "Harga per Item:",
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          if (product.plKasur > 0)
-            DetailInfoRow(
-              title: "Kasur",
-              value: FormatHelper.formatCurrency(product.plKasur),
-            ),
-          if (product.plDivan > 0)
-            DetailInfoRow(
-              title: "Divan",
-              value: FormatHelper.formatCurrency(product.plDivan),
-            ),
-          if (product.plHeadboard > 0)
-            DetailInfoRow(
-              title: "Headboard",
-              value: FormatHelper.formatCurrency(product.plHeadboard),
-            ),
-          if (product.plSorong > 0)
-            DetailInfoRow(
-              title: "Sorong",
-              value: FormatHelper.formatCurrency(product.plSorong),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBonusInfo(BuildContext context, {bool isDark = false}) {
-    final hasBonus =
-        product.bonus.isNotEmpty && product.bonus.any((b) => b.name.isNotEmpty);
-    final cardBg = isDark ? AppColors.surfaceDark : AppColors.surfaceLight;
-    final border = isDark ? AppColors.borderDark : AppColors.borderLight;
-    final iconColor = AppColors.warning;
-    final textColor =
-        isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight;
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: border.withValues(alpha: 0.5)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.card_giftcard,
-                color: iconColor,
-                size: 20,
-              ),
-              const SizedBox(width: 10),
-              Text(
-                "Complimentary:",
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: iconColor,
-                    ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          if (hasBonus)
-            ...product.bonus.where((b) => b.name.isNotEmpty).map(
-                  (bonus) => Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.check_circle,
-                          color: iconColor,
-                          size: 16,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            "${bonus.quantity}x ${bonus.name}",
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(color: textColor),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-          else
-            Row(
-              children: [
-                Icon(
-                  Icons.remove_circle,
-                  color: border,
-                  size: 16,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  "Tidak ada bonus.",
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(color: border),
-                ),
-              ],
-            ),
-        ],
-      ),
-    );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../../config/app_constant.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../core/utils/format_helper.dart';
@@ -101,7 +102,7 @@ class _EditPriceDialogState extends State<EditPriceDialog> {
                   fontFamily: 'Inter',
                   fontSize: 20,
                   fontWeight: FontWeight.bold)),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppPadding.p24),
 
           // Price Lock Warning
           if (isPriceLocked) ...[
@@ -121,7 +122,7 @@ class _EditPriceDialogState extends State<EditPriceDialog> {
                     color: Theme.of(context).colorScheme.error,
                     size: 20,
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: AppPadding.p8),
                   Expanded(
                     child: Text(
                       lockReason,
@@ -134,7 +135,7 @@ class _EditPriceDialogState extends State<EditPriceDialog> {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppPadding.p16),
           ],
 
           TextField(
@@ -162,7 +163,7 @@ class _EditPriceDialogState extends State<EditPriceDialog> {
               _calculatePercentage();
             },
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppPadding.p8),
           ValueListenableBuilder<double>(
             valueListenable: percentageChange,
             builder: (context, value, _) {
@@ -176,14 +177,14 @@ class _EditPriceDialogState extends State<EditPriceDialog> {
               );
             },
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppPadding.p24),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               TextButton(
                   onPressed: () => Navigator.pop(context),
                   child: const Text("Batal")),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppPadding.p8),
               ElevatedButton(
                 onPressed: () {
                   try {

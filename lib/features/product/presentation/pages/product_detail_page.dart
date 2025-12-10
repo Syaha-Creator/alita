@@ -14,9 +14,45 @@ import '../widgets/product_action.dart';
 import '../../../../core/widgets/custom_toast.dart';
 import '../../../cart/presentation/bloc/cart_bloc.dart';
 import '../../../cart/presentation/bloc/cart_event.dart';
+import '../widgets/product_detail/product_detail_widgets.dart';
 
-class ProductDetailPage extends StatelessWidget {
+class ProductDetailPage extends StatefulWidget {
   const ProductDetailPage({super.key});
+
+  @override
+  State<ProductDetailPage> createState() => _ProductDetailPageState();
+}
+
+class _ProductDetailPageState extends State<ProductDetailPage>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.1),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -65,21 +101,198 @@ class ProductDetailPage extends StatelessWidget {
               SliverList(
                 delegate: SliverChildListDelegate(
                   [
-                    _buildPriceCard(context, product, netPrice, totalDiscount,
-                        combinedDiscounts, installmentMonths, isDark),
-                    _buildDetailCard(context, product, isDark),
-                    _buildBonusAndNotesCard(context, product, isDark),
-                    const SizedBox(height: 75),
+                    // Compact Hero Section (1 line)
+                    FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: SlideTransition(
+                        position: _slideAnimation,
+                        child: _buildCompactHero(product, isDark),
+                      ),
+                    ),
+
+                    // Price Card
+                    FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: SlideTransition(
+                        position: _slideAnimation,
+                        child: PriceCard(
+                          product: product,
+                          netPrice: netPrice,
+                          totalDiscount: totalDiscount,
+                          combinedDiscounts: combinedDiscounts,
+                          installmentMonths: installmentMonths,
+                          isDark: isDark,
+                        ),
+                      ),
+                    ),
+
+                    // Specification Card
+                    FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: SlideTransition(
+                        position: _slideAnimation,
+                        child:
+                            SpecificationCard(product: product, isDark: isDark),
+                      ),
+                    ),
+
+                    // Bonus Card
+                    FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: SlideTransition(
+                        position: _slideAnimation,
+                        child: BonusCard(product: product, isDark: isDark),
+                      ),
+                    ),
+
+                    const SizedBox(height: AppPadding.p100),
                   ],
                 ),
               ),
             ],
           ),
-          bottomSheet:
-              _buildAdaptiveBottomSheet(context, product, state, isDark),
+          bottomSheet: _buildAdaptiveBottomSheet(
+              context, product, state, netPrice, isDark),
         );
       },
     );
+  }
+
+  /// Compact hero section - single line with brand info
+  Widget _buildCompactHero(ProductEntity product, bool isDark) {
+    return Container(
+      margin: const EdgeInsets.symmetric(
+          horizontal: AppPadding.p16, vertical: AppPadding.p8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        color: isDark
+            ? AppColors.primaryDark.withValues(alpha: 0.12)
+            : AppColors.primaryLight.withValues(alpha: 0.08),
+        border: Border.all(
+          color: isDark
+              ? AppColors.primaryDark.withValues(alpha: 0.2)
+              : AppColors.primaryLight.withValues(alpha: 0.15),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Left: Brand with logo (flexible to handle long names)
+          Expanded(
+            flex: 2,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _getBrandLogo(product.brand),
+                const SizedBox(width: AppPadding.p6),
+                Flexible(
+                  child: Text(
+                    product.brand.toUpperCase(),
+                    style: TextStyle(
+                      color: isDark
+                          ? AppColors.primaryDark
+                          : AppColors.primaryLight,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppPadding.p8),
+          // Center: Channel with icon
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.storefront_rounded,
+                color: isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondaryLight,
+                size: 14,
+              ),
+              const SizedBox(width: AppPadding.p4),
+              Text(
+                product.channel,
+                style: TextStyle(
+                  color: isDark
+                      ? AppColors.textSecondaryDark
+                      : AppColors.textSecondaryLight,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: AppPadding.p8),
+          // Right: Area with icon
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.location_on_rounded,
+                color: isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondaryLight,
+                size: 14,
+              ),
+              const SizedBox(width: AppPadding.p4),
+              Text(
+                product.area,
+                style: TextStyle(
+                  color: isDark
+                      ? AppColors.textSecondaryDark
+                      : AppColors.textSecondaryLight,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Get brand logo from assets
+  Widget _getBrandLogo(String brand) {
+    final lower = brand.toLowerCase();
+    String? logoPath;
+
+    if (lower.contains('comforta')) {
+      logoPath = 'assets/logo/comforta_logo.png';
+    } else if (lower.contains('isleep') || lower.contains('i-sleep')) {
+      logoPath = 'assets/logo/isleep_logo.png';
+    } else if (lower.contains('sleepcenter') ||
+        lower.contains('sleep center')) {
+      logoPath = 'assets/logo/sleepcenter_logo.png';
+    } else if (lower.contains('sleepspa') || lower.contains('sleep spa')) {
+      logoPath = 'assets/logo/sleepspa_logo.png';
+    } else if (lower.contains('springair') || lower.contains('spring air')) {
+      logoPath = 'assets/logo/springair_logo.png';
+    } else if (lower.contains('superfit') || lower.contains('super fit')) {
+      logoPath = 'assets/logo/superfit_logo.png';
+    } else if (lower.contains('therapedic')) {
+      logoPath = 'assets/logo/therapedic_logo.png';
+    }
+
+    if (logoPath != null) {
+      return Image.asset(
+        logoPath,
+        width: 20,
+        height: 20,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          return const Icon(Icons.hotel_rounded, size: 16);
+        },
+      );
+    }
+
+    // Default icon if no logo found
+    return const Icon(Icons.hotel_rounded, size: 16);
   }
 
   /// Build custom AppBar with centered product name
@@ -106,11 +319,13 @@ class ProductDetailPage extends StatelessWidget {
                 desktop: 48,
               ),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: isDark ? AppColors.cardDark : Colors.white,
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
+                    color: isDark
+                        ? Colors.black.withValues(alpha: 0.3)
+                        : Colors.black.withValues(alpha: 0.1),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -158,11 +373,31 @@ class ProductDetailPage extends StatelessWidget {
     );
   }
 
+  /// Get display name with fallback: Kasur → Divan → Headboard → Sorong
+  String _getProductDisplayName(ProductEntity product) {
+    // Helper to check if value is valid for display
+    bool isValid(String value) {
+      if (value.isEmpty) return false;
+      if (value.trim() == '-') return false;
+      if (value.trim().toLowerCase().startsWith('tanpa')) return false;
+      return true;
+    }
+
+    // Priority: Kasur → Divan → Headboard → Sorong
+    if (isValid(product.kasur)) return product.kasur;
+    if (isValid(product.divan)) return product.divan;
+    if (isValid(product.headboard)) return product.headboard;
+    if (isValid(product.sorong)) return product.sorong;
+
+    // Fallback to brand if nothing else
+    return product.brand;
+  }
+
   /// Build product name and size section in AppBar with adaptive sizing
   Widget _buildProductNameSection(
       BuildContext context, ProductEntity product, bool isDark) {
     final theme = Theme.of(context);
-    final productName = product.kasur;
+    final productName = _getProductDisplayName(product);
     final productSize = product.ukuran;
     final nameLength = productName.length;
 
@@ -187,11 +422,13 @@ class ProductDetailPage extends StatelessWidget {
       height: containerHeight,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? AppColors.cardDark : Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.3)
+                : Colors.black.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -215,7 +452,7 @@ class ProductDetailPage extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: AppPadding.p2),
           // Product size - selalu terlihat di bawah
           if (productSize.isNotEmpty)
             Text(
@@ -249,11 +486,13 @@ class ProductDetailPage extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDark ? AppColors.cardDark : Colors.white,
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
+                  color: isDark
+                      ? Colors.black.withValues(alpha: 0.3)
+                      : Colors.black.withValues(alpha: 0.1),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -270,17 +509,19 @@ class ProductDetailPage extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppPadding.p8),
           // Share bubble
           Container(
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDark ? AppColors.cardDark : Colors.white,
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
+                  color: isDark
+                      ? Colors.black.withValues(alpha: 0.3)
+                      : Colors.black.withValues(alpha: 0.1),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -310,7 +551,7 @@ class ProductDetailPage extends StatelessWidget {
 
   /// Build adaptive bottom sheet that respects device navigation
   Widget _buildAdaptiveBottomSheet(BuildContext context, ProductEntity product,
-      ProductState state, bool isDark) {
+      ProductState state, double netPrice, bool isDark) {
     final mediaQuery = MediaQuery.of(context);
     final bottomPadding = mediaQuery.padding.bottom;
 
@@ -320,16 +561,16 @@ class ProductDetailPage extends StatelessWidget {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
+        color: isDark ? AppColors.cardDark : Colors.white,
         borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(16),
-          topRight: Radius.circular(16),
+          topLeft: Radius.circular(24),
+          topRight: Radius.circular(24),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1),
+            blurRadius: 20,
+            offset: const Offset(0, -8),
           ),
         ],
       ),
@@ -342,318 +583,46 @@ class ProductDetailPage extends StatelessWidget {
             ? bottomPadding + 8 // ✅ Above gesture navigation
             : 16, // ✅ Standard padding for button navigation
       ),
-      child: _buildActionButtons(context, product, state, isDark),
+      child: _buildActionButtons(context, product, state, netPrice, isDark),
     );
   }
 
   Widget _buildActionButtons(BuildContext context, ProductEntity product,
-      ProductState state, bool isDark) {
+      ProductState state, double netPrice, bool isDark) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         // Left side action bubbles
-        Row(
-          children: [
-            _buildActionBubble(
-              context,
-              Icons.credit_card,
-              "Credit",
-              () => ProductActions.showCreditPopup(context, product),
-              isDark,
-            ),
-            const SizedBox(width: 12),
-            _buildActionBubble(
-              context,
-              Icons.edit,
-              "Edit",
-              () => ProductActions.showEditPopup(context, product),
-              isDark,
-            ),
-            const SizedBox(width: 12),
-            _buildActionBubble(
-              context,
-              Icons.info_outline,
-              "Info",
-              () => ProductActions.showInfoPopup(context, product),
-              isDark,
-            ),
-          ],
+        _buildActionBubble(
+          context,
+          Icons.credit_card_rounded,
+          "Credit",
+          () => ProductActions.showCreditPopup(context, product),
+          isDark,
         ),
-        // Right side - Add to Cart bubble
-        _buildAddToCartBubble(context, product, isDark),
+        const SizedBox(width: AppPadding.p8),
+        _buildActionBubble(
+          context,
+          Icons.edit_rounded,
+          "Edit",
+          () => ProductActions.showEditPopup(context, product),
+          isDark,
+        ),
+        const SizedBox(width: AppPadding.p8),
+        _buildActionBubble(
+          context,
+          Icons.info_outline_rounded,
+          "Info",
+          () => ProductActions.showInfoPopup(context, product),
+          isDark,
+        ),
+
+        const SizedBox(width: AppPadding.p12),
+
+        // Right side - Add to Cart with price
+        Expanded(
+          child: _buildAddToCartButton(context, product, netPrice, isDark),
+        ),
       ],
-    );
-  }
-
-  Widget _buildPriceCard(
-      BuildContext context,
-      ProductEntity product,
-      double netPrice,
-      double totalDiscount,
-      List<String> combinedDiscounts,
-      int? installmentMonths,
-      bool isDark) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      margin: const EdgeInsets.symmetric(
-          horizontal: AppPadding.p16, vertical: AppPadding.p8),
-      child: Padding(
-        padding: const EdgeInsets.all(AppPadding.p16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min, // Penting untuk scrolling
-          children: [
-            Text(
-              "Rincian Harga",
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: isDark
-                        ? AppColors.textPrimaryDark
-                        : AppColors.textPrimaryLight,
-                  ),
-            ),
-            const Divider(height: 18),
-            _buildPriceRow(
-              context,
-              "Pricelist",
-              FormatHelper.formatCurrency(product.pricelist),
-              isStrikethrough: true,
-              valueColor: AppColors.primaryLight,
-              isDark: isDark,
-            ),
-            _buildPriceRow(
-              context,
-              "Program",
-              product.program.isNotEmpty ? product.program : "Tidak ada promo",
-              isDark: isDark,
-            ),
-            if (combinedDiscounts.isNotEmpty)
-              _buildPriceRow(
-                context,
-                "Diskon Tambahan",
-                combinedDiscounts.join(' + '),
-                valueColor: AppColors.info,
-                isDark: isDark,
-              ),
-            _buildPriceRow(
-              context,
-              "Total Diskon",
-              "- ${FormatHelper.formatCurrency(totalDiscount)}",
-              valueColor: AppColors.error,
-              isDark: isDark,
-            ),
-            const Divider(height: 18, thickness: 1.5),
-            _buildPriceRow(
-              context,
-              "Harga Net",
-              FormatHelper.formatCurrency(netPrice),
-              isBold: true,
-              valueSize: 20,
-              valueColor: AppColors.success,
-              isDark: isDark,
-            ),
-            if (installmentMonths != null && installmentMonths > 0)
-              Padding(
-                padding: const EdgeInsets.only(top: 12.0),
-                child: Center(
-                  child: Text(
-                    "Cicilan: ${FormatHelper.formatCurrency(netPrice / installmentMonths)} x $installmentMonths bulan",
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontStyle: FontStyle.italic,
-                          color: isDark ? AppColors.accentDark : AppColors.info,
-                        ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDetailCard(
-      BuildContext context, ProductEntity product, bool isDark) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      margin: const EdgeInsets.symmetric(
-          horizontal: AppPadding.p16, vertical: AppPadding.p8),
-      child: Padding(
-        padding: const EdgeInsets.all(AppPadding.p16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              "Spesifikasi Set",
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: isDark
-                        ? AppColors.textPrimaryDark
-                        : AppColors.textPrimaryLight,
-                  ),
-            ),
-            const Divider(height: 24),
-            _buildSpecRow(
-                context, Icons.king_bed, "Tipe Kasur", product.kasur, isDark),
-            if (product.divan.isNotEmpty && product.divan != AppStrings.noDivan)
-              _buildSpecRow(
-                  context, Icons.layers, "Tipe Divan", product.divan, isDark),
-            if (product.headboard.isNotEmpty &&
-                product.headboard != AppStrings.noHeadboard)
-              _buildSpecRow(context, Icons.view_headline, "Tipe Headboard",
-                  product.headboard, isDark),
-            if (product.sorong.isNotEmpty &&
-                product.sorong != AppStrings.noSorong)
-              _buildSpecRow(context, Icons.arrow_downward, "Tipe Sorong",
-                  product.sorong, isDark),
-            _buildSpecRow(
-                context, Icons.straighten, "Ukuran", product.ukuran, isDark),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBonusAndNotesCard(
-      BuildContext context, ProductEntity product, bool isDark) {
-    final hasBonus =
-        product.bonus.isNotEmpty && product.bonus.any((b) => b.name.isNotEmpty);
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      margin: const EdgeInsets.symmetric(
-          horizontal: AppPadding.p16, vertical: AppPadding.p8),
-      child: Padding(
-        padding: const EdgeInsets.all(AppPadding.p16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              "Bonus & Catatan",
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: isDark
-                        ? AppColors.textPrimaryDark
-                        : AppColors.textPrimaryLight,
-                  ),
-            ),
-            const Divider(height: 24),
-            Text(
-              "Complimentary:",
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: isDark
-                        ? AppColors.textPrimaryDark
-                        : AppColors.textPrimaryLight,
-                  ),
-            ),
-            const SizedBox(height: 8),
-            if (hasBonus)
-              ...product.bonus.where((b) => b.name.isNotEmpty).map(
-                    (bonus) => Padding(
-                      padding: const EdgeInsets.only(left: 8.0, bottom: 4.0),
-                      child: Text(
-                        "• ${bonus.quantity}x ${bonus.name}",
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: isDark
-                                  ? AppColors.textSecondaryDark
-                                  : AppColors.textSecondaryLight,
-                            ),
-                      ),
-                    ),
-                  )
-            else
-              Padding(
-                padding: const EdgeInsets.only(left: 8.0),
-                child: Text(
-                  "Tidak ada bonus.",
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color:
-                            isDark ? AppColors.textSecondaryDark : Colors.grey,
-                      ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPriceRow(BuildContext context, String title, String value,
-      {Color? valueColor,
-      bool isStrikethrough = false,
-      bool isBold = false,
-      double valueSize = 16,
-      bool isDark = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            title,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: isDark
-                      ? AppColors.textPrimaryDark
-                      : AppColors.textPrimaryLight,
-                ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              textAlign: TextAlign.end,
-              overflow: TextOverflow.ellipsis,
-              maxLines: 2,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    fontSize: valueSize,
-                    color: valueColor,
-                    decoration:
-                        isStrikethrough ? TextDecoration.lineThrough : null,
-                    fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-                  ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSpecRow(BuildContext context, IconData icon, String title,
-      String value, bool isDark) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            color: isDark ? AppColors.accentDark : AppColors.primaryLight,
-            size: 20,
-          ),
-          const SizedBox(width: 16),
-          Text(
-            "$title:",
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w500,
-                  color: isDark
-                      ? AppColors.textPrimaryDark
-                      : AppColors.textPrimaryLight,
-                ),
-          ),
-          const Spacer(),
-          Text(
-            value.isNotEmpty ? value : "-",
-            textAlign: TextAlign.end,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: isDark
-                      ? AppColors.textSecondaryDark
-                      : AppColors.textSecondaryLight,
-                ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -665,70 +634,115 @@ class ProductDetailPage extends StatelessWidget {
     VoidCallback onPressed,
     bool isDark,
   ) {
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: isDark
+                ? AppColors.surfaceDark
+                : AppColors.primaryLight.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.1)
+                  : AppColors.primaryLight.withValues(alpha: 0.2),
+            ),
           ),
-        ],
-      ),
-      child: IconButton(
-        icon: Icon(
-          icon,
-          color: isDark ? AppColors.primaryDark : AppColors.primaryLight,
-          size: 20,
+          child: Tooltip(
+            message: tooltip,
+            child: Icon(
+              icon,
+              color: isDark ? AppColors.primaryDark : AppColors.primaryLight,
+              size: 20,
+            ),
+          ),
         ),
-        onPressed: onPressed,
-        tooltip: tooltip,
       ),
     );
   }
 
-  /// Build Add to Cart bubble with primary styling
-  Widget _buildAddToCartBubble(
+  /// Build Add to Cart button with price display
+  Widget _buildAddToCartButton(
     BuildContext context,
     ProductEntity product,
+    double netPrice,
     bool isDark,
   ) {
-    return Container(
-      height: 48,
-      decoration: BoxDecoration(
-        color: AppColors.primaryLight,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: ElevatedButton.icon(
-        onPressed: () => _addToCart(context, product),
-        icon: const Icon(Icons.shopping_cart, color: Colors.white, size: 20),
-        label: Text(
-          'Add to Cart',
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _addToCart(context, product),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          height: 52,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppColors.primaryLight,
+                AppColors.primaryLight.withValues(alpha: 0.85),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primaryLight.withValues(alpha: 0.4),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
               ),
-        ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
+            ],
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Price section
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  FormatHelper.formatCurrency(netPrice),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppPadding.p12),
+
+              // Divider
+              Container(
+                width: 1,
+                height: 24,
+                color: Colors.white.withValues(alpha: 0.3),
+              ),
+              const SizedBox(width: AppPadding.p12),
+
+              // Add to cart icon and text
+              const Icon(
+                Icons.add_shopping_cart_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
+              const SizedBox(width: AppPadding.p8),
+              const Text(
+                'Add to Cart',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

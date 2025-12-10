@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../../config/app_constant.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../core/utils/format_helper.dart';
@@ -134,7 +135,7 @@ class _CreditDialogState extends State<CreditDialog> {
               border: OutlineInputBorder(),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppPadding.p24),
 
           // Tombol Aksi
           Row(
@@ -143,7 +144,7 @@ class _CreditDialogState extends State<CreditDialog> {
               TextButton(
                   onPressed: () => Navigator.pop(context),
                   child: const Text("Batal")),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppPadding.p8),
               ElevatedButton(
                 onPressed: () {
                   final months = int.tryParse(monthController.text) ?? 0;
