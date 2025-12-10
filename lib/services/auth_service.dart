@@ -5,6 +5,7 @@ import '../config/api_config.dart';
 import '../config/app_constant.dart';
 import '../features/approval/data/cache/approval_cache.dart';
 import 'notification_service.dart';
+import 'firebase_error_service.dart';
 
 /// Service untuk autentikasi, penyimpanan token, dan session user.
 class AuthService {
@@ -12,6 +13,7 @@ class AuthService {
 
   static const String _userNameKey = "current_user_name";
   static const String _userAreaIdKey = "current_user_area_id";
+  static const String _userAreaNameKey = "current_user_area_name";
 
   /// Mengecek apakah user masih login dan session masih valid.
   static Future<bool> isLoggedIn() async {
@@ -24,7 +26,8 @@ class AuthService {
 
   /// Menyimpan data login ke SharedPreferences.
   static Future<bool> login(String token, String refreshToken, int userId,
-      String userName, int? areaId) async {
+      String userName, int? areaId,
+      {String? areaName}) async {
     try {
       // Clear all caches from ALL users BEFORE saving new login data
       // This prevents data leakage between different users
@@ -42,17 +45,26 @@ class AuthService {
       if (areaId != null) {
         await prefs.setInt(_userAreaIdKey, areaId);
       }
+      if (areaName != null && areaName.isNotEmpty) {
+        await prefs.setString(_userAreaNameKey, areaName);
+      }
       authChangeNotifier.value = true;
+
+      // Set user ID untuk error tracking di Firebase
+      await FirebaseErrorService().setUserId(userId.toString());
 
       // Register FCM token ke backend setelah login berhasil
       try {
         final notificationService = NotificationService();
         await notificationService.registerTokenToBackend();
-      } catch (e) {
+      } catch (e, stackTrace) {
         // Jangan gagalkan login jika register token gagal
-        if (kDebugMode) {
-          print('Error registering FCM token after login: $e');
-        }
+        FirebaseErrorService().logFcmError(
+          'register_token_after_login',
+          e,
+          stackTrace: stackTrace,
+          context: {'user_id': userId.toString()},
+        );
       }
 
       return true;
@@ -96,6 +108,12 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     final areaId = prefs.getInt(_userAreaIdKey);
     return areaId;
+  }
+
+  /// Mengambil area name user yang sedang login (dari CWE).
+  static Future<String?> getCurrentUserAreaName() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_userAreaNameKey);
   }
 
   /// Mengambil token autentikasi.
@@ -243,6 +261,7 @@ class AuthService {
       await prefs.remove(StorageKeys.currentUserId);
       await prefs.remove(_userNameKey);
       await prefs.remove(_userAreaIdKey);
+      await prefs.remove(_userAreaNameKey);
 
       authChangeNotifier.value = false;
 

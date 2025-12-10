@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:dio/dio.dart';
 import '../features/approval/data/models/device_token_model.dart';
 import '../config/api_config.dart';
 import 'api_client.dart';
@@ -117,21 +118,94 @@ class DeviceTokenService {
       });
 
       if (kDebugMode) {
-        if (kDebugMode) {
-          print('POST Device Token Response: ${response.statusCode}');
+        print('POST Device Token Response: ${response.statusCode}');
+        print('Response Body: ${response.data}');
+      }
+
+      // Handle success (200, 201) and also 422 if token already exists
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return true;
+      } else if (response.statusCode == 422) {
+        // 422 might mean token already exists or validation error
+        // Check response message to determine if it's actually a success
+        final responseData = response.data;
+        if (responseData is Map) {
+          final message =
+              responseData['message']?.toString().toLowerCase() ?? '';
+          final error = responseData['error']?.toString().toLowerCase() ?? '';
+
+          // Check for positive indicators (token exists/duplicate)
+          final isTokenExists = message.contains('already') ||
+              message.contains('duplicate') ||
+              error.contains('exists') ||
+              error.contains('already');
+
+          // Check for negative indicators (save failed)
+          final isSaveFailed = message.contains('not save') ||
+              message.contains('failed') ||
+              (message.contains('error') && !message.contains('already'));
+
+          if (isTokenExists && !isSaveFailed) {
+            if (kDebugMode) {
+              print('Token already exists (422), treating as success');
+            }
+            return true;
+          }
         }
+
+        // 422 with "not save" or other errors should be treated as failure
         if (kDebugMode) {
-          print('Response Body: ${response.data}');
+          final errorMsg = responseData is Map
+              ? responseData['message'] ?? 'Unknown error'
+              : 'Unknown error';
+          print('POST Device Token failed with 422: $errorMsg');
+        }
+        return false;
+      } else {
+        if (kDebugMode) {
+          print('POST Device Token failed with status: ${response.statusCode}');
+        }
+        return false;
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Exception posting device token: $e');
+      }
+
+      // Handle DioException with 422 status
+      if (e is DioException && e.response?.statusCode == 422) {
+        final responseData = e.response?.data;
+        if (responseData is Map) {
+          final message =
+              responseData['message']?.toString().toLowerCase() ?? '';
+          final error = responseData['error']?.toString().toLowerCase() ?? '';
+
+          // Check for positive indicators (token exists/duplicate)
+          final isTokenExists = message.contains('already') ||
+              message.contains('duplicate') ||
+              error.contains('exists') ||
+              error.contains('already');
+
+          // Check for negative indicators (save failed)
+          final isSaveFailed = message.contains('not save') ||
+              message.contains('failed') ||
+              (message.contains('error') && !message.contains('already'));
+
+          if (isTokenExists && !isSaveFailed) {
+            if (kDebugMode) {
+              print('Token already exists (422), treating as success');
+            }
+            return true;
+          }
+        }
+
+        // 422 with "not save" or other errors should be treated as failure
+        if (kDebugMode) {
+          print(
+              'POST Device Token failed with 422: ${responseData?['message'] ?? 'Unknown error'}');
         }
       }
 
-      return response.statusCode == 200 || response.statusCode == 201;
-    } catch (e) {
-      if (kDebugMode) {
-        if (kDebugMode) {
-          print('Exception posting device token: $e');
-        }
-      }
       return false;
     }
   }

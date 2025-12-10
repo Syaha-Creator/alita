@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:in_app_update/in_app_update.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -9,17 +10,24 @@ class AppUpdateService {
 
   // Hardcoded minimum version untuk force update (iOS)
   // Update nilai ini setiap kali release versi baru yang wajib di-update
-  // Versi saat ini: 1.7.7+35
-  // Versi minimum yang wajib di-update: 1.7.7+35
-  // Jika user menggunakan versi < 1.7.7+35, akan di-force update
-  static const String _minRequiredVersion = '1.7.7';
-  static const int _minRequiredBuildNumber = 35;
+  // Versi saat ini: 1.7.14+42
+  // Versi minimum yang wajib di-update: 1.7.14+42
+  // Jika user menggunakan versi < 1.7.14+42, akan di-force update
+  static const String _minRequiredVersion = '1.7.14';
+  static const int _minRequiredBuildNumber = 42;
 
-  /// Check if app update is required
-  /// Returns true if update is required (force update)
-  /// Returns false if no update needed
+  // Timeout untuk update check (5 detik)
+  static const Duration _updateCheckTimeout = Duration(seconds: 5);
+
   Future<bool> checkForUpdate() async {
     try {
+      if (kDebugMode) {
+        if (kDebugMode) {
+          print('Skipping update check in debug mode');
+        }
+        return false;
+      }
+
       // Untuk Android, cek langsung dari Play Store menggunakan in_app_update
       if (Platform.isAndroid) {
         return await _checkAndroidUpdate();
@@ -41,9 +49,17 @@ class AppUpdateService {
 
   /// Check Android update menggunakan in_app_update (langsung dari Play Store)
   /// Sama seperti implementasi di kode lama
+  /// Menambahkan timeout untuk mencegah hanging pada emulator/device tanpa Play Store
   Future<bool> _checkAndroidUpdate() async {
     try {
-      _updateInfo = await InAppUpdate.checkForUpdate();
+      // Tambahkan timeout untuk mencegah hanging
+      _updateInfo = await InAppUpdate.checkForUpdate()
+          .timeout(_updateCheckTimeout, onTimeout: () {
+        if (kDebugMode) {
+          print('Update check timed out - likely running on emulator');
+        }
+        throw TimeoutException('Update check timed out');
+      });
 
       if (_updateInfo?.updateAvailability ==
           UpdateAvailability.updateAvailable) {
@@ -55,6 +71,12 @@ class AppUpdateService {
         return true;
       }
 
+      return false;
+    } on TimeoutException {
+      // Timeout biasanya terjadi di emulator, skip update check
+      if (kDebugMode) {
+        print('Update check timed out, skipping...');
+      }
       return false;
     } catch (e) {
       if (kDebugMode) {

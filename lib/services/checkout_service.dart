@@ -22,28 +22,42 @@ class CheckoutService {
     _attendanceService = locator<AttendanceService>();
   }
 
-  // Resolve item number using product's prefilled number or lookup service (legacy per-component)
-  Future<String> _resolveItemNumberFor(CartEntity item, String itemType) async {
+  /// Check if item value should be uploaded to server
+  /// Returns false for empty, invalid, or "tanpa" items
+  bool _shouldUploadItem(String value) {
+    if (value.isEmpty) return false;
+    final trimmed = value.trim();
+    if (trimmed == '-') return false;
+    if (trimmed == '0') return false;
+    final lower = trimmed.toLowerCase();
+    if (lower.startsWith('tanpa')) return false;
+    if (lower == 'tidak ada kasur') return false;
+    if (lower == 'tidak ada divan') return false;
+    if (lower == 'tidak ada headboard') return false;
+    if (lower == 'tidak ada sorong') return false;
+    return true;
+  }
+
+  /// Check if bonus should be uploaded to server
+  bool _shouldUploadBonus(String name, int quantity) {
+    if (name.isEmpty) return false;
+    final trimmed = name.trim();
+    if (trimmed == '0') return false;
+    if (trimmed == '-') return false;
+    if (quantity <= 0) return false;
+    return true;
+  }
+
+  // Resolve item number and item description using lookup service
+  Future<Map<String, String?>> _resolveItemInfoFor(
+      CartEntity item, String itemType) async {
     if (kDebugMode) {
       print(
-          '[CheckoutService] _resolveItemNumberFor type=$itemType, brand=${item.product.brand}, tipe=${item.product.kasur}, ukuran=${item.product.ukuran}');
-    }
-    bool isInvalid(String? v) {
-      if (v == null) return true;
-      final s = v.trim();
-      return s.isEmpty || s == '0' || s == '0.0';
+          '[CheckoutService] _resolveItemInfoFor type=$itemType, brand=${item.product.brand}');
     }
 
+    // Check for prefilled item number first
     String? prefilled;
-    // Prefer user selection stored in cart
-    final selected = item.selectedItemNumbers?[itemType];
-    if (selected != null && !isInvalid(selected['item_number'])) {
-      if (kDebugMode) {
-        print(
-            '[CheckoutService] using user-selected number for $itemType => ${selected['item_number']}');
-      }
-      return selected['item_number']!;
-    }
     switch (itemType) {
       case 'kasur':
         prefilled = item.product.itemNumberKasur ?? item.product.itemNumber;
@@ -58,19 +72,17 @@ class CheckoutService {
         prefilled = item.product.itemNumberSorong;
         break;
     }
-    if (!isInvalid(prefilled)) {
-      if (kDebugMode) {
-        print(
-            '[CheckoutService] using prefilled number for $itemType => $prefilled');
-      }
-      return prefilled!;
-    }
+
+    // Helper to check invalid item number
+    bool isInvalid(String? s) =>
+        s == null ||
+        s.isEmpty ||
+        s == '0' ||
+        s == 'null' ||
+        s.toLowerCase() == 'undefined';
+
     try {
       final lookup = LookupItemService(client: locator<ApiClient>());
-      if (kDebugMode) {
-        print(
-            '[CheckoutService] lookup for $itemType with context and size...');
-      }
       final list = await lookup.fetchLookupItems(
         brand: item.product.brand,
         kasur: item.product.kasur,
@@ -81,54 +93,71 @@ class CheckoutService {
         ukuran: item.product.ukuran,
         contextItemType: itemType,
       );
-      if (list.isNotEmpty && !isInvalid(list.first.itemNumber)) {
-        if (kDebugMode) {
-          print(
-              '[CheckoutService] chosen number for $itemType => ${list.first.itemNumber}');
-        }
-        return list.first.itemNumber;
+
+      if (list.isNotEmpty) {
+        final lookupItem = list.first;
+        return {
+          'item_number': !isInvalid(prefilled)
+              ? prefilled
+              : (!isInvalid(lookupItem.itemNumber)
+                  ? lookupItem.itemNumber
+                  : item.product.id.toString()),
+          'item_description': lookupItem.itemDesc,
+        };
       }
-    } catch (_) {}
-    if (kDebugMode) {
-      print(
-          '[CheckoutService] fallback to product.id for $itemType => ${item.product.id}');
+    } catch (e) {
+      if (kDebugMode) {
+        print('[CheckoutService] Error fetching lookup for $itemType: $e');
+      }
     }
-    return item.product.id.toString();
+
+    return {
+      'item_number':
+          !isInvalid(prefilled) ? prefilled : item.product.id.toString(),
+      'item_description': null,
+    };
   }
 
-  // Resolve per-unit item numbers if available; otherwise fallback to single number repeated
-  Future<List<String>> _resolveItemNumbersPerUnit(
+  // Resolve per-unit item info (number + description) if available
+  Future<List<Map<String, String?>>> _resolveItemInfoPerUnit(
       CartEntity item, String itemType) async {
     final qty = item.quantity;
     if (kDebugMode) {
       print(
-          '[CheckoutService] _resolveItemNumbersPerUnit type=$itemType, qty=$qty');
+          '[CheckoutService] _resolveItemInfoPerUnit type=$itemType, qty=$qty');
     }
-    // If per-unit selections exist, use them (fill gaps via legacy or lookup)
+
+    // If per-unit selections exist, use them with item_description from selection
     final perUnit = item.selectedItemNumbersPerUnit?[itemType];
     if (perUnit != null && perUnit.isNotEmpty) {
-      final List<String> results = [];
+      final List<Map<String, String?>> results = [];
       for (int i = 0; i < qty; i++) {
         final sel = i < perUnit.length ? perUnit[i] : null;
         final numSel = sel != null ? (sel['item_number'] ?? '') : '';
+        final descSel =
+            sel != null ? sel['item_description']?.toString() : null;
         if (numSel.isNotEmpty) {
-          results.add(numSel);
+          results.add({
+            'item_number': numSel,
+            'item_description': descSel,
+          });
         } else {
-          // fallback per-unit to legacy/component resolution
-          results.add(await _resolveItemNumberFor(item, itemType));
+          // fallback per-unit to lookup resolution
+          results.add(await _resolveItemInfoFor(item, itemType));
         }
       }
       if (kDebugMode) {
-        print('[CheckoutService] per-unit numbers for $itemType => $results');
+        print('[CheckoutService] per-unit info for $itemType => $results');
       }
       return results;
     }
-    // No per-unit selections; reuse single resolution for all units
-    final one = await _resolveItemNumberFor(item, itemType);
-    final all = List<String>.filled(qty, one);
+
+    // No per-unit selections; get single info from lookup and reuse
+    final info = await _resolveItemInfoFor(item, itemType);
+    final all = List<Map<String, String?>>.filled(qty, info);
     if (kDebugMode) {
       print(
-          '[CheckoutService] single number for $itemType => $one (reused x$qty)');
+          '[CheckoutService] single info for $itemType => $info (reused x$qty)');
     }
     return all;
   }
@@ -176,16 +205,36 @@ class CheckoutService {
           final validDiscounts =
               item.discountPercentages.where((d) => d > 0.0).toList();
           if (validDiscounts.isNotEmpty) {
-            itemDiscounts.add({
-              'productId': item.product.id,
-              'kasurName': item.product.kasur,
-              'productSize': item.product.ukuran,
-              'discounts': validDiscounts,
-            });
-            totalDiscountPercentage += item.discountPercentages.fold(
-              0.0,
-              (sum, d) => sum + d,
-            );
+            // Get primary item name based on priority: Kasur → Divan → Headboard → Sorong
+            String primaryItemName = '';
+            if (_shouldUploadItem(item.product.kasur) &&
+                item.product.plKasur > 0) {
+              primaryItemName = item.product.kasur;
+            } else if (_shouldUploadItem(item.product.divan) &&
+                item.product.plDivan > 0) {
+              primaryItemName = item.product.divan;
+            } else if (_shouldUploadItem(item.product.headboard) &&
+                item.product.plHeadboard > 0) {
+              primaryItemName = item.product.headboard;
+            } else if (_shouldUploadItem(item.product.sorong) &&
+                item.product.plSorong > 0) {
+              primaryItemName = item.product.sorong;
+            }
+
+            // Only add discount if there's a valid primary item
+            if (primaryItemName.isNotEmpty) {
+              itemDiscounts.add({
+                'productId': item.product.id,
+                'kasurName':
+                    primaryItemName, // Now uses the actual primary item
+                'productSize': item.product.ukuran,
+                'discounts': validDiscounts,
+              });
+              totalDiscountPercentage += item.discountPercentages.fold(
+                0.0,
+                (sum, d) => sum + d,
+              );
+            }
           }
         }
       }
@@ -236,9 +285,8 @@ class CheckoutService {
       final List<Map<String, dynamic>> detailsData = [];
 
       for (final item in cartItems) {
-        // Add main product (kasur)
-        if (item.product.kasur.isNotEmpty &&
-            item.product.kasur != 'Tidak ada kasur') {
+        // Add main product (kasur) - only if valid
+        if (_shouldUploadItem(item.product.kasur) && item.product.plKasur > 0) {
           // Convert boolean to string format that backend expects
           String? takeAwayString;
           if (isTakeAway) {
@@ -247,17 +295,19 @@ class CheckoutService {
             takeAwayString = null;
           }
 
-          final nums = await _resolveItemNumbersPerUnit(item, 'kasur');
+          final itemInfoList = await _resolveItemInfoPerUnit(item, 'kasur');
           // If numbers vary per unit, split lines per unit with qty 1
+          final nums = itemInfoList.map((e) => e['item_number'] ?? '').toList();
           final bool hasVariety = nums.toSet().length > 1;
           final double kasurUnitPrice = item.product.plKasur;
           final double kasurCustomerPrice = item.product.eupKasur;
           final double kasurNetPrice = applyDiscountsUsecase.applySequentially(
               kasurCustomerPrice, item.discountPercentages);
           if (hasVariety) {
-            for (final n in nums) {
+            for (final info in itemInfoList) {
               detailsData.add({
-                'item_number': n,
+                'item_number': info['item_number'],
+                'item_description': info['item_description'],
                 'desc_1': item.product.kasur,
                 'desc_2': item.product.ukuran,
                 'brand': item.product.brand,
@@ -271,7 +321,8 @@ class CheckoutService {
             }
           } else {
             detailsData.add({
-              'item_number': nums.first,
+              'item_number': itemInfoList.first['item_number'],
+              'item_description': itemInfoList.first['item_description'],
               'desc_1': item.product.kasur,
               'desc_2': item.product.ukuran,
               'brand': item.product.brand,
@@ -286,9 +337,7 @@ class CheckoutService {
         }
 
         // Add divan
-        if (item.product.divan.isNotEmpty &&
-            item.product.divan != 'Tidak ada divan' &&
-            item.product.plDivan > 0) {
+        if (_shouldUploadItem(item.product.divan) && item.product.plDivan > 0) {
           // Convert boolean to string format that backend expects
           String? takeAwayString;
           if (isTakeAway) {
@@ -297,16 +346,18 @@ class CheckoutService {
             takeAwayString = null;
           }
 
-          final nums = await _resolveItemNumbersPerUnit(item, 'divan');
+          final itemInfoList = await _resolveItemInfoPerUnit(item, 'divan');
+          final nums = itemInfoList.map((e) => e['item_number'] ?? '').toList();
           final bool hasVariety = nums.toSet().length > 1;
           final double divanUnitPrice = item.product.plDivan;
           final double divanCustomerPrice = item.product.eupDivan;
           final double divanNetPrice = applyDiscountsUsecase.applySequentially(
               divanCustomerPrice, item.discountPercentages);
           if (hasVariety) {
-            for (final n in nums) {
+            for (final info in itemInfoList) {
               detailsData.add({
-                'item_number': n,
+                'item_number': info['item_number'],
+                'item_description': info['item_description'],
                 'desc_1': item.product.divan,
                 'desc_2': item.product.ukuran,
                 'brand': item.product.brand,
@@ -320,7 +371,8 @@ class CheckoutService {
             }
           } else {
             detailsData.add({
-              'item_number': nums.first,
+              'item_number': itemInfoList.first['item_number'],
+              'item_description': itemInfoList.first['item_description'],
               'desc_1': item.product.divan,
               'desc_2': item.product.ukuran,
               'brand': item.product.brand,
@@ -335,8 +387,7 @@ class CheckoutService {
         }
 
         // Add headboard
-        if (item.product.headboard.isNotEmpty &&
-            item.product.headboard != 'Tidak ada headboard' &&
+        if (_shouldUploadItem(item.product.headboard) &&
             item.product.plHeadboard > 0) {
           // Convert boolean to string format that backend expects
           String? takeAwayString;
@@ -346,7 +397,8 @@ class CheckoutService {
             takeAwayString = null;
           }
 
-          final nums = await _resolveItemNumbersPerUnit(item, 'headboard');
+          final itemInfoList = await _resolveItemInfoPerUnit(item, 'headboard');
+          final nums = itemInfoList.map((e) => e['item_number'] ?? '').toList();
           final bool hasVariety = nums.toSet().length > 1;
           final double headboardUnitPrice = item.product.plHeadboard;
           final double headboardCustomerPrice = item.product.eupHeadboard;
@@ -354,9 +406,10 @@ class CheckoutService {
               applyDiscountsUsecase.applySequentially(
                   headboardCustomerPrice, item.discountPercentages);
           if (hasVariety) {
-            for (final n in nums) {
+            for (final info in itemInfoList) {
               detailsData.add({
-                'item_number': n,
+                'item_number': info['item_number'],
+                'item_description': info['item_description'],
                 'desc_1': item.product.headboard,
                 'desc_2': item.product.ukuran,
                 'brand': item.product.brand,
@@ -370,7 +423,8 @@ class CheckoutService {
             }
           } else {
             detailsData.add({
-              'item_number': nums.first,
+              'item_number': itemInfoList.first['item_number'],
+              'item_description': itemInfoList.first['item_description'],
               'desc_1': item.product.headboard,
               'desc_2': item.product.ukuran,
               'brand': item.product.brand,
@@ -385,8 +439,7 @@ class CheckoutService {
         }
 
         // Add sorong
-        if (item.product.sorong.isNotEmpty &&
-            item.product.sorong != 'Tidak ada sorong' &&
+        if (_shouldUploadItem(item.product.sorong) &&
             item.product.plSorong > 0) {
           // Convert boolean to string format that backend expects
           String? takeAwayString;
@@ -396,8 +449,10 @@ class CheckoutService {
             takeAwayString = null;
           }
 
+          final sorongInfo = await _resolveItemInfoFor(item, 'sorong');
           detailsData.add({
-            'item_number': await _resolveItemNumberFor(item, 'sorong'),
+            'item_number': sorongInfo['item_number'],
+            'item_description': sorongInfo['item_description'],
             'desc_1': item.product.sorong,
             'desc_2': item.product.ukuran,
             'brand': item.product.brand,
@@ -414,7 +469,7 @@ class CheckoutService {
         // Add bonuses
         for (int i = 0; i < item.product.bonus.length; i++) {
           final bonus = item.product.bonus[i];
-          if (bonus.name.isNotEmpty && bonus.quantity > 0) {
+          if (_shouldUploadBonus(bonus.name, bonus.quantity)) {
             String? bonusItemNumber;
             switch (i) {
               case 0:
@@ -462,6 +517,7 @@ class CheckoutService {
 
             // Resolve missing/invalid bonus item number via lookup by type (bonus name)
             String resolvedBonusNumber = bonusItemNumber ?? '';
+            String? resolvedBonusDescription;
             if (isInvalidItemNum(resolvedBonusNumber)) {
               try {
                 final lookup = LookupItemService(client: locator<ApiClient>());
@@ -489,10 +545,12 @@ class CheckoutService {
                 }).toList();
                 if (filtered.isNotEmpty) {
                   resolvedBonusNumber = filtered.first.itemNumber;
+                  resolvedBonusDescription = filtered.first.itemDesc;
                 } else if (list.isNotEmpty &&
                     !isInvalidItemNum(list.first.itemNumber)) {
                   // fallback to first valid from API
                   resolvedBonusNumber = list.first.itemNumber;
+                  resolvedBonusDescription = list.first.itemDesc;
                 } else {
                   resolvedBonusNumber = item.product.id.toString();
                 }
@@ -503,6 +561,7 @@ class CheckoutService {
 
             detailsData.add({
               'item_number': resolvedBonusNumber,
+              'item_description': resolvedBonusDescription,
               'desc_1': bonus.name,
               'desc_2': 'Bonus',
               'brand': item.product.brand,
@@ -522,7 +581,24 @@ class CheckoutService {
         final state = locator<ProductBloc>().state;
         final productLeaderIds = state.productLeaderIds[item.product.id] ?? [];
         if (productLeaderIds.isNotEmpty) {
-          itemLeaderIds[item.product.kasur] = productLeaderIds;
+          // Get primary item name based on priority
+          String primaryName = '';
+          if (_shouldUploadItem(item.product.kasur) &&
+              item.product.plKasur > 0) {
+            primaryName = item.product.kasur;
+          } else if (_shouldUploadItem(item.product.divan) &&
+              item.product.plDivan > 0) {
+            primaryName = item.product.divan;
+          } else if (_shouldUploadItem(item.product.headboard) &&
+              item.product.plHeadboard > 0) {
+            primaryName = item.product.headboard;
+          } else if (_shouldUploadItem(item.product.sorong) &&
+              item.product.plSorong > 0) {
+            primaryName = item.product.sorong;
+          }
+          if (primaryName.isNotEmpty) {
+            itemLeaderIds[primaryName] = productLeaderIds;
+          }
         }
       }
 

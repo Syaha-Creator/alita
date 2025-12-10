@@ -16,6 +16,7 @@ import 'leader_service.dart';
 import 'local_notification_service.dart';
 import 'notification_template_service.dart';
 import 'order_letter_service.dart';
+import 'firebase_error_service.dart';
 
 /// Unified Notification Service
 /// Menggabungkan Local Notifications dan Firebase Cloud Messaging
@@ -62,12 +63,20 @@ class NotificationService {
         print('NotificationService initialized successfully');
       }
 
-      // Jika user sudah login, langsung register token
-      await _registerTokenIfLoggedIn();
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error initializing NotificationService: $e');
-      }
+      _registerTokenIfLoggedIn().catchError((error) {
+        FirebaseErrorService().logFcmError(
+          'register_token_during_init',
+          error,
+          context: {'stage': 'initialization'},
+        );
+      });
+    } catch (e, stackTrace) {
+      FirebaseErrorService().logFcmError(
+        'initialize',
+        e,
+        stackTrace: stackTrace,
+        context: {'stage': 'initialization'},
+      );
     }
   }
 
@@ -101,10 +110,12 @@ class NotificationService {
       if (initialMessage != null) {
         _handleBackgroundMessageOpened(initialMessage);
       }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error initializing Firebase Messaging: $e');
-      }
+    } catch (e, stackTrace) {
+      FirebaseErrorService().logFcmError(
+        'initialize_firebase_messaging',
+        e,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -133,10 +144,12 @@ class NotificationService {
           token,
         );
       }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error updating token in backend: $e');
-      }
+    } catch (e, stackTrace) {
+      FirebaseErrorService().logFcmError(
+        'update_token_in_backend',
+        e,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -161,10 +174,12 @@ class NotificationService {
           _updateTokenInBackend(newToken);
         });
       }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error getting FCM token: $e');
-      }
+    } catch (e, stackTrace) {
+      FirebaseErrorService().logFcmError(
+        'get_fcm_token',
+        e,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -186,25 +201,55 @@ class NotificationService {
     }
 
     try {
-      await _deviceTokenService.checkAndUpdateToken(
+      final success = await _deviceTokenService.checkAndUpdateToken(
         currentUserId.toString(),
         _currentFcmToken!,
       );
-      if (kDebugMode) {
-        print('FCM Token registered to backend for user: $currentUserId');
+
+      if (success) {
+        if (kDebugMode) {
+          print('FCM Token registered to backend for user: $currentUserId');
+        }
+      } else {
+        if (kDebugMode) {
+          print(
+              'Failed to register FCM Token to backend for user: $currentUserId');
+        }
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       if (kDebugMode) {
-        print('Error registering FCM token to backend: $e');
+        print('Exception registering FCM Token: $e');
       }
+      FirebaseErrorService().logFcmError(
+        'register_token_to_backend',
+        e,
+        stackTrace: stackTrace,
+        context: {'user_id': currentUserId.toString()},
+      );
     }
   }
 
   /// Register token jika user sudah login (untuk dipanggil saat app start)
   Future<void> _registerTokenIfLoggedIn() async {
-    final isLoggedIn = await AuthService.isLoggedIn();
-    if (isLoggedIn) {
-      await registerTokenToBackend();
+    try {
+      final isLoggedIn = await AuthService.isLoggedIn();
+      if (isLoggedIn) {
+        // Tambahkan timeout untuk mencegah hang saat startup
+        await registerTokenToBackend().timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {
+            if (kDebugMode) {
+              print(
+                  'Token registration timeout during startup, will retry later');
+            }
+            // Future<void> tidak perlu return value
+          },
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error in _registerTokenIfLoggedIn: $e');
+      }
     }
   }
 
@@ -372,6 +417,23 @@ class NotificationService {
               print(
                   'Failed to send FCM to token $token: ${response.statusCode} - ${response.body}');
             }
+
+            // Check if token is unregistered/invalid and should be removed
+            if (response.statusCode == 404) {
+              try {
+                final responseBody = jsonDecode(response.body);
+                final errorCode =
+                    responseBody['error']?['details']?[0]?['errorCode'] ?? '';
+                if (errorCode == 'UNREGISTERED') {
+                  if (kDebugMode) {
+                    print(
+                        'Token $token is unregistered, should be removed from server');
+                  }
+                }
+              } catch (_) {
+                // Ignore JSON parsing errors
+              }
+            }
           } else if (kDebugMode) {
             print('FCM sent successfully to token $token');
           }
@@ -381,10 +443,16 @@ class NotificationService {
       }
 
       return allSuccess;
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error sending notification: $e');
-      }
+    } catch (e, stackTrace) {
+      FirebaseErrorService().logFcmError(
+        'send_notification_to_users',
+        e,
+        stackTrace: stackTrace,
+        context: {
+          'user_ids': userIds.join(','),
+          'notification_type': notificationType ?? 'unknown',
+        },
+      );
       return false;
     }
   }
@@ -594,7 +662,8 @@ class NotificationService {
         );
       } else {
         // Not final - notify creator about status and notify next approver
-        cachedDiscounts ??=
+        // Fetch fresh discount data after approval (all approval operations are already awaited)
+        cachedDiscounts =
             await locator<OrderLetterService>().getOrderLetterDiscounts(
           orderLetterId: orderLetterId,
         );
@@ -602,6 +671,19 @@ class NotificationService {
         if (kDebugMode) {
           print(
               'notifyOnApproval: Fetched ${cachedDiscounts.length} discounts');
+          // Log all discount levels for debugging
+          for (final discount in cachedDiscounts) {
+            final levelId = _parseInt(discount['approver_level_id']);
+            final levelName =
+                discount['approver_level']?.toString() ?? 'Unknown';
+            final approverId =
+                _parseInt(discount['approver'] ?? discount['approver_id']);
+            final approved = discount['approved'];
+            final approverName =
+                discount['approver_name']?.toString() ?? 'Unknown';
+            print(
+                'notifyOnApproval: Discount - Level $levelId ($levelName), Approver ID: $approverId ($approverName), Approved: $approved');
+          }
         }
 
         creatorUserId ??= _extractCreatorUserId(cachedDiscounts);
@@ -794,10 +876,17 @@ class NotificationService {
           }
         }
       }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error sending approval notification: $e');
-      }
+    } catch (e, stackTrace) {
+      FirebaseErrorService().logNotificationError(
+        'notify_on_approval',
+        e,
+        stackTrace: stackTrace,
+        context: {
+          'order_letter_id': orderLetterId.toString(),
+          'approved_level_id': approvedLevelId.toString(),
+          'is_final_approval': isFinalApproval.toString(),
+        },
+      );
     }
   }
 
@@ -833,9 +922,18 @@ class NotificationService {
           discount['approver_user_id'] ??
           discount['leader'] ??
           discount['leader_id'];
+      final approverName = discount['approver_name']?.toString() ?? 'Unknown';
 
       if (levelId == null) {
+        if (kDebugMode) {
+          print('_findNextApprovalLevel: Skipping discount - levelId is null');
+        }
         continue;
+      }
+
+      if (kDebugMode) {
+        print(
+            '_findNextApprovalLevel: Checking level $levelId ($approverLevel) - Approver ID: $approverValue, Name: $approverName, Approved: $approvedValue');
       }
 
       if (levelId <= currentLevelId) {
@@ -855,16 +953,26 @@ class NotificationService {
         continue;
       }
 
+      // Only consider levels with valid approver ID
+      final parsedApproverId = _parseInt(approverValue);
+      if (parsedApproverId == null) {
+        if (kDebugMode) {
+          print(
+              '_findNextApprovalLevel: Skipping level $levelId ($approverLevel) - approver ID is null (approverValue: $approverValue)');
+        }
+        continue;
+      }
+
       if (nextLevelId == null || levelId < nextLevelId) {
         // Take the lowest pending level (next in sequence)
         nextLevelId = levelId;
         nextLevelName = approverLevel ?? 'Level $levelId';
-        nextApproverId = _parseInt(approverValue);
+        nextApproverId = parsedApproverId;
         nextApproverName = discount['approver_name']?.toString();
 
         if (kDebugMode) {
           print(
-              '_findNextApprovalLevel: Found candidate - Level $levelId, Approver ID: $nextApproverId, Name: $nextApproverName');
+              '_findNextApprovalLevel: Found candidate - Level $levelId ($nextLevelName), Approver ID: $nextApproverId, Name: $nextApproverName');
         }
       }
     }

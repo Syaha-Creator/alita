@@ -909,7 +909,11 @@ class OrderLetterService {
 
   /// Get Order Letters
   /// Automatically determines the correct API endpoint based on user role
-  Future<List<Map<String, dynamic>>> getOrderLetters({String? creator}) async {
+  Future<List<Map<String, dynamic>>> getOrderLetters({
+    String? creator,
+    String? dateFrom,
+    String? dateTo,
+  }) async {
     try {
       final token = await AuthService.getToken();
       final currentUserId = await AuthService.getCurrentUserId();
@@ -933,24 +937,40 @@ class OrderLetterService {
       switch (userRole) {
         case 'controller':
           url = ApiConfig.getOrderLettersByControllerUrl(
-              token: token, userId: currentUserId);
+              token: token,
+              userId: currentUserId,
+              dateFrom: dateFrom,
+              dateTo: dateTo);
           break;
         case 'analyst':
           url = ApiConfig.getOrderLettersByAnalystUrl(
-              token: token, userId: currentUserId);
+              token: token,
+              userId: currentUserId,
+              dateFrom: dateFrom,
+              dateTo: dateTo);
           break;
         case 'indirect_leader':
           url = ApiConfig.getOrderLettersByIndirectLeaderUrl(
-              token: token, userId: currentUserId);
+              token: token,
+              userId: currentUserId,
+              dateFrom: dateFrom,
+              dateTo: dateTo);
           break;
         case 'direct_leader':
           url = ApiConfig.getOrderLettersByDirectLeaderUrl(
-              token: token, userId: currentUserId);
+              token: token,
+              userId: currentUserId,
+              dateFrom: dateFrom,
+              dateTo: dateTo);
           break;
         case 'staff':
         default:
           url = ApiConfig.getOrderLettersUrl(
-              token: token, userId: currentUserId, creator: creator);
+              token: token,
+              userId: currentUserId,
+              creator: creator,
+              dateFrom: dateFrom,
+              dateTo: dateTo);
           break;
       }
 
@@ -1288,7 +1308,8 @@ class OrderLetterService {
 
         final detailType =
             (detailData['item_type'] ?? '').toString().toLowerCase();
-        if (detailType != 'mattress' && detailType != 'kasur') {
+        // Allow all item types EXCEPT bonus
+        if (detailType == 'bonus') {
           continue;
         }
 
@@ -1434,8 +1455,6 @@ class OrderLetterService {
     }
   }
 
-  /// Create default entries for kasur items that were NOT in the itemDiscounts list
-  /// This ensures ALL kasur items get approval entries, not just those with discounts
   Future<void> _createDefaultEntriesForMissingItems(
     List<Map<String, dynamic>> itemDiscounts,
     List<Map<String, dynamic>> detailResults,
@@ -1446,41 +1465,41 @@ class OrderLetterService {
     try {
       String normalize(String value) => value.trim().toLowerCase();
 
-      // Build a set of kasur names that already have discounts
-      final Set<String> processedKasurNames = {};
+      // Build a set of item names that already have discounts
+      final Set<String> processedItemNames = {};
       for (final itemDiscount in itemDiscounts) {
-        final kasurName =
+        final itemName =
             normalize((itemDiscount['kasurName'] ?? '').toString());
-        if (kasurName.isNotEmpty) {
-          processedKasurNames.add(kasurName);
+        if (itemName.isNotEmpty) {
+          processedItemNames.add(itemName);
         }
       }
 
-      // Process each detail to find kasur items that weren't processed
+      // Process each detail to find items that weren't processed
       for (final detailResult in detailResults) {
         if (detailResult['success'] && detailResult['data'] != null) {
           final rawData = detailResult['data'];
           final detailData = rawData['location'] ?? rawData;
 
-          // Only process kasur/mattress items
+          // Skip bonus items only
           final itemType =
               (detailData['item_type'] ?? '').toString().toLowerCase();
-          if (itemType != 'mattress' && itemType != 'kasur') {
+          if (itemType == 'bonus') {
             continue;
           }
 
-          final kasurName = normalize((detailData['desc_1'] ?? '').toString());
+          final itemName = normalize((detailData['desc_1'] ?? '').toString());
 
-          // Skip if this kasur was already processed (has discounts)
-          if (processedKasurNames.contains(kasurName)) {
+          // Skip if this item was already processed (has discounts)
+          if (processedItemNames.contains(itemName)) {
             continue;
           }
 
-          final kasurOrderLetterDetailId = detailData['id'] ??
+          final orderLetterDetailId = detailData['id'] ??
               detailData['order_letter_detail_id'] ??
               detailData['detail_id'];
 
-          if (kasurOrderLetterDetailId == null) {
+          if (orderLetterDetailId == null) {
             continue;
           }
 
@@ -1488,7 +1507,7 @@ class OrderLetterService {
           for (int i = 0; i < 2; i++) {
             await _createSingleDiscount(
               orderLetterId: orderLetterId,
-              kasurOrderLetterDetailId: kasurOrderLetterDetailId,
+              kasurOrderLetterDetailId: orderLetterDetailId,
               discount: 0.0,
               discountIndex: i,
               leaderIds: leaderIds,
@@ -1497,8 +1516,7 @@ class OrderLetterService {
             );
           }
 
-          // Mark as processed to avoid duplicates
-          processedKasurNames.add(kasurName);
+          processedItemNames.add(itemName);
         }
       }
     } catch (e) {
@@ -1510,7 +1528,6 @@ class OrderLetterService {
   }
 
   /// Create default discount entries when no discounts are provided
-  /// Creates entries with 0 discount up to Direct Leader level for all items
   Future<void> _createDefaultDiscountEntries(
     List<Map<String, dynamic>> detailResults,
     List<Map<String, dynamic>> discountResults,
@@ -1526,34 +1543,32 @@ class OrderLetterService {
           final rawData = detailResult['data'];
           final detailData = rawData['location'] ?? rawData;
 
-          // Only create for kasur/mattress items
-          if (detailData['item_type'] != 'Mattress' &&
-              detailData['item_type'] != 'kasur') {
+          final itemType =
+              (detailData['item_type'] ?? '').toString().toLowerCase();
+          if (itemType == 'bonus') {
             continue;
           }
 
-          final kasurOrderLetterDetailId = detailData['id'] ??
+          final orderLetterDetailId = detailData['id'] ??
               detailData['order_letter_detail_id'] ??
               detailData['detail_id'];
 
-          if (kasurOrderLetterDetailId == null) {
+          if (orderLetterDetailId == null) {
             continue;
           }
 
-          final kasurName = detailData['desc_1'] ?? 'Unknown';
+          final itemName = detailData['desc_1'] ?? 'Unknown';
 
           // Create discount entries up to Direct Leader (level 2)
-          // Level 0: User (auto-approved)
-          // Level 1: Direct Leader (pending)
           for (int i = 0; i < 2; i++) {
             await _createSingleDiscount(
               orderLetterId: orderLetterId,
-              kasurOrderLetterDetailId: kasurOrderLetterDetailId,
+              kasurOrderLetterDetailId: orderLetterDetailId,
               discount: 0.0,
               discountIndex: i,
               leaderIds: leaderIds,
               discountResults: discountResults,
-              kasurName: kasurName,
+              kasurName: itemName,
             );
           }
         }
@@ -1580,8 +1595,7 @@ class OrderLetterService {
     String approverName = '';
     String approverLevel = '';
     String approverWorkTitle = '';
-    bool?
-        approvedValue; // Should be nullable - null for pending, true for approved, false for rejected
+    bool? approvedValue;
     String? approvedAt;
 
     try {
@@ -1592,25 +1606,65 @@ class OrderLetterService {
         final approvalLevel =
             _mapDiscountIndexToApprovalLevel(discountIndex + 1);
 
-        approverId =
-            leaderService.getLeaderIdByDiscountLevel(leaderData, approvalLevel);
-        approverName = leaderService.getLeaderNameByDiscountLevel(
-                leaderData, approvalLevel) ??
-            '';
+        switch (approvalLevel) {
+          case 1: // User
+            approverId = leaderData.user.id;
+            approverName = leaderData.user.fullName;
+            approverWorkTitle = leaderData.user.workTitle;
+            break;
+          case 2: // Direct Leader
+            if (leaderData.directLeader != null) {
+              approverId = leaderData.directLeader!.id;
+              approverName = leaderData.directLeader!.fullName;
+              approverWorkTitle = leaderData.directLeader!.workTitle;
+            }
+            break;
+          case 3: // Indirect Leader
+            if (leaderData.indirectLeader != null) {
+              approverId = leaderData.indirectLeader!.id;
+              approverName = leaderData.indirectLeader!.fullName;
+              approverWorkTitle = leaderData.indirectLeader!.workTitle;
+            }
+            break;
+          case 4: // Analyst
+            if (leaderData.analyst != null) {
+              approverId = leaderData.analyst!.id;
+              approverName = leaderData.analyst!.fullName;
+              approverWorkTitle = leaderData.analyst!.workTitle;
+            }
+            break;
+          case 5: // Controller
+            if (leaderData.controller != null) {
+              approverId = leaderData.controller!.id;
+              approverName = leaderData.controller!.fullName;
+              approverWorkTitle = leaderData.controller!.workTitle;
+            }
+            break;
+          default:
+            approverId = null;
+            approverName = '';
+            approverWorkTitle = '';
+        }
+
         approverLevel = _getApproverLevelName(approvalLevel);
-        approverWorkTitle = leaderService.getLeaderWorkTitleByDiscountLevel(
-                leaderData, approvalLevel) ??
-            '';
 
         // Level 1 discounts should be auto-approved (user created the order)
         if (discountIndex == 0) {
-          approvedValue = true; // Auto-approve level 1 (User level)
+          approvedValue = true;
           approvedAt = DateTime.now().toIso8601String();
         } else {
-          // For all other levels (Direct Leader, Indirect Leader, Analyst, Controller)
-          // Set approved and approved_at to null - they need manual approval
           approvedValue = null;
           approvedAt = null;
+        }
+
+        // Skip creating discount entry if approverId is null (for all levels except User)
+        // This prevents creating entries without valid approvers, especially for Analyst/Controller
+        if (approverId == null && approvalLevel > 1) {
+          if (kDebugMode) {
+            print(
+                '_createSingleDiscount: Skipping discount entry for level $approvalLevel ($approverLevel) - no approver found');
+          }
+          return;
         }
       } else {
         return; // Skip creating discount if no leader data

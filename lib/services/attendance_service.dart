@@ -274,7 +274,7 @@ class AttendanceService {
         };
       }
 
-      // Validate current location with work place location (50 meter radius)
+      // Validate current location with work place location (75 meter radius)
       final result = await LocationService.validateLocationForCheckout(
         attendanceLat: lat,
         attendanceLon: lon,

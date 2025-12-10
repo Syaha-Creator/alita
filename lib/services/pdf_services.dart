@@ -54,6 +54,7 @@ class PDFService {
     Map<String, List<Map<String, dynamic>>>? pricingData,
     bool showApprovalColumn = false,
     double? postage,
+    String? orderLetterCreatedAt,
   }) async {
     final pdf = pw.Document();
 
@@ -184,7 +185,8 @@ class PDFService {
               orderLetterExtendedAmount: orderLetterExtendedAmount,
               discountData: discountData,
               pricingData: pricingData,
-              showApprovalColumn: showApprovalColumn),
+              showApprovalColumn: showApprovalColumn,
+              postage: postage),
           pw.SizedBox(height: 8),
           _buildNotesAndTotals(
             keterangan: keterangan ?? '-',
@@ -194,12 +196,15 @@ class PDFService {
             paymentMethod: paymentMethod,
             paymentAmount: paymentAmount,
             repaymentDate: repaymentDate,
-            postage: postage,
           ),
           pw.SizedBox(height: 10),
           // Add approval table if needed
           if (showApprovalColumn) ...[
-            _buildApprovalTable(approvalData, approveStamp),
+            _buildApprovalTable(
+              approvalData,
+              approveStamp,
+              orderLetterCreatedAt: orderLetterCreatedAt,
+            ),
             pw.SizedBox(height: 10),
           ],
           _buildTermsAndSignatureSection(
@@ -406,8 +411,11 @@ class PDFService {
   }
 
   /// Build approval table with stamps and names
-  static pw.Widget _buildApprovalTable(List<Map<String, dynamic>>? approvalData,
-      pw.ImageProvider? approveStamp) {
+  static pw.Widget _buildApprovalTable(
+    List<Map<String, dynamic>>? approvalData,
+    pw.ImageProvider? approveStamp, {
+    String? orderLetterCreatedAt,
+  }) {
     if (approvalData == null || approvalData.isEmpty || approveStamp == null) {
       return pw.SizedBox.shrink();
     }
@@ -463,6 +471,9 @@ class PDFService {
         default:
           displayLevel = level; // Keep original if not in mapping
       }
+
+      // Check if this is User level and we have createdAt
+      final bool isUserLevel = level.toLowerCase() == 'user';
 
       approvalColumns.add(
         pw.Container(
@@ -524,6 +535,18 @@ class PDFService {
                 maxLines: 2,
                 overflow: pw.TextOverflow.clip,
               ),
+              // Show createdAt for User level
+              if (isUserLevel && orderLetterCreatedAt != null) ...[
+                pw.SizedBox(height: 2),
+                pw.Text(
+                  orderLetterCreatedAt,
+                  style: pw.TextStyle(
+                    fontSize: 6,
+                    color: PdfColors.grey600,
+                  ),
+                  textAlign: pw.TextAlign.center,
+                ),
+              ],
             ],
           ),
         ),
@@ -563,7 +586,8 @@ class PDFService {
       {double? orderLetterExtendedAmount,
       List<Map<String, dynamic>>? discountData,
       Map<String, List<Map<String, dynamic>>>? pricingData,
-      bool showApprovalColumn = false}) {
+      bool showApprovalColumn = false,
+      double? postage}) {
     const defaultHeaders = [
       'BRAND',
       'ORDER',
@@ -643,6 +667,8 @@ class PDFService {
       final int? kasurDetailId = (kasurPricing?['detail_id'] as num?)?.toInt();
       final bool kasurHasExplicitCustomerPrice =
           (kasurPricing?['has_customer_price'] as bool?) ?? false;
+      final String? kasurItemDescription =
+          kasurPricing?['item_description'] as String?;
 
       if (useApprovalLayout) {
         final double unitPricePerUnit = pricingKasurUnit ?? product.plKasur;
@@ -669,7 +695,11 @@ class PDFService {
               align: pw.TextAlign.center),
           _buildTableCell((itemNumber++).toString(),
               align: pw.TextAlign.center),
-          _buildTableCell('${product.kasur} ${product.ukuran}'),
+          // Show item_description on line 2 for approval PDF
+          _buildTableCellWithSubtitle(
+            '${product.kasur} ${product.ukuran}',
+            subtitle: kasurItemDescription,
+          ),
           _buildTableCell(item.quantity.toString(), align: pw.TextAlign.center),
           _buildTableCell(FormatHelper.formatCurrency(kasurPricelist),
               align: pw.TextAlign.right),
@@ -754,6 +784,8 @@ class PDFService {
                   (customerPricePerUnit > 0 ? customerPricePerUnit : 0);
           final bool divanHasExplicitCustomerPrice =
               (divanPricing?['has_customer_price'] as bool?) ?? false;
+          final String? divanItemDescription =
+              divanPricing?['item_description'] as String?;
           // Use qty from pricingData if available (already aggregated), otherwise use item.quantity
           final double divanQty =
               (divanPricing?['quantity'] as num?)?.toDouble() ??
@@ -777,7 +809,11 @@ class PDFService {
           tableRows.add(pw.TableRow(children: [
             _buildTableCell('', align: pw.TextAlign.center),
             _buildTableCell(''),
-            _buildTableCell(product.divan),
+            // Show item_description on line 2 for approval PDF
+            _buildTableCellWithSubtitle(
+              product.divan,
+              subtitle: divanItemDescription,
+            ),
             _buildTableCell(divanQty.toInt().toString(),
                 align: pw.TextAlign.center),
             _buildTableCell(FormatHelper.formatCurrency(divanPricelist),
@@ -800,7 +836,7 @@ class PDFService {
                   product.plDivan;
           final double netPricePerUnit =
               (divanPricing?['net_price_per_unit'] as num?)?.toDouble() ??
-                  (product.eupDivan > 0 ? product.eupDivan : product.plDivan);
+                  product.eupDivan;
           final double divanQty =
               (divanPricing?['quantity'] as num?)?.toDouble() ??
                   item.quantity.toDouble();
@@ -841,6 +877,8 @@ class PDFService {
                   (customerPricePerUnit > 0 ? customerPricePerUnit : 0);
           final bool headboardHasExplicitCustomerPrice =
               (headboardPricing?['has_customer_price'] as bool?) ?? false;
+          final String? headboardItemDescription =
+              headboardPricing?['item_description'] as String?;
           // Use qty from pricingData if available (already aggregated), otherwise use item.quantity
           final double headboardQty =
               (headboardPricing?['quantity'] as num?)?.toDouble() ??
@@ -865,7 +903,11 @@ class PDFService {
           tableRows.add(pw.TableRow(children: [
             _buildTableCell('', align: pw.TextAlign.center),
             _buildTableCell(''),
-            _buildTableCell(product.headboard),
+            // Show item_description on line 2 for approval PDF
+            _buildTableCellWithSubtitle(
+              product.headboard,
+              subtitle: headboardItemDescription,
+            ),
             _buildTableCell(headboardQty.toInt().toString(),
                 align: pw.TextAlign.center),
             _buildTableCell(FormatHelper.formatCurrency(headboardPricelist),
@@ -888,9 +930,7 @@ class PDFService {
                   product.plHeadboard;
           final double netPricePerUnit =
               (headboardPricing?['net_price_per_unit'] as num?)?.toDouble() ??
-                  (product.eupHeadboard > 0
-                      ? product.eupHeadboard
-                      : product.plHeadboard);
+                  product.eupHeadboard;
           final double headboardQty =
               (headboardPricing?['quantity'] as num?)?.toDouble() ??
                   item.quantity.toDouble();
@@ -929,6 +969,8 @@ class PDFService {
                   (customerPricePerUnit > 0 ? customerPricePerUnit : 0);
           final bool sorongHasExplicitCustomerPrice =
               (sorongPricing?['has_customer_price'] as bool?) ?? false;
+          final String? sorongItemDescription =
+              sorongPricing?['item_description'] as String?;
           // Use qty from pricingData if available (already aggregated), otherwise use item.quantity
           final double sorongQty =
               (sorongPricing?['quantity'] as num?)?.toDouble() ??
@@ -952,7 +994,11 @@ class PDFService {
           tableRows.add(pw.TableRow(children: [
             _buildTableCell('', align: pw.TextAlign.center),
             _buildTableCell(''),
-            _buildTableCell(product.sorong),
+            // Show item_description on line 2 for approval PDF
+            _buildTableCellWithSubtitle(
+              product.sorong,
+              subtitle: sorongItemDescription,
+            ),
             _buildTableCell(sorongQty.toInt().toString(),
                 align: pw.TextAlign.center),
             _buildTableCell(FormatHelper.formatCurrency(sorongPricelist),
@@ -973,11 +1019,10 @@ class PDFService {
           final double unitPricePerUnit =
               (sorongPricing?['unit_price_per_unit'] as num?)?.toDouble() ??
                   product.plSorong;
+          // Use eupSorong directly (0 means customer price is 0, so net = 0)
           final double netPricePerUnit =
               (sorongPricing?['net_price_per_unit'] as num?)?.toDouble() ??
-                  (product.eupSorong > 0
-                      ? product.eupSorong
-                      : product.plSorong);
+                  product.eupSorong;
           final double sorongQty =
               (sorongPricing?['quantity'] as num?)?.toDouble() ??
                   item.quantity.toDouble();
@@ -1063,10 +1108,67 @@ class PDFService {
             6: const pw.FlexColumnWidth(1.3),
           };
 
-    return pw.Table(
+    final itemsTable = pw.Table(
       border: pw.TableBorder.all(color: PdfColors.black, width: 0.5),
       columnWidths: columnWidths,
       children: tableRows,
+    );
+
+    // If no postage, just return the items table
+    if (postage == null || postage <= 0) {
+      return itemsTable;
+    }
+
+    // Calculate merged column widths for shipping row
+    // Non-approval: Brand(0.8) + Order(0.6) + NamaBarang(3.2) + QTY(0.6) = 5.2 | Pricelist(1.3) + Discount(1.3) + HargaTotal(1.3) = 3.9
+    // Approval: Brand(0.8) + Order(0.6) + NamaBarang(3.0) + QTY(0.6) = 5.0 | Pricelist(1.2) + EUP(1.2) + Discount(1.2) + HargaTotal(1.2) = 4.8
+    final shippingColumnWidths = useApprovalLayout
+        ? {
+            0: const pw.FlexColumnWidth(5.0), // Merged: Brand to QTY
+            1: const pw.FlexColumnWidth(
+                4.8), // Merged: Pricelist to Harga Total
+          }
+        : {
+            0: const pw.FlexColumnWidth(5.2), // Merged: Brand to QTY
+            1: const pw.FlexColumnWidth(
+                3.9), // Merged: Pricelist to Harga Total
+          };
+
+    final shippingTable = pw.Table(
+      border: pw.TableBorder.all(color: PdfColors.black, width: 0.5),
+      columnWidths: shippingColumnWidths,
+      children: [
+        pw.TableRow(
+          decoration: const pw.BoxDecoration(color: PdfColors.grey100),
+          children: [
+            pw.Padding(
+              padding: const pw.EdgeInsets.all(4),
+              child: pw.Text(
+                'Ongkos Kirim / Angkut',
+                style:
+                    pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+              ),
+            ),
+            pw.Padding(
+              padding: const pw.EdgeInsets.all(4),
+              child: pw.Text(
+                FormatHelper.formatCurrency(postage),
+                textAlign: pw.TextAlign.right,
+                style:
+                    pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+
+    // Return column with items table and shipping row (no gap)
+    return pw.Column(
+      children: [
+        itemsTable,
+        shippingTable,
+      ],
     );
   }
 
@@ -1116,6 +1218,48 @@ class PDFService {
         text,
         style: const pw.TextStyle(fontSize: 8),
         textAlign: align,
+      ),
+    );
+  }
+
+  /// Build table cell with two lines (main text + subtitle)
+  /// Used for showing item name with item_description in approval PDF
+  static pw.Widget _buildTableCellWithSubtitle(
+    String mainText, {
+    String? subtitle,
+    pw.TextAlign align = pw.TextAlign.left,
+  }) {
+    // If no subtitle, just use regular cell
+    if (subtitle == null || subtitle.trim().isEmpty) {
+      return _buildTableCell(mainText, align: align);
+    }
+
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(4),
+      child: pw.Column(
+        crossAxisAlignment: align == pw.TextAlign.center
+            ? pw.CrossAxisAlignment.center
+            : align == pw.TextAlign.right
+                ? pw.CrossAxisAlignment.end
+                : pw.CrossAxisAlignment.start,
+        mainAxisSize: pw.MainAxisSize.min,
+        children: [
+          pw.Text(
+            mainText,
+            style: const pw.TextStyle(fontSize: 8),
+            textAlign: align,
+          ),
+          pw.SizedBox(height: 1),
+          pw.Text(
+            subtitle,
+            style: pw.TextStyle(
+              fontSize: 6.5,
+              color: PdfColors.grey700,
+              fontStyle: pw.FontStyle.italic,
+            ),
+            textAlign: align,
+          ),
+        ],
       ),
     );
   }
@@ -1205,13 +1349,12 @@ class PDFService {
     required String paymentMethod,
     required double paymentAmount,
     required String repaymentDate,
-    double? postage,
   }) {
     final double sisaPembayaran = grandTotal - paymentAmount;
 
     return pw.Table(
       columnWidths: const {
-        0: pw.FlexColumnWidth(2),
+        0: pw.FlexColumnWidth(1.85),
         1: pw.FlexColumnWidth(1),
       },
       border: pw.TableBorder.all(color: PdfColors.black, width: 0.5),
@@ -1243,13 +1386,13 @@ class PDFService {
                 _buildTotalRow(
                     'Subtotal', FormatHelper.formatCurrency(subtotal)),
                 _buildTotalRow('PPN 11%', FormatHelper.formatCurrency(ppn)),
-                if (postage != null && postage > 0)
-                  _buildTotalRow(
-                      'Ongkir', FormatHelper.formatCurrency(postage)),
                 _buildTotalRow(
                     'Grand Total', FormatHelper.formatCurrency(grandTotal),
                     isBold: true),
-                _buildTotalRow('Pembayaran ($paymentMethod)',
+                _buildTotalRow(
+                    paymentMethod.isNotEmpty && paymentMethod != '-'
+                        ? 'Dibayar ($paymentMethod)'
+                        : 'Sudah Dibayar',
                     FormatHelper.formatCurrency(paymentAmount)),
                 _buildTotalRow('Sisa Pembayaran',
                     FormatHelper.formatCurrency(sisaPembayaran),

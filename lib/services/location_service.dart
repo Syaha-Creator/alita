@@ -7,7 +7,7 @@ import 'package:permission_handler/permission_handler.dart'
 import 'package:geocoding/geocoding.dart';
 
 class LocationService {
-  static const double _radiusMeters = 50.0; // 50 meter radius
+  static const double _radiusMeters = 75.0; // 75 meter radius
 
   /// Check if location permission is granted
   static Future<bool> isLocationPermissionGranted() async {
@@ -246,8 +246,8 @@ class LocationService {
       return {
         'isValid': isWithinRadius,
         'message': isWithinRadius
-            ? 'Lokasi valid. Anda berada dalam radius 50 meter dari lokasi attendance.'
-            : 'Lokasi tidak valid. Anda berada ${distance.toStringAsFixed(0)} meter dari lokasi attendance. Maksimal 50 meter.',
+            ? 'Lokasi valid. Anda berada dalam radius 75 meter dari lokasi attendance.'
+            : 'Lokasi tidak valid. Anda berada ${distance.toStringAsFixed(0)} meter dari lokasi attendance. Maksimal 75 meter.',
         'distance': distance,
         'currentLat': currentPosition.latitude,
         'currentLon': currentPosition.longitude,
