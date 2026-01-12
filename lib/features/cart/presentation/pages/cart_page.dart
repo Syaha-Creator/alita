@@ -221,12 +221,12 @@ class CartPage extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Icon(Icons.info_outline_rounded,
+                const Icon(Icons.info_outline_rounded,
                     size: 16, color: AppColors.warning),
                 const SizedBox(width: AppPadding.p8),
                 Text(
                   '$selectedCount dari $totalItems produk dipilih',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                     color: AppColors.warning,
@@ -327,7 +327,7 @@ class CartPage extends StatelessWidget {
                     ? () async {
                         final result = await showDialog<CheckoutDialogResult>(
                           context: context,
-                          builder: (context) => CheckoutUserInfoDialog(),
+                          builder: (context) => const CheckoutUserInfoDialog(),
                         );
                         if (result != null && context.mounted) {
                           Navigator.push(
@@ -362,9 +362,9 @@ class CartPage extends StatelessWidget {
                     ? Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(
+                          const Text(
                             'Checkout',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.w600,
                               fontSize: 14,
                             ),
@@ -387,9 +387,9 @@ class CartPage extends StatelessWidget {
                           ),
                         ],
                       )
-                    : Text(
+                    : const Text(
                         'Pilih item untuk checkout',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
                         ),

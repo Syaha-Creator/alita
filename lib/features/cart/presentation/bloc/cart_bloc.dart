@@ -6,6 +6,7 @@ import '../../../../services/auth_service.dart';
 import '../../../../config/dependency_injection.dart';
 import '../../../product/domain/usecases/get_product_usecase.dart';
 import '../../domain/entities/cart_entity.dart';
+import '../../domain/repositories/cart_repository.dart';
 import '../../../product/domain/entities/product_entity.dart';
 import '../../../product/presentation/bloc/product_bloc.dart';
 import '../../../product/presentation/bloc/product_event.dart';
@@ -15,14 +16,18 @@ import '../../domain/usecases/apply_discounts_usecase.dart';
 
 class CartBloc extends Bloc<CartEvent, CartState> {
   final ApplyDiscountsUsecase _applyDiscountsUsecase;
+  final CartRepository _cartRepository;
 
-  CartBloc({ApplyDiscountsUsecase? applyDiscountsUsecase})
-      : _applyDiscountsUsecase =
+  CartBloc({
+    ApplyDiscountsUsecase? applyDiscountsUsecase,
+    CartRepository? cartRepository,
+  })  : _applyDiscountsUsecase =
             applyDiscountsUsecase ?? const ApplyDiscountsUsecase(),
-        super(CartLoaded([])) {
+        _cartRepository = cartRepository ?? locator<CartRepository>(),
+        super(const CartLoaded([])) {
     on<LoadCart>((event, emit) async {
       try {
-        final cartItems = await CartStorageService.loadCartItems();
+        final cartItems = await _cartRepository.loadCartItems();
         emit(CartLoaded(cartItems));
       } catch (e) {
         emit(CartError("Failed to load cart: $e"));
@@ -81,7 +86,7 @@ class CartBloc extends Bloc<CartEvent, CartState> {
         }
 
         // Save to storage and emit new state
-        await CartStorageService.saveCartItems(updatedItems);
+        await _cartRepository.saveCartItems(updatedItems);
         emit(CartLoaded(updatedItems));
       } else {
         // Create new cart
@@ -101,7 +106,7 @@ class CartBloc extends Bloc<CartEvent, CartState> {
           )
         ];
 
-        await CartStorageService.saveCartItems(newCart);
+        await _cartRepository.saveCartItems(newCart);
         emit(CartLoaded(newCart));
       }
     });
@@ -188,11 +193,7 @@ class CartBloc extends Bloc<CartEvent, CartState> {
               netPrice: event.netPrice)) {
             // Update bonus quantities to match new product quantity
             final updatedBonus = item.product.bonus.map((bonus) {
-              final perUnit = bonus.originalQuantity > 0
-                  ? bonus.originalQuantity
-                  : (bonus.quantity > 0 ? bonus.quantity : 1);
-              final calculatedMax = perUnit * 2 * event.quantity;
-              final newMaxQuantity = calculatedMax > 0 ? calculatedMax : 1;
+              final newMaxQuantity = bonus.calculateMaxQuantity(event.quantity);
 
               final scaleFactor = item.quantity > 0
                   ? event.quantity / item.quantity.toDouble()
@@ -295,8 +296,8 @@ class CartBloc extends Bloc<CartEvent, CartState> {
     });
 
     on<ClearCart>((event, emit) async {
-      await CartStorageService.clearCart();
-      emit(CartLoaded([]));
+      await _cartRepository.clearCart();
+      emit(const CartLoaded([]));
     });
 
     on<UpdateBonusTakeAway>((event, emit) async {
@@ -334,8 +335,8 @@ class CartBloc extends Bloc<CartEvent, CartState> {
     on<Checkout>((event, emit) async {
       if (state is CartLoaded) {
         // After successful checkout, clear the cart
-        await CartStorageService.clearCart();
-        emit(CartLoaded([]));
+        await _cartRepository.clearCart();
+        emit(const CartLoaded([]));
       }
     });
 
@@ -373,19 +374,34 @@ class CartBloc extends Bloc<CartEvent, CartState> {
               } else {
                 // Get original bonus to preserve originalQuantity and apply max limit
                 final originalBonus = updatedBonus[event.bonusIndex];
-                final perUnit = originalBonus.originalQuantity > 0
-                    ? originalBonus.originalQuantity
-                    : originalBonus.quantity;
-                final maxQuantity = perUnit * 2 * item.quantity;
+
+                // Ensure originalQuantity is set - use current quantity as fallback if not set
+                final preservedOriginalQuantity =
+                    originalBonus.originalQuantity > 0
+                        ? originalBonus.originalQuantity
+                        : originalBonus.quantity;
+
+                // Create bonus with preserved originalQuantity for max calculation
+                final bonusForCalculation = BonusItem(
+                  name: originalBonus.name,
+                  quantity: originalBonus.quantity,
+                  originalQuantity: preservedOriginalQuantity,
+                  takeAway: originalBonus.takeAway,
+                );
+
+                final maxQuantity =
+                    bonusForCalculation.calculateMaxQuantity(item.quantity);
                 final finalQuantity = event.bonusQuantity > maxQuantity
                     ? maxQuantity
                     : event.bonusQuantity;
 
-                // Update bonus with new quantity (limited to max)
+                // Update bonus with new quantity (limited to max) and preserved originalQuantity
                 updatedBonus[event.bonusIndex] = BonusItem(
                   name: event.bonusName,
                   quantity: finalQuantity,
-                  originalQuantity: originalBonus.originalQuantity,
+                  originalQuantity:
+                      preservedOriginalQuantity, // Always preserve originalQuantity
+                  takeAway: originalBonus.takeAway,
                 );
               }
             }
@@ -1276,13 +1292,13 @@ class CartBloc extends Bloc<CartEvent, CartState> {
     for (int i = 0; i < maxLen; i++) {
       final BonusItem newDef = newDefault.bonus.length > i
           ? newDefault.bonus[i]
-          : BonusItem(name: '', quantity: 1, originalQuantity: 1);
+          : const BonusItem(name: '', quantity: 1, originalQuantity: 1);
       final BonusItem oldDef = oldDefault.bonus.length > i
           ? oldDefault.bonus[i]
-          : BonusItem(name: '', quantity: 1, originalQuantity: 1);
+          : const BonusItem(name: '', quantity: 1, originalQuantity: 1);
       final BonusItem currentItem = current.length > i
           ? current[i]
-          : BonusItem(name: '', quantity: 1, originalQuantity: 1);
+          : const BonusItem(name: '', quantity: 1, originalQuantity: 1);
 
       final bool untouchedAtIndex = currentItem.name == oldDef.name;
       final String finalName =

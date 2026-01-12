@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:go_router/go_router.dart';
-import 'dart:convert';
 import 'dart:io';
 
 import '../../../../config/app_constant.dart';
@@ -13,10 +11,9 @@ import '../../../../core/utils/responsive_helper.dart';
 import '../../../../core/widgets/custom_loading.dart';
 import '../../../../core/widgets/custom_toast.dart';
 import '../../../../core/widgets/empty_state.dart';
-import '../../../../services/enhanced_checkout_service.dart';
 import '../../../../services/auth_service.dart';
-import '../../../../services/order_letter_contact_service.dart';
-import '../../../../services/order_letter_payment_service.dart';
+import '../../domain/usecases/checkout_usecase.dart';
+import '../../domain/usecases/save_draft_usecase.dart';
 
 import '../../../../theme/app_colors.dart';
 import '../../domain/entities/cart_entity.dart';
@@ -89,6 +86,12 @@ class _CheckoutPagesState extends State<CheckoutPages>
   String _paymentType = 'full'; // 'full' or 'partial'
   final List<PaymentMethod> _paymentMethods = [];
   double _totalPaid = 0.0;
+
+  /// Helper method to recalculate total paid from payment methods
+  /// This ensures _totalPaid is always in sync with _paymentMethods
+  void _recalculateTotalPaid() {
+    _totalPaid = _paymentMethods.fold(0.0, (sum, p) => sum + p.amount);
+  }
 
   // Cache for selected items to use in bottomNavigationBar
   // This allows bottomNavigationBar to rebuild when setState is called
@@ -178,6 +181,8 @@ class _CheckoutPagesState extends State<CheckoutPages>
         note: payment['note'] as String?,
       ));
     }
+    // Recalculate total paid after loading payment methods from draft
+    _recalculateTotalPaid();
 
     // Cart items will be handled separately
     // We'll restore bonus take away states after cart is loaded
@@ -305,21 +310,25 @@ class _CheckoutPagesState extends State<CheckoutPages>
     }
   }
 
+  /// Save draft checkout using SaveDraftUseCase
   Future<void> _saveDraft(List<CartEntity> selectedItems) async {
     if (!_formKey.currentState!.validate()) {
       CustomToast.showToast(
-          "Harap isi semua kolom yang wajib diisi dan perbaiki error",
-          ToastType.error);
+        "Harap isi semua kolom yang wajib diisi dan perbaiki error",
+        ToastType.error,
+      );
       return;
     }
 
     try {
-      final prefs = await SharedPreferences.getInstance();
       final userId = await AuthService.getCurrentUserId();
-      if (userId == null) return;
-
-      final key = 'checkout_drafts_$userId';
-      final draftStrings = prefs.getStringList(key) ?? [];
+      if (userId == null) {
+        CustomToast.showToast(
+          'User ID tidak tersedia. Silakan login ulang.',
+          ToastType.error,
+        );
+        return;
+      }
 
       final draft = {
         // Customer Information
@@ -397,50 +406,39 @@ class _CheckoutPagesState extends State<CheckoutPages>
         'isExistingCustomer': widget.isExistingCustomer,
 
         // Metadata
-        'savedAt': DateTime.now().toIso8601String(),
+        'savedAt':
+            widget.draftData?['savedAt'] ?? DateTime.now().toIso8601String(),
         'version': '2.0', // Version for backward compatibility
       };
 
-      // Check if this is updating an existing draft
-      if (widget.draftData != null && widget.draftData!['savedAt'] != null) {
-        // Find and replace existing draft
-        final originalSavedAt = widget.draftData!['savedAt'] as String;
-        final draftIndex = draftStrings.indexWhere((draftString) {
-          try {
-            final existingDraft =
-                jsonDecode(draftString) as Map<String, dynamic>;
-            return existingDraft['savedAt'] == originalSavedAt;
-          } catch (e) {
-            return false;
-          }
-        });
+      // Use SaveDraftUseCase
+      final saveDraftUseCase = locator<SaveDraftUseCase>();
+      final result = await saveDraftUseCase.call(
+        SaveDraftParams(
+          draftData: draft,
+          userId: userId,
+        ),
+      );
 
-        if (draftIndex != -1) {
-          // Replace existing draft
-          draftStrings[draftIndex] = jsonEncode(draft);
-        } else {
-          // If not found, add as new draft
-          draftStrings.add(jsonEncode(draft));
+      if (result.isSuccess) {
+        CustomToast.showToast('Draft berhasil disimpan', ToastType.success);
+
+        // Clear all items from cart after saving to draft
+        if (mounted) {
+          context.read<CartBloc>().add(ClearCart());
+
+          // Navigate to draft checkout page
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const DraftCheckoutPage(),
+            ),
+          );
         }
       } else {
-        // Add new draft
-        draftStrings.add(jsonEncode(draft));
-      }
-
-      await prefs.setStringList(key, draftStrings);
-
-      CustomToast.showToast('Draft berhasil disimpan', ToastType.success);
-
-      // Clear all items from cart after saving to draft
-      if (mounted) {
-        context.read<CartBloc>().add(ClearCart());
-
-        // Navigate to draft checkout page
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const DraftCheckoutPage(),
-          ),
+        CustomToast.showToast(
+          result.errorMessage ?? 'Gagal menyimpan draft',
+          ToastType.error,
         );
       }
     } catch (e) {
@@ -448,12 +446,13 @@ class _CheckoutPagesState extends State<CheckoutPages>
     }
   }
 
-  /// Submit order - create order letter and upload related data
+  /// Submit order using CheckoutUseCase with proper error handling
   Future<void> _submitOrder(List<CartEntity> selectedItems, bool isDark) async {
     if (!_formKey.currentState!.validate()) {
       CustomToast.showToast(
-          "Harap isi semua kolom yang wajib diisi dan perbaiki error",
-          ToastType.error);
+        "Harap isi semua kolom yang wajib diisi dan perbaiki error",
+        ToastType.error,
+      );
       return;
     }
 
@@ -464,8 +463,18 @@ class _CheckoutPagesState extends State<CheckoutPages>
         message: 'Membuat surat pesanan...',
       );
 
-      // Create Order Letter with Item Mapping (without phone - will be uploaded separately)
-      final enhancedCheckoutService = locator<EnhancedCheckoutService>();
+      // Get current user ID
+      final currentUserId = await AuthService.getCurrentUserId();
+      if (currentUserId == null) {
+        if (mounted) {
+          CustomLoading.hideLoadingDialog(context);
+          CustomToast.showToast(
+            'User ID tidak tersedia. Silakan login ulang.',
+            ToastType.error,
+          );
+        }
+        return;
+      }
 
       // Parse postage from currency format
       double? postage;
@@ -473,100 +482,94 @@ class _CheckoutPagesState extends State<CheckoutPages>
         postage = FormatHelper.parseCurrencyToDouble(_postageController.text);
       }
 
-      final orderLetterResult =
-          await enhancedCheckoutService.checkoutWithItemMapping(
-        cartItems: selectedItems,
-        customerName: _customerNameController.text,
-        customerPhone: '', // Remove phone from order letter
-        email: _emailController.text,
-        customerAddress: _customerAddressController.text,
-        shipToName: _customerReceiverController.text,
-        addressShipTo: _shippingAddressController.text,
-        spgCode: _spgCodeController.text,
-        requestDate: _deliveryDateController.text,
-        note: _notesController.text,
-        isTakeAway: widget.isTakeAway,
-        postage: postage,
-      );
-
-      if (orderLetterResult['success'] != true) {
+      // Use CheckoutUseCase
+      final checkoutUseCase = locator<CheckoutUseCase>();
+      // Use primaryPhone as customerPhone for validation
+      // Phone will be uploaded separately via uploadPhoneNumbers, but we need it for order letter validation
+      final primaryPhone = _customerPhoneController.text.trim();
+      if (primaryPhone.isEmpty) {
         if (mounted) {
           CustomLoading.hideLoadingDialog(context);
           CustomToast.showToast(
-              'Gagal membuat surat pesanan: ${orderLetterResult['message']}',
-              ToastType.error);
+            'Nomor telepon wajib diisi',
+            ToastType.error,
+          );
         }
         return;
       }
 
-      if (mounted) CustomLoading.hideLoadingDialog(context);
+      final shipToName = widget.isTakeAway
+          ? _customerNameController.text
+          : _customerReceiverController.text;
+      final addressShipTo = widget.isTakeAway
+          ? _customerAddressController.text
+          : _shippingAddressController.text;
+      final requestDate = widget.isTakeAway
+          ? DateTime.now().toIso8601String().split('T')[0]
+          : _deliveryDateController.text;
 
-      // Upload phone numbers using contacts API
-      final orderLetterId = orderLetterResult['orderLetterId'];
-      final noSp = orderLetterResult['noSp'];
-
-      if (orderLetterId != null) {
-        try {
-          // Upload phone numbers
-          final contactService = locator<OrderLetterContactService>();
-          await contactService.uploadPhoneNumbers(
-            orderLetterId: orderLetterId,
-            primaryPhone: _customerPhoneController.text,
-            secondaryPhone: _showSecondPhone &&
-                    _customerPhone2Controller.text.trim().isNotEmpty
-                ? _customerPhone2Controller.text.trim()
-                : null,
-          );
-
-          // Upload payment methods if any
-          if (_paymentMethods.isNotEmpty) {
-            final paymentService = locator<OrderLetterPaymentService>();
-            final currentUserId = await AuthService.getCurrentUserId();
-
-            if (currentUserId != null) {
-              try {
-                final paymentData = _convertPaymentMethodsToApiFormat();
-
-                await paymentService.uploadPaymentMethods(
-                  orderLetterId: orderLetterId,
-                  paymentMethods: paymentData,
-                  creator: currentUserId,
-                  note: 'Payment from checkout',
-                );
-              } catch (paymentError) {
-                // Show toast to user about payment upload failure
-                if (mounted) {
-                  CustomToast.showToast(
-                    'Pembayaran gagal diupload: ${paymentError.toString()}',
-                    ToastType.warning,
-                  );
-                }
-              }
-            } else {}
-          } else {}
-        } catch (e) {
-          // Log error but don't fail the checkout
-        }
-      }
+      final result = await checkoutUseCase.call(
+        CheckoutParams(
+          cartItems: selectedItems,
+          customerName: _customerNameController.text,
+          customerPhone: primaryPhone, // Use primary phone for validation
+          email: _emailController.text,
+          customerAddress: _customerAddressController.text,
+          shipToName: shipToName,
+          addressShipTo: addressShipTo,
+          requestDate: requestDate,
+          note: _notesController.text,
+          spgCode: _spgCodeController.text,
+          isTakeAway: widget.isTakeAway,
+          postage: postage,
+          primaryPhone: primaryPhone,
+          secondaryPhone: _showSecondPhone &&
+                  _customerPhone2Controller.text.trim().isNotEmpty
+              ? _customerPhone2Controller.text.trim()
+              : null,
+          paymentMethods: _convertPaymentMethodsToApiFormat(),
+          creatorId: currentUserId,
+        ),
+      );
 
       if (mounted) {
-        CustomToast.showToast(
-            'Surat pesanan berhasil dibuat!\nNo. SP: $noSp', ToastType.success);
+        CustomLoading.hideLoadingDialog(context);
 
-        // Clear entire cart after successful checkout
-        context.read<CartBloc>().add(ClearCart());
+        if (result.isSuccess) {
+          // Show success message
+          CustomToast.showToast(
+            'Surat pesanan berhasil dibuat!\nNo. SP: ${result.noSp}',
+            ToastType.success,
+          );
 
-        // Clear all drafts after successful checkout
-        context.read<CartBloc>().add(ClearDraftsAfterCheckout());
+          // Show warning if payment upload failed
+          if (result.warning != null) {
+            CustomToast.showToast(result.warning!, ToastType.warning);
+          }
 
-        // Navigate to approval monitoring page to see the new order
-        context.go(RoutePaths.approvalMonitoring);
+          // Clear entire cart after successful checkout
+          context.read<CartBloc>().add(ClearCart());
+
+          // Clear all drafts after successful checkout
+          context.read<CartBloc>().add(ClearDraftsAfterCheckout());
+
+          // Navigate to approval monitoring page to see the new order
+          context.go(RoutePaths.approvalMonitoring);
+        } else {
+          // Show error message
+          CustomToast.showToast(
+            result.errorMessage ?? 'Gagal membuat surat pesanan',
+            ToastType.error,
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
         CustomLoading.hideLoadingDialog(context);
         CustomToast.showToast(
-            'Gagal membuat surat pesanan: $e', ToastType.error);
+          'Gagal membuat surat pesanan: $e',
+          ToastType.error,
+        );
       }
     }
   }
@@ -822,9 +825,13 @@ class _CheckoutPagesState extends State<CheckoutPages>
                         totalPaid: _totalPaid,
                         onPaymentTypeChanged: (type) {
                           setState(() {
-                            _paymentType = type;
-                            _paymentMethods.clear();
-                            _totalPaid = 0.0;
+                            // Only clear payment methods if switching between different types
+                            // This prevents data loss if user accidentally clicks the same type
+                            if (_paymentType != type) {
+                              _paymentType = type;
+                              _paymentMethods.clear();
+                              _totalPaid = 0.0;
+                            }
                           });
                         },
                         onAddPaymentMethod: () =>
@@ -1004,6 +1011,8 @@ class _CheckoutPagesState extends State<CheckoutPages>
   void _removePaymentMethod(int index) {
     setState(() {
       _paymentMethods.removeAt(index);
+      // Recalculate total paid after removing payment method
+      _recalculateTotalPaid();
     });
   }
 
@@ -1021,7 +1030,8 @@ class _CheckoutPagesState extends State<CheckoutPages>
         onPaymentAdded: (payment) {
           setState(() {
             _paymentMethods.add(payment);
-            _totalPaid = _paymentMethods.fold(0.0, (sum, p) => sum + p.amount);
+            // Recalculate total paid after adding payment method
+            _recalculateTotalPaid();
           });
           // Force rebuild by calling setState again after a microtask
           Future.microtask(() {
@@ -1060,7 +1070,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
                 ),
                 child: Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.receipt,
                       color: AppColors.success,
                       size: 20,
@@ -1110,7 +1120,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(
+                              const Icon(
                                 Icons.error_outline,
                                 color: AppColors.error, // Status color
                                 size: 48,

@@ -37,20 +37,24 @@ class BonusSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bonusList = item.product.bonus;
-    // Only show valid bonuses
-    final validBonuses = bonusList.where(_isValidBonus).toList();
-    final hasBonus = validBonuses.isNotEmpty;
+    // Only show valid bonuses, but keep track of original indices
+    final validBonusesWithIndex = bonusList
+        .asMap()
+        .entries
+        .where((entry) => _isValidBonus(entry.value))
+        .toList();
+    final hasBonus = validBonusesWithIndex.isNotEmpty;
 
     // Hide bonus section if there's no valid bonus
     if (!hasBonus) {
       return const SizedBox.shrink();
     }
 
-    return _buildBonusBox(context, validBonuses, hasBonus);
+    return _buildBonusBox(context, validBonusesWithIndex, hasBonus);
   }
 
-  Widget _buildBonusBox(
-      BuildContext context, List<BonusItem> bonusList, bool hasBonus) {
+  Widget _buildBonusBox(BuildContext context,
+      List<MapEntry<int, BonusItem>> validBonusesWithIndex, bool hasBonus) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppPadding.p8),
@@ -96,10 +100,9 @@ class BonusSection extends StatelessWidget {
 
           // Compact bonus items
           if (hasBonus) ...[
-            ...bonusList.asMap().entries.map((entry) {
+            ...validBonusesWithIndex.map((entry) {
+              final originalIndex = entry.key;
               final bonus = entry.value;
-              // Get original index from the full bonus list
-              final originalIndex = item.product.bonus.indexOf(bonus);
               return _buildBonusItem(context, originalIndex, bonus);
             }),
           ],
@@ -169,9 +172,18 @@ class BonusSection extends StatelessWidget {
 
   Widget _buildQuantityControls(
       BuildContext context, int index, BonusItem bonus) {
-    final perUnit =
-        bonus.originalQuantity > 0 ? bonus.originalQuantity : bonus.quantity;
-    final maxQty = perUnit * 2 * item.quantity;
+    // Use calculateMaxQuantity to ensure consistent calculation
+    // Ensure originalQuantity is preserved - if it's 0, use current quantity as fallback
+    final bonusWithOriginal = bonus.originalQuantity > 0
+        ? bonus
+        : BonusItem(
+            name: bonus.name,
+            quantity: bonus.quantity,
+            originalQuantity:
+                bonus.quantity, // Use current quantity as original if not set
+            takeAway: bonus.takeAway,
+          );
+    final maxQty = bonusWithOriginal.calculateMaxQuantity(item.quantity);
 
     return Row(
       children: [

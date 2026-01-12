@@ -32,6 +32,7 @@ class BonusSelectorDialog extends StatefulWidget {
 class _BonusSelectorDialogState extends State<BonusSelectorDialog> {
   List<AccessoryEntity> filteredAccessories = [];
   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _customController = TextEditingController();
 
   @override
   void initState() {
@@ -44,6 +45,7 @@ class _BonusSelectorDialogState extends State<BonusSelectorDialog> {
   void dispose() {
     _searchController.removeListener(_filterAccessories);
     _searchController.dispose();
+    _customController.dispose();
     super.dispose();
   }
 
@@ -104,9 +106,87 @@ class _BonusSelectorDialogState extends State<BonusSelectorDialog> {
                       ),
                     )
                   : ListView.builder(
-                      itemCount: filteredAccessories.length,
+                      itemCount: filteredAccessories.length + 1, // +1 for Custom
                       itemBuilder: (context, index) {
-                        final accessory = filteredAccessories[index];
+                        // Custom option as first item
+                        if (index == 0) {
+                          return ListTile(
+                            leading: const Icon(Icons.edit),
+                            title: const Text(
+                              'Custom',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            subtitle: const Text(
+                              'Masukkan item bonus custom',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 12,
+                              ),
+                            ),
+                            onTap: () {
+                              showDialog(
+                                context: context,
+                                builder: (dialogCtx) {
+                                  return AlertDialog(
+                                    title: const Text(
+                                      'Item Bonus Custom',
+                                      style: TextStyle(fontFamily: 'Inter'),
+                                    ),
+                                    content: TextField(
+                                      controller: _customController,
+                                      autofocus: true,
+                                      decoration: const InputDecoration(
+                                        hintText: 'Masukkan nama item bonus...',
+                                        border: OutlineInputBorder(),
+                                      ),
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(dialogCtx),
+                                        child: const Text(
+                                          'Batal',
+                                          style: TextStyle(fontFamily: 'Inter'),
+                                        ),
+                                      ),
+                                      TextButton(
+                                        onPressed: () {
+                                          if (_customController.text.isNotEmpty) {
+                                            context
+                                                .read<CartBloc>()
+                                                .add(UpdateCartBonus(
+                                                  productId: widget.productId,
+                                                  netPrice: widget.netPrice,
+                                                  bonusIndex: widget.bonusIndex,
+                                                  bonusName:
+                                                      _customController.text,
+                                                  bonusQuantity:
+                                                      widget.currentQuantity,
+                                                  cartLineId: widget.cartLineId,
+                                                ));
+                                            Navigator.pop(dialogCtx);
+                                            Navigator.pop(context);
+                                          }
+                                        },
+                                        child: const Text(
+                                          'Simpan',
+                                          style: TextStyle(fontFamily: 'Inter'),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+                            },
+                          );
+                        }
+
+                        // Regular accessory items
+                        final accessory = filteredAccessories[index - 1];
                         final displayText = accessory.ukuran.isNotEmpty
                             ? '${accessory.item} (${accessory.ukuran})'
                             : accessory.item;

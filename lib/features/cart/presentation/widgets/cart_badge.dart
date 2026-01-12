@@ -54,7 +54,7 @@ class CartBadge extends StatelessWidget {
                 right: 4,
                 child: Container(
                   padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: AppColors.error,
                     shape: BoxShape.circle,
                   ),

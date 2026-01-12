@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -21,10 +22,11 @@ import '../../../../services/leader_service.dart';
 import '../controllers/cart_item_controller.dart';
 import 'bonus_selector_dialog.dart';
 import '../../../../features/approval/data/models/approval_model.dart';
-import '../../../../services/lookup_item_service.dart' as lookup;
+import '../../../product/domain/usecases/fetch_lookup_items_usecase.dart';
 import '../../domain/entities/cart_entity.dart';
 import '../bloc/cart_bloc.dart';
 import '../bloc/cart_event.dart';
+import '../bloc/cart_state.dart';
 import 'cart_item/cart_item_widgets.dart';
 
 class CartItemWidget extends StatefulWidget {
@@ -93,11 +95,24 @@ class _CartItemWidgetState extends State<CartItemWidget>
   @override
   void didUpdateWidget(covariant CartItemWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.item.quantity != oldWidget.item.quantity) {
+
+    // Check if quantity changed
+    final quantityChanged = widget.item.quantity != oldWidget.item.quantity;
+
+    // Check if bonus changed
+    final bonusChanged = !_listEquals(
+      widget.item.product.bonus,
+      oldWidget.item.product.bonus,
+    );
+
+    // Check if product changed (which includes bonus)
+    final productChanged = widget.item.product != oldWidget.item.product;
+
+    if (quantityChanged || bonusChanged || productChanged) {
       if (mounted) {
         setState(() {});
       }
-      if (widget.item.quantity > oldWidget.item.quantity) {
+      if (quantityChanged && widget.item.quantity > oldWidget.item.quantity) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _autoFillNewUnitsIfSingleOption();
         });
@@ -299,12 +314,39 @@ class _CartItemWidgetState extends State<CartItemWidget>
           ),
         if (hasBonus) const SizedBox(height: AppPadding.p10),
         // Menggunakan BonusSection widget yang sudah diekstrak
-        BonusSection(
-          item: widget.item,
-          isDark: isDark,
-          onSelectBonus: (index, bonus) =>
-              _showBonusItemSelector(context, index, bonus),
-          onRemoveBonus: (index) => _removeBonus(context, index),
+        // Wrap dengan BlocBuilder untuk rebuild ketika cart state berubah
+        BlocBuilder<CartBloc, CartState>(
+          buildWhen: (previous, current) {
+            if (current is CartLoaded) {
+              // Rebuild jika item ini berubah di cart state
+              final currentItem = current.cartItems.firstWhere(
+                (item) => item.cartLineId == widget.item.cartLineId,
+                orElse: () => widget.item,
+              );
+              return currentItem.product.bonus != widget.item.product.bonus ||
+                  currentItem.product != widget.item.product;
+            }
+            return false;
+          },
+          builder: (context, state) {
+            // Get latest item from cart state
+            CartEntity currentItem = widget.item;
+            if (state is CartLoaded) {
+              final foundItem = state.cartItems.firstWhere(
+                (item) => item.cartLineId == widget.item.cartLineId,
+                orElse: () => widget.item,
+              );
+              currentItem = foundItem;
+            }
+
+            return BonusSection(
+              item: currentItem,
+              isDark: isDark,
+              onSelectBonus: (index, bonus) =>
+                  _showBonusItemSelector(context, index, bonus),
+              onRemoveBonus: (index) => _removeBonus(context, index),
+            );
+          },
         ),
         const SizedBox(height: AppPadding.p10),
         // Menggunakan PriceInfoSection widget yang sudah diekstrak
@@ -340,7 +382,8 @@ class _CartItemWidgetState extends State<CartItemWidget>
           tipeForLookup = p.kasur;
       }
       final cartBloc = context.read<CartBloc>();
-      final list = await lookup.LookupItemService().fetchLookupItems(
+      final fetchLookupItemsUseCase = locator<FetchLookupItemsUseCase>();
+      final list = await fetchLookupItemsUseCase(
         brand: p.brand,
         kasur: tipeForLookup,
         divan: p.divan.isNotEmpty ? p.divan : null,
@@ -359,10 +402,10 @@ class _CartItemWidgetState extends State<CartItemWidget>
           productId: widget.item.product.id,
           netPrice: widget.item.netPrice,
           itemType: itemType,
-          itemNumber: it.itemNumber,
+          itemNumber: it.itemNum,
           itemDescription: it.itemDesc,
-          jenisKain: it.fabricType,
-          warnaKain: it.fabricColor,
+          jenisKain: it.jenisKain,
+          warnaKain: it.warnaKain,
           unitIndex: unitIndex,
           cartLineId: widget.item.cartLineId,
         ));
@@ -384,55 +427,139 @@ class _CartItemWidgetState extends State<CartItemWidget>
       await showDialog(
         context: context,
         builder: (ctx) {
-          return AlertDialog(
-            title:
-                const Text('Pilih Kain', style: TextStyle(fontFamily: 'Inter')),
-            content: SizedBox(
-              width: double.maxFinite,
-              height: 340,
-              child: ListView.builder(
-                itemCount: list.length,
-                itemBuilder: (c, i) {
-                  final it = list[i];
-                  final main = [it.fabricType, it.fabricColor]
-                      .where((e) => (e ?? '').isNotEmpty)
-                      .join(' - ');
-                  final sub = it.itemDesc ?? '';
-                  return ListTile(
-                    title: Text(
-                      main.isEmpty ? (sub.isEmpty ? it.itemNumber : sub) : main,
-                      style: const TextStyle(fontFamily: 'Inter'),
-                    ),
-                    subtitle: sub.isNotEmpty
-                        ? Text(sub,
-                            style: const TextStyle(
-                                fontFamily: 'Inter', fontSize: 12))
-                        : null,
-                    onTap: () {
-                      context.read<CartBloc>().add(UpdateCartSelectedItemNumber(
-                            productId: widget.item.product.id,
-                            netPrice: widget.item.netPrice,
-                            itemType: itemType,
-                            itemNumber: it.itemNumber,
-                            itemDescription: it.itemDesc,
-                            jenisKain: it.fabricType,
-                            warnaKain: it.fabricColor,
-                            unitIndex: unitIndex,
-                            cartLineId: widget.item.cartLineId,
-                          ));
-                      Navigator.pop(ctx);
+          final TextEditingController customController = TextEditingController();
+          return StatefulBuilder(
+            builder: (context, setState) {
+              return AlertDialog(
+                title: const Text('Pilih Kain',
+                    style: TextStyle(fontFamily: 'Inter')),
+                content: SizedBox(
+                  width: double.maxFinite,
+                  height: 340,
+                  child: ListView.builder(
+                    itemCount: list.length + 1, // +1 for Custom option
+                    itemBuilder: (c, i) {
+                      // Custom option as first item
+                      if (i == 0) {
+                        return ListTile(
+                          title: const Text(
+                            'Custom',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          subtitle: const Text(
+                            'Masukkan kain custom',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 12,
+                            ),
+                          ),
+                          leading: const Icon(Icons.edit),
+                          onTap: () {
+                            showDialog(
+                              context: context,
+                              builder: (dialogCtx) {
+                                return AlertDialog(
+                                  title: const Text(
+                                    'Kain Custom',
+                                    style: TextStyle(fontFamily: 'Inter'),
+                                  ),
+                                  content: TextField(
+                                    controller: customController,
+                                    autofocus: true,
+                                    decoration: const InputDecoration(
+                                      hintText: 'Masukkan nama kain...',
+                                      border: OutlineInputBorder(),
+                                    ),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(dialogCtx),
+                                      child: const Text('Batal',
+                                          style:
+                                              TextStyle(fontFamily: 'Inter')),
+                                    ),
+                                    TextButton(
+                                      onPressed: () {
+                                        if (customController.text.isNotEmpty) {
+                                          context
+                                              .read<CartBloc>()
+                                              .add(UpdateCartSelectedItemNumber(
+                                                productId:
+                                                    widget.item.product.id,
+                                                netPrice: widget.item.netPrice,
+                                                itemType: itemType,
+                                                itemNumber: 'CUSTOM',
+                                                itemDescription:
+                                                    customController.text,
+                                                jenisKain: customController.text,
+                                                warnaKain: '',
+                                                unitIndex: unitIndex,
+                                                cartLineId:
+                                                    widget.item.cartLineId,
+                                              ));
+                                          Navigator.pop(dialogCtx);
+                                          Navigator.pop(ctx);
+                                        }
+                                      },
+                                      child: const Text('Simpan',
+                                          style:
+                                              TextStyle(fontFamily: 'Inter')),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                          },
+                        );
+                      }
+
+                      // Regular fabric items
+                      final it = list[i - 1]; // -1 because Custom is first
+                      final main = [it.jenisKain, it.warnaKain]
+                          .where((e) => (e ?? '').isNotEmpty)
+                          .join(' - ');
+                      final sub = it.itemDesc;
+                      return ListTile(
+                        title: Text(
+                          main.isEmpty ? (sub.isEmpty ? it.itemNum : sub) : main,
+                          style: const TextStyle(fontFamily: 'Inter'),
+                        ),
+                        subtitle: sub.isNotEmpty
+                            ? Text(sub,
+                                style: const TextStyle(
+                                    fontFamily: 'Inter', fontSize: 12))
+                            : null,
+                        onTap: () {
+                          context.read<CartBloc>().add(UpdateCartSelectedItemNumber(
+                                productId: widget.item.product.id,
+                                netPrice: widget.item.netPrice,
+                                itemType: itemType,
+                                itemNumber: it.itemNum,
+                                itemDescription: it.itemDesc,
+                                jenisKain: it.jenisKain,
+                                warnaKain: it.warnaKain,
+                                unitIndex: unitIndex,
+                                cartLineId: widget.item.cartLineId,
+                              ));
+                          Navigator.pop(ctx);
+                        },
+                      );
                     },
-                  );
-                },
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child:
-                    const Text('Tutup', style: TextStyle(fontFamily: 'Inter')),
-              )
-            ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Tutup',
+                        style: TextStyle(fontFamily: 'Inter')),
+                  )
+                ],
+              );
+            },
           );
         },
       );
@@ -808,9 +935,9 @@ class _CartItemWidgetState extends State<CartItemWidget>
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text(
+              child: const Text(
                 'Batal',
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: 'Inter',
                   color: AppColors.textSecondaryLight,
                 ),
@@ -908,13 +1035,29 @@ class _CartInfoDialogState extends State<CartInfoDialog> {
 
   Future<void> _loadLeaderData() async {
     try {
+      if (kDebugMode) {
+        print('[DEBUG] CartInfoDialog._loadLeaderData: Loading leader data for product ${widget.product.id} (${widget.product.kasur})');
+        print('  - Current Discounts: ${widget.discountPercentages}');
+        print('  - Net Price: ${widget.netPrice}');
+      }
       final leaderService = locator<LeaderService>();
       final leaderData = await leaderService.getLeaderByUser();
 
       setState(() {
         _leaderData = leaderData;
       });
+      if (kDebugMode) {
+        print('[DEBUG] CartInfoDialog._loadLeaderData: Leader data loaded: ${leaderData != null ? "Success" : "Failed"}');
+        if (leaderData != null) {
+          print('  - Product: ${widget.product.kasur} (ID: ${widget.product.id})');
+          print('  - Base Price: ${widget.product.endUserPrice}');
+          print('  - Cart Discounts: ${widget.discountPercentages}');
+        }
+      }
     } catch (e) {
+      if (kDebugMode) {
+        print('[DEBUG] CartInfoDialog._loadLeaderData: Error loading leader data: $e');
+      }
       // No-op, leader data will be null if loading fails
     }
   }
@@ -1049,8 +1192,8 @@ class _CartInfoDialogState extends State<CartInfoDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Input Diskon",
-              style: const TextStyle(
+          const Text("Input Diskon",
+              style: TextStyle(
                   fontFamily: 'Inter',
                   fontSize: 20,
                   fontWeight: FontWeight.bold)),
@@ -1061,6 +1204,9 @@ class _CartInfoDialogState extends State<CartInfoDialog> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: List.generate(5, (i) {
+                // Sembunyikan disc5 (index 4) walaupun ada persentase batasan
+                if (i == 4) return const SizedBox.shrink();
+
                 // Hanya tampilkan discount field jika disc value > 0
                 final discValue = _getMaxDisc(i);
                 if (discValue <= 0) return const SizedBox.shrink();
@@ -1077,7 +1223,7 @@ class _CartInfoDialogState extends State<CartInfoDialog> {
                                       decimal: true),
                               decoration: InputDecoration(
                                   labelText: _getDiscountLabel(i + 1, true),
-                                  border: OutlineInputBorder()),
+                                  border: const OutlineInputBorder()),
                               onChanged: (val) {
                                 updateNominal(i);
                                 _checkHasChanged();
@@ -1089,7 +1235,7 @@ class _CartInfoDialogState extends State<CartInfoDialog> {
                               keyboardType: TextInputType.number,
                               decoration: InputDecoration(
                                   labelText: _getDiscountLabel(i + 1, false),
-                                  border: OutlineInputBorder()),
+                                  border: const OutlineInputBorder()),
                               onChanged: (val) {
                                 final formatted =
                                     FormatHelper.formatTextFieldCurrency(val);
@@ -1140,7 +1286,7 @@ class _CartInfoDialogState extends State<CartInfoDialog> {
               const SizedBox(width: AppPadding.p8),
               TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: Text("Batal")),
+                  child: const Text("Batal")),
               const SizedBox(width: AppPadding.p8),
               ElevatedButton(
                 onPressed: hasChanged

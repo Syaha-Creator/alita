@@ -80,7 +80,7 @@ class CheckoutHeaderSummary extends StatelessWidget {
         color: isDark ? AppColors.primaryDark : AppColors.primaryLight,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Icon(
+      child: const Icon(
         Icons.shopping_bag_outlined,
         color: AppColors.surfaceLight,
         size: 20,
@@ -121,7 +121,7 @@ class CheckoutHeaderSummary extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.verified_user, color: AppColors.success, size: 16),
+          const Icon(Icons.verified_user, color: AppColors.success, size: 16),
           const SizedBox(width: AppPadding.p4),
           Text(
             'Customer Existing',

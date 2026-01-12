@@ -290,7 +290,7 @@ class _DraftDetailPageState extends State<DraftDetailPage>
                           color: colorScheme.primary,
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Icon(
+                        child: const Icon(
                           Icons.edit_rounded,
                           color: Colors.white,
                           size: 20,
@@ -535,7 +535,7 @@ class _DraftDetailPageState extends State<DraftDetailPage>
                       ),
                     ),
                     child: _isLoading
-                        ? Row(
+                        ? const Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               SizedBox(
@@ -546,10 +546,10 @@ class _DraftDetailPageState extends State<DraftDetailPage>
                                   color: Colors.white,
                                 ),
                               ),
-                              const SizedBox(width: AppPadding.p12),
+                              SizedBox(width: AppPadding.p12),
                               Text(
                                 'Menyimpan...',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontFamily: 'Inter',
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
@@ -557,9 +557,9 @@ class _DraftDetailPageState extends State<DraftDetailPage>
                               ),
                             ],
                           )
-                        : Text(
+                        : const Text(
                             'Simpan Perubahan',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 16,
                               fontWeight: FontWeight.w600,

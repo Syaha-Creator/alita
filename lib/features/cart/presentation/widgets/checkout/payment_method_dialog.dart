@@ -470,7 +470,7 @@ class _PaymentMethodDialogState extends State<PaymentMethodDialog> {
             ),
           ),
           const SizedBox(height: AppPadding.p4),
-          Text(
+          const Text(
             'Struk pembayaran wajib diisi',
             style: TextStyle(
               fontFamily: 'Inter',
