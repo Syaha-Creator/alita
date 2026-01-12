@@ -201,7 +201,7 @@ class ItemDetailsModal extends StatelessWidget {
                       ),
                       child: Text(
                         approval.status,
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: AppColors.warning,
                           fontWeight: FontWeight.w600,
                           fontSize: 10,

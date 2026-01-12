@@ -342,7 +342,7 @@ class _ApprovalCardState extends State<ApprovalCard>
             onTap: widget.isStaffLevel ? null : widget.onItemsTap,
             child: Row(
               children: [
-                Icon(Icons.inventory_2_outlined,
+                const Icon(Icons.inventory_2_outlined,
                     size: 16, color: AppColors.info),
                 const SizedBox(width: AppPadding.p6),
                 Text(
@@ -364,11 +364,11 @@ class _ApprovalCardState extends State<ApprovalCard>
 
         // Discount (if any)
         if (hasDiscount) ...[
-          Icon(Icons.local_offer_outlined, size: 16, color: AppColors.error),
+          const Icon(Icons.local_offer_outlined, size: 16, color: AppColors.error),
           const SizedBox(width: AppPadding.p6),
           Text(
             widget.approval.getDiscountDisplayString(),
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
               color: AppColors.error,

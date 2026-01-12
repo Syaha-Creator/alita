@@ -233,7 +233,7 @@ class ApprovalHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(
+          const Icon(
             Icons.filter_alt_rounded,
             color: AppColors.info,
             size: 16,
@@ -242,7 +242,7 @@ class ApprovalHeader extends StatelessWidget {
           Expanded(
             child: Text(
               '${_formatDateForDisplay(dateFrom!)} - ${_formatDateForDisplay(dateTo!)}',
-              style: TextStyle(
+              style: const TextStyle(
                 color: AppColors.info,
                 fontWeight: FontWeight.w600,
                 fontSize: 12,
@@ -260,7 +260,7 @@ class ApprovalHeader extends StatelessWidget {
                 color: AppColors.info.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(4),
               ),
-              child: Icon(
+              child: const Icon(
                 Icons.close_rounded,
                 color: AppColors.info,
                 size: 14,

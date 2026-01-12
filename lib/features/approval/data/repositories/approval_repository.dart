@@ -1,14 +1,23 @@
 import '../../../../config/dependency_injection.dart';
-import '../../../../services/order_letter_service.dart';
 import '../../../../services/auth_service.dart';
 import '../../../../services/leader_service.dart';
 import '../../../../services/location_service.dart';
+import '../datasources/approval_remote_data_source.dart';
+import '../datasources/approval_local_data_source.dart';
 import '../models/approval_model.dart';
 import '../../domain/entities/approval_entity.dart';
-import '../cache/approval_cache.dart';
 
 class ApprovalRepository {
-  final OrderLetterService _orderLetterService = locator<OrderLetterService>();
+  final ApprovalRemoteDataSource remoteDataSource;
+  final ApprovalLocalDataSource localDataSource;
+
+  ApprovalRepository({
+    ApprovalRemoteDataSource? remoteDataSource,
+    ApprovalLocalDataSource? localDataSource,
+  })  : remoteDataSource =
+            remoteDataSource ?? locator<ApprovalRemoteDataSource>(),
+        localDataSource =
+            localDataSource ?? locator<ApprovalLocalDataSource>();
 
   /// Get all order letters (approvals) filtered by current user's role
   /// The backend API automatically filters based on user role:
@@ -34,14 +43,14 @@ class ApprovalRepository {
       // Check cache first (if not force refresh and no date filter)
       // Skip cache when date filter is applied to ensure fresh data
       if (!forceRefresh && dateFrom == null && dateTo == null) {
-        final cachedApprovals = ApprovalCache.getCachedApprovals(currentUserId);
+        final cachedApprovals = localDataSource.getCachedApprovals(currentUserId);
         if (cachedApprovals != null) {
           return cachedApprovals;
         }
       }
 
       // Get order letters with new format (includes details, discounts, etc.)
-      final response = await _orderLetterService.getOrderLetters(
+      final response = await remoteDataSource.getOrderLetters(
         dateFrom: dateFrom,
         dateTo: dateTo,
       );
@@ -163,12 +172,12 @@ class ApprovalRepository {
 
       // Only cache if we have approvals (don't overwrite cache with empty list)
       if (approvals.isNotEmpty) {
-        ApprovalCache.cacheApprovals(currentUserId, approvals);
+        localDataSource.cacheApprovals(currentUserId, approvals);
       }
 
       // If we got empty list but have cached data, return cached data instead
       if (approvals.isEmpty) {
-        final cachedApprovals = ApprovalCache.getCachedApprovals(currentUserId);
+        final cachedApprovals = localDataSource.getCachedApprovals(currentUserId);
         if (cachedApprovals != null && cachedApprovals.isNotEmpty) {
           return cachedApprovals;
         }
@@ -179,7 +188,7 @@ class ApprovalRepository {
       // Return cached data if available, even if expired (don't return empty list)
       final currentUserId = await AuthService.getCurrentUserId();
       if (currentUserId == null) return [];
-      final cachedApprovals = ApprovalCache.getCachedApprovals(currentUserId);
+      final cachedApprovals = localDataSource.getCachedApprovals(currentUserId);
       if (cachedApprovals != null && cachedApprovals.isNotEmpty) {
         return cachedApprovals;
       }
@@ -381,24 +390,24 @@ class ApprovalRepository {
 
       // Check cache first
       final cachedDiscounts =
-          ApprovalCache.getCachedDiscounts(currentUserId, orderLetterId);
+          localDataSource.getCachedDiscounts(currentUserId, orderLetterId);
       if (cachedDiscounts != null) {
         return cachedDiscounts;
       }
 
       // Fetch from API
-      final discounts = await _orderLetterService.getOrderLetterDiscounts(
+      final discounts = await remoteDataSource.getOrderLetterDiscounts(
         orderLetterId: orderLetterId,
       );
 
       // Cache the results
-      ApprovalCache.cacheDiscounts(currentUserId, orderLetterId, discounts);
+      localDataSource.cacheDiscounts(currentUserId, orderLetterId, discounts);
 
       return discounts;
     } catch (e) {
       final currentUserId = await AuthService.getCurrentUserId();
       if (currentUserId == null) return [];
-      return ApprovalCache.getCachedDiscounts(currentUserId, orderLetterId) ??
+      return localDataSource.getCachedDiscounts(currentUserId, orderLetterId) ??
           [];
     }
   }
@@ -407,14 +416,14 @@ class ApprovalRepository {
   Future<Map<String, dynamic>?> getCachedUserInfo() async {
     final currentUserId = await AuthService.getCurrentUserId();
     if (currentUserId == null) return null;
-    return ApprovalCache.getCachedUserInfo(currentUserId);
+    return localDataSource.getCachedUserInfo(currentUserId);
   }
 
   /// Cache user info
   Future<void> cacheUserInfo(Map<String, dynamic> userInfo) async {
     final currentUserId = await AuthService.getCurrentUserId();
     if (currentUserId == null) return;
-    ApprovalCache.cacheUserInfo(currentUserId, userInfo);
+    localDataSource.cacheUserInfo(currentUserId, userInfo);
   }
 
   /// Get approvals with pagination support
@@ -431,13 +440,13 @@ class ApprovalRepository {
       await getApprovals(creator: creator, forceRefresh: forceRefresh);
 
       // Check if pagination should be used
-      if (ApprovalCache.shouldUsePagination(currentUserId)) {
+      if (localDataSource.shouldUsePagination(currentUserId)) {
         final paginatedApprovals =
-            ApprovalCache.getPaginatedApprovals(currentUserId, page);
+            localDataSource.getPaginatedApprovals(currentUserId, page);
         return paginatedApprovals;
       } else {
         // Return all data if pagination not needed
-        return ApprovalCache.getCachedApprovals(currentUserId) ?? [];
+        return localDataSource.getCachedApprovals(currentUserId) ?? [];
       }
     } catch (e) {
       return [];
@@ -451,18 +460,18 @@ class ApprovalRepository {
       return {
         'should_use_pagination': false,
         'total_pages': 0,
-        'items_per_page': ApprovalCache.itemsPerPage,
+        'items_per_page': ApprovalLocalDataSource.itemsPerPage,
         'total_items': 0,
-        'lazy_load_threshold': ApprovalCache.lazyLoadThreshold,
+        'lazy_load_threshold': ApprovalLocalDataSource.lazyLoadThreshold,
       };
     }
     return {
-      'should_use_pagination': ApprovalCache.shouldUsePagination(currentUserId),
-      'total_pages': ApprovalCache.getTotalPages(currentUserId),
-      'items_per_page': ApprovalCache.itemsPerPage,
+      'should_use_pagination': localDataSource.shouldUsePagination(currentUserId),
+      'total_pages': localDataSource.getTotalPages(currentUserId),
+      'items_per_page': ApprovalLocalDataSource.itemsPerPage,
       'total_items':
-          ApprovalCache.getCachedApprovals(currentUserId)?.length ?? 0,
-      'lazy_load_threshold': ApprovalCache.lazyLoadThreshold,
+          localDataSource.getCachedApprovals(currentUserId)?.length ?? 0,
+      'lazy_load_threshold': ApprovalLocalDataSource.lazyLoadThreshold,
     };
   }
 
@@ -472,23 +481,23 @@ class ApprovalRepository {
       final currentUserId = await AuthService.getCurrentUserId();
       if (currentUserId == null) return;
 
-      if (!ApprovalCache.needsBackgroundSync(currentUserId)) {
+      if (!localDataSource.needsBackgroundSync(currentUserId)) {
         return;
       }
 
       // Get current cached approvals first - NEVER clear cache if it exists
-      final cachedApprovals = ApprovalCache.getCachedApprovals(currentUserId);
+      final cachedApprovals = localDataSource.getCachedApprovals(currentUserId);
       if (cachedApprovals == null || cachedApprovals.isEmpty) {
         // If cache is empty, do a full refresh
         try {
           final newApprovals = await getApprovals(forceRefresh: true);
           if (newApprovals.isNotEmpty) {
-            ApprovalCache.cacheApprovals(currentUserId, newApprovals);
+            localDataSource.cacheApprovals(currentUserId, newApprovals);
           }
         } catch (e) {
           // If error, keep existing cache (don't clear)
         }
-        ApprovalCache.markBackgroundSyncCompleted(currentUserId);
+        localDataSource.markBackgroundSyncCompleted(currentUserId);
         return;
       }
 
@@ -505,22 +514,22 @@ class ApprovalRepository {
         newApprovals = await getApprovals(forceRefresh: true);
       } catch (e) {
         // If error, don't update cache - keep existing cache
-        ApprovalCache.markBackgroundSyncCompleted(currentUserId);
+        localDataSource.markBackgroundSyncCompleted(currentUserId);
         return;
       }
 
       // Smart update: only update cache if we have data and data actually changed
       // NEVER update cache with empty list - always preserve existing cache
       if (newApprovals.isNotEmpty) {
-        final currentCache = ApprovalCache.getCachedApprovals(currentUserId);
+        final currentCache = localDataSource.getCachedApprovals(currentUserId);
         if (currentCache == null ||
             _hasDataChanged(currentCache, newApprovals)) {
-          ApprovalCache.cacheApprovals(currentUserId, newApprovals);
+          localDataSource.cacheApprovals(currentUserId, newApprovals);
         }
       }
       // If newApprovals is empty, don't update cache (keep existing cache)
 
-      ApprovalCache.markBackgroundSyncCompleted(currentUserId);
+      localDataSource.markBackgroundSyncCompleted(currentUserId);
     } catch (e) {
       //
     }
@@ -530,7 +539,7 @@ class ApprovalRepository {
   Future<List<ApprovalEntity>> getApprovalsFromCacheOnly() async {
     final currentUserId = await AuthService.getCurrentUserId();
     if (currentUserId == null) return [];
-    final cachedApprovals = ApprovalCache.getCachedApprovals(currentUserId);
+    final cachedApprovals = localDataSource.getCachedApprovals(currentUserId);
     if (cachedApprovals != null) {
       return cachedApprovals;
     } else {
@@ -545,7 +554,7 @@ class ApprovalRepository {
     final stopwatch = Stopwatch()..start();
 
     // Test cache access
-    ApprovalCache.getCachedApprovals(currentUserId);
+    localDataSource.getCachedApprovals(currentUserId);
     stopwatch.stop();
   }
 
@@ -560,7 +569,7 @@ class ApprovalRepository {
       }
 
       // Get updated data for this specific order letter
-      final response = await _orderLetterService.getOrderLetters();
+      final response = await remoteDataSource.getOrderLetters();
 
       // Find the order letter in response (handle new format)
       Map<String, dynamic>? orderLetter;
@@ -631,11 +640,11 @@ class ApprovalRepository {
         }
       } else {
         // Old format: fetch separately
-        details = await _orderLetterService.getOrderLetterDetails(
+        details = await remoteDataSource.getOrderLetterDetails(
             orderLetterId: orderLetterId);
-        discounts = await _orderLetterService.getOrderLetterDiscounts(
+        discounts = await remoteDataSource.getOrderLetterDiscounts(
             orderLetterId: orderLetterId);
-        approvalHistory = await _orderLetterService.getOrderLetterApproves(
+        approvalHistory = await remoteDataSource.getOrderLetterApproves(
             orderLetterId: orderLetterId);
       }
 
@@ -649,10 +658,10 @@ class ApprovalRepository {
 
       // Update in cache
       final updated =
-          ApprovalCache.updateApprovalInCache(currentUserId, updatedApproval);
+          localDataSource.updateApprovalInCache(currentUserId, updatedApproval);
       if (updated) {
         // Also clear discount cache for this order letter to force refresh
-        ApprovalCache.clearDiscountCache(currentUserId, orderLetterId);
+        localDataSource.clearDiscountCache(currentUserId, orderLetterId);
       }
 
       return updatedApproval;
@@ -702,7 +711,7 @@ class ApprovalRepository {
       }
 
       // Set loading state
-      ApprovalCache.setLoadingNewData(currentUserId, true);
+      localDataSource.setLoadingNewData(currentUserId, true);
 
       List<ApprovalEntity> freshApprovals = [];
       try {
@@ -710,31 +719,31 @@ class ApprovalRepository {
       } catch (e) {
         // If error, return cached data instead of empty list
         final cachedApprovals =
-            ApprovalCache.getCachedApprovals(currentUserId) ?? [];
-        ApprovalCache.setLoadingNewData(currentUserId, false);
+            localDataSource.getCachedApprovals(currentUserId) ?? [];
+        localDataSource.setLoadingNewData(currentUserId, false);
         return cachedApprovals;
       }
 
       // Find new approvals that are not in cache
       final cachedApprovals =
-          ApprovalCache.getCachedApprovals(currentUserId) ?? [];
+          localDataSource.getCachedApprovals(currentUserId) ?? [];
       final newApprovals = freshApprovals
           .where((fresh) =>
               !cachedApprovals.any((cached) => cached.id == fresh.id))
           .toList();
 
       // Store pending new approvals
-      ApprovalCache.setPendingNewApprovals(currentUserId, newApprovals);
+      localDataSource.setPendingNewApprovals(currentUserId, newApprovals);
 
       // Merge and update cache
-      ApprovalCache.mergePendingApprovals(currentUserId);
+      localDataSource.mergePendingApprovals(currentUserId);
 
-      return ApprovalCache.getCachedApprovals(currentUserId) ?? [];
+      return localDataSource.getCachedApprovals(currentUserId) ?? [];
     } catch (e) {
       final currentUserId = await AuthService.getCurrentUserId();
       if (currentUserId == null) return [];
-      ApprovalCache.setLoadingNewData(currentUserId, false);
-      return ApprovalCache.getCachedApprovals(currentUserId) ?? [];
+      localDataSource.setLoadingNewData(currentUserId, false);
+      return localDataSource.getCachedApprovals(currentUserId) ?? [];
     }
   }
 
@@ -746,14 +755,14 @@ class ApprovalRepository {
       if (currentUserId == null || currentUserName == null) {
         // Return cached data if available (but currentUserId might be null)
         if (currentUserId != null) {
-          final cached = ApprovalCache.getCachedApprovals(currentUserId);
+          final cached = localDataSource.getCachedApprovals(currentUserId);
           return cached ?? [];
         }
         return [];
       }
 
       // Get current cached approvals
-      final cachedApprovals = ApprovalCache.getCachedApprovals(currentUserId);
+      final cachedApprovals = localDataSource.getCachedApprovals(currentUserId);
       if (cachedApprovals == null || cachedApprovals.isEmpty) {
         // If cache is empty, do a full refresh instead
         try {
@@ -765,7 +774,7 @@ class ApprovalRepository {
       }
 
       // Get order letters with new format (includes details, discounts, etc.)
-      final response = await _orderLetterService.getOrderLetters();
+      final response = await remoteDataSource.getOrderLetters();
 
       // Create a map of order letter ID to status (only for filtered order letters)
       final statusMap = <int, String>{};
@@ -888,11 +897,11 @@ class ApprovalRepository {
               newApprovals.add(newApproval);
             } else {
               // Old format: fetch separately
-              final details = await _orderLetterService.getOrderLetterDetails(
+              final details = await remoteDataSource.getOrderLetterDetails(
                   orderLetterId: orderLetterId);
-              final discounts = await _orderLetterService
+              final discounts = await remoteDataSource
                   .getOrderLetterDiscounts(orderLetterId: orderLetterId);
-              final approvalHistory = await _orderLetterService
+              final approvalHistory = await remoteDataSource
                   .getOrderLetterApproves(orderLetterId: orderLetterId);
 
               final newApproval = ApprovalModel.fromJson({
@@ -966,7 +975,7 @@ class ApprovalRepository {
       // NEVER update cache with empty list - always preserve existing cache
       // Only update if we have data
       if (combinedApprovals.isNotEmpty) {
-        ApprovalCache.cacheApprovals(currentUserId, combinedApprovals);
+        localDataSource.cacheApprovals(currentUserId, combinedApprovals);
       }
 
       return combinedApprovals;
@@ -974,7 +983,7 @@ class ApprovalRepository {
       // If status update fails, return cached data (never return empty list if cache exists)
       final currentUserId = await AuthService.getCurrentUserId();
       if (currentUserId == null) return [];
-      final cached = ApprovalCache.getCachedApprovals(currentUserId);
+      final cached = localDataSource.getCachedApprovals(currentUserId);
       return cached ?? [];
     }
   }
@@ -983,7 +992,7 @@ class ApprovalRepository {
   Future<void> clearCache() async {
     final currentUserId = await AuthService.getCurrentUserId();
     if (currentUserId == null) return;
-    ApprovalCache.clearAllCache(currentUserId);
+    localDataSource.clearAllCache(currentUserId);
   }
 
   /// Check if order letter should be included for current user (creator or approver)
@@ -1259,7 +1268,7 @@ class ApprovalRepository {
   /// Get single approval by ID
   Future<ApprovalEntity?> getApprovalById(int orderLetterId) async {
     try {
-      final orderLetters = await _orderLetterService.getOrderLetters();
+      final orderLetters = await remoteDataSource.getOrderLetters();
       final orderLetter = orderLetters.firstWhere(
         (ol) => ol['id'] == orderLetterId,
         orElse: () => {},
@@ -1268,7 +1277,7 @@ class ApprovalRepository {
       if (orderLetter.isEmpty) return null;
 
       // Get details for this order letter
-      final allDetails = await _orderLetterService.getOrderLetterDetails(
+      final allDetails = await remoteDataSource.getOrderLetterDetails(
           orderLetterId: orderLetterId);
 
       // Filter details that belong to this specific order letter
@@ -1277,7 +1286,7 @@ class ApprovalRepository {
           .toList();
 
       // Get discounts for this order letter
-      final allDiscounts = await _orderLetterService.getOrderLetterDiscounts(
+      final allDiscounts = await remoteDataSource.getOrderLetterDiscounts(
           orderLetterId: orderLetterId);
 
       // Filter discounts that belong to this specific order letter
@@ -1286,7 +1295,7 @@ class ApprovalRepository {
           .toList();
 
       // Get approval history for this order letter
-      final allApprovalHistory = await _orderLetterService
+      final allApprovalHistory = await remoteDataSource
           .getOrderLetterApproves(orderLetterId: orderLetterId);
 
       // Filter approval history that belongs to this specific order letter
@@ -1347,7 +1356,7 @@ class ApprovalRepository {
       };
 
       final result =
-          await _orderLetterService.createOrderLetterApprove(approvalData);
+          await remoteDataSource.createOrderLetterApprove(approvalData);
 
       if (result['success']) {
         // Note: We need to implement updateOrderLetter method in OrderLetterService

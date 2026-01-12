@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../config/app_constant.dart';
 import '../../../../config/dependency_injection.dart';
+import '../../../../core/constants/timeouts.dart';
 import '../../../../services/auth_service.dart';
 import '../../../../services/order_letter_service.dart';
 import '../../../../core/widgets/custom_toast.dart';
@@ -18,7 +19,14 @@ import '../widgets/approval_skeleton_card.dart';
 import '../widgets/monitoring/monitoring_widgets.dart';
 
 class ApprovalMonitoringPage extends StatefulWidget {
-  const ApprovalMonitoringPage({super.key});
+  final ApprovalRepository? approvalRepository;
+  final OrderLetterService? orderLetterService;
+
+  const ApprovalMonitoringPage({
+    super.key,
+    this.approvalRepository,
+    this.orderLetterService,
+  });
 
   @override
   State<ApprovalMonitoringPage> createState() => _ApprovalMonitoringPageState();
@@ -129,7 +137,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
           bloc.add(const LoadNewApprovalsIncremental());
 
           // Reset loading state after a delay
-          Future.delayed(const Duration(seconds: 2), () {
+          Future.delayed(RetryDurations.uiRefreshDelay, () {
             if (mounted) {
               setState(() {
                 _isUpdatingStatuses = false;
@@ -199,9 +207,12 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
 
   Future<void> _loadUserInfo() async {
     try {
+      // Use injected repository or fallback to locator
+      final repository =
+          widget.approvalRepository ?? locator<ApprovalRepository>();
+
       // Check cache first
-      final cachedUserInfo =
-          await locator<ApprovalRepository>().getCachedUserInfo();
+      final cachedUserInfo = await repository.getCachedUserInfo();
       if (cachedUserInfo != null) {
         setState(() {
           _isStaffLevel = cachedUserInfo['isStaffLevel'] ?? false;
@@ -222,7 +233,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
         };
 
         // Cache user info
-        locator<ApprovalRepository>().cacheUserInfo(userInfo);
+        await repository.cacheUserInfo(userInfo);
 
         setState(() {
           _isStaffLevel = false;
@@ -262,7 +273,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
         final now = DateTime.now();
         final difference = now.difference(cacheTime);
 
-        if (difference > const Duration(minutes: 2)) {
+        if (difference > RetryDurations.cacheStalenessThreshold) {
           shouldForceRefresh = true;
         } else {
           if (!mounted) return;
@@ -281,7 +292,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                   .add(const UpdateApprovalStatusesOnly());
 
               // Reset loading state after a delay
-              Future.delayed(const Duration(seconds: 2), () {
+              Future.delayed(RetryDurations.uiRefreshDelay, () {
                 if (mounted) {
                   setState(() {
                     _isUpdatingStatuses = false;
@@ -316,8 +327,9 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
     final stopwatch = Stopwatch()..start();
 
     if (!forceRefresh) {
-      // Test cache performance
-      locator<ApprovalRepository>().testCachePerformance();
+      final repository =
+          widget.approvalRepository ?? locator<ApprovalRepository>();
+      repository.testCachePerformance();
     }
 
     context.read<ApprovalBloc>().add(LoadApprovals(forceRefresh: forceRefresh));
@@ -338,12 +350,13 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
 
   /// Start background sync timer
   void _startBackgroundSync() {
-    _backgroundSyncTimer = Timer.periodic(const Duration(minutes: 3), (timer) {
+    _backgroundSyncTimer =
+        Timer.periodic(RetryDurations.backgroundSyncInterval, (timer) {
       _performBackgroundSync();
     });
 
     // Also perform initial background sync after 30 seconds
-    Timer(const Duration(seconds: 30), () {
+    Timer(RetryDurations.shortUiDelay, () {
       _performBackgroundSync();
     });
   }
@@ -366,7 +379,9 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
       }
 
       // Normal background sync (no filter)
-      await locator<ApprovalRepository>().backgroundSync();
+      final repository =
+          widget.approvalRepository ?? locator<ApprovalRepository>();
+      await repository.backgroundSync();
 
       if (mounted) {
         final bloc = context.read<ApprovalBloc>();
@@ -388,7 +403,8 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
 
     try {
       final nextPage = _currentPage + 1;
-      final repository = locator<ApprovalRepository>();
+      final repository =
+          widget.approvalRepository ?? locator<ApprovalRepository>();
       final moreApprovals =
           await repository.getApprovalsWithPagination(page: nextPage);
 
@@ -429,7 +445,8 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
     // Check if current user has already approved any discount in this order letter
     if (currentUserId != null) {
       try {
-        final orderLetterService = locator<OrderLetterService>();
+        final orderLetterService =
+            widget.orderLetterService ?? locator<OrderLetterService>();
         final rawDiscounts = await orderLetterService.getOrderLetterDiscounts(
           orderLetterId: approval.id,
         );
@@ -459,7 +476,8 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
     try {
       final currentUserId = await AuthService.getCurrentUserId();
       if (currentUserId != null) {
-        final orderLetterService = locator<OrderLetterService>();
+        final orderLetterService =
+            widget.orderLetterService ?? locator<OrderLetterService>();
         final rawDiscounts = await orderLetterService.getOrderLetterDiscounts(
             orderLetterId: approval.id);
 
@@ -595,7 +613,7 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
                   if (_isLoadingUserInfo) {
                     return const ApprovalLoadingState();
                   } else if (_isLoadingDateFilter || state is ApprovalLoading) {
-                    return ApprovalSkeletonList(itemCount: 3);
+                    return const ApprovalSkeletonList(itemCount: 3);
                   } else if (state is ApprovalLoaded) {
                     _updateStatsFromState(state);
                     final filteredApprovals = _filterApprovals(state.approvals);
@@ -665,7 +683,9 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
         .where((a) => a.status.toLowerCase() == 'rejected')
         .length;
 
-    locator<ApprovalRepository>().getPaginationInfo().then((paginationInfo) {
+    final repository =
+        widget.approvalRepository ?? locator<ApprovalRepository>();
+    repository.getPaginationInfo().then((paginationInfo) {
       if (mounted) {
         setState(() {
           _pendingCount = pending;
@@ -682,7 +702,8 @@ class _ApprovalMonitoringPageState extends State<ApprovalMonitoringPage>
     return RefreshIndicator(
       onRefresh: _onRefresh,
       child: FutureBuilder<Map<String, dynamic>>(
-        future: locator<ApprovalRepository>().getPaginationInfo(),
+        future: (widget.approvalRepository ?? locator<ApprovalRepository>())
+            .getPaginationInfo(),
         builder: (context, snapshot) {
           final paginationInfo = snapshot.data ??
               {

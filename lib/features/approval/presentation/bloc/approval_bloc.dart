@@ -1,5 +1,4 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../config/dependency_injection.dart';
 import '../../domain/entities/approval_entity.dart';
 import '../../domain/usecases/get_approvals_usecase.dart';
 import '../../domain/usecases/create_approval_usecase.dart';
@@ -14,14 +13,23 @@ class ApprovalBloc extends Bloc<ApprovalEvent, ApprovalState> {
   final GetApprovedApprovalsUseCase _getApprovedApprovalsUseCase;
   final GetRejectedApprovalsUseCase _getRejectedApprovalsUseCase;
   final CreateApprovalUseCase _createApprovalUseCase;
+  final ApprovalRepository _approvalRepository;
 
-  ApprovalBloc()
-      : _getApprovalsUseCase = locator<GetApprovalsUseCase>(),
-        _getApprovalByIdUseCase = locator<GetApprovalByIdUseCase>(),
-        _getPendingApprovalsUseCase = locator<GetPendingApprovalsUseCase>(),
-        _getApprovedApprovalsUseCase = locator<GetApprovedApprovalsUseCase>(),
-        _getRejectedApprovalsUseCase = locator<GetRejectedApprovalsUseCase>(),
-        _createApprovalUseCase = locator<CreateApprovalUseCase>(),
+  ApprovalBloc({
+    required GetApprovalsUseCase getApprovalsUseCase,
+    required GetApprovalByIdUseCase getApprovalByIdUseCase,
+    required GetPendingApprovalsUseCase getPendingApprovalsUseCase,
+    required GetApprovedApprovalsUseCase getApprovedApprovalsUseCase,
+    required GetRejectedApprovalsUseCase getRejectedApprovalsUseCase,
+    required CreateApprovalUseCase createApprovalUseCase,
+    required ApprovalRepository approvalRepository,
+  })  : _getApprovalsUseCase = getApprovalsUseCase,
+        _getApprovalByIdUseCase = getApprovalByIdUseCase,
+        _getPendingApprovalsUseCase = getPendingApprovalsUseCase,
+        _getApprovedApprovalsUseCase = getApprovedApprovalsUseCase,
+        _getRejectedApprovalsUseCase = getRejectedApprovalsUseCase,
+        _createApprovalUseCase = createApprovalUseCase,
+        _approvalRepository = approvalRepository,
         super(ApprovalInitial()) {
     on<LoadApprovals>(_onLoadApprovals);
     on<LoadPendingApprovals>(_onLoadPendingApprovals);
@@ -232,14 +240,13 @@ class ApprovalBloc extends Bloc<ApprovalEvent, ApprovalState> {
       final currentState = state;
       if (currentState is! ApprovalLoaded) {
         // If not loaded, do full load instead
-        add(LoadApprovals());
+        add(const LoadApprovals());
         return;
       }
 
       // Update specific approval
-      final repository = locator<ApprovalRepository>();
       final updatedApproval =
-          await repository.updateSingleApproval(event.orderLetterId);
+          await _approvalRepository.updateSingleApproval(event.orderLetterId);
 
       if (updatedApproval != null) {
         // Update the specific item in current state
@@ -269,13 +276,13 @@ class ApprovalBloc extends Bloc<ApprovalEvent, ApprovalState> {
       final currentState = state;
       if (currentState is! ApprovalLoaded) {
         // If not loaded, do full load instead
-        add(LoadApprovals());
+        add(const LoadApprovals());
         return;
       }
 
       // Load new approvals incrementally
-      final repository = locator<ApprovalRepository>();
-      final updatedApprovals = await repository.loadNewApprovalsIncremental();
+      final updatedApprovals =
+          await _approvalRepository.loadNewApprovalsIncremental();
 
       // Remove duplicates based on ID
       final uniqueApprovals = <int, ApprovalEntity>{};
@@ -308,8 +315,8 @@ class ApprovalBloc extends Bloc<ApprovalEvent, ApprovalState> {
       }
 
       // Update only approval statuses (lightweight operation)
-      final repository = locator<ApprovalRepository>();
-      final updatedApprovals = await repository.updateApprovalStatusesOnly();
+      final updatedApprovals =
+          await _approvalRepository.updateApprovalStatusesOnly();
 
       // Remove duplicates based on ID
       final uniqueApprovals = <int, ApprovalEntity>{};

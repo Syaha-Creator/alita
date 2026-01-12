@@ -75,7 +75,7 @@ class ApprovalErrorState extends StatelessWidget {
                 color: AppColors.error.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: Icon(
+              child: const Icon(
                 Icons.error_outline_rounded,
                 size: 48,
                 color: AppColors.error,
@@ -113,12 +113,12 @@ class ApprovalErrorState extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: Row(
+              child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.refresh_rounded, color: Colors.white),
-                  const SizedBox(width: AppPadding.p8),
-                  const Text(
+                  Icon(Icons.refresh_rounded, color: Colors.white),
+                  SizedBox(width: AppPadding.p8),
+                  Text(
                     'Try Again',
                     style: TextStyle(
                       color: Colors.white,

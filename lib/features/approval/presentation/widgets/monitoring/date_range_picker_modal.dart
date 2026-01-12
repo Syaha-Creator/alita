@@ -222,18 +222,18 @@ class _DateRangePickerModalState extends State<DateRangePickerModal> {
                 },
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.error,
-                  side: BorderSide(color: AppColors.error),
+                  side: const BorderSide(color: AppColors.error),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: Row(
+                child: const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.clear_rounded, size: 18),
-                    const SizedBox(width: AppPadding.p8),
-                    const Text(
+                    Icon(Icons.clear_rounded, size: 18),
+                    SizedBox(width: AppPadding.p8),
+                    Text(
                       'Hapus Filter',
                       style: TextStyle(fontWeight: FontWeight.w600),
                     ),
@@ -257,12 +257,12 @@ class _DateRangePickerModalState extends State<DateRangePickerModal> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: Row(
+              child: const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.check_rounded, size: 18),
-                  const SizedBox(width: AppPadding.p8),
-                  const Text(
+                  Icon(Icons.check_rounded, size: 18),
+                  SizedBox(width: AppPadding.p8),
+                  Text(
                     'Terapkan',
                     style: TextStyle(fontWeight: FontWeight.w600),
                   ),

@@ -205,7 +205,7 @@ class ApprovalSkeletonList extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       itemCount: itemCount,
       itemBuilder: (context, index) {
-        return ApprovalSkeletonCard();
+        return const ApprovalSkeletonCard();
       },
     );
   }

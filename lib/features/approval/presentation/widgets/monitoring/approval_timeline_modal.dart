@@ -67,7 +67,7 @@ class ApprovalTimelineModal extends StatelessWidget {
                     color: AppColors.warning,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(
+                  child: const Icon(
                     Icons.timeline_rounded,
                     color: Colors.white,
                     size: 16,
@@ -178,7 +178,7 @@ class _ApprovalTimelineContent extends StatelessWidget {
               // Header
               Row(
                 children: [
-                  Icon(Icons.timeline_rounded, color: AppColors.warning),
+                  const Icon(Icons.timeline_rounded, color: AppColors.warning),
                   const SizedBox(width: AppPadding.p8),
                   Text(
                     'Approval Timeline',

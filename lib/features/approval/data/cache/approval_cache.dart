@@ -1,29 +1,33 @@
 import '../../domain/entities/approval_entity.dart';
+import '../../../../core/constants/timeouts.dart';
 
 /// Cache manager untuk approval data
 class ApprovalCache {
   // Cache untuk approval data per user (key: userId)
   static final Map<int, List<ApprovalEntity>> _cachedApprovalsByUser = {};
   static final Map<int, DateTime> _cacheTimestampByUser = {};
-  static const Duration _cacheValidDuration = Duration(minutes: 5);
+  static const Duration _cacheValidDuration = CacheDurations.approvalCache;
 
   // Cache untuk discounts data (untuk timeline) - per user dan order letter
   static final Map<String, List<Map<String, dynamic>>> _discountCache = {};
   static final Map<String, DateTime> _discountCacheTimestamp = {};
-  static const Duration _discountCacheValidDuration = Duration(minutes: 10);
+  static const Duration _discountCacheValidDuration =
+      CacheDurations.discountCache;
 
   // Cache untuk user info per user
   static final Map<int, Map<String, dynamic>> _userInfoCacheByUser = {};
   static final Map<int, DateTime> _userInfoCacheTimestampByUser = {};
-  static const Duration _userInfoCacheValidDuration = Duration(hours: 1);
+  static const Duration _userInfoCacheValidDuration =
+      CacheDurations.userInfoCache;
 
   // Pagination settings
-  static const int itemsPerPage = 20;
-  static const int lazyLoadThreshold = 50;
+  static const int itemsPerPage = PaginationConstants.itemsPerPage;
+  static const int lazyLoadThreshold = PaginationConstants.lazyLoadThreshold;
 
   // Background sync settings per user
   static final Map<int, DateTime> _lastBackgroundSyncByUser = {};
-  static const Duration _backgroundSyncInterval = Duration(minutes: 3);
+  static const Duration _backgroundSyncInterval =
+      RetryDurations.backgroundSyncInterval;
 
   // Incremental loading state per user
   static final Map<int, bool> _isLoadingNewDataByUser = {};
