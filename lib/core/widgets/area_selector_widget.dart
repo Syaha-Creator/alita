@@ -99,12 +99,12 @@ class _AreaSelectorWidgetState extends State<AreaSelectorWidget> {
       ),
       child: Row(
         children: [
-          Icon(Icons.error_outline, color: AppColors.error, size: 20),
+          const Icon(Icons.error_outline, color: AppColors.error, size: 20),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               _errorMessage!,
-              style: TextStyle(color: AppColors.error),
+              style: const TextStyle(color: AppColors.error),
             ),
           ),
           TextButton(

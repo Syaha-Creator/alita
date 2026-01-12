@@ -16,6 +16,7 @@ class CustomDropdown<T> extends StatelessWidget {
   final double? width;
   final bool isDynamicWidth;
   final IconData? emptyIcon;
+  final bool enabled;
 
   const CustomDropdown({
     super.key,
@@ -28,6 +29,7 @@ class CustomDropdown<T> extends StatelessWidget {
     this.width,
     this.isDynamicWidth = false,
     this.emptyIcon,
+    this.enabled = true,
   });
 
   // Hitung tinggi menu berdasarkan jumlah item
@@ -99,10 +101,14 @@ class CustomDropdown<T> extends StatelessWidget {
         desktop: 70,
       ),
       width: calculatedWidth,
-      child: DropdownSearch<T>(
-        items: items,
-        selectedItem: selectedValue,
-        onChanged: onChanged,
+      child: AbsorbPointer(
+        absorbing: !enabled,
+        child: Opacity(
+          opacity: enabled ? 1.0 : 0.5,
+          child: DropdownSearch<T>(
+            items: items,
+            selectedItem: selectedValue,
+            onChanged: enabled ? onChanged : null,
         dropdownButtonProps: DropdownButtonProps(
           icon: Icon(
             Icons.arrow_drop_down,
@@ -161,7 +167,7 @@ class CustomDropdown<T> extends StatelessWidget {
           ),
           itemBuilder: (context, item, isSelected) {
             return Container(
-              padding: EdgeInsets.symmetric(
+              padding: const EdgeInsets.symmetric(
                 vertical: 6,
                 horizontal: 12,
               ),
@@ -300,6 +306,8 @@ class CustomDropdown<T> extends StatelessWidget {
           );
         },
         itemAsString: (item) => item.toString(),
+          ),
+        ),
       ),
     );
   }

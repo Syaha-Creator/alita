@@ -20,11 +20,11 @@ class ForceUpdateDialog extends StatelessWidget {
     return PopScope(
       canPop: !isForceUpdate, // Prevent back button if force update
       child: AlertDialog(
-        title: Row(
+        title: const Row(
           children: [
             Icon(Icons.system_update, color: AppColors.warning), // Status color
-            const SizedBox(width: 8),
-            const Text('Update Diperlukan'),
+            SizedBox(width: 8),
+            Text('Update Diperlukan'),
           ],
         ),
         content: Column(

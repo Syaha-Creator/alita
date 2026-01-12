@@ -27,7 +27,7 @@ class WhatsAppDialog extends StatelessWidget {
       ),
       title: Row(
         children: [
-          Icon(
+          const Icon(
             Icons.message,
             color: AppColors.whatsapp,
             size: 24,
