@@ -195,7 +195,7 @@ class _LoginFormState extends State<LoginForm> with ControllerDisposalMixin {
                   ),
                 ),
                 child: isLoading
-                    ? SizedBox(
+                    ? const SizedBox(
                         height: 20,
                         width: 20,
                         child: CircularProgressIndicator(
@@ -204,12 +204,12 @@ class _LoginFormState extends State<LoginForm> with ControllerDisposalMixin {
                               AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
                       )
-                    : Row(
+                    : const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.login_rounded, size: 20),
-                          const SizedBox(width: AppPadding.p8),
-                          const Text(
+                          Icon(Icons.login_rounded, size: 20),
+                          SizedBox(width: AppPadding.p8),
+                          Text(
                             'Masuk',
                             style: TextStyle(
                               fontSize: 16,
@@ -320,13 +320,13 @@ class _LoginFormState extends State<LoginForm> with ControllerDisposalMixin {
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
+              borderSide: const BorderSide(
                 color: AppColors.error,
               ),
             ),
             focusedErrorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
+              borderSide: const BorderSide(
                 color: AppColors.error,
                 width: 1.5,
               ),

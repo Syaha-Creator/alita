@@ -102,7 +102,7 @@ class LoginPage extends StatelessWidget {
   Widget _buildWelcomeText(bool isDark) {
     return Column(
       children: [
-        Text(
+        const Text(
           'Alita Pricelist',
           style: TextStyle(
             fontSize: 28,
