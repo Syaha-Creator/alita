@@ -1,15 +1,16 @@
+import 'env_config.dart';
+
 class ApiConfig {
   // Base URLs
   static const String baseUrl = "https://alitav2.massindo.com/";
   // static const String baseUrl = "https://a3f7d0dbf05a.ngrok-free.app/";
 
-  // Client credentials
-  static const String clientId = "UjQrHkqRaXgxrMnsuMQis-nbYp_jEbArPHSIN3QVQC8";
-  static const String clientSecret =
-      "yOEtsL-v5SEg4WMDcCU6Qv7lDBhVpJIfPBpJKU68dVo";
+  // Client credentials - Loaded from environment variables
+  static String get clientId => EnvConfig().get('API_CLIENT_ID');
+  static String get clientSecret => EnvConfig().get('API_CLIENT_SECRET');
 
   // LoginEndpoints
-  static const String signIn =
+  static String get signIn =>
       "${baseUrl}api/sign_in?client_id=$clientId&client_secret=$clientSecret";
 
   // Contact Work Experiences Endpoints
