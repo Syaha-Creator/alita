@@ -57,7 +57,6 @@ class BrandService {
 
       return activeBrands;
     } on DioException catch (e) {
-
       if (e.type == DioExceptionType.connectionTimeout ||
           e.type == DioExceptionType.sendTimeout ||
           e.type == DioExceptionType.receiveTimeout) {

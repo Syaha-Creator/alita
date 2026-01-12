@@ -540,7 +540,7 @@ class PDFService {
                 pw.SizedBox(height: 2),
                 pw.Text(
                   orderLetterCreatedAt,
-                  style: pw.TextStyle(
+                  style: const pw.TextStyle(
                     fontSize: 6,
                     color: PdfColors.grey600,
                   ),
@@ -1535,7 +1535,7 @@ class PDFService {
       children: [
         pw.Text(
           "Pembayaran dianggap SAH hanya apabila sudah diterima di rekening perusahaan atas nama:",
-          style: pw.TextStyle(fontSize: 7),
+          style: const pw.TextStyle(fontSize: 7),
         ),
         pw.SizedBox(height: 2),
         pw.Padding(
@@ -1564,7 +1564,7 @@ class PDFService {
         pw.SizedBox(height: 2),
         pw.Text(
           "Pembayaran ke rekening lain tidak akan diakui sebagai pembayaran yang sah.",
-          style: pw.TextStyle(fontSize: 7),
+          style: const pw.TextStyle(fontSize: 7),
         ),
       ],
     );
@@ -1612,7 +1612,7 @@ class PDFService {
                           ? _buildFirstTermWithBoldBank()
                           : pw.Text(
                               entry.value,
-                              style: pw.TextStyle(fontSize: 7),
+                              style: const pw.TextStyle(fontSize: 7),
                               textAlign: pw.TextAlign.justify,
                             ),
                     ),

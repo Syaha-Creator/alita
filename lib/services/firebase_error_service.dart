@@ -125,7 +125,7 @@ class FirebaseErrorService {
             name: 'fatal_error_occurred',
             parameters: {
               'error_type': error.runtimeType.toString(),
-              'fatal': true,
+              'fatal': 'true', // Firebase Analytics requires String or num, not bool
               if (reason != null) 'reason': reason,
             },
           );

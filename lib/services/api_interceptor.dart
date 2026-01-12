@@ -17,15 +17,22 @@ class ApiInterceptor extends InterceptorsWrapper {
     options.headers['ngrok-skip-browser-warning'] = 'true';
     options.headers['User-Agent'] = 'AlitaPricelist/1.0';
 
-    // Only add Authorization header for non-ngrok and non-filtered_pl endpoints
+    // Only add Authorization header for non-ngrok, non-filtered_pl, and non-login endpoints
+    // Login endpoint doesn't need Authorization header since user is not authenticated yet
     if (!options.path.contains('ngrok-free.app') &&
-        !options.path.contains('/api/filtered_pl')) {
+        !options.path.contains('/api/filtered_pl') &&
+        !options.path.contains('/api/sign_in')) {
       String? token = await AuthService.getToken();
       if (token != null) {
         options.headers['Authorization'] = 'Bearer $token';
       }
     }
     options.headers['Accept'] = 'application/json';
+
+    // Ensure Content-Type is set for requests with data
+    if (options.data != null && options.headers['Content-Type'] == null) {
+      options.headers['Content-Type'] = 'application/json';
+    }
 
     return handler.next(options);
   }

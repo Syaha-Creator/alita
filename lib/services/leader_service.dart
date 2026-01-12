@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import '../features/approval/data/models/approval_model.dart';
 import 'api_client.dart';
 import 'auth_service.dart';
@@ -15,7 +16,16 @@ class LeaderService {
           userId ?? (await AuthService.getCurrentUserId())?.toString();
 
       if (token == null || currentUserId == null) {
+        if (kDebugMode) {
+          print(
+              '[DEBUG] LeaderService.getLeaderByUser: Token or userId is null');
+        }
         return null;
+      }
+
+      if (kDebugMode) {
+        print(
+            '[DEBUG] LeaderService.getLeaderByUser: Fetching leader data for userId: $currentUserId');
       }
 
       final response = await _apiClient.getLeaderByUser(
@@ -25,11 +35,49 @@ class LeaderService {
 
       if (response['result'] != null) {
         final leaderData = LeaderByUserModel.fromJson(response['result']);
+        if (kDebugMode) {
+          print(
+              '[DEBUG] LeaderService.getLeaderByUser: Successfully fetched leader data:');
+          print(
+              '  - User: ${leaderData.user.fullName} (ID: ${leaderData.user.id}, Title: ${leaderData.user.workTitle})');
+          if (leaderData.directLeader != null) {
+            print(
+                '  - Direct Leader: ${leaderData.directLeader!.fullName} (ID: ${leaderData.directLeader!.id}, Title: ${leaderData.directLeader!.workTitle})');
+          } else {
+            print('  - Direct Leader: null');
+          }
+          if (leaderData.indirectLeader != null) {
+            print(
+                '  - Indirect Leader: ${leaderData.indirectLeader!.fullName} (ID: ${leaderData.indirectLeader!.id}, Title: ${leaderData.indirectLeader!.workTitle})');
+          } else {
+            print('  - Indirect Leader: null');
+          }
+          if (leaderData.analyst != null) {
+            print(
+                '  - Analyst: ${leaderData.analyst!.fullName} (ID: ${leaderData.analyst!.id}, Title: ${leaderData.analyst!.workTitle})');
+          } else {
+            print('  - Analyst: null');
+          }
+          if (leaderData.controller != null) {
+            print(
+                '  - Controller: ${leaderData.controller!.fullName} (ID: ${leaderData.controller!.id}, Title: ${leaderData.controller!.workTitle})');
+          } else {
+            print('  - Controller: null');
+          }
+        }
         return leaderData;
       }
 
+      if (kDebugMode) {
+        print('[DEBUG] LeaderService.getLeaderByUser: Response result is null');
+      }
       return null;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      if (kDebugMode) {
+        print(
+            '[DEBUG] LeaderService.getLeaderByUser: Error fetching leader data: $e');
+        print('[DEBUG] StackTrace: $stackTrace');
+      }
       // Don't rethrow the exception, just return null to prevent app crash
       return null;
     }

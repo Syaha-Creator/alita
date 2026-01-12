@@ -4,10 +4,12 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:googleapis_auth/auth_io.dart' as auth;
 import 'package:http/http.dart' as http;
+import 'package:logger/logger.dart';
 
 import '../config/app_constant.dart';
 import '../config/dependency_injection.dart';
 import '../config/firebase_credentials.dart';
+import '../core/constants/timeouts.dart';
 import '../features/approval/data/models/device_token_model.dart';
 import '../navigation/navigation_service.dart';
 import 'auth_service.dart';
@@ -30,6 +32,17 @@ class NotificationService {
       LocalNotificationService();
   final DeviceTokenService _deviceTokenService = DeviceTokenService();
 
+  // Logger instance for debug logging
+  final Logger _logger = Logger(
+    printer: PrettyPrinter(
+      methodCount: 0,
+      errorMethodCount: 3,
+      lineLength: 80,
+      colors: true,
+      printEmojis: false,
+    ),
+  );
+
   bool _isInitialized = false;
   String? _currentFcmToken;
 
@@ -37,7 +50,7 @@ class NotificationService {
   Future<void> initialize() async {
     if (_isInitialized) {
       if (kDebugMode) {
-        print('NotificationService already initialized');
+        _logger.d('NotificationService already initialized');
       }
       return;
     }
@@ -60,7 +73,7 @@ class NotificationService {
       _isInitialized = true;
 
       if (kDebugMode) {
-        print('NotificationService initialized successfully');
+        _logger.i('NotificationService initialized successfully');
       }
 
       _registerTokenIfLoggedIn().catchError((error) {
@@ -93,7 +106,7 @@ class NotificationService {
       );
 
       if (kDebugMode) {
-        print(
+        _logger.d(
             'Firebase Messaging permission status: ${settings.authorizationStatus}');
       }
 
@@ -125,11 +138,11 @@ class NotificationService {
       // For Android, permissions are handled automatically
       // For iOS, already requested in _initializeFirebaseMessaging
       if (kDebugMode) {
-        print('Notification permissions requested');
+        _logger.d('Notification permissions requested');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('Error requesting permissions: $e');
+        _logger.e('Error requesting permissions: $e');
       }
     }
   }
@@ -161,14 +174,14 @@ class NotificationService {
 
       if (_currentFcmToken != null) {
         if (kDebugMode) {
-          print('FCM Token: ${_currentFcmToken!.substring(0, 20)}...');
+          _logger.d('FCM Token: ${_currentFcmToken!.substring(0, 20)}...');
         }
 
         // Listen for token refresh
         FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
           _currentFcmToken = newToken;
           if (kDebugMode) {
-            print('FCM Token refreshed: ${newToken.substring(0, 20)}...');
+            _logger.d('FCM Token refreshed: ${newToken.substring(0, 20)}...');
           }
           // Update token in backend jika user sudah login
           _updateTokenInBackend(newToken);
@@ -187,7 +200,7 @@ class NotificationService {
   Future<void> registerTokenToBackend() async {
     if (_currentFcmToken == null) {
       if (kDebugMode) {
-        print('FCM Token is null, cannot register to backend');
+        _logger.w('FCM Token is null, cannot register to backend');
       }
       return;
     }
@@ -195,7 +208,7 @@ class NotificationService {
     final currentUserId = await AuthService.getCurrentUserId();
     if (currentUserId == null) {
       if (kDebugMode) {
-        print('User not logged in, skipping token registration');
+        _logger.d('User not logged in, skipping token registration');
       }
       return;
     }
@@ -208,17 +221,17 @@ class NotificationService {
 
       if (success) {
         if (kDebugMode) {
-          print('FCM Token registered to backend for user: $currentUserId');
+          _logger.i('FCM Token registered to backend for user: $currentUserId');
         }
       } else {
         if (kDebugMode) {
-          print(
+          _logger.w(
               'Failed to register FCM Token to backend for user: $currentUserId');
         }
       }
     } catch (e, stackTrace) {
       if (kDebugMode) {
-        print('Exception registering FCM Token: $e');
+        _logger.e('Exception registering FCM Token: $e');
       }
       FirebaseErrorService().logFcmError(
         'register_token_to_backend',
@@ -236,10 +249,10 @@ class NotificationService {
       if (isLoggedIn) {
         // Tambahkan timeout untuk mencegah hang saat startup
         await registerTokenToBackend().timeout(
-          const Duration(seconds: 10),
+          ApiTimeouts.mediumTimeout,
           onTimeout: () {
             if (kDebugMode) {
-              print(
+              _logger.w(
                   'Token registration timeout during startup, will retry later');
             }
             // Future<void> tidak perlu return value
@@ -248,7 +261,7 @@ class NotificationService {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('Error in _registerTokenIfLoggedIn: $e');
+        _logger.e('Error in _registerTokenIfLoggedIn: $e');
       }
     }
   }
@@ -261,39 +274,72 @@ class NotificationService {
       return await auth.clientViaServiceAccount(credentials, scopes);
     } catch (e) {
       if (kDebugMode) {
-        print('Error creating Firebase auth client: $e');
+        _logger.e('Error creating Firebase auth client: $e');
       }
       return null;
     }
   }
 
   /// Handle foreground message (when app is open)
+  /// Logic: FCM messages in foreground should show local notification
   void _handleForegroundMessage(RemoteMessage message) {
-    if (kDebugMode) {
-      print('Foreground message received: ${message.messageId}');
-      print('Title: ${message.notification?.title}');
-      print('Body: ${message.notification?.body}');
-      print('Data: ${message.data}');
-    }
+    try {
+      if (kDebugMode) {
+        _logger.d('Foreground message received: ${message.messageId}');
+        _logger.d('Title: ${message.notification?.title}');
+        _logger.d('Body: ${message.notification?.body}');
+        _logger.d('Data: ${message.data}');
+      }
 
-    // Show local notification when app is in foreground
-    if (message.notification != null) {
-      _localNotificationService.showSimpleNotification(
-        title: message.notification!.title ?? 'New Notification',
-        body: message.notification!.body ?? '',
-        payload: message.data.toString(),
+      // Show local notification when app is in foreground
+      // FCM doesn't show notification automatically in foreground, so we use local notification
+      if (message.notification != null) {
+        _localNotificationService
+            .showSimpleNotification(
+          title: message.notification!.title ?? 'New Notification',
+          body: message.notification!.body ?? '',
+          payload: message.data.toString(),
+        )
+            .catchError((e, stackTrace) {
+          FirebaseErrorService().logFcmError(
+            'handle_foreground_message',
+            e,
+            stackTrace: stackTrace,
+            context: {
+              'messageId': message.messageId ?? 'unknown',
+              'notificationTitle': message.notification?.title,
+            },
+          );
+        });
+      }
+    } catch (e, stackTrace) {
+      FirebaseErrorService().logFcmError(
+        'handle_foreground_message',
+        e,
+        stackTrace: stackTrace,
+        context: {'messageId': message.messageId ?? 'unknown'},
       );
     }
   }
 
   /// Handle background message opened (when user taps notification)
+  /// Logic: User tapped notification, navigate to relevant screen
   void _handleBackgroundMessageOpened(RemoteMessage message) {
-    if (kDebugMode) {
-      print('Background message opened: ${message.messageId}');
-      print('Data: ${message.data}');
-    }
+    try {
+      if (kDebugMode) {
+        _logger.d('Background message opened: ${message.messageId}');
+        _logger.d('Data: ${message.data}');
+      }
 
-    handleNotificationTap(data: message.data);
+      handleNotificationTap(data: message.data);
+    } catch (e, stackTrace) {
+      FirebaseErrorService().logFcmError(
+        'handle_background_message_opened',
+        e,
+        stackTrace: stackTrace,
+        context: {'messageId': message.messageId ?? 'unknown'},
+      );
+    }
   }
 
   /// Handle notification navigation based on payload/data
@@ -308,7 +354,7 @@ class NotificationService {
     final orderIdString = data?['order_id'] ?? data?['orderId'] ?? payload;
 
     if (kDebugMode) {
-      print('Notification navigation data: $data, payload: $payload');
+      _logger.d('Notification navigation data: $data, payload: $payload');
     }
 
     if (orderIdString != null && orderIdString.isNotEmpty) {
@@ -325,7 +371,7 @@ class NotificationService {
     }
 
     if (kDebugMode) {
-      print(
+      _logger.w(
           'Unable to navigate: missing or invalid order_id for notification type $notificationType');
     }
   }
@@ -356,7 +402,7 @@ class NotificationService {
 
       if (targetTokens.isEmpty) {
         if (kDebugMode) {
-          print('No device tokens found for users: $userIds');
+          _logger.w('No device tokens found for users: $userIds');
         }
         return false;
       }
@@ -366,7 +412,7 @@ class NotificationService {
 
       if (firebaseClient == null) {
         if (kDebugMode) {
-          print('Unable to create Firebase auth client.');
+          _logger.e('Unable to create Firebase auth client.');
         }
         return false;
       }
@@ -414,7 +460,7 @@ class NotificationService {
           if (!success) {
             allSuccess = false;
             if (kDebugMode) {
-              print(
+              _logger.e(
                   'Failed to send FCM to token $token: ${response.statusCode} - ${response.body}');
             }
 
@@ -426,7 +472,7 @@ class NotificationService {
                     responseBody['error']?['details']?[0]?['errorCode'] ?? '';
                 if (errorCode == 'UNREGISTERED') {
                   if (kDebugMode) {
-                    print(
+                    _logger.w(
                         'Token $token is unregistered, should be removed from server');
                   }
                 }
@@ -435,7 +481,7 @@ class NotificationService {
               }
             }
           } else if (kDebugMode) {
-            print('FCM sent successfully to token $token');
+            _logger.d('FCM sent successfully to token $token');
           }
         }
       } finally {
@@ -458,6 +504,11 @@ class NotificationService {
   }
 
   /// Send notification to leaders when order letter is created
+  /// Logic:
+  /// - Send FCM ONLY to FIRST pending approval level (Direct Leader / level 2)
+  /// - Notifications are sent sequentially: Direct → Indirect → Analyst → Controller
+  /// - Show local notification to creator (immediate feedback)
+  /// - Only send if order letter was created successfully
   Future<bool> notifyLeadersOnOrderLetterCreated({
     required String orderId,
     required String noSp,
@@ -466,32 +517,104 @@ class NotificationService {
     List<int>? leaderIds,
   }) async {
     try {
-      // Get leader IDs if not provided
-      List<int> targetLeaderIds = leaderIds ?? [];
+      // Validate required parameters
+      if (orderId.isEmpty || noSp.isEmpty) {
+        if (kDebugMode) {
+          _logger.w(
+              'notifyLeadersOnOrderLetterCreated: Missing required parameters');
+        }
+        return false;
+      }
 
-      if (targetLeaderIds.isEmpty) {
-        final currentUserId = await AuthService.getCurrentUserId();
-        if (currentUserId != null) {
-          final leaderService = locator<LeaderService>();
-          final leaderData = await leaderService.getLeaderByUser();
+      // Get first pending approval level from order letter discounts
+      // This ensures we only notify the next approver in sequence
+      int? firstPendingLevelId;
+      int? firstPendingApproverId;
+      String? firstPendingLevelName;
 
-          if (leaderData != null) {
-            // Get direct leader (priority for approval)
-            if (leaderData.directLeader != null) {
-              targetLeaderIds.add(leaderData.directLeader!.id);
-            }
-            // Optionally add indirect leader
-            if (leaderData.indirectLeader != null) {
-              targetLeaderIds.add(leaderData.indirectLeader!.id);
+      try {
+        final orderLetterId = int.tryParse(orderId);
+        if (orderLetterId != null) {
+          final orderLetterService = locator<OrderLetterService>();
+          final discounts = await orderLetterService.getOrderLetterDiscounts(
+            orderLetterId: orderLetterId,
+          );
+
+          // Find the first pending approval level (lowest level that is not approved)
+          // Skip level 1 (User) as it's auto-approved
+          for (final discount in discounts) {
+            final levelId = _parseInt(discount['approver_level_id']);
+            final approvedValue = discount['approved'];
+            final approverValue = discount['approver'] ??
+                discount['approver_id'] ??
+                discount['approver_user_id'] ??
+                discount['leader'] ??
+                discount['leader_id'];
+
+            // Skip level 1 (User) and already approved levels
+            if (levelId == null || levelId <= 1) continue;
+
+            final isApproved = _isApprovedStatus(approvedValue);
+            if (isApproved) continue;
+
+            // Check if approver ID is valid
+            final approverId = _parseInt(approverValue);
+            if (approverId == null) continue;
+
+            // Take the first (lowest) pending level
+            if (firstPendingLevelId == null || levelId < firstPendingLevelId) {
+              firstPendingLevelId = levelId;
+              firstPendingApproverId = approverId;
+              firstPendingLevelName =
+                  discount['approver_level']?.toString() ?? 'Level $levelId';
             }
           }
+
+          if (kDebugMode) {
+            _logger.d(
+                'notifyLeadersOnOrderLetterCreated: First pending level - Level $firstPendingLevelId ($firstPendingLevelName), Approver ID: $firstPendingApproverId');
+          }
+        }
+      } catch (e, stackTrace) {
+        FirebaseErrorService().logFcmError(
+          'get_first_pending_approval_level',
+          e,
+          stackTrace: stackTrace,
+          context: {'order_id': orderId},
+        );
+      }
+
+      // Fallback: If we can't get from discounts, use direct leader (level 2)
+      if (firstPendingApproverId == null) {
+        try {
+          final currentUserId = await AuthService.getCurrentUserId();
+          if (currentUserId != null) {
+            final leaderService = locator<LeaderService>();
+            final leaderData = await leaderService.getLeaderByUser();
+
+            if (leaderData != null && leaderData.directLeader != null) {
+              firstPendingApproverId = leaderData.directLeader!.id;
+              firstPendingLevelId = 2; // Direct Leader
+              firstPendingLevelName = 'Direct Leader';
+            }
+          }
+        } catch (e, stackTrace) {
+          FirebaseErrorService().logFcmError(
+            'get_direct_leader_fallback',
+            e,
+            stackTrace: stackTrace,
+            context: {'order_id': orderId},
+          );
         }
       }
 
-      if (targetLeaderIds.isEmpty) {
+      if (firstPendingApproverId == null) {
         if (kDebugMode) {
-          print('No leader IDs found for notification');
+          _logger.w('No pending approver found for notification');
         }
+        // Still show local notification to creator even if no approver found
+        await _showCreatorNotification(
+            orderId, noSp, customerName, totalAmount);
         return false;
       }
 
@@ -508,44 +631,76 @@ class NotificationService {
         }
       } catch (e) {
         if (kDebugMode) {
-          print('Error fetching creator name: $e');
+          _logger.e('Error fetching creator name: $e');
         }
       }
 
-      // Get notification template
+      // Get notification template with correct approval level
+      final approvalLevelName = firstPendingLevelName ?? 'Direct Leader';
       final notificationTemplate =
           NotificationTemplateService.newApprovalRequest(
         noSp: noSp,
-        approvalLevel: 'Direct Leader',
+        approvalLevel: approvalLevelName,
         customerName: customerName,
         creatorName: creatorName,
         totalAmount: totalAmount,
       );
 
-      // Send notification to each leader
-      bool allSuccess = true;
-      for (final leaderId in targetLeaderIds) {
-        final success = await sendNotificationToUsers(
-          userIds: [leaderId.toString()],
-          title: notificationTemplate['title']!,
-          body: notificationTemplate['body']!,
-          data: NotificationTemplateService.generateNotificationData(
-            type: 'approval_request',
-            noSp: noSp,
-            orderId: orderId, // Keep for backward compatibility
-            approvalLevel: 'Direct Leader',
-            customerName: customerName,
-            totalAmount: totalAmount,
-          ),
-          notificationType: 'approval_request',
-        );
+      // Send notification ONLY to first pending approver (sequential notification)
+      final success = await sendNotificationToUsers(
+        userIds: [firstPendingApproverId.toString()],
+        title: notificationTemplate['title']!,
+        body: notificationTemplate['body']!,
+        data: NotificationTemplateService.generateNotificationData(
+          type: 'approval_request',
+          noSp: noSp,
+          orderId: orderId, // Keep for backward compatibility
+          approvalLevel: approvalLevelName,
+          customerName: customerName,
+          totalAmount: totalAmount,
+        ),
+        notificationType: 'approval_request',
+      );
 
-        if (!success) {
-          allSuccess = false;
-        }
+      if (kDebugMode) {
+        _logger.d(
+            'notifyLeadersOnOrderLetterCreated: Notification sent to first pending approver (Level $firstPendingLevelId, User ID: $firstPendingApproverId) - Success: $success');
       }
 
-      // Also show local notification to creator
+      // Also show local notification to creator (immediate feedback)
+      await _showCreatorNotification(orderId, noSp, customerName, totalAmount);
+
+      return success;
+    } catch (e, stackTrace) {
+      FirebaseErrorService().logFcmError(
+        'notify_leaders_on_order_letter_created',
+        e,
+        stackTrace: stackTrace,
+        context: {
+          'order_id': orderId,
+          'no_sp': noSp,
+        },
+      );
+      // Still try to show local notification to creator even if FCM fails
+      try {
+        await _showCreatorNotification(
+            orderId, noSp, customerName, totalAmount);
+      } catch (_) {
+        // Ignore if local notification also fails
+      }
+      return false;
+    }
+  }
+
+  /// Helper method to show local notification to creator
+  /// Logic: Always show local notification to creator for immediate feedback
+  Future<void> _showCreatorNotification(
+    String orderId,
+    String noSp,
+    String? customerName,
+    double? totalAmount,
+  ) async {
+    try {
       final creatorNotification =
           NotificationTemplateService.orderLetterCreated(
         noSp: noSp,
@@ -558,18 +713,27 @@ class NotificationService {
         body: creatorNotification['body']!,
         payload: orderId, // Keep orderId in payload for navigation
       );
-
-      return allSuccess;
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error notifying leaders on order letter created: $e');
-      }
-      return false;
+    } catch (e, stackTrace) {
+      FirebaseErrorService().logFcmError(
+        'show_creator_notification',
+        e,
+        stackTrace: stackTrace,
+        context: {
+          'order_id': orderId,
+          'no_sp': noSp,
+        },
+      );
     }
   }
 
   /// Notify after approval action
   /// Handles notification to creator and next approver if applicable
+  ///
+  /// Logic:
+  /// - Final approval: Send FCM to creator (all approvals done)
+  /// - Not final: Send FCM to creator (status update) + FCM to next approver (new request)
+  /// - Local notification: Only shown for final approval to current user (if they are creator)
+  /// - No local notification for non-final approvals (FCM handles it)
   Future<void> notifyOnApproval({
     required int orderLetterId,
     required int approvedLevelId,
@@ -631,6 +795,7 @@ class NotificationService {
 
       if (isFinalApproval) {
         // Final approval - notify creator that all approvals are done
+        // Logic: Send FCM to creator (they may not be using the app)
         final notificationTemplate =
             NotificationTemplateService.finalApprovalCompleted(
           noSp: finalNoSp,
@@ -639,6 +804,7 @@ class NotificationService {
         );
 
         if (creatorUserId != null) {
+          // Send FCM to creator
           await sendNotificationToUsers(
             userIds: [creatorUserId.toString()],
             title: notificationTemplate['title']!,
@@ -652,14 +818,21 @@ class NotificationService {
             ),
             notificationType: 'final_approval',
           );
-        }
 
-        // Also show local notification
-        await showLocalNotification(
-          title: notificationTemplate['title']!,
-          body: notificationTemplate['body']!,
-          payload: finalOrderId,
-        );
+          // Also show local notification if current user is the creator
+          try {
+            final currentUserId = await AuthService.getCurrentUserId();
+            if (currentUserId == creatorUserId) {
+              await showLocalNotification(
+                title: notificationTemplate['title']!,
+                body: notificationTemplate['body']!,
+                payload: finalOrderId,
+              );
+            }
+          } catch (e) {
+            // Ignore if we can't check current user
+          }
+        }
       } else {
         // Not final - notify creator about status and notify next approver
         // Fetch fresh discount data after approval (all approval operations are already awaited)
@@ -669,7 +842,7 @@ class NotificationService {
         );
 
         if (kDebugMode) {
-          print(
+          _logger.d(
               'notifyOnApproval: Fetched ${cachedDiscounts.length} discounts');
           // Log all discount levels for debugging
           for (final discount in cachedDiscounts) {
@@ -681,7 +854,7 @@ class NotificationService {
             final approved = discount['approved'];
             final approverName =
                 discount['approver_name']?.toString() ?? 'Unknown';
-            print(
+            _logger.d(
                 'notifyOnApproval: Discount - Level $levelId ($levelName), Approver ID: $approverId ($approverName), Approved: $approved');
           }
         }
@@ -689,8 +862,8 @@ class NotificationService {
         creatorUserId ??= _extractCreatorUserId(cachedDiscounts);
 
         if (kDebugMode) {
-          print('notifyOnApproval: Creator User ID: $creatorUserId');
-          print('notifyOnApproval: Approved Level ID: $approvedLevelId');
+          _logger.d('notifyOnApproval: Creator User ID: $creatorUserId');
+          _logger.d('notifyOnApproval: Approved Level ID: $approvedLevelId');
         }
 
         final nextLevelInfo = _findNextApprovalLevel(
@@ -708,9 +881,9 @@ class NotificationService {
             : null;
 
         if (kDebugMode) {
-          print('notifyOnApproval: Next Level Name: $nextLevelName');
-          print('notifyOnApproval: Next Approver ID: $nextApproverId');
-          print('notifyOnApproval: Next Approver Name: $nextApproverName');
+          _logger.d('notifyOnApproval: Next Level Name: $nextLevelName');
+          _logger.d('notifyOnApproval: Next Approver ID: $nextApproverId');
+          _logger.d('notifyOnApproval: Next Approver Name: $nextApproverName');
         }
 
         // Collect approval history from discounts that are already approved
@@ -783,7 +956,7 @@ class NotificationService {
                 );
 
           if (kDebugMode) {
-            print(
+            _logger.d(
                 'notifyOnApproval: Sending notification to creator (User ID: $creatorUserId)');
           }
 
@@ -806,12 +979,12 @@ class NotificationService {
           );
 
           if (kDebugMode) {
-            print(
+            _logger.d(
                 'notifyOnApproval: Creator notification sent: $creatorSuccess');
           }
         } else {
           if (kDebugMode) {
-            print(
+            _logger.w(
                 'notifyOnApproval: WARNING - Creator User ID is null, cannot send notification');
           }
         }
@@ -819,7 +992,7 @@ class NotificationService {
         // Notify next approver about new approval request
         if (nextLevelName != null && nextApproverId != null) {
           if (kDebugMode) {
-            print(
+            _logger.d(
                 'notifyOnApproval: Sending notification to next approver (User ID: $nextApproverId, Level: $nextLevelName)');
           }
 
@@ -836,7 +1009,7 @@ class NotificationService {
               }
             } catch (e) {
               if (kDebugMode) {
-                print('Error fetching creator name for notification: $e');
+                _logger.e('Error fetching creator name for notification: $e');
               }
             }
           }
@@ -866,18 +1039,18 @@ class NotificationService {
           );
 
           if (kDebugMode) {
-            print(
+            _logger.d(
                 'notifyOnApproval: Next approver notification sent: $nextApproverSuccess');
           }
         } else {
           if (kDebugMode) {
-            print(
+            _logger.d(
                 'notifyOnApproval: No next approver to notify (Level: $nextLevelName, Approver ID: $nextApproverId)');
           }
         }
       }
     } catch (e, stackTrace) {
-      FirebaseErrorService().logNotificationError(
+      FirebaseErrorService().logFcmError(
         'notify_on_approval',
         e,
         stackTrace: stackTrace,
@@ -897,7 +1070,7 @@ class NotificationService {
   ) {
     if (discounts == null || discounts.isEmpty) {
       if (kDebugMode) {
-        print('_findNextApprovalLevel: No discounts provided');
+        _logger.d('_findNextApprovalLevel: No discounts provided');
       }
       return null;
     }
@@ -908,9 +1081,9 @@ class NotificationService {
     String? nextApproverName;
 
     if (kDebugMode) {
-      print(
+      _logger.d(
           '_findNextApprovalLevel: Looking for next level after $currentLevelId');
-      print('_findNextApprovalLevel: Total discounts: ${discounts.length}');
+      _logger.d('_findNextApprovalLevel: Total discounts: ${discounts.length}');
     }
 
     for (final discount in discounts) {
@@ -926,20 +1099,32 @@ class NotificationService {
 
       if (levelId == null) {
         if (kDebugMode) {
-          print('_findNextApprovalLevel: Skipping discount - levelId is null');
+          _logger
+              .d('_findNextApprovalLevel: Skipping discount - levelId is null');
         }
         continue;
       }
 
       if (kDebugMode) {
-        print(
+        _logger.d(
             '_findNextApprovalLevel: Checking level $levelId ($approverLevel) - Approver ID: $approverValue, Name: $approverName, Approved: $approvedValue');
       }
 
       if (levelId <= currentLevelId) {
         if (kDebugMode) {
-          print(
+          _logger.d(
               '_findNextApprovalLevel: Skipping level $levelId (<= current $currentLevelId)');
+        }
+        continue;
+      }
+
+      // IMPORTANT: Only consider the IMMEDIATE next level (currentLevelId + 1)
+      // This prevents skipping levels and ensures sequential approval
+      // Example: If current is 2, only consider level 3, not 4 or 5
+      if (levelId != currentLevelId + 1) {
+        if (kDebugMode) {
+          _logger.d(
+              '_findNextApprovalLevel: Skipping level $levelId (not immediate next level, current: $currentLevelId, expected: ${currentLevelId + 1})');
         }
         continue;
       }
@@ -947,7 +1132,7 @@ class NotificationService {
       final isApproved = _isApprovedStatus(approvedValue);
       if (isApproved) {
         if (kDebugMode) {
-          print(
+          _logger.d(
               '_findNextApprovalLevel: Skipping level $levelId (already approved)');
         }
         continue;
@@ -957,7 +1142,7 @@ class NotificationService {
       final parsedApproverId = _parseInt(approverValue);
       if (parsedApproverId == null) {
         if (kDebugMode) {
-          print(
+          _logger.d(
               '_findNextApprovalLevel: Skipping level $levelId ($approverLevel) - approver ID is null (approverValue: $approverValue)');
         }
         continue;
@@ -971,7 +1156,7 @@ class NotificationService {
         nextApproverName = discount['approver_name']?.toString();
 
         if (kDebugMode) {
-          print(
+          _logger.d(
               '_findNextApprovalLevel: Found candidate - Level $levelId ($nextLevelName), Approver ID: $nextApproverId, Name: $nextApproverName');
         }
       }
@@ -979,7 +1164,7 @@ class NotificationService {
 
     if (nextLevelId != null) {
       if (kDebugMode) {
-        print(
+        _logger.d(
             '_findNextApprovalLevel: Returning next level - Level $nextLevelId, Approver ID: $nextApproverId');
       }
       return {
@@ -991,7 +1176,7 @@ class NotificationService {
     }
 
     if (kDebugMode) {
-      print('_findNextApprovalLevel: No next level found');
+      _logger.d('_findNextApprovalLevel: No next level found');
     }
     return null;
   }
@@ -1000,13 +1185,13 @@ class NotificationService {
   int? _extractCreatorUserId(List<Map<String, dynamic>>? discounts) {
     if (discounts == null || discounts.isEmpty) {
       if (kDebugMode) {
-        print('_extractCreatorUserId: No discounts provided');
+        _logger.d('_extractCreatorUserId: No discounts provided');
       }
       return null;
     }
 
     if (kDebugMode) {
-      print(
+      _logger.d(
           '_extractCreatorUserId: Searching for creator in ${discounts.length} discounts');
     }
 
@@ -1024,7 +1209,7 @@ class NotificationService {
               discount['leader_id']);
           if (creatorId != null) {
             if (kDebugMode) {
-              print(
+              _logger.d(
                   '_extractCreatorUserId: Found creator ID $creatorId at level $levelId');
             }
             return creatorId;
@@ -1034,7 +1219,7 @@ class NotificationService {
     }
 
     if (kDebugMode) {
-      print('_extractCreatorUserId: Creator ID not found');
+      _logger.d('_extractCreatorUserId: Creator ID not found');
     }
     return null;
   }
@@ -1069,16 +1254,41 @@ class NotificationService {
   }
 
   /// Show local notification (for immediate feedback)
+  /// Show local notification (for immediate feedback)
+  /// Logic: Use local notification for:
+  /// - Immediate feedback to current user (e.g., "Order created successfully")
+  /// - FCM messages received in foreground (handled automatically)
+  /// - Quick status updates that don't need to persist
   Future<void> showLocalNotification({
     required String title,
     required String body,
     String? payload,
   }) async {
-    await _localNotificationService.showSimpleNotification(
-      title: title,
-      body: body,
-      payload: payload,
-    );
+    try {
+      if (!_isInitialized) {
+        if (kDebugMode) {
+          _logger.w(
+              'NotificationService not initialized, skipping local notification');
+        }
+        return;
+      }
+
+      await _localNotificationService.showSimpleNotification(
+        title: title,
+        body: body,
+        payload: payload,
+      );
+    } catch (e, stackTrace) {
+      FirebaseErrorService().logFcmError(
+        'show_local_notification',
+        e,
+        stackTrace: stackTrace,
+        context: {
+          'title': title,
+          'body': body,
+        },
+      );
+    }
   }
 
   /// Get current FCM token
@@ -1092,24 +1302,52 @@ class NotificationService {
 
 /// Top-level function for handling background messages
 /// Must be top-level or static function
+/// Logic: When app is terminated, FCM automatically shows notification
+/// This handler is for additional processing if needed
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  if (kDebugMode) {
-    print('Background message received: ${message.messageId}');
-    print('Title: ${message.notification?.title}');
-    print('Body: ${message.notification?.body}');
-    print('Data: ${message.data}');
-  }
+  try {
+    if (kDebugMode) {
+      print('Background message received: ${message.messageId}');
+      print('Title: ${message.notification?.title}');
+      print('Body: ${message.notification?.body}');
+      print('Data: ${message.data}');
+    }
 
-  // Show local notification for background messages
-  final localNotificationService = LocalNotificationService();
-  await localNotificationService.initialize();
+    // Note: When app is terminated, FCM automatically shows the notification
+    // We only need to show local notification if notification payload is missing
+    // or if we need to do additional processing
 
-  if (message.notification != null) {
-    await localNotificationService.showSimpleNotification(
-      title: message.notification!.title ?? 'New Notification',
-      body: message.notification!.body ?? '',
-      payload: message.data.toString(),
-    );
+    // Only show local notification if FCM notification payload is missing
+    if (message.notification == null ||
+        message.notification!.title == null ||
+        message.notification!.title!.isEmpty) {
+      final localNotificationService = LocalNotificationService();
+      await localNotificationService.initialize();
+
+      await localNotificationService.showSimpleNotification(
+        title: message.data['title'] ?? 'New Notification',
+        body: message.data['body'] ?? message.data['message'] ?? '',
+        payload: message.data.toString(),
+      );
+    }
+  } catch (e, stackTrace) {
+    // Log error but don't fail - background handler must not throw
+    if (kDebugMode) {
+      print('Error in firebaseMessagingBackgroundHandler: $e');
+      print('Stack trace: $stackTrace');
+    }
+    // Use FirebaseErrorService if available (may not be initialized in background)
+    try {
+      final firebaseErrorService = FirebaseErrorService();
+      firebaseErrorService.logFcmError(
+        'background_message_handler',
+        e,
+        stackTrace: stackTrace,
+        context: {'messageId': message.messageId ?? 'unknown'},
+      );
+    } catch (_) {
+      // Ignore if FirebaseErrorService is not available
+    }
   }
 }

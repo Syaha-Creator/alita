@@ -2,6 +2,13 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../config/api_config.dart';
 import '../config/dependency_injection.dart';
+import '../core/error/exceptions.dart';
+import '../core/utils/error_logger.dart';
+import '../core/utils/exception_helper.dart';
+import '../core/utils/api_response_parser.dart';
+import '../features/order_letter/domain/usecases/extract_order_letter_id_usecase.dart';
+import '../features/order_letter/domain/usecases/create_order_letter_details_usecase.dart';
+import '../features/approval/data/models/approval_model.dart';
 import 'auth_service.dart';
 import 'leader_service.dart';
 import 'notification_service.dart';
@@ -28,64 +35,15 @@ class OrderLetterService {
         return orderLetterResult;
       }
 
-      // Extract order letter ID and no_sp from response
+      // Extract order letter ID and no_sp from response using use case
       final responseData = orderLetterResult['data'];
-
-      int? orderLetterId;
-      String? noSp;
-
-      // Try different possible response formats
-      if (responseData is Map<String, dynamic>) {
-        // Try direct access
-        orderLetterId = responseData['id'] ?? responseData['order_letter_id'];
-        noSp = responseData['no_sp'] ?? responseData['no_sp_number'];
-
-        // If still null, try location object (common in API responses)
-        if (orderLetterId == null &&
-            responseData['location'] is Map<String, dynamic>) {
-          final location = responseData['location'] as Map<String, dynamic>;
-          orderLetterId = location['id'] ?? location['order_letter_id'];
-          noSp = location['no_sp'] ?? location['no_sp_number'];
-        }
-
-        // If still null, try nested access
-        if (orderLetterId == null &&
-            responseData['result'] is Map<String, dynamic>) {
-          final result = responseData['result'] as Map<String, dynamic>;
-          orderLetterId = result['id'] ?? result['order_letter_id'];
-          noSp = result['no_sp'] ?? result['no_sp_number'];
-        }
-
-        // If still null, try array access
-        if (orderLetterId == null &&
-            responseData['result'] is List &&
-            (responseData['result'] as List).isNotEmpty) {
-          final firstResult = (responseData['result'] as List).first;
-          if (firstResult is Map<String, dynamic>) {
-            orderLetterId = firstResult['id'] ?? firstResult['order_letter_id'];
-            noSp = firstResult['no_sp'] ?? firstResult['no_sp_number'];
-          }
-        }
-      }
-
-      // If we still don't have the ID, we need to fetch the latest order letter
-      if (orderLetterId == null) {
-        final latestOrderLetters =
-            await getOrderLetters(creator: orderLetterData['creator']);
-        if (latestOrderLetters.isNotEmpty) {
-          // Sort by created_at to get the most recent one
-          latestOrderLetters.sort((a, b) {
-            final aCreatedAt = a['created_at'] ?? '';
-            final bCreatedAt = b['created_at'] ?? '';
-            return bCreatedAt
-                .compareTo(aCreatedAt); // Descending order (newest first)
-          });
-
-          final latestOrder = latestOrderLetters.first;
-          orderLetterId = latestOrder['id'] ?? latestOrder['order_letter_id'];
-          noSp = latestOrder['no_sp'] ?? latestOrder['no_sp_number'];
-        }
-      }
+      final extractIdUseCase = ExtractOrderLetterIdUseCase(this);
+      final idResult = await extractIdUseCase(
+        responseData: responseData,
+        creator: orderLetterData['creator'],
+      );
+      final orderLetterId = idResult['orderLetterId'] as int?;
+      final noSp = idResult['noSp'] as String?;
 
       if (orderLetterId == null) {
         return {
@@ -95,19 +53,13 @@ class OrderLetterService {
         };
       }
 
-      // Step 2: POST Order Letter Details
-      final List<Map<String, dynamic>> detailResults = [];
-      for (final detail in detailsData) {
-        final detailWithId = Map<String, dynamic>.from(detail);
-        detailWithId['order_letter_id'] = orderLetterId;
-        detailWithId['no_sp'] = noSp;
-
-        final detailResult = await createOrderLetterDetail(detailWithId);
-        detailResults.add(detailResult);
-
-        if (detailResult['success']) {
-        } else {}
-      }
+      // Step 2: POST Order Letter Details using use case
+      final createDetailsUseCase = CreateOrderLetterDetailsUseCase(this);
+      final detailResults = await createDetailsUseCase(
+        orderLetterId: orderLetterId,
+        noSp: noSp,
+        detailsData: detailsData,
+      );
 
       // Step 3: POST Order Letter Discounts with Leader Data
       final List<Map<String, dynamic>> discountResults = [];
@@ -121,11 +73,25 @@ class OrderLetterService {
               detailResults, discountResults, leaderIds, orderLetterId);
         } else {
           // Process items with discounts
-          await _processStructuredDiscounts(discountsData, detailResults,
-              discountResults, leaderIds, orderLetterId);
+          try {
+            await _processStructuredDiscounts(discountsData, detailResults,
+                discountResults, leaderIds, orderLetterId);
 
-          await _createDefaultEntriesForMissingItems(discountsData,
-              detailResults, discountResults, leaderIds, orderLetterId);
+            await _createDefaultEntriesForMissingItems(discountsData,
+                detailResults, discountResults, leaderIds, orderLetterId);
+          } catch (e, stackTrace) {
+            // If structured processing fails, create default entries as fallback
+            await ErrorLogger.logError(
+              e,
+              stackTrace: stackTrace,
+              context:
+                  'Structured discount processing failed, creating default entries',
+              extra: {'orderLetterId': orderLetterId},
+              fatal: false,
+            );
+            await _createDefaultDiscountEntries(
+                detailResults, discountResults, leaderIds, orderLetterId);
+          }
         }
       } else if (discountsData is List<double>) {
         // Legacy format - process all discounts for first kasur
@@ -235,8 +201,15 @@ class OrderLetterService {
                 break;
             }
           }
-        } catch (e) {
+        } catch (e, stackTrace) {
           // Fallback to current user data
+          await ErrorLogger.logError(
+            e,
+            stackTrace: stackTrace,
+            context: 'Failed to get leader data for approval',
+            extra: {'discountIndex': i},
+            fatal: false,
+          );
         }
 
         // Smart approval logic - Modified to ensure all orders require Direct Leader approval
@@ -304,7 +277,18 @@ class OrderLetterService {
         'detailResults': detailResults,
         'discountResults': discountResults,
       };
-    } catch (e) {
+    } catch (e, stackTrace) {
+      await ErrorLogger.logError(
+        e,
+        stackTrace: stackTrace,
+        context: 'Failed to create order letter with details',
+        extra: {
+          'orderLetterData': orderLetterData,
+          'detailsCount': detailsData.length,
+          'discountsCount': discountsData is List ? discountsData.length : 1,
+        },
+        fatal: true,
+      );
       return {
         'success': false,
         'message': 'Error creating order letter: $e',
@@ -318,7 +302,7 @@ class OrderLetterService {
     try {
       final token = await AuthService.getToken();
       if (token == null) {
-        throw Exception('Token not found');
+        throw CacheException('Token not found. Silakan login kembali.');
       }
 
       final url = ApiConfig.getCreateOrderLetterUrl(token: token);
@@ -356,13 +340,49 @@ class OrderLetterService {
           'message': 'Order letter created successfully',
         };
       } else {
-        throw Exception(
-            'Failed to create order letter: ${response.statusCode}');
+        throw ExceptionHelper.convertDioException(
+          DioException(
+            requestOptions: RequestOptions(path: url),
+            response: response,
+            type: DioExceptionType.badResponse,
+          ),
+        );
       }
-    } catch (e) {
+    } on ServerException catch (e, stackTrace) {
+      await ErrorLogger.logError(
+        e,
+        stackTrace: stackTrace,
+        context: 'Failed to create order letter',
+        fatal: false,
+      );
       return {
         'success': false,
-        'message': 'Error creating order letter: $e',
+        'message': e.message,
+      };
+    } on NetworkException catch (e, stackTrace) {
+      await ErrorLogger.logError(
+        e,
+        stackTrace: stackTrace,
+        context: 'Network error creating order letter',
+        fatal: false,
+      );
+      return {
+        'success': false,
+        'message': e.message,
+      };
+    } catch (e, stackTrace) {
+      final exception = ExceptionHelper.convertGenericException(e);
+      await ErrorLogger.logError(
+        exception,
+        stackTrace: stackTrace,
+        context: 'Unexpected error creating order letter',
+        fatal: true,
+      );
+      return {
+        'success': false,
+        'message': exception is ServerException
+            ? exception.message
+            : 'Error creating order letter: $e',
       };
     }
   }
@@ -373,7 +393,7 @@ class OrderLetterService {
     try {
       final token = await AuthService.getToken();
       if (token == null) {
-        throw Exception('Token not found');
+        throw CacheException('Token not found. Silakan login kembali.');
       }
 
       final url = ApiConfig.getCreateOrderLetterDetailUrl(token: token);
@@ -387,13 +407,49 @@ class OrderLetterService {
           'message': 'Order letter detail created successfully',
         };
       } else {
-        throw Exception(
-            'Failed to create order letter detail: ${response.statusCode}');
+        throw ExceptionHelper.convertDioException(
+          DioException(
+            requestOptions: RequestOptions(path: url),
+            response: response,
+            type: DioExceptionType.badResponse,
+          ),
+        );
       }
-    } catch (e) {
+    } on ServerException catch (e, stackTrace) {
+      await ErrorLogger.logError(
+        e,
+        stackTrace: stackTrace,
+        context: 'Failed to create order letter detail',
+        fatal: false,
+      );
       return {
         'success': false,
-        'message': 'Error creating order letter detail: $e',
+        'message': e.message,
+      };
+    } on NetworkException catch (e, stackTrace) {
+      await ErrorLogger.logError(
+        e,
+        stackTrace: stackTrace,
+        context: 'Network error creating order letter detail',
+        fatal: false,
+      );
+      return {
+        'success': false,
+        'message': e.message,
+      };
+    } catch (e, stackTrace) {
+      final exception = ExceptionHelper.convertGenericException(e);
+      await ErrorLogger.logError(
+        exception,
+        stackTrace: stackTrace,
+        context: 'Unexpected error creating order letter detail',
+        fatal: true,
+      );
+      return {
+        'success': false,
+        'message': exception is ServerException
+            ? exception.message
+            : 'Error creating order letter detail: $e',
       };
     }
   }
@@ -404,7 +460,7 @@ class OrderLetterService {
     try {
       final token = await AuthService.getToken();
       if (token == null) {
-        throw Exception('Token not found');
+        throw CacheException('Token not found. Silakan login kembali.');
       }
 
       final url = ApiConfig.getCreateOrderLetterDiscountUrl(token: token);
@@ -418,13 +474,49 @@ class OrderLetterService {
           'message': 'Order letter discount created successfully',
         };
       } else {
-        throw Exception(
-            'Failed to create order letter discount: ${response.statusCode}');
+        throw ExceptionHelper.convertDioException(
+          DioException(
+            requestOptions: RequestOptions(path: url),
+            response: response,
+            type: DioExceptionType.badResponse,
+          ),
+        );
       }
-    } catch (e) {
+    } on ServerException catch (e, stackTrace) {
+      await ErrorLogger.logError(
+        e,
+        stackTrace: stackTrace,
+        context: 'Failed to create order letter discount',
+        fatal: false,
+      );
       return {
         'success': false,
-        'message': 'Error creating order letter discount: $e',
+        'message': e.message,
+      };
+    } on NetworkException catch (e, stackTrace) {
+      await ErrorLogger.logError(
+        e,
+        stackTrace: stackTrace,
+        context: 'Network error creating order letter discount',
+        fatal: false,
+      );
+      return {
+        'success': false,
+        'message': e.message,
+      };
+    } catch (e, stackTrace) {
+      final exception = ExceptionHelper.convertGenericException(e);
+      await ErrorLogger.logError(
+        exception,
+        stackTrace: stackTrace,
+        context: 'Unexpected error creating order letter discount',
+        fatal: true,
+      );
+      return {
+        'success': false,
+        'message': exception is ServerException
+            ? exception.message
+            : 'Error creating order letter discount: $e',
       };
     }
   }
@@ -484,8 +576,14 @@ class OrderLetterService {
             approverName = nameFromLeader;
           }
         }
-      } catch (e) {
+      } catch (e, stackTrace) {
         // Fallback to current user name
+        await ErrorLogger.logError(
+          e,
+          stackTrace: stackTrace,
+          context: 'Failed to get approver name, using current user',
+          fatal: false,
+        );
       }
 
       // Get current location for approval
@@ -506,24 +604,54 @@ class OrderLetterService {
             }
           }
         }
-      } catch (e) {
+      } catch (e, stackTrace) {
         // If location cannot be obtained, continue without it
         // Location will be null
-        if (kDebugMode) {
-          print('OrderLetterService: Failed to get location for approval: $e');
-        }
+        await ErrorLogger.logError(
+          e,
+          stackTrace: stackTrace,
+          context: 'Failed to get location for approval',
+          fatal: false,
+        );
       }
 
       // Approve all discounts in batch
       for (final discountId in discountIdsToApprove) {
         try {
+          // Find the discount to get its approver_level_id
+          final discountToApprove = allDiscounts.firstWhere(
+            (d) => (d['id'] ?? d['order_letter_discount_id']) == discountId,
+            orElse: () => {},
+          );
+
+          // Get the actual approver_level_id from the discount being approved
+          final actualApproverLevelId =
+              discountToApprove['approver_level_id'] ?? jobLevelId;
+
+          // Get approver name based on the actual discount level, not the jobLevelId parameter
+          String actualApproverName = approverName;
+          try {
+            final leaderService = locator<LeaderService>();
+            final leaderData = await leaderService.getLeaderByUser();
+            if (leaderData != null) {
+              final nameFromLeader = leaderService.getLeaderNameByDiscountLevel(
+                  leaderData, actualApproverLevelId);
+              if (nameFromLeader != null && nameFromLeader.isNotEmpty) {
+                actualApproverName = nameFromLeader;
+              }
+            }
+          } catch (e) {
+            // Fallback to default approverName
+          }
+
           // POST to order_letter_approves endpoint
           final approveUrl =
               ApiConfig.getCreateOrderLetterApproveUrl(token: token);
           final approveData = {
             'order_letter_discount_id': discountId,
             'leader': leaderId,
-            'job_level_id': jobLevelId,
+            'job_level_id':
+                actualApproverLevelId, // Use actual level from discount
             if (approvalLocation != null) 'location': approvalLocation,
           };
 
@@ -547,8 +675,9 @@ class OrderLetterService {
           final updateData = {
             'approved': true,
             'approved_at': currentTime,
-            'approver_level': _getApproverLevelName(jobLevelId),
-            'approver_name': approverName,
+            'approver_level': _getApproverLevelName(actualApproverLevelId),
+            'approver_name':
+                actualApproverName, // Use name based on actual discount level
           };
 
           final updateResponse = await dio.put(
@@ -562,13 +691,45 @@ class OrderLetterService {
             ),
           );
           updateResults.add(updateResponse.data);
-        } catch (e) {
+
+          // Auto-approve disc5 (level 5) if disc4 (level 4) is being approved
+          if (actualApproverLevelId == 4) {
+            await _autoApproveDisc5FromDisc4(
+              orderLetterId: orderLetterId,
+              disc4DiscountId: discountId,
+              disc4Data: updateData,
+              currentTime: currentTime,
+              token: token,
+              approvalLocation: approvalLocation,
+            );
+          }
+        } catch (e, stackTrace) {
           // Continue with other discounts even if one fails
+          await ErrorLogger.logError(
+            e,
+            stackTrace: stackTrace,
+            context: 'Failed to update single discount in batch',
+            extra: {'orderLetterId': orderLetterId},
+            fatal: false,
+          );
         }
       }
 
       // Check if this is the final approval (highest level)
-      final isFinalApproval = await _isFinalApproval(orderLetterId, jobLevelId);
+      // Use the highest level from approved discounts
+      int highestApprovedLevel = jobLevelId;
+      for (final discountId in discountIdsToApprove) {
+        final discount = allDiscounts.firstWhere(
+          (d) => (d['id'] ?? d['order_letter_discount_id']) == discountId,
+          orElse: () => {},
+        );
+        final level = discount['approver_level_id'] ?? 0;
+        if (level > highestApprovedLevel) {
+          highestApprovedLevel = level;
+        }
+      }
+      final isFinalApproval =
+          await _isFinalApproval(orderLetterId, highestApprovedLevel);
 
       Map<String, dynamic>? orderLetterUpdateResult;
       if (isFinalApproval) {
@@ -640,11 +801,15 @@ class OrderLetterService {
               : null,
           creatorUserId: creatorUserId,
         );
-      } catch (e) {
+      } catch (e, stackTrace) {
         // Don't fail approval if notification fails
-        if (kDebugMode) {
-          print('Error sending approval notification: $e');
-        }
+        await ErrorLogger.logError(
+          e,
+          stackTrace: stackTrace,
+          context: 'Failed to send approval notification',
+          extra: {'orderLetterId': orderLetterId, 'jobLevelId': jobLevelId},
+          fatal: false,
+        );
       }
 
       return {
@@ -657,7 +822,14 @@ class OrderLetterService {
         'order_letter_update_result': orderLetterUpdateResult,
         'is_final_approval': isFinalApproval,
       };
-    } catch (e) {
+    } catch (e, stackTrace) {
+      await ErrorLogger.logError(
+        e,
+        stackTrace: stackTrace,
+        context: 'Error in batch approval',
+        extra: {'orderLetterId': orderLetterId, 'leaderId': leaderId},
+        fatal: true,
+      );
       return {
         'success': false,
         'message': 'Error in batch approval: $e',
@@ -692,8 +864,14 @@ class OrderLetterService {
             approverName = nameFromLeader;
           }
         }
-      } catch (e) {
+      } catch (e, stackTrace) {
         // Fallback to current user name
+        await ErrorLogger.logError(
+          e,
+          stackTrace: stackTrace,
+          context: 'Failed to get approver name, using current user',
+          fatal: false,
+        );
       }
 
       // Get current location for approval
@@ -712,10 +890,41 @@ class OrderLetterService {
             }
           }
         }
-      } catch (e) {
-        if (kDebugMode) {
-          print('OrderLetterService: Failed to get location for approval: $e');
+      } catch (e, stackTrace) {
+        await ErrorLogger.logError(
+          e,
+          stackTrace: stackTrace,
+          context: 'Failed to get location for approval',
+          fatal: false,
+        );
+      }
+
+      // Get the actual discount to determine its approver_level_id
+      final allDiscounts =
+          await getOrderLetterDiscounts(orderLetterId: orderLetterId);
+      final discountToApprove = allDiscounts.firstWhere(
+        (d) => (d['id'] ?? d['order_letter_discount_id']) == discountId,
+        orElse: () => {},
+      );
+
+      // Get the actual approver_level_id from the discount being approved
+      final actualApproverLevelId =
+          discountToApprove['approver_level_id'] ?? jobLevelId;
+
+      // Get approver name based on the actual discount level, not the jobLevelId parameter
+      String actualApproverName = approverName;
+      try {
+        final leaderService = locator<LeaderService>();
+        final leaderData = await leaderService.getLeaderByUser();
+        if (leaderData != null) {
+          final nameFromLeader = leaderService.getLeaderNameByDiscountLevel(
+              leaderData, actualApproverLevelId);
+          if (nameFromLeader != null && nameFromLeader.isNotEmpty) {
+            actualApproverName = nameFromLeader;
+          }
         }
+      } catch (e) {
+        // Fallback to default approverName
       }
 
       // POST to order_letter_approves endpoint
@@ -723,7 +932,7 @@ class OrderLetterService {
       final approveData = {
         'order_letter_discount_id': discountId,
         'leader': leaderId,
-        'job_level_id': jobLevelId,
+        'job_level_id': actualApproverLevelId, // Use actual level from discount
         if (approvalLocation != null) 'location': approvalLocation,
       };
 
@@ -746,8 +955,9 @@ class OrderLetterService {
       final updateData = {
         'approved': true,
         'approved_at': currentTime,
-        'approver_level': _getApproverLevelName(jobLevelId),
-        'approver_name': approverName,
+        'approver_level': _getApproverLevelName(actualApproverLevelId),
+        'approver_name':
+            actualApproverName, // Use name based on actual discount level
       };
 
       final updateResponse = await dio.put(
@@ -761,8 +971,21 @@ class OrderLetterService {
         ),
       );
 
+      // Auto-approve disc5 (level 5) if disc4 (level 4) is being approved
+      if (actualApproverLevelId == 4) {
+        await _autoApproveDisc5FromDisc4(
+          orderLetterId: orderLetterId,
+          disc4DiscountId: discountId,
+          disc4Data: updateData,
+          currentTime: currentTime,
+          token: token,
+          approvalLocation: approvalLocation,
+        );
+      }
+
       // Check if this is the final approval (highest level)
-      final isFinalApproval = await _isFinalApproval(orderLetterId, jobLevelId);
+      final isFinalApproval =
+          await _isFinalApproval(orderLetterId, actualApproverLevelId);
 
       Map<String, dynamic>? orderLetterUpdateResult;
       if (isFinalApproval) {
@@ -830,11 +1053,15 @@ class OrderLetterService {
               : null,
           creatorUserId: creatorUserId,
         );
-      } catch (e) {
+      } catch (e, stackTrace) {
         // Don't fail approval if notification fails
-        if (kDebugMode) {
-          print('Error sending approval notification: $e');
-        }
+        await ErrorLogger.logError(
+          e,
+          stackTrace: stackTrace,
+          context: 'Failed to send approval notification',
+          extra: {'orderLetterId': orderLetterId, 'jobLevelId': jobLevelId},
+          fatal: false,
+        );
       }
 
       return {
@@ -870,7 +1097,14 @@ class OrderLetterService {
       }
 
       return currentJobLevelId == highestLevel;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      await ErrorLogger.logError(
+        e,
+        stackTrace: stackTrace,
+        context: 'Failed to check if final approval',
+        extra: {'orderLetterId': orderLetterId},
+        fatal: false,
+      );
       return false;
     }
   }
@@ -902,7 +1136,14 @@ class OrderLetterService {
       );
 
       return response.data;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      await ErrorLogger.logError(
+        e,
+        stackTrace: stackTrace,
+        context: 'Failed to update order letter status',
+        extra: {'orderLetterId': orderLetterId, 'status': status},
+        fatal: false,
+      );
       return null;
     }
   }
@@ -978,34 +1219,41 @@ class OrderLetterService {
 
       if (response.statusCode == 200) {
         final data = response.data;
-
-        if (data is List) {
-          final result = List<Map<String, dynamic>>.from(data);
-          return result;
-        } else if (data is Map && data['result'] != null) {
-          // Handle different result formats
-          if (data['result'] is List) {
-            final result = List<Map<String, dynamic>>.from(data['result']);
-            return result;
-          } else if (data['result'] is Map) {
-            // Result is a single order letter object (wrap in List)
-            final result = data['result'] as Map<String, dynamic>;
-            // Check if it has order_letter key (new nested format)
-            if (result.containsKey('order_letter')) {
-              // Return as list with single item containing the full structure
-              return [result];
-            } else {
-              // Direct order letter object, wrap in List
-              return [result];
-            }
-          }
-        }
-        return [];
+        // Use ApiResponseParser untuk simplify parsing
+        return ApiResponseParser.parseOrderLettersList(data);
       } else {
-        throw Exception(
-            'Failed to fetch order letters: ${response.statusCode}');
+        throw ExceptionHelper.convertDioException(
+          DioException(
+            requestOptions: RequestOptions(path: url),
+            response: response,
+            type: DioExceptionType.badResponse,
+          ),
+        );
       }
-    } catch (e) {
+    } on ServerException catch (e, stackTrace) {
+      await ErrorLogger.logError(
+        e,
+        stackTrace: stackTrace,
+        context: 'Failed to fetch order letters',
+        fatal: false,
+      );
+      return [];
+    } on NetworkException catch (e, stackTrace) {
+      await ErrorLogger.logError(
+        e,
+        stackTrace: stackTrace,
+        context: 'Network error fetching order letters',
+        fatal: false,
+      );
+      return [];
+    } catch (e, stackTrace) {
+      final exception = ExceptionHelper.convertGenericException(e);
+      await ErrorLogger.logError(
+        exception,
+        stackTrace: stackTrace,
+        context: 'Unexpected error fetching order letters',
+        fatal: false,
+      );
       return [];
     }
   }
@@ -1021,7 +1269,7 @@ class OrderLetterService {
     try {
       final token = await AuthService.getToken();
       if (token == null) {
-        throw Exception('Token not found');
+        throw CacheException('Token not found. Silakan login kembali.');
       }
 
       final url = ApiConfig.getOrderLettersWithCompleteDataUrl(
@@ -1050,8 +1298,15 @@ class OrderLetterService {
       } else {
         return await getOrderLetters(creator: creator);
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       // Fallback to original method
+      await ErrorLogger.logError(
+        e,
+        stackTrace: stackTrace,
+        context: 'Failed to get order letters with complete data, falling back',
+        extra: {'creator': creator},
+        fatal: false,
+      );
       return await getOrderLetters(creator: creator);
     }
   }
@@ -1062,7 +1317,7 @@ class OrderLetterService {
     try {
       final token = await AuthService.getToken();
       if (token == null) {
-        throw Exception('Token not found');
+        throw CacheException('Token not found. Silakan login kembali.');
       }
 
       final url = ApiConfig.getOrderLetterDetailsUrl(
@@ -1072,20 +1327,41 @@ class OrderLetterService {
 
       if (response.statusCode == 200) {
         final data = response.data;
-
-        if (data is List) {
-          final result = List<Map<String, dynamic>>.from(data);
-          return result;
-        } else if (data is Map && data['result'] is List) {
-          final result = List<Map<String, dynamic>>.from(data['result']);
-          return result;
-        }
-        return [];
+        // Use ApiResponseParser untuk simplify parsing
+        return ApiResponseParser.parseOrderLetterDetailsList(data);
       } else {
-        throw Exception(
-            'Failed to fetch order letter details: ${response.statusCode}');
+        throw ExceptionHelper.convertDioException(
+          DioException(
+            requestOptions: RequestOptions(path: url),
+            response: response,
+            type: DioExceptionType.badResponse,
+          ),
+        );
       }
-    } catch (e) {
+    } on ServerException catch (e, stackTrace) {
+      await ErrorLogger.logError(
+        e,
+        stackTrace: stackTrace,
+        context: 'Failed to fetch order letter details',
+        fatal: false,
+      );
+      return [];
+    } on NetworkException catch (e, stackTrace) {
+      await ErrorLogger.logError(
+        e,
+        stackTrace: stackTrace,
+        context: 'Network error fetching order letter details',
+        fatal: false,
+      );
+      return [];
+    } catch (e, stackTrace) {
+      final exception = ExceptionHelper.convertGenericException(e);
+      await ErrorLogger.logError(
+        exception,
+        stackTrace: stackTrace,
+        context: 'Unexpected error fetching order letter details',
+        fatal: false,
+      );
       return [];
     }
   }
@@ -1096,7 +1372,7 @@ class OrderLetterService {
     try {
       final token = await AuthService.getToken();
       if (token == null) {
-        throw Exception('Token not found');
+        throw CacheException('Token not found. Silakan login kembali.');
       }
 
       final url = ApiConfig.getOrderLetterDiscountsUrl(
@@ -1106,16 +1382,9 @@ class OrderLetterService {
 
       if (response.statusCode == 200) {
         final data = response.data;
-
-        List<Map<String, dynamic>> allDiscounts = [];
-
-        if (data is List) {
-          allDiscounts = List<Map<String, dynamic>>.from(data);
-        } else if (data is Map && data['result'] is List) {
-          allDiscounts = List<Map<String, dynamic>>.from(data['result']);
-        } else {
-          return [];
-        }
+        // Use ApiResponseParser untuk simplify parsing
+        final allDiscounts =
+            ApiResponseParser.parseOrderLetterDiscountsList(data);
 
         // Filter discounts by order_letter_id if specified
         List<Map<String, dynamic>> discountsToReturn = allDiscounts;
@@ -1134,10 +1403,38 @@ class OrderLetterService {
 
         return discountsToReturn;
       } else {
-        throw Exception(
-            'Failed to fetch order letter discounts: ${response.statusCode}');
+        throw ExceptionHelper.convertDioException(
+          DioException(
+            requestOptions: RequestOptions(path: url),
+            response: response,
+            type: DioExceptionType.badResponse,
+          ),
+        );
       }
-    } catch (e) {
+    } on ServerException catch (e, stackTrace) {
+      await ErrorLogger.logError(
+        e,
+        stackTrace: stackTrace,
+        context: 'Failed to fetch order letter discounts',
+        fatal: false,
+      );
+      return [];
+    } on NetworkException catch (e, stackTrace) {
+      await ErrorLogger.logError(
+        e,
+        stackTrace: stackTrace,
+        context: 'Network error fetching order letter discounts',
+        fatal: false,
+      );
+      return [];
+    } catch (e, stackTrace) {
+      final exception = ExceptionHelper.convertGenericException(e);
+      await ErrorLogger.logError(
+        exception,
+        stackTrace: stackTrace,
+        context: 'Unexpected error fetching order letter discounts',
+        fatal: false,
+      );
       return [];
     }
   }
@@ -1150,7 +1447,7 @@ class OrderLetterService {
     try {
       final token = await AuthService.getToken();
       if (token == null) {
-        throw Exception('Token not found');
+        throw CacheException('Token not found. Silakan login kembali.');
       }
 
       final url = ApiConfig.getOrderLetterApprovesUrl(
@@ -1162,17 +1459,41 @@ class OrderLetterService {
 
       if (response.statusCode == 200) {
         final data = response.data;
-        if (data is List) {
-          return List<Map<String, dynamic>>.from(data);
-        } else if (data is Map && data['result'] is List) {
-          return List<Map<String, dynamic>>.from(data['result']);
-        }
-        return [];
+        // Use ApiResponseParser untuk simplify parsing
+        return ApiResponseParser.parseOrderLetterApprovesList(data);
       } else {
-        throw Exception(
-            'Failed to fetch order letter approves: ${response.statusCode}');
+        throw ExceptionHelper.convertDioException(
+          DioException(
+            requestOptions: RequestOptions(path: url),
+            response: response,
+            type: DioExceptionType.badResponse,
+          ),
+        );
       }
-    } catch (e) {
+    } on ServerException catch (e, stackTrace) {
+      await ErrorLogger.logError(
+        e,
+        stackTrace: stackTrace,
+        context: 'Failed to fetch order letter approves',
+        fatal: false,
+      );
+      return [];
+    } on NetworkException catch (e, stackTrace) {
+      await ErrorLogger.logError(
+        e,
+        stackTrace: stackTrace,
+        context: 'Network error fetching order letter approves',
+        fatal: false,
+      );
+      return [];
+    } catch (e, stackTrace) {
+      final exception = ExceptionHelper.convertGenericException(e);
+      await ErrorLogger.logError(
+        exception,
+        stackTrace: stackTrace,
+        context: 'Unexpected error fetching order letter approves',
+        fatal: false,
+      );
       return [];
     }
   }
@@ -1183,7 +1504,7 @@ class OrderLetterService {
     try {
       final token = await AuthService.getToken();
       if (token == null) {
-        throw Exception('Token not found');
+        throw CacheException('Token not found. Silakan login kembali.');
       }
 
       final url = ApiConfig.getCreateOrderLetterApproveUrl(token: token);
@@ -1196,13 +1517,49 @@ class OrderLetterService {
           'message': 'Order letter approve created successfully',
         };
       } else {
-        throw Exception(
-            'Failed to create order letter approve: ${response.statusCode}');
+        throw ExceptionHelper.convertDioException(
+          DioException(
+            requestOptions: RequestOptions(path: url),
+            response: response,
+            type: DioExceptionType.badResponse,
+          ),
+        );
       }
-    } catch (e) {
+    } on ServerException catch (e, stackTrace) {
+      await ErrorLogger.logError(
+        e,
+        stackTrace: stackTrace,
+        context: 'Failed to create order letter approve',
+        fatal: false,
+      );
       return {
         'success': false,
-        'message': 'Error creating order letter approve: $e',
+        'message': e.message,
+      };
+    } on NetworkException catch (e, stackTrace) {
+      await ErrorLogger.logError(
+        e,
+        stackTrace: stackTrace,
+        context: 'Network error creating order letter approve',
+        fatal: false,
+      );
+      return {
+        'success': false,
+        'message': e.message,
+      };
+    } catch (e, stackTrace) {
+      final exception = ExceptionHelper.convertGenericException(e);
+      await ErrorLogger.logError(
+        exception,
+        stackTrace: stackTrace,
+        context: 'Unexpected error creating order letter approve',
+        fatal: true,
+      );
+      return {
+        'success': false,
+        'message': exception is ServerException
+            ? exception.message
+            : 'Error creating order letter approve: $e',
       };
     }
   }
@@ -1281,8 +1638,15 @@ class OrderLetterService {
       } else {
         return 'Approved'; // Default to approved if all checks pass
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       // Default to Pending if there's any error
+      await ErrorLogger.logError(
+        e,
+        stackTrace: stackTrace,
+        context: 'Failed to determine final order status',
+        extra: {'orderLetterId': orderLetterId},
+        fatal: false,
+      );
       return 'Pending';
     }
   }
@@ -1295,24 +1659,63 @@ class OrderLetterService {
     List<int?>? leaderIds,
     int orderLetterId,
   ) async {
-    final Set<String> createdDiscounts = {};
+    try {
+      // Fetch leader data ONCE at the beginning to avoid multiple API calls
+      final leaderService = locator<LeaderService>();
+      final leaderData = await leaderService.getLeaderByUser();
 
-    String normalize(String value) => value.trim().toLowerCase();
-
-    final Map<String, List<int>> availableDetailIds = {};
-
-    for (final detailResult in detailResults) {
-      if (detailResult['success'] && detailResult['data'] != null) {
-        final rawData = detailResult['data'];
-        final detailData = rawData['location'] ?? rawData;
-
-        final detailType =
-            (detailData['item_type'] ?? '').toString().toLowerCase();
-        // Allow all item types EXCEPT bonus
-        if (detailType == 'bonus') {
-          continue;
+      if (kDebugMode) {
+        print(
+            '[DEBUG] _processStructuredDiscounts: Fetched leader data once for order $orderLetterId');
+        if (leaderData != null) {
+          print(
+              '  - User: ${leaderData.user.fullName} (ID: ${leaderData.user.id})');
+          if (leaderData.directLeader != null) {
+            print(
+                '  - Direct Leader: ${leaderData.directLeader!.fullName} (ID: ${leaderData.directLeader!.id})');
+          }
+          if (leaderData.indirectLeader != null) {
+            print(
+                '  - Indirect Leader: ${leaderData.indirectLeader!.fullName} (ID: ${leaderData.indirectLeader!.id})');
+          }
+        } else {
+          print('  - Leader data is null!');
         }
+      }
 
+      final Set<String> createdDiscounts = {};
+
+      String normalize(String value) => value.trim().toLowerCase();
+
+      final Map<String, List<int>> availableDetailIds = {};
+
+      // First, collect all kasur items
+      final List<Map<String, dynamic>> kasurDetails = [];
+      final List<Map<String, dynamic>> nonKasurDetails = [];
+
+      for (final detailResult in detailResults) {
+        if (detailResult['success'] && detailResult['data'] != null) {
+          final rawData = detailResult['data'];
+          final detailData = rawData['location'] ?? rawData;
+          final detailType =
+              (detailData['item_type'] ?? '').toString().toLowerCase();
+
+          if (detailType == 'kasur') {
+            kasurDetails.add(detailData);
+          } else if (detailType == 'divan' ||
+              detailType == 'headboard' ||
+              detailType == 'sorong') {
+            // Store non-kasur items in case we need them (when no kasur exists)
+            nonKasurDetails.add(detailData);
+          }
+        }
+      }
+
+      // Use kasur items if available, otherwise use primary non-kasur items (divan, headboard, sorong)
+      final List<Map<String, dynamic>> itemsToProcess =
+          kasurDetails.isNotEmpty ? kasurDetails : nonKasurDetails;
+
+      for (final detailData in itemsToProcess) {
         final detailName = normalize((detailData['desc_1'] ?? '').toString());
         final detailSize = normalize((detailData['desc_2'] ?? '').toString());
 
@@ -1337,64 +1740,157 @@ class OrderLetterService {
               .add(parsedId);
         }
       }
-    }
 
-    for (final itemDiscount in itemDiscounts) {
-      final kasurNameRaw = (itemDiscount['kasurName'] ?? '').toString();
-      final productSizeRaw = (itemDiscount['productSize'] ?? '').toString();
-
-      final discounts = itemDiscount['discounts'] as List<double>;
-
-      final normalizedName = normalize(kasurNameRaw);
-      final normalizedSize = normalize(productSizeRaw);
-
-      int? kasurOrderLetterDetailId;
-
-      final primaryKey = '$normalizedName|$normalizedSize';
-      final secondaryKey = '$normalizedName|';
-
-      for (final key in [primaryKey, secondaryKey]) {
-        final pool = availableDetailIds[key];
-        if (pool != null && pool.isNotEmpty) {
-          kasurOrderLetterDetailId = pool.removeAt(0);
-          break;
-        }
+      if (kDebugMode) {
+        print(
+            '[DEBUG] _processStructuredDiscounts: Processing ${itemDiscounts.length} item discounts');
+        print('  - Available Detail IDs: ${availableDetailIds.keys.toList()}');
       }
 
-      if (kasurOrderLetterDetailId == null) {
-        continue;
-      }
+      for (final itemDiscount in itemDiscounts) {
+        final kasurNameRaw = (itemDiscount['kasurName'] ?? '').toString();
+        final productSizeRaw = (itemDiscount['productSize'] ?? '').toString();
 
-      if (primaryKey != secondaryKey) {
-        availableDetailIds[primaryKey]?.remove(kasurOrderLetterDetailId);
-        availableDetailIds[secondaryKey]?.remove(kasurOrderLetterDetailId);
-      } else {
-        availableDetailIds[primaryKey]?.remove(kasurOrderLetterDetailId);
-      }
+        final discounts = itemDiscount['discounts'] as List<double>;
 
-      int maxLevelToCreate = discounts.length > 2 ? discounts.length : 2;
-
-      for (int i = 0; i < maxLevelToCreate; i++) {
-        final discount = i < discounts.length ? discounts[i] : 0.0;
-        if (i > 1 && discount <= 0) continue;
-
-        final discountKey = '${kasurOrderLetterDetailId}_${i}_$discount';
-        if (createdDiscounts.contains(discountKey)) {
-          continue;
+        if (kDebugMode) {
+          print(
+              '[DEBUG] _processStructuredDiscounts: Processing discount item');
+          print('  - Kasur Name: $kasurNameRaw, Size: $productSizeRaw');
+          print('  - Discounts: $discounts');
         }
 
-        await _createSingleDiscount(
-          orderLetterId: orderLetterId,
-          kasurOrderLetterDetailId: kasurOrderLetterDetailId,
-          discount: discount,
-          discountIndex: i,
-          leaderIds: leaderIds,
-          discountResults: discountResults,
-          kasurName: kasurNameRaw,
-        );
+        final normalizedName = normalize(kasurNameRaw);
+        final normalizedSize = normalize(productSizeRaw);
 
-        createdDiscounts.add(discountKey);
+        int? kasurOrderLetterDetailId;
+
+        final primaryKey = '$normalizedName|$normalizedSize';
+        final secondaryKey = '$normalizedName|';
+
+        for (final key in [primaryKey, secondaryKey]) {
+          final pool = availableDetailIds[key];
+          if (pool != null && pool.isNotEmpty) {
+            kasurOrderLetterDetailId = pool.removeAt(0);
+            if (kDebugMode) {
+              print(
+                  '  - Matched with key: $key, Detail ID: $kasurOrderLetterDetailId');
+            }
+            break;
+          }
+        }
+
+        // If matching failed, try to find first available kasur detail ID as fallback
+        if (kasurOrderLetterDetailId == null) {
+          // Log for debugging
+          await ErrorLogger.logError(
+            Exception('Failed to match discount item with order detail'),
+            stackTrace: StackTrace.current,
+            context: 'Discount item matching failed',
+            extra: {
+              'kasurName': kasurNameRaw,
+              'productSize': productSizeRaw,
+              'normalizedName': normalizedName,
+              'normalizedSize': normalizedSize,
+              'availableKeys': availableDetailIds.keys.toList(),
+              'orderLetterId': orderLetterId,
+            },
+            fatal: false,
+          );
+
+          // Fallback: use first available kasur detail ID
+          for (final detailResult in detailResults) {
+            if (detailResult['success'] && detailResult['data'] != null) {
+              final rawData = detailResult['data'];
+              final detailData = rawData['location'] ?? rawData;
+              final detailType =
+                  (detailData['item_type'] ?? '').toString().toLowerCase();
+
+              // Prefer kasur, but use divan/headboard/sorong if no kasur exists
+              bool isPrimaryItem = detailType == 'kasur' ||
+                  (detailType == 'divan' ||
+                      detailType == 'headboard' ||
+                      detailType == 'sorong');
+
+              if (isPrimaryItem) {
+                final rawDetailId = detailData['id'] ??
+                    detailData['order_letter_detail_id'] ??
+                    detailData['detail_id'];
+                final parsedId = rawDetailId is int
+                    ? rawDetailId
+                    : int.tryParse(rawDetailId?.toString() ?? '');
+
+                if (parsedId != null) {
+                  kasurOrderLetterDetailId = parsedId;
+                  break;
+                }
+              }
+            }
+          }
+
+          // If still null, skip this item
+          if (kasurOrderLetterDetailId == null) {
+            await ErrorLogger.logError(
+              Exception('No matching detail ID found for discount item'),
+              stackTrace: StackTrace.current,
+              context: 'No fallback detail ID available',
+              extra: {
+                'kasurName': kasurNameRaw,
+                'orderLetterId': orderLetterId,
+              },
+              fatal: false,
+            );
+            continue;
+          }
+        }
+
+        if (primaryKey != secondaryKey) {
+          availableDetailIds[primaryKey]?.remove(kasurOrderLetterDetailId);
+          availableDetailIds[secondaryKey]?.remove(kasurOrderLetterDetailId);
+        } else {
+          availableDetailIds[primaryKey]?.remove(kasurOrderLetterDetailId);
+        }
+
+        int maxLevelToCreate = discounts.length > 2 ? discounts.length : 2;
+
+        for (int i = 0; i < maxLevelToCreate; i++) {
+          final discount = i < discounts.length ? discounts[i] : 0.0;
+          if (i > 1 && discount <= 0) continue;
+
+          final discountKey = '${kasurOrderLetterDetailId}_${i}_$discount';
+          if (createdDiscounts.contains(discountKey)) {
+            continue;
+          }
+
+          await _createSingleDiscount(
+            orderLetterId: orderLetterId,
+            kasurOrderLetterDetailId: kasurOrderLetterDetailId,
+            discount: discount,
+            discountIndex: i,
+            leaderIds: leaderIds,
+            discountResults: discountResults,
+            kasurName: kasurNameRaw,
+            leaderData:
+                leaderData, // Pass leader data to avoid multiple API calls
+          );
+
+          createdDiscounts.add(discountKey);
+        }
       }
+    } catch (e, stackTrace) {
+      await ErrorLogger.logError(
+        e,
+        stackTrace: stackTrace,
+        context: 'Error processing structured discounts',
+        extra: {
+          'orderLetterId': orderLetterId,
+          'itemDiscountsCount': itemDiscounts.length,
+          'detailResultsCount': detailResults.length,
+        },
+        fatal: false,
+      );
+      // Re-throw to allow fallback to default entries
+      rethrow;
     }
   }
 
@@ -1406,6 +1902,15 @@ class OrderLetterService {
     List<int?>? leaderIds,
     int orderLetterId,
   ) async {
+    // Fetch leader data ONCE at the beginning to avoid multiple API calls
+    final leaderService = locator<LeaderService>();
+    final leaderData = await leaderService.getLeaderByUser();
+
+    if (kDebugMode) {
+      print(
+          '[DEBUG] _processLegacyDiscounts: Fetched leader data once for order $orderLetterId');
+    }
+
     // Find first kasur detail ID
     int? kasurOrderLetterDetailId;
     for (final detailResult in detailResults) {
@@ -1451,6 +1956,7 @@ class OrderLetterService {
         leaderIds: leaderIds,
         discountResults: discountResults,
         kasurName: 'First Kasur (Legacy)',
+        leaderData: leaderData, // Pass leader data to avoid multiple API calls
       );
     }
   }
@@ -1463,6 +1969,15 @@ class OrderLetterService {
     int orderLetterId,
   ) async {
     try {
+      // Fetch leader data ONCE at the beginning to avoid multiple API calls
+      final leaderService = locator<LeaderService>();
+      final leaderData = await leaderService.getLeaderByUser();
+
+      if (kDebugMode) {
+        print(
+            '[DEBUG] _createDefaultEntriesForMissingItems: Fetched leader data once for order $orderLetterId');
+      }
+
       String normalize(String value) => value.trim().toLowerCase();
 
       // Build a set of item names that already have discounts
@@ -1481,10 +1996,31 @@ class OrderLetterService {
           final rawData = detailResult['data'];
           final detailData = rawData['location'] ?? rawData;
 
-          // Skip bonus items only
+          // Process kasur items first, but if no kasur exists, process primary items (divan, headboard, sorong)
+          // This ensures discount entries are created even when only divan/headboard/sorong exist
           final itemType =
               (detailData['item_type'] ?? '').toString().toLowerCase();
+
+          // Skip bonus items - they should never receive discount entries
           if (itemType == 'bonus') {
+            continue;
+          }
+
+          // Check if kasur exists in any detail result
+          bool hasKasur = false;
+          for (final dr in detailResults) {
+            if (dr['success'] && dr['data'] != null) {
+              final rd = dr['data'];
+              final dd = rd['location'] ?? rd;
+              if ((dd['item_type'] ?? '').toString().toLowerCase() == 'kasur') {
+                hasKasur = true;
+                break;
+              }
+            }
+          }
+
+          // If kasur exists, only process kasur. Otherwise, process primary items (divan, headboard, sorong).
+          if (hasKasur && itemType != 'kasur') {
             continue;
           }
 
@@ -1513,17 +2049,22 @@ class OrderLetterService {
               leaderIds: leaderIds,
               discountResults: discountResults,
               kasurName: detailData['desc_1'] ?? 'Unknown',
+              leaderData:
+                  leaderData, // Pass leader data to avoid multiple API calls
             );
           }
 
           processedItemNames.add(itemName);
         }
       }
-    } catch (e) {
-      if (kDebugMode) {
-        print(
-            'OrderLetterService: Error creating default entries for missing items: $e');
-      }
+    } catch (e, stackTrace) {
+      await ErrorLogger.logError(
+        e,
+        stackTrace: stackTrace,
+        context: 'Error creating default entries for missing items',
+        extra: {'orderLetterId': orderLetterId},
+        fatal: false,
+      );
     }
   }
 
@@ -1535,6 +2076,15 @@ class OrderLetterService {
     int orderLetterId,
   ) async {
     try {
+      // Fetch leader data ONCE at the beginning to avoid multiple API calls
+      final leaderService = locator<LeaderService>();
+      final leaderData = await leaderService.getLeaderByUser();
+
+      if (kDebugMode) {
+        print(
+            '[DEBUG] _createDefaultDiscountEntries: Fetched leader data once for order $orderLetterId');
+      }
+
       // Process each detail (item) in the order
       for (int idx = 0; idx < detailResults.length; idx++) {
         final detailResult = detailResults[idx];
@@ -1545,7 +2095,28 @@ class OrderLetterService {
 
           final itemType =
               (detailData['item_type'] ?? '').toString().toLowerCase();
+
+          // Skip bonus items - they should never receive discount entries
           if (itemType == 'bonus') {
+            continue;
+          }
+
+          // Check if kasur exists in any detail result
+          bool hasKasur = false;
+          for (final dr in detailResults) {
+            if (dr['success'] && dr['data'] != null) {
+              final rd = dr['data'];
+              final dd = rd['location'] ?? rd;
+              if ((dd['item_type'] ?? '').toString().toLowerCase() == 'kasur') {
+                hasKasur = true;
+                break;
+              }
+            }
+          }
+
+          // If kasur exists, only create discount entries for kasur items
+          // Otherwise, create for primary items (divan, headboard, sorong)
+          if (hasKasur && itemType != 'kasur') {
             continue;
           }
 
@@ -1569,15 +2140,20 @@ class OrderLetterService {
               leaderIds: leaderIds,
               discountResults: discountResults,
               kasurName: itemName,
+              leaderData:
+                  leaderData, // Pass leader data to avoid multiple API calls
             );
           }
         }
       }
-    } catch (e) {
-      if (kDebugMode) {
-        print(
-            'OrderLetterService: Error creating default discount entries: $e');
-      }
+    } catch (e, stackTrace) {
+      await ErrorLogger.logError(
+        e,
+        stackTrace: stackTrace,
+        context: 'Error creating default discount entries',
+        extra: {'orderLetterId': orderLetterId},
+        fatal: false,
+      );
     }
   }
 
@@ -1590,6 +2166,8 @@ class OrderLetterService {
     required List<int?>? leaderIds,
     required List<Map<String, dynamic>> discountResults,
     required String kasurName,
+    LeaderByUserModel?
+        leaderData, // Accept leader data as parameter to avoid multiple API calls
   }) async {
     int? approverId;
     String approverName = '';
@@ -1599,45 +2177,51 @@ class OrderLetterService {
     String? approvedAt;
 
     try {
-      final leaderService = locator<LeaderService>();
-      final leaderData = await leaderService.getLeaderByUser();
+      // Use provided leaderData, or fetch if not provided (fallback for legacy code)
+      final effectiveLeaderData =
+          leaderData ?? await locator<LeaderService>().getLeaderByUser();
 
-      if (leaderData != null) {
+      if (effectiveLeaderData != null) {
         final approvalLevel =
             _mapDiscountIndexToApprovalLevel(discountIndex + 1);
 
         switch (approvalLevel) {
           case 1: // User
-            approverId = leaderData.user.id;
-            approverName = leaderData.user.fullName;
-            approverWorkTitle = leaderData.user.workTitle;
+            approverId = effectiveLeaderData.user.id;
+            approverName = effectiveLeaderData.user.fullName
+                .trim(); // Trim to remove trailing spaces
+            approverWorkTitle = effectiveLeaderData.user.workTitle;
             break;
           case 2: // Direct Leader
-            if (leaderData.directLeader != null) {
-              approverId = leaderData.directLeader!.id;
-              approverName = leaderData.directLeader!.fullName;
-              approverWorkTitle = leaderData.directLeader!.workTitle;
+            if (effectiveLeaderData.directLeader != null) {
+              approverId = effectiveLeaderData.directLeader!.id;
+              approverName = effectiveLeaderData.directLeader!.fullName
+                  .trim(); // Trim to remove trailing spaces
+              approverWorkTitle = effectiveLeaderData.directLeader!.workTitle;
             }
             break;
           case 3: // Indirect Leader
-            if (leaderData.indirectLeader != null) {
-              approverId = leaderData.indirectLeader!.id;
-              approverName = leaderData.indirectLeader!.fullName;
-              approverWorkTitle = leaderData.indirectLeader!.workTitle;
+            if (effectiveLeaderData.indirectLeader != null) {
+              approverId = effectiveLeaderData.indirectLeader!.id;
+              approverName = effectiveLeaderData.indirectLeader!.fullName
+                  .trim(); // Trim to remove trailing spaces
+              approverWorkTitle = effectiveLeaderData.indirectLeader!.workTitle;
             }
             break;
           case 4: // Analyst
-            if (leaderData.analyst != null) {
-              approverId = leaderData.analyst!.id;
-              approverName = leaderData.analyst!.fullName;
-              approverWorkTitle = leaderData.analyst!.workTitle;
+            if (effectiveLeaderData.analyst != null) {
+              approverId = effectiveLeaderData.analyst!.id;
+              approverName = effectiveLeaderData.analyst!.fullName
+                  .trim(); // Trim to remove trailing spaces
+              approverWorkTitle = effectiveLeaderData.analyst!.workTitle;
             }
             break;
           case 5: // Controller
-            if (leaderData.controller != null) {
-              approverId = leaderData.controller!.id;
-              approverName = leaderData.controller!.fullName;
-              approverWorkTitle = leaderData.controller!.workTitle;
+            if (effectiveLeaderData.controller != null) {
+              approverId = effectiveLeaderData.controller!.id;
+              approverName = effectiveLeaderData.controller!.fullName
+                  .trim(); // Trim to remove trailing spaces
+              approverWorkTitle = effectiveLeaderData.controller!.workTitle;
             }
             break;
           default:
@@ -1648,13 +2232,26 @@ class OrderLetterService {
 
         approverLevel = _getApproverLevelName(approvalLevel);
 
+        if (kDebugMode) {
+          print('  - Approver ID: $approverId');
+          print('  - Approver Name: $approverName');
+          print('  - Approver Level: $approverLevel');
+          print('  - Approver Work Title: $approverWorkTitle');
+        }
+
         // Level 1 discounts should be auto-approved (user created the order)
         if (discountIndex == 0) {
           approvedValue = true;
           approvedAt = DateTime.now().toIso8601String();
+          if (kDebugMode) {
+            print('  - Auto-approved (User level)');
+          }
         } else {
           approvedValue = null;
           approvedAt = null;
+          if (kDebugMode) {
+            print('  - Requires approval (Level $approvalLevel)');
+          }
         }
 
         // Skip creating discount entry if approverId is null (for all levels except User)
@@ -1662,14 +2259,24 @@ class OrderLetterService {
         if (approverId == null && approvalLevel > 1) {
           if (kDebugMode) {
             print(
-                '_createSingleDiscount: Skipping discount entry for level $approvalLevel ($approverLevel) - no approver found');
+                '[DEBUG] _createSingleDiscount: Skipping discount entry for level $approvalLevel ($approverLevel) - no approver found');
           }
           return;
         }
       } else {
         return; // Skip creating discount if no leader data
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      await ErrorLogger.logError(
+        e,
+        stackTrace: stackTrace,
+        context: 'Failed to create single discount, skipping',
+        extra: {
+          'orderLetterId': orderLetterId,
+          'discountIndex': discountIndex,
+        },
+        fatal: false,
+      );
       return; // Skip creating discount on error
     }
 
@@ -1686,8 +2293,29 @@ class OrderLetterService {
       'approved_at': approvedAt,
     };
 
+    if (kDebugMode) {
+      print('  - Sending discount data to API:');
+      print('    order_letter_id: ${discountData['order_letter_id']}');
+      print(
+          '    order_letter_detail_id: ${discountData['order_letter_detail_id']}');
+      print('    discount: ${discountData['discount']}');
+      print('    approver: ${discountData['approver']}');
+      print('    approver_name: ${discountData['approver_name']}');
+      print('    approver_level_id: ${discountData['approver_level_id']}');
+      print('    approver_level: ${discountData['approver_level']}');
+      print('    approved: ${discountData['approved']}');
+    }
+
     final discountResult = await createOrderLetterDiscount(discountData);
     discountResults.add(discountResult);
+
+    if (kDebugMode) {
+      print(
+          '  - Discount result: ${discountResult['success'] ? "Success" : "Failed"}');
+      if (discountResult['success'] == false) {
+        print('    Error: ${discountResult['message']}');
+      }
+    }
   }
 
   /// Get count of pending discounts for a specific user level in an order letter
@@ -1715,7 +2343,18 @@ class OrderLetterService {
       }
 
       return pendingCount;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      await ErrorLogger.logError(
+        e,
+        stackTrace: stackTrace,
+        context: 'Failed to get pending discount count',
+        extra: {
+          'orderLetterId': orderLetterId,
+          'leaderId': leaderId,
+          'jobLevelId': jobLevelId,
+        },
+        fatal: false,
+      );
       return 0;
     }
   }
@@ -1735,6 +2374,114 @@ class OrderLetterService {
         return 5; // Controller
       default:
         return level;
+    }
+  }
+
+  /// Auto-approve disc5 (level 5) when disc4 (level 4) is approved
+  /// Copy all data from disc4 to disc5
+  Future<void> _autoApproveDisc5FromDisc4({
+    required int orderLetterId,
+    required int disc4DiscountId,
+    required Map<String, dynamic> disc4Data,
+    required String currentTime,
+    required String token,
+    String? approvalLocation,
+  }) async {
+    try {
+      // Get all discounts for this order letter
+      final allDiscounts =
+          await getOrderLetterDiscounts(orderLetterId: orderLetterId);
+
+      // Find disc4 discount to get its detail_id
+      final disc4Discount = allDiscounts.firstWhere(
+        (d) => (d['id'] ?? d['order_letter_discount_id']) == disc4DiscountId,
+        orElse: () => {},
+      );
+
+      if (disc4Discount.isEmpty) {
+        return; // Disc4 not found, skip
+      }
+
+      final orderLetterDetailId =
+          disc4Discount['order_letter_detail_id'] ?? disc4Discount['detail_id'];
+
+      // Find disc5 discount (level 5) for the same order letter detail
+      final disc5Discount = allDiscounts.firstWhere(
+        (d) =>
+            (d['approver_level_id'] ?? 0) == 5 &&
+            (d['order_letter_detail_id'] ?? d['detail_id']) ==
+                orderLetterDetailId,
+        orElse: () => {},
+      );
+
+      if (disc5Discount.isEmpty) {
+        return; // Disc5 not found, skip
+      }
+
+      final disc5DiscountId =
+          disc5Discount['id'] ?? disc5Discount['order_letter_discount_id'];
+
+      // Get approver info from disc4
+      final disc4ApproverId = disc4Discount['approver'];
+      final disc4ApproverName =
+          disc4Data['approver_name'] ?? disc4Discount['approver_name'] ?? '';
+      final disc4ApproverLevel =
+          disc4Data['approver_level'] ?? disc4Discount['approver_level'] ?? '';
+
+      // POST to order_letter_approves endpoint for disc5
+      final approveUrl = ApiConfig.getCreateOrderLetterApproveUrl(token: token);
+      final approveData = {
+        'order_letter_discount_id': disc5DiscountId,
+        'leader': disc4ApproverId, // Use same approver as disc4
+        'job_level_id': 5, // Controller level
+        if (approvalLocation != null) 'location': approvalLocation,
+      };
+
+      await dio.post(
+        approveUrl,
+        data: approveData,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
+
+      // PUT to order_letter_discounts endpoint - copy data from disc4
+      final updateUrl = ApiConfig.getUpdateOrderLetterDiscountUrl(
+        token: token,
+        discountId: disc5DiscountId,
+      );
+      final updateData = {
+        'approved': true,
+        'approved_at': currentTime, // Same time as disc4 approval
+        'approver_level': disc4ApproverLevel, // Copy from disc4
+        'approver_name': disc4ApproverName, // Copy from disc4
+      };
+
+      await dio.put(
+        updateUrl,
+        data: updateData,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
+    } catch (e, stackTrace) {
+      // Log error but don't fail the disc4 approval
+      await ErrorLogger.logError(
+        e,
+        stackTrace: stackTrace,
+        context: 'Failed to auto-approve disc5 from disc4',
+        extra: {
+          'orderLetterId': orderLetterId,
+          'disc4DiscountId': disc4DiscountId,
+        },
+        fatal: false,
+      );
     }
   }
 

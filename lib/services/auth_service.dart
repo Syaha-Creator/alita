@@ -3,7 +3,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import '../config/api_config.dart';
 import '../config/app_constant.dart';
+import '../config/dependency_injection.dart';
+import '../core/constants/timeouts.dart';
 import '../features/approval/data/cache/approval_cache.dart';
+import '../features/authentication/data/repositories/auth_repository.dart';
 import 'notification_service.dart';
 import 'firebase_error_service.dart';
 
@@ -16,12 +19,20 @@ class AuthService {
   static const String _userAreaNameKey = "current_user_area_name";
 
   /// Mengecek apakah user masih login dan session masih valid.
+  /// Uses AuthRepository if available, otherwise falls back to SharedPreferences
   static Future<bool> isLoggedIn() async {
-    final prefs = await SharedPreferences.getInstance();
-    bool isLoggedIn = prefs.getBool(StorageKeys.isLoggedIn) ?? false;
-
-    authChangeNotifier.value = isLoggedIn;
-    return isLoggedIn;
+    try {
+      final repository = locator<AuthRepository>();
+      final isLoggedIn = await repository.isLoggedIn();
+      authChangeNotifier.value = isLoggedIn;
+      return isLoggedIn;
+    } catch (e) {
+      // Fallback to direct SharedPreferences access for backward compatibility
+      final prefs = await SharedPreferences.getInstance();
+      bool isLoggedIn = prefs.getBool(StorageKeys.isLoggedIn) ?? false;
+      authChangeNotifier.value = isLoggedIn;
+      return isLoggedIn;
+    }
   }
 
   /// Menyimpan data login ke SharedPreferences.
@@ -98,35 +109,68 @@ class AuthService {
   }
 
   /// Mengambil user ID yang sedang login.
+  /// Uses AuthRepository if available, otherwise falls back to SharedPreferences
   static Future<int?> getCurrentUserId() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt(StorageKeys.currentUserId);
+    try {
+      final repository = locator<AuthRepository>();
+      return await repository.getCurrentUserId();
+    } catch (e) {
+      // Fallback to direct SharedPreferences access for backward compatibility
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getInt(StorageKeys.currentUserId);
+    }
   }
 
   /// Mengambil area ID user yang sedang login.
+  /// Uses AuthRepository if available, otherwise falls back to SharedPreferences
   static Future<int?> getCurrentUserAreaId() async {
-    final prefs = await SharedPreferences.getInstance();
-    final areaId = prefs.getInt(_userAreaIdKey);
-    return areaId;
+    try {
+      final repository = locator<AuthRepository>();
+      return await repository.getCurrentUserAreaId();
+    } catch (e) {
+      // Fallback to direct SharedPreferences access for backward compatibility
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getInt(_userAreaIdKey);
+    }
   }
 
   /// Mengambil area name user yang sedang login (dari CWE).
+  /// Uses AuthRepository if available, otherwise falls back to SharedPreferences
   static Future<String?> getCurrentUserAreaName() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_userAreaNameKey);
+    try {
+      final repository = locator<AuthRepository>();
+      return await repository.getCurrentUserAreaName();
+    } catch (e) {
+      // Fallback to direct SharedPreferences access for backward compatibility
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(_userAreaNameKey);
+    }
   }
 
   /// Mengambil token autentikasi.
+  /// Uses AuthRepository if available, otherwise falls back to SharedPreferences
   static Future<String?> getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString(StorageKeys.authToken);
-    return token;
+    try {
+      final repository = locator<AuthRepository>();
+      return await repository.getToken();
+    } catch (e) {
+      // Fallback to direct SharedPreferences access for backward compatibility
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(StorageKeys.authToken);
+    }
   }
 
   /// Mengambil refresh token.
+  /// Uses AuthRepository if available, otherwise falls back to SharedPreferences
   static Future<String?> getRefreshToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(StorageKeys.refreshToken);
+    try {
+      final repository = locator<AuthRepository>();
+      return await repository.getRefreshToken();
+    } catch (e) {
+      // Fallback to direct SharedPreferences access for backward compatibility
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(StorageKeys.refreshToken);
+    }
   }
 
   /// Mengambil job level dari contact work experiences API
@@ -145,8 +189,8 @@ class AuthService {
       );
 
       Dio dio = Dio();
-      dio.options.connectTimeout = const Duration(seconds: 30);
-      dio.options.receiveTimeout = const Duration(seconds: 30);
+      dio.options.connectTimeout = ApiTimeouts.standardConnectTimeout;
+      dio.options.receiveTimeout = ApiTimeouts.standardReceiveTimeout;
       dio.options.headers['ngrok-skip-browser-warning'] = 'true';
       dio.options.headers['User-Agent'] = 'AlitaPricelist/1.0';
 
@@ -209,8 +253,8 @@ class AuthService {
 
     try {
       Dio dio = Dio();
-      dio.options.connectTimeout = const Duration(seconds: 30);
-      dio.options.receiveTimeout = const Duration(seconds: 30);
+      dio.options.connectTimeout = ApiTimeouts.standardConnectTimeout;
+      dio.options.receiveTimeout = ApiTimeouts.standardReceiveTimeout;
       dio.options.headers['ngrok-skip-browser-warning'] = 'true';
       dio.options.headers['User-Agent'] = 'AlitaPricelist/1.0';
 
@@ -289,8 +333,8 @@ class AuthService {
       final url =
           ApiConfig.getContactWorkExperienceUrl(token: token, userId: userId);
       Dio dio = Dio();
-      dio.options.connectTimeout = const Duration(seconds: 30);
-      dio.options.receiveTimeout = const Duration(seconds: 30);
+      dio.options.connectTimeout = ApiTimeouts.standardConnectTimeout;
+      dio.options.receiveTimeout = ApiTimeouts.standardReceiveTimeout;
       dio.options.headers['ngrok-skip-browser-warning'] = 'true';
       dio.options.headers['User-Agent'] = 'AlitaPricelist/1.0';
       final response = await dio.get(url);

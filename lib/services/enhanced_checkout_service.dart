@@ -2,18 +2,20 @@ import 'package:flutter/foundation.dart';
 
 import '../features/product/domain/entities/product_entity.dart';
 import '../features/cart/domain/entities/cart_entity.dart';
-import 'item_mapping_service.dart';
+import '../features/item_mapping/domain/usecases/map_checkout_items_usecase.dart';
+import '../features/item_mapping/domain/entities/product_item_mapping_entity.dart';
+import 'item_mapping_service.dart'; // Keep for ProductItemMapping class
 import 'checkout_service.dart';
 
 class EnhancedCheckoutService {
   final CheckoutService _checkoutService;
-  final ItemMappingService _itemMappingService;
+  final MapCheckoutItemsUseCase _mapCheckoutItemsUseCase;
 
   EnhancedCheckoutService({
     required CheckoutService checkoutService,
-    required ItemMappingService itemMappingService,
+    required MapCheckoutItemsUseCase mapCheckoutItemsUseCase,
   })  : _checkoutService = checkoutService,
-        _itemMappingService = itemMappingService;
+        _mapCheckoutItemsUseCase = mapCheckoutItemsUseCase;
 
   /// Checkout dengan item mapping dari pl_lookup_item_nums
   Future<Map<String, dynamic>> checkoutWithItemMapping({
@@ -33,8 +35,7 @@ class EnhancedCheckoutService {
     try {
       // Mapping semua item ke item lookup
       final products = cartItems.map((item) => item.product).toList();
-      final checkoutMapping =
-          await _itemMappingService.mapCheckoutItems(products);
+      final checkoutMapping = await _mapCheckoutItemsUseCase(products);
 
       // Buat cart items dengan item_number yang sudah di-mapping
       final mappedCartItems =
@@ -67,13 +68,14 @@ class EnhancedCheckoutService {
   /// Buat cart items dengan item_number yang sudah di-mapping
   Future<List<CartEntity>> _createMappedCartItems(
     List<CartEntity> originalCartItems,
-    CheckoutItemMapping checkoutMapping,
+    dynamic checkoutMapping, // Accept CheckoutItemMappingEntity
   ) async {
     final List<CartEntity> mappedCartItems = [];
 
     for (int i = 0; i < originalCartItems.length; i++) {
       final originalItem = originalCartItems[i];
-      final productMapping = checkoutMapping.productMappings[i];
+      final productMapping =
+          checkoutMapping.productMappings[i] as ProductItemMappingEntity;
 
       // Buat product entity baru dengan item_number yang sudah di-mapping
       final mappedProduct = ProductEntity(
@@ -154,22 +156,34 @@ class EnhancedCheckoutService {
   Future<ItemMappingValidationResult> validateItemMapping(
       List<CartEntity> cartItems) async {
     final products = cartItems.map((item) => item.product).toList();
-    final checkoutMapping =
-        await _itemMappingService.mapCheckoutItems(products);
+    final checkoutMapping = await _mapCheckoutItemsUseCase(products);
+
+    // Convert entity to service model for backward compatibility
+    final productMappings = checkoutMapping.productMappings.map((mapping) {
+      return ProductItemMapping(
+        productId: mapping.productId,
+        brand: mapping.brand,
+        kasurItemNumber: mapping.kasurItemNumber,
+        divanItemNumber: mapping.divanItemNumber,
+        headboardItemNumber: mapping.headboardItemNumber,
+        sorongItemNumber: mapping.sorongItemNumber,
+        accessoriesItemNumber: mapping.accessoriesItemNumber,
+        bonusItemNumbers: mapping.bonusItemNumbers,
+      );
+    }).toList();
 
     return ItemMappingValidationResult(
       isValid: checkoutMapping.allItemsMapped,
       totalProducts: checkoutMapping.totalProducts,
       totalUnmappedItems: checkoutMapping.totalUnmappedItems,
-      productMappings: checkoutMapping.productMappings,
+      productMappings: productMappings,
     );
   }
 
   /// Dapatkan laporan item mapping untuk debugging
   Future<String> generateItemMappingReport(List<CartEntity> cartItems) async {
     final products = cartItems.map((item) => item.product).toList();
-    final checkoutMapping =
-        await _itemMappingService.mapCheckoutItems(products);
+    final checkoutMapping = await _mapCheckoutItemsUseCase(products);
 
     final buffer = StringBuffer();
     buffer.writeln('=== ITEM MAPPING REPORT ===');

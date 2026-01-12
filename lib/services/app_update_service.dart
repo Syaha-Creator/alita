@@ -4,20 +4,21 @@ import 'package:flutter/foundation.dart';
 import 'package:in_app_update/in_app_update.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../core/constants/timeouts.dart';
 
 class AppUpdateService {
   AppUpdateInfo? _updateInfo;
 
   // Hardcoded minimum version untuk force update (iOS)
   // Update nilai ini setiap kali release versi baru yang wajib di-update
-  // Versi saat ini: 1.7.14+42
-  // Versi minimum yang wajib di-update: 1.7.14+42
-  // Jika user menggunakan versi < 1.7.14+42, akan di-force update
-  static const String _minRequiredVersion = '1.7.14';
-  static const int _minRequiredBuildNumber = 42;
+  // Versi saat ini: 1.7.17+45
+  // Versi minimum yang wajib di-update: 1.7.17+45
+  // Jika user menggunakan versi < 1.7.17+45, akan di-force update
+  static const String _minRequiredVersion = '1.7.17';
+  static const int _minRequiredBuildNumber = 45;
 
-  // Timeout untuk update check (5 detik)
-  static const Duration _updateCheckTimeout = Duration(seconds: 5);
+  // Timeout untuk update check
+  static const Duration _updateCheckTimeout = ApiTimeouts.shortTimeout;
 
   Future<bool> checkForUpdate() async {
     try {

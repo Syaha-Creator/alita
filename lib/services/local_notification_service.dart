@@ -109,12 +109,25 @@ class LocalNotificationService {
   }
 
   // Show simple notification
+  /// Logic: Use for immediate feedback to current user
+  /// - Order created successfully
+  /// - Approval status updates
+  /// - FCM messages received in foreground
   Future<void> showSimpleNotification({
     required String title,
     required String body,
     String? payload,
   }) async {
     try {
+      // Validate inputs
+      if (title.isEmpty || body.isEmpty) {
+        if (kDebugMode) {
+          print(
+              'LocalNotificationService: Title or body is empty, skipping notification');
+        }
+        return;
+      }
+
       const AndroidNotificationDetails androidPlatformChannelSpecifics =
           AndroidNotificationDetails(
         'alita_notifications',
@@ -139,8 +152,11 @@ class LocalNotificationService {
         iOS: iOSPlatformChannelSpecifics,
       );
 
+      // Use timestamp as notification ID to avoid duplicates
+      final notificationId = DateTime.now().millisecondsSinceEpoch % 2147483647;
+
       await _flutterLocalNotificationsPlugin.show(
-        0, // Notification ID
+        notificationId,
         title,
         body,
         platformChannelSpecifics,
@@ -148,12 +164,17 @@ class LocalNotificationService {
       );
 
       if (kDebugMode) {
-        print('Simple notification shown: $title - $body');
+        print(
+            'LocalNotificationService: Simple notification shown: $title - $body');
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       if (kDebugMode) {
-        print('Error showing simple notification: $e');
+        print(
+            'LocalNotificationService: Error showing simple notification: $e');
+        print('Stack trace: $stackTrace');
       }
+      // Re-throw to let caller handle if needed
+      rethrow;
     }
   }
 
