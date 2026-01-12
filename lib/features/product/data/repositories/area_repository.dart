@@ -1,19 +1,19 @@
-import '../../../../services/area_service.dart';
 import '../../../../services/area_cache.dart';
 import '../../../../core/widgets/custom_toast.dart';
+import '../datasources/area_remote_data_source.dart';
 import '../models/area_model.dart';
 
 class AreaRepository {
-  final AreaService areaService;
+  final AreaRemoteDataSource remoteDataSource;
 
-  AreaRepository({required this.areaService});
+  AreaRepository({required this.remoteDataSource});
 
   /// Fetch areas from API with smart caching
   /// - Sukses: simpan ke cache, return data
   /// - Gagal: gunakan cache jika ada, kalau tidak return empty
   Future<List<AreaModel>> fetchAreas() async {
     try {
-      final areas = await areaService.fetchAreas();
+      final areas = await remoteDataSource.fetchAreas();
 
       // Sukses fetch dari API → simpan ke cache
       if (areas.isNotEmpty) {
@@ -76,7 +76,7 @@ class AreaRepository {
   /// Check if areas are available from API
   Future<bool> isApiAvailable() async {
     try {
-      await areaService.fetchAreas();
+      await remoteDataSource.fetchAreas();
       return true;
     } catch (e) {
       return false;

@@ -182,7 +182,7 @@ class PriceCard extends StatelessWidget {
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.savings_outlined,
+                        const Icon(Icons.savings_outlined,
                             color: AppColors.error, size: 20),
                         const SizedBox(width: AppPadding.p8),
                         Text(
@@ -197,7 +197,7 @@ class PriceCard extends StatelessWidget {
                         const Spacer(),
                         Text(
                           "- ${FormatHelper.formatCurrency(totalDiscount)}",
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: AppColors.error,
                             fontWeight: FontWeight.bold,
                             fontSize: 15,
@@ -347,12 +347,12 @@ class PriceCard extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.credit_card_rounded,
+                        const Icon(Icons.credit_card_rounded,
                             color: AppColors.info, size: 18),
                         const SizedBox(width: AppPadding.p8),
                         Text(
                           "${FormatHelper.formatCurrency(netPrice / installmentMonths!)} × $installmentMonths bulan",
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: AppColors.info,
                             fontWeight: FontWeight.w600,
                             fontSize: 13,

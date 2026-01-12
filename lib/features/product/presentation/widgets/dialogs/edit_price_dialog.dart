@@ -97,7 +97,7 @@ class _EditPriceDialogState extends State<EditPriceDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Edit Harga",
+          const Text("Edit Harga",
               style: TextStyle(
                   fontFamily: 'Inter',
                   fontSize: 20,
@@ -146,7 +146,7 @@ class _EditPriceDialogState extends State<EditPriceDialog> {
               labelText: "Harga Net Baru",
               border: const OutlineInputBorder(),
               suffixIcon: isPriceLocked
-                  ? Icon(
+                  ? const Icon(
                       Icons.lock,
                       color: AppColors.error,
                     )

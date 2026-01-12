@@ -69,7 +69,7 @@ class BonusCard extends StatelessWidget {
                     color: AppColors.success.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(
+                  child: const Icon(
                     Icons.card_giftcard_rounded,
                     color: AppColors.success,
                     size: 20,
@@ -95,7 +95,7 @@ class BonusCard extends StatelessWidget {
                   ),
                   child: Text(
                     "${bonusItems.length} item",
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: AppColors.success,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -127,7 +127,7 @@ class BonusCard extends StatelessWidget {
                   child: Row(
                     children: [
                       // Check icon
-                      Icon(
+                      const Icon(
                         Icons.check_circle_rounded,
                         color: AppColors.success,
                         size: 18,

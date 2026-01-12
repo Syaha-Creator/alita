@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../../../../config/app_constant.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -74,13 +75,38 @@ class _InfoDialogState extends State<InfoDialog> {
 
   Future<void> _loadLeaderData() async {
     try {
+      if (kDebugMode) {
+        print(
+            '[DEBUG] InfoDialog._loadLeaderData: Loading leader data for product ${widget.product.id} (${widget.product.kasur})');
+      }
       final leaderService = locator<LeaderService>();
       final leaderData = await leaderService.getLeaderByUser();
 
-      setState(() {
-        _leaderData = leaderData;
-      });
+      if (mounted) {
+        setState(() {
+          _leaderData = leaderData;
+        });
+        if (kDebugMode) {
+          print(
+              '[DEBUG] InfoDialog._loadLeaderData: Leader data loaded: ${leaderData != null ? "Success" : "Failed"}');
+          if (leaderData != null) {
+            print(
+                '  - Product: ${widget.product.kasur} (ID: ${widget.product.id})');
+            print('  - Base Price: ${widget.product.endUserPrice}');
+            if (mounted) {
+              final state = context.read<ProductBloc>().state;
+              final discounts =
+                  state.productDiscountsPercentage[widget.product.id] ?? [];
+              print('  - Current Discounts: $discounts');
+            }
+          }
+        }
+      }
     } catch (e) {
+      if (kDebugMode) {
+        print(
+            '[DEBUG] InfoDialog._loadLeaderData: Error loading leader data: $e');
+      }
       // No-op, leader data will be null if loading fails
     }
   }
@@ -244,8 +270,8 @@ class _InfoDialogState extends State<InfoDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Input Diskon",
-                style: const TextStyle(
+            const Text("Input Diskon",
+                style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 20,
                     fontWeight: FontWeight.bold)),
@@ -256,6 +282,9 @@ class _InfoDialogState extends State<InfoDialog> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: List.generate(5, (i) {
+                  // Sembunyikan disc5 (index 4) walaupun ada persentase batasan
+                  if (i == 4) return const SizedBox.shrink();
+
                   // Hanya tampilkan discount field jika disc value > 0
                   final discValue = _getMaxDisc(i);
                   if (discValue <= 0) return const SizedBox.shrink();
@@ -272,7 +301,7 @@ class _InfoDialogState extends State<InfoDialog> {
                                         decimal: true),
                                 decoration: InputDecoration(
                                     labelText: _getDiscountLabel(i + 1, true),
-                                    border: OutlineInputBorder()),
+                                    border: const OutlineInputBorder()),
                                 onChanged: (val) {
                                   updateNominal(i);
                                   _checkHasChanged();
@@ -284,7 +313,7 @@ class _InfoDialogState extends State<InfoDialog> {
                                 keyboardType: TextInputType.number,
                                 decoration: InputDecoration(
                                     labelText: _getDiscountLabel(i + 1, false),
-                                    border: OutlineInputBorder()),
+                                    border: const OutlineInputBorder()),
                                 onChanged: (val) {
                                   final formatted =
                                       FormatHelper.formatTextFieldCurrency(val);
@@ -327,7 +356,7 @@ class _InfoDialogState extends State<InfoDialog> {
                 const SizedBox(width: AppPadding.p8),
                 TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: Text("Batal")),
+                    child: const Text("Batal")),
                 const SizedBox(width: AppPadding.p8),
                 ElevatedButton(
                   onPressed: hasChanged

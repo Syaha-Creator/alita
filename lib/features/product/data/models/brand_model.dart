@@ -4,6 +4,7 @@ class BrandModel {
   final String? code;
   final String? description;
   final bool? isActive;
+  final int? plChannelId;
 
   BrandModel({
     required this.id,
@@ -11,6 +12,7 @@ class BrandModel {
     this.code,
     this.description,
     this.isActive,
+    this.plChannelId,
   });
 
   factory BrandModel.fromJson(Map<String, dynamic> json) {
@@ -20,6 +22,7 @@ class BrandModel {
       code: json['code'],
       description: json['description'],
       isActive: json['is_active'] ?? true,
+      plChannelId: json['pl_channel_id'],
     );
   }
 
@@ -30,6 +33,7 @@ class BrandModel {
       'code': code,
       'description': description,
       'is_active': isActive,
+      'pl_channel_id': plChannelId,
     };
   }
 

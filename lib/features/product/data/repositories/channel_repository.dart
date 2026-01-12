@@ -1,16 +1,16 @@
-import '../../../../services/channel_service.dart';
 import '../../../../core/widgets/custom_toast.dart';
+import '../datasources/channel_remote_data_source.dart';
 import '../models/channel_model.dart';
 
 class ChannelRepository {
-  final ChannelService channelService;
+  final ChannelRemoteDataSource remoteDataSource;
 
-  ChannelRepository({required this.channelService});
+  ChannelRepository({required this.remoteDataSource});
 
   /// Fetch channels from API (always fresh data)
   Future<List<ChannelModel>> fetchChannels() async {
     try {
-      final channels = await channelService.fetchChannels();
+      final channels = await remoteDataSource.fetchChannels();
       return channels;
     } catch (e) {
       // Show error toast to user
@@ -49,7 +49,7 @@ class ChannelRepository {
   /// Check if channels are available from API
   Future<bool> isApiAvailable() async {
     try {
-      await channelService.fetchChannels();
+      await remoteDataSource.fetchChannels();
       return true;
     } catch (e) {
       return false;

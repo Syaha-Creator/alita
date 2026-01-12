@@ -1,16 +1,16 @@
-import '../../../../services/brand_service.dart';
 import '../../../../core/widgets/custom_toast.dart';
+import '../datasources/brand_remote_data_source.dart';
 import '../models/brand_model.dart';
 
 class BrandRepository {
-  final BrandService brandService;
+  final BrandRemoteDataSource remoteDataSource;
 
-  BrandRepository({required this.brandService});
+  BrandRepository({required this.remoteDataSource});
 
   /// Fetch brands from API (always fresh data)
   Future<List<BrandModel>> fetchBrands() async {
     try {
-      final brands = await brandService.fetchBrands();
+      final brands = await remoteDataSource.fetchBrands();
       return brands;
     } catch (e) {
       // Show error toast to user
@@ -49,7 +49,7 @@ class BrandRepository {
   /// Check if brands are available from API
   Future<bool> isApiAvailable() async {
     try {
-      await brandService.fetchBrands();
+      await remoteDataSource.fetchBrands();
       return true;
     } catch (e) {
       return false;
@@ -57,10 +57,13 @@ class BrandRepository {
   }
 
   /// Get all brands from API as strings (includes all brands, not just enum-convertible ones)
-  Future<List<String>> fetchAllBrandNames() async {
+  Future<List<String>> fetchAllBrandNames({int? channelId}) async {
     try {
       final brands = await fetchBrands();
-      final brandNames = brands.map((brand) => brand.name).toList();
+      final filtered = channelId == null
+          ? brands
+          : brands.where((b) => b.plChannelId == channelId).toList();
+      final brandNames = filtered.map((brand) => brand.name).toList();
       return brandNames;
     } catch (e) {
       // Show error toast to user
@@ -75,10 +78,11 @@ class BrandRepository {
   }
 
   /// Get all brands from API as BrandModel list (includes all brands, not just enum-convertible ones)
-  Future<List<BrandModel>> fetchAllBrands() async {
+  Future<List<BrandModel>> fetchAllBrands({int? channelId}) async {
     try {
       final brands = await fetchBrands();
-      return brands;
+      if (channelId == null) return brands;
+      return brands.where((b) => b.plChannelId == channelId).toList();
     } catch (e) {
       // Show error toast to user
       CustomToast.showToast(

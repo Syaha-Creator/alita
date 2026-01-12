@@ -306,7 +306,7 @@ class ProductCard extends StatelessWidget {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Text(
+                  child: const Text(
                     "SET",
                     style: TextStyle(
                       color: AppColors.primaryLight,
@@ -660,7 +660,7 @@ class ProductCard extends StatelessWidget {
                 ),
                 Text(
                   FormatHelper.formatCurrency(netPrice),
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: AppColors.success,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -675,11 +675,11 @@ class ProductCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
+                const Row(
                   children: [
                     Icon(Icons.savings_outlined,
                         size: 16, color: AppColors.error),
-                    const SizedBox(width: AppPadding.p6),
+                    SizedBox(width: AppPadding.p6),
                     Text(
                       "Hemat",
                       style: TextStyle(
@@ -699,7 +699,7 @@ class ProductCard extends StatelessWidget {
                   ),
                   child: Text(
                     "- ${FormatHelper.formatCurrency(totalDiscount)}",
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: AppColors.error,
                       fontSize: 13,
                       fontWeight: FontWeight.bold,

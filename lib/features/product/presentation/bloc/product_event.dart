@@ -54,6 +54,14 @@ class UpdateSelectedChannel extends ProductEvent {
   List<Object?> get props => [channel];
 }
 
+class LoadBrandsForChannel extends ProductEvent {
+  final String channel;
+  const LoadBrandsForChannel(this.channel);
+
+  @override
+  List<Object?> get props => [channel];
+}
+
 class UpdateSelectedBrand extends ProductEvent {
   final String brand;
   const UpdateSelectedBrand(this.brand);

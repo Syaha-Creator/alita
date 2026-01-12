@@ -29,7 +29,7 @@ class IndividualPricingSection extends StatelessWidget {
           // Header
           Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.attach_money,
                 color: AppColors.success,
                 size: 16,

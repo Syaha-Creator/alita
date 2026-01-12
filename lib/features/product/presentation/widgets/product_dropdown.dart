@@ -144,8 +144,11 @@ class ProductDropdown extends StatelessWidget {
             items: brands,
             selectedValue: selectedBrand,
             onChanged: onBrandChanged,
-            hintText: brands.isEmpty ? "Brand belum tersedia" : "Pilih Brand",
+            hintText: selectedChannel == null || selectedChannel!.isEmpty
+                ? "Pilih Channel terlebih dahulu"
+                : (brands.isEmpty ? "Brand belum tersedia" : "Pilih Brand"),
             isDynamicWidth: brands.length <= 3,
+            enabled: selectedChannel != null && selectedChannel!.isNotEmpty,
           ),
         ),
         _buildRow(

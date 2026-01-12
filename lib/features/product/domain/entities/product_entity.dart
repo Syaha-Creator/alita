@@ -150,9 +150,12 @@ class BonusItem extends Equatable {
   int get maxQuantity => originalQuantity > 0 ? originalQuantity * 2 : quantity;
 
   /// Calculate maximum allowed quantity for a given product quantity
-  /// Formula: maxQuantity = originalQuantity * productQuantity
+  /// Formula: maxQuantity = originalQuantity * 2 * productQuantity
+  /// This allows users to get up to 2x the original bonus quantity per product unit
   int calculateMaxQuantity(int productQuantity) {
-    return originalQuantity > 0 ? originalQuantity * productQuantity : quantity;
+    return originalQuantity > 0
+        ? originalQuantity * 2 * productQuantity
+        : quantity * 2;
   }
 
   /// Create a copy with updated quantity (clamped to max)

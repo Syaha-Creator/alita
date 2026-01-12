@@ -152,7 +152,7 @@ class _ProductPageState extends State<ProductPage> {
               isDark: isDark,
               onPressed: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => DraftCheckoutPage()),
+                MaterialPageRoute(builder: (context) => const DraftCheckoutPage()),
               ),
             ),
             CartBadge(
@@ -349,8 +349,8 @@ class _ProductPageState extends State<ProductPage> {
                                         "Coba ubah kriteria filter Anda untuk menemukan produk yang lain.",
                                   ),
                                 ))
-                          : Padding(
-                              padding: const EdgeInsets.only(top: 20),
+                          : const Padding(
+                              padding: EdgeInsets.only(top: 20),
                               child: EmptyState(
                                 icon: Icons.filter_list,
                                 title: "Pilih Filter",
