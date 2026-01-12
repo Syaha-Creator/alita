@@ -20,6 +20,41 @@ import 'core/widgets/force_update_dialog.dart';
 import 'theme/app_theme.dart';
 import 'firebase_options.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'dart:ui';
+
+void _setupGlobalErrorHandlers() {
+  final originalOnError = FlutterError.onError;
+  FlutterError.onError = (FlutterErrorDetails details) {
+    if (originalOnError != null) {
+      originalOnError(details);
+    }
+
+    FirebaseErrorService().logError(
+      details.exception,
+      stackTrace: details.stack,
+      fatal: true,
+      reason: 'Flutter Framework Error',
+      context: {
+        'library': details.library ?? 'unknown',
+        'context': details.context?.toString() ?? 'unknown',
+      },
+    );
+  };
+
+  final originalPlatformError = PlatformDispatcher.instance.onError;
+  PlatformDispatcher.instance.onError = (error, stack) {
+    final handled = originalPlatformError?.call(error, stack) ?? false;
+
+    FirebaseErrorService().logError(
+      error,
+      stackTrace: stack,
+      fatal: true,
+      reason: 'Uncaught Async Error',
+    );
+
+    return handled;
+  };
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,6 +72,8 @@ void main() async {
 
   // Initialize Firebase Error Service (Crashlytics & Analytics)
   await FirebaseErrorService().initialize();
+
+  _setupGlobalErrorHandlers();
 
   // Register background message handler
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);

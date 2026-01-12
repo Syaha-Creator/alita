@@ -26,7 +26,7 @@ class AppTheme {
     dividerColor: AppColors.borderLight,
 
     // ColorScheme dengan komposisi 60-30-10
-    colorScheme: ColorScheme.light(
+    colorScheme: const ColorScheme.light(
       // 10% - Accent
       primary: AppColors.accentLight,
       onPrimary: Colors.white,
@@ -48,31 +48,31 @@ class AppTheme {
 
     // Text Theme
     textTheme: const TextTheme().copyWith(
-      bodyLarge: TextStyle(
+      bodyLarge: const TextStyle(
         fontFamily: 'Inter',
         color: AppColors.textPrimaryLight,
         fontSize: 16,
         fontWeight: FontWeight.w400,
       ),
-      bodyMedium: TextStyle(
+      bodyMedium: const TextStyle(
         fontFamily: 'Inter',
         color: AppColors.textSecondaryLight,
         fontSize: 14,
         fontWeight: FontWeight.w400,
       ),
-      titleLarge: TextStyle(
+      titleLarge: const TextStyle(
         fontFamily: 'Inter',
         color: AppColors.textPrimaryLight,
         fontSize: 22,
         fontWeight: FontWeight.w600,
       ),
-      titleMedium: TextStyle(
+      titleMedium: const TextStyle(
         fontFamily: 'Inter',
         color: AppColors.textPrimaryLight,
         fontSize: 18,
         fontWeight: FontWeight.w600,
       ),
-      titleSmall: TextStyle(
+      titleSmall: const TextStyle(
         fontFamily: 'Inter',
         color: AppColors.textPrimaryLight,
         fontSize: 16,
@@ -81,12 +81,12 @@ class AppTheme {
     ),
 
     // AppBar Theme (10% - Accent)
-    appBarTheme: AppBarTheme(
+    appBarTheme: const AppBarTheme(
       backgroundColor: AppColors.accentLight,
       foregroundColor: Colors.white,
       elevation: 0,
       shadowColor: AppColors.shadowLight,
-      titleTextStyle: const TextStyle(
+      titleTextStyle: TextStyle(
         fontFamily: 'Inter',
         fontSize: 18,
         fontWeight: FontWeight.w600,
@@ -177,11 +177,11 @@ class AppTheme {
     ),
 
     // Popup Menu Theme (30% - Secondary)
-    popupMenuTheme: PopupMenuThemeData(
+    popupMenuTheme: const PopupMenuThemeData(
       color: AppColors.surfaceLight,
       elevation: 8,
       shadowColor: AppColors.shadowLight,
-      textStyle: const TextStyle(
+      textStyle: TextStyle(
         fontFamily: 'Inter',
         fontSize: 14,
         color: AppColors.textPrimaryLight,
@@ -190,12 +190,12 @@ class AppTheme {
     ),
 
     // Bottom Sheet Theme (30% - Secondary)
-    bottomSheetTheme: BottomSheetThemeData(
+    bottomSheetTheme: const BottomSheetThemeData(
       backgroundColor: AppColors.surfaceLight,
       surfaceTintColor: AppColors.surfaceLight,
       elevation: 8,
       shadowColor: AppColors.shadowLight,
-      shape: const RoundedRectangleBorder(
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
     ),
@@ -228,7 +228,7 @@ class AppTheme {
     dividerColor: AppColors.borderDark,
 
     // ColorScheme dengan komposisi 60-30-10
-    colorScheme: ColorScheme.dark(
+    colorScheme: const ColorScheme.dark(
       // 10% - Accent
       primary: AppColors.accentDark,
       onPrimary: Colors.white,
@@ -250,31 +250,31 @@ class AppTheme {
 
     // Text Theme
     textTheme: const TextTheme().copyWith(
-      bodyLarge: TextStyle(
+      bodyLarge: const TextStyle(
         fontFamily: 'Inter',
         color: AppColors.textPrimaryDark,
         fontSize: 16,
         fontWeight: FontWeight.w400,
       ),
-      bodyMedium: TextStyle(
+      bodyMedium: const TextStyle(
         fontFamily: 'Inter',
         color: AppColors.textSecondaryDark,
         fontSize: 14,
         fontWeight: FontWeight.w400,
       ),
-      titleLarge: TextStyle(
+      titleLarge: const TextStyle(
         fontFamily: 'Inter',
         color: AppColors.textPrimaryDark,
         fontSize: 22,
         fontWeight: FontWeight.w600,
       ),
-      titleMedium: TextStyle(
+      titleMedium: const TextStyle(
         fontFamily: 'Inter',
         color: AppColors.textPrimaryDark,
         fontSize: 18,
         fontWeight: FontWeight.w600,
       ),
-      titleSmall: TextStyle(
+      titleSmall: const TextStyle(
         fontFamily: 'Inter',
         color: AppColors.textPrimaryDark,
         fontSize: 16,
@@ -283,12 +283,12 @@ class AppTheme {
     ),
 
     // AppBar Theme (10% - Accent)
-    appBarTheme: AppBarTheme(
+    appBarTheme: const AppBarTheme(
       backgroundColor: AppColors.accentDark,
       foregroundColor: Colors.white,
       elevation: 0,
       shadowColor: AppColors.shadowDark,
-      titleTextStyle: const TextStyle(
+      titleTextStyle: TextStyle(
         fontFamily: 'Inter',
         fontSize: 18,
         fontWeight: FontWeight.w600,
@@ -379,11 +379,11 @@ class AppTheme {
     ),
 
     // Popup Menu Theme (30% - Secondary)
-    popupMenuTheme: PopupMenuThemeData(
+    popupMenuTheme: const PopupMenuThemeData(
       color: AppColors.surfaceDark,
       elevation: 8,
       shadowColor: AppColors.shadowDark,
-      textStyle: const TextStyle(
+      textStyle: TextStyle(
         fontFamily: 'Inter',
         fontSize: 14,
         color: AppColors.textPrimaryDark,
@@ -392,12 +392,12 @@ class AppTheme {
     ),
 
     // Bottom Sheet Theme (30% - Secondary)
-    bottomSheetTheme: BottomSheetThemeData(
+    bottomSheetTheme: const BottomSheetThemeData(
       backgroundColor: AppColors.surfaceDark,
       surfaceTintColor: AppColors.surfaceDark,
       elevation: 8,
       shadowColor: AppColors.shadowDark,
-      shape: const RoundedRectangleBorder(
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
     ),
