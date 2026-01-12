@@ -944,7 +944,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
               const SizedBox(height: AppPadding.p6),
               Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.card_giftcard,
                     size: 18,
                     color: AppColors.success, // Status color
@@ -976,7 +976,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                       ),
                       child: Text(
                         '${qty}x',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
@@ -1042,7 +1042,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         // Header for discount section
         Row(
           children: [
-            Icon(
+            const Icon(
               Icons.discount,
               size: 16,
               color: AppColors.warning, // Status color
@@ -1117,7 +1117,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                           ),
                           Text(
                             '- ${_formatDiscountPercentage(discount.discount)}%',
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                               color: Colors.red,
@@ -1595,7 +1595,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                     ),
                     child: Text(
                       '${percentage.toStringAsFixed(1)}%',
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
                         color: AppColors.error, // Status color
@@ -1705,7 +1705,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                         color: AppColors.primaryLight.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Icon(
+                      child: const Icon(
                         Icons.add_card,
                         color: AppColors.primaryLight,
                         size: 24,
@@ -1726,7 +1726,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                           ),
                           Text(
                             'Sisa: ${FormatHelper.formatCurrency(sisaPembayaran)}',
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 13,
                               color: AppColors.warning,
                               fontWeight: FontWeight.w500,
@@ -2325,7 +2325,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                                   strokeWidth: 2, color: Colors.white),
                             )
                           : const Icon(Icons.check, color: Colors.white),
-                      label: Text(
+                      label: const Text(
                         'Approve',
                         style: TextStyle(
                           color: Colors.white,
@@ -2347,8 +2347,8 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                       onPressed: _isApprovalLoading
                           ? null
                           : () => _showApprovalDialog('reject'),
-                      icon: Icon(Icons.close, color: Colors.white),
-                      label: Text(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      label: const Text(
                         'Reject',
                         style: TextStyle(
                           color: Colors.white,

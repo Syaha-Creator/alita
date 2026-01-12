@@ -30,7 +30,7 @@ class PDFOptionsDialog extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           ListTile(
-            leading: Icon(Icons.person, color: AppColors.accentLight), // 10% - Accent
+            leading: const Icon(Icons.person, color: AppColors.accentLight), // 10% - Accent
             title: const Text('PDF Customer'),
             subtitle: const Text('PDF untuk customer (tanpa kolom approval)'),
             onTap: () {
@@ -39,7 +39,7 @@ class PDFOptionsDialog extends StatelessWidget {
             },
           ),
           ListTile(
-            leading: Icon(Icons.approval, color: AppColors.success), // Status color
+            leading: const Icon(Icons.approval, color: AppColors.success), // Status color
             title: const Text('PDF Approval'),
             subtitle: const Text('PDF dengan kolom approval dan stempel'),
             onTap: () {
