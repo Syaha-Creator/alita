@@ -136,3 +136,21 @@
 # Keep BuildConfig
 -keep class **.BuildConfig { *; }
 
+# Fix for R8 missing classes (Apache Tika / javax.xml.stream)
+# Suppress warnings for missing javax.xml.stream classes
+-dontwarn javax.xml.stream.**
+-dontwarn javax.xml.**
+-dontwarn org.apache.tika.**
+
+# Keep Apache Tika classes if they exist
+-keep class org.apache.tika.** { *; }
+-dontwarn org.apache.tika.**
+
+# Keep javax.xml.stream classes if they exist
+-keep class javax.xml.stream.** { *; }
+-dontwarn javax.xml.stream.**
+
+# Additional rules for XML processing
+-keep class javax.xml.** { *; }
+-dontwarn javax.xml.**
+

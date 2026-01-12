@@ -70,4 +70,8 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
+    
+    // Add javax.xml.stream API for Apache Tika compatibility
+    // This provides XMLStreamException and related classes needed by file_picker
+    implementation 'javax.xml.stream:stax-api:1.0-2'
 }
