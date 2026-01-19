@@ -21,6 +21,7 @@ import '../../../../core/widgets/custom_toast.dart';
 import '../../../../services/leader_service.dart';
 import '../controllers/cart_item_controller.dart';
 import 'bonus_selector_dialog.dart';
+import 'add_bonus_dialog.dart';
 import '../../../../features/approval/data/models/approval_model.dart';
 import '../../../product/domain/usecases/fetch_lookup_items_usecase.dart';
 import '../../domain/entities/cart_entity.dart';
@@ -345,6 +346,7 @@ class _CartItemWidgetState extends State<CartItemWidget>
               onSelectBonus: (index, bonus) =>
                   _showBonusItemSelector(context, index, bonus),
               onRemoveBonus: (index) => _removeBonus(context, index),
+              onAddBonus: () => _showAddBonusDialog(context, currentItem),
             );
           },
         ),
@@ -830,6 +832,32 @@ class _CartItemWidgetState extends State<CartItemWidget>
           netPrice: widget.item.netPrice,
           currentQuantity: bonus.quantity,
           cartLineId: widget.item.cartLineId,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      if (!context.mounted) return;
+      CustomToast.showToast('Error loading accessories: $e', ToastType.error);
+    }
+  }
+
+  /// Show dialog to add a new bonus to cart item
+  void _showAddBonusDialog(BuildContext context, CartEntity currentItem) async {
+    try {
+      // Load accessories from service
+      final accessories = await AccessoriesService.getAccessoriesFromNewAPI();
+
+      if (!mounted) return;
+      if (!context.mounted) return;
+
+      showDialog(
+        context: context,
+        builder: (ctx) => AddBonusDialog(
+          accessories: accessories,
+          productId: currentItem.product.id,
+          netPrice: currentItem.netPrice,
+          cartLineId: currentItem.cartLineId,
+          productQuantity: currentItem.quantity,
         ),
       );
     } catch (e) {

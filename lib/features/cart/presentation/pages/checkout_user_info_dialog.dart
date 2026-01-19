@@ -196,7 +196,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
               onClose: () => Navigator.pop(context),
             ),
 
-            // Content
+            // Content with Action Button inside scroll
             Expanded(
               child: GestureDetector(
                 onTap: () {
@@ -204,217 +204,222 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
                   FocusScope.of(context).unfocus();
                 },
                 child: SingleChildScrollView(
-                  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
-                  child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Customer Type Selection
-                      Text(
-                        'Tipe Customer',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: colorScheme.onSurface,
-                        ),
-                      ),
-                      const SizedBox(height: AppPadding.p16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: CustomerTypeOption(
-                              title: 'Customer Baru',
-                              isSelected: !_isExistingCustomer,
-                              onTap: () =>
-                                  setState(() => _isExistingCustomer = false),
-                            ),
-                          ),
-                          const SizedBox(width: AppPadding.p12),
-                          Expanded(
-                            child: CustomerTypeOption(
-                              title: 'Customer Existing',
-                              isSelected: _isExistingCustomer,
-                              onTap: () =>
-                                  setState(() => _isExistingCustomer = true),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: AppPadding.p20),
-
-                      // Form Fields
-                      ModernTextField(
-                        controller: _nameController,
-                        label: 'Nama Lengkap',
-                        icon: Icons.person,
-                        isDark: Theme.of(context).brightness == Brightness.dark,
-                        validator: (val) => val == null || val.trim().isEmpty
-                            ? 'Nama wajib diisi'
-                            : null,
-                      ),
-                      const SizedBox(height: AppPadding.p12),
-                      ModernTextField(
-                        controller: _phoneController,
-                        label: 'Nomor Telepon',
-                        icon: Icons.phone,
-                        isDark: Theme.of(context).brightness == Brightness.dark,
-                        keyboardType: TextInputType.phone,
-                        validator: (val) => val == null || val.trim().isEmpty
-                            ? 'Nomor telepon wajib diisi'
-                            : null,
-                      ),
-                      const SizedBox(height: AppPadding.p12),
-                      ModernTextField(
-                        controller: _emailController,
-                        label: 'Email',
-                        icon: Icons.email,
-                        isDark: Theme.of(context).brightness == Brightness.dark,
-                        keyboardType: TextInputType.emailAddress,
-                        validator: (val) {
-                          if (val == null || val.trim().isEmpty) {
-                            return 'Email wajib diisi';
-                          }
-                          if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                              .hasMatch(val)) {
-                            return 'Format email tidak valid';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: AppPadding.p12),
-
-                      // Delivery Options
-                      Text(
-                        'Metode Pengiriman',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: colorScheme.onSurface,
-                        ),
-                      ),
-                      const SizedBox(height: AppPadding.p8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: DeliveryOption(
-                              title: 'Pengiriman',
-                              subtitle: 'Dikirim ke alamat',
-                              icon: Icons.local_shipping_outlined,
-                              isSelected: !_isTakeAway,
-                              onTap: () => setState(() => _isTakeAway = false),
-                            ),
-                          ),
-                          const SizedBox(width: AppPadding.p12),
-                          Expanded(
-                            child: DeliveryOption(
-                              title: 'Bawa Langsung',
-                              subtitle: 'Ambil di toko',
-                              icon: Icons.storefront_outlined,
-                              isSelected: _isTakeAway,
-                              onTap: () => setState(() => _isTakeAway = true),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: EdgeInsets.fromLTRB(
+                    20,
+                    20,
+                    20,
+                    MediaQuery.of(context).viewInsets.bottom +
+                        safePadding.bottom +
+                        20,
                   ),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Customer Type Selection
+                        Text(
+                          'Tipe Customer',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: AppPadding.p16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: CustomerTypeOption(
+                                title: 'Customer Baru',
+                                isSelected: !_isExistingCustomer,
+                                onTap: () =>
+                                    setState(() => _isExistingCustomer = false),
+                              ),
+                            ),
+                            const SizedBox(width: AppPadding.p12),
+                            Expanded(
+                              child: CustomerTypeOption(
+                                title: 'Customer Existing',
+                                isSelected: _isExistingCustomer,
+                                onTap: () =>
+                                    setState(() => _isExistingCustomer = true),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppPadding.p20),
+
+                        // Form Fields
+                        ModernTextField(
+                          controller: _nameController,
+                          label: 'Nama Lengkap',
+                          icon: Icons.person,
+                          isDark:
+                              Theme.of(context).brightness == Brightness.dark,
+                          validator: (val) => val == null || val.trim().isEmpty
+                              ? 'Nama wajib diisi'
+                              : null,
+                        ),
+                        const SizedBox(height: AppPadding.p12),
+                        ModernTextField(
+                          controller: _phoneController,
+                          label: 'Nomor Telepon',
+                          icon: Icons.phone,
+                          isDark:
+                              Theme.of(context).brightness == Brightness.dark,
+                          keyboardType: TextInputType.phone,
+                          validator: (val) => val == null || val.trim().isEmpty
+                              ? 'Nomor telepon wajib diisi'
+                              : null,
+                        ),
+                        const SizedBox(height: AppPadding.p12),
+                        ModernTextField(
+                          controller: _emailController,
+                          label: 'Email',
+                          icon: Icons.email,
+                          isDark:
+                              Theme.of(context).brightness == Brightness.dark,
+                          keyboardType: TextInputType.emailAddress,
+                          validator: (val) {
+                            if (val == null || val.trim().isEmpty) {
+                              return 'Email wajib diisi';
+                            }
+                            if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                                .hasMatch(val)) {
+                              return 'Format email tidak valid';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: AppPadding.p12),
+
+                        // Delivery Options
+                        Text(
+                          'Metode Pengiriman',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: AppPadding.p8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: DeliveryOption(
+                                title: 'Pengiriman',
+                                subtitle: 'Dikirim ke alamat',
+                                icon: Icons.local_shipping_outlined,
+                                isSelected: !_isTakeAway,
+                                onTap: () =>
+                                    setState(() => _isTakeAway = false),
+                              ),
+                            ),
+                            const SizedBox(width: AppPadding.p12),
+                            Expanded(
+                              child: DeliveryOption(
+                                title: 'Bawa Langsung',
+                                subtitle: 'Ambil di toko',
+                                icon: Icons.storefront_outlined,
+                                isSelected: _isTakeAway,
+                                onTap: () => setState(() => _isTakeAway = true),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        // Action Button moved inside scroll
+                        const SizedBox(height: AppPadding.p20),
+                        _buildInlineActionButton(context, colorScheme),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-
-            // Action Button
-            _buildActionButton(context, colorScheme, safePadding),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildActionButton(
-      BuildContext context, ColorScheme colorScheme, EdgeInsets safePadding) {
-    return Padding(
-      padding: ResponsiveHelper.getResponsivePaddingWithZoom(
-        context,
-        mobile: EdgeInsets.fromLTRB(20, 4, 20, safePadding.bottom + 20),
-        tablet: EdgeInsets.fromLTRB(24, 6, 24, safePadding.bottom + 24),
-        desktop: EdgeInsets.fromLTRB(28, 8, 28, safePadding.bottom + 28),
-      ),
-      child: SizedBox(
-        width: double.infinity,
-        child: ElevatedButton(
-          onPressed: _isValidatingLocation ? null : _handleSubmit,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: colorScheme.primary,
-            foregroundColor: colorScheme.onPrimary,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            padding: ResponsiveHelper.getResponsivePaddingWithZoom(
+  Widget _buildInlineActionButton(
+      BuildContext context, ColorScheme colorScheme) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: _isValidatingLocation ? null : _handleSubmit,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: colorScheme.primary,
+          foregroundColor: colorScheme.onPrimary,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          padding: ResponsiveHelper.getResponsivePaddingWithZoom(
+            context,
+            mobile: const EdgeInsets.symmetric(vertical: 18, horizontal: 24),
+            tablet: const EdgeInsets.symmetric(vertical: 20, horizontal: 28),
+            desktop: const EdgeInsets.symmetric(vertical: 22, horizontal: 32),
+          ),
+          elevation: 0,
+          minimumSize: Size(
+            double.infinity,
+            ResponsiveHelper.getResponsiveButtonHeight(
               context,
-              mobile: const EdgeInsets.symmetric(vertical: 18, horizontal: 24),
-              tablet: const EdgeInsets.symmetric(vertical: 20, horizontal: 28),
-              desktop: const EdgeInsets.symmetric(vertical: 22, horizontal: 32),
-            ),
-            elevation: 0,
-            minimumSize: Size(
-              double.infinity,
-              ResponsiveHelper.getResponsiveButtonHeight(
-                context,
-                mobile: 56,
-                tablet: 60,
-                desktop: 64,
-              ),
+              mobile: 56,
+              tablet: 60,
+              desktop: 64,
             ),
           ),
-          child: _isValidatingLocation
-              ? Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          colorScheme.onPrimary,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: AppPadding.p12),
-                    Text(
-                      'Memvalidasi lokasi...',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: ResponsiveHelper.getResponsiveFontSize(
-                          context,
-                          mobile: 16,
-                          tablet: 17,
-                          desktop: 18,
-                        ),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                )
-              : Text(
-                  'Lanjutkan',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: ResponsiveHelper.getResponsiveFontSize(
-                      context,
-                      mobile: 16,
-                      tablet: 17,
-                      desktop: 18,
-                    ),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
         ),
+        child: _isValidatingLocation
+            ? Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        colorScheme.onPrimary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppPadding.p12),
+                  Text(
+                    'Memvalidasi lokasi...',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: ResponsiveHelper.getResponsiveFontSize(
+                        context,
+                        mobile: 16,
+                        tablet: 17,
+                        desktop: 18,
+                      ),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              )
+            : Text(
+                'Lanjutkan',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: ResponsiveHelper.getResponsiveFontSize(
+                    context,
+                    mobile: 16,
+                    tablet: 17,
+                    desktop: 18,
+                  ),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
       ),
     );
   }

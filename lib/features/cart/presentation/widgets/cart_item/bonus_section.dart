@@ -14,6 +14,7 @@ class BonusSection extends StatelessWidget {
   final bool isDark;
   final void Function(int bonusIndex, BonusItem bonus) onSelectBonus;
   final void Function(int bonusIndex) onRemoveBonus;
+  final VoidCallback? onAddBonus;
 
   static const Radius radius = Radius.circular(12);
 
@@ -23,6 +24,7 @@ class BonusSection extends StatelessWidget {
     required this.isDark,
     required this.onSelectBonus,
     required this.onRemoveBonus,
+    this.onAddBonus,
   });
 
   /// Check if bonus is valid for display
@@ -45,8 +47,9 @@ class BonusSection extends StatelessWidget {
         .toList();
     final hasBonus = validBonusesWithIndex.isNotEmpty;
 
-    // Hide bonus section if there's no valid bonus
-    if (!hasBonus) {
+    // Always show bonus section if onAddBonus callback is provided
+    // This allows adding new bonuses even if there are none
+    if (!hasBonus && onAddBonus == null) {
       return const SizedBox.shrink();
     }
 
@@ -73,7 +76,7 @@ class BonusSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Compact header
+          // Compact header with Add button
           Row(
             children: [
               Icon(
@@ -95,6 +98,56 @@ class BonusSection extends StatelessWidget {
                   ),
                 ),
               ),
+              // Add bonus button
+              if (onAddBonus != null)
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: onAddBonus,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? AppColors.accentDark.withValues(alpha: 0.2)
+                            : AppColors.accentLight.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isDark
+                              ? AppColors.accentDark.withValues(alpha: 0.4)
+                              : AppColors.accentLight.withValues(alpha: 0.4),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.add_rounded,
+                            size: 16,
+                            color: isDark
+                                ? AppColors.accentDark
+                                : AppColors.accentLight,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Tambah',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isDark
+                                  ? AppColors.accentDark
+                                  : AppColors.accentLight,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
 
