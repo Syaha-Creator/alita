@@ -248,185 +248,185 @@ class _InfoDialogState extends State<InfoDialog> {
           }
         }
       },
-      child: Padding(
-        padding: EdgeInsets.only(
-          left: ResponsiveHelper.getResponsivePadding(context).left,
-          right: ResponsiveHelper.getResponsivePadding(context).right,
-          top: ResponsiveHelper.getResponsiveSpacing(
-            context,
-            mobile: 16,
-            tablet: 20,
-            desktop: 24,
-          ),
-          bottom: MediaQuery.of(context).viewInsets.bottom +
-              ResponsiveHelper.getResponsiveSpacing(
-                context,
-                mobile: 16,
-                tablet: 20,
-                desktop: 24,
-              ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("Input Diskon",
-                style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: AppPadding.p16),
-
-            // Konten di dalam SingleChildScrollView agar tidak overflow
-            SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: List.generate(5, (i) {
-                  // Sembunyikan disc5 (index 4) walaupun ada persentase batasan
-                  if (i == 4) return const SizedBox.shrink();
-
-                  // Hanya tampilkan discount field jika disc value > 0
-                  final discValue = _getMaxDisc(i);
-                  if (discValue <= 0) return const SizedBox.shrink();
-
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4.0),
-                    child: Row(
-                      children: [
-                        Expanded(
-                            child: TextField(
-                                controller: percentageControllers[i],
-                                keyboardType:
-                                    const TextInputType.numberWithOptions(
-                                        decimal: true),
-                                decoration: InputDecoration(
-                                    labelText: _getDiscountLabel(i + 1, true),
-                                    border: const OutlineInputBorder()),
-                                onChanged: (val) {
-                                  updateNominal(i);
-                                  _checkHasChanged();
-                                })),
-                        const SizedBox(width: AppPadding.p8),
-                        Expanded(
-                            child: TextField(
-                                controller: nominalControllers[i],
-                                keyboardType: TextInputType.number,
-                                decoration: InputDecoration(
-                                    labelText: _getDiscountLabel(i + 1, false),
-                                    border: const OutlineInputBorder()),
-                                onChanged: (val) {
-                                  final formatted =
-                                      FormatHelper.formatTextFieldCurrency(val);
-                                  nominalControllers[i].value =
-                                      TextEditingValue(
-                                    text: formatted,
-                                    selection: TextSelection.collapsed(
-                                        offset: formatted.length),
-                                  );
-                                  updatePercentage(i);
-                                  _checkHasChanged();
-                                })),
-                      ],
-                    ),
-                  );
-                })
-                    .where((widget) => widget != const SizedBox.shrink())
-                    .toList(),
-              ),
+      child: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: EdgeInsets.only(
+            left: ResponsiveHelper.getResponsivePadding(context).left,
+            right: ResponsiveHelper.getResponsivePadding(context).right,
+            top: ResponsiveHelper.getResponsiveSpacing(
+              context,
+              mobile: 16,
+              tablet: 20,
+              desktop: 24,
             ),
-            const SizedBox(height: AppPadding.p24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                    onPressed: () {
-                      setState(() {
-                        for (int i = 0; i < 5; i++) {
-                          percentageControllers[i].clear();
-                          nominalControllers[i].clear();
-                        }
-                      });
-                      context.read<ProductBloc>().add(UpdateRoundedPrice(
-                          widget.product.id, widget.product.endUserPrice, 0.0));
-                      CustomToast.showToast("Diskon direset", ToastType.info);
-                    },
-                    child: Text("Reset",
-                        style: TextStyle(
-                            color: Theme.of(context).colorScheme.error))),
-                const SizedBox(width: AppPadding.p8),
-                TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text("Batal")),
-                const SizedBox(width: AppPadding.p8),
-                ElevatedButton(
-                  onPressed: hasChanged
-                      ? () {
-                          // 1. Ambil nilai saat ini dari controllers
-                          final currentPercentages = percentageControllers
-                              .map((c) => double.tryParse(c.text) ?? 0.0)
-                              .toList();
-                          final currentNominals = nominalControllers
-                              .map((c) =>
-                                  FormatHelper.parseCurrencyToDouble(c.text))
-                              .toList();
+            bottom: MediaQuery.of(context).viewInsets.bottom +
+                ResponsiveHelper.getResponsiveSpacing(
+                  context,
+                  mobile: 24,
+                  tablet: 28,
+                  desktop: 32,
+                ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("Input Diskon",
+                  style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold)),
+              const SizedBox(height: AppPadding.p16),
 
-                          // 2. Ambil nilai dari state (hasil rounded price)
-                          final state = context.read<ProductBloc>().state;
-                          final statePercentages =
-                              state.productDiscountsPercentage[
-                                      widget.product.id] ??
-                                  [];
-                          final stateNominals = state
-                                  .productDiscountsNominal[widget.product.id] ??
-                              [];
+              // Konten discount fields
+              ...List.generate(5, (i) {
+                // Sembunyikan disc5 (index 4) walaupun ada persentase batasan
+                if (i == 4) return const SizedBox.shrink();
 
-                          // 3. Bandingkan nilai controller dengan state
-                          final listEquals = const ListEquality().equals;
-                          final bool isManual = !listEquals(
-                                  currentPercentages, statePercentages) ||
-                              !listEquals(currentNominals, stateNominals);
+                // Hanya tampilkan discount field jika disc value > 0
+                final discValue = _getMaxDisc(i);
+                if (discValue <= 0) return const SizedBox.shrink();
 
-                          // 4. Simpan sesuai input user atau hasil rounded price
-                          final toSavePercentages =
-                              isManual ? currentPercentages : statePercentages;
-                          final toSaveNominals =
-                              isManual ? currentNominals : stateNominals;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4.0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                          child: TextField(
+                              controller: percentageControllers[i],
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                      decimal: true),
+                              textInputAction: TextInputAction.next,
+                              decoration: InputDecoration(
+                                  labelText: _getDiscountLabel(i + 1, true),
+                                  border: const OutlineInputBorder()),
+                              onChanged: (val) {
+                                updateNominal(i);
+                                _checkHasChanged();
+                              })),
+                      const SizedBox(width: AppPadding.p8),
+                      Expanded(
+                          child: TextField(
+                              controller: nominalControllers[i],
+                              keyboardType: TextInputType.number,
+                              textInputAction: TextInputAction.next,
+                              decoration: InputDecoration(
+                                  labelText: _getDiscountLabel(i + 1, false),
+                                  border: const OutlineInputBorder()),
+                              onChanged: (val) {
+                                final formatted =
+                                    FormatHelper.formatTextFieldCurrency(val);
+                                nominalControllers[i].value =
+                                    TextEditingValue(
+                                  text: formatted,
+                                  selection: TextSelection.collapsed(
+                                      offset: formatted.length),
+                                );
+                                updatePercentage(i);
+                                _checkHasChanged();
+                              })),
+                    ],
+                  ),
+                );
+              }).where((widget) => widget != const SizedBox.shrink()).toList(),
+              
+              const SizedBox(height: AppPadding.p24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                      onPressed: () {
+                        setState(() {
+                          for (int i = 0; i < 5; i++) {
+                            percentageControllers[i].clear();
+                            nominalControllers[i].clear();
+                          }
+                        });
+                        context.read<ProductBloc>().add(UpdateRoundedPrice(
+                            widget.product.id, widget.product.endUserPrice, 0.0));
+                        CustomToast.showToast("Diskon direset", ToastType.info);
+                      },
+                      child: Text("Reset",
+                          style: TextStyle(
+                              color: Theme.of(context).colorScheme.error))),
+                  const SizedBox(width: AppPadding.p8),
+                  TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text("Batal")),
+                  const SizedBox(width: AppPadding.p8),
+                  ElevatedButton(
+                    onPressed: hasChanged
+                        ? () {
+                            // 1. Ambil nilai saat ini dari controllers
+                            final currentPercentages = percentageControllers
+                                .map((c) => double.tryParse(c.text) ?? 0.0)
+                                .toList();
+                            final currentNominals = nominalControllers
+                                .map((c) =>
+                                    FormatHelper.parseCurrencyToDouble(c.text))
+                                .toList();
 
-                          // 5. Hanya update jika ada perubahan
-                          if (isManual) {
-                            // Get leader IDs for approval
-                            final leaderService = locator<LeaderService>();
-                            final leaderIds = <int?>[];
+                            // 2. Ambil nilai dari state (hasil rounded price)
+                            final state = context.read<ProductBloc>().state;
+                            final statePercentages =
+                                state.productDiscountsPercentage[
+                                        widget.product.id] ??
+                                    [];
+                            final stateNominals = state
+                                    .productDiscountsNominal[widget.product.id] ??
+                                [];
 
-                            for (int i = 0; i < 5; i++) {
-                              final leaderId =
-                                  leaderService.getLeaderIdByDiscountLevel(
-                                      _leaderData, i + 1);
-                              leaderIds.add(leaderId);
+                            // 3. Bandingkan nilai controller dengan state
+                            final listEquals = const ListEquality().equals;
+                            final bool isManual = !listEquals(
+                                    currentPercentages, statePercentages) ||
+                                !listEquals(currentNominals, stateNominals);
+
+                            // 4. Simpan sesuai input user atau hasil rounded price
+                            final toSavePercentages =
+                                isManual ? currentPercentages : statePercentages;
+                            final toSaveNominals =
+                                isManual ? currentNominals : stateNominals;
+
+                            // 5. Hanya update jika ada perubahan
+                            if (isManual) {
+                              // Get leader IDs for approval
+                              final leaderService = locator<LeaderService>();
+                              final leaderIds = <int?>[];
+
+                              for (int i = 0; i < 5; i++) {
+                                final leaderId =
+                                    leaderService.getLeaderIdByDiscountLevel(
+                                        _leaderData, i + 1);
+                                leaderIds.add(leaderId);
+                              }
+
+                              context
+                                  .read<ProductBloc>()
+                                  .add(UpdateProductDiscounts(
+                                    productId: widget.product.id,
+                                    discountPercentages: toSavePercentages,
+                                    discountNominals: toSaveNominals,
+                                    originalPrice: basePrice,
+                                    leaderIds: leaderIds,
+                                  ));
+                            } else {
+                              // Tidak ada perubahan, tidak perlu update apapun
                             }
 
-                            context
-                                .read<ProductBloc>()
-                                .add(UpdateProductDiscounts(
-                                  productId: widget.product.id,
-                                  discountPercentages: toSavePercentages,
-                                  discountNominals: toSaveNominals,
-                                  originalPrice: basePrice,
-                                  leaderIds: leaderIds,
-                                ));
-                          } else {
-                            // Tidak ada perubahan, tidak perlu update apapun
+                            // 6. Tutup dialog
+                            Navigator.pop(context);
                           }
-
-                          // 6. Tutup dialog
-                          Navigator.pop(context);
-                        }
-                      : null,
-                  child: const Text("Simpan"),
-                ),
-              ],
-            )
-          ],
+                        : null,
+                    child: const Text("Simpan"),
+                  ),
+                ],
+              )
+            ],
+          ),
         ),
       ),
     );

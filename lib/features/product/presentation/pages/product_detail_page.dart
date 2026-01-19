@@ -599,7 +599,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
           () => ProductActions.showCreditPopup(context, product),
           isDark,
         ),
-        const SizedBox(width: AppPadding.p8),
+        const SizedBox(width: AppPadding.p6),
         _buildActionBubble(
           context,
           Icons.edit_rounded,
@@ -607,7 +607,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
           () => ProductActions.showEditPopup(context, product),
           isDark,
         ),
-        const SizedBox(width: AppPadding.p8),
+        const SizedBox(width: AppPadding.p6),
         _buildActionBubble(
           context,
           Icons.info_outline_rounded,
@@ -615,8 +615,16 @@ class _ProductDetailPageState extends State<ProductDetailPage>
           () => ProductActions.showInfoPopup(context, product),
           isDark,
         ),
+        const SizedBox(width: AppPadding.p6),
+        _buildActionBubble(
+          context,
+          Icons.price_change_rounded,
+          "Harga Item",
+          () => ItemPricingModal.show(context, product),
+          isDark,
+        ),
 
-        const SizedBox(width: AppPadding.p12),
+        const SizedBox(width: AppPadding.p8),
 
         // Right side - Add to Cart with price
         Expanded(
@@ -638,15 +646,15 @@ class _ProductDetailPageState extends State<ProductDetailPage>
       color: Colors.transparent,
       child: InkWell(
         onTap: onPressed,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         child: Container(
-          width: 48,
-          height: 48,
+          width: 42,
+          height: 42,
           decoration: BoxDecoration(
             color: isDark
                 ? AppColors.surfaceDark
                 : AppColors.primaryLight.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isDark
                   ? Colors.white.withValues(alpha: 0.1)
@@ -658,7 +666,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
             child: Icon(
               icon,
               color: isDark ? AppColors.primaryDark : AppColors.primaryLight,
-              size: 20,
+              size: 18,
             ),
           ),
         ),
@@ -677,9 +685,10 @@ class _ProductDetailPageState extends State<ProductDetailPage>
       color: Colors.transparent,
       child: InkWell(
         onTap: () => _addToCart(context, product),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         child: Container(
-          height: 52,
+          height: 48,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
@@ -687,7 +696,7 @@ class _ProductDetailPageState extends State<ProductDetailPage>
                 AppColors.primaryLight.withValues(alpha: 0.85),
               ],
             ),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
             boxShadow: [
               BoxShadow(
                 color: AppColors.primaryLight.withValues(alpha: 0.4),
@@ -699,45 +708,49 @@ class _ProductDetailPageState extends State<ProductDetailPage>
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Price section
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  FormatHelper.formatCurrency(netPrice),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
+              // Price section - flexible to prevent overflow
+              Flexible(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    FormatHelper.formatCurrency(netPrice),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
                 ),
               ),
-              const SizedBox(width: AppPadding.p12),
+              const SizedBox(width: AppPadding.p6),
 
               // Divider
               Container(
                 width: 1,
-                height: 24,
+                height: 20,
                 color: Colors.white.withValues(alpha: 0.3),
               ),
-              const SizedBox(width: AppPadding.p12),
+              const SizedBox(width: AppPadding.p6),
 
               // Add to cart icon and text
               const Icon(
                 Icons.add_shopping_cart_rounded,
                 color: Colors.white,
-                size: 20,
+                size: 18,
               ),
-              const SizedBox(width: AppPadding.p8),
+              const SizedBox(width: AppPadding.p4),
               const Text(
-                'Add to Cart',
+                'Cart',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 14,
+                  fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
               ),

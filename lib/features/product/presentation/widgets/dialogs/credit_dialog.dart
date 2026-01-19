@@ -61,111 +61,117 @@ class _CreditDialogState extends State<CreditDialog> {
 
   @override
   Widget build(BuildContext context) {
-    // === PERUBAHAN UTAMA: Ganti AlertDialog dengan layout biasa ===
-    return Padding(
-      padding: EdgeInsets.only(
-        left: ResponsiveHelper.getResponsivePadding(context).left,
-        right: ResponsiveHelper.getResponsivePadding(context).right,
-        top: ResponsiveHelper.getResponsiveSpacing(
-          context,
-          mobile: 16,
-          tablet: 20,
-          desktop: 24,
-        ),
-        // Padding bawah untuk mengakomodasi keyboard
-        bottom: MediaQuery.of(context).viewInsets.bottom +
-            ResponsiveHelper.getResponsiveSpacing(
-              context,
-              mobile: 16,
-              tablet: 20,
-              desktop: 24,
-            ),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Baris Judul
-          Text(
-            "Hitung Cicilan",
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: ResponsiveHelper.getResponsiveFontSize(
+    // === Layout dengan scroll untuk iOS keyboard handling ===
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: SingleChildScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: EdgeInsets.only(
+          left: ResponsiveHelper.getResponsivePadding(context).left,
+          right: ResponsiveHelper.getResponsivePadding(context).right,
+          top: ResponsiveHelper.getResponsiveSpacing(
+            context,
+            mobile: 16,
+            tablet: 20,
+            desktop: 24,
+          ),
+          // Padding bawah untuk mengakomodasi keyboard
+          bottom: MediaQuery.of(context).viewInsets.bottom +
+              ResponsiveHelper.getResponsiveSpacing(
                 context,
-                mobile: 18,
-                tablet: 20,
-                desktop: 22,
+                mobile: 24,
+                tablet: 28,
+                desktop: 32,
               ),
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          SizedBox(
-            height: ResponsiveHelper.getResponsiveSpacing(
-              context,
-              mobile: 20,
-              tablet: 24,
-              desktop: 28,
-            ),
-          ),
-
-          // Konten (Input Fields)
-          TextField(
-            controller: monthController,
-            keyboardType: TextInputType.number,
-            autofocus: true,
-            decoration: const InputDecoration(
-              labelText: "Jumlah Bulan",
-              hintText: "Contoh: 12",
-              border: OutlineInputBorder(),
-            ),
-          ),
-          SizedBox(
-            height: ResponsiveHelper.getResponsiveSpacing(
-              context,
-              mobile: 12,
-              tablet: 16,
-              desktop: 20,
-            ),
-          ),
-          TextField(
-            readOnly: true,
-            controller: installmentController,
-            decoration: const InputDecoration(
-              labelText: "Cicilan per Bulan",
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: AppPadding.p24),
-
-          // Tombol Aksi
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text("Batal")),
-              const SizedBox(width: AppPadding.p8),
-              ElevatedButton(
-                onPressed: () {
-                  final months = int.tryParse(monthController.text) ?? 0;
-                  final installment = FormatHelper.parseCurrencyToDouble(
-                      installmentController.text);
-
-                  if (months > 0) {
-                    context.read<ProductBloc>().add(SaveInstallment(
-                        widget.product.id, months, installment));
-                  } else {
-                    context
-                        .read<ProductBloc>()
-                        .add(RemoveInstallment(widget.product.id));
-                  }
-                  Navigator.pop(context);
-                },
-                child: const Text("Simpan"),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Baris Judul
+            Text(
+              "Hitung Cicilan",
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: ResponsiveHelper.getResponsiveFontSize(
+                  context,
+                  mobile: 18,
+                  tablet: 20,
+                  desktop: 22,
+                ),
+                fontWeight: FontWeight.bold,
               ),
-            ],
-          )
-        ],
+            ),
+            SizedBox(
+              height: ResponsiveHelper.getResponsiveSpacing(
+                context,
+                mobile: 20,
+                tablet: 24,
+                desktop: 28,
+              ),
+            ),
+
+            // Konten (Input Fields)
+            TextField(
+              controller: monthController,
+              keyboardType: TextInputType.number,
+              textInputAction: TextInputAction.done,
+              autofocus: true,
+              onSubmitted: (_) => FocusScope.of(context).unfocus(),
+              decoration: const InputDecoration(
+                labelText: "Jumlah Bulan",
+                hintText: "Contoh: 12",
+                border: OutlineInputBorder(),
+              ),
+            ),
+            SizedBox(
+              height: ResponsiveHelper.getResponsiveSpacing(
+                context,
+                mobile: 12,
+                tablet: 16,
+                desktop: 20,
+              ),
+            ),
+            TextField(
+              readOnly: true,
+              controller: installmentController,
+              decoration: const InputDecoration(
+                labelText: "Cicilan per Bulan",
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: AppPadding.p24),
+
+            // Tombol Aksi
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text("Batal")),
+                const SizedBox(width: AppPadding.p8),
+                ElevatedButton(
+                  onPressed: () {
+                    final months = int.tryParse(monthController.text) ?? 0;
+                    final installment = FormatHelper.parseCurrencyToDouble(
+                        installmentController.text);
+
+                    if (months > 0) {
+                      context.read<ProductBloc>().add(SaveInstallment(
+                          widget.product.id, months, installment));
+                    } else {
+                      context
+                          .read<ProductBloc>()
+                          .add(RemoveInstallment(widget.product.id));
+                    }
+                    Navigator.pop(context);
+                  },
+                  child: const Text("Simpan"),
+                ),
+              ],
+            )
+          ],
+        ),
       ),
     );
   }

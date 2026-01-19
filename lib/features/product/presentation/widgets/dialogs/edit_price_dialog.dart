@@ -75,143 +75,149 @@ class _EditPriceDialogState extends State<EditPriceDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: ResponsiveHelper.getResponsivePadding(context).left,
-        right: ResponsiveHelper.getResponsivePadding(context).right,
-        top: ResponsiveHelper.getResponsiveSpacing(
-          context,
-          mobile: 16,
-          tablet: 20,
-          desktop: 24,
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: SingleChildScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: EdgeInsets.only(
+          left: ResponsiveHelper.getResponsivePadding(context).left,
+          right: ResponsiveHelper.getResponsivePadding(context).right,
+          top: ResponsiveHelper.getResponsiveSpacing(
+            context,
+            mobile: 16,
+            tablet: 20,
+            desktop: 24,
+          ),
+          bottom: MediaQuery.of(context).viewInsets.bottom +
+              ResponsiveHelper.getResponsiveSpacing(
+                context,
+                mobile: 24,
+                tablet: 28,
+                desktop: 32,
+              ),
         ),
-        bottom: MediaQuery.of(context).viewInsets.bottom +
-            ResponsiveHelper.getResponsiveSpacing(
-              context,
-              mobile: 16,
-              tablet: 20,
-              desktop: 24,
-            ),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text("Edit Harga",
-              style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold)),
-          const SizedBox(height: AppPadding.p24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("Edit Harga",
+                style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold)),
+            const SizedBox(height: AppPadding.p24),
 
-          // Price Lock Warning
-          if (isPriceLocked) ...[
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.error.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: Theme.of(context).colorScheme.error.withValues(alpha: 0.3),
+            // Price Lock Warning
+            if (isPriceLocked) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.error.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.error.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.lock,
+                      color: Theme.of(context).colorScheme.error,
+                      size: 20,
+                    ),
+                    const SizedBox(width: AppPadding.p8),
+                    Expanded(
+                      child: Text(
+                        lockReason,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w500,
+                              color: Theme.of(context).colorScheme.error,
+                            ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.lock,
-                    color: Theme.of(context).colorScheme.error,
-                    size: 20,
-                  ),
-                  const SizedBox(width: AppPadding.p8),
-                  Expanded(
-                    child: Text(
-                      lockReason,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w500,
-                            color: Theme.of(context).colorScheme.error,
-                          ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppPadding.p16),
-          ],
-
-          TextField(
-            controller: priceController,
-            keyboardType: TextInputType.number,
-            enabled: !isPriceLocked,
-            decoration: InputDecoration(
-              labelText: "Harga Net Baru",
-              border: const OutlineInputBorder(),
-              suffixIcon: isPriceLocked
-                  ? const Icon(
-                      Icons.lock,
-                      color: AppColors.error,
-                    )
-                  : null,
-            ),
-            onChanged: (value) {
-              if (isPriceLocked) return;
-
-              priceController.value = TextEditingValue(
-                text: FormatHelper.formatTextFieldCurrency(value),
-                selection: TextSelection.collapsed(
-                    offset: FormatHelper.formatTextFieldCurrency(value).length),
-              );
-              _calculatePercentage();
-            },
-          ),
-          const SizedBox(height: AppPadding.p8),
-          ValueListenableBuilder<double>(
-            valueListenable: percentageChange,
-            builder: (context, value, _) {
-              return Text(
-                "Perubahan: ${value.toStringAsFixed(2)}%",
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: value < 0
-                          ? Theme.of(context).colorScheme.secondary
-                          : Theme.of(context).colorScheme.error,
-                    ),
-              );
-            },
-          ),
-          const SizedBox(height: AppPadding.p24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text("Batal")),
-              const SizedBox(width: AppPadding.p8),
-              ElevatedButton(
-                onPressed: () {
-                  try {
-                    String rawText =
-                        priceController.text.replaceAll(RegExp(r'[^0-9]'), '');
-                    double newPrice =
-                        double.tryParse(rawText) ?? priceBeforeEdit;
-
-                    if (!_validatePrice(newPrice)) {
-                      return;
-                    }
-
-                    context.read<ProductBloc>().add(UpdateRoundedPrice(
-                        widget.product.id, newPrice, percentageChange.value));
-                    Navigator.pop(context);
-                  } catch (e) {
-                    CustomToast.showToast(
-                      "Gagal menyimpan harga: ${e.toString()}",
-                      ToastType.error,
-                    );
-                  }
-                },
-                child: const Text("Simpan"),
-              ),
+              const SizedBox(height: AppPadding.p16),
             ],
-          )
-        ],
+
+            TextField(
+              controller: priceController,
+              keyboardType: TextInputType.number,
+              textInputAction: TextInputAction.done,
+              enabled: !isPriceLocked,
+              onSubmitted: (_) => FocusScope.of(context).unfocus(),
+              decoration: InputDecoration(
+                labelText: "Harga Net Baru",
+                border: const OutlineInputBorder(),
+                suffixIcon: isPriceLocked
+                    ? const Icon(
+                        Icons.lock,
+                        color: AppColors.error,
+                      )
+                    : null,
+              ),
+              onChanged: (value) {
+                if (isPriceLocked) return;
+
+                priceController.value = TextEditingValue(
+                  text: FormatHelper.formatTextFieldCurrency(value),
+                  selection: TextSelection.collapsed(
+                      offset: FormatHelper.formatTextFieldCurrency(value).length),
+                );
+                _calculatePercentage();
+              },
+            ),
+            const SizedBox(height: AppPadding.p8),
+            ValueListenableBuilder<double>(
+              valueListenable: percentageChange,
+              builder: (context, value, _) {
+                return Text(
+                  "Perubahan: ${value.toStringAsFixed(2)}%",
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: value < 0
+                            ? Theme.of(context).colorScheme.secondary
+                            : Theme.of(context).colorScheme.error,
+                      ),
+                );
+              },
+            ),
+            const SizedBox(height: AppPadding.p24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text("Batal")),
+                const SizedBox(width: AppPadding.p8),
+                ElevatedButton(
+                  onPressed: () {
+                    try {
+                      String rawText =
+                          priceController.text.replaceAll(RegExp(r'[^0-9]'), '');
+                      double newPrice =
+                          double.tryParse(rawText) ?? priceBeforeEdit;
+
+                      if (!_validatePrice(newPrice)) {
+                        return;
+                      }
+
+                      context.read<ProductBloc>().add(UpdateRoundedPrice(
+                          widget.product.id, newPrice, percentageChange.value));
+                      Navigator.pop(context);
+                    } catch (e) {
+                      CustomToast.showToast(
+                        "Gagal menyimpan harga: ${e.toString()}",
+                        ToastType.error,
+                      );
+                    }
+                  },
+                  child: const Text("Simpan"),
+                ),
+              ],
+            )
+          ],
+        ),
       ),
     );
   }
