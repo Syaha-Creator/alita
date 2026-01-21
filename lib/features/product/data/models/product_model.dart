@@ -25,6 +25,20 @@ class ProductModel {
   final int? qtyBonus4;
   final String? bonus5;
   final int? qtyBonus5;
+  final String? bonus6;
+  final int? qtyBonus6;
+  final String? bonus7;
+  final int? qtyBonus7;
+  final String? bonus8;
+  final int? qtyBonus8;
+  final double plBonus1;
+  final double plBonus2;
+  final double plBonus3;
+  final double plBonus4;
+  final double plBonus5;
+  final double plBonus6;
+  final double plBonus7;
+  final double plBonus8;
   final double disc1;
   final double disc2;
   final double disc3;
@@ -75,6 +89,20 @@ class ProductModel {
     this.qtyBonus4,
     this.bonus5,
     this.qtyBonus5,
+    this.bonus6,
+    this.qtyBonus6,
+    this.bonus7,
+    this.qtyBonus7,
+    this.bonus8,
+    this.qtyBonus8,
+    required this.plBonus1,
+    required this.plBonus2,
+    required this.plBonus3,
+    required this.plBonus4,
+    required this.plBonus5,
+    required this.plBonus6,
+    required this.plBonus7,
+    required this.plBonus8,
     required this.disc1,
     required this.disc2,
     required this.disc3,
@@ -127,6 +155,20 @@ class ProductModel {
       qtyBonus4: _parseInt(json["qty_bonus4"]),
       bonus5: json["bonus_5"]?.toString(),
       qtyBonus5: _parseInt(json["qty_bonus5"]),
+      bonus6: json["bonus_6"]?.toString(),
+      qtyBonus6: _parseInt(json["qty_bonus6"]),
+      bonus7: json["bonus_7"]?.toString(),
+      qtyBonus7: _parseInt(json["qty_bonus7"]),
+      bonus8: json["bonus_8"]?.toString(),
+      qtyBonus8: _parseInt(json["qty_bonus8"]),
+      plBonus1: _parseDouble(json["pl_bonus_1"]),
+      plBonus2: _parseDouble(json["pl_bonus_2"]),
+      plBonus3: _parseDouble(json["pl_bonus_3"]),
+      plBonus4: _parseDouble(json["pl_bonus_4"]),
+      plBonus5: _parseDouble(json["pl_bonus_5"]),
+      plBonus6: _parseDouble(json["pl_bonus_6"]),
+      plBonus7: _parseDouble(json["pl_bonus_7"]),
+      plBonus8: _parseDouble(json["pl_bonus_8"]),
       disc1: _parseDouble(json["disc1"]),
       disc2: _parseDouble(json["disc2"]),
       disc3: _parseDouble(json["disc3"]),

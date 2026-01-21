@@ -319,8 +319,7 @@ class _InfoDialogState extends State<InfoDialog> {
                               onChanged: (val) {
                                 final formatted =
                                     FormatHelper.formatTextFieldCurrency(val);
-                                nominalControllers[i].value =
-                                    TextEditingValue(
+                                nominalControllers[i].value = TextEditingValue(
                                   text: formatted,
                                   selection: TextSelection.collapsed(
                                       offset: formatted.length),
@@ -331,8 +330,8 @@ class _InfoDialogState extends State<InfoDialog> {
                     ],
                   ),
                 );
-              }).where((widget) => widget != const SizedBox.shrink()).toList(),
-              
+              }).where((widget) => widget != const SizedBox.shrink()),
+
               const SizedBox(height: AppPadding.p24),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -346,7 +345,9 @@ class _InfoDialogState extends State<InfoDialog> {
                           }
                         });
                         context.read<ProductBloc>().add(UpdateRoundedPrice(
-                            widget.product.id, widget.product.endUserPrice, 0.0));
+                            widget.product.id,
+                            widget.product.endUserPrice,
+                            0.0));
                         CustomToast.showToast("Diskon direset", ToastType.info);
                       },
                       child: Text("Reset",
@@ -375,8 +376,8 @@ class _InfoDialogState extends State<InfoDialog> {
                                 state.productDiscountsPercentage[
                                         widget.product.id] ??
                                     [];
-                            final stateNominals = state
-                                    .productDiscountsNominal[widget.product.id] ??
+                            final stateNominals = state.productDiscountsNominal[
+                                    widget.product.id] ??
                                 [];
 
                             // 3. Bandingkan nilai controller dengan state
@@ -386,8 +387,9 @@ class _InfoDialogState extends State<InfoDialog> {
                                 !listEquals(currentNominals, stateNominals);
 
                             // 4. Simpan sesuai input user atau hasil rounded price
-                            final toSavePercentages =
-                                isManual ? currentPercentages : statePercentages;
+                            final toSavePercentages = isManual
+                                ? currentPercentages
+                                : statePercentages;
                             final toSaveNominals =
                                 isManual ? currentNominals : stateNominals;
 

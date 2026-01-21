@@ -38,27 +38,50 @@ class GetProductUseCase {
             BonusItem(
                 name: model.bonus1!,
                 quantity: model.qtyBonus1 ?? 0,
-                originalQuantity: model.qtyBonus1 ?? 0),
+                originalQuantity: model.qtyBonus1 ?? 0,
+                pricelist: model.plBonus1),
           if (model.bonus2 != null && model.bonus2!.isNotEmpty)
             BonusItem(
                 name: model.bonus2!,
                 quantity: model.qtyBonus2 ?? 0,
-                originalQuantity: model.qtyBonus2 ?? 0),
+                originalQuantity: model.qtyBonus2 ?? 0,
+                pricelist: model.plBonus2),
           if (model.bonus3 != null && model.bonus3!.isNotEmpty)
             BonusItem(
                 name: model.bonus3!,
                 quantity: model.qtyBonus3 ?? 0,
-                originalQuantity: model.qtyBonus3 ?? 0),
+                originalQuantity: model.qtyBonus3 ?? 0,
+                pricelist: model.plBonus3),
           if (model.bonus4 != null && model.bonus4!.isNotEmpty)
             BonusItem(
                 name: model.bonus4!,
                 quantity: model.qtyBonus4 ?? 0,
-                originalQuantity: model.qtyBonus4 ?? 0),
+                originalQuantity: model.qtyBonus4 ?? 0,
+                pricelist: model.plBonus4),
           if (model.bonus5 != null && model.bonus5!.isNotEmpty)
             BonusItem(
                 name: model.bonus5!,
                 quantity: model.qtyBonus5 ?? 0,
-                originalQuantity: model.qtyBonus5 ?? 0),
+                originalQuantity: model.qtyBonus5 ?? 0,
+                pricelist: model.plBonus5),
+          if (model.bonus6 != null && model.bonus6!.isNotEmpty)
+            BonusItem(
+                name: model.bonus6!,
+                quantity: model.qtyBonus6 ?? 0,
+                originalQuantity: model.qtyBonus6 ?? 0,
+                pricelist: model.plBonus6),
+          if (model.bonus7 != null && model.bonus7!.isNotEmpty)
+            BonusItem(
+                name: model.bonus7!,
+                quantity: model.qtyBonus7 ?? 0,
+                originalQuantity: model.qtyBonus7 ?? 0,
+                pricelist: model.plBonus7),
+          if (model.bonus8 != null && model.bonus8!.isNotEmpty)
+            BonusItem(
+                name: model.bonus8!,
+                quantity: model.qtyBonus8 ?? 0,
+                originalQuantity: model.qtyBonus8 ?? 0,
+                pricelist: model.plBonus8),
         ],
         discounts: [
           model.disc1,

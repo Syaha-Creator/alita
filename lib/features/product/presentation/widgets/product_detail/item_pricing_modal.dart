@@ -182,9 +182,9 @@ class ItemPricingModal extends StatelessWidget {
     _PricingItem item,
     bool isDark,
   ) {
-    final hasDiscount = item.pricelist > 0 &&
-        item.endUserPrice > 0 &&
-        item.pricelist > item.endUserPrice;
+    // Check if there's a discount (pricelist > EUP, including when EUP = 0)
+    final hasDiscount =
+        item.pricelist > 0 && item.pricelist > item.endUserPrice;
     final discountAmount =
         hasDiscount ? item.pricelist - item.endUserPrice : 0.0;
     final discountPercentage = hasDiscount && item.pricelist > 0
@@ -210,9 +210,13 @@ class ItemPricingModal extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: isDark
-                  ? AppColors.primaryDark.withValues(alpha: 0.15)
-                  : AppColors.primaryLight.withValues(alpha: 0.08),
+              color: item.isBonus
+                  ? (isDark
+                      ? AppColors.accentDark.withValues(alpha: 0.15)
+                      : AppColors.accentLight.withValues(alpha: 0.08))
+                  : (isDark
+                      ? AppColors.primaryDark.withValues(alpha: 0.15)
+                      : AppColors.primaryLight.withValues(alpha: 0.08)),
               borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(15)),
             ),
@@ -221,15 +225,24 @@ class ItemPricingModal extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: isDark
-                        ? AppColors.primaryDark.withValues(alpha: 0.2)
-                        : AppColors.primaryLight.withValues(alpha: 0.15),
+                    color: item.isBonus
+                        ? (isDark
+                            ? AppColors.accentDark.withValues(alpha: 0.2)
+                            : AppColors.accentLight.withValues(alpha: 0.15))
+                        : (isDark
+                            ? AppColors.primaryDark.withValues(alpha: 0.2)
+                            : AppColors.primaryLight.withValues(alpha: 0.15)),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
                     item.icon,
-                    color:
-                        isDark ? AppColors.primaryDark : AppColors.primaryLight,
+                    color: item.isBonus
+                        ? (isDark
+                            ? AppColors.accentDark
+                            : AppColors.accentLight)
+                        : (isDark
+                            ? AppColors.primaryDark
+                            : AppColors.primaryLight),
                     size: 18,
                   ),
                 ),
@@ -238,15 +251,49 @@ class ItemPricingModal extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        item.label,
-                        style: TextStyle(
-                          color: isDark
-                              ? AppColors.primaryDark
-                              : AppColors.primaryLight,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            item.label,
+                            style: TextStyle(
+                              color: item.isBonus
+                                  ? (isDark
+                                      ? AppColors.accentDark
+                                      : AppColors.accentLight)
+                                  : (isDark
+                                      ? AppColors.primaryDark
+                                      : AppColors.primaryLight),
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          // Show quantity for bonus items
+                          if (item.isBonus && item.quantity > 0) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? AppColors.accentDark
+                                        .withValues(alpha: 0.2)
+                                    : AppColors.accentLight
+                                        .withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                "x${item.quantity}",
+                                style: TextStyle(
+                                  color: isDark
+                                      ? AppColors.accentDark
+                                      : AppColors.accentLight,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                       if (item.name.isNotEmpty)
                         Text(
@@ -370,14 +417,16 @@ class ItemPricingModal extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            color:
-                isDark ? AppColors.textSecondaryDark : AppColors.textPrimaryLight,
+            color: isDark
+                ? AppColors.textSecondaryDark
+                : AppColors.textPrimaryLight,
             fontSize: 13,
           ),
         ),
         const Spacer(),
         Text(
-          value > 0 ? FormatHelper.formatCurrency(value) : "-",
+          FormatHelper.formatCurrency(
+              value), // Always show currency, even for 0
           style: TextStyle(
             color: valueColor ??
                 (isDark
@@ -394,10 +443,17 @@ class ItemPricingModal extends StatelessWidget {
   }
 
   Widget _buildTotalSummary(BuildContext context, bool isDark) {
+    // Calculate total pricelist including bonus items
+    final totalBonusPricelist = product.bonus.fold<double>(
+      0,
+      (sum, bonus) => sum + bonus.pricelist,
+    );
     final totalPricelist = product.plKasur +
         product.plDivan +
         product.plHeadboard +
-        product.plSorong;
+        product.plSorong +
+        totalBonusPricelist;
+    // EUP for bonus is 0 (free), so don't add it to totalEup
     final totalEup = product.eupKasur +
         product.eupDivan +
         product.eupHeadboard +
@@ -538,6 +594,15 @@ class ItemPricingModal extends StatelessWidget {
       return true;
     }
 
+    // Helper to check if bonus is valid
+    bool isValidBonus(String name, int qty) {
+      if (name.isEmpty) return false;
+      if (name.trim() == '0') return false;
+      if (name.trim() == '-') return false;
+      if (qty <= 0) return false;
+      return true;
+    }
+
     // Kasur
     if (isValidItem(product.kasur) ||
         product.plKasur > 0 ||
@@ -590,6 +655,23 @@ class ItemPricingModal extends StatelessWidget {
       ));
     }
 
+    // Add bonus items with pricelist
+    for (int i = 0; i < product.bonus.length; i++) {
+      final bonus = product.bonus[i];
+      // Only add bonus with valid name and quantity, or has pricelist
+      if (isValidBonus(bonus.name, bonus.quantity) || bonus.pricelist > 0) {
+        items.add(_PricingItem(
+          label: "Bonus ${i + 1}",
+          name: bonus.name,
+          pricelist: bonus.pricelist,
+          endUserPrice: 0, // Bonus is free (100% discount)
+          icon: Icons.card_giftcard_rounded,
+          isBonus: true,
+          quantity: bonus.quantity,
+        ));
+      }
+    }
+
     return items;
   }
 }
@@ -601,6 +683,8 @@ class _PricingItem {
   final double pricelist;
   final double endUserPrice;
   final IconData icon;
+  final bool isBonus;
+  final int quantity; // For bonus items
 
   const _PricingItem({
     required this.label,
@@ -608,5 +692,7 @@ class _PricingItem {
     required this.pricelist,
     required this.endUserPrice,
     required this.icon,
+    this.isBonus = false,
+    this.quantity = 1,
   });
 }

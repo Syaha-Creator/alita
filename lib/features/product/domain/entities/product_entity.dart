@@ -135,16 +135,18 @@ class BonusItem extends Equatable {
   final int quantity;
   final int originalQuantity; // Bonus quantity per 1 product
   final bool? takeAway;
+  final double pricelist; // Pricelist for this bonus item
 
   const BonusItem({
     required this.name,
     required this.quantity,
     this.originalQuantity = 0,
     this.takeAway,
+    this.pricelist = 0,
   });
 
   @override
-  List<Object?> get props => [name, quantity, originalQuantity, takeAway];
+  List<Object?> get props => [name, quantity, originalQuantity, takeAway, pricelist];
 
   @Deprecated('Use calculateMaxQuantity(productQuantity) instead')
   int get maxQuantity => originalQuantity > 0 ? originalQuantity * 2 : quantity;
@@ -166,6 +168,7 @@ class BonusItem extends Equatable {
       quantity: newQuantity.clamp(1, maxQty),
       originalQuantity: originalQuantity,
       takeAway: takeAway,
+      pricelist: pricelist,
     );
   }
 }
