@@ -2495,11 +2495,12 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         }
       }
 
-      // Use batch approval for all pending discounts at user's level
+      // Use batch approval/rejection for all pending discounts at user's level
       final result = await orderLetterService.batchApproveOrderLetterDiscounts(
         orderLetterId: widget.orderLetterId,
         leaderId: currentUserId,
         jobLevelId: jobLevelId,
+        action: action,
       );
 
       final approvedCount = result['approved_count'] ?? 0;
@@ -2768,6 +2769,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
             name: item.desc1,
             quantity: totalQty,
             takeAway: item.takeAway ?? false, // Add take away status
+            pricelist: item.unitPrice,
           ));
         }
 
@@ -2827,6 +2829,22 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
       }
 
       // Convert approval data to format expected by PDF service
+      if (kDebugMode) {
+        print('');
+        print('========================================');
+        print('[DEBUG] PDF APPROVAL DATA - FROM DATABASE:');
+        print('========================================');
+        for (final discount in _document!.discounts) {
+          print(
+              '  Level ${discount.approverLevelId} (${discount.approverLevel}):');
+          print('    - approver_name (DB): "${discount.approverName}"');
+          print('    - approver (DB): ${discount.approver}');
+          print('    - approved: ${discount.approved}');
+        }
+        print('========================================');
+        print('');
+      }
+
       final approvalData =
           await Future.wait(_document!.discounts.map((discount) async {
         // Check if approver_name is a user ID (numeric), if so fetch real name
@@ -2848,6 +2866,11 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
           } catch (e) {
             displayName = 'User #$displayName';
           }
+        }
+
+        if (kDebugMode) {
+          print(
+              '[DEBUG] PDF Approval: Level ${discount.approverLevelId} -> "$displayName"');
         }
 
         return {
@@ -2923,6 +2946,16 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         }
       }
 
+      // Convert payments to format expected by PDF service
+      final paymentsData = _document!.payments
+          .map((p) => {
+                'payment_amount': p.paymentAmount,
+                'payment_method': p.paymentMethod,
+                'payment_bank': p.paymentBank ?? '',
+                'payment_date': p.paymentDate ?? '',
+              })
+          .toList();
+
       // Generate PDF using existing service with order letter info
       final pdfBytes = await PDFService.generateCheckoutPDF(
         cartItems: cartItems,
@@ -2954,6 +2987,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         showApprovalColumn: showApprovalColumn,
         postage: _document!.postage,
         orderLetterCreatedAt: _formatDateTimeWithTime(_document!.createdAt),
+        paymentsData: paymentsData, // Multiple payments support
       );
 
       final pdfType = showApprovalColumn ? 'Approval' : 'Customer';
@@ -2965,8 +2999,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
       final RenderBox? box = buttonContext.findRenderObject() as RenderBox?;
       final Rect sharePositionOrigin = box != null
           ? box.localToGlobal(Offset.zero) & box.size
-          : const Rect.fromLTWH(
-              200, 400, 120, 48); // Fallback to approximate FAB position
+          : const Rect.fromLTWH(200, 400, 120, 48);
 
       await PDFService.sharePDFWithPosition(
           pdfBytes, fileName, sharePositionOrigin);
