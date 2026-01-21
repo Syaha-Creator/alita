@@ -1063,6 +1063,116 @@ class NotificationService {
     }
   }
 
+  /// Notify relevant parties when an order letter is rejected
+  /// - Send FCM to creator (rejection notification)
+  Future<void> notifyOnRejection({
+    required int orderLetterId,
+    required int rejectedLevelId,
+    required String rejectorName,
+    required String rejectionLevel,
+    String? orderId,
+    String? noSp,
+    String? customerName,
+    double? totalAmount,
+    int? creatorUserId,
+  }) async {
+    try {
+      // Get order letter info if not provided
+      String finalOrderId = orderId ?? orderLetterId.toString();
+
+      if (creatorUserId == null ||
+          noSp == null ||
+          customerName == null ||
+          totalAmount == null) {
+        // Try to get from order letter service
+        final orderLetterService = locator<OrderLetterService>();
+        final orderLetters = await orderLetterService.getOrderLetters();
+        final orderLetter = orderLetters.firstWhere(
+          (ol) {
+            final id = ol['id'] ?? ol['order_letter_id'];
+            return id == orderLetterId ||
+                id.toString() == orderLetterId.toString();
+          },
+          orElse: () => {},
+        );
+
+        if (orderLetter.isNotEmpty) {
+          finalOrderId = (orderLetter['id'] ?? orderLetter['order_letter_id'])
+                  ?.toString() ??
+              finalOrderId;
+          noSp ??= orderLetter['no_sp'] ?? orderLetter['no_sp_number'];
+          customerName ??= orderLetter['customer_name'];
+          totalAmount ??=
+              double.tryParse(orderLetter['total']?.toString() ?? '');
+
+          final creatorValue =
+              orderLetter['creator'] ?? orderLetter['creator_id'];
+          if (creatorUserId == null && creatorValue != null) {
+            if (creatorValue is int) {
+              creatorUserId = creatorValue;
+            } else if (creatorValue is String) {
+              creatorUserId = int.tryParse(creatorValue);
+            }
+          }
+        }
+      }
+
+      final finalNoSp = noSp ?? 'SP-$orderLetterId';
+
+      if (kDebugMode) {
+        _logger.d('notifyOnRejection: Order Letter ID: $orderLetterId');
+        _logger.d('notifyOnRejection: Creator User ID: $creatorUserId');
+        _logger.d('notifyOnRejection: Rejection Level: $rejectionLevel');
+        _logger.d('notifyOnRejection: Rejector Name: $rejectorName');
+      }
+
+      // Notify creator about rejection
+      if (creatorUserId != null) {
+        if (kDebugMode) {
+          _logger.d(
+              'notifyOnRejection: Sending rejection notification to creator (User ID: $creatorUserId)');
+        }
+
+        final creatorSuccess = await sendNotificationToUsers(
+          userIds: [creatorUserId.toString()],
+          title: 'Order Ditolak ❌',
+          body:
+              'Order $finalNoSp untuk $customerName ditolak oleh $rejectorName ($rejectionLevel)',
+          data: NotificationTemplateService.generateNotificationData(
+            type: 'approval_status_update',
+            noSp: finalNoSp,
+            orderId: finalOrderId,
+            approvalLevel: rejectionLevel,
+            approvalAction: 'reject',
+            customerName: customerName,
+            totalAmount: totalAmount,
+          ),
+          notificationType: 'approval_status_update',
+        );
+
+        if (kDebugMode) {
+          _logger.d(
+              'notifyOnRejection: Creator notification sent: $creatorSuccess');
+        }
+      } else {
+        if (kDebugMode) {
+          _logger.w(
+              'notifyOnRejection: WARNING - Creator User ID is null, cannot send notification');
+        }
+      }
+    } catch (e, stackTrace) {
+      FirebaseErrorService().logFcmError(
+        'notify_on_rejection',
+        e,
+        stackTrace: stackTrace,
+        context: {
+          'order_letter_id': orderLetterId.toString(),
+          'rejected_level_id': rejectedLevelId.toString(),
+        },
+      );
+    }
+  }
+
   /// Find next approval level information
   Map<String, dynamic>? _findNextApprovalLevel(
     List<Map<String, dynamic>>? discounts,

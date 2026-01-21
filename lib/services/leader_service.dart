@@ -33,6 +33,19 @@ class LeaderService {
         userId: currentUserId,
       );
 
+      if (kDebugMode) {
+        print('[DEBUG] LeaderService.getLeaderByUser: RAW API Response:');
+        print('  - response[result]: ${response['result']}');
+        if (response['result'] != null) {
+          final result = response['result'];
+          print('  - RAW user: ${result['user']}');
+          print('  - RAW direct_leader: ${result['direct_leader']}');
+          print('  - RAW indirect_leader: ${result['indirect_leader']}');
+          print('  - RAW analyst: ${result['analyst']}');
+          print('  - RAW controller: ${result['controller']}');
+        }
+      }
+
       if (response['result'] != null) {
         final leaderData = LeaderByUserModel.fromJson(response['result']);
         if (kDebugMode) {
@@ -63,6 +76,24 @@ class LeaderService {
                 '  - Controller: ${leaderData.controller!.fullName} (ID: ${leaderData.controller!.id}, Title: ${leaderData.controller!.workTitle})');
           } else {
             print('  - Controller: null');
+          }
+
+          // Validation: Check if direct_leader and indirect_leader are the same (potential data issue)
+          if (leaderData.directLeader != null &&
+              leaderData.indirectLeader != null) {
+            if (leaderData.directLeader!.id == leaderData.indirectLeader!.id) {
+              print(
+                  '  - [WARNING] Direct Leader dan Indirect Leader memiliki ID yang sama! '
+                  'ID: ${leaderData.directLeader!.id}. '
+                  'Ini mungkin masalah data di backend.');
+            }
+            if (leaderData.directLeader!.fullName ==
+                leaderData.indirectLeader!.fullName) {
+              print(
+                  '  - [WARNING] Direct Leader dan Indirect Leader memiliki nama yang sama! '
+                  'Nama: ${leaderData.directLeader!.fullName}. '
+                  'Cek data work_experience user di backend.');
+            }
           }
         }
         return leaderData;

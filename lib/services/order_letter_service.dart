@@ -521,11 +521,12 @@ class OrderLetterService {
     }
   }
 
-  /// Batch approve all discounts for a specific user level in an order letter
+  /// Batch approve/reject all discounts for a specific user level in an order letter
   Future<Map<String, dynamic>> batchApproveOrderLetterDiscounts({
     required int orderLetterId,
     required int leaderId,
     required int jobLevelId,
+    String action = 'approve', // 'approve' or 'reject'
   }) async {
     try {
       final token = await AuthService.getToken();
@@ -672,8 +673,12 @@ class OrderLetterService {
             token: token,
             discountId: discountId,
           );
+
+          // Determine approved value based on action
+          final bool isApproved = action.toLowerCase() == 'approve';
+
           final updateData = {
-            'approved': true,
+            'approved': isApproved, // true for approve, false for reject
             'approved_at': currentTime,
             'approver_level': _getApproverLevelName(actualApproverLevelId),
             'approver_name':
@@ -692,8 +697,8 @@ class OrderLetterService {
           );
           updateResults.add(updateResponse.data);
 
-          // Auto-approve disc5 (level 5) if disc4 (level 4) is being approved
-          if (actualApproverLevelId == 4) {
+          // Auto-approve disc5 (level 5) if disc4 (level 4) is being APPROVED (not rejected)
+          if (actualApproverLevelId == 4 && isApproved) {
             await _autoApproveDisc5FromDisc4(
               orderLetterId: orderLetterId,
               disc4DiscountId: discountId,
@@ -728,16 +733,28 @@ class OrderLetterService {
           highestApprovedLevel = level;
         }
       }
-      final isFinalApproval =
-          await _isFinalApproval(orderLetterId, highestApprovedLevel);
+      // Determine if action is approve or reject
+      final bool isApproveAction = action.toLowerCase() == 'approve';
+      bool isFinalApproval = false;
 
       Map<String, dynamic>? orderLetterUpdateResult;
-      if (isFinalApproval) {
+
+      if (isApproveAction) {
+        // Only check for final approval if approving
+        isFinalApproval =
+            await _isFinalApproval(orderLetterId, highestApprovedLevel);
+
+        if (isFinalApproval) {
+          orderLetterUpdateResult =
+              await _updateOrderLetterStatus(orderLetterId, 'Approved');
+        }
+      } else {
+        // If rejecting, update order letter status to Rejected immediately
         orderLetterUpdateResult =
-            await _updateOrderLetterStatus(orderLetterId, 'Approved');
+            await _updateOrderLetterStatus(orderLetterId, 'Rejected');
       }
 
-      // Send notification after approval
+      // Send notification after approval/rejection
       try {
         // Get approver name and level
         String approverName = 'Unknown';
@@ -786,41 +803,63 @@ class OrderLetterService {
           }
         }
 
-        await notificationService.notifyOnApproval(
-          orderLetterId: orderLetterId,
-          approvedLevelId: jobLevelId,
-          approverName: approverName,
-          approvalLevel: approvalLevel,
-          isFinalApproval: isFinalApproval,
-          orderId: orderLetter['id']?.toString() ??
-              orderLetter['order_letter_id']?.toString(),
-          noSp: orderLetter['no_sp'] ?? orderLetter['no_sp_number'],
-          customerName: orderLetter['customer_name'],
-          totalAmount: orderLetter['total'] != null
-              ? double.tryParse(orderLetter['total'].toString())
-              : null,
-          creatorUserId: creatorUserId,
-        );
+        if (isApproveAction) {
+          // Send approval notification
+          await notificationService.notifyOnApproval(
+            orderLetterId: orderLetterId,
+            approvedLevelId: jobLevelId,
+            approverName: approverName,
+            approvalLevel: approvalLevel,
+            isFinalApproval: isFinalApproval,
+            orderId: orderLetter['id']?.toString() ??
+                orderLetter['order_letter_id']?.toString(),
+            noSp: orderLetter['no_sp'] ?? orderLetter['no_sp_number'],
+            customerName: orderLetter['customer_name'],
+            totalAmount: orderLetter['total'] != null
+                ? double.tryParse(orderLetter['total'].toString())
+                : null,
+            creatorUserId: creatorUserId,
+          );
+        } else {
+          // Send rejection notification
+          await notificationService.notifyOnRejection(
+            orderLetterId: orderLetterId,
+            rejectedLevelId: jobLevelId,
+            rejectorName: approverName,
+            rejectionLevel: approvalLevel,
+            orderId: orderLetter['id']?.toString() ??
+                orderLetter['order_letter_id']?.toString(),
+            noSp: orderLetter['no_sp'] ?? orderLetter['no_sp_number'],
+            customerName: orderLetter['customer_name'],
+            totalAmount: orderLetter['total'] != null
+                ? double.tryParse(orderLetter['total'].toString())
+                : null,
+            creatorUserId: creatorUserId,
+          );
+        }
       } catch (e, stackTrace) {
-        // Don't fail approval if notification fails
+        // Don't fail approval/rejection if notification fails
         await ErrorLogger.logError(
           e,
           stackTrace: stackTrace,
-          context: 'Failed to send approval notification',
+          context:
+              'Failed to send ${isApproveAction ? "approval" : "rejection"} notification',
           extra: {'orderLetterId': orderLetterId, 'jobLevelId': jobLevelId},
           fatal: false,
         );
       }
 
+      final actionMessage = isApproveAction ? 'approval' : 'rejection';
       return {
         'success': true,
-        'message': 'Batch approval completed successfully',
+        'message': 'Batch $actionMessage completed successfully',
         'approved_count': discountIdsToApprove.length,
         'discount_ids': discountIdsToApprove,
         'approve_results': approveResults,
         'update_results': updateResults,
         'order_letter_update_result': orderLetterUpdateResult,
         'is_final_approval': isFinalApproval,
+        'action': action,
       };
     } catch (e, stackTrace) {
       await ErrorLogger.logError(
@@ -2233,10 +2272,69 @@ class OrderLetterService {
         approverLevel = _getApproverLevelName(approvalLevel);
 
         if (kDebugMode) {
-          print('  - Approver ID: $approverId');
-          print('  - Approver Name: $approverName');
-          print('  - Approver Level: $approverLevel');
-          print('  - Approver Work Title: $approverWorkTitle');
+          print('');
+          print('========================================');
+          print('[DEBUG] _createSingleDiscount - DETAIL:');
+          print('========================================');
+          print('  discountIndex: $discountIndex');
+          print('  approvalLevel: $approvalLevel');
+          print('');
+          print('  SELECTED APPROVER:');
+          print('  ------------------');
+          print('  ID: $approverId');
+          print('  Name: "$approverName"');
+          print('  Level: $approverLevel');
+          print('  Work Title: $approverWorkTitle');
+          print('');
+          print('  FULL LEADER HIERARCHY:');
+          print('  ----------------------');
+          print(
+              '  [1] User: "${effectiveLeaderData.user.fullName}" (ID: ${effectiveLeaderData.user.id})');
+          if (effectiveLeaderData.directLeader != null) {
+            print(
+                '  [2] Direct Leader: "${effectiveLeaderData.directLeader!.fullName}" (ID: ${effectiveLeaderData.directLeader!.id})');
+          } else {
+            print('  [2] Direct Leader: NULL');
+          }
+          if (effectiveLeaderData.indirectLeader != null) {
+            print(
+                '  [3] Indirect Leader: "${effectiveLeaderData.indirectLeader!.fullName}" (ID: ${effectiveLeaderData.indirectLeader!.id})');
+          } else {
+            print('  [3] Indirect Leader: NULL');
+          }
+          if (effectiveLeaderData.analyst != null) {
+            print(
+                '  [4] Analyst: "${effectiveLeaderData.analyst!.fullName}" (ID: ${effectiveLeaderData.analyst!.id})');
+          }
+          if (effectiveLeaderData.controller != null) {
+            print(
+                '  [5] Controller: "${effectiveLeaderData.controller!.fullName}" (ID: ${effectiveLeaderData.controller!.id})');
+          }
+
+          // CRITICAL VALIDATION: Check for potential data issues
+          if (effectiveLeaderData.directLeader != null &&
+              effectiveLeaderData.indirectLeader != null) {
+            if (effectiveLeaderData.directLeader!.id ==
+                effectiveLeaderData.indirectLeader!.id) {
+              print('');
+              print(
+                  '  ⚠️⚠️⚠️ WARNING: Direct Leader dan Indirect Leader memiliki ID SAMA! ⚠️⚠️⚠️');
+              print(
+                  '  Ini akan menyebabkan nama yang sama muncul untuk kedua level!');
+            }
+            if (effectiveLeaderData.directLeader!.fullName ==
+                effectiveLeaderData.indirectLeader!.fullName) {
+              print('');
+              print(
+                  '  ⚠️⚠️⚠️ WARNING: Direct Leader dan Indirect Leader memiliki NAMA SAMA! ⚠️⚠️⚠️');
+              print(
+                  '  Direct: "${effectiveLeaderData.directLeader!.fullName}"');
+              print(
+                  '  Indirect: "${effectiveLeaderData.indirectLeader!.fullName}"');
+            }
+          }
+          print('========================================');
+          print('');
         }
 
         // Level 1 discounts should be auto-approved (user created the order)

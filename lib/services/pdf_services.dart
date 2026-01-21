@@ -55,6 +55,7 @@ class PDFService {
     bool showApprovalColumn = false,
     double? postage,
     String? orderLetterCreatedAt,
+    List<Map<String, dynamic>>? paymentsData, // Multiple payments support
   }) async {
     final pdf = pw.Document();
 
@@ -196,6 +197,7 @@ class PDFService {
             paymentMethod: paymentMethod,
             paymentAmount: paymentAmount,
             repaymentDate: repaymentDate,
+            paymentsData: paymentsData,
           ),
           pw.SizedBox(height: 10),
           // Add approval table if needed
@@ -799,12 +801,24 @@ class PDFService {
           final bool showDivanDiscountDetails = hasDivanCustomerAmount &&
               divanHasExplicitCustomerPrice &&
               showApprovalColumn;
-          final pw.Widget divanDiscountCell = hasDivanCustomerAmount
-              ? _buildDiscountCell(
-                  divanDiscount, kasurDetailId, null, discountData,
-                  align: pw.TextAlign.right,
-                  showApprovalColumn: showDivanDiscountDetails)
-              : _buildTableCell('0', align: pw.TextAlign.right);
+
+          // If EUP is 0 but pricelist > 0, show pricelist as EUP and 100% discount
+          final bool isDivanFree =
+              divanPricelist > 0 && divanCustomer == 0 && divanNet == 0;
+          final pw.Widget divanDiscountCell = isDivanFree
+              ? _buildTableCell('100%', align: pw.TextAlign.right)
+              : (hasDivanCustomerAmount
+                  ? _buildDiscountCell(
+                      divanDiscount, kasurDetailId, null, discountData,
+                      align: pw.TextAlign.right,
+                      showApprovalColumn: showDivanDiscountDetails)
+                  : _buildTableCell('0', align: pw.TextAlign.right));
+          // For EUP column: if free item, show pricelist; otherwise show actual customer price
+          final String divanEupDisplay = isDivanFree
+              ? FormatHelper.formatCurrency(divanPricelist)
+              : (divanCustomer > 0
+                  ? FormatHelper.formatCurrency(divanCustomer)
+                  : FormatHelper.formatCurrency(0));
 
           tableRows.add(pw.TableRow(children: [
             _buildTableCell('', align: pw.TextAlign.center),
@@ -818,11 +832,7 @@ class PDFService {
                 align: pw.TextAlign.center),
             _buildTableCell(FormatHelper.formatCurrency(divanPricelist),
                 align: pw.TextAlign.right),
-            _buildTableCell(
-                divanCustomer > 0
-                    ? FormatHelper.formatCurrency(divanCustomer)
-                    : '0',
-                align: pw.TextAlign.right),
+            _buildTableCell(divanEupDisplay, align: pw.TextAlign.right),
             divanDiscountCell,
             _buildTableCell(FormatHelper.formatCurrency(divanNet),
                 align: pw.TextAlign.right),
@@ -893,12 +903,25 @@ class PDFService {
               hasHeadboardCustomerAmount &&
                   headboardHasExplicitCustomerPrice &&
                   showApprovalColumn;
-          final pw.Widget headboardDiscountCell = hasHeadboardCustomerAmount
-              ? _buildDiscountCell(
-                  headboardDiscount, kasurDetailId, null, discountData,
-                  align: pw.TextAlign.right,
-                  showApprovalColumn: showHeadboardDiscountDetails)
-              : _buildTableCell('0', align: pw.TextAlign.right);
+
+          // If EUP is 0 but pricelist > 0, show pricelist as EUP and 100% discount
+          final bool isHeadboardFree = headboardPricelist > 0 &&
+              headboardCustomer == 0 &&
+              headboardNet == 0;
+          final pw.Widget headboardDiscountCell = isHeadboardFree
+              ? _buildTableCell('100%', align: pw.TextAlign.right)
+              : (hasHeadboardCustomerAmount
+                  ? _buildDiscountCell(
+                      headboardDiscount, kasurDetailId, null, discountData,
+                      align: pw.TextAlign.right,
+                      showApprovalColumn: showHeadboardDiscountDetails)
+                  : _buildTableCell('0', align: pw.TextAlign.right));
+          // For EUP column: if free item, show pricelist; otherwise show actual customer price
+          final String headboardEupDisplay = isHeadboardFree
+              ? FormatHelper.formatCurrency(headboardPricelist)
+              : (headboardCustomer > 0
+                  ? FormatHelper.formatCurrency(headboardCustomer)
+                  : FormatHelper.formatCurrency(0));
 
           tableRows.add(pw.TableRow(children: [
             _buildTableCell('', align: pw.TextAlign.center),
@@ -912,11 +935,7 @@ class PDFService {
                 align: pw.TextAlign.center),
             _buildTableCell(FormatHelper.formatCurrency(headboardPricelist),
                 align: pw.TextAlign.right),
-            _buildTableCell(
-                headboardCustomer > 0
-                    ? FormatHelper.formatCurrency(headboardCustomer)
-                    : '0',
-                align: pw.TextAlign.right),
+            _buildTableCell(headboardEupDisplay, align: pw.TextAlign.right),
             headboardDiscountCell,
             _buildTableCell(FormatHelper.formatCurrency(headboardNet),
                 align: pw.TextAlign.right),
@@ -984,12 +1003,24 @@ class PDFService {
           final bool showSorongDiscountDetails = hasSorongCustomerAmount &&
               sorongHasExplicitCustomerPrice &&
               showApprovalColumn;
-          final pw.Widget sorongDiscountCell = hasSorongCustomerAmount
-              ? _buildDiscountCell(
-                  sorongDiscount, kasurDetailId, null, discountData,
-                  align: pw.TextAlign.right,
-                  showApprovalColumn: showSorongDiscountDetails)
-              : _buildTableCell('0', align: pw.TextAlign.right);
+
+          // If EUP is 0 but pricelist > 0, show pricelist as EUP and 100% discount
+          final bool isSorongFree =
+              sorongPricelist > 0 && sorongCustomer == 0 && sorongNet == 0;
+          final pw.Widget sorongDiscountCell = isSorongFree
+              ? _buildTableCell('100%', align: pw.TextAlign.right)
+              : (hasSorongCustomerAmount
+                  ? _buildDiscountCell(
+                      sorongDiscount, kasurDetailId, null, discountData,
+                      align: pw.TextAlign.right,
+                      showApprovalColumn: showSorongDiscountDetails)
+                  : _buildTableCell('0', align: pw.TextAlign.right));
+          // For EUP column: if free item, show pricelist; otherwise show actual customer price
+          final String sorongEupDisplay = isSorongFree
+              ? FormatHelper.formatCurrency(sorongPricelist)
+              : (sorongCustomer > 0
+                  ? FormatHelper.formatCurrency(sorongCustomer)
+                  : FormatHelper.formatCurrency(0));
 
           tableRows.add(pw.TableRow(children: [
             _buildTableCell('', align: pw.TextAlign.center),
@@ -1003,11 +1034,7 @@ class PDFService {
                 align: pw.TextAlign.center),
             _buildTableCell(FormatHelper.formatCurrency(sorongPricelist),
                 align: pw.TextAlign.right),
-            _buildTableCell(
-                sorongCustomer > 0
-                    ? FormatHelper.formatCurrency(sorongCustomer)
-                    : '0',
-                align: pw.TextAlign.right),
+            _buildTableCell(sorongEupDisplay, align: pw.TextAlign.right),
             sorongDiscountCell,
             _buildTableCell(FormatHelper.formatCurrency(sorongNet),
                 align: pw.TextAlign.right),
@@ -1052,12 +1079,45 @@ class PDFService {
           final bonusQuantity = bonus.quantity;
           final String zeroPrice = FormatHelper.formatCurrency(0);
 
+          // Bonus name without "(BONUS)" text - only add "TAKE AWAY" if applicable
           String bonusName = bonus.name;
           if (bonus.takeAway == true) {
-            bonusName = '${bonus.name} (BONUS - TAKE AWAY)';
-          } else {
-            bonusName = '${bonus.name} (BONUS)';
+            bonusName = '${bonus.name} (TAKE AWAY)';
           }
+
+          // Calculate bonus prices
+          // For approval PDF: show pricelist, EUP = pricelist, discount = 100%, total = 0
+          final double bonusPricelist = bonus.pricelist * bonusQuantity;
+          final String bonusPricelistStr = bonus.pricelist > 0
+              ? FormatHelper.formatCurrency(bonusPricelist)
+              : zeroPrice;
+          // For approval PDF: End User Price = Pricelist (before 100% discount)
+          final String bonusEupStr = bonusPricelistStr;
+
+          // Build discount cell like other items (nominal on line 1, percentage on line 2)
+          final pw.Widget bonusDiscountCell = pw.Padding(
+            padding: const pw.EdgeInsets.all(4),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.end,
+              mainAxisSize: pw.MainAxisSize.min,
+              children: [
+                // Line 1: Discount nominal (same as pricelist for 100% discount)
+                pw.Text(
+                  bonusPricelistStr,
+                  style: const pw.TextStyle(fontSize: 8),
+                  textAlign: pw.TextAlign.right,
+                ),
+                // Line 2: Discount percentage
+                if (bonus.pricelist > 0)
+                  pw.Text(
+                    '100%',
+                    style: const pw.TextStyle(
+                        fontSize: 6, color: PdfColors.grey700),
+                    textAlign: pw.TextAlign.right,
+                  ),
+              ],
+            ),
+          );
 
           final bonusRowChildren = useApprovalLayout
               ? [
@@ -1066,9 +1126,9 @@ class PDFService {
                   _buildTableCell(bonusName),
                   _buildTableCell(bonusQuantity.toString(),
                       align: pw.TextAlign.center),
-                  _buildTableCell(zeroPrice, align: pw.TextAlign.right),
-                  _buildTableCell(zeroPrice, align: pw.TextAlign.right),
-                  _buildTableCell(zeroPrice, align: pw.TextAlign.right),
+                  _buildTableCell(bonusPricelistStr, align: pw.TextAlign.right),
+                  _buildTableCell(bonusEupStr, align: pw.TextAlign.right),
+                  bonusDiscountCell,
                   _buildTableCell(zeroPrice, align: pw.TextAlign.right),
                 ]
               : [
@@ -1077,8 +1137,8 @@ class PDFService {
                   _buildTableCell(bonusName),
                   _buildTableCell(bonusQuantity.toString(),
                       align: pw.TextAlign.center),
-                  _buildTableCell(zeroPrice, align: pw.TextAlign.right),
-                  _buildTableCell(zeroPrice, align: pw.TextAlign.right),
+                  _buildTableCell(bonusPricelistStr, align: pw.TextAlign.right),
+                  bonusDiscountCell,
                   _buildTableCell(zeroPrice, align: pw.TextAlign.right),
                 ];
 
@@ -1349,8 +1409,45 @@ class PDFService {
     required String paymentMethod,
     required double paymentAmount,
     required String repaymentDate,
+    List<Map<String, dynamic>>? paymentsData,
   }) {
     final double sisaPembayaran = grandTotal - paymentAmount;
+
+    // Build payment rows
+    List<pw.Widget> paymentRows = [];
+
+    if (paymentsData != null && paymentsData.isNotEmpty) {
+      // Multiple payments - show each payment as separate row
+      for (int i = 0; i < paymentsData.length; i++) {
+        final payment = paymentsData[i];
+        final amount = (payment['payment_amount'] as num?)?.toDouble() ?? 0.0;
+        final method = payment['payment_method'] as String? ?? '';
+        final bank = payment['payment_bank'] as String? ?? '';
+
+        // Build payment label: "Dibayar (Bank)" or "Dibayar (Method)"
+        String paymentLabel;
+        if (bank.isNotEmpty) {
+          paymentLabel = 'Dibayar ($bank)';
+        } else if (method.isNotEmpty) {
+          paymentLabel = 'Dibayar (${_getPaymentMethodLabel(method)})';
+        } else {
+          paymentLabel = 'Dibayar ${i + 1}';
+        }
+
+        paymentRows.add(_buildTotalRow(
+          paymentLabel,
+          FormatHelper.formatCurrency(amount),
+        ));
+      }
+    } else {
+      // Single payment (legacy) - use paymentMethod and paymentAmount
+      paymentRows.add(_buildTotalRow(
+        paymentMethod.isNotEmpty && paymentMethod != '-'
+            ? 'Dibayar ($paymentMethod)'
+            : 'Sudah Dibayar',
+        FormatHelper.formatCurrency(paymentAmount),
+      ));
+    }
 
     return pw.Table(
       columnWidths: const {
@@ -1389,11 +1486,8 @@ class PDFService {
                 _buildTotalRow(
                     'Grand Total', FormatHelper.formatCurrency(grandTotal),
                     isBold: true),
-                _buildTotalRow(
-                    paymentMethod.isNotEmpty && paymentMethod != '-'
-                        ? 'Dibayar ($paymentMethod)'
-                        : 'Sudah Dibayar',
-                    FormatHelper.formatCurrency(paymentAmount)),
+                // Add all payment rows
+                ...paymentRows,
                 _buildTotalRow('Sisa Pembayaran',
                     FormatHelper.formatCurrency(sisaPembayaran),
                     isBold: true),
@@ -1404,6 +1498,24 @@ class PDFService {
         )
       ],
     );
+  }
+
+  /// Helper to get payment method label
+  static String _getPaymentMethodLabel(String method) {
+    switch (method.toLowerCase()) {
+      case 'transfer':
+        return 'Transfer';
+      case 'cash':
+        return 'Cash';
+      case 'credit_card':
+        return 'Credit Card';
+      case 'debit_card':
+        return 'Debit Card';
+      case 'qris':
+        return 'QRIS';
+      default:
+        return method;
+    }
   }
 
   /// Build satu baris total pada tabel total pembayaran.
