@@ -207,6 +207,7 @@ class CartBloc extends Bloc<CartEvent, CartState> {
                 quantity: finalQuantity,
                 originalQuantity: bonus.originalQuantity,
                 takeAway: bonus.takeAway,
+                pricelist: bonus.pricelist,
               );
             }).toList();
 
@@ -387,6 +388,7 @@ class CartBloc extends Bloc<CartEvent, CartState> {
                   quantity: originalBonus.quantity,
                   originalQuantity: preservedOriginalQuantity,
                   takeAway: originalBonus.takeAway,
+                  pricelist: originalBonus.pricelist,
                 );
 
                 final maxQuantity =
@@ -402,6 +404,7 @@ class CartBloc extends Bloc<CartEvent, CartState> {
                   originalQuantity:
                       preservedOriginalQuantity, // Always preserve originalQuantity
                   takeAway: originalBonus.takeAway,
+                  pricelist: originalBonus.pricelist,
                 );
               }
             }
@@ -1222,6 +1225,7 @@ class CartBloc extends Bloc<CartEvent, CartState> {
               originalQuantity:
                   b.originalQuantity > 0 ? b.originalQuantity : b.quantity,
               takeAway: b.takeAway,
+              pricelist: b.pricelist,
             ))
         .toList();
 
@@ -1313,6 +1317,7 @@ class CartBloc extends Bloc<CartEvent, CartState> {
         quantity: dynamicQty,
         originalQuantity: newDef.originalQuantity,
         takeAway: currentItem.takeAway,
+        pricelist: newDef.pricelist,
       ));
     }
     return result;

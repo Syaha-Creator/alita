@@ -188,6 +188,8 @@ class PrepareOrderLetterDetailsUseCase {
             final maxBonusQty = bonus.calculateMaxQuantity(item.quantity);
             final resolvedBonusQty = bonus.quantity.clamp(1, maxBonusQty);
 
+            final double bonusPricelist = bonus.pricelist;
+
             detailsData.add(
               OrderLetterDetailDataEntity(
                 itemNumber:
@@ -196,7 +198,8 @@ class PrepareOrderLetterDetailsUseCase {
                 desc1: bonus.name,
                 desc2: 'Bonus',
                 brand: item.product.brand,
-                unitPrice: 0,
+                unitPrice: bonusPricelist,
+                customerPrice: bonusPricelist,
                 netPrice: 0,
                 qty: resolvedBonusQty,
                 itemType: 'Bonus',

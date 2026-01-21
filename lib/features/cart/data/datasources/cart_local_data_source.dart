@@ -157,6 +157,7 @@ class CartLocalDataSourceImpl implements CartLocalDataSource {
                 'name': b.name,
                 'quantity': b.quantity,
                 'originalQuantity': b.originalQuantity,
+                'pricelist': b.pricelist,
               })
           .toList(),
       'discounts': product.discounts,
@@ -197,6 +198,7 @@ class CartLocalDataSourceImpl implements CartLocalDataSource {
                 name: b['name'] ?? '',
                 quantity: b['quantity'] ?? 0,
                 originalQuantity: b['originalQuantity'] ?? (b['quantity'] ?? 0),
+                pricelist: (b['pricelist'] ?? 0.0).toDouble(),
               ))
           .toList(),
       discounts: List<double>.from(json['discounts'] ?? []),

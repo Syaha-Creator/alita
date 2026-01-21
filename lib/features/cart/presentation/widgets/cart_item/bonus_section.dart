@@ -235,6 +235,7 @@ class BonusSection extends StatelessWidget {
             originalQuantity:
                 bonus.quantity, // Use current quantity as original if not set
             takeAway: bonus.takeAway,
+            pricelist: bonus.pricelist,
           );
     final maxQty = bonusWithOriginal.calculateMaxQuantity(item.quantity);
 

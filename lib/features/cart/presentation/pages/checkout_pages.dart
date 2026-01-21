@@ -217,6 +217,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
             originalQuantity: bonusMap['originalQuantity'] as int? ??
                 (bonusMap['quantity'] as int),
             takeAway: bonusMap['takeAway'] as bool?,
+            pricelist: (bonusMap['pricelist'] as num?)?.toDouble() ?? 0.0,
           );
         }).toList();
 

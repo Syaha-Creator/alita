@@ -346,6 +346,7 @@ class _DraftCheckoutPageState extends State<DraftCheckoutPage>
             originalQuantity: bonusMap['originalQuantity'] as int? ??
                 (bonusMap['quantity'] as int? ?? 1),
             takeAway: bonusMap['takeAway'] as bool? ?? false,
+            pricelist: (bonusMap['pricelist'] as num?)?.toDouble() ?? 0.0,
           );
         }).toList();
 
