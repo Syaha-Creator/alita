@@ -9,9 +9,10 @@ class ApiConfig {
   static String get clientId => EnvConfig().get('API_CLIENT_ID');
   static String get clientSecret => EnvConfig().get('API_CLIENT_SECRET');
 
-  // LoginEndpoints
+  // Auth Endpoints
   static String get signIn =>
       "${baseUrl}api/sign_in?client_id=$clientId&client_secret=$clientSecret";
+  static const String signOut = "${baseUrl}api/sign_out";
 
   // Contact Work Experiences Endpoints
   static const String contactWorkExperiences =
