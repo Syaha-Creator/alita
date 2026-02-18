@@ -214,9 +214,9 @@ class HorizontalTimeline extends StatelessWidget {
       case 1:
         return 'User';
       case 2:
-        return 'Direct';
+        return 'SPV';
       case 3:
-        return 'Indirect';
+        return 'RSM';
       case 4:
         return 'Analyst';
       case 5:

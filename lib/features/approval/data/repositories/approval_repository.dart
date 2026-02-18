@@ -16,8 +16,7 @@ class ApprovalRepository {
     ApprovalLocalDataSource? localDataSource,
   })  : remoteDataSource =
             remoteDataSource ?? locator<ApprovalRemoteDataSource>(),
-        localDataSource =
-            localDataSource ?? locator<ApprovalLocalDataSource>();
+        localDataSource = localDataSource ?? locator<ApprovalLocalDataSource>();
 
   /// Get all order letters (approvals) filtered by current user's role
   /// The backend API automatically filters based on user role:
@@ -43,7 +42,8 @@ class ApprovalRepository {
       // Check cache first (if not force refresh and no date filter)
       // Skip cache when date filter is applied to ensure fresh data
       if (!forceRefresh && dateFrom == null && dateTo == null) {
-        final cachedApprovals = localDataSource.getCachedApprovals(currentUserId);
+        final cachedApprovals =
+            localDataSource.getCachedApprovals(currentUserId);
         if (cachedApprovals != null) {
           return cachedApprovals;
         }
@@ -72,7 +72,12 @@ class ApprovalRepository {
           if (!shouldInclude) continue;
 
           final orderLetterDetails =
-              item['order_letter_details'] as List<dynamic>? ?? [];
+              (item['order_letter_details'] as List<dynamic>? ?? [])
+                ..sort((a, b) {
+                  final aId = (a as Map?)?['order_letter_detail_id'] ?? 0;
+                  final bId = (b as Map?)?['order_letter_detail_id'] ?? 0;
+                  return (aId as int).compareTo(bId as int);
+                });
 
           // Extract discounts from order_letter_details (nested in each detail)
           final List<Map<String, dynamic>> allDiscounts = [];
@@ -177,7 +182,8 @@ class ApprovalRepository {
 
       // If we got empty list but have cached data, return cached data instead
       if (approvals.isEmpty) {
-        final cachedApprovals = localDataSource.getCachedApprovals(currentUserId);
+        final cachedApprovals =
+            localDataSource.getCachedApprovals(currentUserId);
         if (cachedApprovals != null && cachedApprovals.isNotEmpty) {
           return cachedApprovals;
         }
@@ -466,7 +472,8 @@ class ApprovalRepository {
       };
     }
     return {
-      'should_use_pagination': localDataSource.shouldUsePagination(currentUserId),
+      'should_use_pagination':
+          localDataSource.shouldUsePagination(currentUserId),
       'total_pages': localDataSource.getTotalPages(currentUserId),
       'items_per_page': ApprovalLocalDataSource.itemsPerPage,
       'total_items':
@@ -599,9 +606,13 @@ class ApprovalRepository {
       List<Map<String, dynamic>> approvalHistory = [];
 
       if (fullItem != null) {
-        // Extract from new format
         final orderLetterDetails =
-            fullItem['order_letter_details'] as List<dynamic>? ?? [];
+            (fullItem['order_letter_details'] as List<dynamic>? ?? [])
+              ..sort((a, b) {
+                final aId = (a as Map?)?['order_letter_detail_id'] ?? 0;
+                final bId = (b as Map?)?['order_letter_detail_id'] ?? 0;
+                return (aId as int).compareTo(bId as int);
+              });
 
         for (final detailData in orderLetterDetails) {
           if (detailData is Map<String, dynamic>) {
@@ -845,7 +856,12 @@ class ApprovalRepository {
             // Extract data from new format if available
             if (fullItem.containsKey('order_letter_details')) {
               final orderLetterDetails =
-                  fullItem['order_letter_details'] as List<dynamic>? ?? [];
+                  (fullItem['order_letter_details'] as List<dynamic>? ?? [])
+                    ..sort((a, b) {
+                      final aId = (a as Map?)?['order_letter_detail_id'] ?? 0;
+                      final bId = (b as Map?)?['order_letter_detail_id'] ?? 0;
+                      return (aId as int).compareTo(bId as int);
+                    });
 
               final List<Map<String, dynamic>> allDiscounts = [];
               final List<Map<String, dynamic>> allDetails = [];
@@ -899,8 +915,8 @@ class ApprovalRepository {
               // Old format: fetch separately
               final details = await remoteDataSource.getOrderLetterDetails(
                   orderLetterId: orderLetterId);
-              final discounts = await remoteDataSource
-                  .getOrderLetterDiscounts(orderLetterId: orderLetterId);
+              final discounts = await remoteDataSource.getOrderLetterDiscounts(
+                  orderLetterId: orderLetterId);
               final approvalHistory = await remoteDataSource
                   .getOrderLetterApproves(orderLetterId: orderLetterId);
 
@@ -1295,8 +1311,8 @@ class ApprovalRepository {
           .toList();
 
       // Get approval history for this order letter
-      final allApprovalHistory = await remoteDataSource
-          .getOrderLetterApproves(orderLetterId: orderLetterId);
+      final allApprovalHistory = await remoteDataSource.getOrderLetterApproves(
+          orderLetterId: orderLetterId);
 
       // Filter approval history that belongs to this specific order letter
       final approvalHistory = allApprovalHistory

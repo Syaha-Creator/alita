@@ -36,7 +36,8 @@ class ApprovalInfoSection extends StatelessWidget {
           // Header
           Row(
             children: [
-              const Icon(Icons.info_outline_rounded, size: 16, color: AppColors.info),
+              const Icon(Icons.info_outline_rounded,
+                  size: 16, color: AppColors.info),
               const SizedBox(width: AppPadding.p8),
               Text(
                 'Informasi Approval',
@@ -65,7 +66,7 @@ class ApprovalInfoSection extends StatelessWidget {
             _buildInfoRow(
               icon: Icons.person_rounded,
               iconColor: colorScheme.onSurfaceVariant,
-              text: 'Direct Leader: ${leaderData!.directLeader!.fullName}',
+              text: 'Supervisor: ${leaderData!.directLeader!.fullName}',
               textColor: colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w500,
               theme: theme,
@@ -123,20 +124,27 @@ class ApprovalInfoSection extends StatelessWidget {
 
   IconData _getStatusIcon(String status) {
     switch (status.toLowerCase()) {
-      case 'approved': return Icons.check_circle;
-      case 'rejected': return Icons.cancel;
-      case 'pending': return Icons.schedule;
-      default: return Icons.info;
+      case 'approved':
+        return Icons.check_circle;
+      case 'rejected':
+        return Icons.cancel;
+      case 'pending':
+        return Icons.schedule;
+      default:
+        return Icons.info;
     }
   }
 
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
-      case 'approved': return AppColors.success;
-      case 'rejected': return AppColors.error;
-      case 'pending': return AppColors.warning;
-      default: return AppColors.info;
+      case 'approved':
+        return AppColors.success;
+      case 'rejected':
+        return AppColors.error;
+      case 'pending':
+        return AppColors.warning;
+      default:
+        return AppColors.info;
     }
   }
 }
-

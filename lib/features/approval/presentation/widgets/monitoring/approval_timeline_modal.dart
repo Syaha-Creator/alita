@@ -281,9 +281,9 @@ class _ApprovalTimelineContent extends StatelessWidget {
       case 1:
         return 'User';
       case 2:
-        return 'Direct Leader';
+        return 'Supervisor';
       case 3:
-        return 'Indirect Leader';
+        return 'RSM';
       case 4:
         return 'Analyst';
       case 5:
