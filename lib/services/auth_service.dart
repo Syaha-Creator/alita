@@ -306,9 +306,20 @@ class AuthService {
   }
 
   /// Logout user dan hapus semua data session.
+  /// Juga revoke token di server untuk keamanan.
   static Future<bool> logout() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+
+      // Ambil token sebelum dihapus untuk revoke di server
+      final accessToken = prefs.getString(StorageKeys.authToken);
+
+      // Revoke token di server (fire and forget - tidak blocking logout)
+      if (accessToken != null) {
+        _revokeTokenOnServer(accessToken);
+      }
+
+      // Hapus semua data session lokal
       await prefs.remove(StorageKeys.isLoggedIn);
       await prefs.remove(StorageKeys.loginTimestamp);
       await prefs.remove(StorageKeys.authToken);
@@ -333,6 +344,36 @@ class AuthService {
       return true;
     } catch (e) {
       return false;
+    }
+  }
+
+  /// Revoke token di server saat logout.
+  /// Menggunakan fire-and-forget agar tidak memblokir proses logout.
+  static Future<void> _revokeTokenOnServer(String accessToken) async {
+    try {
+      final dio = Dio();
+      dio.options.connectTimeout = ApiTimeouts.standardConnectTimeout;
+      dio.options.receiveTimeout = ApiTimeouts.standardReceiveTimeout;
+      dio.options.headers['ngrok-skip-browser-warning'] = 'true';
+      dio.options.headers['User-Agent'] = 'AlitaPricelist/1.0';
+
+      await dio.delete(
+        ApiConfig.signOut,
+        data: {
+          'client_id': ApiConfig.clientId,
+          'client_secret': ApiConfig.clientSecret,
+          'access_token': accessToken,
+        },
+        options: Options(
+          headers: {'Content-Type': 'application/json'},
+        ),
+      );
+    } catch (e) {
+      // Abaikan error - logout tetap berhasil meskipun revoke gagal
+      // Token akan expire secara otomatis di server
+      if (kDebugMode) {
+        print('Token revocation failed: $e');
+      }
     }
   }
 
