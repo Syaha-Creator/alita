@@ -41,6 +41,23 @@ class PrepareOrderLetterDetailsUseCase {
         _applyDiscountsUsecase =
             applyDiscountsUsecase ?? const ApplyDiscountsUsecase();
 
+  /// Helper to check if item is from indirect channel
+  bool _isIndirectItem(CartEntity item) {
+    return item.isIndirect ||
+        item.product.channel.toLowerCase().contains('toko');
+  }
+
+  /// Calculate customer price for indirect checkout (pricelist with cascading discounts)
+  double _calculateIndirectCustomerPrice(
+      double pricelist, List<double> discounts) {
+    if (discounts.isEmpty) return pricelist;
+    double result = pricelist;
+    for (final discount in discounts) {
+      result = result * (1 - discount / 100);
+    }
+    return result;
+  }
+
   /// Prepare order letter details data
   ///
   /// Parameters:
@@ -66,45 +83,71 @@ class PrepareOrderLetterDetailsUseCase {
     }
 
     for (final item in cartItems) {
+      // Check if this is indirect checkout
+      final isIndirect = _isIndirectItem(item);
+
+      final kasurUnitPrice = item.product.plKasur > 0
+          ? item.product.plKasur
+          : item.product.pricelist;
+      final kasurCustomerPriceBase = item.product.eupKasur > 0
+          ? item.product.eupKasur
+          : item.product.endUserPrice;
+
       // Add main product (kasur) - only if valid
-      if (_shouldUploadItemUseCase(item.product.kasur) &&
-          item.product.plKasur > 0) {
+      // Use kasurUnitPrice which has fallback to pricelist
+      if (_shouldUploadItemUseCase(item.product.kasur) && kasurUnitPrice > 0) {
+        // For indirect: customerPrice = Pricelist (sama dengan unitPrice)
+        //               netPrice = Pricelist after cascading store discounts
+        // For direct: customerPrice = EUP (end user price)
+        //             netPrice = EUP after user discounts
+        final customerPrice =
+            isIndirect ? kasurUnitPrice : kasurCustomerPriceBase;
+
         await _addItemDetails(
           detailsData: detailsData,
           item: item,
           itemType: 'kasur',
           itemName: item.product.kasur,
-          unitPrice: item.product.plKasur,
-          customerPrice: item.product.eupKasur,
+          unitPrice: kasurUnitPrice,
+          customerPrice: customerPrice,
           takeAwayString: takeAwayString,
+          isIndirect: isIndirect,
         );
       }
 
       // Add divan
       if (_shouldUploadItemUseCase(item.product.divan) &&
           item.product.plDivan > 0) {
+        final customerPrice =
+            isIndirect ? item.product.plDivan : item.product.eupDivan;
+
         await _addItemDetails(
           detailsData: detailsData,
           item: item,
           itemType: 'divan',
           itemName: item.product.divan,
           unitPrice: item.product.plDivan,
-          customerPrice: item.product.eupDivan,
+          customerPrice: customerPrice,
           takeAwayString: takeAwayString,
+          isIndirect: isIndirect,
         );
       }
 
       // Add headboard
       if (_shouldUploadItemUseCase(item.product.headboard) &&
           item.product.plHeadboard > 0) {
+        final customerPrice =
+            isIndirect ? item.product.plHeadboard : item.product.eupHeadboard;
+
         await _addItemDetails(
           detailsData: detailsData,
           item: item,
           itemType: 'headboard',
           itemName: item.product.headboard,
           unitPrice: item.product.plHeadboard,
-          customerPrice: item.product.eupHeadboard,
+          customerPrice: customerPrice,
           takeAwayString: takeAwayString,
+          isIndirect: isIndirect,
         );
       }
 
@@ -115,6 +158,20 @@ class PrepareOrderLetterDetailsUseCase {
           item: item,
           itemType: 'sorong',
         );
+
+        // For indirect: customerPrice = Pricelist
+        final customerPrice = isIndirect
+            ? item.product.plSorong // Pricelist for indirect
+            : item.product.eupSorong;
+
+        // For indirect: netPrice = Pricelist after cascading store discounts
+        // For direct: netPrice = EUP after user discounts
+        final netPrice = isIndirect
+            ? _calculateIndirectCustomerPrice(
+                item.product.plSorong, item.discountPercentages)
+            : _applyDiscountsUsecase.applySequentially(
+                item.product.eupSorong, item.discountPercentages);
+
         detailsData.add(
           OrderLetterDetailDataEntity(
             itemNumber: sorongInfo['item_number'],
@@ -123,9 +180,8 @@ class PrepareOrderLetterDetailsUseCase {
             desc2: item.product.ukuran,
             brand: item.product.brand,
             unitPrice: item.product.plSorong,
-            customerPrice: item.product.eupSorong,
-            netPrice: _applyDiscountsUsecase.applySequentially(
-                item.product.eupSorong, item.discountPercentages),
+            customerPrice: customerPrice,
+            netPrice: netPrice,
             qty: item.quantity,
             itemType: 'sorong',
             takeAway: takeAwayString,
@@ -222,6 +278,7 @@ class PrepareOrderLetterDetailsUseCase {
     required double unitPrice,
     required double customerPrice,
     String? takeAwayString,
+    bool isIndirect = false,
   }) async {
     final itemInfoList = await _resolveItemInfoPerUnitUseCase(
       item: item,
@@ -230,8 +287,18 @@ class PrepareOrderLetterDetailsUseCase {
     // If numbers vary per unit, split lines per unit with qty 1
     final nums = itemInfoList.map((e) => e['item_number'] ?? '').toList();
     final bool hasVariety = nums.toSet().length > 1;
-    final double netPrice = _applyDiscountsUsecase.applySequentially(
-        customerPrice, item.discountPercentages);
+
+    // For indirect:
+    //   - customerPrice = Pricelist (unitPrice)
+    //   - netPrice = Pricelist after cascading store discounts
+    // For direct:
+    //   - customerPrice = EUP
+    //   - netPrice = EUP after user discounts
+    final double netPrice = isIndirect
+        ? _calculateIndirectCustomerPrice(unitPrice, item.discountPercentages)
+        : _applyDiscountsUsecase.applySequentially(
+            customerPrice, item.discountPercentages);
+
     if (hasVariety) {
       for (final info in itemInfoList) {
         detailsData.add(

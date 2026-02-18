@@ -18,6 +18,11 @@ abstract class CheckoutRepository {
     String? spgCode,
     bool isTakeAway = false,
     double? postage,
+    // Manually selected approvers
+    int? selectedSpvId,
+    String? selectedSpvName,
+    int? selectedRsmId,
+    String? selectedRsmName,
   });
 
   /// Upload phone numbers untuk order letter

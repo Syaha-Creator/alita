@@ -28,6 +28,10 @@ class CheckoutUseCase {
         spgCode: params.spgCode,
         isTakeAway: params.isTakeAway,
         postage: params.postage,
+        selectedSpvId: params.selectedSpvId,
+        selectedSpvName: params.selectedSpvName,
+        selectedRsmId: params.selectedRsmId,
+        selectedRsmName: params.selectedRsmName,
       );
 
       if (orderLetterResult['success'] != true) {
@@ -66,7 +70,7 @@ class CheckoutUseCase {
             orderLetterId: orderLetterId,
             paymentMethods: params.paymentMethods,
             creator: params.creatorId,
-            note: 'Payment from checkout',
+            note: null, // Don't auto-generate note
           );
         } catch (e) {
           // Log error but don't fail checkout
@@ -107,7 +111,7 @@ class CheckoutUseCase {
       throw ValidationException('Nama customer wajib diisi');
     }
 
-    if (params.email.trim().isEmpty) {
+    if (!params.isIndirectCheckout && params.email.trim().isEmpty) {
       throw ValidationException('Email wajib diisi');
     }
 
@@ -149,6 +153,13 @@ class CheckoutParams {
   final String? secondaryPhone;
   final List<Map<String, dynamic>> paymentMethods;
   final int creatorId;
+  final bool isIndirectCheckout;
+
+  // Manually selected approvers from approval_sales
+  final int? selectedSpvId;
+  final String? selectedSpvName;
+  final int? selectedRsmId;
+  final String? selectedRsmName;
 
   CheckoutParams({
     required this.cartItems,
@@ -167,6 +178,11 @@ class CheckoutParams {
     this.secondaryPhone,
     required this.paymentMethods,
     required this.creatorId,
+    this.isIndirectCheckout = false,
+    this.selectedSpvId,
+    this.selectedSpvName,
+    this.selectedRsmId,
+    this.selectedRsmName,
   });
 }
 

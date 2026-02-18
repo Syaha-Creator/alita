@@ -1,4 +1,6 @@
 import '../../../../services/attendance_service.dart';
+import '../../../../services/auth_service.dart';
+import '../../../../services/contact_work_experience_service.dart';
 import '../../../../config/dependency_injection.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../order_letter/domain/entities/order_letter_data_entity.dart';
@@ -10,13 +12,17 @@ import 'determine_order_status_usecase.dart';
 class PrepareOrderLetterDataUseCase {
   final AttendanceService _attendanceService;
   final DetermineOrderStatusUseCase _determineOrderStatusUseCase;
+  final ContactWorkExperienceService _contactWorkExperienceService;
 
   PrepareOrderLetterDataUseCase({
     AttendanceService? attendanceService,
     DetermineOrderStatusUseCase? determineOrderStatusUseCase,
+    ContactWorkExperienceService? contactWorkExperienceService,
   })  : _attendanceService = attendanceService ?? locator<AttendanceService>(),
         _determineOrderStatusUseCase =
-            determineOrderStatusUseCase ?? DetermineOrderStatusUseCase();
+            determineOrderStatusUseCase ?? DetermineOrderStatusUseCase(),
+        _contactWorkExperienceService = contactWorkExperienceService ??
+            locator<ContactWorkExperienceService>();
 
   /// Prepare order letter data
   ///
@@ -31,13 +37,14 @@ class PrepareOrderLetterDataUseCase {
   /// - shipToName: Ship to name
   /// - addressShipTo: Address ship to
   /// - note: Order note
-  /// - spgCode: SPG code (optional)
+  /// - scCode: SC code (optional)
   /// - isTakeAway: Is take away flag
   /// - postage: Postage value (optional)
   /// - totalExtendedAmount: Total extended amount
   /// - totalHargaAwal: Total harga awal
   /// - totalDiscountPercentage: Total discount percentage
   /// - allDiscounts: All discounts list for status determination
+  /// - isIndirectCheckout: Skip phone/email validation for indirect checkout
   ///
   /// Returns OrderLetterDataEntity dengan order letter data
   Future<OrderLetterDataEntity> call({
@@ -58,14 +65,20 @@ class PrepareOrderLetterDataUseCase {
     required int totalHargaAwal,
     required double totalDiscountPercentage,
     required List<double> allDiscounts,
+    bool isIndirectCheckout = false,
   }) async {
     // Validate input parameters
     Validators.validateRequired(creatorId, 'Creator ID');
     Validators.validateDateString(orderDateStr, 'Order date');
     Validators.validateDateString(requestDateStr, 'Request date');
     Validators.validateRequired(customerName, 'Customer name');
-    Validators.validatePhone(customerPhone);
-    Validators.validateEmail(email);
+
+    // Skip phone/email validation for indirect checkout (store data format may differ)
+    if (!isIndirectCheckout) {
+      Validators.validatePhone(customerPhone);
+      Validators.validateEmail(email);
+    }
+
     Validators.validateRequired(customerAddress, 'Customer address');
     if (!isTakeAway) {
       Validators.validateRequired(shipToName, 'Ship to name');
@@ -97,6 +110,24 @@ class PrepareOrderLetterDataUseCase {
       finalExtendedAmount += postageValue;
     }
 
+    // Get channel code from user's division
+    // Division ID 25 (direct/retail) → "S1"
+    // Division ID 24 (indirect) → "S0"
+    // Division ID 26 → "MM"
+    String? channelString;
+    try {
+      final token = await AuthService.getToken();
+      final userId = int.tryParse(creatorId);
+      if (token != null && userId != null) {
+        channelString = await _contactWorkExperienceService.getUserChannelCode(
+          token: token,
+          userId: userId,
+        );
+      }
+    } catch (_) {
+      // Ignore errors, channel will be null
+    }
+
     // Prepare Order Letter Data
     return OrderLetterDataEntity(
       orderDate: orderDateStr,
@@ -117,6 +148,8 @@ class PrepareOrderLetterDataUseCase {
       workPlaceId: workPlaceId,
       takeAway: isTakeAway,
       postage: postageValue,
+      channel: channelString,
+      skipPhoneEmailValidation: isIndirectCheckout,
     );
   }
 }

@@ -37,6 +37,10 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
     String? spgCode,
     bool isTakeAway = false,
     double? postage,
+    int? selectedSpvId,
+    String? selectedSpvName,
+    int? selectedRsmId,
+    String? selectedRsmName,
   }) async {
     try {
       final result = await _enhancedCheckoutService.checkoutWithItemMapping(
@@ -52,6 +56,10 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
         spgCode: spgCode,
         isTakeAway: isTakeAway,
         postage: postage,
+        selectedSpvId: selectedSpvId,
+        selectedSpvName: selectedSpvName,
+        selectedRsmId: selectedRsmId,
+        selectedRsmName: selectedRsmName,
       );
 
       return result;

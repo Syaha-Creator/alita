@@ -24,6 +24,7 @@ import 'bonus_selector_dialog.dart';
 import 'add_bonus_dialog.dart';
 import '../../../../features/approval/data/models/approval_model.dart';
 import '../../../product/domain/usecases/fetch_lookup_items_usecase.dart';
+import '../../../product/presentation/widgets/product_detail/item_pricing_modal.dart';
 import '../../domain/entities/cart_entity.dart';
 import '../bloc/cart_bloc.dart';
 import '../bloc/cart_event.dart';
@@ -429,7 +430,8 @@ class _CartItemWidgetState extends State<CartItemWidget>
       await showDialog(
         context: context,
         builder: (ctx) {
-          final TextEditingController customController = TextEditingController();
+          final TextEditingController customController =
+              TextEditingController();
           return StatefulBuilder(
             builder: (context, setState) {
               return AlertDialog(
@@ -478,8 +480,7 @@ class _CartItemWidgetState extends State<CartItemWidget>
                                   ),
                                   actions: [
                                     TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(dialogCtx),
+                                      onPressed: () => Navigator.pop(dialogCtx),
                                       child: const Text('Batal',
                                           style:
                                               TextStyle(fontFamily: 'Inter')),
@@ -497,7 +498,8 @@ class _CartItemWidgetState extends State<CartItemWidget>
                                                 itemNumber: 'CUSTOM',
                                                 itemDescription:
                                                     customController.text,
-                                                jenisKain: customController.text,
+                                                jenisKain:
+                                                    customController.text,
                                                 warnaKain: '',
                                                 unitIndex: unitIndex,
                                                 cartLineId:
@@ -527,7 +529,9 @@ class _CartItemWidgetState extends State<CartItemWidget>
                       final sub = it.itemDesc;
                       return ListTile(
                         title: Text(
-                          main.isEmpty ? (sub.isEmpty ? it.itemNum : sub) : main,
+                          main.isEmpty
+                              ? (sub.isEmpty ? it.itemNum : sub)
+                              : main,
                           style: const TextStyle(fontFamily: 'Inter'),
                         ),
                         subtitle: sub.isNotEmpty
@@ -536,7 +540,9 @@ class _CartItemWidgetState extends State<CartItemWidget>
                                     fontFamily: 'Inter', fontSize: 12))
                             : null,
                         onTap: () {
-                          context.read<CartBloc>().add(UpdateCartSelectedItemNumber(
+                          context
+                              .read<CartBloc>()
+                              .add(UpdateCartSelectedItemNumber(
                                 productId: widget.item.product.id,
                                 netPrice: widget.item.netPrice,
                                 itemType: itemType,
@@ -689,6 +695,28 @@ class _CartItemWidgetState extends State<CartItemWidget>
                 onTap: () {
                   Navigator.pop(sheetCtx);
                   _openInfo(context, product);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.price_change_rounded),
+                title: const Text('Rincian Harga per Item'),
+                subtitle: widget.item.discountPercentages.any((d) => d > 0)
+                    ? Text(
+                        'Dengan diskon ${widget.item.discountPercentages.where((d) => d > 0).map((d) => d % 1 == 0 ? '${d.toInt()}%' : '${d.toStringAsFixed(1)}%').join(' + ')}',
+                        style: const TextStyle(
+                          color: AppColors.success,
+                          fontSize: 11,
+                        ),
+                      )
+                    : null,
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  ItemPricingModal.show(
+                    context,
+                    product,
+                    discountPercentages: widget.item.discountPercentages,
+                    quantity: widget.item.quantity,
+                  );
                 },
               ),
               const SizedBox(height: AppPadding.p8),
@@ -1064,7 +1092,8 @@ class _CartInfoDialogState extends State<CartInfoDialog> {
   Future<void> _loadLeaderData() async {
     try {
       if (kDebugMode) {
-        print('[DEBUG] CartInfoDialog._loadLeaderData: Loading leader data for product ${widget.product.id} (${widget.product.kasur})');
+        print(
+            '[DEBUG] CartInfoDialog._loadLeaderData: Loading leader data for product ${widget.product.id} (${widget.product.kasur})');
         print('  - Current Discounts: ${widget.discountPercentages}');
         print('  - Net Price: ${widget.netPrice}');
       }
@@ -1075,16 +1104,19 @@ class _CartInfoDialogState extends State<CartInfoDialog> {
         _leaderData = leaderData;
       });
       if (kDebugMode) {
-        print('[DEBUG] CartInfoDialog._loadLeaderData: Leader data loaded: ${leaderData != null ? "Success" : "Failed"}');
+        print(
+            '[DEBUG] CartInfoDialog._loadLeaderData: Leader data loaded: ${leaderData != null ? "Success" : "Failed"}');
         if (leaderData != null) {
-          print('  - Product: ${widget.product.kasur} (ID: ${widget.product.id})');
+          print(
+              '  - Product: ${widget.product.kasur} (ID: ${widget.product.id})');
           print('  - Base Price: ${widget.product.endUserPrice}');
           print('  - Cart Discounts: ${widget.discountPercentages}');
         }
       }
     } catch (e) {
       if (kDebugMode) {
-        print('[DEBUG] CartInfoDialog._loadLeaderData: Error loading leader data: $e');
+        print(
+            '[DEBUG] CartInfoDialog._loadLeaderData: Error loading leader data: $e');
       }
       // No-op, leader data will be null if loading fails
     }
@@ -1179,7 +1211,7 @@ class _CartInfoDialogState extends State<CartInfoDialog> {
     if (_leaderData != null) {
       switch (discountLevel) {
         case 1:
-          levelText = "Diskon SPG";
+          levelText = "Diskon SC";
           break;
         case 2:
           if (_leaderData!.directLeader != null) {

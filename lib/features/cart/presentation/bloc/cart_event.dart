@@ -18,6 +18,9 @@ class AddToCart extends CartEvent {
   final List<double> discountPercentages;
   final int? installmentMonths;
   final double? installmentPerMonth;
+  // Indirect mode fields
+  final bool isIndirect;
+  final IndirectStoreInfo? storeInfo;
 
   const AddToCart({
     required this.product,
@@ -26,6 +29,8 @@ class AddToCart extends CartEvent {
     required this.discountPercentages,
     this.installmentMonths,
     this.installmentPerMonth,
+    this.isIndirect = false,
+    this.storeInfo,
   });
 
   @override
@@ -36,6 +41,8 @@ class AddToCart extends CartEvent {
         discountPercentages,
         installmentMonths,
         installmentPerMonth,
+        isIndirect,
+        storeInfo,
       ];
 }
 

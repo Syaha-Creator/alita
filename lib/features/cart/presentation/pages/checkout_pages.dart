@@ -12,8 +12,10 @@ import '../../../../core/widgets/custom_loading.dart';
 import '../../../../core/widgets/custom_toast.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../../services/auth_service.dart';
+import '../../../approval/data/models/approval_sales_model.dart';
 import '../../domain/usecases/checkout_usecase.dart';
 import '../../domain/usecases/save_draft_usecase.dart';
+import '../widgets/checkout/approver_selection_section.dart';
 
 import '../../../../theme/app_colors.dart';
 import '../../domain/entities/cart_entity.dart';
@@ -33,7 +35,11 @@ class CheckoutPages extends StatefulWidget {
   final String? userAddress;
   final bool isTakeAway;
   final bool isExistingCustomer;
-  final Map<String, dynamic>? draftData; // For loading existing draft
+  final Map<String, dynamic>? draftData;
+
+  // Indirect checkout mode
+  final bool isIndirectCheckout;
+  final IndirectStoreInfo? indirectStoreInfo;
 
   const CheckoutPages({
     super.key,
@@ -44,6 +50,8 @@ class CheckoutPages extends StatefulWidget {
     this.isTakeAway = false,
     this.isExistingCustomer = false,
     this.draftData,
+    this.isIndirectCheckout = false,
+    this.indirectStoreInfo,
   });
 
   // Named constructor for loading from draft
@@ -55,7 +63,9 @@ class CheckoutPages extends StatefulWidget {
         userEmail = null,
         userAddress = null,
         isTakeAway = draftData?['isTakeAway'] as bool? ?? false,
-        isExistingCustomer = draftData?['isExistingCustomer'] as bool? ?? false;
+        isExistingCustomer = draftData?['isExistingCustomer'] as bool? ?? false,
+        isIndirectCheckout = draftData?['isIndirectCheckout'] as bool? ?? false,
+        indirectStoreInfo = null;
 
   @override
   State<CheckoutPages> createState() => _CheckoutPagesState();
@@ -73,6 +83,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
   late final TextEditingController _customerPhone2Controller;
   late final TextEditingController _customerReceiverController;
   late final TextEditingController _shippingAddressController;
+  late final TextEditingController _shippingPhoneController;
   late final TextEditingController _notesController;
   late final TextEditingController _deliveryDateController;
   late final TextEditingController _emailController;
@@ -81,6 +92,15 @@ class _CheckoutPagesState extends State<CheckoutPages>
   late final TextEditingController _postageController;
   bool _shippingSameAsCustomer = false;
   bool _showSecondPhone = false;
+
+  // Region selection for shipping address
+  String? _selectedProvinceName;
+  String? _selectedCityName;
+  String? _selectedDistrictName;
+
+  // Selected approvers from approval_sales
+  ApprovalSalesUserModel? _selectedSpv;
+  ApprovalSalesUserModel? _selectedRsm;
 
   // Payment related variables
   String _paymentType = 'full'; // 'full' or 'partial'
@@ -106,6 +126,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
     _emailController = registerController();
     _customerReceiverController = registerController();
     _shippingAddressController = registerController();
+    _shippingPhoneController = registerController();
     _notesController = registerController();
     _deliveryDateController = registerController();
     _customerAddressController = registerController();
@@ -123,6 +144,16 @@ class _CheckoutPagesState extends State<CheckoutPages>
     // Load from draft if available, otherwise use widget parameters
     if (widget.draftData != null) {
       _loadFromDraft(widget.draftData!);
+    } else if (widget.isIndirectCheckout && widget.indirectStoreInfo != null) {
+      // Indirect checkout mode - auto-fill from store info
+      final storeInfo = widget.indirectStoreInfo!;
+      _customerNameController.text = storeInfo.alphaName;
+      _customerPhoneController.text = storeInfo.longAddressNumber;
+      _customerAddressController.text = storeInfo.address;
+      // For indirect, shipping same as customer is default
+      _shippingSameAsCustomer = true;
+      _shippingAddressController.text = storeInfo.address;
+      _customerReceiverController.text = storeInfo.alphaName;
     } else {
       // Load from widget parameters (existing behavior)
       if (widget.userName != null) {
@@ -447,6 +478,261 @@ class _CheckoutPagesState extends State<CheckoutPages>
     }
   }
 
+  /// Show validation dialog for indirect checkout
+  Future<void> _showIndirectValidationDialog(
+      List<CartEntity> selectedItems, bool isDark) async {
+    // Validate form first
+    if (!_formKey.currentState!.validate()) {
+      CustomToast.showToast(
+        "Harap isi semua kolom yang wajib diisi",
+        ToastType.error,
+      );
+      return;
+    }
+
+    // Validate required fields for indirect
+    if (_customerNameController.text.isEmpty ||
+        _customerPhoneController.text.isEmpty ||
+        _customerAddressController.text.isEmpty ||
+        _deliveryDateController.text.isEmpty) {
+      CustomToast.showToast(
+        "Harap lengkapi semua data wajib",
+        ToastType.error,
+      );
+      return;
+    }
+
+    // Calculate total
+    final grandTotal = _calculateGrandTotal(selectedItems);
+
+    // Show validation popup
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        final colorScheme = Theme.of(context).colorScheme;
+        return AlertDialog(
+          backgroundColor:
+              isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: colorScheme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.fact_check_outlined,
+                  color: colorScheme.primary,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Konfirmasi Data Pesanan',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Pastikan data berikut sudah benar:',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Info Toko Section
+                _buildValidationSection(
+                  context,
+                  isDark,
+                  'Informasi Toko',
+                  Icons.store,
+                  [
+                    _buildValidationItem(
+                        'Nama Toko', _customerNameController.text),
+                    _buildValidationItem(
+                        'Telepon', _customerPhoneController.text),
+                    _buildValidationItem(
+                        'Alamat', _customerAddressController.text),
+                    if (_spgCodeController.text.isNotEmpty)
+                      _buildValidationItem('Kode SC', _spgCodeController.text),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Info Pengiriman Section
+                _buildValidationSection(
+                  context,
+                  isDark,
+                  'Informasi Pengiriman',
+                  Icons.local_shipping,
+                  [
+                    _buildValidationItem(
+                        'Penerima',
+                        _shippingSameAsCustomer
+                            ? _customerNameController.text
+                            : _customerReceiverController.text),
+                    _buildValidationItem(
+                        'Alamat',
+                        _shippingSameAsCustomer
+                            ? _customerAddressController.text
+                            : _shippingAddressController.text),
+                    if (!_shippingSameAsCustomer &&
+                        _shippingPhoneController.text.isNotEmpty)
+                      _buildValidationItem(
+                          'Telepon', _shippingPhoneController.text),
+                    _buildValidationItem(
+                        'Tanggal Kirim', _deliveryDateController.text),
+                    if (_emailController.text.isNotEmpty)
+                      _buildValidationItem('Email', _emailController.text),
+                    if (_notesController.text.isNotEmpty)
+                      _buildValidationItem('Catatan', _notesController.text),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Order Summary Section
+                _buildValidationSection(
+                  context,
+                  isDark,
+                  'Ringkasan Pesanan',
+                  Icons.shopping_cart,
+                  [
+                    _buildValidationItem(
+                        'Jumlah Item', '${selectedItems.length} produk'),
+                    _buildValidationItem(
+                        'Total', FormatHelper.formatCurrency(grandTotal)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(
+                'Batal',
+                style: TextStyle(
+                  color: isDark
+                      ? AppColors.textSecondaryDark
+                      : AppColors.textSecondaryLight,
+                ),
+              ),
+            ),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.of(context).pop(true),
+              icon: const Icon(Icons.check, size: 18),
+              label: const Text('Konfirmasi & Buat Surat'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.success,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    // If confirmed, proceed to submit
+    if (confirmed == true && mounted) {
+      await _submitOrder(selectedItems, isDark);
+    }
+  }
+
+  Widget _buildValidationSection(
+    BuildContext context,
+    bool isDark,
+    String title,
+    IconData icon,
+    List<Widget> items,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.cardDark : AppColors.cardLight,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isDark
+              ? AppColors.primaryDark.withValues(alpha: 0.2)
+              : AppColors.primaryLight.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: isDark ? AppColors.primaryDark : AppColors.primaryLight,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color:
+                      isDark ? AppColors.primaryDark : AppColors.primaryLight,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ...items,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildValidationItem(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colors.grey,
+              ),
+            ),
+          ),
+          const Text(': ', style: TextStyle(fontSize: 12, color: Colors.grey)),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Submit order using CheckoutUseCase with proper error handling
   Future<void> _submitOrder(List<CartEntity> selectedItems, bool isDark) async {
     if (!_formKey.currentState!.validate()) {
@@ -499,12 +785,64 @@ class _CheckoutPagesState extends State<CheckoutPages>
         return;
       }
 
+      // Validate approver selection
+      if (_selectedSpv == null) {
+        if (mounted) {
+          CustomLoading.hideLoadingDialog(context);
+          CustomToast.showToast(
+            'Silakan pilih Supervisor',
+            ToastType.error,
+          );
+        }
+        return;
+      }
+
+      // Check if RSM is required (any item has disc3 > 0)
+      // discountPercentages[2] is disc3 (RSM)
+      final requiresRsmApproval = selectedItems.any(
+        (item) =>
+            item.discountPercentages.length > 2 &&
+            item.discountPercentages[2] > 0,
+      );
+      if (requiresRsmApproval && _selectedRsm == null) {
+        if (mounted) {
+          CustomLoading.hideLoadingDialog(context);
+          CustomToast.showToast(
+            'Silakan pilih RSM',
+            ToastType.error,
+          );
+        }
+        return;
+      }
+
       final shipToName = widget.isTakeAway
           ? _customerNameController.text
           : _customerReceiverController.text;
-      final addressShipTo = widget.isTakeAway
+
+      // Build address with region
+      String addressShipTo = widget.isTakeAway
           ? _customerAddressController.text
           : _shippingAddressController.text;
+
+      // Append region to address if available
+      if (!widget.isTakeAway) {
+        final regionParts = <String>[];
+        if (_selectedDistrictName != null &&
+            _selectedDistrictName!.isNotEmpty) {
+          regionParts.add('Kec. $_selectedDistrictName');
+        }
+        if (_selectedCityName != null && _selectedCityName!.isNotEmpty) {
+          regionParts.add(_selectedCityName!);
+        }
+        if (_selectedProvinceName != null &&
+            _selectedProvinceName!.isNotEmpty) {
+          regionParts.add(_selectedProvinceName!);
+        }
+        if (regionParts.isNotEmpty) {
+          addressShipTo = '$addressShipTo\n${regionParts.join(', ')}';
+        }
+      }
+
       final requestDate = widget.isTakeAway
           ? DateTime.now().toIso8601String().split('T')[0]
           : _deliveryDateController.text;
@@ -530,6 +868,11 @@ class _CheckoutPagesState extends State<CheckoutPages>
               : null,
           paymentMethods: _convertPaymentMethodsToApiFormat(),
           creatorId: currentUserId,
+          isIndirectCheckout: widget.isIndirectCheckout,
+          selectedSpvId: _selectedSpv?.id,
+          selectedSpvName: _selectedSpv?.displayName,
+          selectedRsmId: _selectedRsm?.id,
+          selectedRsmName: _selectedRsm?.displayName,
         ),
       );
 
@@ -724,6 +1067,7 @@ class _CheckoutPagesState extends State<CheckoutPages>
                           });
                         },
                         phoneValidator: _validatePhoneNumber,
+                        isIndirectCheckout: widget.isIndirectCheckout,
                       ),
 
                       SizedBox(
@@ -744,16 +1088,28 @@ class _CheckoutPagesState extends State<CheckoutPages>
                           deliveryDateController: _deliveryDateController,
                           postageController: _postageController,
                           notesController: _notesController,
+                          emailController: _emailController,
+                          shippingPhoneController: _shippingPhoneController,
                           isTakeAway: widget.isTakeAway,
                           shippingSameAsCustomer: _shippingSameAsCustomer,
                           isDark: isDark,
                           formKey: _formKey,
+                          isIndirectCheckout: widget.isIndirectCheckout,
                           onSameAddressChanged: (val) {
                             setState(() {
                               _shippingSameAsCustomer = val ?? false;
                               if (_shippingSameAsCustomer) {
+                                // Fill with customer/store info
                                 _shippingAddressController.text =
                                     _customerAddressController.text;
+                                _customerReceiverController.text =
+                                    _customerNameController.text;
+                              } else if (widget.isIndirectCheckout) {
+                                // For indirect: clear fields when unchecking
+                                _customerReceiverController.clear();
+                                _shippingAddressController.clear();
+                                _shippingPhoneController.clear();
+                                _emailController.clear();
                               }
                             });
                           },
@@ -770,6 +1126,13 @@ class _CheckoutPagesState extends State<CheckoutPages>
                                   FormatHelper.formatSimpleDate(picked);
                               _formKey.currentState?.validate();
                             }
+                          },
+                          onRegionChanged: (province, city, district) {
+                            setState(() {
+                              _selectedProvinceName = province?.name;
+                              _selectedCityName = city?.name;
+                              _selectedDistrictName = district?.name;
+                            });
                           },
                         ),
                         SizedBox(
@@ -816,32 +1179,34 @@ class _CheckoutPagesState extends State<CheckoutPages>
                         ),
                       ],
 
-                      // Payment Section
-                      PaymentSection(
-                        selectedItems: selectedItems,
-                        grandTotal: grandTotal,
-                        isDark: isDark,
-                        paymentType: _paymentType,
-                        paymentMethods: _paymentMethods,
-                        totalPaid: _totalPaid,
-                        onPaymentTypeChanged: (type) {
-                          setState(() {
-                            // Only clear payment methods if switching between different types
-                            // This prevents data loss if user accidentally clicks the same type
-                            if (_paymentType != type) {
-                              _paymentType = type;
-                              _paymentMethods.clear();
-                              _totalPaid = 0.0;
-                            }
-                          });
+                      // Approver Selection Section
+                      Builder(
+                        builder: (context) {
+                          // Check if any item requires RSM approval (disc3 > 0)
+                          // discountPercentages[2] is disc3 (RSM)
+                          final requiresRsmApproval = selectedItems.any(
+                            (item) =>
+                                item.discountPercentages.length > 2 &&
+                                item.discountPercentages[2] > 0,
+                          );
+                          return ApproverSelectionSection(
+                            isDark: isDark,
+                            requiresRsmApproval: requiresRsmApproval,
+                            initialSpv: _selectedSpv,
+                            initialRsm: _selectedRsm,
+                            onSpvSelected: (user) {
+                              setState(() {
+                                _selectedSpv = user;
+                              });
+                            },
+                            onRsmSelected: (user) {
+                              setState(() {
+                                _selectedRsm = user;
+                              });
+                            },
+                          );
                         },
-                        onAddPaymentMethod: () =>
-                            _showPaymentMethodDialog(grandTotal, isDark),
-                        onViewReceipt: (path) =>
-                            _showReceiptImage(path, isDark),
-                        onRemovePayment: _removePaymentMethod,
                       ),
-
                       SizedBox(
                         height: ResponsiveHelper.getResponsiveSpacing(
                           context,
@@ -849,7 +1214,46 @@ class _CheckoutPagesState extends State<CheckoutPages>
                           tablet: 20,
                           desktop: 24,
                         ),
-                      ), // Space for bottom button
+                      ),
+
+                      // Payment Section (only show for direct checkout)
+                      if (!widget.isIndirectCheckout) ...[
+                        PaymentSection(
+                          selectedItems: selectedItems,
+                          grandTotal: grandTotal,
+                          isDark: isDark,
+                          paymentType: _paymentType,
+                          paymentMethods: _paymentMethods,
+                          totalPaid: _totalPaid,
+                          onPaymentTypeChanged: (type) {
+                            setState(() {
+                              // Only clear payment methods if switching between different types
+                              // This prevents data loss if user accidentally clicks the same type
+                              if (_paymentType != type) {
+                                _paymentType = type;
+                                _paymentMethods.clear();
+                                _totalPaid = 0.0;
+                              }
+                            });
+                          },
+                          onAddPaymentMethod: () =>
+                              _showPaymentMethodDialog(grandTotal, isDark),
+                          onViewReceipt: (path) =>
+                              _showReceiptImage(path, isDark),
+                          onRemovePayment: _removePaymentMethod,
+                        ),
+                        SizedBox(
+                          height: ResponsiveHelper.getResponsiveSpacing(
+                            context,
+                            mobile: 16,
+                            tablet: 20,
+                            desktop: 24,
+                          ),
+                        ),
+                      ],
+
+                      // Space for bottom button
+                      const SizedBox(height: 16),
                     ],
                   ),
                 ),
@@ -876,7 +1280,10 @@ class _CheckoutPagesState extends State<CheckoutPages>
               isDark: isDark,
               paymentMethods: _paymentMethods,
               paymentType: _paymentType,
-              onSubmitOrder: () => _submitOrder(selectedItems, isDark),
+              isIndirectCheckout: widget.isIndirectCheckout,
+              onSubmitOrder: () => widget.isIndirectCheckout
+                  ? _showIndirectValidationDialog(selectedItems, isDark)
+                  : _submitOrder(selectedItems, isDark),
               onSaveDraft: () => _saveDraft(selectedItems),
             );
           },
@@ -903,15 +1310,13 @@ class _CheckoutPagesState extends State<CheckoutPages>
     return _paymentMethods.map((payment) {
       // Get payment category based on methodType
       final paymentCategory = _getPaymentCategoryFromMethod(payment.methodType);
-      final categoryDisplayName = _getCategoryDisplayName(paymentCategory);
 
       return {
         'payment_method': paymentCategory,
         'payment_bank': payment.methodName,
         'payment_number': payment.reference ?? '',
         'payment_amount': payment.amount,
-        'note': payment.note ??
-            'Payment via $categoryDisplayName ${payment.methodName}${payment.reference != null ? ' - Ref: ${payment.reference}' : ''}',
+        'note': payment.note, // Use actual note only, no auto-generation
         'receipt_image_path': payment.receiptImagePath,
         'payment_date': payment.paymentDate,
       };
@@ -953,22 +1358,6 @@ class _CheckoutPagesState extends State<CheckoutPages>
     // Default fallback
     else {
       return 'other';
-    }
-  }
-
-  // Get display name for payment category
-  String _getCategoryDisplayName(String category) {
-    switch (category) {
-      case 'transfer':
-        return 'Transfer Bank';
-      case 'credit':
-        return 'Kartu Kredit';
-      case 'paylater':
-        return 'PayLater';
-      case 'other':
-        return 'Digital Payment';
-      default:
-        return 'Pembayaran';
     }
   }
 

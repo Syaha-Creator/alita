@@ -15,6 +15,7 @@ class PaymentBottomBar extends StatelessWidget {
   final String paymentType; // 'full' or 'partial' (DP)
   final VoidCallback onSubmitOrder;
   final VoidCallback onSaveDraft;
+  final bool isIndirectCheckout;
 
   const PaymentBottomBar({
     super.key,
@@ -25,10 +26,14 @@ class PaymentBottomBar extends StatelessWidget {
     required this.paymentType,
     required this.onSubmitOrder,
     required this.onSaveDraft,
+    this.isIndirectCheckout = false,
   });
 
   // Calculate payment completion status inside the widget
   bool _isPaymentComplete() {
+    // For indirect checkout, payment is not required
+    if (isIndirectCheckout) return true;
+    
     if (paymentMethods.isEmpty) return false;
 
     // Calculate total paid from payment methods
@@ -232,7 +237,9 @@ class PaymentBottomBar extends StatelessWidget {
         Builder(
           builder: (context) {
             final isComplete = _isPaymentComplete();
-            final statusText = _getPaymentStatusText();
+            final statusText = isIndirectCheckout 
+                ? 'Siap Submit' 
+                : _getPaymentStatusText();
             return Expanded(
               flex: 2,
               child: ElevatedButton.icon(

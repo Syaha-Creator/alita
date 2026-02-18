@@ -1,16 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../../config/app_constant.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../core/utils/format_helper.dart';
 import '../../../../core/utils/responsive_helper.dart';
-import '../../../../core/widgets/custom_toast.dart';
 import '../../../../core/widgets/modern_text_field.dart';
-import '../../../../config/dependency_injection.dart';
-import '../../../../services/attendance_service.dart';
-import '../bloc/cart_bloc.dart';
-import '../bloc/cart_state.dart';
-import '../../../product/presentation/bloc/product_bloc.dart';
 import '../widgets/checkout_dialog/checkout_dialog_widgets.dart';
 
 class CheckoutDialogResult {
@@ -52,7 +44,6 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
   final _emailController = TextEditingController();
   bool _isTakeAway = false;
   bool _isExistingCustomer = false;
-  bool _isValidatingLocation = false;
 
   @override
   void dispose() {
@@ -60,91 +51,6 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
     _phoneController.dispose();
     _emailController.dispose();
     super.dispose();
-  }
-
-  Future<bool> _validateLocation(BuildContext context) async {
-    try {
-      final attendanceService = locator<AttendanceService>();
-      final validationResult =
-          await attendanceService.validateCheckoutLocation();
-
-      if (validationResult['isValid'] == true) {
-        if (!mounted) return false;
-        if (!context.mounted) return false;
-        await _revalidateCartPrices(context);
-        if (!mounted) return false;
-        return true;
-      } else {
-        if (!mounted) return false;
-        final message =
-            validationResult['message'] as String? ?? 'Lokasi tidak valid';
-        if (!mounted) return false;
-        if (!context.mounted) return false;
-        _showLocationErrorDialog(context, 'Lokasi tidak valid', message);
-        return false;
-      }
-    } catch (e) {
-      if (!mounted) return false;
-      if (!context.mounted) return false;
-      _showLocationErrorDialog(
-        context,
-        'Error validasi lokasi',
-        'Terjadi kesalahan saat memvalidasi lokasi: $e',
-      );
-      return false;
-    }
-  }
-
-  Future<void> _revalidateCartPrices(BuildContext context) async {
-    if (!mounted) return;
-    final cartBloc = context.read<CartBloc>();
-    final productBloc = context.read<ProductBloc>();
-
-    if (cartBloc.state is! CartLoaded) return;
-
-    final cartState = cartBloc.state as CartLoaded;
-    final productState = productBloc.state;
-
-    for (final cartItem in cartState.cartItems) {
-      final matchingProduct = productState.products.firstWhere(
-        (p) =>
-            p.id == cartItem.product.id &&
-            p.kasur == cartItem.product.kasur &&
-            p.divan == cartItem.product.divan &&
-            p.headboard == cartItem.product.headboard &&
-            p.sorong == cartItem.product.sorong &&
-            p.ukuran == cartItem.product.ukuran &&
-            p.brand == cartItem.product.brand &&
-            p.area == cartItem.product.area &&
-            p.channel == cartItem.product.channel,
-        orElse: () => cartItem.product,
-      );
-
-      if (matchingProduct.endUserPrice != cartItem.product.endUserPrice) {
-        CustomToast.showToast(
-          "Harga produk ${cartItem.product.kasur} telah diperbarui. Harga Anda: ${FormatHelper.formatCurrency(cartItem.netPrice)}, Harga terbaru: ${FormatHelper.formatCurrency(matchingProduct.endUserPrice)}",
-          ToastType.warning,
-          duration: 4,
-        );
-      }
-    }
-  }
-
-  void _showLocationErrorDialog(
-      BuildContext context, String title, String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -353,7 +259,7 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: _isValidatingLocation ? null : _handleSubmit,
+        onPressed: _handleSubmit,
         style: ElevatedButton.styleFrom(
           backgroundColor: colorScheme.primary,
           foregroundColor: colorScheme.onPrimary,
@@ -377,79 +283,39 @@ class _CheckoutUserInfoDialogState extends State<CheckoutUserInfoDialog> {
             ),
           ),
         ),
-        child: _isValidatingLocation
-            ? Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        colorScheme.onPrimary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: AppPadding.p12),
-                  Text(
-                    'Memvalidasi lokasi...',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: ResponsiveHelper.getResponsiveFontSize(
-                        context,
-                        mobile: 16,
-                        tablet: 17,
-                        desktop: 18,
-                      ),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              )
-            : Text(
-                'Lanjutkan',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: ResponsiveHelper.getResponsiveFontSize(
-                    context,
-                    mobile: 16,
-                    tablet: 17,
-                    desktop: 18,
-                  ),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+        child: Text(
+          'Lanjutkan',
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: ResponsiveHelper.getResponsiveFontSize(
+              context,
+              mobile: 16,
+              tablet: 17,
+              desktop: 18,
+            ),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
     );
   }
 
   Future<void> _handleSubmit() async {
     if (_formKey.currentState?.validate() ?? false) {
-      setState(() => _isValidatingLocation = true);
+      // Location validation disabled - proceed directly
+      if (!mounted) return;
+      if (!context.mounted) return;
 
-      try {
-        final locationValid = await _validateLocation(context);
-        if (!mounted) return;
-        if (!context.mounted) return;
-
-        if (locationValid) {
-          Navigator.pop(
-            context,
-            CheckoutDialogResult(
-              name: _nameController.text.trim(),
-              phone: _phoneController.text.trim(),
-              email: _emailController.text.trim(),
-              isTakeAway: _isTakeAway,
-              isExistingCustomer: _isExistingCustomer,
-            ),
-          );
-        }
-      } finally {
-        if (mounted) {
-          setState(() => _isValidatingLocation = false);
-        }
-      }
+      Navigator.pop(
+        context,
+        CheckoutDialogResult(
+          name: _nameController.text.trim(),
+          phone: _phoneController.text.trim(),
+          email: _emailController.text.trim(),
+          isTakeAway: _isTakeAway,
+          isExistingCustomer: _isExistingCustomer,
+        ),
+      );
     }
   }
 }

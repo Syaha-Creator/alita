@@ -65,6 +65,8 @@ class CartBloc extends Bloc<CartEvent, CartState> {
             bonusTakeAway: existingItem.bonusTakeAway,
             selectedItemNumbers: existingItem.selectedItemNumbers,
             selectedItemNumbersPerUnit: existingItem.selectedItemNumbersPerUnit,
+            isIndirect: existingItem.isIndirect,
+            storeInfo: existingItem.storeInfo,
           );
         } else {
           final normalizedProduct = _withNormalizedBonusOriginal(event.product);
@@ -81,6 +83,8 @@ class CartBloc extends Bloc<CartEvent, CartState> {
               bonusTakeAway: null,
               selectedItemNumbers: null,
               selectedItemNumbersPerUnit: null,
+              isIndirect: event.isIndirect,
+              storeInfo: event.storeInfo,
             ),
           );
         }
@@ -103,6 +107,8 @@ class CartBloc extends Bloc<CartEvent, CartState> {
             bonusTakeAway: null,
             selectedItemNumbers: null,
             selectedItemNumbersPerUnit: null,
+            isIndirect: event.isIndirect,
+            storeInfo: event.storeInfo,
           )
         ];
 

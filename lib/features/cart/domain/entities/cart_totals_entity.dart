@@ -10,12 +10,14 @@ class CartTotalsEntity {
   final int totalHargaAwal;
   final List<OrderLetterDiscountDataEntity> itemDiscounts;
   final double totalDiscountPercentage;
+  final bool isIndirectCheckout;
 
   CartTotalsEntity({
     required this.totalExtendedAmount,
     required this.totalHargaAwal,
     required this.itemDiscounts,
     required this.totalDiscountPercentage,
+    this.isIndirectCheckout = false,
   }) {
     // Validate totals
     Validators.validateNonNegative(
@@ -27,7 +29,8 @@ class CartTotalsEntity {
       totalDiscountPercentage,
       'Total discount percentage',
     );
-    if (totalDiscountPercentage > 100) {
+    // Skip percentage validation for indirect checkout (store discounts use cascading calculation)
+    if (!isIndirectCheckout && totalDiscountPercentage > 100) {
       throw ValidationException(
         'Total discount percentage tidak boleh lebih dari 100%',
       );
@@ -41,6 +44,7 @@ class CartTotalsEntity {
       'totalHargaAwal': totalHargaAwal,
       'itemDiscounts': itemDiscounts.map((e) => e.toMap()).toList(),
       'totalDiscountPercentage': totalDiscountPercentage,
+      'isIndirectCheckout': isIndirectCheckout,
     };
   }
 
@@ -57,6 +61,7 @@ class CartTotalsEntity {
           .toList(),
       totalDiscountPercentage:
           (map['totalDiscountPercentage'] as num?)?.toDouble() ?? 0.0,
+      isIndirectCheckout: map['isIndirectCheckout'] as bool? ?? false,
     );
   }
 

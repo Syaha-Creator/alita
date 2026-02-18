@@ -92,6 +92,8 @@ class CartLocalDataSourceImpl implements CartLocalDataSource {
       'bonusTakeAway': item.bonusTakeAway,
       'selectedItemNumbers': item.selectedItemNumbers,
       'selectedItemNumbersPerUnit': item.selectedItemNumbersPerUnit,
+      'isIndirect': item.isIndirect,
+      'storeInfo': item.storeInfo?.toJson(),
     };
   }
 
@@ -99,6 +101,15 @@ class CartLocalDataSourceImpl implements CartLocalDataSource {
   CartEntity _cartEntityFromJson(Map<String, dynamic> json) {
     final String restoredId = (json['cartLineId'] as String?) ??
         DateTime.now().microsecondsSinceEpoch.toString();
+    
+    // Parse storeInfo if available
+    IndirectStoreInfo? storeInfo;
+    if (json['storeInfo'] != null) {
+      storeInfo = IndirectStoreInfo.fromJson(
+        Map<String, dynamic>.from(json['storeInfo']),
+      );
+    }
+    
     return CartEntity(
       cartLineId: restoredId,
       product: _productFromJson(json['product']),
@@ -130,6 +141,9 @@ class CartLocalDataSourceImpl implements CartLocalDataSource {
                             .map((e) => Map<String, String>.from(e))),
                       )))
           : null,
+      // Indirect mode fields
+      isIndirect: json['isIndirect'] ?? false,
+      storeInfo: storeInfo,
     );
   }
 

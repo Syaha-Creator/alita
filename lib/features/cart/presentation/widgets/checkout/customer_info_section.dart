@@ -18,6 +18,7 @@ class CustomerInfoSection extends StatelessWidget {
   final bool isDark;
   final VoidCallback onToggleSecondPhone;
   final String? Function(String?, bool) phoneValidator;
+  final bool isIndirectCheckout;
 
   const CustomerInfoSection({
     super.key,
@@ -32,6 +33,7 @@ class CustomerInfoSection extends StatelessWidget {
     required this.isDark,
     required this.onToggleSecondPhone,
     required this.phoneValidator,
+    this.isIndirectCheckout = false,
   });
 
   @override
@@ -98,16 +100,18 @@ class CustomerInfoSection extends StatelessWidget {
           children: [
             ModernTextField(
               controller: nameController,
-              label: 'Nama Customer',
+              label: isIndirectCheckout ? 'Nama Toko' : 'Nama Customer',
               icon: Icons.person,
-              validator: (val) =>
-                  val == null || val.isEmpty ? 'Nama customer wajib diisi' : null,
+              validator: (val) => val == null || val.isEmpty
+                  ? 'Nama customer wajib diisi'
+                  : null,
               isDark: isDark,
+              enabled: !isIndirectCheckout, // Read-only for indirect
             ),
             const SizedBox(height: AppPadding.p16),
             ModernTextField(
               controller: spgCodeController,
-              label: 'Kode SPG',
+              label: 'Kode SC',
               icon: Icons.badge,
               isDark: isDark,
             ),
@@ -119,34 +123,41 @@ class CustomerInfoSection extends StatelessWidget {
               isDark: isDark,
               onToggleSecondPhone: onToggleSecondPhone,
               phoneValidator: phoneValidator,
+              isReadOnly: isIndirectCheckout, // Read-only for indirect
             ),
-            const SizedBox(height: AppPadding.p16),
-            ModernTextField(
-              controller: emailController,
-              label: 'Email',
-              icon: Icons.email,
-              keyboardType: TextInputType.emailAddress,
-              validator: (val) {
-                if (val == null || val.isEmpty) {
-                  return 'Email wajib diisi';
-                }
-                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(val)) {
-                  return 'Format email tidak valid';
-                }
-                return null;
-              },
-              isDark: isDark,
-            ),
+            // Email field - only show for direct checkout
+            // For indirect, email is in shipping section
+            if (!isIndirectCheckout) ...[
+              const SizedBox(height: AppPadding.p16),
+              ModernTextField(
+                controller: emailController,
+                label: 'Email',
+                icon: Icons.email,
+                keyboardType: TextInputType.emailAddress,
+                validator: (val) {
+                  if (val == null || val.isEmpty) {
+                    return 'Email wajib diisi';
+                  }
+                  if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                      .hasMatch(val)) {
+                    return 'Format email tidak valid';
+                  }
+                  return null;
+                },
+                isDark: isDark,
+              ),
+            ],
             const SizedBox(height: AppPadding.p16),
             ModernTextField(
               controller: addressController,
-              label: 'Alamat Customer',
+              label: isIndirectCheckout ? 'Alamat Toko' : 'Alamat Customer',
               icon: Icons.location_on,
               maxLines: 3,
               validator: (val) => val == null || val.isEmpty
                   ? 'Alamat customer wajib diisi'
                   : null,
               isDark: isDark,
+              enabled: !isIndirectCheckout, // Read-only for indirect
             ),
           ],
         ),
@@ -154,4 +165,3 @@ class CustomerInfoSection extends StatelessWidget {
     );
   }
 }
-

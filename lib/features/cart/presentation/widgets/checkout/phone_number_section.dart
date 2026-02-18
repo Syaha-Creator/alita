@@ -12,6 +12,7 @@ class PhoneNumberSection extends StatelessWidget {
   final bool isDark;
   final VoidCallback onToggleSecondPhone;
   final String? Function(String?, bool) phoneValidator;
+  final bool isReadOnly;
 
   const PhoneNumberSection({
     super.key,
@@ -21,6 +22,7 @@ class PhoneNumberSection extends StatelessWidget {
     required this.isDark,
     required this.onToggleSecondPhone,
     required this.phoneValidator,
+    this.isReadOnly = false,
   });
 
   @override
@@ -37,16 +39,20 @@ class PhoneNumberSection extends StatelessWidget {
                 label: 'Nomor Telepon',
                 icon: Icons.phone,
                 keyboardType: TextInputType.phone,
-                validator: (val) => phoneValidator(val, true),
+                // Skip validation when read-only (indirect checkout)
+                validator: isReadOnly ? null : (val) => phoneValidator(val, true),
                 isDark: isDark,
+                enabled: !isReadOnly,
               ),
             ),
-            const SizedBox(width: AppPadding.p12),
-            _buildToggleButton(context),
+            if (!isReadOnly) ...[
+              const SizedBox(width: AppPadding.p12),
+              _buildToggleButton(context),
+            ],
           ],
         ),
         // Second phone number field (conditional)
-        if (showSecondPhone) ...[
+        if (showSecondPhone && !isReadOnly) ...[
           const SizedBox(height: AppPadding.p12),
           AnimatedContainer(
             duration: const Duration(milliseconds: 300),

@@ -325,23 +325,91 @@ class CartPage extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: hasSelection
                     ? () async {
-                        final result = await showDialog<CheckoutDialogResult>(
-                          context: context,
-                          builder: (context) => const CheckoutUserInfoDialog(),
+                        // Helper to check if channel is indirect (contains "Toko")
+                        bool isIndirectChannel(String channel) {
+                          return channel.toLowerCase().contains('toko');
+                        }
+                        
+                        // Check if items have explicit indirect flag WITH storeInfo
+                        final hasValidIndirectInfo = selectedItems.every(
+                          (item) => item.isIndirect == true && item.storeInfo != null,
                         );
-                        if (result != null && context.mounted) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => CheckoutPages(
-                                userName: result.name,
-                                userPhone: result.phone,
-                                userEmail: result.email,
-                                isTakeAway: result.isTakeAway,
-                                isExistingCustomer: result.isExistingCustomer,
+                        
+                        // Check if all selected items are from indirect channel (fallback)
+                        final allFromIndirectChannel = selectedItems.every(
+                          (item) => isIndirectChannel(item.product.channel),
+                        );
+
+                        if (hasValidIndirectInfo && selectedItems.isNotEmpty) {
+                          // Indirect checkout with valid store info
+                          final firstItem = selectedItems.first;
+                          final storeInfo = firstItem.storeInfo!;
+
+                          if (context.mounted) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => CheckoutPages(
+                                  userName: storeInfo.alphaName,
+                                  userPhone: storeInfo.longAddressNumber,
+                                  userAddress: storeInfo.address,
+                                  isIndirectCheckout: true,
+                                  indirectStoreInfo: storeInfo,
+                                ),
                               ),
-                            ),
+                            );
+                          }
+                        } else if (allFromIndirectChannel && selectedItems.isNotEmpty) {
+                          // Items from indirect channel but missing store info
+                          // Show warning to re-add items
+                          if (context.mounted) {
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Row(
+                                  children: [
+                                    Icon(Icons.warning_amber_rounded, 
+                                        color: Colors.orange),
+                                    SizedBox(width: 8),
+                                    Text('Informasi Toko Tidak Lengkap'),
+                                  ],
+                                ),
+                                content: const Text(
+                                  'Barang ini berasal dari channel Toko/Indirect, '
+                                  'tetapi informasi toko tidak tersimpan.\n\n'
+                                  'Silakan hapus barang ini dan tambahkan ulang '
+                                  'dari halaman Indirect Product dengan memilih toko terlebih dahulu.',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text('Mengerti'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                        } else {
+                          // Direct checkout - show dialog
+                          final result = await showDialog<CheckoutDialogResult>(
+                            context: context,
+                            builder: (context) =>
+                                const CheckoutUserInfoDialog(),
                           );
+                          if (result != null && context.mounted) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => CheckoutPages(
+                                  userName: result.name,
+                                  userPhone: result.phone,
+                                  userEmail: result.email,
+                                  isTakeAway: result.isTakeAway,
+                                  isExistingCustomer: result.isExistingCustomer,
+                                ),
+                              ),
+                            );
+                          }
                         }
                       }
                     : null,

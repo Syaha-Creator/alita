@@ -1,5 +1,42 @@
 import '../../../product/domain/entities/product_entity.dart';
 
+/// Info toko untuk indirect checkout
+class IndirectStoreInfo {
+  final String alphaName; // Nama toko (untuk nama customer)
+  final String address; // Alamat toko
+  final String longAddressNumber; // Nomor telepon toko
+  final List<double> storeDiscounts; // Diskon toko
+  final String storeDiscountDisplay; // Display string diskon
+
+  const IndirectStoreInfo({
+    required this.alphaName,
+    required this.address,
+    required this.longAddressNumber,
+    required this.storeDiscounts,
+    required this.storeDiscountDisplay,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'alphaName': alphaName,
+      'address': address,
+      'longAddressNumber': longAddressNumber,
+      'storeDiscounts': storeDiscounts,
+      'storeDiscountDisplay': storeDiscountDisplay,
+    };
+  }
+
+  factory IndirectStoreInfo.fromJson(Map<String, dynamic> json) {
+    return IndirectStoreInfo(
+      alphaName: json['alphaName'] as String? ?? '',
+      address: json['address'] as String? ?? '',
+      longAddressNumber: json['longAddressNumber'] as String? ?? '',
+      storeDiscounts: (json['storeDiscounts'] as List?)?.cast<double>() ?? [],
+      storeDiscountDisplay: json['storeDiscountDisplay'] as String? ?? '',
+    );
+  }
+}
+
 class CartEntity {
   final String cartLineId; // stable identifier per cart line
   final ProductEntity product;
@@ -14,6 +51,10 @@ class CartEntity {
   // Keys: 'kasur', 'divan', 'headboard', 'sorong'
   final Map<String, Map<String, String>>? selectedItemNumbers;
   final Map<String, List<Map<String, String>>>? selectedItemNumbersPerUnit;
+  
+  // Indirect mode fields
+  final bool isIndirect;
+  final IndirectStoreInfo? storeInfo;
 
   CartEntity copyWith({
     String? cartLineId,
@@ -27,6 +68,8 @@ class CartEntity {
     Map<String, bool>? bonusTakeAway,
     Map<String, Map<String, String>>? selectedItemNumbers,
     Map<String, List<Map<String, String>>>? selectedItemNumbersPerUnit,
+    bool? isIndirect,
+    IndirectStoreInfo? storeInfo,
   }) {
     return CartEntity(
       cartLineId: cartLineId ?? this.cartLineId,
@@ -41,6 +84,8 @@ class CartEntity {
       selectedItemNumbers: selectedItemNumbers ?? this.selectedItemNumbers,
       selectedItemNumbersPerUnit:
           selectedItemNumbersPerUnit ?? this.selectedItemNumbersPerUnit,
+      isIndirect: isIndirect ?? this.isIndirect,
+      storeInfo: storeInfo ?? this.storeInfo,
     );
   }
 
@@ -56,6 +101,8 @@ class CartEntity {
     this.bonusTakeAway,
     this.selectedItemNumbers,
     this.selectedItemNumbersPerUnit,
+    this.isIndirect = false,
+    this.storeInfo,
   });
 
   List<Object?> get props => [
@@ -70,6 +117,8 @@ class CartEntity {
         bonusTakeAway,
         selectedItemNumbers,
         selectedItemNumbersPerUnit,
+        isIndirect,
+        storeInfo,
       ];
 
   /// Get bonus items with their max quantities calculated for this cart item
@@ -130,6 +179,8 @@ class CartEntity {
       'bonusTakeAway': bonusTakeAway,
       'selectedItemNumbers': selectedItemNumbers,
       'selectedItemNumbersPerUnit': selectedItemNumbersPerUnit,
+      'isIndirect': isIndirect,
+      'storeInfo': storeInfo?.toJson(),
     };
   }
 }
