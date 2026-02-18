@@ -87,4 +87,38 @@ class FormatHelper {
     ];
     return (month >= 1 && month <= 12) ? months[month - 1] : "Tidak Valid";
   }
+
+  /// Format date string from API format (yyyy-MM-dd) to display format (dd-MM-yyyy)
+  /// Example: "2026-02-03" -> "03-02-2026"
+  static String formatApiDate(String dateStr) {
+    try {
+      final parts = dateStr.split('-');
+      if (parts.length == 3) {
+        final year = parts[0];
+        final month = parts[1];
+        final day = parts[2];
+        return '$day-$month-$year';
+      }
+      return dateStr;
+    } catch (e) {
+      return dateStr;
+    }
+  }
+
+  /// Format date string from API format (yyyy-MM-dd) to readable format (dd MMMM yyyy)
+  /// Example: "2026-02-03" -> "03 Februari 2026"
+  static String formatApiDateReadable(String dateStr) {
+    try {
+      final parts = dateStr.split('-');
+      if (parts.length == 3) {
+        final year = parts[0];
+        final month = int.tryParse(parts[1]) ?? 1;
+        final day = parts[2];
+        return '$day ${getMonthName(month)} $year';
+      }
+      return dateStr;
+    } catch (e) {
+      return dateStr;
+    }
+  }
 }

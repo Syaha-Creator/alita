@@ -26,6 +26,7 @@ import '../services/order_letter_service.dart';
 import '../services/checkout_service.dart';
 import '../services/contact_work_experience_service.dart';
 import '../services/leader_service.dart';
+import '../services/approval_sales_service.dart';
 import '../services/team_hierarchy_service.dart';
 import '../features/approval/data/repositories/approval_repository.dart';
 import '../features/approval/data/datasources/approval_remote_data_source.dart';
@@ -201,6 +202,12 @@ void setupLocator() {
   );
   locator.registerLazySingleton<LeaderService>(
     () => LeaderService(locator<ApiClient>()),
+  );
+  locator.registerLazySingleton<ApprovalSalesService>(
+    () => ApprovalSalesService(
+      locator<ApiClient>(),
+      locator<ContactWorkExperienceService>(),
+    ),
   );
   locator.registerLazySingleton<TeamHierarchyService>(
     () => TeamHierarchyService(locator<ApiClient>()),

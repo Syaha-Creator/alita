@@ -55,6 +55,9 @@ class ApiConfig {
   // Leader Endpoints
   static const String leaderByUser = "${baseUrl}api/leaderbyuser";
 
+  // Approval Sales Endpoints
+  static const String approvalSales = "${baseUrl}api/approval_sales";
+
   // Team Hierarchy Endpoints
   static const String teamHierarchy = "${baseUrl}api/team_hierarchy";
 
@@ -300,6 +303,15 @@ class ApiConfig {
     required String userId,
   }) {
     return "$leaderByUser?user_id=$userId&access_token=$token&client_id=$clientId&client_secret=$clientSecret";
+  }
+
+  // Helper untuk Approval Sales
+  static String getApprovalSalesUrl({
+    required String token,
+    required int companyId,
+    required int areaId,
+  }) {
+    return "$approvalSales?company_id=$companyId&area_id=$areaId&access_token=$token&client_id=$clientId&client_secret=$clientSecret";
   }
 
   // Helper untuk Team Hierarchy
