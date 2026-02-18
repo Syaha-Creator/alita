@@ -200,7 +200,7 @@ class _InfoDialogState extends State<InfoDialog> {
     if (_leaderData != null) {
       switch (discountLevel) {
         case 1:
-          levelText = "Diskon SPG";
+          levelText = "Diskon SC";
           break;
         case 2:
           if (_leaderData!.directLeader != null) {

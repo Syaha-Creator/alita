@@ -133,6 +133,15 @@ class AreaInfoSection extends StatelessWidget {
 
   Widget _buildAreaDropdown(
       BuildContext context, ThemeData theme, Color primaryColor) {
+    // Remove duplicates from available areas
+    final uniqueAreas = state.availableAreas.toSet().toList();
+    
+    // Get valid selected value - must exist in uniqueAreas
+    final selectedValue = getValidSelectedArea(state);
+    final validValue = uniqueAreas.contains(selectedValue) 
+        ? selectedValue 
+        : (uniqueAreas.isNotEmpty ? uniqueAreas.first : null);
+    
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
@@ -145,8 +154,8 @@ class AreaInfoSection extends StatelessWidget {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          key: ValueKey(state.selectedArea),
-          value: getValidSelectedArea(state),
+          key: ValueKey(validValue),
+          value: validValue,
           isExpanded: true,
           isDense: true,
           icon: Icon(
@@ -160,7 +169,7 @@ class AreaInfoSection extends StatelessWidget {
           ),
           dropdownColor: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(10),
-          items: state.availableAreas.map((area) {
+          items: uniqueAreas.map((area) {
             return DropdownMenuItem<String>(
               value: area,
               child: Text(area),

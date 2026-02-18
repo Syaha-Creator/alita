@@ -107,33 +107,42 @@ class _ProductPageState extends State<ProductPage> {
           backgroundColor: Colors.transparent,
           elevation: 0,
           toolbarHeight: ResponsiveHelper.getAppBarHeight(context),
+          leading: IconButton(
+            icon: Icon(
+              Icons.arrow_back_rounded,
+              color: isDark ? AppColors.textPrimaryDark : Colors.white,
+            ),
+            onPressed: () => context.go(RoutePaths.home),
+            tooltip: 'Kembali',
+          ),
           title: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   color: isDark
                       ? AppColors.primaryDark.withValues(alpha: 0.2)
                       : Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
                   Icons.inventory_2_rounded,
                   color: isDark ? AppColors.primaryDark : Colors.white,
-                  size: 18,
+                  size: 16,
                 ),
               ),
-              const SizedBox(width: AppPadding.p10),
+              const SizedBox(width: AppPadding.p8),
               Text(
-                'Product List',
+                'Direct',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: isDark ? AppColors.textPrimaryDark : Colors.white,
                       fontSize: ResponsiveHelper.getResponsiveFontSize(
                         context,
-                        mobile: 16,
-                        tablet: 18,
-                        desktop: 20,
+                        mobile: 15,
+                        tablet: 17,
+                        desktop: 19,
                       ),
                     ),
               ),
@@ -152,7 +161,8 @@ class _ProductPageState extends State<ProductPage> {
               isDark: isDark,
               onPressed: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const DraftCheckoutPage()),
+                MaterialPageRoute(
+                    builder: (context) => const DraftCheckoutPage()),
               ),
             ),
             CartBadge(
@@ -199,6 +209,39 @@ class _ProductPageState extends State<ProductPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Direct badge indicator
+                    Container(
+                      margin: const EdgeInsets.only(bottom: AppPadding.p10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppPadding.p12,
+                        vertical: AppPadding.p6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryLight.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: AppColors.primaryLight.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.store_rounded,
+                            size: 16,
+                            color: AppColors.primaryLight,
+                          ),
+                          const SizedBox(width: AppPadding.p6),
+                          Text(
+                            'Mode: Direct',
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: AppColors.primaryLight,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     // Show area info
                     if (state.isUserAreaSet ||
                         isNationalBrand(state.selectedBrand))
@@ -323,18 +366,19 @@ class _ProductPageState extends State<ProductPage> {
                       child: state.isFilterApplied
                           ? (state.filteredProducts.isNotEmpty
                               ? SizedBox(
+                                  key: ValueKey(
+                                    'products_${state.filteredProducts.map((p) => p.id).join('_')}',
+                                  ),
                                   height:
                                       MediaQuery.of(context).size.height * 0.6,
                                   child: ListView.builder(
-                                    key: ValueKey(
-                                      state.filteredProducts.length,
-                                    ),
                                     itemCount: state.filteredProducts.length,
                                     itemBuilder: (context, index) {
                                       final product =
                                           state.filteredProducts[index];
                                       return ProductCard(
-                                        key: ValueKey('product_${product.id}'),
+                                        key: ValueKey(
+                                            'product_${product.id}_$index'),
                                         product: product,
                                       );
                                     },

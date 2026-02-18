@@ -12,12 +12,24 @@ import '../bloc/product_bloc.dart';
 import '../bloc/product_state.dart';
 import '../widgets/product_action.dart';
 import '../../../../core/widgets/custom_toast.dart';
+import '../../../cart/domain/entities/cart_entity.dart';
 import '../../../cart/presentation/bloc/cart_bloc.dart';
 import '../../../cart/presentation/bloc/cart_event.dart';
 import '../widgets/product_detail/product_detail_widgets.dart';
 
 class ProductDetailPage extends StatefulWidget {
-  const ProductDetailPage({super.key});
+  final bool isIndirect;
+  final List<double>? storeDiscounts;
+  final String? storeDiscountDisplay;
+  final IndirectStoreInfo? storeInfo;
+
+  const ProductDetailPage({
+    super.key,
+    this.isIndirect = false,
+    this.storeDiscounts,
+    this.storeDiscountDisplay,
+    this.storeInfo,
+  });
 
   @override
   State<ProductDetailPage> createState() => _ProductDetailPageState();
@@ -54,6 +66,16 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     super.dispose();
   }
 
+  /// Calculate price after applying cascading/tiered discounts
+  double _calculateCascadingDiscount(double pricelist, List<double> discounts) {
+    if (discounts.isEmpty) return pricelist;
+    double result = pricelist;
+    for (final discount in discounts) {
+      result = result * (1 - discount / 100);
+    }
+    return result;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -71,20 +93,39 @@ class _ProductDetailPageState extends State<ProductDetailPage>
           );
         }
 
-        final netPrice =
-            state.roundedPrices[product.id] ?? product.endUserPrice;
-        final discountPercentages =
-            state.productDiscountsPercentage[product.id] ?? [];
+        // Calculate net price based on mode (indirect vs direct)
+        final double netPrice;
+        final List<double> effectiveDiscounts;
+
+        if (widget.isIndirect &&
+            widget.storeDiscounts != null &&
+            widget.storeDiscounts!.isNotEmpty) {
+          // Indirect mode: use cascading store discounts on pricelist
+          netPrice = _calculateCascadingDiscount(
+              product.pricelist, widget.storeDiscounts!);
+          effectiveDiscounts = widget.storeDiscounts!;
+        } else {
+          // Direct mode: use EUP-based pricing
+          netPrice = state.roundedPrices[product.id] ?? product.endUserPrice;
+          effectiveDiscounts =
+              state.productDiscountsPercentage[product.id] ?? [];
+        }
+
         final totalDiscount = product.pricelist - netPrice;
         final installmentMonths = state.installmentMonths[product.id];
 
         final List<String> combinedDiscounts = [];
-        final programDiscounts = discountPercentages
-            .where((d) => d > 0.0)
-            .map((d) =>
-                d % 1 == 0 ? "${d.toInt()}%" : "${d.toStringAsFixed(2)}%")
-            .toList();
-        combinedDiscounts.addAll(programDiscounts);
+        if (widget.isIndirect && widget.storeDiscountDisplay != null) {
+          // Show store discount format for indirect (e.g., "40 + 10 + 5")
+          combinedDiscounts.add(widget.storeDiscountDisplay!);
+        } else {
+          final programDiscounts = effectiveDiscounts
+              .where((d) => d > 0.0)
+              .map((d) =>
+                  d % 1 == 0 ? "${d.toInt()}%" : "${d.toStringAsFixed(2)}%")
+              .toList();
+          combinedDiscounts.addAll(programDiscounts);
+        }
 
         return Scaffold(
           body: CustomScrollView(
@@ -620,7 +661,19 @@ class _ProductDetailPageState extends State<ProductDetailPage>
           context,
           Icons.price_change_rounded,
           "Harga Item",
-          () => ItemPricingModal.show(context, product),
+          () {
+            // Use store discounts for indirect, program discounts for direct
+            final discounts = widget.isIndirect && widget.storeDiscounts != null
+                ? widget.storeDiscounts!
+                : (state.productDiscountsPercentage[product.id] ?? []);
+            ItemPricingModal.show(
+              context,
+              product,
+              discountPercentages: discounts,
+              isIndirect: widget.isIndirect,
+              storeDiscountDisplay: widget.storeDiscountDisplay,
+            );
+          },
           isDark,
         ),
 
@@ -765,19 +818,35 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     try {
       // Get current product state for discounts and net price
       final productState = context.read<ProductBloc>().state;
-      final discountPercentages =
-          productState.productDiscountsPercentage[product.id] ?? [];
-      final netPrice =
-          productState.roundedPrices[product.id] ?? product.endUserPrice;
+
+      // For indirect mode, use store discounts; for direct mode, use program discounts
+      final List<double> discountPercentages;
+      final double netPrice;
+
+      if (widget.isIndirect &&
+          widget.storeDiscounts != null &&
+          widget.storeDiscounts!.isNotEmpty) {
+        discountPercentages = widget.storeDiscounts!;
+        netPrice = _calculateCascadingDiscount(
+            product.pricelist, widget.storeDiscounts!);
+      } else {
+        discountPercentages =
+            productState.productDiscountsPercentage[product.id] ?? [];
+        netPrice =
+            productState.roundedPrices[product.id] ?? product.endUserPrice;
+      }
+
       final installmentMonths = productState.installmentMonths[product.id];
 
-      // Add to cart using CartBloc directly, hanya gunakan discountPercentages
+      // Add to cart using CartBloc directly
       context.read<CartBloc>().add(AddToCart(
             product: product,
             quantity: 1,
             netPrice: netPrice,
             discountPercentages: discountPercentages,
             installmentMonths: installmentMonths,
+            isIndirect: widget.isIndirect,
+            storeInfo: widget.storeInfo,
           ));
 
       CustomToast.showToast(

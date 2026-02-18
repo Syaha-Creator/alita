@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../config/app_constant.dart';
@@ -245,27 +246,66 @@ class ProductBloc extends Bloc<ProductEvent, ProductState>
     });
 
     on<FetchProductsByFilter>((event, emit) async {
-      // Set loading state while preserving current selections
-      emit(state.copyWith(isLoading: true));
+      // VALIDATION: Ensure brand is provided - area & channel will be derived
+      final brand = event.selectedBrand;
+      if (brand == null || brand.isEmpty) {
+        debugPrint('[ProductBloc] FetchProductsByFilter SKIPPED: brand is empty');
+        return; // Don't fetch without brand
+      }
+
+      // Determine which area to use based on brand selection
+      String areaToUse = event.selectedArea ?? '';
+
+      // If brand is Spring Air, Therapedic, or Sleep Spa, use "Nasional" area
+      if (brand == "Spring Air" ||
+          brand == "Therapedic" ||
+          brand.toLowerCase().contains('sleep spa')) {
+        areaToUse = "Nasional";
+      }
+
+      // Determine channel - default to 'Toko' if not provided
+      String channelToUse = event.selectedChannel ?? '';
+      if (channelToUse.isEmpty) {
+        channelToUse = 'Toko'; // Default channel
+      }
+
+      // VALIDATION: Ensure area is provided (after brand-based logic)
+      if (areaToUse.isEmpty) {
+        debugPrint('[ProductBloc] FetchProductsByFilter SKIPPED: area is empty for brand "$brand"');
+        CustomToast.showToast(
+          "Silakan pilih Area terlebih dahulu",
+          ToastType.warning,
+        );
+        return; // Don't fetch without area
+      }
+
+      debugPrint('[ProductBloc] FetchProductsByFilter: Area=$areaToUse, Channel=$channelToUse, Brand=$brand');
+
+      // Set loading state AND update selected filters immediately
+      // This ensures the state reflects the current filter values
+      emit(state.copyWith(
+        isLoading: true,
+        selectedArea: areaToUse,
+        selectedChannel: channelToUse,
+        selectedBrand: brand,
+        isFilterApplied: false,
+      ));
+
       try {
-        // Determine which area to use based on brand selection
-        String areaToUse = event.selectedArea ?? '';
-
-        // If brand is Spring Air, Therapedic, or Sleep Spa, use "nasional" area
-        if (event.selectedBrand == "Spring Air" ||
-            event.selectedBrand == "Therapedic" ||
-            event.selectedBrand?.toLowerCase().contains('sleep spa') == true) {
-          areaToUse = "Nasional";
-        }
-
         final products = await getProductUseCase.callWithFilter(
           area: areaToUse,
-          channel: event.selectedChannel ?? '',
-          brand: event.selectedBrand ?? '',
+          channel: channelToUse,
+          brand: brand,
         );
 
         if (products.isEmpty) {
-          emit(state.copyWith(isLoading: false));
+          // Keep the selected filters in state even when no products found
+          // NOTE: isFilterApplied tetap false - user harus klik "Terapkan Filter"
+          emit(state.copyWith(
+            isLoading: false,
+            products: [],
+            filteredProducts: [],
+          ));
 
           // Show toast message
           CustomToast.showToast(
@@ -276,9 +316,9 @@ class ProductBloc extends Bloc<ProductEvent, ProductState>
           // Show WhatsApp dialog for unavailable area/channel
           emit(state.copyWith(
             showWhatsAppDialog: true,
-            whatsAppBrand: event.selectedBrand ?? 'Unknown',
+            whatsAppBrand: brand,
             whatsAppArea: areaToUse,
-            whatsAppChannel: event.selectedChannel ?? 'Unknown',
+            whatsAppChannel: channelToUse,
           ));
 
           return;
@@ -324,11 +364,13 @@ class ProductBloc extends Bloc<ProductEvent, ProductState>
           availableSorongs: availableSorongs,
           availableSizes: availableSizes,
           isLoading: false,
+          // NOTE: isFilterApplied tetap false - hanya untuk populate dropdown options
+          // User harus klik "Terapkan Filter" untuk menampilkan product cards
         ));
 
         CustomToast.showToast(
-          "Produk berhasil diperbarui berdasarkan filter.",
-          ToastType.success,
+          "Filter dropdown berhasil dimuat. Silakan pilih filter dan klik Terapkan.",
+          ToastType.info,
         );
       } on ServerException catch (e) {
         emit(state.copyWith(isLoading: false));

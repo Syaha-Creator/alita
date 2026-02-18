@@ -36,9 +36,22 @@ mixin ProductFilterMixin on Bloc<ProductEvent, ProductState> {
     UpdateSelectedKasur event,
     Emitter<ProductState> emit,
   ) {
-    // Filter products by kasur AND respect isSetActive toggle
+    // Filter products by kasur, channel, area, brand AND respect isSetActive toggle
     var filteredProducts = state.products
         .where((p) =>
+            // Channel filter - maintain selected channel
+            (state.selectedChannel == null ||
+                state.selectedChannel!.isEmpty ||
+                p.channel == state.selectedChannel) &&
+            // Area filter - maintain selected area
+            (state.selectedArea == null ||
+                state.selectedArea!.isEmpty ||
+                p.area == state.selectedArea) &&
+            // Brand filter - maintain selected brand
+            (state.selectedBrand == null ||
+                state.selectedBrand!.isEmpty ||
+                p.brand == state.selectedBrand) &&
+            // Kasur filter
             (event.kasur == AppStrings.noKasur
                 ? (p.kasur.isEmpty || p.kasur == AppStrings.noKasur)
                 : p.kasur == event.kasur) &&
@@ -170,10 +183,23 @@ mixin ProductFilterMixin on Bloc<ProductEvent, ProductState> {
     UpdateSelectedDivan event,
     Emitter<ProductState> emit,
   ) {
+    // Helper to check base filters (channel, area, brand)
+    bool matchesBaseFilters(p) =>
+        (state.selectedChannel == null ||
+            state.selectedChannel!.isEmpty ||
+            p.channel == state.selectedChannel) &&
+        (state.selectedArea == null ||
+            state.selectedArea!.isEmpty ||
+            p.area == state.selectedArea) &&
+        (state.selectedBrand == null ||
+            state.selectedBrand!.isEmpty ||
+            p.brand == state.selectedBrand);
+
     // First, filter products by kasur + divan (without size filter)
     // to get all available options for headboard, sorong, and sizes
     final filteredProducts = state.products
         .where((p) =>
+            matchesBaseFilters(p) &&
             (state.selectedKasur == AppStrings.noKasur
                 ? (p.kasur.isEmpty || p.kasur == AppStrings.noKasur)
                 : p.kasur == state.selectedKasur) &&
@@ -187,6 +213,7 @@ mixin ProductFilterMixin on Bloc<ProductEvent, ProductState> {
     final headboardsSet = event.divan == AppStrings.noDivan
         ? state.products
             .where((p) =>
+                matchesBaseFilters(p) &&
                 (state.selectedKasur == AppStrings.noKasur
                     ? (p.kasur.isEmpty || p.kasur == AppStrings.noKasur)
                     : p.kasur == state.selectedKasur) &&
@@ -200,6 +227,7 @@ mixin ProductFilterMixin on Bloc<ProductEvent, ProductState> {
     final sourceProducts = event.divan == AppStrings.noDivan
         ? state.products
             .where((p) =>
+                matchesBaseFilters(p) &&
                 (state.selectedKasur == AppStrings.noKasur
                     ? (p.kasur.isEmpty || p.kasur == AppStrings.noKasur)
                     : p.kasur == state.selectedKasur) &&
@@ -304,10 +332,23 @@ mixin ProductFilterMixin on Bloc<ProductEvent, ProductState> {
     UpdateSelectedHeadboard event,
     Emitter<ProductState> emit,
   ) {
+    // Helper to check base filters (channel, area, brand)
+    bool matchesBaseFilters(p) =>
+        (state.selectedChannel == null ||
+            state.selectedChannel!.isEmpty ||
+            p.channel == state.selectedChannel) &&
+        (state.selectedArea == null ||
+            state.selectedArea!.isEmpty ||
+            p.area == state.selectedArea) &&
+        (state.selectedBrand == null ||
+            state.selectedBrand!.isEmpty ||
+            p.brand == state.selectedBrand);
+
     // First, filter products by kasur + divan + headboard (without size filter)
     // to get all available options for sorong and sizes
     final filteredProducts = state.products
         .where((p) =>
+            matchesBaseFilters(p) &&
             (state.selectedKasur == AppStrings.noKasur
                 ? (p.kasur.isEmpty || p.kasur == AppStrings.noKasur)
                 : p.kasur == state.selectedKasur) &&
@@ -377,10 +418,23 @@ mixin ProductFilterMixin on Bloc<ProductEvent, ProductState> {
     UpdateSelectedSorong event,
     Emitter<ProductState> emit,
   ) {
+    // Helper to check base filters (channel, area, brand)
+    bool matchesBaseFilters(p) =>
+        (state.selectedChannel == null ||
+            state.selectedChannel!.isEmpty ||
+            p.channel == state.selectedChannel) &&
+        (state.selectedArea == null ||
+            state.selectedArea!.isEmpty ||
+            p.area == state.selectedArea) &&
+        (state.selectedBrand == null ||
+            state.selectedBrand!.isEmpty ||
+            p.brand == state.selectedBrand);
+
     // Filter products by kasur + divan + headboard + sorong (without size filter)
     // to get all available sizes
     final filteredProducts = state.products
         .where((p) =>
+            matchesBaseFilters(p) &&
             (state.selectedKasur == AppStrings.noKasur
                 ? (p.kasur.isEmpty || p.kasur == AppStrings.noKasur)
                 : p.kasur == state.selectedKasur) &&
@@ -528,10 +582,23 @@ mixin ProductFilterMixin on Bloc<ProductEvent, ProductState> {
     UpdateSelectedUkuran event,
     Emitter<ProductState> emit,
   ) {
+    // Helper to check base filters (channel, area, brand)
+    bool matchesBaseFilters(p) =>
+        (state.selectedChannel == null ||
+            state.selectedChannel!.isEmpty ||
+            p.channel == state.selectedChannel) &&
+        (state.selectedArea == null ||
+            state.selectedArea!.isEmpty ||
+            p.area == state.selectedArea) &&
+        (state.selectedBrand == null ||
+            state.selectedBrand!.isEmpty ||
+            p.brand == state.selectedBrand);
+
     // Filter produk berdasarkan semua selection sebelumnya DAN ukuran yang baru dipilih
     // "Tanpa" means don't filter (show all), not "must be empty"
     final filteredProducts = state.products
         .where((p) =>
+            matchesBaseFilters(p) &&
             (state.selectedKasur == AppStrings.noKasur
                 ? (p.kasur.isEmpty || p.kasur == AppStrings.noKasur)
                 : p.kasur == state.selectedKasur) &&
@@ -594,6 +661,7 @@ mixin ProductFilterMixin on Bloc<ProductEvent, ProductState> {
     Emitter<ProductState> emit,
   ) async {
     // Determine which area to use based on brand selection
+    // PRIORITAS: event.selectedArea > state.userSelectedArea > state.selectedArea
     String areaToUse = event.selectedArea ?? '';
 
     // If brand is Spring Air, Therapedic, or Sleep Spa, use "nasional" area
@@ -603,10 +671,13 @@ mixin ProductFilterMixin on Bloc<ProductEvent, ProductState> {
         (event.selectedBrand?.toLowerCase().contains('sleep spa') ?? false)) {
       // Try using "nasional" first, if it fails, fallback to user's area
       areaToUse = "Nasional";
-    } else {
-      // For other brands, use user's selected area or default area
+    } else if (event.selectedArea == null || event.selectedArea!.isEmpty) {
+      // ONLY fallback to state values if event.selectedArea is not provided
+      // This prevents overwriting explicitly passed area values
       areaToUse = state.userSelectedArea ?? state.selectedArea ?? '';
     }
+    // If event.selectedArea is provided and it's not SA/TH/SleepSpa brand,
+    // use the event value (already set at line 664)
 
     // Handle default values for divan, headboard, and sorong
     String? selectedDivan = event.selectedDivan;

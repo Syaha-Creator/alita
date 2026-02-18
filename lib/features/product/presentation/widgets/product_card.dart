@@ -8,6 +8,7 @@ import '../../../../config/app_constant.dart';
 import '../../../../core/utils/format_helper.dart';
 import '../../../../core/utils/responsive_helper.dart';
 import '../../../../theme/app_colors.dart';
+import '../../../cart/domain/entities/cart_entity.dart';
 import '../../domain/entities/product_entity.dart';
 import '../bloc/product_bloc.dart';
 import '../bloc/product_event.dart';
@@ -16,11 +17,31 @@ import 'product_card/product_card_widgets.dart';
 
 class ProductCard extends StatelessWidget {
   final ProductEntity product;
+  final bool isIndirect;
+  final List<double>? storeDiscounts; // Diskon toko untuk indirect (berjenjang)
+  final String? storeDiscountDisplay; // Display string (e.g., "40 + 10 + 5")
+  final IndirectStoreInfo? storeInfo; // Store info untuk checkout
 
   const ProductCard({
     super.key,
     required this.product,
+    this.isIndirect = false,
+    this.storeDiscounts,
+    this.storeDiscountDisplay,
+    this.storeInfo,
   });
+
+  /// Calculate price after applying cascading/tiered discounts
+  /// Diskon berjenjang: setiap diskon diterapkan ke hasil sebelumnya
+  double _calculateCascadingDiscount(double pricelist, List<double> discounts) {
+    if (discounts.isEmpty) return pricelist;
+
+    double result = pricelist;
+    for (final discount in discounts) {
+      result = result * (1 - discount / 100);
+    }
+    return result;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,8 +54,18 @@ class ProductCard extends StatelessWidget {
             current.roundedPrices[product.id];
       },
       builder: (context, state) {
-        final netPrice =
-            state.roundedPrices[product.id] ?? product.endUserPrice;
+        // Untuk indirect dengan store discounts, gunakan perhitungan diskon toko
+        // Untuk direct, gunakan EUP seperti biasa
+        final double netPrice;
+        if (isIndirect &&
+            storeDiscounts != null &&
+            storeDiscounts!.isNotEmpty) {
+          netPrice =
+              _calculateCascadingDiscount(product.pricelist, storeDiscounts!);
+        } else {
+          netPrice = state.roundedPrices[product.id] ?? product.endUserPrice;
+        }
+
         final totalDiscount = product.pricelist - netPrice;
         final discountPercentage = product.pricelist > 0
             ? ((totalDiscount / product.pricelist) * 100).round()
@@ -85,7 +116,20 @@ class ProductCard extends StatelessWidget {
                 child: InkWell(
                   onTap: () {
                     context.read<ProductBloc>().add(SelectProduct(product));
-                    context.pushNamed(RoutePaths.productDetail, extra: product);
+                    final routeName = isIndirect
+                        ? RoutePaths.productIndirectDetail
+                        : RoutePaths.productDetail;
+                    // Pass store discounts and info for indirect
+                    if (isIndirect && storeDiscounts != null) {
+                      context.pushNamed(routeName, extra: {
+                        'product': product,
+                        'storeDiscounts': storeDiscounts,
+                        'storeDiscountDisplay': storeDiscountDisplay,
+                        'storeInfo': storeInfo?.toJson(),
+                      });
+                    } else {
+                      context.pushNamed(routeName, extra: product);
+                    }
                   },
                   borderRadius: BorderRadius.circular(24),
                   splashColor: AppColors.accentLight
@@ -110,7 +154,8 @@ class ProductCard extends StatelessWidget {
 
                             // Price Section
                             _buildPriceSection(
-                                context, isDark, netPrice, totalDiscount),
+                                context, isDark, netPrice, totalDiscount,
+                                storeDiscountDisplay: storeDiscountDisplay),
 
                             // Bonus (with conditional spacing)
                             _buildBonusWithSpacing(isDark),
@@ -561,8 +606,9 @@ class ProductCard extends StatelessWidget {
   }
 
   /// Price section dengan visual hierarchy
-  Widget _buildPriceSection(BuildContext context, bool isDark, double netPrice,
-      double totalDiscount) {
+  Widget _buildPriceSection(
+      BuildContext context, bool isDark, double netPrice, double totalDiscount,
+      {String? storeDiscountDisplay}) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -619,6 +665,48 @@ class ProductCard extends StatelessWidget {
               ),
             ],
           ),
+
+          // Store discount info (untuk indirect)
+          if (storeDiscountDisplay != null &&
+              storeDiscountDisplay.isNotEmpty) ...[
+            const SizedBox(height: AppPadding.p8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.discount_outlined,
+                        size: 16, color: AppColors.info),
+                    SizedBox(width: AppPadding.p6),
+                    Text(
+                      "Disc 1",
+                      style: TextStyle(
+                        color: AppColors.info,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.info.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    storeDiscountDisplay,
+                    style: const TextStyle(
+                      color: AppColors.info,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: AppPadding.p10),
 
           // Net Price (highlighted)

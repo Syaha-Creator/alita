@@ -5,24 +5,70 @@ import '../../../../../theme/app_colors.dart';
 import '../../../domain/entities/product_entity.dart';
 
 /// Modal bottom sheet showing detailed item pricing breakdown
-/// Displays pricelist and end user price for each component
+/// Displays pricelist, end user price, and optionally discounted price for each component
 class ItemPricingModal extends StatelessWidget {
   final ProductEntity product;
+  final List<double> discountPercentages;
+  final int quantity;
+  final bool isIndirect;
+  final String? storeDiscountDisplay;
 
   const ItemPricingModal({
     super.key,
     required this.product,
+    this.discountPercentages = const [],
+    this.quantity = 1,
+    this.isIndirect = false,
+    this.storeDiscountDisplay,
   });
 
   /// Show the modal as a bottom sheet
-  static Future<void> show(BuildContext context, ProductEntity product) {
+  static Future<void> show(
+    BuildContext context,
+    ProductEntity product, {
+    List<double> discountPercentages = const [],
+    int quantity = 1,
+    bool isIndirect = false,
+    String? storeDiscountDisplay,
+  }) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => ItemPricingModal(product: product),
+      builder: (context) => ItemPricingModal(
+        product: product,
+        discountPercentages: discountPercentages,
+        quantity: quantity,
+        isIndirect: isIndirect,
+        storeDiscountDisplay: storeDiscountDisplay,
+      ),
     );
   }
+
+  /// Apply sequential/cascading discounts to a price
+  double _applyDiscounts(double price) {
+    if (discountPercentages.isEmpty) return price;
+    double result = price;
+    for (final discount in discountPercentages) {
+      result = result * (1 - discount / 100);
+    }
+    return result;
+  }
+
+  /// For indirect mode, apply store discounts to pricelist
+  /// For direct mode, apply program discounts to EUP
+  double _calculateDiscountedPrice(double pricelist, double eup) {
+    if (isIndirect) {
+      // Indirect: apply store discounts to pricelist
+      return _applyDiscounts(pricelist);
+    } else {
+      // Direct: apply program discounts to EUP
+      return _applyDiscounts(eup);
+    }
+  }
+
+  /// Check if discounts are applied
+  bool get hasAppliedDiscounts => discountPercentages.isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -87,6 +133,23 @@ class ItemPricingModal extends StatelessWidget {
   }
 
   Widget _buildHeader(BuildContext context, bool isDark) {
+    // Build discount info string
+    String subtitle = "Pricelist & End User Price";
+    if (hasAppliedDiscounts) {
+      if (isIndirect && storeDiscountDisplay != null) {
+        // For indirect, show store discount format (e.g., "40 + 10 + 5")
+        subtitle = "Disc 1: $storeDiscountDisplay";
+      } else {
+        final discountStr = discountPercentages
+            .where((d) => d > 0)
+            .map((d) => d % 1 == 0 ? '${d.toInt()}%' : '${d.toStringAsFixed(1)}%')
+            .join(' + ');
+        if (discountStr.isNotEmpty) {
+          subtitle = "Dengan Diskon: $discountStr";
+        }
+      }
+    }
+
     return Container(
       padding: const EdgeInsets.all(AppPadding.p16),
       child: Row(
@@ -95,15 +158,22 @@ class ItemPricingModal extends StatelessWidget {
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [
-                  AppColors.primaryLight,
-                  AppColors.primaryLight.withValues(alpha: 0.8),
-                ],
+                colors: hasAppliedDiscounts
+                    ? [
+                        AppColors.success,
+                        AppColors.success.withValues(alpha: 0.8),
+                      ]
+                    : [
+                        AppColors.primaryLight,
+                        AppColors.primaryLight.withValues(alpha: 0.8),
+                      ],
               ),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(
-              Icons.price_change_rounded,
+            child: Icon(
+              hasAppliedDiscounts
+                  ? Icons.discount_rounded
+                  : Icons.price_change_rounded,
               color: Colors.white,
               size: 20,
             ),
@@ -125,12 +195,17 @@ class ItemPricingModal extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  "Pricelist & End User Price",
+                  subtitle,
                   style: TextStyle(
-                    color: isDark
-                        ? AppColors.textSecondaryDark
-                        : AppColors.textSecondaryLight,
+                    color: hasAppliedDiscounts
+                        ? AppColors.success
+                        : (isDark
+                            ? AppColors.textSecondaryDark
+                            : AppColors.textSecondaryLight),
                     fontSize: 12,
+                    fontWeight: hasAppliedDiscounts
+                        ? FontWeight.w600
+                        : FontWeight.normal,
                   ),
                 ),
               ],
@@ -343,25 +418,52 @@ class ItemPricingModal extends StatelessWidget {
                   value: item.pricelist,
                   icon: Icons.sell_outlined,
                   iconColor: AppColors.textSecondaryLight,
-                  isStrikethrough: hasDiscount,
+                  isStrikethrough: item.discountedPrice != null,
                   isDark: isDark,
                 ),
-                const SizedBox(height: AppPadding.p8),
+                
+                // For indirect mode: show discounted price directly from pricelist
+                // For direct mode: show EUP then discounted price
+                if (!item.isIndirectMode) ...[
+                  const SizedBox(height: AppPadding.p8),
+                  // End User Price row (only for direct mode)
+                  _buildPriceRow(
+                    context,
+                    label: "End User Price",
+                    value: item.endUserPrice,
+                    icon: Icons.payments_rounded,
+                    iconColor: item.discountedPrice != null
+                        ? AppColors.textSecondaryLight
+                        : AppColors.success,
+                    valueColor: item.discountedPrice != null
+                        ? AppColors.textSecondaryLight
+                        : AppColors.success,
+                    isBold: item.discountedPrice == null,
+                    isStrikethrough: item.discountedPrice != null &&
+                        item.discountedPrice! < item.endUserPrice,
+                    isDark: isDark,
+                  ),
+                ],
 
-                // End User Price row
-                _buildPriceRow(
-                  context,
-                  label: "End User Price",
-                  value: item.endUserPrice,
-                  icon: Icons.payments_rounded,
-                  iconColor: AppColors.success,
-                  valueColor: AppColors.success,
-                  isBold: true,
-                  isDark: isDark,
-                ),
+                // Discounted price row (Net Price after applied discounts)
+                if (item.discountedPrice != null &&
+                    item.discountedPrice! < item.pricelist) ...[
+                  const SizedBox(height: AppPadding.p8),
+                  _buildPriceRow(
+                    context,
+                    label: item.isIndirectMode ? "Harga Net" : "Harga Setelah Diskon",
+                    value: item.discountedPrice!,
+                    icon: Icons.local_offer_rounded,
+                    iconColor: AppColors.success,
+                    valueColor: AppColors.success,
+                    isBold: true,
+                    isDark: isDark,
+                  ),
+                ],
 
-                // Discount savings
-                if (hasDiscount) ...[
+                // Discount savings (from pricelist to final price)
+                if (item.discountedPrice != null &&
+                    item.pricelist > item.discountedPrice!) ...[
                   const SizedBox(height: AppPadding.p8),
                   Container(
                     padding:
@@ -380,7 +482,7 @@ class ItemPricingModal extends StatelessWidget {
                         ),
                         const SizedBox(width: AppPadding.p6),
                         Text(
-                          "Hemat ${FormatHelper.formatCurrency(discountAmount)}",
+                          "Hemat ${FormatHelper.formatCurrency(item.pricelist - item.discountedPrice!)}",
                           style: const TextStyle(
                             color: AppColors.error,
                             fontSize: 12,
@@ -453,12 +555,32 @@ class ItemPricingModal extends StatelessWidget {
         product.plHeadboard +
         product.plSorong +
         totalBonusPricelist;
+    
     // EUP for bonus is 0 (free), so don't add it to totalEup
     final totalEup = product.eupKasur +
         product.eupDivan +
         product.eupHeadboard +
         product.eupSorong;
-    final totalSavings = totalPricelist - totalEup;
+
+    // Calculate discounted total based on mode
+    final double totalDiscounted;
+    if (isIndirect) {
+      // Indirect: apply store discounts to pricelist (excluding bonus)
+      final pricelistExBonus = product.plKasur +
+          product.plDivan +
+          product.plHeadboard +
+          product.plSorong;
+      totalDiscounted = hasAppliedDiscounts
+          ? _applyDiscounts(pricelistExBonus)
+          : pricelistExBonus;
+    } else {
+      // Direct: apply program discounts to EUP
+      totalDiscounted = hasAppliedDiscounts
+          ? _applyDiscounts(totalEup)
+          : totalEup;
+    }
+
+    final totalSavings = totalPricelist - totalDiscounted;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -511,26 +633,32 @@ class ItemPricingModal extends StatelessWidget {
           ),
           const SizedBox(height: AppPadding.p12),
 
-          // Total EUP
+          // Total EUP (strikethrough if discounts applied)
           Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: AppColors.success.withValues(alpha: 0.2),
+                  color: hasAppliedDiscounts
+                      ? AppColors.textSecondaryLight.withValues(alpha: 0.2)
+                      : AppColors.success.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.payments_rounded,
-                  color: AppColors.success,
+                  color: hasAppliedDiscounts
+                      ? AppColors.textSecondaryLight
+                      : AppColors.success,
                   size: 18,
                 ),
               ),
               const SizedBox(width: AppPadding.p8),
-              const Text(
+              Text(
                 "Total End User Price",
                 style: TextStyle(
-                  color: AppColors.success,
+                  color: hasAppliedDiscounts
+                      ? AppColors.textSecondaryLight
+                      : AppColors.success,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
@@ -538,14 +666,58 @@ class ItemPricingModal extends StatelessWidget {
               const Spacer(),
               Text(
                 FormatHelper.formatCurrency(totalEup),
-                style: const TextStyle(
-                  color: AppColors.success,
-                  fontSize: 18,
+                style: TextStyle(
+                  color: hasAppliedDiscounts
+                      ? AppColors.textSecondaryLight
+                      : AppColors.success,
+                  fontSize: hasAppliedDiscounts ? 14 : 18,
                   fontWeight: FontWeight.bold,
+                  decoration: hasAppliedDiscounts
+                      ? TextDecoration.lineThrough
+                      : null,
                 ),
               ),
             ],
           ),
+
+          // Total Net Price (after applied discounts)
+          if (hasAppliedDiscounts) ...[
+            const SizedBox(height: AppPadding.p12),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.local_offer_rounded,
+                    color: AppColors.success,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: AppPadding.p8),
+                const Text(
+                  "Total Setelah Diskon",
+                  style: TextStyle(
+                    color: AppColors.success,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  FormatHelper.formatCurrency(totalDiscounted),
+                  style: const TextStyle(
+                    color: AppColors.success,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ],
 
           // Total savings
           if (totalSavings > 0) ...[
@@ -607,12 +779,17 @@ class ItemPricingModal extends StatelessWidget {
     if (isValidItem(product.kasur) ||
         product.plKasur > 0 ||
         product.eupKasur > 0) {
+      final discounted = hasAppliedDiscounts
+          ? _calculateDiscountedPrice(product.plKasur, product.eupKasur)
+          : null;
       items.add(_PricingItem(
         label: "Kasur",
         name: isValidItem(product.kasur) ? product.kasur : "",
         pricelist: product.plKasur,
-        endUserPrice: product.eupKasur,
+        endUserPrice: isIndirect ? product.plKasur : product.eupKasur,
+        discountedPrice: discounted,
         icon: Icons.bed_rounded,
+        isIndirectMode: isIndirect,
       ));
     }
 
@@ -620,12 +797,17 @@ class ItemPricingModal extends StatelessWidget {
     if (isValidItem(product.divan) ||
         product.plDivan > 0 ||
         product.eupDivan > 0) {
+      final discounted = hasAppliedDiscounts
+          ? _calculateDiscountedPrice(product.plDivan, product.eupDivan)
+          : null;
       items.add(_PricingItem(
         label: "Divan",
         name: isValidItem(product.divan) ? product.divan : "",
         pricelist: product.plDivan,
-        endUserPrice: product.eupDivan,
+        endUserPrice: isIndirect ? product.plDivan : product.eupDivan,
+        discountedPrice: discounted,
         icon: Icons.chair_rounded,
+        isIndirectMode: isIndirect,
       ));
     }
 
@@ -633,12 +815,17 @@ class ItemPricingModal extends StatelessWidget {
     if (isValidItem(product.headboard) ||
         product.plHeadboard > 0 ||
         product.eupHeadboard > 0) {
+      final discounted = hasAppliedDiscounts
+          ? _calculateDiscountedPrice(product.plHeadboard, product.eupHeadboard)
+          : null;
       items.add(_PricingItem(
         label: "Headboard",
         name: isValidItem(product.headboard) ? product.headboard : "",
         pricelist: product.plHeadboard,
-        endUserPrice: product.eupHeadboard,
+        endUserPrice: isIndirect ? product.plHeadboard : product.eupHeadboard,
+        discountedPrice: discounted,
         icon: Icons.view_headline_rounded,
+        isIndirectMode: isIndirect,
       ));
     }
 
@@ -646,12 +833,17 @@ class ItemPricingModal extends StatelessWidget {
     if (isValidItem(product.sorong) ||
         product.plSorong > 0 ||
         product.eupSorong > 0) {
+      final discounted = hasAppliedDiscounts
+          ? _calculateDiscountedPrice(product.plSorong, product.eupSorong)
+          : null;
       items.add(_PricingItem(
         label: "Sorong",
         name: isValidItem(product.sorong) ? product.sorong : "",
         pricelist: product.plSorong,
-        endUserPrice: product.eupSorong,
+        endUserPrice: isIndirect ? product.plSorong : product.eupSorong,
+        discountedPrice: discounted,
         icon: Icons.drag_handle_rounded,
+        isIndirectMode: isIndirect,
       ));
     }
 
@@ -665,6 +857,7 @@ class ItemPricingModal extends StatelessWidget {
           name: bonus.name,
           pricelist: bonus.pricelist,
           endUserPrice: 0, // Bonus is free (100% discount)
+          discountedPrice: 0,
           icon: Icons.card_giftcard_rounded,
           isBonus: true,
           quantity: bonus.quantity,
@@ -682,17 +875,21 @@ class _PricingItem {
   final String name;
   final double pricelist;
   final double endUserPrice;
+  final double? discountedPrice; // Price after applied discounts
   final IconData icon;
   final bool isBonus;
   final int quantity; // For bonus items
+  final bool isIndirectMode; // For indirect mode (show pricelist as base)
 
   const _PricingItem({
     required this.label,
     required this.name,
     required this.pricelist,
     required this.endUserPrice,
+    this.discountedPrice,
     required this.icon,
     this.isBonus = false,
     this.quantity = 1,
+    this.isIndirectMode = false,
   });
 }

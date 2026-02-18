@@ -39,9 +39,22 @@ mixin ProductUIMixin on Bloc<ProductEvent, ProductState> {
   ) {
     final isSetActive = event.isSetActive;
 
+    // Helper to check base filters (channel, area, brand)
+    bool matchesBaseFilters(p) =>
+        (state.selectedChannel == null ||
+            state.selectedChannel!.isEmpty ||
+            p.channel == state.selectedChannel) &&
+        (state.selectedArea == null ||
+            state.selectedArea!.isEmpty ||
+            p.area == state.selectedArea) &&
+        (state.selectedBrand == null ||
+            state.selectedBrand!.isEmpty ||
+            p.brand == state.selectedBrand);
+
     // Filter produk sesuai kasur yang dipilih dan toggle set
     final baseFilteredProducts = state.products
         .where((p) =>
+            matchesBaseFilters(p) &&
             (state.selectedKasur == AppStrings.noKasur
                 ? (p.kasur.isEmpty || p.kasur == AppStrings.noKasur)
                 : p.kasur == state.selectedKasur) &&

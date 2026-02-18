@@ -19,6 +19,8 @@ class ProductDropdown extends StatelessWidget {
   final Function(String?) onChannelChanged;
   final List<ChannelModel> availableChannelModels;
 
+  final bool isIndirect;
+
   final List<String> brands;
   final String? selectedBrand;
   final Function(String?) onBrandChanged;
@@ -82,10 +84,31 @@ class ProductDropdown extends StatelessWidget {
     required this.programs,
     required this.selectedProgram,
     required this.isLoading,
+    this.isIndirect = false,
   });
+
+  /// Filter channels berdasarkan mode (Indirect/Direct)
+  /// - Indirect: Hanya "Toko" dan "Massindo Fair Toko"
+  /// - Direct: Tampilkan semua channel
+  List<String> get _filteredChannels {
+    if (isIndirect) {
+      // Indirect: Hanya tampilkan channel yang mengandung "Toko"
+      return channels.where((channel) {
+        final lowerChannel = channel.toLowerCase();
+        return lowerChannel == 'toko' ||
+            lowerChannel.contains('massindo fair - toko') ||
+            lowerChannel == 'massindo fair - toko';
+      }).toList();
+    } else {
+      // Direct: Tampilkan semua channel (tidak ada filter)
+      return channels;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final displayChannels = _filteredChannels;
+
     return Column(
       children: [
         Padding(
@@ -132,12 +155,15 @@ class ProductDropdown extends StatelessWidget {
           context,
           CustomDropdown<String>(
             labelText: "Channel",
-            items: channels,
-            selectedValue: selectedChannel,
+            items: displayChannels,
+            selectedValue: displayChannels.contains(selectedChannel)
+                ? selectedChannel
+                : null,
             onChanged: onChannelChanged,
-            hintText:
-                channels.isEmpty ? "Channel belum tersedia" : "Pilih Channel",
-            isDynamicWidth: channels.length <= 3,
+            hintText: displayChannels.isEmpty
+                ? "Channel belum tersedia"
+                : "Pilih Channel",
+            isDynamicWidth: displayChannels.length <= 3,
           ),
           CustomDropdown<String>(
             labelText: "Brand",
