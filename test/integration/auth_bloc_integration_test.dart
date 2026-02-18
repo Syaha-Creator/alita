@@ -151,7 +151,7 @@ void main() {
       ],
       verify: (bloc) {
         final state = bloc.state as AuthFailure;
-        expect(state.error, 'Terjadi kesalahan yang tidak terduga.');
+        expect(state.error, 'Login gagal: Token tidak ditemukan.');
       },
     );
 

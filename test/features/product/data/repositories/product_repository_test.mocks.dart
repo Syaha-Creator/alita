@@ -104,6 +104,26 @@ class MockApiClient extends _i1.Mock implements _i3.ApiClient {
       ) as _i4.Future<Map<String, dynamic>>);
 
   @override
+  _i4.Future<Map<String, dynamic>> getApprovalSales({
+    required String? token,
+    required int? companyId,
+    required int? areaId,
+  }) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #getApprovalSales,
+          [],
+          {
+            #token: token,
+            #companyId: companyId,
+            #areaId: areaId,
+          },
+        ),
+        returnValue:
+            _i4.Future<Map<String, dynamic>>.value(<String, dynamic>{}),
+      ) as _i4.Future<Map<String, dynamic>>);
+
+  @override
   _i4.Future<Map<String, dynamic>> getTeamHierarchy({
     required String? token,
     required String? userId,

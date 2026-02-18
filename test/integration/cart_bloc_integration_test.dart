@@ -7,6 +7,9 @@ import 'package:alitapricelist/features/cart/presentation/bloc/cart_bloc.dart';
 import 'package:alitapricelist/features/cart/presentation/bloc/cart_event.dart';
 import 'package:alitapricelist/features/cart/presentation/bloc/cart_state.dart';
 import 'package:alitapricelist/features/cart/domain/usecases/apply_discounts_usecase.dart';
+import 'package:alitapricelist/features/cart/domain/repositories/cart_repository.dart';
+import 'package:alitapricelist/features/cart/data/repositories/cart_repository_impl.dart';
+import 'package:alitapricelist/features/cart/data/datasources/cart_local_data_source.dart';
 import 'package:alitapricelist/features/product/domain/entities/product_entity.dart';
 
 /// Integration test untuk CartBloc
@@ -19,6 +22,7 @@ void main() {
   group('CartBloc Integration Tests', () {
     late CartBloc bloc;
     late SharedPreferences prefs;
+    late CartRepository cartRepository;
 
     setUp(() async {
       // Use in-memory SharedPreferences for testing
@@ -32,7 +36,14 @@ void main() {
       await prefs.setBool(StorageKeys.isLoggedIn, true);
       await prefs.setInt(StorageKeys.currentUserId, 1);
 
-      bloc = CartBloc(applyDiscountsUsecase: const ApplyDiscountsUsecase());
+      // Create real CartRepository for integration test
+      final localDataSource = CartLocalDataSourceImpl(sharedPreferences: prefs);
+      cartRepository = CartRepositoryImpl(localDataSource: localDataSource);
+
+      bloc = CartBloc(
+        applyDiscountsUsecase: const ApplyDiscountsUsecase(),
+        cartRepository: cartRepository,
+      );
     });
 
     tearDown(() async {

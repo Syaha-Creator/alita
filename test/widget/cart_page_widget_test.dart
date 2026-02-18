@@ -68,6 +68,7 @@ void main() {
       // Arrange
       final bloc = CartBloc(
         applyDiscountsUsecase: const ApplyDiscountsUsecase(),
+        cartRepository: mockCartRepository,
       );
 
       await tester.pumpWidget(

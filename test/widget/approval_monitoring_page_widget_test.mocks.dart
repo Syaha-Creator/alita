@@ -585,6 +585,10 @@ class MockOrderLetterService extends _i1.Mock
     required List<Map<String, dynamic>>? detailsData,
     required dynamic discountsData,
     List<int?>? leaderIds,
+    int? selectedSpvId,
+    String? selectedSpvName,
+    int? selectedRsmId,
+    String? selectedRsmName,
   }) =>
       (super.noSuchMethod(
         Invocation.method(
@@ -595,6 +599,10 @@ class MockOrderLetterService extends _i1.Mock
             #detailsData: detailsData,
             #discountsData: discountsData,
             #leaderIds: leaderIds,
+            #selectedSpvId: selectedSpvId,
+            #selectedSpvName: selectedSpvName,
+            #selectedRsmId: selectedRsmId,
+            #selectedRsmName: selectedRsmName,
           },
         ),
         returnValue:
@@ -642,6 +650,7 @@ class MockOrderLetterService extends _i1.Mock
     required int? orderLetterId,
     required int? leaderId,
     required int? jobLevelId,
+    String? action = 'approve',
   }) =>
       (super.noSuchMethod(
         Invocation.method(
@@ -651,6 +660,7 @@ class MockOrderLetterService extends _i1.Mock
             #orderLetterId: orderLetterId,
             #leaderId: leaderId,
             #jobLevelId: jobLevelId,
+            #action: action,
           },
         ),
         returnValue:

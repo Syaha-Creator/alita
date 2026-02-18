@@ -207,8 +207,8 @@ void main() {
       await tester.drag(find.byType(CustomScrollView), const Offset(0, -500));
       await tester.pumpAndSettle();
 
-      // Assert
-      expect(find.text('Add to Cart'), findsOneWidget);
+      // Assert - Button text is "Cart" not "Add to Cart"
+      expect(find.text('Cart'), findsOneWidget);
       expect(find.byIcon(Icons.add_shopping_cart_rounded), findsOneWidget);
     });
 
