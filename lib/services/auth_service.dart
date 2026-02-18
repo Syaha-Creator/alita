@@ -17,6 +17,7 @@ class AuthService {
   static const String _userNameKey = "current_user_name";
   static const String _userAreaIdKey = "current_user_area_id";
   static const String _userAreaNameKey = "current_user_area_name";
+  static const String _userAddressNumberKey = "current_user_address_number";
 
   /// Mengecek apakah user masih login dan session masih valid.
   /// Uses AuthRepository if available, otherwise falls back to SharedPreferences
@@ -38,7 +39,7 @@ class AuthService {
   /// Menyimpan data login ke SharedPreferences.
   static Future<bool> login(String token, String refreshToken, int userId,
       String userName, int? areaId,
-      {String? areaName}) async {
+      {String? areaName, String? addressNumber}) async {
     try {
       // Clear all caches from ALL users BEFORE saving new login data
       // This prevents data leakage between different users
@@ -58,6 +59,9 @@ class AuthService {
       }
       if (areaName != null && areaName.isNotEmpty) {
         await prefs.setString(_userAreaNameKey, areaName);
+      }
+      if (addressNumber != null && addressNumber.isNotEmpty) {
+        await prefs.setString(_userAddressNumberKey, addressNumber);
       }
       authChangeNotifier.value = true;
 
@@ -145,6 +149,13 @@ class AuthService {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getString(_userAreaNameKey);
     }
+  }
+
+  /// Mengambil address number user yang sedang login.
+  /// Digunakan untuk API Indirect
+  static Future<String?> getCurrentUserAddressNumber() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_userAddressNumberKey);
   }
 
   /// Mengambil token autentikasi.
@@ -306,6 +317,7 @@ class AuthService {
       await prefs.remove(_userNameKey);
       await prefs.remove(_userAreaIdKey);
       await prefs.remove(_userAreaNameKey);
+      await prefs.remove(_userAddressNumberKey);
 
       authChangeNotifier.value = false;
 

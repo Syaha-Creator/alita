@@ -505,8 +505,8 @@ class NotificationService {
 
   /// Send notification to leaders when order letter is created
   /// Logic:
-  /// - Send FCM ONLY to FIRST pending approval level (Direct Leader / level 2)
-  /// - Notifications are sent sequentially: Direct → Indirect → Analyst → Controller
+  /// - Send FCM ONLY to FIRST pending approval level (Supervisor / level 2)
+  /// - Notifications are sent sequentially: Supervisor → RSM → Analyst → Controller
   /// - Show local notification to creator (immediate feedback)
   /// - Only send if order letter was created successfully
   Future<bool> notifyLeadersOnOrderLetterCreated({
@@ -594,8 +594,8 @@ class NotificationService {
 
             if (leaderData != null && leaderData.directLeader != null) {
               firstPendingApproverId = leaderData.directLeader!.id;
-              firstPendingLevelId = 2; // Direct Leader
-              firstPendingLevelName = 'Direct Leader';
+              firstPendingLevelId = 2; // Supervisor
+              firstPendingLevelName = 'Supervisor';
             }
           }
         } catch (e, stackTrace) {
@@ -636,7 +636,7 @@ class NotificationService {
       }
 
       // Get notification template with correct approval level
-      final approvalLevelName = firstPendingLevelName ?? 'Direct Leader';
+      final approvalLevelName = firstPendingLevelName ?? 'Supervisor';
       final notificationTemplate =
           NotificationTemplateService.newApprovalRequest(
         noSp: noSp,

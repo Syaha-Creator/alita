@@ -144,6 +144,32 @@ class ApiClient {
     }
   }
 
+  Future<Map<String, dynamic>> getApprovalSales({
+    required String token,
+    required int companyId,
+    required int areaId,
+  }) async {
+    try {
+      final url = ApiConfig.getApprovalSalesUrl(
+        token: token,
+        companyId: companyId,
+        areaId: areaId,
+      );
+      final response = await _dio.get(url);
+
+      if (response.statusCode == 200) {
+        return response.data;
+      } else {
+        throw ServerException(
+            'Failed to fetch approval sales data: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      throw ServerException('Network error: ${e.message}');
+    } catch (e) {
+      throw ServerException('Unexpected error: $e');
+    }
+  }
+
   Future<Map<String, dynamic>> getTeamHierarchy({
     required String token,
     required String userId,

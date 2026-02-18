@@ -56,12 +56,17 @@ class PDFService {
     double? postage,
     String? orderLetterCreatedAt,
     List<Map<String, dynamic>>? paymentsData, // Multiple payments support
+    String? channel, // Channel for logo logic
   }) async {
     final pdf = pw.Document();
 
     // Load semua logo seperti sebelumnya
-    final sleepCenterLogo =
-        await _loadImageProvider('assets/logo/sleepcenter_logo.png');
+    // For channel S0, don't show Sleep Center logo
+    final bool showSleepCenterLogo =
+        channel == null || channel.toUpperCase() != 'S0';
+    final sleepCenterLogo = showSleepCenterLogo
+        ? await _loadImageProvider('assets/logo/sleepcenter_logo.png')
+        : null;
     final sleepSpaLogo =
         await _loadImageProvider('assets/logo/sleepspa_logo.png');
     final springAirLogo =
@@ -689,7 +694,8 @@ class PDFService {
             ? _buildDiscountCell(kasurDiscount, kasurDetailId ?? product.id,
                 productKey, discountData,
                 align: pw.TextAlign.right,
-                showApprovalColumn: showKasurDiscountDetails)
+                showApprovalColumn: showKasurDiscountDetails,
+                pricelist: kasurPricelist)
             : _buildTableCell('0', align: pw.TextAlign.right);
 
         tableRows.add(pw.TableRow(children: [
@@ -742,7 +748,8 @@ class PDFService {
               align: pw.TextAlign.right),
           _buildDiscountCell(kasurDiscount, null, productKey, discountData,
               align: pw.TextAlign.right,
-              showApprovalColumn: showApprovalColumn),
+              showApprovalColumn: showApprovalColumn,
+              pricelist: kasurPricelist),
           _buildTableCell(FormatHelper.formatCurrency(kasurNet),
               align: pw.TextAlign.right),
         ]));
@@ -765,7 +772,8 @@ class PDFService {
               align: pw.TextAlign.right),
           _buildDiscountCell(kasurDiscount, null, productKey, discountData,
               align: pw.TextAlign.right,
-              showApprovalColumn: showApprovalColumn),
+              showApprovalColumn: showApprovalColumn,
+              pricelist: kasurPricelist),
           _buildTableCell(FormatHelper.formatCurrency(kasurNet),
               align: pw.TextAlign.right),
         ]));
@@ -806,12 +814,34 @@ class PDFService {
           final bool isDivanFree =
               divanPricelist > 0 && divanCustomer == 0 && divanNet == 0;
           final pw.Widget divanDiscountCell = isDivanFree
-              ? _buildTableCell('100%', align: pw.TextAlign.right)
+              ? pw.Padding(
+                  padding: const pw.EdgeInsets.all(4),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    mainAxisSize: pw.MainAxisSize.min,
+                    children: [
+                      pw.Text(
+                        FormatHelper.formatCurrency(divanPricelist),
+                        style: const pw.TextStyle(fontSize: 8),
+                        textAlign: pw.TextAlign.right,
+                      ),
+                      // Line 2: Percentage only for approval PDF
+                      if (showApprovalColumn)
+                        pw.Text(
+                          '100%',
+                          style: const pw.TextStyle(
+                              fontSize: 6, color: PdfColors.grey700),
+                          textAlign: pw.TextAlign.right,
+                        ),
+                    ],
+                  ),
+                )
               : (hasDivanCustomerAmount
                   ? _buildDiscountCell(
                       divanDiscount, kasurDetailId, null, discountData,
                       align: pw.TextAlign.right,
-                      showApprovalColumn: showDivanDiscountDetails)
+                      showApprovalColumn: showDivanDiscountDetails,
+                      pricelist: divanPricelist)
                   : _buildTableCell('0', align: pw.TextAlign.right));
           // For EUP column: if free item, show pricelist; otherwise show actual customer price
           final String divanEupDisplay = isDivanFree
@@ -864,7 +894,8 @@ class PDFService {
                 align: pw.TextAlign.right),
             _buildDiscountCell(divanDiscount, null, null, discountData,
                 align: pw.TextAlign.right,
-                showApprovalColumn: showApprovalColumn),
+                showApprovalColumn: showApprovalColumn,
+                pricelist: divanPricelist),
             _buildTableCell(FormatHelper.formatCurrency(divanNet),
                 align: pw.TextAlign.right),
           ]));
@@ -909,12 +940,34 @@ class PDFService {
               headboardCustomer == 0 &&
               headboardNet == 0;
           final pw.Widget headboardDiscountCell = isHeadboardFree
-              ? _buildTableCell('100%', align: pw.TextAlign.right)
+              ? pw.Padding(
+                  padding: const pw.EdgeInsets.all(4),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    mainAxisSize: pw.MainAxisSize.min,
+                    children: [
+                      pw.Text(
+                        FormatHelper.formatCurrency(headboardPricelist),
+                        style: const pw.TextStyle(fontSize: 8),
+                        textAlign: pw.TextAlign.right,
+                      ),
+                      // Line 2: Percentage only for approval PDF
+                      if (showApprovalColumn)
+                        pw.Text(
+                          '100%',
+                          style: const pw.TextStyle(
+                              fontSize: 6, color: PdfColors.grey700),
+                          textAlign: pw.TextAlign.right,
+                        ),
+                    ],
+                  ),
+                )
               : (hasHeadboardCustomerAmount
                   ? _buildDiscountCell(
                       headboardDiscount, kasurDetailId, null, discountData,
                       align: pw.TextAlign.right,
-                      showApprovalColumn: showHeadboardDiscountDetails)
+                      showApprovalColumn: showHeadboardDiscountDetails,
+                      pricelist: headboardPricelist)
                   : _buildTableCell('0', align: pw.TextAlign.right));
           // For EUP column: if free item, show pricelist; otherwise show actual customer price
           final String headboardEupDisplay = isHeadboardFree
@@ -967,7 +1020,8 @@ class PDFService {
                 align: pw.TextAlign.right),
             _buildDiscountCell(headboardDiscount, null, null, discountData,
                 align: pw.TextAlign.right,
-                showApprovalColumn: showApprovalColumn),
+                showApprovalColumn: showApprovalColumn,
+                pricelist: headboardPricelist),
             _buildTableCell(FormatHelper.formatCurrency(headboardNet),
                 align: pw.TextAlign.right),
           ]));
@@ -1008,12 +1062,34 @@ class PDFService {
           final bool isSorongFree =
               sorongPricelist > 0 && sorongCustomer == 0 && sorongNet == 0;
           final pw.Widget sorongDiscountCell = isSorongFree
-              ? _buildTableCell('100%', align: pw.TextAlign.right)
+              ? pw.Padding(
+                  padding: const pw.EdgeInsets.all(4),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    mainAxisSize: pw.MainAxisSize.min,
+                    children: [
+                      pw.Text(
+                        FormatHelper.formatCurrency(sorongPricelist),
+                        style: const pw.TextStyle(fontSize: 8),
+                        textAlign: pw.TextAlign.right,
+                      ),
+                      // Line 2: Percentage only for approval PDF
+                      if (showApprovalColumn)
+                        pw.Text(
+                          '100%',
+                          style: const pw.TextStyle(
+                              fontSize: 6, color: PdfColors.grey700),
+                          textAlign: pw.TextAlign.right,
+                        ),
+                    ],
+                  ),
+                )
               : (hasSorongCustomerAmount
                   ? _buildDiscountCell(
                       sorongDiscount, kasurDetailId, null, discountData,
                       align: pw.TextAlign.right,
-                      showApprovalColumn: showSorongDiscountDetails)
+                      showApprovalColumn: showSorongDiscountDetails,
+                      pricelist: sorongPricelist)
                   : _buildTableCell('0', align: pw.TextAlign.right));
           // For EUP column: if free item, show pricelist; otherwise show actual customer price
           final String sorongEupDisplay = isSorongFree
@@ -1067,7 +1143,8 @@ class PDFService {
                 align: pw.TextAlign.right),
             _buildDiscountCell(sorongDiscount, null, null, discountData,
                 align: pw.TextAlign.right,
-                showApprovalColumn: showApprovalColumn),
+                showApprovalColumn: showApprovalColumn,
+                pricelist: sorongPricelist),
             _buildTableCell(FormatHelper.formatCurrency(sorongNet),
                 align: pw.TextAlign.right),
           ]));
@@ -1094,7 +1171,7 @@ class PDFService {
           // For approval PDF: End User Price = Pricelist (before 100% discount)
           final String bonusEupStr = bonusPricelistStr;
 
-          // Build discount cell like other items (nominal on line 1, percentage on line 2)
+          // Build discount cell like other items (nominal on line 1, percentage on line 2 for approval only)
           final pw.Widget bonusDiscountCell = pw.Padding(
             padding: const pw.EdgeInsets.all(4),
             child: pw.Column(
@@ -1107,8 +1184,8 @@ class PDFService {
                   style: const pw.TextStyle(fontSize: 8),
                   textAlign: pw.TextAlign.right,
                 ),
-                // Line 2: Discount percentage
-                if (bonus.pricelist > 0)
+                // Line 2: Discount percentage (only for approval PDF)
+                if (useApprovalLayout && bonus.pricelist > 0)
                   pw.Text(
                     '100%',
                     style: const pw.TextStyle(
@@ -1327,7 +1404,8 @@ class PDFService {
   static pw.Widget _buildDiscountCell(double totalDiscount, int? detailId,
       String? productKey, List<Map<String, dynamic>>? discountData,
       {pw.TextAlign align = pw.TextAlign.right,
-      bool showApprovalColumn = false}) {
+      bool showApprovalColumn = false,
+      double? pricelist}) {
     // Get discount details for this product
     // Note: For accessories (divan/headboard/sorong), discount only exists for kasur
     // So we should use productKey to get discount details, not detailId
@@ -1374,6 +1452,25 @@ class PDFService {
       }
     }
 
+    // Calculate percentage from pricelist if provided and no discount details found
+    String? calculatedPercentage;
+    if (discountDetails.isEmpty && pricelist != null && pricelist > 0) {
+      final percentage = (totalDiscount / pricelist) * 100;
+      if (percentage > 0) {
+        if (percentage % 1 == 0) {
+          calculatedPercentage = '${percentage.toInt()}%';
+        } else {
+          calculatedPercentage =
+              '${percentage.toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '')}%';
+        }
+      }
+    }
+
+    // Determine what to show on line 2
+    final String? percentageText = discountDetails.isNotEmpty
+        ? discountDetails.join(' + ')
+        : calculatedPercentage;
+
     return pw.Padding(
       padding: const pw.EdgeInsets.all(4),
       child: pw.Column(
@@ -1382,16 +1479,16 @@ class PDFService {
             : pw.CrossAxisAlignment.start,
         mainAxisSize: pw.MainAxisSize.min,
         children: [
-          // Baris 1: Total discount
+          // Baris 1: Total discount nominal
           pw.Text(
             FormatHelper.formatCurrency(totalDiscount),
             style: const pw.TextStyle(fontSize: 8),
             textAlign: align,
           ),
-          // Baris 2: Detail discount (hanya untuk PDF approval)
-          if (showApprovalColumn && discountDetails.isNotEmpty)
+          // Baris 2: Detail discount percentage (only for approval PDF)
+          if (showApprovalColumn && percentageText != null && totalDiscount > 0)
             pw.Text(
-              discountDetails.join(' + '),
+              percentageText,
               style: const pw.TextStyle(fontSize: 6, color: PdfColors.grey700),
               textAlign: align,
             ),
@@ -1423,6 +1520,8 @@ class PDFService {
         final amount = (payment['payment_amount'] as num?)?.toDouble() ?? 0.0;
         final method = payment['payment_method'] as String? ?? '';
         final bank = payment['payment_bank'] as String? ?? '';
+        final paymentDate = payment['payment_date'] as String?;
+        final createdAt = payment['created_at'] as String?;
 
         // Build payment label: "Dibayar (Bank)" or "Dibayar (Method)"
         String paymentLabel;
@@ -1434,9 +1533,20 @@ class PDFService {
           paymentLabel = 'Dibayar ${i + 1}';
         }
 
-        paymentRows.add(_buildTotalRow(
+        // Format payment datetime for line 2
+        String? paymentDateTime;
+        if (paymentDate != null && paymentDate.isNotEmpty) {
+          final formattedDate = FormatHelper.formatApiDate(paymentDate);
+          // Try to get time from created_at
+          final time = _extractTimeFromCreatedAt(createdAt);
+          paymentDateTime =
+              time != null ? '$formattedDate $time' : formattedDate;
+        }
+
+        paymentRows.add(_buildPaymentRowWithDate(
           paymentLabel,
           FormatHelper.formatCurrency(amount),
+          paymentDateTime: paymentDateTime,
         ));
       }
     } else {
@@ -1518,6 +1628,74 @@ class PDFService {
     }
   }
 
+  /// Extract time (HH:mm) from created_at datetime string
+  /// Example: "2026-02-03T10:18:03.035+07:00" -> "10:18"
+  static String? _extractTimeFromCreatedAt(String? createdAt) {
+    if (createdAt == null || createdAt.isEmpty) return null;
+    try {
+      // Format: "2026-02-03T10:18:03.035+07:00"
+      final tIndex = createdAt.indexOf('T');
+      if (tIndex == -1) return null;
+      final timePart = createdAt.substring(tIndex + 1);
+      // Get HH:mm from "10:18:03.035+07:00"
+      if (timePart.length >= 5) {
+        return timePart.substring(0, 5); // "10:18"
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Build payment row with date/time on second line
+  static pw.Widget _buildPaymentRowWithDate(
+    String label,
+    String value, {
+    String? paymentDateTime,
+  }) {
+    return pw.Container(
+      decoration: const pw.BoxDecoration(
+        border: pw.Border(
+          bottom: pw.BorderSide(color: PdfColors.black, width: 0.5),
+        ),
+      ),
+      padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Expanded(
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  label,
+                  style: const pw.TextStyle(fontSize: 9),
+                ),
+                if (paymentDateTime != null) ...[
+                  pw.SizedBox(height: 1),
+                  pw.Text(
+                    'Tgl: $paymentDateTime',
+                    style: pw.TextStyle(
+                      fontSize: 7,
+                      color: PdfColors.grey700,
+                      fontStyle: pw.FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          pw.Text(
+            value,
+            style: const pw.TextStyle(fontSize: 9),
+            textAlign: pw.TextAlign.right,
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Build satu baris total pada tabel total pembayaran.
   static pw.Widget _buildTotalRow(String label, String value,
       {bool isBold = false}) {
@@ -1585,7 +1763,7 @@ class PDFService {
     );
   }
 
-  /// Build box tanda tangan dengan SPG code di baris terpisah.
+  /// Build box tanda tangan dengan SC code di baris terpisah.
   static pw.Widget _buildSignatureBoxWithSpgCode(
       String title, String name, String? spgCode,
       {bool borderLeft = false}) {

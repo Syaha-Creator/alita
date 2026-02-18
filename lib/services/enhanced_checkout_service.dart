@@ -31,6 +31,10 @@ class EnhancedCheckoutService {
     String? spgCode,
     bool isTakeAway = false,
     double? postage,
+    int? selectedSpvId,
+    String? selectedSpvName,
+    int? selectedRsmId,
+    String? selectedRsmName,
   }) async {
     try {
       // Mapping semua item ke item lookup
@@ -55,6 +59,10 @@ class EnhancedCheckoutService {
         spgCode: spgCode,
         isTakeAway: isTakeAway,
         postage: postage,
+        selectedSpvId: selectedSpvId,
+        selectedSpvName: selectedSpvName,
+        selectedRsmId: selectedRsmId,
+        selectedRsmName: selectedRsmName,
       );
     } catch (e) {
       if (kDebugMode) {

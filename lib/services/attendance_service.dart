@@ -154,7 +154,28 @@ class AttendanceService {
       // Get attendance list from API
       final attendanceList = await getAttendanceList();
 
+      if (kDebugMode) {
+        print('');
+        print('========================================');
+        print('[DEBUG] ATTENDANCE VALIDATION');
+        print('========================================');
+        print('  Attendance list length: ${attendanceList.length}');
+        print('  Attendance list empty: ${attendanceList.isEmpty}');
+        if (attendanceList.isNotEmpty) {
+          print('  First record:');
+          final first = attendanceList.first;
+          print('    - attendance_in: ${first['attendance_in']}');
+          print('    - user_id: ${first['user_id']}');
+          print('    - status: ${first['status']}');
+        }
+        print('========================================');
+        print('');
+      }
+
       if (attendanceList.isEmpty) {
+        if (kDebugMode) {
+          print('[DEBUG] ATTENDANCE: List is EMPTY - returning belum absen');
+        }
         return {
           'isValid': false,
           'message': 'Anda belum melakukan attendance hari ini',
@@ -171,6 +192,10 @@ class AttendanceService {
           '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
       if (kDebugMode) {
+        print('[DEBUG] ATTENDANCE: Device timezone: ${now.timeZoneName}');
+        print('[DEBUG] ATTENDANCE: Device time: $now');
+        print('[DEBUG] ATTENDANCE: Today string: $todayString');
+        print('[DEBUG] ATTENDANCE: Today date only: $today');
         print(
             'AttendanceService: Looking for attendance on date: $todayString');
       }
@@ -244,6 +269,17 @@ class AttendanceService {
       }
 
       if (todayAttendance == null) {
+        if (kDebugMode) {
+          print('');
+          print('[DEBUG] ATTENDANCE: NO TODAY ATTENDANCE FOUND!');
+          print('  - Searched through ${attendanceList.length} records');
+          print('  - Looking for date: $todayString');
+          print('  - All attendance_in values:');
+          for (var att in attendanceList) {
+            print('    * ${att['attendance_in']}');
+          }
+          print('');
+        }
         return {
           'isValid': false,
           'message': 'Anda belum melakukan attendance hari ini',

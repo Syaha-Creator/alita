@@ -46,6 +46,10 @@ class CheckoutService {
     String? spgCode,
     bool isTakeAway = false,
     double? postage,
+    int? selectedSpvId,
+    String? selectedSpvName,
+    int? selectedRsmId,
+    String? selectedRsmName,
   }) async {
     try {
       // Get current user ID for creator field
@@ -54,12 +58,12 @@ class CheckoutService {
 
       final now = DateTime.now();
       final orderDateStr = now.toIso8601String().split('T')[0];
-      
+
       // Normalize requestDate: handle empty, different formats, or extract date part
       String requestDateStr = orderDateStr; // Default to today
       if (requestDate.trim().isNotEmpty) {
         final trimmedDate = requestDate.trim();
-        
+
         // Check if already in YYYY-MM-DD format
         if (RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(trimmedDate)) {
           requestDateStr = trimmedDate;
@@ -101,6 +105,9 @@ class CheckoutService {
       // Flatten all discounts for status determination
       final allDiscounts = totalsResult.getAllDiscounts();
 
+      // Check if this is indirect checkout
+      final isIndirectCheckout = totalsResult.isIndirectCheckout;
+
       // Prepare Order Letter Data using use case
       final orderLetterData = await _prepareOrderLetterDataUseCase(
         creatorId: creatorId,
@@ -120,6 +127,7 @@ class CheckoutService {
         totalHargaAwal: totalHargaAwal,
         totalDiscountPercentage: totalDiscountPercentage,
         allDiscounts: allDiscounts,
+        isIndirectCheckout: isIndirectCheckout,
       );
 
       // Prepare Details Data using use case
@@ -142,6 +150,10 @@ class CheckoutService {
         discountsData:
             itemDiscounts, // Pass structured discount data (List<OrderLetterDiscountDataEntity>)
         leaderIds: leaderIds,
+        selectedSpvId: selectedSpvId,
+        selectedSpvName: selectedSpvName,
+        selectedRsmId: selectedRsmId,
+        selectedRsmName: selectedRsmName,
       );
 
       // Send notification if order letter created successfully

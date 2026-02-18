@@ -181,4 +181,97 @@ class ContactWorkExperienceService {
       return 'staff';
     }
   }
+
+  /// Get user's company ID from CWE data
+  Future<int?> getUserCompanyId({
+    required String token,
+    required int userId,
+  }) async {
+    try {
+      final data = await getContactWorkExperience(token: token, userId: userId);
+
+      if (data != null && data['result'] != null) {
+        final result = data['result'] as List<dynamic>;
+        if (result.isNotEmpty) {
+          final workExperience = result.first as Map<String, dynamic>;
+          final company = workExperience['company'] as Map<String, dynamic>?;
+          return company?['id'] as int?;
+        }
+      }
+
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Get user's area ID from CWE data
+  Future<int?> getUserAreaId({
+    required String token,
+    required int userId,
+  }) async {
+    try {
+      final data = await getContactWorkExperience(token: token, userId: userId);
+
+      if (data != null && data['result'] != null) {
+        final result = data['result'] as List<dynamic>;
+        if (result.isNotEmpty) {
+          final workExperience = result.first as Map<String, dynamic>;
+          final area = workExperience['area'] as Map<String, dynamic>?;
+          return area?['id'] as int?;
+        }
+      }
+
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Get channel code based on user's division
+  /// - Division ID 25 (direct/retail) → "S1"
+  /// - Division ID 24 (indirect) → "S0"
+  /// - Division ID 26 → "MM"
+  /// - Others → null
+  Future<String?> getUserChannelCode({
+    required String token,
+    required int userId,
+  }) async {
+    try {
+      final data = await getContactWorkExperience(token: token, userId: userId);
+
+      if (data != null && data['result'] != null) {
+        final result = data['result'] as List<dynamic>;
+        if (result.isNotEmpty) {
+          final workExperience = result.first as Map<String, dynamic>;
+          final divisions = workExperience['divisions'] as List<dynamic>?;
+
+          if (divisions != null && divisions.isNotEmpty) {
+            // Get the first division's ID
+            final firstDivision = divisions.first as Map<String, dynamic>;
+            final divisionId = firstDivision['id'] as int?;
+
+            // Map division ID to channel code
+            switch (divisionId) {
+              case 25: // direct / retail
+                return 'S1';
+              case 24: // indirect
+                return 'S0';
+              case 26:
+                return 'MM';
+              default:
+                return null;
+            }
+          }
+        }
+      }
+
+      return null;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error getting user channel code: $e');
+      }
+      return null;
+    }
+  }
 }

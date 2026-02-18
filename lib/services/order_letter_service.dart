@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import '../config/api_config.dart';
 import '../config/dependency_injection.dart';
 import '../core/error/exceptions.dart';
@@ -27,6 +26,10 @@ class OrderLetterService {
     required dynamic
         discountsData, // Can be List<double> or List<Map<String, dynamic>>
     List<int?>? leaderIds, // Add leader IDs parameter
+    int? selectedSpvId,
+    String? selectedSpvName,
+    int? selectedRsmId,
+    String? selectedRsmName,
   }) async {
     try {
       // Step 1: POST Order Letter
@@ -68,17 +71,43 @@ class OrderLetterService {
       if (discountsData is List<Map<String, dynamic>>) {
         // New structured format with per-item discount information
         if (discountsData.isEmpty) {
-          // If no discounts, create default entries for all items up to Direct Leader
+          // If no discounts, create default entries for all items up to Supervisor
           await _createDefaultDiscountEntries(
-              detailResults, discountResults, leaderIds, orderLetterId);
+            detailResults,
+            discountResults,
+            leaderIds,
+            orderLetterId,
+            selectedSpvId: selectedSpvId,
+            selectedSpvName: selectedSpvName,
+            selectedRsmId: selectedRsmId,
+            selectedRsmName: selectedRsmName,
+          );
         } else {
           // Process items with discounts
           try {
-            await _processStructuredDiscounts(discountsData, detailResults,
-                discountResults, leaderIds, orderLetterId);
+            await _processStructuredDiscounts(
+              discountsData,
+              detailResults,
+              discountResults,
+              leaderIds,
+              orderLetterId,
+              selectedSpvId: selectedSpvId,
+              selectedSpvName: selectedSpvName,
+              selectedRsmId: selectedRsmId,
+              selectedRsmName: selectedRsmName,
+            );
 
-            await _createDefaultEntriesForMissingItems(discountsData,
-                detailResults, discountResults, leaderIds, orderLetterId);
+            await _createDefaultEntriesForMissingItems(
+              discountsData,
+              detailResults,
+              discountResults,
+              leaderIds,
+              orderLetterId,
+              selectedSpvId: selectedSpvId,
+              selectedSpvName: selectedSpvName,
+              selectedRsmId: selectedRsmId,
+              selectedRsmName: selectedRsmName,
+            );
           } catch (e, stackTrace) {
             // If structured processing fails, create default entries as fallback
             await ErrorLogger.logError(
@@ -90,17 +119,42 @@ class OrderLetterService {
               fatal: false,
             );
             await _createDefaultDiscountEntries(
-                detailResults, discountResults, leaderIds, orderLetterId);
+              detailResults,
+              discountResults,
+              leaderIds,
+              orderLetterId,
+              selectedSpvId: selectedSpvId,
+              selectedSpvName: selectedSpvName,
+              selectedRsmId: selectedRsmId,
+              selectedRsmName: selectedRsmName,
+            );
           }
         }
       } else if (discountsData is List<double>) {
         // Legacy format - process all discounts for first kasur
-        await _processLegacyDiscounts(discountsData, detailResults,
-            discountResults, leaderIds, orderLetterId);
+        await _processLegacyDiscounts(
+          discountsData,
+          detailResults,
+          discountResults,
+          leaderIds,
+          orderLetterId,
+          selectedSpvId: selectedSpvId,
+          selectedSpvName: selectedSpvName,
+          selectedRsmId: selectedRsmId,
+          selectedRsmName: selectedRsmName,
+        );
       } else {
         // No discounts data provided, create default entries
         await _createDefaultDiscountEntries(
-            detailResults, discountResults, leaderIds, orderLetterId);
+          detailResults,
+          discountResults,
+          leaderIds,
+          orderLetterId,
+          selectedSpvId: selectedSpvId,
+          selectedSpvName: selectedSpvName,
+          selectedRsmId: selectedRsmId,
+          selectedRsmName: selectedRsmName,
+        );
       }
 
       // Skip original loop completely - it's been replaced by structured/legacy processing above
@@ -167,19 +221,19 @@ class OrderLetterService {
                 approverLevel = 'User';
                 approverWorkTitle = leaderData.user.workTitle;
                 break;
-              case 1: // Direct Leader
+              case 1: // Supervisor (SPV)
                 if (leaderData.directLeader != null) {
                   approverId = leaderData.directLeader!.id;
                   approverName = leaderData.directLeader!.fullName;
-                  approverLevel = 'Direct Leader';
+                  approverLevel = 'Supervisor';
                   approverWorkTitle = leaderData.directLeader!.workTitle;
                 }
                 break;
-              case 2: // Indirect Leader
+              case 2: // RSM
                 if (leaderData.indirectLeader != null) {
                   approverId = leaderData.indirectLeader!.id;
                   approverName = leaderData.indirectLeader!.fullName;
-                  approverLevel = 'Indirect Leader';
+                  approverLevel = 'RSM';
                   approverWorkTitle = leaderData.indirectLeader!.workTitle;
                 }
                 break;
@@ -212,7 +266,7 @@ class OrderLetterService {
           );
         }
 
-        // Smart approval logic - Modified to ensure all orders require Direct Leader approval
+        // Smart approval logic - Modified to ensure all orders require Supervisor approval
         String? approvedAt;
         String? approvedValue;
 
@@ -221,7 +275,7 @@ class OrderLetterService {
           approvedAt = DateTime.now().toIso8601String();
           approvedValue = 'true';
         } else {
-          // For all other levels (Direct Leader, Indirect Leader, Controller, Analyst)
+          // For all other levels (Supervisor, RSM, Controller, Analyst)
           // Set approved and approved_at to null - they need manual approval
           approvedValue = null;
           approvedAt = null;
@@ -1609,6 +1663,18 @@ class OrderLetterService {
     try {
       if (orderLetterId == null) return 'Pending';
 
+      // Check if this is an indirect checkout (all items have isIndirect: true)
+      bool isIndirectCheckout = false;
+      if (discountsData is List<Map<String, dynamic>>) {
+        isIndirectCheckout = discountsData.isNotEmpty &&
+            discountsData.every((item) => item['isIndirect'] == true);
+      }
+
+      // For indirect checkout, all discounts are auto-approved
+      if (isIndirectCheckout) {
+        return 'Approved';
+      }
+
       // Extract all discount values from either format
       List<double> allDiscounts = [];
       if (discountsData is List<double>) {
@@ -1696,31 +1762,16 @@ class OrderLetterService {
     List<Map<String, dynamic>> detailResults,
     List<Map<String, dynamic>> discountResults,
     List<int?>? leaderIds,
-    int orderLetterId,
-  ) async {
+    int orderLetterId, {
+    int? selectedSpvId,
+    String? selectedSpvName,
+    int? selectedRsmId,
+    String? selectedRsmName,
+  }) async {
     try {
       // Fetch leader data ONCE at the beginning to avoid multiple API calls
       final leaderService = locator<LeaderService>();
       final leaderData = await leaderService.getLeaderByUser();
-
-      if (kDebugMode) {
-        print(
-            '[DEBUG] _processStructuredDiscounts: Fetched leader data once for order $orderLetterId');
-        if (leaderData != null) {
-          print(
-              '  - User: ${leaderData.user.fullName} (ID: ${leaderData.user.id})');
-          if (leaderData.directLeader != null) {
-            print(
-                '  - Direct Leader: ${leaderData.directLeader!.fullName} (ID: ${leaderData.directLeader!.id})');
-          }
-          if (leaderData.indirectLeader != null) {
-            print(
-                '  - Indirect Leader: ${leaderData.indirectLeader!.fullName} (ID: ${leaderData.indirectLeader!.id})');
-          }
-        } else {
-          print('  - Leader data is null!');
-        }
-      }
 
       final Set<String> createdDiscounts = {};
 
@@ -1780,24 +1831,13 @@ class OrderLetterService {
         }
       }
 
-      if (kDebugMode) {
-        print(
-            '[DEBUG] _processStructuredDiscounts: Processing ${itemDiscounts.length} item discounts');
-        print('  - Available Detail IDs: ${availableDetailIds.keys.toList()}');
-      }
-
       for (final itemDiscount in itemDiscounts) {
         final kasurNameRaw = (itemDiscount['kasurName'] ?? '').toString();
         final productSizeRaw = (itemDiscount['productSize'] ?? '').toString();
+        final isIndirect = itemDiscount['isIndirect'] as bool? ?? false;
+        final storeName = itemDiscount['storeName'] as String?;
 
         final discounts = itemDiscount['discounts'] as List<double>;
-
-        if (kDebugMode) {
-          print(
-              '[DEBUG] _processStructuredDiscounts: Processing discount item');
-          print('  - Kasur Name: $kasurNameRaw, Size: $productSizeRaw');
-          print('  - Discounts: $discounts');
-        }
 
         final normalizedName = normalize(kasurNameRaw);
         final normalizedSize = normalize(productSizeRaw);
@@ -1811,10 +1851,6 @@ class OrderLetterService {
           final pool = availableDetailIds[key];
           if (pool != null && pool.isNotEmpty) {
             kasurOrderLetterDetailId = pool.removeAt(0);
-            if (kDebugMode) {
-              print(
-                  '  - Matched with key: $key, Detail ID: $kasurOrderLetterDetailId');
-            }
             break;
           }
         }
@@ -1890,30 +1926,59 @@ class OrderLetterService {
           availableDetailIds[primaryKey]?.remove(kasurOrderLetterDetailId);
         }
 
-        int maxLevelToCreate = discounts.length > 2 ? discounts.length : 2;
+        // For indirect checkout, process all store discounts differently
+        if (isIndirect && storeName != null) {
+          // Indirect checkout: All discounts belong to the store
+          for (int i = 0; i < discounts.length; i++) {
+            final discount = discounts[i];
+            if (discount <= 0) continue;
 
-        for (int i = 0; i < maxLevelToCreate; i++) {
-          final discount = i < discounts.length ? discounts[i] : 0.0;
-          if (i > 1 && discount <= 0) continue;
+            final discountKey = '${kasurOrderLetterDetailId}_${i}_$discount';
+            if (createdDiscounts.contains(discountKey)) {
+              continue;
+            }
 
-          final discountKey = '${kasurOrderLetterDetailId}_${i}_$discount';
-          if (createdDiscounts.contains(discountKey)) {
-            continue;
+            await _createIndirectDiscount(
+              orderLetterId: orderLetterId,
+              kasurOrderLetterDetailId: kasurOrderLetterDetailId,
+              discount: discount,
+              discountIndex: i,
+              discountResults: discountResults,
+              storeName: storeName,
+            );
+
+            createdDiscounts.add(discountKey);
           }
+        } else {
+          // Direct checkout: Use user levels (User, Direct Leader, etc.)
+          int maxLevelToCreate = discounts.length > 2 ? discounts.length : 2;
 
-          await _createSingleDiscount(
-            orderLetterId: orderLetterId,
-            kasurOrderLetterDetailId: kasurOrderLetterDetailId,
-            discount: discount,
-            discountIndex: i,
-            leaderIds: leaderIds,
-            discountResults: discountResults,
-            kasurName: kasurNameRaw,
-            leaderData:
-                leaderData, // Pass leader data to avoid multiple API calls
-          );
+          for (int i = 0; i < maxLevelToCreate; i++) {
+            final discount = i < discounts.length ? discounts[i] : 0.0;
+            if (i > 1 && discount <= 0) continue;
 
-          createdDiscounts.add(discountKey);
+            final discountKey = '${kasurOrderLetterDetailId}_${i}_$discount';
+            if (createdDiscounts.contains(discountKey)) {
+              continue;
+            }
+
+            await _createSingleDiscount(
+              orderLetterId: orderLetterId,
+              kasurOrderLetterDetailId: kasurOrderLetterDetailId,
+              discount: discount,
+              discountIndex: i,
+              leaderIds: leaderIds,
+              discountResults: discountResults,
+              kasurName: kasurNameRaw,
+              leaderData: leaderData,
+              selectedSpvId: selectedSpvId,
+              selectedSpvName: selectedSpvName,
+              selectedRsmId: selectedRsmId,
+              selectedRsmName: selectedRsmName,
+            );
+
+            createdDiscounts.add(discountKey);
+          }
         }
       }
     } catch (e, stackTrace) {
@@ -1939,16 +2004,15 @@ class OrderLetterService {
     List<Map<String, dynamic>> detailResults,
     List<Map<String, dynamic>> discountResults,
     List<int?>? leaderIds,
-    int orderLetterId,
-  ) async {
+    int orderLetterId, {
+    int? selectedSpvId,
+    String? selectedSpvName,
+    int? selectedRsmId,
+    String? selectedRsmName,
+  }) async {
     // Fetch leader data ONCE at the beginning to avoid multiple API calls
     final leaderService = locator<LeaderService>();
     final leaderData = await leaderService.getLeaderByUser();
-
-    if (kDebugMode) {
-      print(
-          '[DEBUG] _processLegacyDiscounts: Fetched leader data once for order $orderLetterId');
-    }
 
     // Find first kasur detail ID
     int? kasurOrderLetterDetailId;
@@ -1995,7 +2059,11 @@ class OrderLetterService {
         leaderIds: leaderIds,
         discountResults: discountResults,
         kasurName: 'First Kasur (Legacy)',
-        leaderData: leaderData, // Pass leader data to avoid multiple API calls
+        leaderData: leaderData,
+        selectedSpvId: selectedSpvId,
+        selectedSpvName: selectedSpvName,
+        selectedRsmId: selectedRsmId,
+        selectedRsmName: selectedRsmName,
       );
     }
   }
@@ -2005,17 +2073,16 @@ class OrderLetterService {
     List<Map<String, dynamic>> detailResults,
     List<Map<String, dynamic>> discountResults,
     List<int?>? leaderIds,
-    int orderLetterId,
-  ) async {
+    int orderLetterId, {
+    int? selectedSpvId,
+    String? selectedSpvName,
+    int? selectedRsmId,
+    String? selectedRsmName,
+  }) async {
     try {
       // Fetch leader data ONCE at the beginning to avoid multiple API calls
       final leaderService = locator<LeaderService>();
       final leaderData = await leaderService.getLeaderByUser();
-
-      if (kDebugMode) {
-        print(
-            '[DEBUG] _createDefaultEntriesForMissingItems: Fetched leader data once for order $orderLetterId');
-      }
 
       String normalize(String value) => value.trim().toLowerCase();
 
@@ -2090,6 +2157,10 @@ class OrderLetterService {
               kasurName: detailData['desc_1'] ?? 'Unknown',
               leaderData:
                   leaderData, // Pass leader data to avoid multiple API calls
+              selectedSpvId: selectedSpvId,
+              selectedSpvName: selectedSpvName,
+              selectedRsmId: selectedRsmId,
+              selectedRsmName: selectedRsmName,
             );
           }
 
@@ -2112,17 +2183,16 @@ class OrderLetterService {
     List<Map<String, dynamic>> detailResults,
     List<Map<String, dynamic>> discountResults,
     List<int?>? leaderIds,
-    int orderLetterId,
-  ) async {
+    int orderLetterId, {
+    int? selectedSpvId,
+    String? selectedSpvName,
+    int? selectedRsmId,
+    String? selectedRsmName,
+  }) async {
     try {
       // Fetch leader data ONCE at the beginning to avoid multiple API calls
       final leaderService = locator<LeaderService>();
       final leaderData = await leaderService.getLeaderByUser();
-
-      if (kDebugMode) {
-        print(
-            '[DEBUG] _createDefaultDiscountEntries: Fetched leader data once for order $orderLetterId');
-      }
 
       // Process each detail (item) in the order
       for (int idx = 0; idx < detailResults.length; idx++) {
@@ -2179,8 +2249,11 @@ class OrderLetterService {
               leaderIds: leaderIds,
               discountResults: discountResults,
               kasurName: itemName,
-              leaderData:
-                  leaderData, // Pass leader data to avoid multiple API calls
+              leaderData: leaderData,
+              selectedSpvId: selectedSpvId,
+              selectedSpvName: selectedSpvName,
+              selectedRsmId: selectedRsmId,
+              selectedRsmName: selectedRsmName,
             );
           }
         }
@@ -2205,8 +2278,11 @@ class OrderLetterService {
     required List<int?>? leaderIds,
     required List<Map<String, dynamic>> discountResults,
     required String kasurName,
-    LeaderByUserModel?
-        leaderData, // Accept leader data as parameter to avoid multiple API calls
+    LeaderByUserModel? leaderData,
+    int? selectedSpvId,
+    String? selectedSpvName,
+    int? selectedRsmId,
+    String? selectedRsmName,
   }) async {
     int? approverId;
     String approverName = '';
@@ -2231,23 +2307,31 @@ class OrderLetterService {
                 .trim(); // Trim to remove trailing spaces
             approverWorkTitle = effectiveLeaderData.user.workTitle;
             break;
-          case 2: // Direct Leader
-            if (effectiveLeaderData.directLeader != null) {
+          case 2: // Direct Leader (SPV) - Use manually selected if available
+            if (selectedSpvId != null && selectedSpvName != null) {
+              approverId = selectedSpvId;
+              approverName = selectedSpvName.trim();
+              approverWorkTitle = 'Selected SPV';
+            } else if (effectiveLeaderData.directLeader != null) {
               approverId = effectiveLeaderData.directLeader!.id;
               approverName = effectiveLeaderData.directLeader!.fullName
                   .trim(); // Trim to remove trailing spaces
               approverWorkTitle = effectiveLeaderData.directLeader!.workTitle;
             }
             break;
-          case 3: // Indirect Leader
-            if (effectiveLeaderData.indirectLeader != null) {
+          case 3: // Indirect Leader (RSM) - Use manually selected if available
+            if (selectedRsmId != null && selectedRsmName != null) {
+              approverId = selectedRsmId;
+              approverName = selectedRsmName.trim();
+              approverWorkTitle = 'Selected RSM';
+            } else if (effectiveLeaderData.indirectLeader != null) {
               approverId = effectiveLeaderData.indirectLeader!.id;
               approverName = effectiveLeaderData.indirectLeader!.fullName
                   .trim(); // Trim to remove trailing spaces
               approverWorkTitle = effectiveLeaderData.indirectLeader!.workTitle;
             }
             break;
-          case 4: // Analyst
+          case 4: // Analyst - remains automatic
             if (effectiveLeaderData.analyst != null) {
               approverId = effectiveLeaderData.analyst!.id;
               approverName = effectiveLeaderData.analyst!.fullName
@@ -2271,94 +2355,18 @@ class OrderLetterService {
 
         approverLevel = _getApproverLevelName(approvalLevel);
 
-        if (kDebugMode) {
-          print('');
-          print('========================================');
-          print('[DEBUG] _createSingleDiscount - DETAIL:');
-          print('========================================');
-          print('  discountIndex: $discountIndex');
-          print('  approvalLevel: $approvalLevel');
-          print('');
-          print('  SELECTED APPROVER:');
-          print('  ------------------');
-          print('  ID: $approverId');
-          print('  Name: "$approverName"');
-          print('  Level: $approverLevel');
-          print('  Work Title: $approverWorkTitle');
-          print('');
-          print('  FULL LEADER HIERARCHY:');
-          print('  ----------------------');
-          print(
-              '  [1] User: "${effectiveLeaderData.user.fullName}" (ID: ${effectiveLeaderData.user.id})');
-          if (effectiveLeaderData.directLeader != null) {
-            print(
-                '  [2] Direct Leader: "${effectiveLeaderData.directLeader!.fullName}" (ID: ${effectiveLeaderData.directLeader!.id})');
-          } else {
-            print('  [2] Direct Leader: NULL');
-          }
-          if (effectiveLeaderData.indirectLeader != null) {
-            print(
-                '  [3] Indirect Leader: "${effectiveLeaderData.indirectLeader!.fullName}" (ID: ${effectiveLeaderData.indirectLeader!.id})');
-          } else {
-            print('  [3] Indirect Leader: NULL');
-          }
-          if (effectiveLeaderData.analyst != null) {
-            print(
-                '  [4] Analyst: "${effectiveLeaderData.analyst!.fullName}" (ID: ${effectiveLeaderData.analyst!.id})');
-          }
-          if (effectiveLeaderData.controller != null) {
-            print(
-                '  [5] Controller: "${effectiveLeaderData.controller!.fullName}" (ID: ${effectiveLeaderData.controller!.id})');
-          }
-
-          // CRITICAL VALIDATION: Check for potential data issues
-          if (effectiveLeaderData.directLeader != null &&
-              effectiveLeaderData.indirectLeader != null) {
-            if (effectiveLeaderData.directLeader!.id ==
-                effectiveLeaderData.indirectLeader!.id) {
-              print('');
-              print(
-                  '  ⚠️⚠️⚠️ WARNING: Direct Leader dan Indirect Leader memiliki ID SAMA! ⚠️⚠️⚠️');
-              print(
-                  '  Ini akan menyebabkan nama yang sama muncul untuk kedua level!');
-            }
-            if (effectiveLeaderData.directLeader!.fullName ==
-                effectiveLeaderData.indirectLeader!.fullName) {
-              print('');
-              print(
-                  '  ⚠️⚠️⚠️ WARNING: Direct Leader dan Indirect Leader memiliki NAMA SAMA! ⚠️⚠️⚠️');
-              print(
-                  '  Direct: "${effectiveLeaderData.directLeader!.fullName}"');
-              print(
-                  '  Indirect: "${effectiveLeaderData.indirectLeader!.fullName}"');
-            }
-          }
-          print('========================================');
-          print('');
-        }
-
         // Level 1 discounts should be auto-approved (user created the order)
         if (discountIndex == 0) {
           approvedValue = true;
           approvedAt = DateTime.now().toIso8601String();
-          if (kDebugMode) {
-            print('  - Auto-approved (User level)');
-          }
         } else {
           approvedValue = null;
           approvedAt = null;
-          if (kDebugMode) {
-            print('  - Requires approval (Level $approvalLevel)');
-          }
         }
 
         // Skip creating discount entry if approverId is null (for all levels except User)
         // This prevents creating entries without valid approvers, especially for Analyst/Controller
         if (approverId == null && approvalLevel > 1) {
-          if (kDebugMode) {
-            print(
-                '[DEBUG] _createSingleDiscount: Skipping discount entry for level $approvalLevel ($approverLevel) - no approver found');
-          }
           return;
         }
       } else {
@@ -2391,29 +2399,44 @@ class OrderLetterService {
       'approved_at': approvedAt,
     };
 
-    if (kDebugMode) {
-      print('  - Sending discount data to API:');
-      print('    order_letter_id: ${discountData['order_letter_id']}');
-      print(
-          '    order_letter_detail_id: ${discountData['order_letter_detail_id']}');
-      print('    discount: ${discountData['discount']}');
-      print('    approver: ${discountData['approver']}');
-      print('    approver_name: ${discountData['approver_name']}');
-      print('    approver_level_id: ${discountData['approver_level_id']}');
-      print('    approver_level: ${discountData['approver_level']}');
-      print('    approved: ${discountData['approved']}');
-    }
+    final discountResult = await createOrderLetterDiscount(discountData);
+    discountResults.add(discountResult);
+  }
+
+  /// Create a discount entry for INDIRECT checkout (store discounts)
+  /// All discounts are attributed to the store, not user levels
+  Future<void> _createIndirectDiscount({
+    required int orderLetterId,
+    required int kasurOrderLetterDetailId,
+    required double discount,
+    required int discountIndex,
+    required List<Map<String, dynamic>> discountResults,
+    required String storeName,
+  }) async {
+    // For indirect checkout:
+    // - All discounts are store discounts
+    // - approver_name = store name
+    // - approver_level = "Store Discount {index+1}"
+    // - Auto-approved (store discounts don't need approval)
+
+    final approverLevel = 'Diskon Toko ${discountIndex + 1}';
+    final approvedAt = DateTime.now().toIso8601String();
+
+    final discountData = {
+      'order_letter_id': orderLetterId,
+      'order_letter_detail_id': kasurOrderLetterDetailId,
+      'discount': discount.toString(),
+      'approver': null, // No specific user approver for store discounts
+      'approver_name': storeName, // Store name as approver
+      'approver_level_id': discountIndex + 1,
+      'approver_level': approverLevel,
+      'approver_work_title': 'Toko', // Work title for store
+      'approved': true, // Store discounts are auto-approved
+      'approved_at': approvedAt,
+    };
 
     final discountResult = await createOrderLetterDiscount(discountData);
     discountResults.add(discountResult);
-
-    if (kDebugMode) {
-      print(
-          '  - Discount result: ${discountResult['success'] ? "Success" : "Failed"}');
-      if (discountResult['success'] == false) {
-        print('    Error: ${discountResult['message']}');
-      }
-    }
   }
 
   /// Get count of pending discounts for a specific user level in an order letter
@@ -2588,9 +2611,9 @@ class OrderLetterService {
       case 1:
         return 'User';
       case 2:
-        return 'Direct Leader';
+        return 'Supervisor';
       case 3:
-        return 'Indirect Leader';
+        return 'RSM';
       case 4:
         return 'Analyst';
       case 5:
