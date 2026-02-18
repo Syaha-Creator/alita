@@ -22,6 +22,7 @@ class OrderLetterDataEntity {
   final int workPlaceId;
   final bool takeAway;
   final double postage;
+  final String? channel;
 
   OrderLetterDataEntity({
     required this.orderDate,
@@ -42,14 +43,21 @@ class OrderLetterDataEntity {
     required this.workPlaceId,
     required this.takeAway,
     required this.postage,
+    this.channel,
+    bool skipPhoneEmailValidation = false, // For indirect checkout
   }) {
     // Validate required fields
     Validators.validateDateString(orderDate, 'Order date');
     Validators.validateDateString(requestDate, 'Request date');
     Validators.validateRequired(creator, 'Creator ID');
     Validators.validateRequired(customerName, 'Customer name');
-    Validators.validatePhone(phone);
-    Validators.validateEmail(email);
+    
+    // Skip phone/email validation for indirect checkout (store data format may differ)
+    if (!skipPhoneEmailValidation) {
+      Validators.validatePhone(phone);
+      Validators.validateEmail(email);
+    }
+    
     Validators.validateRequired(address, 'Customer address');
     Validators.validateRequired(shipToName, 'Ship to name');
     Validators.validateRequired(addressShipTo, 'Address ship to');
@@ -64,7 +72,7 @@ class OrderLetterDataEntity {
 
   /// Convert to Map untuk API request
   Map<String, dynamic> toMap() {
-    return {
+    final map = <String, dynamic>{
       'order_date': orderDate,
       'request_date': requestDate,
       'creator': creator,
@@ -84,6 +92,12 @@ class OrderLetterDataEntity {
       'take_away': takeAway,
       'postage': postage,
     };
+    
+    if (channel != null && channel!.isNotEmpty) {
+      map['channel'] = channel;
+    }
+    
+    return map;
   }
 
   /// Create from Map (untuk backward compatibility)
@@ -107,6 +121,7 @@ class OrderLetterDataEntity {
       workPlaceId: (map['work_place_id'] as num?)?.toInt() ?? 0,
       takeAway: map['take_away'] as bool? ?? false,
       postage: (map['postage'] as num?)?.toDouble() ?? 0.0,
+      channel: map['channel'] as String?,
     );
   }
 }

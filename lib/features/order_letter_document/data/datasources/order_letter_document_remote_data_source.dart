@@ -72,7 +72,12 @@ class OrderLetterDocumentRemoteDataSourceImpl
       final workPlaceAddress = resultMap['work_place_address'];
 
       // Extract details from the response (discounts are now nested in each detail)
-      final detailsData = resultMap['order_letter_details'] ?? [];
+      final detailsData = (resultMap['order_letter_details'] as List? ?? [])
+        ..sort((a, b) {
+          final aId = (a as Map?)?['order_letter_detail_id'] ?? 0;
+          final bId = (b as Map?)?['order_letter_detail_id'] ?? 0;
+          return (aId as int).compareTo(bId as int);
+        });
 
       // Extract all discounts from details for backward compatibility with the main model
       final List<dynamic> discountsData = [];

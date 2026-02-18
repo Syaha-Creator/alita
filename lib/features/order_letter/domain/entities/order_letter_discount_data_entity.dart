@@ -9,12 +9,16 @@ class OrderLetterDiscountDataEntity {
   final String kasurName;
   final String productSize;
   final List<double> discounts;
+  final bool isIndirect;
+  final String? storeName; // Nama toko untuk indirect checkout
 
   OrderLetterDiscountDataEntity({
     required this.productId,
     required this.kasurName,
     required this.productSize,
     required this.discounts,
+    this.isIndirect = false,
+    this.storeName,
   }) {
     // Validate required fields
     Validators.validatePositive(productId, 'Product ID');
@@ -38,6 +42,8 @@ class OrderLetterDiscountDataEntity {
       'kasurName': kasurName,
       'productSize': productSize,
       'discounts': discounts,
+      'isIndirect': isIndirect,
+      'storeName': storeName,
     };
   }
 
@@ -51,6 +57,8 @@ class OrderLetterDiscountDataEntity {
               ?.map((e) => (e as num).toDouble())
               .toList() ??
           [],
+      isIndirect: map['isIndirect'] as bool? ?? false,
+      storeName: map['storeName'] as String?,
     );
   }
 }

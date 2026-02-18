@@ -372,6 +372,18 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                       iconColor: AppColors.purple, // Status color
                       isAddress: true,
                     ),
+                    // Channel row - only show if channel exists
+                    if (document.channel != null &&
+                        document.channel!.trim().isNotEmpty) ...[
+                      const SizedBox(height: AppPadding.p16),
+                      DocumentInfoRow(
+                        icon: Icons.sell_outlined,
+                        label: 'Channel',
+                        value: document.channel!.trim(),
+                        iconColor: AppColors.info, // Blue color for channel
+                        isAddress: false,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -2581,36 +2593,19 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         final list =
             pricingSummary.putIfAbsent(key, () => <Map<String, dynamic>>[]);
 
-        // Helper function to compare doubles with tolerance (for floating point precision)
-        bool isDoubleEqual(double a, double b) {
-          return (a - b).abs() < 0.01;
-        }
+        // Check if same detail_id exists in list (exact match by ID)
+        final existingIndex =
+            list.indexWhere((e) => e['detail_id'] == detailId);
 
-        final existingEntry = list.firstWhere(
-          (entry) {
-            final entryUnitPrice =
-                (entry['unit_price_per_unit'] as num).toDouble();
-            final entryCustomerPrice =
-                (entry['customer_price_per_unit'] as num).toDouble();
-            final entryNetPrice =
-                (entry['net_price_per_unit'] as num).toDouble();
-            final entryHasCustomerPrice = (entry['has_customer_price'] as bool);
-
-            return isDoubleEqual(entryUnitPrice, unitPrice) &&
-                isDoubleEqual(entryCustomerPrice, customerPrice) &&
-                isDoubleEqual(entryNetPrice, netPrice) &&
-                entryHasCustomerPrice == hasExplicitCustomerPrice;
-          },
-          orElse: () => <String, dynamic>{},
-        );
-
-        if (existingEntry.isNotEmpty) {
-          // Merge: add quantity to existing entry
-          existingEntry['quantity'] =
-              (existingEntry['quantity'] as num).toDouble() +
+        if (existingIndex >= 0) {
+          // Same detail_id - aggregate quantity (this is for same physical item)
+          list[existingIndex]['quantity'] =
+              (list[existingIndex]['quantity'] as num).toDouble() +
                   quantity.toDouble();
         } else {
-          // Add new entry
+          // Different detail_id - always create new entry
+          // This ensures each order_letter_detail has its own pricing entry
+          // which is needed for PDF to display item_description for each item
           list.add({
             'detail_id': detailId,
             'unit_price_per_unit': unitPrice,
@@ -2629,8 +2624,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
 
       for (int i = 0; i < groups.length; i++) {
         final group = groups[i];
-        final kasurDetail =
-            group.kasurDetails.first; // Use first kasur as representative
+        final kasurDetail = group.kasurDetails.first;
 
         // Initialize product fields
         String kasur = kasurDetail.desc1;
@@ -2953,6 +2947,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
                 'payment_method': p.paymentMethod,
                 'payment_bank': p.paymentBank ?? '',
                 'payment_date': p.paymentDate ?? '',
+                'created_at': p.createdAt,
               })
           .toList();
 
@@ -2988,6 +2983,7 @@ class _OrderLetterDocumentPageState extends State<OrderLetterDocumentPage> {
         postage: _document!.postage,
         orderLetterCreatedAt: _formatDateTimeWithTime(_document!.createdAt),
         paymentsData: paymentsData, // Multiple payments support
+        channel: _document!.channel, // For logo logic (S0 hides Sleep Center logo)
       );
 
       final pdfType = showApprovalColumn ? 'Approval' : 'Customer';

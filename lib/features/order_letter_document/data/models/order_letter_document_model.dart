@@ -21,6 +21,7 @@ class OrderLetterDocumentModel {
   final String? workPlaceAddress;
   final bool? takeAway; // Boolean (global untuk semua items)
   final double? postage;
+  final String? channel; // Channel information from items
   final List<OrderLetterDetailModel> details;
   final List<OrderLetterDiscountModel> discounts;
   final List<OrderLetterApproveModel> approvals;
@@ -48,6 +49,7 @@ class OrderLetterDocumentModel {
     this.workPlaceAddress,
     this.takeAway,
     this.postage,
+    this.channel,
     required this.extendedAmount,
     required this.hargaAwal,
     required this.details,
@@ -112,14 +114,20 @@ class OrderLetterDocumentModel {
       postage: json['postage'] != null
           ? double.tryParse(json['postage'].toString())
           : null,
+      channel: _toNullableString(json['channel']),
       extendedAmount:
           double.tryParse(json['extended_amount']?.toString() ?? '0.0') ?? 0.0,
       hargaAwal:
           double.tryParse(json['harga_awal']?.toString() ?? '0.0') ?? 0.0,
-      details: (json['details'] as List<dynamic>?)
-              ?.map((detail) => OrderLetterDetailModel.fromJson(detail))
-              .toList() ??
-          [],
+      details: () {
+        final detailsList = (json['details'] as List<dynamic>?)
+                ?.map((detail) => OrderLetterDetailModel.fromJson(detail))
+                .toList() ??
+            [];
+        // Sort by ID to maintain creation order
+        detailsList.sort((a, b) => a.id.compareTo(b.id));
+        return detailsList;
+      }(),
       discounts: (json['discounts'] as List<dynamic>?)
               ?.map((discount) => OrderLetterDiscountModel.fromJson(discount))
               .toList() ??
@@ -158,6 +166,7 @@ class OrderLetterDocumentModel {
       'note': note,
       'take_away': takeAway,
       'postage': postage,
+      'channel': channel,
       'extended_amount': extendedAmount,
       'harga_awal': hargaAwal,
       'details': details.map((detail) => detail.toJson()).toList(),

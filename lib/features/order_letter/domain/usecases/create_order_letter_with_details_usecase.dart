@@ -25,6 +25,10 @@ class CreateOrderLetterWithDetailsUseCase {
     required dynamic
         discountsData, // Can be List<double> or List<OrderLetterDiscountDataEntity>
     List<int?>? leaderIds,
+    int? selectedSpvId,
+    String? selectedSpvName,
+    int? selectedRsmId,
+    String? selectedRsmName,
   }) async {
     // Convert entities to maps untuk backward compatibility dengan OrderLetterService
     final orderLetterDataMap = orderLetterData.toMap();
@@ -43,6 +47,10 @@ class CreateOrderLetterWithDetailsUseCase {
       detailsData: detailsDataMap,
       discountsData: discountsDataMap,
       leaderIds: leaderIds,
+      selectedSpvId: selectedSpvId,
+      selectedSpvName: selectedSpvName,
+      selectedRsmId: selectedRsmId,
+      selectedRsmName: selectedRsmName,
     );
 
     // Convert result map to entity
