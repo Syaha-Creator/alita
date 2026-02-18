@@ -171,7 +171,7 @@ class _LoginFormState extends State<LoginForm> with ControllerDisposalMixin {
               if (state is AuthSuccess) {
                 setState(() => isLoading = false);
                 CustomToast.showToast("Login Berhasil!", ToastType.success);
-                NavigationService.navigateAndReplace(RoutePaths.product);
+                NavigationService.navigateAndReplace(RoutePaths.home);
               }
 
               if (state is AuthFailure) {

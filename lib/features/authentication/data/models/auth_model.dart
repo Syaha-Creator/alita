@@ -10,6 +10,7 @@ class AuthModel {
   final int? areaId;
   final String? area;
   final int? companyId;
+  final String? addressNumber;
 
   AuthModel({
     required this.accessToken,
@@ -23,6 +24,7 @@ class AuthModel {
     this.areaId,
     this.area,
     this.companyId,
+    this.addressNumber,
   });
 
   factory AuthModel.fromJson(Map<String, dynamic> json) {
@@ -59,6 +61,13 @@ class AuthModel {
     // Fallback to area_id if area object doesn't exist
     areaId ??= userData["area_id"];
 
+    // Extract address_number
+    String? addressNumber;
+    final addressNumberData = userData["address_number"];
+    if (addressNumberData != null) {
+      addressNumber = addressNumberData.toString();
+    }
+
     return AuthModel(
       accessToken: token ?? "",
       tokenType: json["token_type"] ?? "Bearer",
@@ -71,6 +80,7 @@ class AuthModel {
       areaId: areaId,
       area: areaName,
       companyId: userData["company_id"],
+      addressNumber: addressNumber,
     );
   }
 }

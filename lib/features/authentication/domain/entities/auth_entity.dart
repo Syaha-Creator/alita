@@ -6,6 +6,7 @@ class AuthEntity {
   final int expiresIn;
   final int? areaId;
   final String? areaName;
+  final String? addressNumber;
 
   AuthEntity({
     required this.id,
@@ -15,5 +16,6 @@ class AuthEntity {
     required this.expiresIn,
     this.areaId,
     this.areaName,
+    this.addressNumber,
   });
 }

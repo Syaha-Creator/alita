@@ -67,6 +67,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           auth.name,
           auth.areaId,
           areaName: auth.areaName,
+          addressNumber: auth.addressNumber,
         );
 
         emit(AuthSuccess(auth.accessToken));

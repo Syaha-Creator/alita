@@ -16,6 +16,7 @@ class LoginUseCase {
       expiresIn: authModel.createdAt ?? DateTime.now().millisecondsSinceEpoch,
       areaId: authModel.areaId,
       areaName: authModel.area,
+      addressNumber: authModel.addressNumber,
     );
   }
 }
