@@ -136,8 +136,8 @@ abstract final class PdfItemsTable {
     if (postage <= 0) return [itemsTable];
 
     final shippingWidths = isInternal
-        ? {0: const pw.FlexColumnWidth(6.0), 1: const pw.FlexColumnWidth(6.0)}
-        : {0: const pw.FlexColumnWidth(7.5), 1: const pw.FlexColumnWidth(6.0)};
+        ? {0: const pw.FlexColumnWidth(42), 1: const pw.FlexColumnWidth(6.0)}
+        : {0: const pw.FlexColumnWidth(34.5), 1: const pw.FlexColumnWidth(6.0)};
 
     final shippingTable = pw.Table(
       border: pw.TableBorder.all(color: PdfColors.black, width: 0.5),

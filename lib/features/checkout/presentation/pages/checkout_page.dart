@@ -412,23 +412,33 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 // ── Card 4: Order Summary ─────────────────────────
                 _buildSectionCard(
                   title: 'Ringkasan Pesanan',
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: cartItems.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      return RepaintBoundary(
-                        child: OrderItemTile(
-                          item: cartItems[index],
-                          priceFmt: _priceFmt,
-                          isBonusTakeAwayChecked: _isBonusTakeAwayChecked,
-                          currentTakeAwayQty: _currentTakeAwayQty,
-                          onTakeAwayToggled: _toggleBonusTakeAway,
-                          onTakeAwayQtyChanged: _setTakeAwayQty,
-                        ),
-                      );
-                    },
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: cartItems.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          return RepaintBoundary(
+                            child: OrderItemTile(
+                              item: cartItems[index],
+                              priceFmt: _priceFmt,
+                              isBonusTakeAwayChecked: (b) =>
+                                  _isBonusTakeAwayChecked(index, b),
+                              currentTakeAwayQty: (b) =>
+                                  _currentTakeAwayQty(index, b),
+                              onTakeAwayToggled: (b, checked) =>
+                                  _toggleBonusTakeAway(index, b, checked),
+                              onTakeAwayQtyChanged: (b, qty) =>
+                                  _setTakeAwayQty(index, b, qty),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ),
 
@@ -963,17 +973,17 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     );
   }
 
-  // ── TakeAway helpers ──────────────────────────────────────────
+  // ── TakeAway helpers (per-bundle: key = itemIndex + bonus) ─────
 
-  String _bonusTakeAwayKey(CartBonusSnapshot bonus) =>
-      bonus.sku.isNotEmpty ? bonus.sku : bonus.name;
+  String _bonusTakeAwayKey(int itemIndex, CartBonusSnapshot bonus) =>
+      '${itemIndex}_${bonus.sku.isNotEmpty ? bonus.sku : bonus.name}';
 
-  bool _isBonusTakeAwayChecked(CartBonusSnapshot bonus) {
-    return _checkedTakeAwaySkus.contains(_bonusTakeAwayKey(bonus));
+  bool _isBonusTakeAwayChecked(int itemIndex, CartBonusSnapshot bonus) {
+    return _checkedTakeAwaySkus.contains(_bonusTakeAwayKey(itemIndex, bonus));
   }
 
-  void _toggleBonusTakeAway(CartBonusSnapshot bonus, bool checked) {
-    final key = _bonusTakeAwayKey(bonus);
+  void _toggleBonusTakeAway(int itemIndex, CartBonusSnapshot bonus, bool checked) {
+    final key = _bonusTakeAwayKey(itemIndex, bonus);
     setState(() {
       if (checked) {
         _checkedTakeAwaySkus.add(key);
@@ -985,13 +995,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     });
   }
 
-  int _currentTakeAwayQty(CartBonusSnapshot bonus) {
-    final raw = _takeAwayQtys[_bonusTakeAwayKey(bonus)] ?? 0;
+  int _currentTakeAwayQty(int itemIndex, CartBonusSnapshot bonus) {
+    final raw = _takeAwayQtys[_bonusTakeAwayKey(itemIndex, bonus)] ?? 0;
     return raw.clamp(0, bonus.qty);
   }
 
-  void _setTakeAwayQty(CartBonusSnapshot bonus, int value) {
-    final key = _bonusTakeAwayKey(bonus);
+  void _setTakeAwayQty(int itemIndex, CartBonusSnapshot bonus, int value) {
+    final key = _bonusTakeAwayKey(itemIndex, bonus);
     final clamped = value.clamp(0, bonus.qty);
     setState(() {
       _takeAwayQtys[key] = clamped;
@@ -1002,5 +1012,4 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       }
     });
   }
-
 }

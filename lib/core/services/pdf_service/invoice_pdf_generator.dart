@@ -362,8 +362,7 @@ class InvoicePdfGenerator {
         'extended_price': d.extendedPrice,
         'customer_price': d.customerPrice,
         'net_price': d.netPrice,
-        'take_away':
-            d.itemType.toLowerCase().contains('bonus') && order.isTakeAway,
+        'take_away': d.isTakeAway,
         'id': d.id,
         'order_letter_detail_id': d.id,
       };

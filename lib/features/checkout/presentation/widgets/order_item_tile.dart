@@ -8,8 +8,9 @@ import 'order_summary_set_details.dart';
 
 /// Single order item tile inside the checkout Order Summary card.
 ///
-/// Displays item header, set details (divan/headboard/sorong), and bonus
-/// section with take-away controls. All state mutations flow through callbacks.
+/// Displays item header, set details (divan/headboard/sorong), and optionally
+/// bonus section with take-away controls. When [showBonusSection] is false,
+/// bonus is rendered once in a combined section below all items.
 class OrderItemTile extends StatelessWidget {
   final CartItem item;
   final String Function(num) priceFmt;
@@ -17,6 +18,8 @@ class OrderItemTile extends StatelessWidget {
   final int Function(CartBonusSnapshot) currentTakeAwayQty;
   final void Function(CartBonusSnapshot, bool) onTakeAwayToggled;
   final void Function(CartBonusSnapshot, int) onTakeAwayQtyChanged;
+  /// When false, only header + set details are shown (bonus shown once below all items).
+  final bool showBonusSection;
 
   const OrderItemTile({
     super.key,
@@ -26,6 +29,7 @@ class OrderItemTile extends StatelessWidget {
     required this.currentTakeAwayQty,
     required this.onTakeAwayToggled,
     required this.onTakeAwayQtyChanged,
+    this.showBonusSection = true,
   });
 
   @override
@@ -74,7 +78,7 @@ class OrderItemTile extends StatelessWidget {
                   !p.sorong.toLowerCase().contains('tanpa'),
             ),
           ],
-          if (item.bonusSnapshots.isNotEmpty)
+          if (showBonusSection && item.bonusSnapshots.isNotEmpty)
             OrderSummaryBonusSection(
               bonuses: item.bonusSnapshots,
               isChecked: isBonusTakeAwayChecked,

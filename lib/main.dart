@@ -11,6 +11,8 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'core/router/app_router.dart';
 import 'core/services/notification_handler_service.dart';
 import 'core/theme/app_theme.dart';
+import 'features/auth/logic/auth_provider.dart';
+import 'features/pricelist/logic/master_data_provider.dart';
 import 'core/widgets/offline_banner.dart';
 import 'firebase_options.dart';
 
@@ -69,6 +71,14 @@ class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp> {
   Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
     NotificationHandlerService.registerNavigateCallback(router);
+
+    // When user logs in, invalidate master data so it re-fetches with token
+    // (fixes first-install: area/channel/brand empty because sync never ran)
+    ref.listen<AuthState>(authProvider, (prev, next) {
+      if (prev?.isLoggedIn != true && next.isLoggedIn) {
+        ref.invalidate(masterDataProvider);
+      }
+    });
 
     if (!_initialMessageHandled) {
       WidgetsBinding.instance.addPostFrameCallback((_) {

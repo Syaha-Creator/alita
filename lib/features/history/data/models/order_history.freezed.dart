@@ -737,6 +737,7 @@ mixin _$OrderDetail {
   @JsonKey(fromJson: _parseDouble)
   double get extendedPrice => throw _privateConstructorUsedError;
   List<OrderDiscount> get discounts => throw _privateConstructorUsedError;
+  bool get isTakeAway => throw _privateConstructorUsedError;
 
   /// Serializes this OrderDetail to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -766,7 +767,8 @@ abstract class $OrderDetailCopyWith<$Res> {
       String brand,
       @JsonKey(fromJson: _parseDouble) double unitPrice,
       @JsonKey(fromJson: _parseDouble) double extendedPrice,
-      List<OrderDiscount> discounts});
+      List<OrderDiscount> discounts,
+      bool isTakeAway});
 }
 
 /// @nodoc
@@ -796,6 +798,7 @@ class _$OrderDetailCopyWithImpl<$Res, $Val extends OrderDetail>
     Object? unitPrice = null,
     Object? extendedPrice = null,
     Object? discounts = null,
+    Object? isTakeAway = null,
   }) {
     return _then(_value.copyWith(
       id: null == id
@@ -846,6 +849,10 @@ class _$OrderDetailCopyWithImpl<$Res, $Val extends OrderDetail>
           ? _value.discounts
           : discounts // ignore: cast_nullable_to_non_nullable
               as List<OrderDiscount>,
+      isTakeAway: null == isTakeAway
+          ? _value.isTakeAway
+          : isTakeAway // ignore: cast_nullable_to_non_nullable
+              as bool,
     ) as $Val);
   }
 }
@@ -870,7 +877,8 @@ abstract class _$$OrderDetailImplCopyWith<$Res>
       String brand,
       @JsonKey(fromJson: _parseDouble) double unitPrice,
       @JsonKey(fromJson: _parseDouble) double extendedPrice,
-      List<OrderDiscount> discounts});
+      List<OrderDiscount> discounts,
+      bool isTakeAway});
 }
 
 /// @nodoc
@@ -898,6 +906,7 @@ class __$$OrderDetailImplCopyWithImpl<$Res>
     Object? unitPrice = null,
     Object? extendedPrice = null,
     Object? discounts = null,
+    Object? isTakeAway = null,
   }) {
     return _then(_$OrderDetailImpl(
       id: null == id
@@ -948,6 +957,10 @@ class __$$OrderDetailImplCopyWithImpl<$Res>
           ? _value._discounts
           : discounts // ignore: cast_nullable_to_non_nullable
               as List<OrderDiscount>,
+      isTakeAway: null == isTakeAway
+          ? _value.isTakeAway
+          : isTakeAway // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }
@@ -967,7 +980,8 @@ class _$OrderDetailImpl implements _OrderDetail {
       required this.brand,
       @JsonKey(fromJson: _parseDouble) required this.unitPrice,
       @JsonKey(fromJson: _parseDouble) this.extendedPrice = 0,
-      final List<OrderDiscount> discounts = const <OrderDiscount>[]})
+      final List<OrderDiscount> discounts = const <OrderDiscount>[],
+      this.isTakeAway = false})
       : _discounts = discounts;
 
   factory _$OrderDetailImpl.fromJson(Map<String, dynamic> json) =>
@@ -1010,8 +1024,12 @@ class _$OrderDetailImpl implements _OrderDetail {
   }
 
   @override
+  @JsonKey()
+  final bool isTakeAway;
+
+  @override
   String toString() {
-    return 'OrderDetail(id: $id, noSp: $noSp, itemDescription: $itemDescription, desc1: $desc1, itemType: $itemType, qty: $qty, customerPrice: $customerPrice, netPrice: $netPrice, brand: $brand, unitPrice: $unitPrice, extendedPrice: $extendedPrice, discounts: $discounts)';
+    return 'OrderDetail(id: $id, noSp: $noSp, itemDescription: $itemDescription, desc1: $desc1, itemType: $itemType, qty: $qty, customerPrice: $customerPrice, netPrice: $netPrice, brand: $brand, unitPrice: $unitPrice, extendedPrice: $extendedPrice, discounts: $discounts, isTakeAway: $isTakeAway)';
   }
 
   @override
@@ -1037,7 +1055,9 @@ class _$OrderDetailImpl implements _OrderDetail {
             (identical(other.extendedPrice, extendedPrice) ||
                 other.extendedPrice == extendedPrice) &&
             const DeepCollectionEquality()
-                .equals(other._discounts, _discounts));
+                .equals(other._discounts, _discounts) &&
+            (identical(other.isTakeAway, isTakeAway) ||
+                other.isTakeAway == isTakeAway));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1055,7 +1075,8 @@ class _$OrderDetailImpl implements _OrderDetail {
       brand,
       unitPrice,
       extendedPrice,
-      const DeepCollectionEquality().hash(_discounts));
+      const DeepCollectionEquality().hash(_discounts),
+      isTakeAway);
 
   /// Create a copy of OrderDetail
   /// with the given fields replaced by the non-null parameter values.
@@ -1086,7 +1107,8 @@ abstract class _OrderDetail implements OrderDetail {
       required final String brand,
       @JsonKey(fromJson: _parseDouble) required final double unitPrice,
       @JsonKey(fromJson: _parseDouble) final double extendedPrice,
-      final List<OrderDiscount> discounts}) = _$OrderDetailImpl;
+      final List<OrderDiscount> discounts,
+      final bool isTakeAway}) = _$OrderDetailImpl;
 
   factory _OrderDetail.fromJson(Map<String, dynamic> json) =
       _$OrderDetailImpl.fromJson;
@@ -1119,6 +1141,8 @@ abstract class _OrderDetail implements OrderDetail {
   double get extendedPrice;
   @override
   List<OrderDiscount> get discounts;
+  @override
+  bool get isTakeAway;
 
   /// Create a copy of OrderDetail
   /// with the given fields replaced by the non-null parameter values.

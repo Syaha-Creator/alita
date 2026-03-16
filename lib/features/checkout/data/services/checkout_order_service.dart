@@ -408,8 +408,8 @@ class CheckoutOrderService {
     required Approver? selectedSpv,
     required Approver? selectedManager,
     required bool globalIsTakeAway,
-    required bool Function(CartBonusSnapshot) isBonusTakeAwayChecked,
-    required int Function(CartBonusSnapshot) currentTakeAwayQty,
+    required bool Function(int itemIndex, CartBonusSnapshot) isBonusTakeAwayChecked,
+    required int Function(int itemIndex, CartBonusSnapshot) currentTakeAwayQty,
     required String profileName,
   }) {
     final pending = <PendingDetail>[];
@@ -427,7 +427,8 @@ class CheckoutOrderService {
     String? getTakeAway([bool itemTakeAway = false]) =>
         (globalIsTakeAway || itemTakeAway) ? 'TAKE AWAY' : null;
 
-    for (final item in cartItems) {
+    for (var itemIndex = 0; itemIndex < cartItems.length; itemIndex++) {
+      final item = cartItems[itemIndex];
       final p = item.product;
       final master = item.masterProduct;
       final String brand = p.brand.isNotEmpty ? p.brand : 'Unknown Brand';
@@ -686,7 +687,7 @@ class CheckoutOrderService {
             : bonusPlPrice;
 
         final int configuredTakeAway =
-            globalIsTakeAway ? bonus.qty : currentTakeAwayQty(bonus);
+            globalIsTakeAway ? bonus.qty : currentTakeAwayQty(itemIndex, bonus);
 
         final splitSegments = TakeAwaySplitter.split(
           totalQty: bonus.qty,

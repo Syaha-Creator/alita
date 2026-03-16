@@ -91,6 +91,7 @@ _$OrderDetailImpl _$$OrderDetailImplFromJson(Map<String, dynamic> json) =>
               ?.map((e) => OrderDiscount.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const <OrderDiscount>[],
+      isTakeAway: json['isTakeAway'] as bool? ?? false,
     );
 
 Map<String, dynamic> _$$OrderDetailImplToJson(_$OrderDetailImpl instance) =>
@@ -107,6 +108,7 @@ Map<String, dynamic> _$$OrderDetailImplToJson(_$OrderDetailImpl instance) =>
       'unitPrice': instance.unitPrice,
       'extendedPrice': instance.extendedPrice,
       'discounts': instance.discounts,
+      'isTakeAway': instance.isTakeAway,
     };
 
 _$OrderDiscountImpl _$$OrderDiscountImplFromJson(Map<String, dynamic> json) =>

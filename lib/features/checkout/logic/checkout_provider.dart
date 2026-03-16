@@ -114,8 +114,8 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     required Map<String, dynamic> paymentPayload,
     required File? receiptImage,
     required bool globalIsTakeAway,
-    required bool Function(CartBonusSnapshot) isBonusTakeAwayChecked,
-    required int Function(CartBonusSnapshot) currentTakeAwayQty,
+    required bool Function(int itemIndex, CartBonusSnapshot) isBonusTakeAwayChecked,
+    required int Function(int itemIndex, CartBonusSnapshot) currentTakeAwayQty,
     // Contact saving
     required String? selectedContactId,
     required bool shouldSaveCustomerContact,

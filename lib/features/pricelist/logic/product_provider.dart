@@ -108,17 +108,24 @@ final brandsProvider = Provider<List<String>>((ref) {
   try {
     if (masterData.channels.isEmpty || masterData.brands.isEmpty) return [];
 
-    // Step 1: Find the selected channel's id
+    // Step 1: Find the selected channel's id (API may return id as int or string)
     final channelObj = masterData.channels.firstWhere(
       (c) => c['channel']?.toString() == selectedChannel,
       orElse: () => <String, dynamic>{},
     );
-    final selectedChannelId = channelObj['id'];
+    final rawId = channelObj['id'];
+    if (rawId == null) return [];
+    final selectedChannelId = rawId is int ? rawId : int.tryParse(rawId.toString());
     if (selectedChannelId == null) return [];
 
-    // Step 2: Filter brands by pl_channel_id, extract unique names
+    // Step 2: Filter brands by pl_channel_id (may be int or string from API)
     return masterData.brands
-        .where((b) => b['pl_channel_id'] == selectedChannelId)
+        .where((b) {
+          final plId = b['pl_channel_id'];
+          if (plId == null) return false;
+          final plIdInt = plId is int ? plId : int.tryParse(plId.toString());
+          return plIdInt != null && plIdInt == selectedChannelId;
+        })
         .map((b) => (b['brand'] ?? '').toString())
         .where((name) => name.isNotEmpty)
         .toSet()

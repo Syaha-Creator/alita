@@ -77,7 +77,7 @@ class OrderHistory with _$OrderHistory {
       shipToName: letter['ship_to_name']?.toString() ?? '',
       addressShipTo: letter['address_ship_to']?.toString() ?? '',
       noPo: letter['no_po']?.toString(),
-      isTakeAway: letter['take_away'] == true,
+      isTakeAway: _parseTakeAway(letter['take_away']),
       workPlaceName: json['work_place_name']?.toString() ??
           letter['work_place_name']?.toString() ??
           '-',
@@ -120,6 +120,13 @@ extension OrderHistoryX on OrderHistory {
     ..sort((a, b) => a.id.compareTo(b.id)));
 }
 
+/// Returns true if [value] is truthy or string "TAKE AWAY" (API returns string).
+bool _parseTakeAway(dynamic value) {
+  if (value == null) return false;
+  if (value is bool) return value;
+  return value.toString().trim().toUpperCase() == 'TAKE AWAY';
+}
+
 @freezed
 class OrderDetail with _$OrderDetail {
   const factory OrderDetail({
@@ -135,6 +142,7 @@ class OrderDetail with _$OrderDetail {
     @JsonKey(fromJson: _parseDouble) required double unitPrice,
     @JsonKey(fromJson: _parseDouble) @Default(0) double extendedPrice,
     @Default(<OrderDiscount>[]) List<OrderDiscount> discounts,
+    @Default(false) bool isTakeAway,
   }) = _OrderDetail;
 
   factory OrderDetail.fromJson(Map<String, dynamic> json) =>
@@ -170,6 +178,7 @@ class OrderDetail with _$OrderDetail {
       unitPrice: up,
       extendedPrice: ep > 0 ? ep : up * q,
       discounts: parsedDiscounts,
+      isTakeAway: _parseTakeAway(json['take_away']),
     );
   }
 }
