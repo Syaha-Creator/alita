@@ -1,27 +1,32 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
-.DS_Store
-.atom/
-.build/
-.buildlog/
-.history
-.svn/
-.swiftpm/
-migrate_working_dir/
+# ──────────────────────────────────────────────────────────────
+# Alita Pricelist — .gitignore
+# ──────────────────────────────────────────────────────────────
 
-# IntelliJ related
+# ─── OS Generated ─────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+*~
+
+# ─── IDE / Editor ────────────────────────────────────────────
 *.iml
 *.ipr
 *.iws
 .idea/
-
-# VS Code
 .vscode/
+*.swp
+*.swo
+.*.swp
 
-# Flutter/Dart/Pub related
+# Cursor IDE (keep .cursor/rules/ for shared workspace rules)
+.cursor/*
+!.cursor/rules/
+
+# ─── Flutter / Dart / Pub ────────────────────────────────────
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
@@ -32,20 +37,26 @@ migrate_working_dir/
 /build/
 *.dill
 *.dill.track.dill
+.metadata
+.packages
 
-# Symbolication related
-app.*.symbols
+# FVM (Flutter Version Manager)
+.fvm/flutter_sdk
+.fvm/fvm_config.json
+
+# ─── Environment & Secrets ───────────────────────────────────
 .env
+.env.*
+!.env.example
+*.keystore
+*.jks
 
-# Obfuscation related
-app.*.map.json
-
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
-/android/app/.cxx/
+# ─── Android ─────────────────────────────────────────────────
+/android/app/debug/
+/android/app/profile/
+/android/app/release/
 /android/app/build/
+/android/app/.cxx/
 /android/build/
 /android/.gradle/
 /android/local.properties
@@ -54,10 +65,13 @@ android/key.properties
 android/app/key.properties
 android/.gradle/
 android/.kotlin/
-*.keystore
-*.jks
+android/app/.cxx/
 
-# iOS/Xcode related
+# Android build outputs
+*.apk
+*.aab
+
+# ─── iOS / Xcode ─────────────────────────────────────────────
 ios/Pods/
 ios/.symlinks/
 ios/Flutter/ephemeral/
@@ -68,40 +82,40 @@ ios/Flutter/flutter_export_environment.sh
 ios/Flutter/Debug.xcconfig
 ios/Flutter/Release.xcconfig
 ios/build/
-ios/*.xcworkspace/xcuserdata/
-ios/*.xcodeproj/xcuserdata/
-ios/*.xcodeproj/project.xcworkspace/xcuserdata/
-ios/Runner.xcworkspace/xcshareddata/
-ios/Runner.xcworkspace/xcuserdata/
-ios/Runner.xcodeproj/xcshareddata/
-ios/Runner.xcodeproj/xcuserdata/
-*.xcuserdatad
-*.xcuserstate
-*.xcworkspace/xcuserdata/
-*.xcodeproj/xcuserdata/
-*.xcodeproj/project.xcworkspace/xcuserdata/
 **/xcuserdata/
 **/xcshareddata/
+*.xcuserdatad
+*.xcuserstate
 
-# Firebase generated files (keep these)
-# android/app/google-services.json
-# ios/Runner/GoogleService-Info.plist
-# lib/firebase_options.dart
+# iOS build outputs
+*.ipa
 
-# Temporary files
+# ─── Web ─────────────────────────────────────────────────────
+# web/ folder is intentionally tracked for Flutter web support
+
+# ─── Firebase Cloud Functions ────────────────────────────────
+functions/node_modules/
+functions/.env
+functions/lib/
+
+# ─── Symbolication & Obfuscation ────────────────────────────
+app.*.symbols
+app.*.map.json
+
+# ─── Testing & Coverage ─────────────────────────────────────
+coverage/
+*.lcov
+test/.test_runner.dart
+
+# ─── Build & Temp ────────────────────────────────────────────
 *.tmp
 *.temp
-*.swp
-*~
-.*.swp
+*.log
+*.class
+*.pyc
 
-# OS generated files
-Thumbs.db
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-
-coverage/
+# ─── Firebase generated files (KEEP tracked) ────────────────
+# android/app/google-services.json   → tracked intentionally
+# ios/Runner/GoogleService-Info.plist → tracked intentionally
+# firebase.json                      → tracked intentionally
+# .firebaserc                        → tracked intentionally
