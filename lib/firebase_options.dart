@@ -17,7 +17,10 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      return web;
+      throw UnsupportedError(
+        'DefaultFirebaseOptions have not been configured for web - '
+        'you can reconfigure this by running the FlutterFire CLI again.',
+      );
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -46,30 +49,20 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBp4H2IDB5PExZC8TlBQ5sMPbc8VliYFEk',
-    appId: '1:1082310731253:web:9a0d2a9f2ae2ba0f1b2cbc',
-    messagingSenderId: '1082310731253',
-    projectId: 'alita-pricelist',
-    authDomain: 'alita-pricelist.firebaseapp.com',
-    storageBucket: 'alita-pricelist.firebasestorage.app',
-    measurementId: 'G-YWCCZ7CKBE',
-  );
-
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyCB1jjr8iHJ3WZRSsk33EbQqc_pKr-sN54',
-    appId: '1:1082310731253:android:2ab023b279888d7e1b2cbc',
-    messagingSenderId: '1082310731253',
-    projectId: 'alita-pricelist',
-    storageBucket: 'alita-pricelist.firebasestorage.app',
+    apiKey: 'AIzaSyA59QyxGYBzwg-NDXjyHuI8xW4C1u_zQWk',
+    appId: '1:422465972499:android:b35dd32c58b2d980fc12e6',
+    messagingSenderId: '422465972499',
+    projectId: 'alita-pricelist-12d76',
+    storageBucket: 'alita-pricelist-12d76.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyAVI9sKlSJRd-RcQ3-JGgrLxj9iUBo0J28',
-    appId: '1:1082310731253:ios:0ff3325f1841dc471b2cbc',
-    messagingSenderId: '1082310731253',
-    projectId: 'alita-pricelist',
-    storageBucket: 'alita-pricelist.firebasestorage.app',
+    apiKey: 'AIzaSyCtjbhTMnIzcg8xywD7Z2U1x90PS8b1-eI',
+    appId: '1:422465972499:ios:684237b9e5d1def6fc12e6',
+    messagingSenderId: '422465972499',
+    projectId: 'alita-pricelist-12d76',
+    storageBucket: 'alita-pricelist-12d76.firebasestorage.app',
     iosBundleId: 'com.syahrul.app2.alitapricelist2',
   );
 }

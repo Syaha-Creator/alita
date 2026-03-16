@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "1082310731253",
-    "project_id": "alita-pricelist",
-    "storage_bucket": "alita-pricelist.firebasestorage.app"
+    "project_number": "422465972499",
+    "project_id": "alita-pricelist-12d76",
+    "storage_bucket": "alita-pricelist-12d76.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1082310731253:android:2ab023b279888d7e1b2cbc",
+        "mobilesdk_app_id": "1:422465972499:android:b35dd32c58b2d980fc12e6",
         "android_client_info": {
           "package_name": "com.syahrul.alitapricelist.alitapricelist"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCB1jjr8iHJ3WZRSsk33EbQqc_pKr-sN54"
+          "current_key": "AIzaSyA59QyxGYBzwg-NDXjyHuI8xW4C1u_zQWk"
         }
       ],
       "services": {

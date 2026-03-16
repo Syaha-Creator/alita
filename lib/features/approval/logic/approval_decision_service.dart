@@ -1,0 +1,352 @@
+import 'dart:convert';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart';
+import '../../../core/enums/order_status.dart';
+import '../../../core/services/api_client.dart';
+import '../../../core/utils/log.dart';
+import '../../../core/utils/name_matcher.dart';
+import 'approval_inbox_provider.dart';
+
+class ApprovalDecisionResult {
+  final bool headerRejected;
+  final bool headerApproved;
+  final int processedCount;
+
+  const ApprovalDecisionResult({
+    required this.headerRejected,
+    required this.headerApproved,
+    required this.processedCount,
+  });
+}
+
+class ApprovalDecisionService {
+  ApprovalDecisionService._();
+
+  static final ApiClient _api = ApiClient.instance;
+
+  /// Collects every discount row across all details that belongs to the
+  /// current user AND is still Pending.
+  ///
+  /// Matches by [myUserId] (primary, exact) or [myName] (fallback, fuzzy)
+  /// so no discount is missed even if one matcher fails.
+  static List<Map<String, dynamic>> collectPendingDiscounts({
+    required Map<String, dynamic> orderData,
+    required String myName,
+    int myUserId = 0,
+  }) {
+    final details = orderData['order_letter_details'] as List<dynamic>? ?? [];
+    final result = <Map<String, dynamic>>[];
+    final seenIds = <int>{};
+
+    for (final detail in details) {
+      final discounts =
+          (detail as Map<String, dynamic>)['order_letter_discount']
+                  as List<dynamic>? ??
+              [];
+      for (final disc in discounts) {
+        final discMap = disc as Map<String, dynamic>;
+        final discountId =
+            (discMap['order_letter_discount_id'] as num?)?.toInt() ?? 0;
+        final approverId = discMap['approver_id']?.toString() ?? '';
+        final approverName = discMap['approver_name'] as String? ?? '';
+        final status = discMap['approved'];
+        final isPending =
+            OrderStatusX.fromDynamic(status) == OrderStatus.pending;
+
+        if (!isPending) continue;
+
+        final isMe =
+            (myUserId > 0 && approverId == myUserId.toString()) ||
+            (myName.isNotEmpty &&
+                NameMatcher.softMatch(approverName, myName));
+
+        if (isMe && discountId > 0 && seenIds.add(discountId)) {
+          result.add(discMap);
+        }
+      }
+    }
+
+    result.sort((a, b) {
+      final aLevel = (a['approver_level_id'] as num?)?.toInt() ?? 99;
+      final bLevel = (b['approver_level_id'] as num?)?.toInt() ?? 99;
+      return aLevel.compareTo(bLevel);
+    });
+
+    return result;
+  }
+
+  static int resolveOrderId(Map<String, dynamic> orderData) {
+    final order = orderData['order_letter'] as Map<String, dynamic>? ?? {};
+    return (order['id'] as num?)?.toInt() ??
+        (order['order_letter_id'] as num?)?.toInt() ??
+        (orderData['order_letter_id'] as num?)?.toInt() ??
+        0;
+  }
+
+  static Future<void> approveOneDiscount({
+    required Map<String, dynamic> disc,
+    required bool isApproved,
+    required String token,
+    required int userId,
+    double? latitude,
+    double? longitude,
+    String? lokasiApproval,
+  }) async {
+    final int discountId = (disc['order_letter_discount_id'] as num).toInt();
+    final int levelId = (disc['approver_level_id'] as num?)?.toInt() ?? 2;
+
+    // 1) POST approval log
+    final postBody = <String, dynamic>{
+      'order_letter_discount_id': discountId,
+      'leader': userId,
+      'job_level_id': levelId,
+      'location': 'Lokasi terdeteksi via sistem',
+      'lokasi_approval': lokasiApproval ?? 'Lokasi tidak terdeteksi',
+    };
+    if (latitude != null && longitude != null) {
+      postBody['latitude'] = latitude;
+      postBody['longitude'] = longitude;
+    }
+    final postRes = await _api.post(
+      '/order_letter_approves',
+      token: token,
+      body: postBody,
+    );
+    if (postRes.statusCode != 200 && postRes.statusCode != 201) {
+      throw Exception(
+        'Gagal mencatat log persetujuan (ID $discountId, '
+        'Status: ${postRes.statusCode})',
+      );
+    }
+
+    // 2) PUT discount status
+    final putBody = <String, dynamic>{
+      'approved': isApproved,
+      'lokasi_approval': lokasiApproval ?? 'Lokasi tidak terdeteksi',
+    };
+    if (latitude != null && longitude != null) {
+      putBody['latitude'] = latitude;
+      putBody['longitude'] = longitude;
+    }
+    final putRes = await _api.put(
+      '/order_letter_discounts/$discountId',
+      token: token,
+      body: putBody,
+    );
+    if (putRes.statusCode != 200 && putRes.statusCode != 201) {
+      throw Exception(
+        'Gagal mengupdate status diskon (ID $discountId, '
+        'Status: ${putRes.statusCode})',
+      );
+    }
+  }
+
+  /// Processes ALL [pendingDiscs] sequentially, then updates the SP
+  /// header status based on the collective outcome.
+  ///
+  /// For rejection: every pending discount belonging to this user is
+  /// rejected first, then the SP header is set to 'Rejected'.
+  /// For approval: every discount is approved, then a final check
+  /// determines whether all approvers across the SP have approved.
+  static Future<ApprovalDecisionResult> processCascade({
+    required List<Map<String, dynamic>> pendingDiscs,
+    required bool isApproved,
+    required String token,
+    required int userId,
+    required int orderId,
+    required ApprovalInboxNotifier notifier,
+    double? latitude,
+    double? longitude,
+    String? lokasiApproval,
+  }) async {
+    // Process ALL pending discounts — no early break
+    for (final disc in pendingDiscs) {
+      await approveOneDiscount(
+        disc: disc,
+        isApproved: isApproved,
+        token: token,
+        userId: userId,
+        latitude: latitude,
+        longitude: longitude,
+        lokasiApproval: lokasiApproval,
+      );
+    }
+
+    // After all discounts processed, update header status
+    var headerRejected = false;
+    var headerApproved = false;
+
+    if (!isApproved) {
+      await notifier.updateOrderLetterStatus(
+        orderId, OrderStatus.rejected.apiValue,
+      );
+      headerRejected = true;
+    } else {
+      final isAllApproved = await notifier.isAllDiscountsApproved(orderId);
+      if (isAllApproved) {
+        await notifier.updateOrderLetterStatus(
+          orderId, OrderStatus.approved.apiValue,
+        );
+        headerApproved = true;
+      }
+    }
+
+    return ApprovalDecisionResult(
+      headerRejected: headerRejected,
+      headerApproved: headerApproved,
+      processedCount: pendingDiscs.length,
+    );
+  }
+
+  // ── Sequential Approval Notification ─────────────────────────────
+
+  /// Finds the next pending approver across all details/discounts,
+  /// fetches their FCM token from the Ruby API, and triggers a
+  /// Cloud Function to send the push notification.
+  ///
+  /// If no pending approver remains (fully approved), sends a
+  /// completion notification to the SP creator instead.
+  static Future<void> triggerNextApprovalNotification({
+    required Map<String, dynamic> orderData,
+    required String spNumber,
+    required String token,
+    required String senderName,
+    required int currentUserId,
+  }) async {
+    try {
+      final nextApprover = _findNextPendingApprover(
+        orderData,
+        excludeUserId: currentUserId,
+      );
+
+      if (nextApprover != null) {
+        final approverId = nextApprover['approver_id']?.toString() ?? '';
+        if (approverId.isEmpty) return;
+
+        final fcmToken = await _fetchFcmToken(
+          userId: approverId,
+          accessToken: token,
+        );
+        if (fcmToken == null || fcmToken.isEmpty) {
+          debugPrint('FCM token kosong untuk approver ID $approverId');
+          return;
+        }
+
+        await _callCloudFunction(
+          functionName: 'sendApprovalNotification',
+          params: {
+            'token': fcmToken,
+            'sp_number': spNumber,
+            'sender_name': senderName,
+          },
+        );
+        debugPrint('Notifikasi berhasil dikirim ke approver selanjutnya (ID: $approverId)');
+      } else {
+        // Semua sudah approve → kirim notif ke creator
+        final order = orderData['order_letter'] as Map<String, dynamic>? ?? {};
+        final creatorId = order['user_id']?.toString() ?? '';
+        if (creatorId.isEmpty) return;
+
+        final fcmToken = await _fetchFcmToken(
+          userId: creatorId,
+          accessToken: token,
+        );
+        if (fcmToken == null || fcmToken.isEmpty) return;
+
+        await _callCloudFunction(
+          functionName: 'sendApprovalNotification',
+          params: {
+            'token': fcmToken,
+            'sp_number': spNumber,
+            'sender_name': 'Sistem',
+            'type': 'fully_approved',
+          },
+        );
+        debugPrint('Notifikasi fully-approved dikirim ke creator SP $spNumber');
+      }
+    } catch (e, st) {
+      Log.error(e, st, reason: 'triggerNextApprovalNotification');
+    }
+  }
+
+  /// Scans all order_letter_details → order_letter_discount to find
+  /// the next approver whose status is still "Pending", sorted by
+  /// approver_level_id ascending. Returns null if none remain.
+  ///
+  /// [excludeUserId]: Skip discounts belonging to the user who just
+  /// approved, because local orderData is stale and still shows their
+  /// discounts as "Pending" even though the server already updated them.
+  static Map<String, dynamic>? _findNextPendingApprover(
+    Map<String, dynamic> orderData, {
+    int excludeUserId = 0,
+  }) {
+    final details =
+        orderData['order_letter_details'] as List<dynamic>? ?? [];
+    final pending = <Map<String, dynamic>>[];
+    final excludeId = excludeUserId > 0 ? excludeUserId.toString() : '';
+
+    for (final detail in details) {
+      final discounts =
+          (detail as Map<String, dynamic>)['order_letter_discount']
+                  as List<dynamic>? ??
+              [];
+      for (final disc in discounts) {
+        final discMap = disc as Map<String, dynamic>;
+        final discEnum = OrderStatusX.fromDynamic(discMap['approved']);
+        if (discEnum != OrderStatus.pending) continue;
+
+        // Skip stale entries for the user who just approved
+        if (excludeId.isNotEmpty &&
+            discMap['approver_id']?.toString() == excludeId) {
+          continue;
+        }
+
+        pending.add(discMap);
+      }
+    }
+
+    if (pending.isEmpty) return null;
+
+    pending.sort((a, b) {
+      final aLevel = (a['approver_level_id'] as num?)?.toInt() ?? 99;
+      final bLevel = (b['approver_level_id'] as num?)?.toInt() ?? 99;
+      return aLevel.compareTo(bLevel);
+    });
+
+    return pending.first;
+  }
+
+  /// Fetches the FCM device token for a given user from the Ruby API.
+  static Future<String?> _fetchFcmToken({
+    required String userId,
+    required String accessToken,
+  }) async {
+    try {
+      final res = await _api.get(
+        '/device_tokens',
+        token: accessToken,
+        queryParams: {'user_id': userId},
+      );
+
+      if (res.statusCode != 200) {
+        debugPrint('Gagal fetch FCM token (status ${res.statusCode})');
+        return null;
+      }
+
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      return body['result']?['token']?.toString();
+    } catch (e, st) {
+      Log.error(e, st, reason: 'ApprovalDecision._fetchFcmToken');
+      return null;
+    }
+  }
+
+  /// Invokes a Firebase Cloud Function by name with the given params.
+  static Future<void> _callCloudFunction({
+    required String functionName,
+    required Map<String, dynamic> params,
+  }) async {
+    final callable = FirebaseFunctions.instance.httpsCallable(functionName);
+    await callable.call(params);
+  }
+}

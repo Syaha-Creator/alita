@@ -1,0 +1,227 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/services/device_token_service.dart';
+import '../../../core/services/fcm_token_service.dart';
+import '../../../core/services/storage_service.dart';
+import '../../../core/utils/log.dart';
+import '../data/services/auth_service.dart';
+
+// ─────────────────────────────────────────────────────────
+//  Auth state
+// ─────────────────────────────────────────────────────────
+
+class AuthState {
+  final bool isLoggedIn;
+  final String userEmail;
+  final String defaultArea;
+  final bool isLoading;
+  final String accessToken;
+  final int userId;
+  final String userName;
+  final String userImageUrl;
+  final String? errorMessage;
+
+  const AuthState({
+    this.isLoggedIn = false,
+    this.userEmail = '',
+    this.defaultArea = 'Jabodetabek',
+    this.isLoading = true,
+    this.accessToken = '',
+    this.userId = 0,
+    this.userName = '',
+    this.userImageUrl = '',
+    this.errorMessage,
+  });
+
+  AuthState copyWith({
+    bool? isLoggedIn,
+    String? userEmail,
+    String? defaultArea,
+    bool? isLoading,
+    String? accessToken,
+    int? userId,
+    String? userName,
+    String? userImageUrl,
+    String? errorMessage,
+    bool clearError = false,
+  }) {
+    return AuthState(
+      isLoggedIn: isLoggedIn ?? this.isLoggedIn,
+      userEmail: userEmail ?? this.userEmail,
+      defaultArea: defaultArea ?? this.defaultArea,
+      isLoading: isLoading ?? this.isLoading,
+      accessToken: accessToken ?? this.accessToken,
+      userId: userId ?? this.userId,
+      userName: userName ?? this.userName,
+      userImageUrl: userImageUrl ?? this.userImageUrl,
+      errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+//  Auth notifier
+// ─────────────────────────────────────────────────────────
+
+class AuthNotifier extends StateNotifier<AuthState> {
+  AuthNotifier() : super(const AuthState()) {
+    _init();
+  }
+
+  final AuthService _authService = AuthService();
+
+  /// Read persisted session on startup.
+  Future<void> _init() async {
+    final isLoggedIn = await StorageService.loadIsLoggedIn();
+    final email = await StorageService.loadUserEmail();
+    final area = await StorageService.loadDefaultArea();
+    final token = await StorageService.loadAccessToken();
+    final uid = await StorageService.loadUserId();
+    final name = await StorageService.loadUserName();
+    final imageUrl = await StorageService.loadUserImageUrl();
+
+    state = AuthState(
+      isLoggedIn: isLoggedIn,
+      userEmail: email,
+      defaultArea: area,
+      accessToken: token,
+      userId: uid,
+      userName: name,
+      userImageUrl: imageUrl,
+      isLoading: false,
+    );
+
+    if (isLoggedIn && uid > 0 && token.isNotEmpty) {
+      _initFcm(uid.toString(), token);
+    }
+  }
+
+  /// Authenticate with [email] and [password].
+  ///
+  /// On success: persists session, sets `isLoggedIn = true`,
+  /// syncs FCM token in background.
+  /// On failure: sets `errorMessage` on state for the UI to display.
+  Future<void> login(String email, String password) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+
+    try {
+      final result = await _authService.login(email, password);
+
+      final areaName = _mapAreaIdToName(result.areaId);
+
+      await StorageService.saveAuth(
+        isLoggedIn: true,
+        email: result.userEmail,
+        defaultArea: areaName,
+        accessToken: result.accessToken,
+        userId: result.userId,
+        userName: result.userName,
+        userImageUrl: result.userImageUrl,
+      );
+
+      state = AuthState(
+        isLoggedIn: true,
+        userEmail: result.userEmail,
+        defaultArea: areaName,
+        accessToken: result.accessToken,
+        userId: result.userId,
+        userName: result.userName,
+        userImageUrl: result.userImageUrl,
+        isLoading: false,
+      );
+
+      _initFcm(result.userId.toString(), result.accessToken);
+    } on String catch (message) {
+      state = state.copyWith(isLoading: false, errorMessage: message);
+    } catch (e, st) {
+      Log.error(e, st, reason: 'Auth.login');
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: e.toString().replaceFirst('Exception: ', ''),
+      );
+    }
+  }
+
+  /// Clears the error so the banner disappears on next attempt.
+  void clearError() {
+    if (state.errorMessage != null) {
+      state = state.copyWith(clearError: true);
+    }
+  }
+
+  /// Sync FCM token in background (fire-and-forget) + listen for rotations.
+  ///
+  /// Uses [DeviceTokenService] for the initial POST (with smart 422
+  /// handling), then [FcmTokenService] for ongoing refresh subscription.
+  void _initFcm(String userId, String accessToken) {
+    Log.setUser(userId);
+
+    // Background sync — never blocks UI or cancels login on failure
+    DeviceTokenService.syncFcmToken(
+      userId: userId,
+      accessToken: accessToken,
+    ).then((ok) {
+      if (!ok) {
+        Log.warning('Initial FCM sync returned false', tag: 'Auth');
+      }
+    });
+
+    FcmTokenService.listenToRefresh(userId: userId, accessToken: accessToken);
+  }
+
+  String _mapAreaIdToName(int id) {
+    const areaMap = {
+      1: 'Jabodetabek',
+      2: 'Jawa Barat',
+      3: 'Sumatra Utara',
+      4: 'Riau',
+      5: 'Jawa Tengah',
+      6: 'Jawa Timur',
+      7: 'Kalimantan Timur',
+      8: 'Maluku Utara',
+      9: 'Sulawesi Selatan',
+      10: 'Bali',
+      11: 'Nusa Tenggara Barat',
+      12: 'Kalimantan Selatan',
+      14: 'Maluku',
+      15: 'Sulawesi Tengah',
+      16: 'Gorontalo',
+      17: 'Sulawesi Utara',
+      18: 'Kotamobagu',
+      19: 'Kalimantan Barat',
+      20: 'Sumatra Selatan',
+      21: 'Singapore',
+      23: 'Lampung',
+      24: 'Sulawesi Tenggara',
+      25: 'Nusa Tenggara Timur',
+      26: 'Multi Niaga Integra Jakarta',
+      27: 'Sumatra Barat',
+    };
+    return areaMap[id] ?? 'Unknown Area';
+  }
+
+  /// Logout — deletes FCM token then clears the session.
+  Future<void> logout() async {
+    final uid = state.userId.toString();
+    final token = state.accessToken;
+
+    if (uid != '0' && token.isNotEmpty) {
+      await DeviceTokenService.deleteToken(
+        userId: uid,
+        accessToken: token,
+      );
+      await FcmTokenService.cancelRefreshListener();
+    }
+
+    await StorageService.clearAuth();
+    state = const AuthState(isLoading: false);
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+//  Provider
+// ─────────────────────────────────────────────────────────
+
+final authProvider = StateNotifierProvider<AuthNotifier, AuthState>(
+  (ref) => AuthNotifier(),
+);

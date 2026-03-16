@@ -1,0 +1,96 @@
+import 'package:intl/intl.dart';
+import 'package:pdf/widgets.dart' as pw;
+
+import 'package:alitapricelist/core/enums/order_status.dart';
+
+/// Shared PDF utilities used across multiple section builders.
+abstract final class PdfHelpers {
+  static final _curFmt = NumberFormat('#,##0', 'id_ID');
+  static String cur(double n) => _curFmt.format(n.round());
+  static String fmtDate(DateTime d) => DateFormat('dd/MM/yyyy').format(d);
+  static String fmtDateTime(DateTime d) =>
+      DateFormat('dd/MM/yyyy HH:mm').format(d);
+
+  static double dbl(dynamic v) {
+    if (v == null) return 0;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString()) ?? 0;
+  }
+
+  static int intFrom(dynamic v) {
+    if (v == null) return 0;
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    return int.tryParse(v.toString()) ?? 0;
+  }
+
+  static List<Map<String, dynamic>> toListMap(dynamic data) {
+    if (data == null) return [];
+    if (data is List) {
+      return data
+          .map((e) => e is Map<String, dynamic>
+              ? e
+              : Map<String, dynamic>.from(e as Map))
+          .toList();
+    }
+    return [];
+  }
+
+  static String? prettyDate(dynamic value) {
+    final raw = value?.toString().trim();
+    if (raw == null || raw.isEmpty || raw == '-') return null;
+    try {
+      final parsed = DateTime.parse(raw);
+      return DateFormat('dd MMM yyyy', 'id_ID').format(parsed);
+    } catch (_) {
+      return raw;
+    }
+  }
+
+  static String? extractTime(String? createdAt) {
+    if (createdAt == null || createdAt.isEmpty) return null;
+    try {
+      final tIdx = createdAt.indexOf('T');
+      if (tIdx == -1) return null;
+      final time = createdAt.substring(tIdx + 1);
+      return time.length >= 5 ? time.substring(0, 5) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Robust check: API may return bool `true`, string "approved", "true", or "1".
+  static bool isApprovedStatus(dynamic value) =>
+      OrderStatusX.fromDynamic(value) == OrderStatus.approved;
+
+  // ── PDF cell helpers ──
+
+  static pw.Widget tc(String text, {pw.TextAlign align = pw.TextAlign.left}) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(6),
+      child: pw.Text(text,
+          style: const pw.TextStyle(fontSize: 8), textAlign: align),
+    );
+  }
+
+  static pw.Widget currencyTc(double amount, {bool isBold = false}) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(6),
+      child: buildCurrencyCell(amount, isBold: isBold),
+    );
+  }
+
+  static pw.Widget buildCurrencyCell(double amount, {bool isBold = false}) {
+    final textStyle = pw.TextStyle(
+      fontSize: 8,
+      fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal,
+    );
+    return pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      children: [
+        pw.Text('Rp', style: textStyle),
+        pw.Text(cur(amount), style: textStyle, textAlign: pw.TextAlign.right),
+      ],
+    );
+  }
+}

@@ -1,79 +1,122 @@
-import '../../features/product/data/models/area_model.dart';
-import '../../features/product/data/repositories/area_repository.dart';
-import '../widgets/custom_toast.dart';
-
-/// Utility class for working with areas
+/// Utility for mapping user area (province/alias) to system area (dropdown values).
+///
+/// Dropdown pl_areas may use city/cabang names (e.g. "Palembang", "Jabodetabek")
+/// while auth/profile may return province names (e.g. "Sumatra Selatan", "Sumsel").
+/// This mapping resolves the mismatch so default area selection works.
 class AreaUtils {
-  final AreaRepository areaRepository;
+  AreaUtils._();
 
-  AreaUtils({required this.areaRepository});
+  /// Map dari provinsi/alias umum ke nama area yang ada di sistem (pl_areas).
+  /// Key: lowercase; value: suggested system name (disesuaikan dengan API).
+  static const Map<String, String> _areaMapping = {
+    'sumsel': 'Palembang',
+    'sumatera selatan': 'Palembang',
+    'sumatra selatan': 'Palembang',
+    'sumbar': 'Padang',
+    'sumatera barat': 'Padang',
+    'sumatra barat': 'Padang',
+    'jabar': 'Bandung',
+    'jawa barat': 'Bandung',
+    'jatim': 'Surabaya',
+    'jawa timur': 'Surabaya',
+    'jateng': 'Semarang',
+    'jawa tengah': 'Semarang',
+    'bali': 'Denpasar',
+    'ntb': 'Mataram',
+    'nusa tenggara barat': 'Mataram',
+    'ntt': 'Kupang',
+    'nusa tenggara timur': 'Kupang',
+    'lampung': 'Bandar Lampung',
+    'jakarta': 'Jabodetabek',
+    'banten': 'Jabodetabek',
+    'jabodetabek': 'Jabodetabek',
+    'bogor': 'Jabodetabek',
+    'depok': 'Jabodetabek',
+    'tangerang': 'Jabodetabek',
+    'bekasi': 'Jabodetabek',
+    'sumut': 'Medan',
+    'sumatera utara': 'Medan',
+    'sumatra utara': 'Medan',
+    'riau': 'Pekanbaru',
+    'kaltim': 'Samarinda',
+    'kalimantan timur': 'Samarinda',
+    'sulsel': 'Makassar',
+    'sulawesi selatan': 'Makassar',
+    'kalsel': 'Banjarmasin',
+    'kalimantan selatan': 'Banjarmasin',
+    'sulut': 'Manado',
+    'sulawesi utara': 'Manado',
+    'kalbar': 'Pontianak',
+    'kalimantan barat': 'Pontianak',
+    'sulteng': 'Palu',
+    'sulawesi tengah': 'Palu',
+    'sultra': 'Kendari',
+    'sulawesi tenggara': 'Kendari',
+    'maluku': 'Ambon',
+    'maluku utara': 'Ternate',
+    'papua': 'Nasional',
+    'papua barat': 'Nasional',
+    'gorontalo': 'Gorontalo',
+    'kotamobagu': 'Kotamobagu',
+  };
 
-  /// Get all available areas from API
-  Future<List<AreaModel>> getAllAreas() async {
-    try {
-      return await areaRepository.fetchAreas();
-    } catch (e) {
-      // Show error toast to user
-      CustomToast.showToast(
-        "Gagal memuat data area. Periksa koneksi internet Anda.",
-        ToastType.error,
-        duration: 3,
-      );
-      // Return empty list if API fails - no hardcoded fallback
-      return [];
-    }
+  /// Maps user area string (province/alias) to suggested system area name.
+  /// Returns null if no mapping found.
+  static String? mapUserAreaToSystemArea(String userArea) {
+    if (userArea.trim().isEmpty) return null;
+    final key = userArea.trim().toLowerCase();
+    return _areaMapping[key];
   }
 
-  /// Get area names as strings
-  Future<List<String>> getAreaNames() async {
-    try {
-      return await areaRepository.fetchAllAreaNames();
-    } catch (e) {
-      // Show error toast to user
-      CustomToast.showToast(
-        "Gagal memuat daftar area. Periksa koneksi internet Anda.",
-        ToastType.error,
-        duration: 3,
-      );
-      // Return empty list if API fails - no hardcoded fallback
-      return [];
+  /// Resolves default area for dropdown selection.
+  ///
+  /// Logic:
+  /// 1. If [userArea] exactly matches (case-insensitive) an item in [availableAreas], return that item (preserves casing).
+  /// 2. Otherwise map [userArea] via [mapUserAreaToSystemArea] and check if mapped value exists in [availableAreas].
+  /// 3. Fuzzy: userArea contained in area name or vice versa.
+  /// 4. Fallback: "Nasional" if in list, else "Jabodetabek" if in list, else first item.
+  static String resolveDefaultArea(String userArea, List<String> availableAreas) {
+    if (userArea.trim().isEmpty) {
+      return _pickFallback(availableAreas);
     }
+
+    final trimmed = userArea.trim();
+    final available = availableAreas.where((s) => s.trim().isNotEmpty).toList();
+
+    // a. Exact match (case-insensitive) — return actual list item to preserve casing
+    for (final a in available) {
+      if (a.toLowerCase() == trimmed.toLowerCase()) return a;
+    }
+
+    // b. Map via dictionary, then find in list
+    final mapped = mapUserAreaToSystemArea(trimmed);
+    if (mapped != null) {
+      for (final a in available) {
+        if (a.toLowerCase() == mapped.toLowerCase()) return a;
+      }
+    }
+
+    // c. Fuzzy: check if userArea is contained in any area name (e.g. "Sumsel" in "Palembang Sumsel")
+    final lowerUser = trimmed.toLowerCase();
+    for (final a in available) {
+      final lowerA = a.toLowerCase();
+      if (lowerA.contains(lowerUser) || lowerUser.contains(lowerA)) return a;
+    }
+
+    // d. Fallback
+    return _pickFallback(available);
   }
 
-  /// Get area by name
-  Future<AreaModel?> getAreaByName(String name) async {
-    try {
-      return await areaRepository.getAreaByName(name);
-    } catch (e) {
-      return null;
-    }
-  }
+  static String _pickFallback(List<String> available) {
+    if (available.isEmpty) return 'Nasional';
 
-  /// Get area by ID
-  Future<AreaModel?> getAreaById(int id) async {
-    try {
-      return await areaRepository.getAreaById(id);
-    } catch (e) {
-      return null;
+    final lower = available.map((a) => a.toLowerCase()).toList();
+    if (lower.contains('nasional')) {
+      return available[lower.indexOf('nasional')];
     }
-  }
-
-  /// Check if API is available for areas
-  Future<bool> isApiAvailable() async {
-    try {
-      return await areaRepository.isApiAvailable();
-    } catch (e) {
-      return false;
+    if (lower.contains('jabodetabek')) {
+      return available[lower.indexOf('jabodetabek')];
     }
-  }
-
-  /// Get display name for area (with fallback)
-  String getDisplayName(dynamic area) {
-    if (area is AreaModel) {
-      return area.name;
-    } else if (area is String) {
-      return area;
-    }
-    return 'Unknown Area';
+    return available.first;
   }
 }

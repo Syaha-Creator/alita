@@ -30,16 +30,14 @@
 	<true/>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Aplikasi ini memerlukan akses jaringan lokal untuk debugging dan fitur pengembangan.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Kami memerlukan izin untuk menyimpan gambar produk ke galeri.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Kami memerlukan akses ke galeri untuk menyimpan dan berbagi gambar produk.</string>
+	<string>Kami memerlukan akses galeri untuk memilih foto struk pembayaran.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Kami memerlukan izin untuk menyimpan gambar produk atau invoice ke galeri Anda.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Kami memerlukan akses kamera untuk mengambil foto struk pembayaran.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Kami memerlukan akses lokasi untuk memvalidasi posisi Anda saat membuat surat pesanan.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Kami memerlukan akses lokasi untuk memvalidasi posisi Anda saat membuat surat pesanan.</string>
+	<string>Aplikasi membutuhkan akses lokasi untuk merekam jejak audit persetujuan Surat Pesanan.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIFileSharingEnabled</key>
@@ -61,11 +59,10 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<!-- TEMPORARILY DISABLED - No iOS physical device for testing -->
-	<!-- <key>UIBackgroundModes</key>
+	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>
 		<string>remote-notification</string>
-	</array> -->
+	</array>
 </dict>
 </plist>

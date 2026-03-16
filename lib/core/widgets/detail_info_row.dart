@@ -1,67 +1,59 @@
 import 'package:flutter/material.dart';
 
-/// Widget untuk menampilkan baris informasi detail dengan label dan value.
+/// Reusable two-column info row used in detail pages.
+///
+/// Function:
+/// - Menampilkan pasangan `label` dan `value` dalam layout 2 kolom.
+/// - Menjaga konsistensi style untuk baris informasi ringkas di halaman detail.
 class DetailInfoRow extends StatelessWidget {
-  final String title;
+  final String label;
   final String value;
-  final bool isStrikethrough;
-  final bool isBoldValue;
-  final Color? valueColor;
-  final double titleWidth;
+  final int labelFlex;
+  final int valueFlex;
+  final TextStyle? labelStyle;
+  final TextStyle? valueStyle;
 
   const DetailInfoRow({
     super.key,
-    required this.title,
+    required this.label,
     required this.value,
-    this.isStrikethrough = false,
-    this.isBoldValue = false,
-    this.valueColor,
-    this.titleWidth = 130.0,
+    this.labelFlex = 4,
+    this.valueFlex = 6,
+    this.labelStyle,
+    this.valueStyle,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (value.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2.5),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: titleWidth,
-            child: Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          flex: labelFlex,
+          child: Text(
+            label,
+            style:
+                labelStyle ??
+                const TextStyle(color: Color(0xFF9CA3AF), fontSize: 12),
           ),
-          const Text(
-            ": ",
-            style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+        Expanded(
+          flex: valueFlex,
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style:
+                valueStyle ??
+                const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF374151),
+                ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
-          Expanded(
-            child: Text(
-              value,
-              softWrap: true,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight:
-                        isBoldValue ? FontWeight.bold : FontWeight.normal,
-                    color: valueColor,
-                    decoration:
-                        isStrikethrough ? TextDecoration.lineThrough : null,
-                  ),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

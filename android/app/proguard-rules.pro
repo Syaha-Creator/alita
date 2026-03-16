@@ -1,62 +1,37 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
+# ─── ProGuard / R8 Rules for Alita Pricelist ──────────────────────────────
+# minifyEnabled + shrinkResources are set in build.gradle
 
-# Suppress info messages about rules that don't match
-# These are harmless info messages from desugar_jdk_libs
--dontwarn j$.util.concurrent.ConcurrentHashMap$TreeBin
--dontwarn j$.util.concurrent.ConcurrentHashMap
--dontwarn j$.util.concurrent.ConcurrentHashMap$CounterCell
--dontwarn j$.util.IntSummaryStatistics
--dontwarn j$.util.LongSummaryStatistics
--dontwarn j$.util.DoubleSummaryStatistics
-
-# Keep mapping file for deobfuscation (important for crash reports)
+# ─── Crash report readability ──────────────────────────────────────────────
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
 
-# Keep Flutter classes
--keep class io.flutter.app.** { *; }
--keep class io.flutter.plugin.**  { *; }
--keep class io.flutter.util.**  { *; }
--keep class io.flutter.view.**  { *; }
--keep class io.flutter.**  { *; }
--keep class io.flutter.plugins.**  { *; }
-# Keep Flutter embedding classes (may reference optional Play Core)
+# ─── Flutter Engine ────────────────────────────────────────────────────────
+-keep class io.flutter.** { *; }
+-keep class io.flutter.plugins.** { *; }
 -keep class io.flutter.embedding.** { *; }
 -dontwarn io.flutter.embedding.engine.deferredcomponents.**
 
-# Keep Firebase classes
+# ─── Firebase / GMS ────────────────────────────────────────────────────────
 -keep class com.google.firebase.** { *; }
 -keep class com.google.android.gms.** { *; }
 -dontwarn com.google.firebase.**
 -dontwarn com.google.android.gms.**
 
-# Suppress warnings for Google Play Core (optional dependency for deferred components)
-# These classes are optional and only needed for deferred components feature
--dontwarn com.google.android.play.core.splitcompat.SplitCompatApplication
--dontwarn com.google.android.play.core.splitinstall.SplitInstallException
--dontwarn com.google.android.play.core.splitinstall.SplitInstallManager
--dontwarn com.google.android.play.core.splitinstall.SplitInstallManagerFactory
--dontwarn com.google.android.play.core.splitinstall.SplitInstallRequest$Builder
--dontwarn com.google.android.play.core.splitinstall.SplitInstallRequest
--dontwarn com.google.android.play.core.splitinstall.SplitInstallSessionState
--dontwarn com.google.android.play.core.splitinstall.SplitInstallStateUpdatedListener
--dontwarn com.google.android.play.core.tasks.OnFailureListener
--dontwarn com.google.android.play.core.tasks.OnSuccessListener
--dontwarn com.google.android.play.core.tasks.Task
-# Keep Play Core classes if they exist
+# ─── Google Play Core (optional deferred components) ───────────────────────
+-dontwarn com.google.android.play.core.**
 -keep class com.google.android.play.core.** { *; }
 
-# Keep Dio (HTTP client)
--keep class dio.** { *; }
--dontwarn dio.**
+# ─── OkHttp / Okio (used by http package on Android) ──────────────────────
 -keep class okhttp3.** { *; }
 -dontwarn okhttp3.**
 -keep class okio.** { *; }
 -dontwarn okio.**
 
-# Keep JSON serialization classes
+# ─── CachedNetworkImage / SQFlite ─────────────────────────────────────────
+-keep class com.tekartik.sqflite.** { *; }
+-dontwarn com.tekartik.sqflite.**
+
+# ─── JSON / Serialization ─────────────────────────────────────────────────
 -keepclassmembers class * {
     @com.google.gson.annotations.SerializedName <fields>;
 }
@@ -65,17 +40,15 @@
 -keep class * implements com.google.gson.JsonSerializer
 -keep class * implements com.google.gson.JsonDeserializer
 
-# Keep native methods
+# ─── Native Methods & JNI ─────────────────────────────────────────────────
 -keepclasseswithmembernames class * {
     native <methods>;
 }
 
-# Keep Parcelable implementations
+# ─── Parcelable / Serializable ─────────────────────────────────────────────
 -keep class * implements android.os.Parcelable {
-  public static final android.os.Parcelable$Creator *;
+    public static final android.os.Parcelable$Creator *;
 }
-
-# Keep Serializable classes
 -keepclassmembers class * implements java.io.Serializable {
     static final long serialVersionUID;
     private static final java.io.ObjectStreamField[] serialPersistentFields;
@@ -85,72 +58,37 @@
     java.lang.Object readResolve();
 }
 
-# Keep annotations
+# ─── Annotations & Generics ────────────────────────────────────────────────
 -keepattributes *Annotation*
 -keepattributes Signature
 -keepattributes Exceptions
 -keepattributes InnerClasses
 -keepattributes EnclosingMethod
 
-# Keep Kotlin classes
--keep class kotlin.** { *; }
+# ─── Kotlin ────────────────────────────────────────────────────────────────
 -keep class kotlin.Metadata { *; }
 -dontwarn kotlin.**
--keepclassmembers class **$WhenMappings {
-    <fields>;
-}
--keepclassmembers class kotlin.Metadata {
-    public <methods>;
-}
+-keepclassmembers class **$WhenMappings { <fields>; }
+-keepclassmembers class kotlin.Metadata { public <methods>; }
 
-# Keep native methods and JNI
--keepclasseswithmembernames class * {
-    native <methods>;
-}
-
-# Keep reflection usage
+# ─── WebView JavaScript ───────────────────────────────────────────────────
 -keepclassmembers class * {
     @android.webkit.JavascriptInterface <methods>;
 }
 
-# Keep custom views
--keep public class * extends android.view.View {
-    public <init>(android.content.Context);
-    public <init>(android.content.Context, android.util.AttributeSet);
-    public <init>(android.content.Context, android.util.AttributeSet, int);
-    public void set*(...);
-    *** get*();
-}
-
-# Keep enums
+# ─── Enums ─────────────────────────────────────────────────────────────────
 -keepclassmembers enum * {
     public static **[] values();
     public static ** valueOf(java.lang.String);
 }
 
-# Keep R class
--keepclassmembers class **.R$* {
-    public static <fields>;
-}
-
-# Keep BuildConfig
+# ─── R class & BuildConfig ─────────────────────────────────────────────────
+-keepclassmembers class **.R$* { public static <fields>; }
 -keep class **.BuildConfig { *; }
 
-# Fix for R8 missing classes (Apache Tika / javax.xml.stream)
-# Suppress warnings for missing javax.xml.stream classes
--dontwarn javax.xml.stream.**
+# ─── Desugar JDK Libs ─────────────────────────────────────────────────────
+-dontwarn j$.util.**
+
+# ─── javax.xml / Apache Tika (transitive dep suppression) ─────────────────
 -dontwarn javax.xml.**
 -dontwarn org.apache.tika.**
-
-# Keep Apache Tika classes if they exist
--keep class org.apache.tika.** { *; }
--dontwarn org.apache.tika.**
-
-# Keep javax.xml.stream classes if they exist
--keep class javax.xml.stream.** { *; }
--dontwarn javax.xml.stream.**
-
-# Additional rules for XML processing
--keep class javax.xml.** { *; }
--dontwarn javax.xml.**
-
