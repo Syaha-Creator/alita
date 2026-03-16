@@ -114,8 +114,13 @@ test/.test_runner.dart
 *.class
 *.pyc
 
-# ─── Firebase generated files (KEEP tracked) ────────────────
-# android/app/google-services.json   → tracked intentionally
-# ios/Runner/GoogleService-Info.plist → tracked intentionally
+# ─── Firebase Credentials (NEVER commit real keys) ──────────
+# These contain API keys that GitHub Secret Scanning will flag.
+# Regenerate with: flutterfire configure
+lib/firebase_options.dart
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+
+# Firebase project config (safe to track, no secrets)
 # firebase.json                      → tracked intentionally
 # .firebaserc                        → tracked intentionally
