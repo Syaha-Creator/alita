@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_colors.dart';
-import 'detail_section_header.dart';
+import 'detail_section_label.dart';
 
 /// Reusable customer/contact information card for detail pages.
 class DetailContactInfoCard extends StatelessWidget {
@@ -42,7 +42,8 @@ class DetailContactInfoCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          DetailSectionHeader(title: title, icon: Icons.person_outline),
+          DetailSectionLabel(title: title),
+          const SizedBox(height: 12),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

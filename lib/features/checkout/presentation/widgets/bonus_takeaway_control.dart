@@ -38,7 +38,7 @@ class BonusTakeAwayControl extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Checkbox(
+              Checkbox.adaptive(
                 value: isChecked,
                 onChanged: (value) => onCheckedChanged(value ?? false),
               ),

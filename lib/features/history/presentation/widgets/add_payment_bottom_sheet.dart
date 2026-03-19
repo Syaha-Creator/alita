@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
+import '../../../../core/utils/platform_utils.dart';
 import '../../../../core/widgets/image_source_sheet.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/utils/number_input_formatter.dart';
@@ -153,7 +154,7 @@ class _AddPaymentBottomSheetState extends State<AddPaymentBottomSheet> {
   }
 
   Future<void> _pickPaymentDate() async {
-    final picked = await showDatePicker(
+    final picked = await showAdaptiveDatePicker(
       context: context,
       initialDate: _paymentDate,
       firstDate: DateTime(2020),
@@ -240,6 +241,8 @@ class _AddPaymentBottomSheetState extends State<AddPaymentBottomSheet> {
               Flexible(
                 fit: FlexFit.loose,
                 child: SingleChildScrollView(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
                   child: PaymentFormContent(
                     topBanner: Container(
                       width: double.infinity,

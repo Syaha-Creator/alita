@@ -68,16 +68,6 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
                     end: initialEnd,
                   ),
                   helpText: 'Pilih Rentang Tanggal',
-                  builder: (ctx, child) => Theme(
-                    data: Theme.of(ctx).copyWith(
-                      colorScheme: const ColorScheme.light(
-                        primary: AppColors.accent,
-                        onPrimary: AppColors.onPrimary,
-                        onSurface: AppColors.textPrimary,
-                      ),
-                    ),
-                    child: child!,
-                  ),
                 );
 
                 if (picked != null) {
@@ -184,7 +174,7 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
 
   Widget _buildListView(List<dynamic> orders, bool isPending) {
     if (orders.isEmpty) {
-      return RefreshIndicator(
+      return RefreshIndicator.adaptive(
         color: AppColors.accent,
         onRefresh: () => ref.read(approvalInboxProvider.notifier).fetchInbox(),
         child: ListView(
@@ -197,7 +187,7 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
       );
     }
 
-    return RefreshIndicator(
+    return RefreshIndicator.adaptive(
         color: AppColors.accent,
         onRefresh: () => ref.read(approvalInboxProvider.notifier).fetchInbox(),
         child: ListView.builder(

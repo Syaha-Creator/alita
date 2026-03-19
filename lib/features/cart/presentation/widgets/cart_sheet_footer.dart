@@ -59,7 +59,7 @@ class CartSheetFooter extends ConsumerWidget {
                   ),
                   child: Row(
                     children: [
-                      Checkbox(
+                      Checkbox.adaptive(
                         value: isAllSelected,
                         onChanged: (v) {
                           ref

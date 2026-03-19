@@ -1,6 +1,8 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../utils/platform_utils.dart';
 
 /// A beautifully styled bottom sheet for choosing between camera and gallery.
 ///
@@ -31,6 +33,50 @@ class ImageSourceSheet extends StatelessWidget {
     required VoidCallback onCamera,
     required VoidCallback onGallery,
   }) {
+    if (isIOS) {
+      return showCupertinoModalPopup<void>(
+        context: context,
+        builder: (_) => CupertinoActionSheet(
+          title: Text(title),
+          actions: [
+            CupertinoActionSheetAction(
+              onPressed: () {
+                Navigator.pop(context);
+                onCamera();
+              },
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(CupertinoIcons.camera, size: 20),
+                  SizedBox(width: 8),
+                  Text('Kamera'),
+                ],
+              ),
+            ),
+            CupertinoActionSheetAction(
+              onPressed: () {
+                Navigator.pop(context);
+                onGallery();
+              },
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(CupertinoIcons.photo, size: 20),
+                  SizedBox(width: 8),
+                  Text('Galeri'),
+                ],
+              ),
+            ),
+          ],
+          cancelButton: CupertinoActionSheetAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
+          ),
+        ),
+      );
+    }
+
     return showModalBottomSheet<void>(
       context: context,
       backgroundColor: AppColors.surface,

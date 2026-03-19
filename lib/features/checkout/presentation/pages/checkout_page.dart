@@ -13,6 +13,7 @@ import '../../../../core/utils/number_input_formatter.dart';
 import '../../../../core/utils/platform_utils.dart';
 import '../../../../core/widgets/action_button_bar.dart';
 import '../../../../core/widgets/image_source_sheet.dart';
+import '../../../../core/widgets/loading_overlay.dart';
 import '../../../../core/widgets/empty_state_view.dart';
 import '../../../../core/widgets/form_field_label.dart';
 import '../../../../core/widgets/payment_form_content.dart';
@@ -492,7 +493,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                         dateLabel: 'Tanggal Bayar *',
                         paymentDate: _paymentDate,
                         onPickDate: () async {
-                          final picked = await showDatePicker(
+                          final picked = await showAdaptiveDatePicker(
                             context: context,
                             initialDate: _paymentDate,
                             firstDate: DateTime(2020),
@@ -545,18 +546,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
   Future<void> _pickRequestDate() async {
     final now = DateTime.now();
-    final picked = await showDatePicker(
+    final picked = await showAdaptiveDatePicker(
       context: context,
       initialDate: _requestDate ?? now.add(const Duration(days: 1)),
       firstDate: now,
       lastDate: now.add(const Duration(days: 365)),
       helpText: 'Pilih Tanggal Permintaan Kirim',
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(primary: AppColors.accent),
-        ),
-        child: child!,
-      ),
     );
     if (!mounted) return;
     if (picked != null) setState(() => _requestDate = picked);
@@ -857,40 +852,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   }
 
   void _showLoadingOverlay(BuildContext context) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => const PopScope(
-        canPop: false,
-        child: Center(
-          child: Card(
-            child: Padding(
-              padding: EdgeInsets.all(24.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator.adaptive(
-                    valueColor: AlwaysStoppedAnimation(AppColors.accent),
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    'Menyimpan Pesanan...',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Mohon tidak menutup aplikasi',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textTertiary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
+    LoadingOverlay.show(
+      context,
+      title: 'Menyimpan Pesanan...',
+      subtitle: 'Mohon tidak menutup aplikasi',
     );
   }
 

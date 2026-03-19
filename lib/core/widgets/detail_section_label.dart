@@ -9,21 +9,43 @@ import '../theme/app_colors.dart';
 class DetailSectionLabel extends StatelessWidget {
   final String title;
   final TextStyle? style;
+  final bool showAccentBar;
 
-  const DetailSectionLabel({super.key, required this.title, this.style});
+  const DetailSectionLabel({
+    super.key,
+    required this.title,
+    this.style,
+    this.showAccentBar = true,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Text(
+    final label = Text(
       title,
-      style:
-          style ??
+      style: style ??
           const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
             color: AppColors.textPrimary,
             letterSpacing: -0.2,
           ),
+    );
+
+    if (!showAccentBar) return label;
+
+    return Row(
+      children: [
+        Container(
+          width: 4,
+          height: 18,
+          decoration: BoxDecoration(
+            color: AppColors.accent,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(child: label),
+      ],
     );
   }
 }

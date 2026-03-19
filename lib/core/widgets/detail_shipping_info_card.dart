@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
-import 'detail_section_header.dart';
+import 'detail_section_label.dart';
 
 /// Reusable shipping information card for detail pages.
 class DetailShippingInfoCard extends StatelessWidget {
@@ -30,10 +30,8 @@ class DetailShippingInfoCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          DetailSectionHeader(
-            title: title,
-            icon: Icons.local_shipping_outlined,
-          ),
+          DetailSectionLabel(title: title),
+          const SizedBox(height: 12),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

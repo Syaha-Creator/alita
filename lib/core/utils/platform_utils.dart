@@ -58,9 +58,9 @@ Future<T?> showAdaptiveAlert<T>({
   return showDialog<T>(
     context: context,
     builder: (_) => AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Text(title),
       content: Text(content),
+      actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       actions: actions.map((a) {
         if (a.isDestructive) {
           return TextButton(
@@ -120,6 +120,82 @@ Future<bool?> showAdaptiveConfirm({
     ],
   );
 }
+
+// ─── Adaptive Date Picker ────────────────────────────────────────────────
+
+/// Shows a [CupertinoDatePicker] on iOS (modal bottom sheet),
+/// and [showDatePicker] on Android (Material dialog).
+///
+/// Returns the selected [DateTime] or `null` if cancelled.
+Future<DateTime?> showAdaptiveDatePicker({
+  required BuildContext context,
+  required DateTime initialDate,
+  required DateTime firstDate,
+  required DateTime lastDate,
+  String? helpText,
+}) async {
+  if (isIOS) {
+    DateTime tempDate = initialDate;
+    final result = await showCupertinoModalPopup<DateTime>(
+      context: context,
+      builder: (_) => Container(
+        height: 280,
+        decoration: const BoxDecoration(
+          color: CupertinoColors.systemBackground,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                CupertinoButton(
+                  child: const Text('Batal'),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                if (helpText != null)
+                  Flexible(
+                    child: Text(
+                      helpText,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                CupertinoButton(
+                  child: const Text('Pilih'),
+                  onPressed: () => Navigator.pop(context, tempDate),
+                ),
+              ],
+            ),
+            Expanded(
+              child: CupertinoDatePicker(
+                mode: CupertinoDatePickerMode.date,
+                initialDateTime: initialDate,
+                minimumDate: firstDate,
+                maximumDate: lastDate,
+                onDateTimeChanged: (d) => tempDate = d,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    return result;
+  }
+
+  return showDatePicker(
+    context: context,
+    initialDate: initialDate,
+    firstDate: firstDate,
+    lastDate: lastDate,
+    helpText: helpText,
+  );
+}
+
+// ─── Adaptive Action Data ────────────────────────────────────────────────
 
 class AdaptiveAction {
   final String label;

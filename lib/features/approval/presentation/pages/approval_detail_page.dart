@@ -13,6 +13,7 @@ import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/utils/shipping_utils.dart';
 import '../../../../core/utils/log.dart';
 import '../../../../core/utils/platform_utils.dart';
+import '../../../../core/widgets/loading_overlay.dart';
 import '../../../../core/widgets/detail_contact_info_card.dart';
 import '../../../../core/widgets/detail_note_card.dart';
 import '../../../../core/widgets/detail_shipping_info_card.dart';
@@ -317,6 +318,7 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
         widget.orderData['order_letter_details'] as List<dynamic>? ?? [];
     final payments =
         widget.orderData['order_letter_payments'] as List<dynamic>? ?? [];
+    final shippingDiffers = _isOrderShippingDifferent(order);
 
     final myName = ref.watch(profileProvider).valueOrNull?.name ?? '';
     final approvalState = _resolveMyApprovalState(details, _userId, myName);
@@ -361,9 +363,12 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
                   orderData: widget.orderData,
                 ),
                 const SizedBox(height: 12),
-                _buildCustomerCard(context, order,
-                    isShippingDifferent: _isOrderShippingDifferent(order)),
-                if (_isOrderShippingDifferent(order)) ...[
+                _buildCustomerCard(
+                  context,
+                  order,
+                  isShippingDifferent: shippingDiffers,
+                ),
+                if (shippingDiffers) ...[
                   const SizedBox(height: 12),
                   _buildShippingCard(order),
                 ],
@@ -373,61 +378,17 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
                   const SizedBox(height: 12),
                 ],
                 ApprovalProductsCard(details: details, order: order),
-                if (payments.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  ApprovalPaymentsCard(payments: payments),
-                ],
+                const SizedBox(height: 12),
+                ApprovalPaymentsCard(payments: payments),
               ],
             ),
           ),
           if (_isLoading)
-            Container(
-              color: Colors.black.withValues(alpha: 0.45),
-              child: Center(
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 28, vertical: 22),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.12),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const CircularProgressIndicator.adaptive(
-                        valueColor: AlwaysStoppedAnimation(AppColors.accent),
-                        strokeWidth: 3,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        _loadingMessage ?? 'Memproses Persetujuan...',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _loadingMessage != null
-                            ? 'Mengambil koordinat dan alamat'
-                            : 'Harap tunggu sebentar',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textTertiary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+            LoadingOverlay(
+              title: _loadingMessage ?? 'Memproses Persetujuan...',
+              subtitle: _loadingMessage != null
+                  ? 'Mengambil koordinat dan alamat'
+                  : 'Harap tunggu sebentar',
             ),
         ],
       ),

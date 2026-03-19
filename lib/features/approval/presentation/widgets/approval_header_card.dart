@@ -220,16 +220,16 @@ class ApprovalHeaderCard extends StatelessWidget {
                           ? 'Bawa Sendiri (Take Away)'
                           : 'Kurir Pabrik',
                       backgroundColor: isTakeAway
-                          ? AppColors.surfaceLight
+                          ? AppColors.surface
                           : AppColors.primary.withValues(alpha: 0.08),
                       foregroundColor: isTakeAway
-                          ? AppColors.textSecondary
+                          ? AppColors.textPrimary
                           : AppColors.primary,
                       textStyle: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                         color: isTakeAway
-                            ? AppColors.textSecondary
+                            ? AppColors.textPrimary
                             : AppColors.primary,
                       ),
                       padding: const EdgeInsets.symmetric(

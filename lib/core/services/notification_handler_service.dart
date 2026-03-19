@@ -77,7 +77,6 @@ class NotificationHandlerService {
       ScaffoldMessenger.of(_scaffoldKey!.currentContext!).showSnackBar(
         SnackBar(
           content: Text(body.isEmpty ? title : '$title\n$body'),
-          behavior: SnackBarBehavior.floating,
         ),
       );
     }

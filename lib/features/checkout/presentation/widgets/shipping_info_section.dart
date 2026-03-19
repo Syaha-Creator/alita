@@ -75,7 +75,7 @@ class ShippingInfoSection extends StatelessWidget {
             SizedBox(
               width: 24,
               height: 24,
-              child: Checkbox(
+              child: Checkbox.adaptive(
                 value: isShippingSameAsCustomer,
                 onChanged: (v) => onToggleSameAddress(v ?? true),
               ),

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../theme/app_colors.dart';
 import '../utils/app_feedback.dart';
 import '../utils/log.dart';
+import 'loading_overlay.dart';
 
 /// A reusable bottom sheet for print/share PDF actions.
 ///
@@ -112,27 +113,10 @@ class PdfActionSheet {
   }
 
   static void _showLoadingDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => const PopScope(
-        canPop: false,
-        child: Center(
-          child: Card(
-            child: Padding(
-              padding: EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator.adaptive(),
-                  SizedBox(height: 16),
-                  Text('Membuat PDF...'),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
+    LoadingOverlay.show(
+      context,
+      title: 'Membuat PDF...',
+      subtitle: 'Harap tunggu sebentar',
     );
   }
 }

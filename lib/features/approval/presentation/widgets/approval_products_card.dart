@@ -56,7 +56,6 @@ class ApprovalProductsCard extends StatelessWidget {
           ...details.asMap().entries.map((entry) {
             final idx = entry.key;
             final detail = entry.value as Map<String, dynamic>;
-            final isLast = idx == details.length - 1 && bonusItems.isEmpty;
 
             final name = detail['desc_1'] as String? ??
                 detail['item_description'] as String? ??
@@ -70,76 +69,73 @@ class ApprovalProductsCard extends StatelessWidget {
             final discounts =
                 detail['order_letter_discount'] as List<dynamic>? ?? [];
 
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    DetailItemIndexBadge(index: idx + 1),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
+            return Container(
+              padding: const EdgeInsets.all(12),
+              margin: EdgeInsets.only(bottom: idx == details.length - 1 ? 0 : 10),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  DetailItemIndexBadge(index: idx + 1),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${qty}x $name',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
+                                  if (brand.isNotEmpty)
                                     Text(
-                                      '${qty}x $name',
+                                      brand,
                                       style: const TextStyle(
+                                        fontSize: 10,
+                                        color: AppColors.textTertiary,
                                         fontWeight: FontWeight.w600,
-                                        fontSize: 13,
-                                        color: AppColors.textPrimary,
                                       ),
                                     ),
-                                    if (brand.isNotEmpty)
-                                      Text(
-                                        brand,
-                                        style: const TextStyle(
-                                          fontSize: 10,
-                                          color: AppColors.textTertiary,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                  ],
-                                ),
+                                ],
                               ),
-                              const SizedBox(width: 8),
-                              Text(
-                                netPrice == 0
-                                    ? 'GRATIS'
-                                    : _fmt(netPrice.round()),
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                  color: netPrice == 0
-                                      ? AppColors.success
-                                      : AppColors.textPrimary,
-                                ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              netPrice == 0 ? 'GRATIS' : _fmt(netPrice.round()),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: netPrice == 0
+                                    ? AppColors.success
+                                    : AppColors.textPrimary,
                               ),
-                            ],
-                          ),
-                          if (discounts.isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            _buildDiscountBlock(discounts),
+                            ),
                           ],
+                        ),
+                        if (discounts.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          _buildDiscountBlock(discounts),
                         ],
-                      ),
+                      ],
                     ),
-                  ],
-                ),
-                if (!isLast) ...[
-                  const SizedBox(height: 14),
-                  Container(height: 1, color: AppColors.divider),
-                  const SizedBox(height: 14),
+                  ),
                 ],
-              ],
+              ),
             );
           }),
           if (bonusItems.isNotEmpty) ...[

@@ -185,7 +185,7 @@ class CustomerInfoSection extends StatelessWidget {
               SizedBox(
                 width: 24,
                 height: 24,
-                child: Checkbox(
+                child: Checkbox.adaptive(
                   value: shouldSaveCustomerContact,
                   onChanged: (v) => onToggleSaveContact(v ?? true),
                 ),

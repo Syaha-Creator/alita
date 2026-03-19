@@ -172,6 +172,8 @@ class _LoginPageState extends ConsumerState<LoginPage>
           child: SafeArea(
             child: Center(
               child: SingleChildScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 28.0,
                   vertical: 40.0,

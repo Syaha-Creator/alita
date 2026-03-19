@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/widgets/network_image_view.dart';
@@ -7,7 +8,6 @@ import '../../../../core/widgets/price_block.dart';
 import '../../../../core/widgets/quantity_stepper.dart';
 import '../../data/cart_item.dart';
 import '../../logic/cart_provider.dart';
-import '../../../pricelist/presentation/pages/product_detail_page.dart';
 
 /// Kartu item keranjang (e-commerce layout: Checkbox → Image → Detail).
 /// Detail berisi judul, varian/SKU, baris Harga + Stepper kuantitas, dan rincian Set jika ada.
@@ -37,16 +37,11 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
 
     return InkWell(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute<void>(
-            builder: (context) => ProductDetailPage(
-              product: item.masterProduct ?? p,
-              editItem: item,
-              cartIndex: index,
-            ),
-          ),
-        );
+        context.push('/product/${p.id}', extra: {
+          'product': item.masterProduct ?? p,
+          'editItem': item,
+          'cartIndex': index,
+        });
       },
       borderRadius: BorderRadius.circular(12),
       child: Container(
@@ -62,7 +57,7 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
             SizedBox(
               width: 24,
               height: 24,
-              child: Checkbox(
+              child: Checkbox.adaptive(
                 value: ref
                     .watch(selectedCartItemIdsProvider)
                     .contains(cartItemKey(item)),

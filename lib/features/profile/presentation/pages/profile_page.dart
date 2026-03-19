@@ -12,7 +12,6 @@ import '../../../../core/utils/platform_utils.dart';
 import '../../../../core/enums/order_status.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../history/logic/order_history_provider.dart';
-import '../../../history/presentation/pages/order_history_page.dart';
 import '../../logic/profile_provider.dart';
 import '../../../approval/logic/approval_inbox_provider.dart';
 
@@ -162,10 +161,7 @@ class ProfilePage extends ConsumerWidget {
             _MenuItem(
               icon: Icons.receipt_long_outlined,
               title: 'Riwayat Pesanan',
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const OrderHistoryPage()),
-              ),
+              onTap: () => context.push('/order_history'),
             ),
             if (isApprover)
               _MenuItem(
@@ -499,7 +495,6 @@ class ProfilePage extends ConsumerWidget {
     unawaited(showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Tentang Aplikasi'),
         content: _AboutDialogContent(versionLabel: versionLabel),
         actions: [

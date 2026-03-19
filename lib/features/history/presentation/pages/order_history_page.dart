@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/enums/order_status.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_formatters.dart';
@@ -11,7 +12,6 @@ import '../../../../core/widgets/order_list_card_frame.dart';
 import '../../../../core/widgets/status_chip.dart';
 import '../../data/models/order_history.dart';
 import '../../logic/order_history_provider.dart';
-import 'order_detail_page.dart';
 
 class OrderHistoryPage extends ConsumerStatefulWidget {
   const OrderHistoryPage({super.key});
@@ -68,16 +68,6 @@ class _OrderHistoryPageState extends ConsumerState<OrderHistoryPage> {
                 lastDate: DateTime(2030),
                 initialDateRange: dateRange,
                 helpText: 'Pilih Rentang Tanggal',
-                builder: (ctx, child) => Theme(
-                  data: Theme.of(ctx).copyWith(
-                    colorScheme: const ColorScheme.light(
-                      primary: AppColors.accent,
-                      onPrimary: AppColors.onPrimary,
-                      onSurface: AppColors.textPrimary,
-                    ),
-                  ),
-                  child: child!,
-                ),
               );
               if (picked != null) {
                 ref.read(dateFilterProvider.notifier).state = picked;
@@ -109,7 +99,7 @@ class _OrderHistoryPageState extends ConsumerState<OrderHistoryPage> {
         ),
         dataBuilder: (orders) {
           if (orders.isEmpty) return _buildEmptyState();
-          return RefreshIndicator(
+          return RefreshIndicator.adaptive(
             color: AppColors.accent,
             onRefresh: () async => ref.invalidate(orderHistoryProvider),
             child: ListView.builder(
@@ -244,13 +234,7 @@ class _OrderHistoryPageState extends ConsumerState<OrderHistoryPage> {
       ),
       dateText: formattedDate,
       totalText: AppFormatters.currencyIdr(order.totalAmount),
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (context) => OrderDetailPage(order: order)),
-        );
-      },
+      onTap: () => context.push('/order_detail', extra: order),
     );
   }
 }

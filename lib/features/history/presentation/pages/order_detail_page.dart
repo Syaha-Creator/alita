@@ -201,7 +201,7 @@ class OrderDetailPage extends ConsumerWidget {
                       .refresh(),
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 48),
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [

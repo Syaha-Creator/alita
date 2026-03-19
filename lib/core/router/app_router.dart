@@ -14,6 +14,9 @@ import '../../features/checkout/presentation/pages/checkout_page.dart';
 import '../../features/checkout/presentation/pages/order_success_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
 import '../../features/profile/presentation/pages/help_center_page.dart';
+import '../../features/history/presentation/pages/order_history_page.dart';
+import '../../features/history/presentation/pages/order_detail_page.dart';
+import '../../features/history/data/models/order_history.dart';
 import '../../features/approval/presentation/pages/approval_inbox_page.dart';
 import '../../features/approval/presentation/pages/approval_detail_page.dart';
 
@@ -68,9 +71,20 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/product/:id',
         name: 'product-detail',
         pageBuilder: (context, state) {
-          final product = state.extra as Product;
+          final extra = state.extra;
+          if (extra is Product) {
+            return _adaptivePage(
+              child: ProductDetailPage(product: extra),
+              name: 'product-detail',
+            );
+          }
+          final map = extra as Map<String, dynamic>;
           return _adaptivePage(
-            child: ProductDetailPage(product: product),
+            child: ProductDetailPage(
+              product: map['product'] as Product,
+              editItem: map['editItem'] as CartItem?,
+              cartIndex: map['cartIndex'] as int?,
+            ),
             name: 'product-detail',
           );
         },
@@ -111,6 +125,25 @@ final routerProvider = Provider<GoRouter>((ref) {
           child: const HelpCenterPage(),
           name: 'help-center',
         ),
+      ),
+      GoRoute(
+        path: '/order_history',
+        name: 'order-history',
+        pageBuilder: (context, state) => _adaptivePage(
+          child: const OrderHistoryPage(),
+          name: 'order-history',
+        ),
+      ),
+      GoRoute(
+        path: '/order_detail',
+        name: 'order-detail',
+        pageBuilder: (context, state) {
+          final order = state.extra as OrderHistory;
+          return _adaptivePage(
+            child: OrderDetailPage(order: order),
+            name: 'order-detail',
+          );
+        },
       ),
       GoRoute(
         path: '/approval_inbox',
