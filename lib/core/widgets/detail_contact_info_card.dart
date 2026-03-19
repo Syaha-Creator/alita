@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../theme/app_colors.dart';
 import 'detail_section_header.dart';
 
 /// Reusable customer/contact information card for detail pages.
@@ -34,9 +35,9 @@ class DetailContactInfoCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -47,11 +48,11 @@ class DetailContactInfoCard extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 20,
-                backgroundColor: Colors.pink.shade50,
+                backgroundColor: AppColors.accentLight,
                 child: Text(
                   name.isNotEmpty ? name[0].toUpperCase() : '?',
                   style: const TextStyle(
-                    color: Colors.pink,
+                    color: AppColors.accent,
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                   ),
@@ -67,7 +68,7 @@ class DetailContactInfoCard extends StatelessWidget {
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
-                        color: Colors.black87,
+                        color: AppColors.textPrimary,
                       ),
                     ),
                     if (hasPhone) ...[
@@ -77,13 +78,13 @@ class DetailContactInfoCard extends StatelessWidget {
                           const Icon(
                             Icons.phone_android_outlined,
                             size: 14,
-                            color: Colors.grey,
+                            color: AppColors.textTertiary,
                           ),
                           const SizedBox(width: 6),
                           Text(
                             phone,
-                            style: TextStyle(
-                              color: Colors.grey.shade700,
+                            style: const TextStyle(
+                              color: AppColors.textSecondary,
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
                             ),
@@ -94,8 +95,8 @@ class DetailContactInfoCard extends StatelessWidget {
                               tooltip: 'Salin nomor',
                               onTap: onCopyPhone!,
                               icon: Icons.copy_rounded,
-                              backgroundColor: Colors.grey.shade100,
-                              iconColor: Colors.grey.shade700,
+                              backgroundColor: AppColors.surfaceLight,
+                              iconColor: AppColors.textSecondary,
                             ),
                           if (onCallPhone != null) ...[
                             const SizedBox(width: 4),
@@ -103,9 +104,9 @@ class DetailContactInfoCard extends StatelessWidget {
                               tooltip: 'Telepon',
                               onTap: onCallPhone!,
                               icon: Icons.phone_outlined,
-                              backgroundColor: Colors.blue.shade50,
-                              iconColor: Colors.blue.shade700,
-                              borderColor: Colors.blue.shade200,
+                              backgroundColor: AppColors.surfaceLight,
+                              iconColor: AppColors.accent,
+                              borderColor: AppColors.accent.withValues(alpha: 0.3),
                             ),
                           ],
                           if (onOpenWhatsApp != null) ...[
@@ -114,9 +115,9 @@ class DetailContactInfoCard extends StatelessWidget {
                               tooltip: 'Chat WhatsApp',
                               onTap: onOpenWhatsApp!,
                               icon: Icons.chat_bubble_outline,
-                              backgroundColor: Colors.green.shade50,
-                              iconColor: Colors.green.shade700,
-                              borderColor: Colors.green.shade200,
+                              backgroundColor: AppColors.success.withValues(alpha: 0.08),
+                              iconColor: AppColors.success,
+                              borderColor: AppColors.success.withValues(alpha: 0.3),
                             ),
                           ],
                         ],
@@ -129,14 +130,14 @@ class DetailContactInfoCard extends StatelessWidget {
                           const Icon(
                             Icons.email_outlined,
                             size: 14,
-                            color: Colors.grey,
+                            color: AppColors.textTertiary,
                           ),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
                               email,
-                              style: TextStyle(
-                                color: Colors.grey.shade700,
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
                                 fontSize: 12,
                               ),
                             ),
@@ -152,14 +153,14 @@ class DetailContactInfoCard extends StatelessWidget {
                           const Icon(
                             Icons.location_on_outlined,
                             size: 14,
-                            color: Colors.grey,
+                            color: AppColors.textTertiary,
                           ),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
                               address,
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
                                 fontSize: 12,
                                 height: 1.4,
                               ),

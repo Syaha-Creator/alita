@@ -40,8 +40,6 @@ class BonusTakeAwayControl extends StatelessWidget {
             children: [
               Checkbox(
                 value: isChecked,
-                activeColor: AppColors.primary,
-                visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
                 onChanged: (value) => onCheckedChanged(value ?? false),
               ),
               const SizedBox(width: 6),
@@ -59,9 +57,9 @@ class BonusTakeAwayControl extends StatelessWidget {
                     if (sku.isNotEmpty)
                       Text(
                         'SKU: $sku',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 10,
-                          color: Colors.grey.shade500,
+                          color: AppColors.textTertiary,
                         ),
                       ),
                   ],
@@ -72,15 +70,15 @@ class BonusTakeAwayControl extends StatelessWidget {
                   margin: const EdgeInsets.only(top: 2),
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Colors.green.shade50,
+                    color: AppColors.success.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: Colors.green.shade200),
+                    border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
                   ),
-                  child: Text(
+                  child: const Text(
                     'Take Away',
                     style: TextStyle(
                       fontSize: 9,
-                      color: Colors.green.shade700,
+                      color: AppColors.success,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -111,10 +109,10 @@ class BonusTakeAwayControl extends StatelessWidget {
                         incrementIcon: Icons.add_circle_outline,
                         decrementIconColor: canDecrement
                             ? AppColors.textSecondary
-                            : Colors.grey.shade300,
+                            : AppColors.border,
                         incrementIconColor: canIncrement
                             ? AppColors.textSecondary
-                            : Colors.grey.shade300,
+                            : AppColors.border,
                       ),
                     ],
                   ),
@@ -125,7 +123,7 @@ class BonusTakeAwayControl extends StatelessWidget {
                         'Sisa $remaining dikirim',
                         style: const TextStyle(
                           fontSize: 11,
-                          color: Colors.blue,
+                          color: AppColors.accent,
                         ),
                       ),
                     ),

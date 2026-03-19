@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../../../../core/services/api_client.dart';
@@ -45,7 +44,8 @@ class CheckoutOrderService {
                     DateTime(2000);
             return dateB.compareTo(dateA);
           });
-          return data.first['work_place_id'] as int?;
+          final raw = data.first['work_place_id'];
+          return raw is int ? raw : int.tryParse(raw?.toString() ?? '');
         }
       }
     } catch (e, st) {
@@ -201,13 +201,12 @@ class CheckoutOrderService {
         if (detailId > 0) {
           succeeded.add(SucceededDetail(pending: pending, detailId: detailId));
         } else {
-          // POST succeeded but couldn't extract ID -- will use fallback
           succeeded.add(SucceededDetail(pending: pending, detailId: 0));
         }
       } else {
-        debugPrint(
-          '[Detail] GAGAL → ${pending.label} '
-          'status=${response.statusCode}',
+        Log.warning(
+          'Detail POST failed: ${pending.label} status=${response.statusCode}',
+          tag: 'CheckoutOrderService',
         );
         failed.add(pending);
       }
@@ -276,7 +275,7 @@ class CheckoutOrderService {
       discount4: discount4,
     );
 
-    return (customerPrice: customerPrice, netPrice: netPrice);
+    return (customerPrice: customerPrice * qty, netPrice: netPrice);
   }
 
   /// Pick the best available original EUP with cascading fallback:
@@ -309,9 +308,9 @@ class CheckoutOrderService {
     );
 
     if (response.statusCode != 200) {
-      debugPrint(
-        '[Detail] GET order gagal (${response.statusCode}), '
-        'fallback tidak tersedia',
+      Log.warning(
+        'GET order failed (${response.statusCode}), fallback unavailable',
+        tag: 'CheckoutOrderService',
       );
       return [];
     }
@@ -354,21 +353,11 @@ class CheckoutOrderService {
 
       int detailId = item.detailId;
 
-      // Fallback: use positional mapping from the fetched list
       if (detailId <= 0 && i < fallbackDetailIds.length) {
         detailId = fallbackDetailIds[i];
-        debugPrint(
-          '[Discount] Using fallback detailId=$detailId for '
-          '"${item.pending.label}" (index $i)',
-        );
       }
 
-      if (detailId <= 0) {
-        debugPrint(
-          '[Discount] SKIP — no detailId for "${item.pending.label}"',
-        );
-        continue;
-      }
+      if (detailId <= 0) continue;
 
       for (final disc in item.pending.discounts) {
         final levelId = disc['approver_level_id'] as int? ?? 0;
@@ -383,15 +372,11 @@ class CheckoutOrderService {
           body: discPayload,
         );
 
-        if (response.statusCode == 200 || response.statusCode == 201) {
-          debugPrint(
-            '[Discount] L$levelId OK → detail=$detailId '
-            'disc=${disc['discount']}%',
-          );
-        } else {
-          debugPrint(
-            '[Discount] L$levelId GAGAL → detail=$detailId '
-            'status=${response.statusCode} body=${response.body}',
+        if (response.statusCode != 200 && response.statusCode != 201) {
+          Log.warning(
+            'Discount POST failed: level=$levelId detailId=$detailId '
+            'status=${response.statusCode}',
+            tag: 'CheckoutOrderService',
           );
         }
       }
@@ -408,7 +393,8 @@ class CheckoutOrderService {
     required Approver? selectedSpv,
     required Approver? selectedManager,
     required bool globalIsTakeAway,
-    required bool Function(int itemIndex, CartBonusSnapshot) isBonusTakeAwayChecked,
+    required bool Function(int itemIndex, CartBonusSnapshot)
+        isBonusTakeAwayChecked,
     required int Function(int itemIndex, CartBonusSnapshot) currentTakeAwayQty,
     required String profileName,
   }) {
@@ -434,7 +420,6 @@ class CheckoutOrderService {
       final String brand = p.brand.isNotEmpty ? p.brand : 'Unknown Brand';
       final String ukuran = p.ukuran;
       final String itemDesc = p.name;
-
 
       String appendSizeIfMissing(String baseName, String size) {
         final trimmedBase = baseName.trim();
@@ -466,6 +451,11 @@ class CheckoutOrderService {
         return cleaned;
       }
 
+      bool hasComponent(String value) {
+        final lower = value.trim().toLowerCase();
+        return lower.isNotEmpty && !lower.contains('tanpa');
+      }
+
       List<Map<String, dynamic>> buildDiscounts() =>
           CheckoutDiscountBuilder.build(
             userId: userId,
@@ -483,10 +473,8 @@ class CheckoutOrderService {
           );
 
       // 1. MATTRESS (KASUR)
-      if (item.kasurSku.isNotEmpty) {
+      if (hasComponent(p.kasur)) {
         final baseKasurName = appendSizeIfMissing(itemDesc, ukuran);
-        CheckoutDetailBuilderUtils.validateRequiredField(
-            'item_number (kasur)', item.kasurSku);
         CheckoutDetailBuilderUtils.validateRequiredField(
             'desc_1 (nama produk)', p.name);
         CheckoutDetailBuilderUtils.validateRequiredField(
@@ -497,7 +485,9 @@ class CheckoutOrderService {
         CheckoutDetailBuilderUtils.validateRequiredField('qty', item.quantity);
 
         final origKasur = _pickOriginalEup(
-          item.originalEupKasur, master?.eupKasur, p.eupKasur,
+          item.originalEupKasur,
+          master?.eupKasur,
+          p.eupKasur,
         );
         final kasurPrices = _resolveComponentPrices(
           inputPrice: p.eupKasur,
@@ -509,7 +499,8 @@ class CheckoutOrderService {
           discount4: item.discount4,
         );
         final payload = {
-          'item_number': item.kasurSku,
+          'item_number':
+              CheckoutDetailBuilderUtils.normalizeNullableSku(item.kasurSku),
           'item_description': CheckoutDetailBuilderUtils.buildDescription(
             baseDesc: baseKasurName,
             sku: item.kasurSku,
@@ -518,7 +509,7 @@ class CheckoutOrderService {
           'desc_1': cleanDesc1(p.name, ukuran),
           'desc_2': ukuran,
           'brand': brand,
-          'unit_price': p.plKasur,
+          'unit_price': p.plKasur * item.quantity,
           'customer_price': kasurPrices.customerPrice,
           'net_price': kasurPrices.netPrice,
           'qty': item.quantity,
@@ -533,16 +524,14 @@ class CheckoutOrderService {
       }
 
       // 2. DIVAN
-      if (p.isSet &&
-          item.divanSku.isNotEmpty &&
-          !p.divan.toLowerCase().contains('tanpa')) {
-        CheckoutDetailBuilderUtils.validateRequiredField(
-            'item_number (divan)', item.divanSku);
+      if (p.isSet && hasComponent(p.divan)) {
         CheckoutDetailBuilderUtils.validateRequiredField(
             'desc_1 (divan)', p.divan);
 
         final origDivan = _pickOriginalEup(
-          item.originalEupDivan, master?.eupDivan, p.eupDivan,
+          item.originalEupDivan,
+          master?.eupDivan,
+          p.eupDivan,
         );
         final divanPrices = _resolveComponentPrices(
           inputPrice: p.eupDivan,
@@ -554,7 +543,8 @@ class CheckoutOrderService {
           discount4: item.discount4,
         );
         final payload = {
-          'item_number': item.divanSku,
+          'item_number':
+              CheckoutDetailBuilderUtils.normalizeNullableSku(item.divanSku),
           'item_description': CheckoutDetailBuilderUtils.buildDescription(
             baseDesc: p.divan,
             sku: item.divanSku,
@@ -565,7 +555,7 @@ class CheckoutOrderService {
           'desc_1': cleanDesc1(p.divan, ukuran),
           'desc_2': ukuran,
           'brand': brand,
-          'unit_price': p.plDivan,
+          'unit_price': p.plDivan * item.quantity,
           'customer_price': divanPrices.customerPrice,
           'net_price': divanPrices.netPrice,
           'qty': item.quantity,
@@ -580,16 +570,14 @@ class CheckoutOrderService {
       }
 
       // 3. HEADBOARD
-      if (p.isSet &&
-          item.sandaranSku.isNotEmpty &&
-          !p.headboard.toLowerCase().contains('tanpa')) {
-        CheckoutDetailBuilderUtils.validateRequiredField(
-            'item_number (headboard)', item.sandaranSku);
+      if (p.isSet && hasComponent(p.headboard)) {
         CheckoutDetailBuilderUtils.validateRequiredField(
             'desc_1 (headboard)', p.headboard);
 
         final origHb = _pickOriginalEup(
-          item.originalEupHeadboard, master?.eupHeadboard, p.eupHeadboard,
+          item.originalEupHeadboard,
+          master?.eupHeadboard,
+          p.eupHeadboard,
         );
         final headboardPrices = _resolveComponentPrices(
           inputPrice: p.eupHeadboard,
@@ -601,7 +589,8 @@ class CheckoutOrderService {
           discount4: item.discount4,
         );
         final payload = {
-          'item_number': item.sandaranSku,
+          'item_number':
+              CheckoutDetailBuilderUtils.normalizeNullableSku(item.sandaranSku),
           'item_description': CheckoutDetailBuilderUtils.buildDescription(
             baseDesc: p.headboard,
             sku: item.sandaranSku,
@@ -612,7 +601,7 @@ class CheckoutOrderService {
           'desc_1': cleanDesc1(p.headboard, ukuran),
           'desc_2': ukuran,
           'brand': brand,
-          'unit_price': p.plHeadboard,
+          'unit_price': p.plHeadboard * item.quantity,
           'customer_price': headboardPrices.customerPrice,
           'net_price': headboardPrices.netPrice,
           'qty': item.quantity,
@@ -627,16 +616,14 @@ class CheckoutOrderService {
       }
 
       // 4. SORONG
-      if (p.isSet &&
-          item.sorongSku.isNotEmpty &&
-          !p.sorong.toLowerCase().contains('tanpa')) {
-        CheckoutDetailBuilderUtils.validateRequiredField(
-            'item_number (sorong)', item.sorongSku);
+      if (p.isSet && hasComponent(p.sorong)) {
         CheckoutDetailBuilderUtils.validateRequiredField(
             'desc_1 (sorong)', p.sorong);
 
         final origSorong = _pickOriginalEup(
-          item.originalEupSorong, master?.eupSorong, p.eupSorong,
+          item.originalEupSorong,
+          master?.eupSorong,
+          p.eupSorong,
         );
         final sorongPrices = _resolveComponentPrices(
           inputPrice: p.eupSorong,
@@ -648,7 +635,8 @@ class CheckoutOrderService {
           discount4: item.discount4,
         );
         final payload = {
-          'item_number': item.sorongSku,
+          'item_number':
+              CheckoutDetailBuilderUtils.normalizeNullableSku(item.sorongSku),
           'item_description': CheckoutDetailBuilderUtils.buildDescription(
             baseDesc: p.sorong,
             sku: item.sorongSku,
@@ -659,7 +647,7 @@ class CheckoutOrderService {
           'desc_1': cleanDesc1(p.sorong, ukuran),
           'desc_2': ukuran,
           'brand': brand,
-          'unit_price': p.plSorong,
+          'unit_price': p.plSorong * item.quantity,
           'customer_price': sorongPrices.customerPrice,
           'net_price': sorongPrices.netPrice,
           'qty': item.quantity,
@@ -678,8 +666,6 @@ class CheckoutOrderService {
           item.bonusSnapshots.fold<int>(0, (sum, b) => sum + b.qty);
 
       for (final bonus in item.bonusSnapshots) {
-        if (bonus.sku.isEmpty) continue;
-
         final bonusPlPrice = BonusPriceResolver.resolvePlPrice(p, bonus.name);
         final int totalQty = item.quantity + totalBonusQty;
         final double adjustedUnitPrice = (totalQty > 0 && item.quantity > 0)
@@ -696,7 +682,8 @@ class CheckoutOrderService {
 
         for (final segment in splitSegments) {
           final payload = {
-            'item_number': bonus.sku,
+            'item_number':
+                CheckoutDetailBuilderUtils.normalizeNullableSku(bonus.sku),
             'item_description':
                 CheckoutDetailBuilderUtils.buildCleanItemDescription(
               bonus.name,
@@ -704,8 +691,8 @@ class CheckoutOrderService {
             'desc_1': bonus.name,
             'desc_2': 'Bonus',
             'brand': brand,
-            'unit_price': adjustedUnitPrice,
-            'customer_price': adjustedUnitPrice,
+            'unit_price': adjustedUnitPrice * segment.qty,
+            'customer_price': adjustedUnitPrice * segment.qty,
             'net_price': CheckoutNetPriceCalculator.calculate(
               customerPrice: adjustedUnitPrice,
               qty: segment.qty,

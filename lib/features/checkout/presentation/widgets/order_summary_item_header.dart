@@ -62,17 +62,17 @@ class OrderSummaryItemHeader extends StatelessWidget {
               ),
               Text(
                 configText,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 11,
-                  color: Colors.grey.shade600,
+                  color: AppColors.textSecondary,
                 ),
               ),
               if (kasurSku.isNotEmpty)
                 Text(
                   'SKU: $kasurSku',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 10,
-                    color: Colors.grey.shade400,
+                    color: AppColors.textTertiary,
                   ),
                 ),
               const SizedBox(height: 4),

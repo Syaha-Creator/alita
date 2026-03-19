@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import 'network_image_view.dart';
 
 /// Reusable full-screen image viewer dialog with pinch-to-zoom.
@@ -26,7 +27,7 @@ class ImageViewerDialog {
     double closeRight = 8,
     double closeIconSize = 20,
     IconData closeIcon = Icons.close_rounded,
-    Color closeIconColor = Colors.white,
+    Color closeIconColor = AppColors.onPrimary,
     Color closeBackgroundColor = Colors.black54,
     EdgeInsets closePadding = const EdgeInsets.all(6),
   }) {
@@ -48,13 +49,12 @@ class ImageViewerDialog {
                   imageUrl: imageUrl,
                   fit: BoxFit.contain,
                   memCacheWidth: 800,
-                  loadingBuilder: loadingWidget == null
-                      ? null
-                      : (_, __) => loadingWidget,
-                  errorWidget:
-                      errorWidget ??
+                  loadingBuilder:
+                      loadingWidget == null ? null : (_, __) => loadingWidget,
+                  errorWidget: errorWidget ??
                       const Center(
-                        child: Icon(Icons.broken_image, color: Colors.white),
+                        child: Icon(Icons.broken_image,
+                            color: AppColors.onPrimary),
                       ),
                 ),
               ),

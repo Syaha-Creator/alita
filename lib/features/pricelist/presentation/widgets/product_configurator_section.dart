@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_choice_chip.dart';
 import '../../data/models/item_lookup.dart';
 import 'product_anchor_type.dart';
 
@@ -262,6 +263,23 @@ class ProductConfiguratorSection extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
+    String lookupKey(ItemLookup lookup) {
+      final tipe = lookup.tipe.trim().toLowerCase();
+      final ukuran = lookup.ukuran.trim().toLowerCase();
+      final itemNum = lookup.itemNum.trim().toLowerCase();
+      final kain = (lookup.jenisKain ?? '').trim().toLowerCase();
+      final warna = (lookup.warnaKain ?? '').trim().toLowerCase();
+      return '$tipe|$ukuran|$itemNum|$kain|$warna';
+    }
+
+    final seen = <String>{};
+    final uniqueOptions = options.where((lookup) {
+      final key = lookupKey(lookup);
+      if (seen.contains(key)) return false;
+      seen.add(key);
+      return true;
+    }).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -281,60 +299,29 @@ class ProductConfiguratorSection extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 0),
           child: Row(
             children: [
-              ...options.map((lookup) {
+              ...uniqueOptions.map((lookup) {
                 final isSelected =
-                    !isCustomSelected && selected?.itemNum == lookup.itemNum;
+                    !isCustomSelected &&
+                    selected != null &&
+                    lookupKey(selected) == lookupKey(lookup);
                 return Padding(
                   padding: const EdgeInsets.only(right: 8.0),
-                  child: ChoiceChip(
-                    showCheckmark: false,
-                    label: Text(lookup.displayLabel),
+                  child: AppChoiceChip(
+                    label: lookup.displayLabel,
                     selected: isSelected,
                     onSelected: (val) {
                       if (val) onSelect(lookup);
                     },
-                    selectedColor: Colors.black87,
-                    backgroundColor: Colors.white,
-                    side: BorderSide(
-                      color: isSelected ? Colors.black87 : Colors.grey.shade300,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    labelStyle: TextStyle(
-                      color: isSelected ? Colors.white : Colors.grey.shade800,
-                      fontWeight:
-                          isSelected ? FontWeight.bold : FontWeight.normal,
-                    ),
                   ),
                 );
               }),
               if (customController != null)
                 Padding(
                   padding: const EdgeInsets.only(right: 8.0),
-                  child: ChoiceChip(
-                    showCheckmark: false,
-                    label: const Text('Custom'),
+                  child: AppChoiceChip(
+                    label: 'Custom',
                     selected: isCustomSelected,
                     onSelected: (_) => onCustomTap?.call(),
-                    selectedColor: AppColors.accent,
-                    backgroundColor: Colors.white,
-                    side: BorderSide(
-                      color: isCustomSelected
-                          ? AppColors.accent
-                          : Colors.grey.shade300,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    labelStyle: TextStyle(
-                      color: isCustomSelected
-                          ? Colors.white
-                          : Colors.grey.shade800,
-                      fontWeight: isCustomSelected
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                    ),
                   ),
                 ),
             ],
@@ -347,20 +334,20 @@ class ProductConfiguratorSection extends StatelessWidget {
             onChanged: (_) => onCustomTextChanged(),
             decoration: InputDecoration(
               hintText: 'Tulis nama kain / warna custom…',
-              hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+              hintStyle: const TextStyle(color: AppColors.textTertiary, fontSize: 13),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 14,
                 vertical: 10,
               ),
               filled: true,
-              fillColor: Colors.grey.shade50,
+              fillColor: AppColors.surfaceLight,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: Colors.grey.shade300),
+                borderSide: const BorderSide(color: AppColors.border),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: Colors.grey.shade300),
+                borderSide: const BorderSide(color: AppColors.border),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
@@ -435,33 +422,17 @@ class ProductConfiguratorSection extends StatelessWidget {
               final isSelected = option == selected;
               return Padding(
                 padding: const EdgeInsets.only(right: 10),
-                child: ChoiceChip(
-                  label: Text(option),
+                child: AppChoiceChip(
+                  label: option,
                   selected: isSelected,
-                  onSelected: (bool value) {
+                  onSelected: (value) {
                     if (value) onSelect(option);
                   },
-                  selectedColor: Colors.pink,
-                  backgroundColor: Colors.white,
-                  checkmarkColor: Colors.white,
-                  elevation: isSelected ? 3 : 0,
-                  pressElevation: 0,
+                  showCheckmark: true,
+                  borderRadius: 12,
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
+                    horizontal: 14,
                     vertical: 10,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(
-                      color: isSelected ? Colors.pink : Colors.grey.shade300,
-                      width: isSelected ? 1.5 : 1.0,
-                    ),
-                  ),
-                  labelStyle: TextStyle(
-                    color: isSelected ? Colors.white : Colors.grey.shade800,
-                    fontWeight:
-                        isSelected ? FontWeight.w600 : FontWeight.normal,
-                    fontSize: 13,
                   ),
                 ),
               );

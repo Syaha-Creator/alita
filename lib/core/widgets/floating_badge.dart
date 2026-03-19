@@ -21,7 +21,7 @@ class FloatingBadge extends StatelessWidget {
     this.maxCount = 99,
     this.padding = const EdgeInsets.all(6),
     this.constraints = const BoxConstraints(minWidth: 20, minHeight: 20),
-    this.backgroundColor = AppColors.accent,
+    this.backgroundColor = AppColors.error,
     this.textStyle,
   });
 

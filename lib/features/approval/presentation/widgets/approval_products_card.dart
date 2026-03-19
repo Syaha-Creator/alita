@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/enums/order_status.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/utils/discount_formatter.dart';
 import '../../../../core/widgets/detail_bonus_items_section.dart';
@@ -52,7 +53,6 @@ class ApprovalProductsCard extends StatelessWidget {
         children: [
           const DetailSectionLabel(title: 'Rincian Barang & Approval Diskon'),
           const SizedBox(height: 14),
-
           ...details.asMap().entries.map((entry) {
             final idx = entry.key;
             final detail = entry.value as Map<String, dynamic>;
@@ -95,15 +95,15 @@ class ApprovalProductsCard extends StatelessWidget {
                                       style: const TextStyle(
                                         fontWeight: FontWeight.w600,
                                         fontSize: 13,
-                                        color: Color(0xFF1A1A2E),
+                                        color: AppColors.textPrimary,
                                       ),
                                     ),
                                     if (brand.isNotEmpty)
                                       Text(
                                         brand,
-                                        style: TextStyle(
+                                        style: const TextStyle(
                                           fontSize: 10,
-                                          color: Colors.grey.shade500,
+                                          color: AppColors.textTertiary,
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
@@ -119,8 +119,8 @@ class ApprovalProductsCard extends StatelessWidget {
                                   fontWeight: FontWeight.bold,
                                   fontSize: 13,
                                   color: netPrice == 0
-                                      ? const Color(0xFF16A34A)
-                                      : const Color(0xFF1A1A2E),
+                                      ? AppColors.success
+                                      : AppColors.textPrimary,
                                 ),
                               ),
                             ],
@@ -136,13 +136,12 @@ class ApprovalProductsCard extends StatelessWidget {
                 ),
                 if (!isLast) ...[
                   const SizedBox(height: 14),
-                  Container(height: 1, color: const Color(0xFFF3F4F6)),
+                  Container(height: 1, color: AppColors.divider),
                   const SizedBox(height: 14),
                 ],
               ],
             );
           }),
-
           if (bonusItems.isNotEmpty) ...[
             DetailBonusItemsSection(
               rows: bonusItems
@@ -153,19 +152,19 @@ class ApprovalProductsCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const SizedBox(width: 2),
-                          Text(
+                          const Text(
                             '·  ',
                             style: TextStyle(
-                              color: Colors.grey.shade400,
+                              color: AppColors.textTertiary,
                               fontSize: 12,
                             ),
                           ),
                           Expanded(
                             child: Text(
                               '${b['qty']}x ${b['name']}',
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 12,
-                                color: Colors.grey.shade600,
+                                color: AppColors.textSecondary,
                               ),
                             ),
                           ),
@@ -176,7 +175,6 @@ class ApprovalProductsCard extends StatelessWidget {
                   .toList(),
             ),
           ],
-
           DetailTotalsSummarySection(
             postageText: _fmt(postage),
             totalText: _fmt(totalAmount),
@@ -220,7 +218,7 @@ class ApprovalProductsCard extends StatelessWidget {
                 text: '  $pctStr',
                 style: const TextStyle(
                   fontWeight: FontWeight.w900,
-                  color: Color(0xFF1A1A2E),
+                  color: AppColors.textPrimary,
                 ),
               ),
             ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 
 /// Reusable bonus/accessory section for detail pages.
 class DetailBonusItemsSection extends StatelessWidget {
@@ -16,22 +17,22 @@ class DetailBonusItemsSection extends StatelessWidget {
     return Column(
       children: [
         const SizedBox(height: 12),
-        Container(height: 1, color: const Color(0xFFF3F4F6)),
+        Container(height: 1, color: AppColors.surfaceLight),
         const SizedBox(height: 10),
         Row(
           children: [
-            Icon(
+            const Icon(
               Icons.card_giftcard_outlined,
               size: 13,
-              color: Colors.grey.shade400,
+              color: AppColors.textTertiary,
             ),
             const SizedBox(width: 6),
             Text(
               title,
-              style: TextStyle(
+              style: const TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 11,
-                color: Colors.grey.shade500,
+                color: AppColors.textTertiary,
                 letterSpacing: 0.2,
               ),
             ),

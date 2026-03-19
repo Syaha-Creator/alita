@@ -55,7 +55,7 @@ class ProductInfoHeader extends StatelessWidget {
           return Icon(
             index < 4.5 ? Icons.star : Icons.star_border,
             size: 20,
-            color: const Color(0xFFFFA726),
+            color: AppColors.warning,
           );
         }),
         const SizedBox(width: 8),

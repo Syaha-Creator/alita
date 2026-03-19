@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/enums/order_status.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/widgets/order_list_card_frame.dart';
 import '../../../../core/widgets/status_chip.dart';
@@ -61,11 +62,11 @@ class ApprovalCardItem extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 22,
-            backgroundColor: Colors.pink.shade50,
+            backgroundColor: AppColors.accentLight,
             child: Text(
               toko.isNotEmpty ? toko[0].toUpperCase() : '?',
               style: const TextStyle(
-                color: Colors.pink,
+                color: AppColors.accent,
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),
@@ -88,7 +89,7 @@ class ApprovalCardItem extends StatelessWidget {
                   itemCount > 1
                       ? '$firstItemName  +${itemCount - 1} item lainnya'
                       : firstItemName,
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 
 /// Reusable receipt upload field for payment forms.
 class ReceiptUploadField extends StatelessWidget {
@@ -32,7 +33,7 @@ class ReceiptUploadField extends StatelessWidget {
                     height: 150,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey.shade300),
+                      border: Border.all(color: AppColors.border),
                       image: DecorationImage(
                         image: FileImage(imageFile!),
                         fit: BoxFit.cover,
@@ -46,13 +47,13 @@ class ReceiptUploadField extends StatelessWidget {
                       children: [
                         _ActionCircleButton(
                           icon: Icons.edit,
-                          iconColor: Colors.blue,
+                          iconColor: AppColors.accent,
                           onTap: onPickOrEdit,
                         ),
                         const SizedBox(width: 8),
                         _ActionCircleButton(
                           icon: Icons.delete,
-                          iconColor: Colors.red,
+                          iconColor: AppColors.error,
                           onTap: onRemove,
                         ),
                       ],
@@ -67,10 +68,14 @@ class ReceiptUploadField extends StatelessWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 24),
                   decoration: BoxDecoration(
-                    color: hasError ? Colors.red.shade50 : const Color(0xFFEAF4FF),
+                    color: hasError
+                        ? AppColors.accentLight
+                        : AppColors.surfaceLight,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: hasError ? Colors.red : const Color(0xFFB3D4F5),
+                      color: hasError
+                          ? AppColors.error
+                          : AppColors.accent.withValues(alpha: 0.3),
                       width: hasError ? 1.5 : 1.0,
                     ),
                   ),
@@ -78,14 +83,14 @@ class ReceiptUploadField extends StatelessWidget {
                     children: [
                       Icon(
                         Icons.cloud_upload_outlined,
-                        color: hasError ? Colors.red : Colors.blue.shade700,
+                        color: hasError ? AppColors.error : AppColors.accent,
                         size: 32,
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'Tap untuk Upload Struk',
                         style: TextStyle(
-                          color: hasError ? Colors.red : Colors.blue.shade700,
+                          color: hasError ? AppColors.error : AppColors.accent,
                           fontWeight: FontWeight.bold,
                           fontSize: 13,
                         ),
@@ -99,7 +104,7 @@ class ReceiptUploadField extends StatelessWidget {
             padding: const EdgeInsets.only(top: 6, left: 12),
             child: Text(
               errorText!,
-              style: const TextStyle(color: Colors.red, fontSize: 12),
+              style: const TextStyle(color: AppColors.error, fontSize: 12),
             ),
           ),
       ],
@@ -125,11 +130,11 @@ class _ActionCircleButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(6),
         decoration: const BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surface,
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: Colors.black12,
+              color: AppColors.shadowMedium,
               blurRadius: 4,
             ),
           ],

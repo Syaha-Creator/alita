@@ -21,14 +21,9 @@ class CartFAB extends ConsumerWidget {
       children: [
         FloatingActionButton(
           onPressed: () {
-            showModalBottomSheet(
-              context: context,
-              isScrollControlled: true,
-              backgroundColor: Colors.transparent,
-              builder: (context) => const CartBottomSheet(),
-            );
+            showCartSheet(context);
           },
-          backgroundColor: AppColors.primary,
+          backgroundColor: AppColors.accent,
           elevation: 4,
           child: const Icon(
             Icons.shopping_cart,

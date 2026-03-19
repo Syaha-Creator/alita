@@ -90,9 +90,9 @@ class ApprovalTimelineWidget extends StatelessWidget {
                             padding: const EdgeInsets.only(top: 2),
                             child: Text(
                               AppFormatters.dateTimeId(approval.approvedAt!),
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 11,
-                                color: Colors.grey.shade500,
+                                color: AppColors.textTertiary,
                               ),
                             ),
                           ),

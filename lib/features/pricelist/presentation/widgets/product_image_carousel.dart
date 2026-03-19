@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/network_image_view.dart';
 
 class ProductImageCarousel extends StatelessWidget {
@@ -59,11 +60,11 @@ class ProductImageCarousel extends StatelessWidget {
                   height: double.infinity,
                   memCacheWidth: 600,
                   errorWidget: Container(
-                    color: Colors.grey.shade200,
+                    color: AppColors.border,
                     child: const Icon(
                       Icons.broken_image_outlined,
                       size: 60,
-                      color: Colors.grey,
+                      color: AppColors.textTertiary,
                     ),
                   ),
                 );
@@ -108,7 +109,7 @@ class ProductImageCarousel extends StatelessWidget {
                     width: isActive ? 20 : 6,
                     decoration: BoxDecoration(
                       color: isActive
-                          ? Colors.pink
+                          ? AppColors.accent
                           : Colors.white.withValues(alpha: 0.7),
                       borderRadius: BorderRadius.circular(10),
                       boxShadow: const [

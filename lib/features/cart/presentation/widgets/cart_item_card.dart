@@ -52,9 +52,9 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFEEEEEE)),
+          border: Border.all(color: AppColors.border),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -71,11 +71,6 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
                       .read(selectedCartItemIdsProvider.notifier)
                       .toggleSelectItem(cartItemKey(item), v ?? false);
                 },
-                activeColor: AppColors.accent,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                visualDensity: VisualDensity.compact,
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
             ),
@@ -91,10 +86,10 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
                 errorWidget: Container(
                   width: 72,
                   height: 72,
-                  color: const Color(0xFFF5F5F5),
+                  color: AppColors.surfaceLight,
                   child: const Icon(
                     Icons.image_not_supported_outlined,
-                    color: Color(0xFFBDBDBD),
+                    color: AppColors.textTertiary,
                     size: 22,
                   ),
                 ),
@@ -111,7 +106,7 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
                     style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 14,
-                      color: Color(0xFF424242),
+                      color: AppColors.textPrimary,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -121,7 +116,7 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
                     configText,
                     style: const TextStyle(
                       fontSize: 11,
-                      color: Color(0xFF757575),
+                      color: AppColors.textSecondary,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -130,7 +125,7 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
                     'SKU: ${p.id}',
                     style: const TextStyle(
                       fontSize: 10,
-                      color: Color(0xFFBDBDBD),
+                      color: AppColors.textTertiary,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -146,11 +141,11 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
                           priceStyle: const TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 14,
-                            color: Color(0xFFE91E8C),
+                            color: AppColors.accent,
                           ),
                           originalPriceStyle: const TextStyle(
                             fontSize: 10,
-                            color: Color(0xFFBDBDBD),
+                            color: AppColors.textTertiary,
                             decoration: TextDecoration.lineThrough,
                           ),
                         ),
@@ -168,8 +163,8 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
                             ? Icons.delete_outline_rounded
                             : Icons.remove,
                         decrementIconColor: item.quantity == 1
-                            ? const Color(0xFFEF5350)
-                            : const Color(0xFF424242),
+                            ? AppColors.accent
+                            : AppColors.textPrimary,
                       ),
                     ],
                   ),
@@ -181,7 +176,7 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
                         _isExpanded ? 'Tutup Rincian' : 'Lihat Rincian Item',
                         style: const TextStyle(
                           fontSize: 11,
-                          color: Color(0xFFE91E8C),
+                          color: AppColors.accent,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -212,10 +207,10 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
     const indent = EdgeInsets.only(left: 12);
     const itemStyle = TextStyle(
       fontSize: 10,
-      color: Color(0xFF616161),
+      color: AppColors.textSecondary,
       fontWeight: FontWeight.w500,
     );
-    const skuStyle = TextStyle(fontSize: 10, color: Color(0xFFBDBDBD));
+    const skuStyle = TextStyle(fontSize: 10, color: AppColors.textTertiary);
 
     String fabricSuffix(String kain, String warna) {
       final k = kain.isNotEmpty && kain != '-' ? kain : '';

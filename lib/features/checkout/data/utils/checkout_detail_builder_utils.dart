@@ -75,4 +75,13 @@ class CheckoutDetailBuilderUtils {
       throw Exception('Data "$fieldName" tidak valid atau kosong.');
     }
   }
+
+  /// Normalizes optional SKU. Returns null for empty/dash/textual-null values.
+  static String? normalizeNullableSku(String sku) {
+    final normalized = sku.trim();
+    if (normalized.isEmpty) return null;
+    final lower = normalized.toLowerCase();
+    if (lower == '-' || lower == 'null') return null;
+    return normalized;
+  }
 }

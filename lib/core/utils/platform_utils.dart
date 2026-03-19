@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../theme/app_colors.dart';
 
 // ─── Platform Detection ─────────────────────────────────────────────────────
 
@@ -72,7 +73,7 @@ Future<T?> showAdaptiveAlert<T>({
             child: Text(
               a.label,
               style: TextStyle(
-                color: a.color ?? Colors.red,
+                color: a.color ?? AppColors.error,
                 fontWeight: FontWeight.w600,
               ),
             ),

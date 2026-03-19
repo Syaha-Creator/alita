@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 
 /// Reusable discount approval container for detail pages.
 class DetailDiscountBlock extends StatelessWidget {
@@ -16,9 +17,9 @@ class DetailDiscountBlock extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
+        color: AppColors.background,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE9ECEF)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -28,7 +29,7 @@ class DetailDiscountBlock extends StatelessWidget {
             style: const TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF6B7280),
+              color: AppColors.textSecondary,
               letterSpacing: 0.3,
             ),
           ),
@@ -68,7 +69,7 @@ class DetailDiscountRow extends StatelessWidget {
           Expanded(
             child: Text(
               approverName,
-              style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
+              style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),

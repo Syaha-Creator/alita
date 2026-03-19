@@ -27,14 +27,14 @@ class CheckoutInputDecoration {
       horizontal: 12,
       vertical: 12,
     ),
-    BorderSide enabledBorderSide = const BorderSide(color: Color(0xFFD1D5DB)),
+    BorderSide enabledBorderSide = const BorderSide(color: AppColors.border),
     BorderSide focusedBorderSide = const BorderSide(
-      color: AppColors.primary,
+      color: AppColors.accent,
       width: 1.5,
     ),
-    BorderSide errorBorderSide = const BorderSide(color: Colors.red, width: 1.2),
+    BorderSide errorBorderSide = const BorderSide(color: AppColors.error, width: 1.2),
     BorderSide focusedErrorBorderSide = const BorderSide(
-      color: Colors.red,
+      color: AppColors.error,
       width: 1.5,
     ),
   }) {
@@ -55,7 +55,7 @@ class CheckoutInputDecoration {
       prefixText: prefixText,
       floatingLabelBehavior: floatingLabelBehavior,
       alignLabelWithHint: alignLabelWithHint,
-      border: outline(const BorderSide(color: Color(0xFFD1D5DB))),
+      border: outline(const BorderSide(color: AppColors.border)),
       enabledBorder: outline(enabledBorderSide),
       focusedBorder: outline(focusedBorderSide),
       errorBorder: outline(errorBorderSide),
@@ -63,7 +63,7 @@ class CheckoutInputDecoration {
       contentPadding: contentPadding,
       isDense: isDense,
       filled: filled,
-      fillColor: fillColor ?? Colors.grey.shade50,
+      fillColor: fillColor ?? AppColors.surfaceLight,
     );
   }
 
@@ -81,7 +81,7 @@ class CheckoutInputDecoration {
       horizontal: 12,
       vertical: 12,
     ),
-    BorderSide enabledBorderSide = const BorderSide(color: Color(0xFFD1D5DB)),
+    BorderSide enabledBorderSide = const BorderSide(color: AppColors.border),
   }) {
     return form(
       labelText: labelText,

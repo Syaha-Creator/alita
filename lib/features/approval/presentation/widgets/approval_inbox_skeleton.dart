@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
+import '../../../../core/theme/app_colors.dart';
 
 /// Shimmer skeleton that mirrors the approval inbox card layout.
 class ApprovalInboxSkeleton extends StatelessWidget {
@@ -8,8 +9,8 @@ class ApprovalInboxSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Shimmer.fromColors(
-      baseColor: Colors.grey.shade200,
-      highlightColor: Colors.grey.shade50,
+      baseColor: AppColors.border,
+      highlightColor: AppColors.surfaceLight,
       child: ListView.builder(
         physics: const NeverScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
@@ -31,7 +32,7 @@ class _CardSkeleton extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
@@ -65,7 +66,7 @@ class _CardSkeleton extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          Container(height: 1, color: Colors.grey.shade100),
+          Container(height: 1, color: AppColors.surfaceLight),
           const SizedBox(height: 12),
           // Footer: date + amount
           Row(
@@ -89,7 +90,7 @@ class _CardSkeleton extends StatelessWidget {
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(radius),
       ),
     );
@@ -106,7 +107,7 @@ class _CircleBone extends StatelessWidget {
       width: size,
       height: size,
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         shape: BoxShape.circle,
       ),
     );

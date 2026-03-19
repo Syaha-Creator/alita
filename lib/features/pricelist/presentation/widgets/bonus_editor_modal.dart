@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/widgets/action_button_bar.dart';
 import '../../../../core/widgets/app_search_field.dart';
@@ -99,20 +100,20 @@ void showBonusEditorModal(
                                       .titleSmall
                                       ?.copyWith(
                                         fontWeight: FontWeight.w600,
-                                        color: Colors.grey[700],
+                                        color: AppColors.textSecondary,
                                       ),
                                 ),
                                 const SizedBox(height: 10),
                                 if (tempBonuses.isEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
+                                  const Padding(
+                                    padding: EdgeInsets.symmetric(
                                       vertical: 16,
                                     ),
                                     child: Text(
                                       'Belum ada bonus. Tambah dari aksesoris di bawah.',
                                       style: TextStyle(
                                         fontSize: 13,
-                                        color: Colors.grey[600],
+                                        color: AppColors.textSecondary,
                                       ),
                                     ),
                                   )
@@ -122,11 +123,9 @@ void showBonusEditorModal(
                                   ) {
                                     final index = entry.key;
                                     final b = entry.value;
-                                    final pl =
-                                        (b['pl'] as num?)?.toDouble();
+                                    final pl = (b['pl'] as num?)?.toDouble();
                                     final qty = (b['qty'] as int?) ?? 1;
-                                    final maxQty =
-                                        (b['max_qty'] as int?) ?? 1;
+                                    final maxQty = (b['max_qty'] as int?) ?? 1;
                                     return Container(
                                       margin: const EdgeInsets.only(
                                         bottom: 10,
@@ -136,18 +135,17 @@ void showBonusEditorModal(
                                         vertical: 12,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: Colors.grey.shade50,
-                                        borderRadius:
-                                            BorderRadius.circular(12),
+                                        color: AppColors.surfaceLight,
+                                        borderRadius: BorderRadius.circular(12),
                                         border: Border.all(
-                                          color: Colors.grey.shade200,
+                                          color: AppColors.border,
                                         ),
                                       ),
                                       child: Row(
                                         children: [
-                                          Icon(
+                                          const Icon(
                                             Icons.card_giftcard,
-                                            color: Colors.pink.shade400,
+                                            color: AppColors.accent,
                                             size: 22,
                                           ),
                                           const SizedBox(width: 12),
@@ -158,12 +156,11 @@ void showBonusEditorModal(
                                               children: [
                                                 Text(
                                                   cleanBonusDisplayName(
-                                                    b['name'] as String,
+                                                    b['name']?.toString() ?? '',
                                                   ),
                                                   style: const TextStyle(
                                                     fontSize: 14,
-                                                    fontWeight:
-                                                        FontWeight.w600,
+                                                    fontWeight: FontWeight.w600,
                                                   ),
                                                 ),
                                                 if (pl != null && pl > 0)
@@ -171,10 +168,10 @@ void showBonusEditorModal(
                                                 if (pl != null && pl > 0)
                                                   Text(
                                                     'Senilai Rp ${AppFormatters.currencyIdrNoSymbol(pl)}',
-                                                    style: TextStyle(
+                                                    style: const TextStyle(
                                                       fontSize: 12,
-                                                      color:
-                                                          Colors.grey[600],
+                                                      color: AppColors
+                                                          .textSecondary,
                                                     ),
                                                   ),
                                               ],
@@ -191,8 +188,8 @@ void showBonusEditorModal(
                                                           .remove_circle_outline,
                                                   size: 22,
                                                   color: qty == 1
-                                                      ? Colors.red
-                                                      : Colors.pink,
+                                                      ? AppColors.error
+                                                      : AppColors.accent,
                                                 ),
                                                 onPressed: () =>
                                                     setModalState(() {
@@ -201,8 +198,8 @@ void showBonusEditorModal(
                                                       index,
                                                     );
                                                   } else {
-                                                    tempBonuses[index]
-                                                        ['qty'] = qty - 1;
+                                                    tempBonuses[index]['qty'] =
+                                                        qty - 1;
                                                   }
                                                 }),
                                                 padding: EdgeInsets.zero,
@@ -213,16 +210,15 @@ void showBonusEditorModal(
                                                 ),
                                               ),
                                               Padding(
-                                                padding: const EdgeInsets
-                                                    .symmetric(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
                                                   horizontal: 6,
                                                 ),
                                                 child: Text(
                                                   '$qty / $maxQty',
                                                   style: const TextStyle(
                                                     fontSize: 13,
-                                                    fontWeight:
-                                                        FontWeight.w600,
+                                                    fontWeight: FontWeight.w600,
                                                   ),
                                                 ),
                                               ),
@@ -231,16 +227,14 @@ void showBonusEditorModal(
                                                   Icons.add_circle_outline,
                                                   size: 22,
                                                   color: qty >= maxQty
-                                                      ? Colors.grey[400]
-                                                      : Colors.pink,
+                                                      ? AppColors.textTertiary
+                                                      : AppColors.accent,
                                                 ),
                                                 onPressed: qty >= maxQty
                                                     ? null
-                                                    : () =>
-                                                        setModalState(() {
+                                                    : () => setModalState(() {
                                                           tempBonuses[index]
-                                                                  ['qty'] =
-                                                              qty + 1;
+                                                              ['qty'] = qty + 1;
                                                         }),
                                                 padding: EdgeInsets.zero,
                                                 constraints:
@@ -259,10 +253,10 @@ void showBonusEditorModal(
                                 Container(
                                   padding: const EdgeInsets.all(14),
                                   decoration: BoxDecoration(
-                                    color: Colors.grey.shade50,
+                                    color: AppColors.surfaceLight,
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
-                                      color: Colors.grey.shade200,
+                                      color: AppColors.border,
                                     ),
                                   ),
                                   child: Column(
@@ -287,7 +281,7 @@ void showBonusEditorModal(
                                           fontSize: 13,
                                         ),
                                         prefixIconSize: 20,
-                                        prefixIconColor: Colors.grey,
+                                        prefixIconColor: AppColors.textTertiary,
                                         contentPadding:
                                             const EdgeInsets.symmetric(
                                           horizontal: 12,
@@ -304,9 +298,8 @@ void showBonusEditorModal(
                                         const Center(
                                           child: Padding(
                                             padding: EdgeInsets.all(16.0),
-                                            child:
-                                                CircularProgressIndicator
-                                                    .adaptive(),
+                                            child: CircularProgressIndicator
+                                                .adaptive(),
                                           ),
                                         )
                                       else if (availableAcc.isEmpty)
@@ -316,7 +309,7 @@ void showBonusEditorModal(
                                             child: Text(
                                               'Aksesoris tidak tersedia.',
                                               style: TextStyle(
-                                                color: Colors.grey,
+                                                color: AppColors.textTertiary,
                                                 fontSize: 13,
                                               ),
                                             ),
@@ -329,7 +322,7 @@ void showBonusEditorModal(
                                             child: Text(
                                               'Aksesoris tidak ditemukan.',
                                               style: TextStyle(
-                                                color: Colors.grey,
+                                                color: AppColors.textTertiary,
                                                 fontSize: 13,
                                               ),
                                             ),
@@ -337,17 +330,16 @@ void showBonusEditorModal(
                                         )
                                       else
                                         Container(
-                                          constraints:
-                                              const BoxConstraints(
+                                          constraints: const BoxConstraints(
                                             maxHeight: 180,
                                           ),
                                           decoration: BoxDecoration(
                                             border: Border.all(
-                                              color: Colors.grey.shade200,
+                                              color: AppColors.border,
                                             ),
                                             borderRadius:
                                                 BorderRadius.circular(8),
-                                            color: Colors.grey.shade50,
+                                            color: AppColors.surfaceLight,
                                           ),
                                           child: ListView.separated(
                                             shrinkWrap: true,
@@ -358,51 +350,46 @@ void showBonusEditorModal(
                                               height: 1,
                                             ),
                                             itemBuilder: (context, index) {
-                                              final acc =
-                                                  filteredAcc[index];
+                                              final acc = filteredAcc[index];
                                               final t = acc.tipe.trim();
                                               final u = acc.ukuran.trim();
-                                              final accDisplayName =
-                                                  u.isEmpty ||
-                                                          t
-                                                              .toLowerCase()
-                                                              .contains(
-                                                                u.toLowerCase(),
-                                                              )
-                                                      ? t
-                                                      : '$t ($u)';
+                                              final accDisplayName = u
+                                                          .isEmpty ||
+                                                      t.toLowerCase().contains(
+                                                            u.toLowerCase(),
+                                                          )
+                                                  ? t
+                                                  : '$t ($u)';
                                               return ListTile(
                                                 dense: true,
                                                 title: Text(
                                                   accDisplayName,
                                                   style: const TextStyle(
                                                     fontSize: 13,
-                                                    fontWeight:
-                                                        FontWeight.w500,
+                                                    fontWeight: FontWeight.w500,
                                                   ),
                                                 ),
                                                 subtitle: Text(
                                                   'Rp ${AppFormatters.currencyIdrNoSymbol(acc.pricelist)}',
                                                   style: const TextStyle(
                                                     fontSize: 11,
-                                                    color: Colors.grey,
+                                                    color:
+                                                        AppColors.textTertiary,
                                                   ),
                                                 ),
                                                 trailing: const Icon(
                                                   Icons.add_circle,
-                                                  color: Colors.pink,
+                                                  color: AppColors.accent,
                                                 ),
                                                 onTap: () {
                                                   setModalState(() {
                                                     tempBonuses.add({
-                                                      'name':
-                                                          accDisplayName,
+                                                      'name': accDisplayName,
                                                       'qty': 1,
                                                       'max_qty': 2,
                                                       'pl': acc.pricelist,
                                                       'is_custom': true,
-                                                      'item_num':
-                                                          acc.itemNum,
+                                                      'item_num': acc.itemNum,
                                                     });
                                                     searchQuery = '';
                                                   });
@@ -427,10 +414,10 @@ void showBonusEditorModal(
                           height: 48,
                           borderRadius: 12,
                           primaryLabel: 'Simpan Perubahan',
-                          primaryBackgroundColor: Colors.pink,
-                          primaryForegroundColor: Colors.white,
+                          primaryBackgroundColor: AppColors.accent,
+                          primaryForegroundColor: AppColors.onPrimary,
                           primaryLabelStyle: const TextStyle(
-                            color: Colors.white,
+                            color: AppColors.onPrimary,
                             fontWeight: FontWeight.bold,
                             fontSize: 15,
                           ),

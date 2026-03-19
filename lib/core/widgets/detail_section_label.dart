@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 
 /// Reusable label text for subsection titles in detail pages.
 ///
@@ -20,7 +21,7 @@ class DetailSectionLabel extends StatelessWidget {
           const TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF1A1A2E),
+            color: AppColors.textPrimary,
             letterSpacing: -0.2,
           ),
     );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import 'detail_section_header.dart';
 
 /// Reusable shipping information card for detail pages.
@@ -22,9 +23,9 @@ class DetailShippingInfoCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -39,15 +40,15 @@ class DetailShippingInfoCard extends StatelessWidget {
               Container(
                 width: 40,
                 height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
+                decoration: const BoxDecoration(
+                  color: AppColors.surfaceLight,
                   shape: BoxShape.circle,
                 ),
                 alignment: Alignment.center,
-                child: Icon(
+                child: const Icon(
                   Icons.local_shipping_outlined,
                   size: 18,
-                  color: Colors.blue.shade400,
+                  color: AppColors.primary,
                 ),
               ),
               const SizedBox(width: 12),
@@ -61,7 +62,7 @@ class DetailShippingInfoCard extends StatelessWidget {
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
-                          color: Colors.black87,
+                          color: AppColors.textPrimary,
                         ),
                       ),
                     if (hasAddress) ...[
@@ -72,14 +73,14 @@ class DetailShippingInfoCard extends StatelessWidget {
                           const Icon(
                             Icons.location_on_outlined,
                             size: 14,
-                            color: Colors.grey,
+                            color: AppColors.textTertiary,
                           ),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
                               address,
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
                                 fontSize: 12,
                                 height: 1.4,
                               ),

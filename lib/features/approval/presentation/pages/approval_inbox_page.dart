@@ -32,25 +32,25 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        backgroundColor: Colors.grey.shade50,
+        backgroundColor: AppColors.background,
         appBar: AppBar(
           title: const Text(
             'Persetujuan Diskon',
             style: TextStyle(
-              color: Colors.black87,
+              color: AppColors.textPrimary,
               fontSize: 16,
               fontWeight: FontWeight.bold,
             ),
           ),
-          backgroundColor: Colors.white,
+          backgroundColor: AppColors.background,
           elevation: 0,
           scrolledUnderElevation: 1,
-          iconTheme: const IconThemeData(color: Colors.black87),
+          iconTheme: const IconThemeData(color: AppColors.textPrimary),
           actions: [
             DateRangeFilterAction(
               label: filterText,
               hasActiveFilter: hasDateFilter,
-              accentColor: AppColors.primary,
+              accentColor: AppColors.accent,
               onClear: () => ref
                   .read(approvalInboxProvider.notifier)
                   .clearDateFilter(),
@@ -71,9 +71,9 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
                   builder: (ctx, child) => Theme(
                     data: Theme.of(ctx).copyWith(
                       colorScheme: const ColorScheme.light(
-                        primary: AppColors.primary,
-                        onPrimary: Colors.white,
-                        onSurface: Colors.black87,
+                        primary: AppColors.accent,
+                        onPrimary: AppColors.onPrimary,
+                        onSurface: AppColors.textPrimary,
                       ),
                     ),
                     child: child!,
@@ -94,9 +94,9 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
               height: 44,
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.grey.shade100,
+                color: AppColors.surfaceLight,
                 borderRadius: BorderRadius.circular(25),
-                border: Border.all(color: Colors.grey.shade200),
+                border: Border.all(color: AppColors.border),
               ),
               child: TabBar(
                 indicatorSize: TabBarIndicatorSize.tab,
@@ -104,17 +104,17 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
                 indicatorPadding: const EdgeInsets.all(4),
                 indicator: BoxDecoration(
                   borderRadius: BorderRadius.circular(25),
-                  color: AppColors.primary,
+                  color: AppColors.accent,
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.3),
+                      color: AppColors.accent.withValues(alpha: 0.3),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
                     ),
                   ],
                 ),
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.grey.shade600,
+                labelColor: AppColors.onPrimary,
+                unselectedLabelColor: AppColors.textSecondary,
                 labelStyle: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
@@ -152,10 +152,10 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
       title: 'Gagal memuat data',
       message: error.replaceFirst('Exception: ', ''),
       onRetry: () => ref.read(approvalInboxProvider.notifier).fetchInbox(),
-      iconColor: Colors.red.shade300,
-      buttonColor: AppColors.primary,
-      buttonTextColor: Colors.white,
-      messageStyle: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+      iconColor: AppColors.error,
+      buttonColor: AppColors.accent,
+      buttonTextColor: AppColors.onPrimary,
+      messageStyle: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
     );
   }
 
@@ -171,12 +171,12 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
       subtitle: isPending
           ? 'Tidak ada antrean persetujuan saat ini.'
           : 'Belum ada riwayat persetujuan diskon.',
-      titleStyle: TextStyle(
+      titleStyle: const TextStyle(
         fontSize: 16,
         fontWeight: FontWeight.w600,
-        color: Colors.grey.shade500,
+        color: AppColors.textTertiary,
       ),
-      subtitleStyle: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+      subtitleStyle: const TextStyle(fontSize: 13, color: AppColors.textTertiary),
     );
   }
 
@@ -185,7 +185,7 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
   Widget _buildListView(List<dynamic> orders, bool isPending) {
     if (orders.isEmpty) {
       return RefreshIndicator(
-        color: AppColors.primary,
+        color: AppColors.accent,
         onRefresh: () => ref.read(approvalInboxProvider.notifier).fetchInbox(),
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -198,9 +198,9 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
     }
 
     return RefreshIndicator(
-      color: AppColors.primary,
-      onRefresh: () => ref.read(approvalInboxProvider.notifier).fetchInbox(),
-      child: ListView.builder(
+        color: AppColors.accent,
+        onRefresh: () => ref.read(approvalInboxProvider.notifier).fetchInbox(),
+        child: ListView.builder(
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
         itemCount: orders.length,
         itemBuilder: (context, index) => RepaintBoundary(

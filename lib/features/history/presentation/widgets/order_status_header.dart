@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/enums/order_status.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/widgets/detail_info_row.dart';
 import '../../../../core/widgets/detail_surface_card.dart';
@@ -70,11 +71,11 @@ class OrderStatusHeader extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
+                          const Text(
                             'No. Surat Pesanan',
                             style: TextStyle(
                               fontSize: 11,
-                              color: Colors.grey.shade500,
+                              color: AppColors.textTertiary,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -84,7 +85,7 @@ class OrderStatusHeader extends StatelessWidget {
                             style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF1A1A2E),
+                              color: AppColors.textPrimary,
                               letterSpacing: 0.5,
                             ),
                           ),
@@ -93,8 +94,8 @@ class OrderStatusHeader extends StatelessWidget {
                               padding: const EdgeInsets.only(top: 4),
                               child: Text(
                                 'PO: ${order.noPo}',
-                                style: TextStyle(
-                                  color: Colors.grey.shade600,
+                                style: const TextStyle(
+                                  color: AppColors.textSecondary,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -111,23 +112,23 @@ class OrderStatusHeader extends StatelessWidget {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
+                          color: AppColors.surfaceLight,
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Row(
+                        child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
                               Icons.copy_rounded,
                               size: 13,
-                              color: Colors.grey.shade600,
+                              color: AppColors.textSecondary,
                             ),
-                            const SizedBox(width: 4),
+                            SizedBox(width: 4),
                             Text(
                               'Salin',
                               style: TextStyle(
                                 fontSize: 11,
-                                color: Colors.grey.shade600,
+                                color: AppColors.textSecondary,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -138,7 +139,7 @@ class OrderStatusHeader extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 16),
-                Container(height: 1, color: const Color(0xFFF0F0F0)),
+                Container(height: 1, color: AppColors.divider),
                 const SizedBox(height: 14),
                 DetailInfoRow(
                   label: 'Tanggal Pesanan',
@@ -149,10 +150,10 @@ class OrderStatusHeader extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
+                      const Text(
                         'Permintaan Kirim',
                         style: TextStyle(
-                          color: Colors.grey.shade500,
+                          color: AppColors.textTertiary,
                           fontSize: 12,
                         ),
                       ),
@@ -162,7 +163,7 @@ class OrderStatusHeader extends StatelessWidget {
                           vertical: 3,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.pink.shade50,
+                          color: AppColors.accentLight,
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -170,7 +171,7 @@ class OrderStatusHeader extends StatelessWidget {
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            color: Colors.pink,
+                            color: AppColors.accent,
                           ),
                         ),
                       ),
@@ -183,24 +184,25 @@ class OrderStatusHeader extends StatelessWidget {
                   children: [
                     const Text(
                       'Metode Kirim',
-                      style: TextStyle(color: Colors.grey, fontSize: 12),
+                      style: TextStyle(
+                          color: AppColors.textTertiary, fontSize: 12),
                     ),
                     StatusChip(
                       label: order.isTakeAway
                           ? 'Bawa Sendiri (Take Away)'
                           : 'Kurir Pabrik',
                       backgroundColor: order.isTakeAway
-                          ? Colors.teal.shade50
-                          : Colors.blue.shade50,
+                          ? AppColors.surface
+                          : AppColors.primary.withValues(alpha: 0.08),
                       foregroundColor: order.isTakeAway
-                          ? Colors.teal.shade700
-                          : Colors.blue.shade700,
+                          ? AppColors.textPrimary
+                          : AppColors.primary,
                       textStyle: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                         color: order.isTakeAway
-                            ? Colors.teal.shade700
-                            : Colors.blue.shade700,
+                            ? AppColors.textPrimary
+                            : AppColors.primary,
                       ),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,

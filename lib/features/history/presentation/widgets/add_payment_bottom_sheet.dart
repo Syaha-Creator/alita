@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
+import '../../../../core/widgets/image_source_sheet.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/utils/number_input_formatter.dart';
 import '../../../../core/widgets/payment_form_content.dart';
@@ -102,7 +103,7 @@ class _AddPaymentBottomSheetState extends State<AddPaymentBottomSheet> {
       return const Text(
         'Status: LUNAS',
         style: TextStyle(
-          color: Color(0xFF15803D),
+          color: AppColors.success,
           fontWeight: FontWeight.w700,
         ),
       );
@@ -111,7 +112,7 @@ class _AddPaymentBottomSheetState extends State<AddPaymentBottomSheet> {
       return Text(
         'Sisa Tagihan Setelah Ini: ${AppFormatters.currencyIdr(remainingAfterInput)}',
         style: const TextStyle(
-          color: Color(0xFFC2410C),
+          color: AppColors.warning,
           fontWeight: FontWeight.w700,
         ),
       );
@@ -120,7 +121,7 @@ class _AddPaymentBottomSheetState extends State<AddPaymentBottomSheet> {
       return const Text(
         'Nominal melebihi sisa tagihan!',
         style: TextStyle(
-          color: Color(0xFFB91C1C),
+          color: AppColors.error,
           fontWeight: FontWeight.w700,
         ),
       );
@@ -129,40 +130,25 @@ class _AddPaymentBottomSheetState extends State<AddPaymentBottomSheet> {
   }
 
   Future<void> _showReceiptSourceSheet() async {
-    await showModalBottomSheet<void>(
+    await ImageSourceSheet.show(
       context: context,
-      builder: (ctx) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_camera_outlined),
-              title: const Text('Ambil dari Kamera'),
-              onTap: () async {
-                Navigator.pop(ctx);
-                final file = await _picker.pickImage(
-                  source: ImageSource.camera,
-                  imageQuality: 70,
-                );
-                if (!mounted || file == null) return;
-                setState(() => _receiptImage = File(file.path));
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('Pilih dari Galeri'),
-              onTap: () async {
-                Navigator.pop(ctx);
-                final file = await _picker.pickImage(
-                  source: ImageSource.gallery,
-                  imageQuality: 70,
-                );
-                if (!mounted || file == null) return;
-                setState(() => _receiptImage = File(file.path));
-              },
-            ),
-          ],
-        ),
-      ),
+      title: 'Upload Bukti Pembayaran',
+      onCamera: () async {
+        final file = await _picker.pickImage(
+          source: ImageSource.camera,
+          imageQuality: 70,
+        );
+        if (!mounted || file == null) return;
+        setState(() => _receiptImage = File(file.path));
+      },
+      onGallery: () async {
+        final file = await _picker.pickImage(
+          source: ImageSource.gallery,
+          imageQuality: 70,
+        );
+        if (!mounted || file == null) return;
+        setState(() => _receiptImage = File(file.path));
+      },
     );
   }
 
@@ -173,6 +159,7 @@ class _AddPaymentBottomSheetState extends State<AddPaymentBottomSheet> {
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
     );
+    if (!mounted) return;
     if (picked != null) {
       setState(() => _paymentDate = picked);
     }
@@ -238,7 +225,7 @@ class _AddPaymentBottomSheetState extends State<AddPaymentBottomSheet> {
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 14),
                   decoration: BoxDecoration(
-                    color: Colors.grey[300],
+                    color: AppColors.border,
                     borderRadius: BorderRadius.circular(999),
                   ),
                 ),
@@ -258,14 +245,14 @@ class _AddPaymentBottomSheetState extends State<AddPaymentBottomSheet> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.red.shade50,
+                        color: AppColors.accentLight,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.red.shade100),
+                        border: Border.all(color: AppColors.accentBorder),
                       ),
                       child: Text(
                         'Sisa Tagihan: ${AppFormatters.currencyIdr(widget.remainingPayment)}',
                         style: const TextStyle(
-                          color: Color(0xFF991B1B),
+                          color: AppColors.error,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -332,10 +319,10 @@ class _AddPaymentBottomSheetState extends State<AddPaymentBottomSheet> {
                   child: ElevatedButton(
                     onPressed: _canSubmit ? _submit : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: const Color(0xFF9CA3AF),
-                      disabledForegroundColor: Colors.white,
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: AppColors.onPrimary,
+                      disabledBackgroundColor: AppColors.textTertiary,
+                      disabledForegroundColor: AppColors.onPrimary,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
@@ -352,7 +339,7 @@ class _AddPaymentBottomSheetState extends State<AddPaymentBottomSheet> {
                             height: 18,
                             child: CircularProgressIndicator.adaptive(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation(Colors.white),
+                              valueColor: AlwaysStoppedAnimation(AppColors.onPrimary),
                             ),
                           )
                         : const Text('Simpan Pembayaran'),

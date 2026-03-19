@@ -13,6 +13,7 @@ import '../../features/cart/data/cart_item.dart';
 import '../../features/checkout/presentation/pages/checkout_page.dart';
 import '../../features/checkout/presentation/pages/order_success_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
+import '../../features/profile/presentation/pages/help_center_page.dart';
 import '../../features/approval/presentation/pages/approval_inbox_page.dart';
 import '../../features/approval/presentation/pages/approval_detail_page.dart';
 
@@ -102,6 +103,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'profile',
         pageBuilder: (context, state) =>
             _adaptivePage(child: const ProfilePage(), name: 'profile'),
+      ),
+      GoRoute(
+        path: '/help_center',
+        name: 'help-center',
+        pageBuilder: (context, state) => _adaptivePage(
+          child: const HelpCenterPage(),
+          name: 'help-center',
+        ),
       ),
       GoRoute(
         path: '/approval_inbox',

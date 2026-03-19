@@ -35,15 +35,36 @@ class OrderItemTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = item.product;
-    final tipe = p.isSet ? 'Set Lengkap' : 'Matress Only';
+    final hasDivan = p.isSet &&
+        p.divan.isNotEmpty &&
+        !p.divan.toLowerCase().contains('tanpa');
+    final hasHeadboard = p.isSet &&
+        p.headboard.isNotEmpty &&
+        !p.headboard.toLowerCase().contains('tanpa');
+    final hasSorong = p.isSet &&
+        p.sorong.isNotEmpty &&
+        !p.sorong.toLowerCase().contains('tanpa');
+
+    String bundleTypeLabel() {
+      if (!p.isSet) return 'Kasur Saja';
+      if (hasDivan && hasHeadboard) {
+        return hasSorong ? 'Set Lengkap + Sorong' : 'Set Lengkap';
+      }
+
+      final selected = <String>[
+        if (hasDivan) 'Divan',
+        if (hasHeadboard) 'Headboard',
+        if (hasSorong) 'Sorong',
+      ];
+      return selected.isEmpty ? 'Kasur Saja' : 'Set ${selected.join(' + ')}';
+    }
+
+    final tipe = bundleTypeLabel();
     final configText = p.ukuran.isNotEmpty && !p.name.contains(p.ukuran)
         ? '${p.ukuran} · $tipe'
         : tipe;
 
-    final hasSetComponents = p.isSet &&
-        (item.divanSku.isNotEmpty ||
-            item.sandaranSku.isNotEmpty ||
-            item.sorongSku.isNotEmpty);
+    final hasSetComponents = hasDivan || hasHeadboard || hasSorong;
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -66,16 +87,13 @@ class OrderItemTile extends StatelessWidget {
             OrderSummarySetDetails(
               divanLabel: p.divan,
               divanSku: item.divanSku,
-              showDivan: item.divanSku.isNotEmpty &&
-                  !p.divan.toLowerCase().contains('tanpa'),
+              showDivan: hasDivan,
               headboardLabel: p.headboard,
               headboardSku: item.sandaranSku,
-              showHeadboard: item.sandaranSku.isNotEmpty &&
-                  !p.headboard.toLowerCase().contains('tanpa'),
+              showHeadboard: hasHeadboard,
               sorongLabel: p.sorong,
               sorongSku: item.sorongSku,
-              showSorong: item.sorongSku.isNotEmpty &&
-                  !p.sorong.toLowerCase().contains('tanpa'),
+              showSorong: hasSorong,
             ),
           ],
           if (showBonusSection && item.bonusSnapshots.isNotEmpty)

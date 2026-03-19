@@ -7,6 +7,27 @@ import 'cart_item_card.dart';
 import 'cart_sheet_footer.dart';
 import 'cart_sheet_header.dart';
 
+Future<void> showCartSheet(BuildContext context) {
+  final media = MediaQuery.of(context);
+  final isTablet = media.size.shortestSide >= 600;
+
+  return showModalBottomSheet<void>(
+    context: context,
+    useRootNavigator: true,
+    isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: Colors.transparent,
+    constraints: isTablet ? const BoxConstraints(maxWidth: 680) : null,
+    builder: (sheetContext) {
+      if (!isTablet) return const CartBottomSheet();
+      return const Align(
+        alignment: Alignment.bottomCenter,
+        child: CartBottomSheet(),
+      );
+    },
+  );
+}
+
 /// Cart Bottom Sheet (Pinterest-style minimalist)
 class CartBottomSheet extends ConsumerWidget {
   const CartBottomSheet({super.key});

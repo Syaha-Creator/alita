@@ -74,8 +74,8 @@ class OrderSuccessPage extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: () => context.go('/'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.surface,
+                    backgroundColor: AppColors.accent,
+                    foregroundColor: AppColors.onPrimary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),

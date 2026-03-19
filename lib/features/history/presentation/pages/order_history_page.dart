@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/enums/order_status.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/widgets/async_state_view.dart';
 import '../../../../core/widgets/date_range_filter_action.dart';
@@ -40,25 +41,25 @@ class _OrderHistoryPageState extends ConsumerState<OrderHistoryPage> {
     );
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text(
           'Riwayat Pesanan',
           style: TextStyle(
-            color: Colors.black87,
+            color: AppColors.textPrimary,
             fontSize: 16,
             fontWeight: FontWeight.bold,
           ),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.background,
         elevation: 0,
         scrolledUnderElevation: 1,
-        iconTheme: const IconThemeData(color: Colors.black87),
+        iconTheme: const IconThemeData(color: AppColors.textPrimary),
         actions: [
           DateRangeFilterAction(
             label: filterText,
             hasActiveFilter: dateRange != null,
-            accentColor: Colors.pink,
+            accentColor: AppColors.accent,
             onClear: () => ref.read(dateFilterProvider.notifier).state = null,
             onPick: () async {
               final picked = await showDateRangePicker(
@@ -70,9 +71,9 @@ class _OrderHistoryPageState extends ConsumerState<OrderHistoryPage> {
                 builder: (ctx, child) => Theme(
                   data: Theme.of(ctx).copyWith(
                     colorScheme: const ColorScheme.light(
-                      primary: Colors.pink,
-                      onPrimary: Colors.white,
-                      onSurface: Colors.black87,
+                      primary: AppColors.accent,
+                      onPrimary: AppColors.onPrimary,
+                      onSurface: AppColors.textPrimary,
                     ),
                   ),
                   child: child!,
@@ -84,29 +85,32 @@ class _OrderHistoryPageState extends ConsumerState<OrderHistoryPage> {
             },
           ),
         ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Divider(height: 1, color: Colors.grey.shade200),
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Divider(height: 1, color: AppColors.border),
         ),
       ),
       body: AsyncStateView(
         state: historyAsync,
         loading: const Center(
-          child: CircularProgressIndicator.adaptive(valueColor: AlwaysStoppedAnimation(Colors.pink), strokeWidth: 2),
+          child: CircularProgressIndicator.adaptive(
+              valueColor: AlwaysStoppedAnimation(AppColors.accent),
+              strokeWidth: 2),
         ),
         errorBuilder: (err, _) => ErrorStateView(
           title: 'Gagal memuat data',
           message: err.toString().replaceFirst('Exception: ', ''),
           onRetry: () => ref.invalidate(orderHistoryProvider),
-          iconColor: Colors.red.shade300,
-          buttonColor: Colors.pink,
-          buttonTextColor: Colors.white,
-          messageStyle: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+          iconColor: AppColors.error,
+          buttonColor: AppColors.accent,
+          buttonTextColor: AppColors.onPrimary,
+          messageStyle:
+              const TextStyle(fontSize: 13, color: AppColors.textSecondary),
         ),
         dataBuilder: (orders) {
           if (orders.isEmpty) return _buildEmptyState();
           return RefreshIndicator(
-            color: Colors.pink,
+            color: AppColors.accent,
             onRefresh: () async => ref.invalidate(orderHistoryProvider),
             child: ListView.builder(
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
@@ -124,17 +128,18 @@ class _OrderHistoryPageState extends ConsumerState<OrderHistoryPage> {
   // ── Empty state ──────────────────────────────────────────────────
 
   Widget _buildEmptyState() {
-    return EmptyStateView(
+    return const EmptyStateView(
       icon: Icons.receipt_long_outlined,
       iconSize: 72,
       title: 'Belum ada pesanan',
-      subtitle: 'Coba ubah rentang tanggal atau tarik ke bawah untuk muat ulang',
+      subtitle:
+          'Coba ubah rentang tanggal atau tarik ke bawah untuk muat ulang',
       titleStyle: TextStyle(
         fontSize: 16,
         fontWeight: FontWeight.w600,
-        color: Colors.grey.shade500,
+        color: AppColors.textTertiary,
       ),
-      subtitleStyle: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+      subtitleStyle: TextStyle(fontSize: 13, color: AppColors.textTertiary),
     );
   }
 
@@ -161,14 +166,14 @@ class _OrderHistoryPageState extends ConsumerState<OrderHistoryPage> {
             const SizedBox(width: 6),
             StatusChip(
               label: 'Take Away',
-              backgroundColor: Colors.teal.shade50,
-              foregroundColor: Colors.teal.shade700,
-              border: Border.all(color: Colors.teal.shade200),
+              backgroundColor: AppColors.surfaceLight,
+              foregroundColor: AppColors.textSecondary,
+              border: Border.all(color: AppColors.border),
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-              textStyle: TextStyle(
+              textStyle: const TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.bold,
-                color: Colors.teal.shade700,
+                color: AppColors.textSecondary,
               ),
             ),
           ],
@@ -179,13 +184,13 @@ class _OrderHistoryPageState extends ConsumerState<OrderHistoryPage> {
         children: [
           CircleAvatar(
             radius: 22,
-            backgroundColor: Colors.pink.shade50,
+            backgroundColor: AppColors.accentLight,
             child: Text(
               order.customerName.isNotEmpty
                   ? order.customerName[0].toUpperCase()
                   : '?',
               style: const TextStyle(
-                color: Colors.pink,
+                color: AppColors.accent,
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),
@@ -198,14 +203,16 @@ class _OrderHistoryPageState extends ConsumerState<OrderHistoryPage> {
               children: [
                 Text(
                   order.customerName,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 14),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   order.mainItemsCount > 1
                       ? '${order.firstItemName}  +${order.mainItemsCount - 1} item lainnya'
                       : order.firstItemName,
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                  style: const TextStyle(
+                      color: AppColors.textSecondary, fontSize: 12),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -216,13 +223,13 @@ class _OrderHistoryPageState extends ConsumerState<OrderHistoryPage> {
                       const Icon(
                         Icons.card_giftcard_rounded,
                         size: 12,
-                        color: Colors.pink,
+                        color: AppColors.accent,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         '+${order.bonusItemsCount} Bonus/Aksesoris',
                         style: const TextStyle(
-                          color: Colors.pink,
+                          color: AppColors.accent,
                           fontSize: 11,
                           fontStyle: FontStyle.italic,
                         ),
@@ -240,7 +247,8 @@ class _OrderHistoryPageState extends ConsumerState<OrderHistoryPage> {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => OrderDetailPage(order: order)),
+          MaterialPageRoute(
+              builder: (context) => OrderDetailPage(order: order)),
         );
       },
     );

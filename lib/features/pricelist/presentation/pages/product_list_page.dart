@@ -66,7 +66,7 @@ class ProductListPage extends ConsumerWidget {
                       minHeight: 16,
                     ),
                     textStyle: const TextStyle(
-                      color: Colors.white,
+                      color: AppColors.onPrimary,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -249,7 +249,7 @@ class ProductListPage extends ConsumerWidget {
       messageStyle: Theme.of(
         context,
       ).textTheme.bodyMedium?.copyWith(color: AppColors.textTertiary),
-      buttonColor: AppColors.primary,
+      buttonColor: AppColors.accent,
       buttonTextColor: AppColors.surface,
     );
   }
@@ -298,12 +298,12 @@ class _SortButton extends ConsumerWidget {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(14),
-          boxShadow: [
+          boxShadow: const [
             BoxShadow(
               color: AppColors.shadow,
               blurRadius: 12,
               spreadRadius: 0,
-              offset: const Offset(0, 2),
+              offset: Offset(0, 2),
             ),
           ],
         ),

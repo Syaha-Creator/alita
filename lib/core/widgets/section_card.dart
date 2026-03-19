@@ -40,14 +40,13 @@ class SectionCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(borderRadius),
-        boxShadow:
-            boxShadow ??
+        boxShadow: boxShadow ??
             [
-              BoxShadow(
+              const BoxShadow(
                 color: AppColors.shadow,
                 blurRadius: 12,
                 spreadRadius: 0,
-                offset: const Offset(0, 2),
+                offset: Offset(0, 2),
               ),
             ],
       ),

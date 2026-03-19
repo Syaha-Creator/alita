@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 
 /// Reusable app-bar action for date range filtering.
 class DateRangeFilterAction extends StatelessWidget {
@@ -15,7 +16,7 @@ class DateRangeFilterAction extends StatelessWidget {
     required this.hasActiveFilter,
     required this.onPick,
     this.onClear,
-    this.accentColor = Colors.pink,
+    this.accentColor = AppColors.accent,
     this.padding = const EdgeInsets.only(right: 8),
   });
 
@@ -26,7 +27,7 @@ class DateRangeFilterAction extends StatelessWidget {
       children: [
         if (hasActiveFilter && onClear != null)
           IconButton(
-            icon: const Icon(Icons.close_rounded, color: Colors.grey, size: 20),
+            icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary, size: 20),
             tooltip: 'Reset Filter',
             onPressed: onClear,
           ),

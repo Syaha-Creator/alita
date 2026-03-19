@@ -78,7 +78,6 @@ class ShippingInfoSection extends StatelessWidget {
               child: Checkbox(
                 value: isShippingSameAsCustomer,
                 onChanged: (v) => onToggleSameAddress(v ?? true),
-                activeColor: AppColors.primary,
               ),
             ),
             const SizedBox(width: 8),

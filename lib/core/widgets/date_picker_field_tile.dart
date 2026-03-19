@@ -45,7 +45,7 @@ class DatePickerFieldTile extends StatelessWidget {
             padding: contentPadding,
             decoration: BoxDecoration(
               border: Border.all(
-                color: hasError ? Colors.red : const Color(0xFFE0E0E0),
+                color: hasError ? AppColors.error : AppColors.border,
                 width: hasError ? 1.5 : 1.0,
               ),
               borderRadius: BorderRadius.circular(8),
@@ -77,7 +77,7 @@ class DatePickerFieldTile extends StatelessWidget {
             padding: const EdgeInsets.only(top: 6, left: 12),
             child: Text(
               errorText!,
-              style: const TextStyle(color: Colors.red, fontSize: 12),
+              style: const TextStyle(color: AppColors.error, fontSize: 12),
             ),
           ),
       ],

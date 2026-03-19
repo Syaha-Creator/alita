@@ -29,12 +29,12 @@ class _SearchBarWidgetState extends ConsumerState<SearchBarWidget> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(28), // Pill shape
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
             color: AppColors.shadow,
             blurRadius: 12,
             spreadRadius: 0,
-            offset: const Offset(0, 2),
+            offset: Offset(0, 2),
           ),
         ],
       ),
@@ -53,8 +53,10 @@ class _SearchBarWidgetState extends ConsumerState<SearchBarWidget> {
             ),
         strutStyle: const StrutStyle(forceStrutHeight: true, height: 1.0),
         contentPadding: const EdgeInsets.symmetric(vertical: 0),
-        prefixIconConstraints: const BoxConstraints(minWidth: 48, minHeight: 56),
-        suffixIconConstraints: const BoxConstraints(minWidth: 48, minHeight: 56),
+        prefixIconConstraints:
+            const BoxConstraints(minWidth: 48, minHeight: 56),
+        suffixIconConstraints:
+            const BoxConstraints(minWidth: 48, minHeight: 56),
       ),
     );
   }

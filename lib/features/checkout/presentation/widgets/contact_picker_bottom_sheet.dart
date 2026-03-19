@@ -22,7 +22,7 @@ class ContactPickerBottomSheet extends StatelessWidget {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: const Color(0xFFDDDDDD),
+                color: AppColors.border,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -41,10 +41,10 @@ class ContactPickerBottomSheet extends StatelessWidget {
               itemBuilder: (_, index) {
                 final contact = contacts[index];
                 final subtitle = [
-                  if ((contact['phone'] as String?)?.isNotEmpty == true)
-                    contact['phone'] as String,
-                  if ((contact['kota'] as String?)?.isNotEmpty == true)
-                    contact['kota'] as String,
+                  if ((contact['phone']?.toString() ?? '').isNotEmpty)
+                    contact['phone']?.toString() ?? '',
+                  if ((contact['kota']?.toString() ?? '').isNotEmpty)
+                    contact['kota']?.toString() ?? '',
                 ].join(' • ');
 
                 return ListTile(
@@ -52,7 +52,7 @@ class ContactPickerBottomSheet extends StatelessWidget {
                     backgroundColor: AppColors.primary.withValues(alpha: 0.08),
                     child: const Icon(
                       Icons.person,
-                      color: AppColors.primary,
+                      color: AppColors.accent,
                       size: 20,
                     ),
                   ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 
 /// Reusable horizontal quantity stepper with minus/plus actions.
 ///
@@ -26,13 +27,13 @@ class QuantityStepper extends StatelessWidget {
     required this.onDecrement,
     required this.onIncrement,
     this.decrementIcon = Icons.remove,
-    this.decrementIconColor = const Color(0xFF424242),
+    this.decrementIconColor = AppColors.textPrimary,
     this.incrementIcon = Icons.add,
-    this.incrementIconColor = const Color(0xFF424242),
+    this.incrementIconColor = AppColors.textPrimary,
     this.quantityTextStyle,
     this.buttonPadding = const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
     this.quantityPadding = const EdgeInsets.symmetric(horizontal: 8),
-    this.borderColor = const Color(0xFFE0E0E0),
+    this.borderColor = AppColors.border,
     this.borderRadius = 20,
   });
 

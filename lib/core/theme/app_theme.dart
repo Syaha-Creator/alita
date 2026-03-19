@@ -11,22 +11,24 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.light,
 
-      // Color scheme
+      // Color scheme — Massindo brand; onPrimary/onSecondary ensure contrast
       colorScheme: const ColorScheme.light(
         primary: AppColors.primary,
+        onPrimary: AppColors.onPrimary,
         secondary: AppColors.accent,
+        onSecondary: AppColors.onPrimary,
         surface: AppColors.surface,
+        onSurface: AppColors.textPrimary,
         error: AppColors.error,
+        onError: AppColors.onPrimary,
       ),
 
-      // Scaffold
+      // Scaffold & AppBar — same background so header and body blend
       scaffoldBackgroundColor: AppColors.background,
-
-      // App Bar
       appBarTheme: AppBarTheme(
         elevation: 0,
         centerTitle: false,
-        backgroundColor: AppColors.surface,
+        backgroundColor: AppColors.background,
         foregroundColor: AppColors.textPrimary,
         titleTextStyle: GoogleFonts.poppins(
           fontSize: 20,
@@ -124,6 +126,36 @@ class AppTheme {
         color: AppColors.divider,
         thickness: 1,
         space: 1,
+      ),
+
+      // Checkbox — rounded, branded
+      checkboxTheme: CheckboxThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(5),
+        ),
+        side: const BorderSide(color: AppColors.border, width: 1.5),
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return AppColors.accent;
+          return Colors.transparent;
+        }),
+        checkColor: WidgetStateProperty.all(AppColors.onPrimary),
+        splashRadius: 16,
+        visualDensity: VisualDensity.compact,
+      ),
+
+      // PopupMenu — rounded, subtle shadow
+      popupMenuTheme: PopupMenuThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
+        elevation: 3,
+        color: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        textStyle: GoogleFonts.poppins(
+          fontSize: 14,
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.w400,
+        ),
       ),
     );
   }

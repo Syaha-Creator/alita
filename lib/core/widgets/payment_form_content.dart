@@ -5,10 +5,12 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../utils/app_formatters.dart';
 import '../utils/number_input_formatter.dart';
+import 'app_dropdown_field.dart';
 import 'checkout_input_decoration.dart';
 import 'date_picker_field_tile.dart';
 import 'form_field_label.dart';
 import 'receipt_upload_field.dart';
+import 'segmented_toggle.dart';
 
 /// Reusable payment form content used in checkout and add-payment flows.
 class PaymentFormContent extends StatelessWidget {
@@ -131,95 +133,27 @@ class PaymentFormContent extends StatelessWidget {
       prefixText: prefixText,
       suffixIcon: suffixIcon,
       filled: filled ?? true,
-      fillColor: fillColor ?? Colors.grey.shade50,
+      fillColor: fillColor ?? AppColors.surfaceLight,
       contentPadding:
           contentPadding ?? const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       focusedBorderSide: focusedBorderSide ??
           const BorderSide(
-            color: AppColors.primary,
+            color: AppColors.accent,
             width: 1.5,
           ),
       enabledBorderSide:
-          enabledBorderSide ?? const BorderSide(color: Color(0xFFD1D5DB)),
+          enabledBorderSide ?? const BorderSide(color: AppColors.border),
     );
   }
 
 
   Widget _buildModeToggle() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: Row(
-        children: [
-          Expanded(
-            child: GestureDetector(
-              onTap: onTapLeftMode,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: isLeftModeSelected
-                      ? AppColors.primary.withValues(alpha: 0.08)
-                      : Colors.white,
-                  border: Border.all(
-                    color: isLeftModeSelected
-                        ? AppColors.primary
-                        : const Color(0xFFDDDDDD),
-                    width: isLeftModeSelected ? 1.5 : 1,
-                  ),
-                  borderRadius: const BorderRadius.horizontal(
-                    left: Radius.circular(8),
-                  ),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  leftModeLabel,
-                  style: TextStyle(
-                    color: isLeftModeSelected
-                        ? AppColors.primary
-                        : AppColors.textSecondary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: GestureDetector(
-              onTap: onTapRightMode,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: !isLeftModeSelected
-                      ? AppColors.primary.withValues(alpha: 0.08)
-                      : Colors.white,
-                  border: Border.all(
-                    color: !isLeftModeSelected
-                        ? AppColors.primary
-                        : const Color(0xFFDDDDDD),
-                    width: !isLeftModeSelected ? 1.5 : 1,
-                  ),
-                  borderRadius: const BorderRadius.horizontal(
-                    right: Radius.circular(8),
-                  ),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  rightModeLabel,
-                  style: TextStyle(
-                    color: !isLeftModeSelected
-                        ? AppColors.primary
-                        : AppColors.textSecondary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+    return SegmentedToggle(
+      leftLabel: leftModeLabel,
+      rightLabel: rightModeLabel,
+      isLeftSelected: isLeftModeSelected,
+      onTapLeft: onTapLeftMode,
+      onTapRight: onTapRightMode,
     );
   }
 
@@ -235,26 +169,12 @@ class PaymentFormContent extends StatelessWidget {
             children: [
               FormFieldLabel(methodLabel),
               const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                initialValue: paymentMethod,
-                hint: Text(
-                  methodHintText,
-                  style: const TextStyle(fontSize: 12),
-                ),
-                isExpanded: true,
+              AppDropdownField<String>(
+                value: paymentMethod,
+                hintText: methodHintText,
+                items: paymentMethods,
+                labelBuilder: (e) => e,
                 decoration: _inputDecoration(),
-                items: paymentMethods
-                    .map(
-                      (e) => DropdownMenuItem(
-                        value: e,
-                        child: Text(
-                          e,
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                      ),
-                    )
-                    .toList(),
                 onChanged: onPaymentMethodChanged,
                 validator: requireMethod
                     ? (v) => (v == null || v.isEmpty) ? 'Pilih metode' : null
@@ -275,9 +195,9 @@ class PaymentFormContent extends StatelessWidget {
                   controller: customChannelController,
                   decoration: _inputDecoration().copyWith(
                     hintText: 'Ketik nama bank / channel',
-                    hintStyle: TextStyle(
+                    hintStyle: const TextStyle(
                       fontSize: 12,
-                      color: Colors.grey.shade400,
+                      color: AppColors.textTertiary,
                     ),
                   ),
                   validator: requireChannel
@@ -286,26 +206,12 @@ class PaymentFormContent extends StatelessWidget {
                       : null,
                 )
               else
-                DropdownButtonFormField<String>(
-                  initialValue: paymentChannel,
-                  hint: Text(
-                    channelHintText,
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  isExpanded: true,
+                AppDropdownField<String>(
+                  value: paymentChannel,
+                  hintText: channelHintText,
+                  items: channels,
+                  labelBuilder: (e) => e,
                   decoration: _inputDecoration(),
-                  items: channels
-                      .map(
-                        (e) => DropdownMenuItem(
-                          value: e,
-                          child: Text(
-                            e,
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                          ),
-                        ),
-                      )
-                      .toList(),
                   onChanged: onPaymentChannelChanged,
                   validator: requireChannel
                       ? (v) {
@@ -340,7 +246,7 @@ class PaymentFormContent extends StatelessWidget {
           iconSize: 18,
           textStyle: const TextStyle(
             fontSize: 14,
-            color: Color(0xFF111827),
+            color: AppColors.textPrimary,
           ),
         ),
       ],
@@ -356,9 +262,9 @@ class PaymentFormContent extends StatelessWidget {
             controller: referenceController,
             decoration: _inputDecoration().copyWith(
               hintText: referenceHintText,
-              hintStyle: TextStyle(
+              hintStyle: const TextStyle(
                 fontSize: 12,
-                color: Colors.grey.shade400,
+                color: AppColors.textTertiary,
               ),
             ),
           ),
@@ -381,9 +287,9 @@ class PaymentFormContent extends StatelessWidget {
                 controller: referenceController,
                 decoration: _inputDecoration().copyWith(
                   hintText: referenceHintText,
-                  hintStyle: TextStyle(
+                  hintStyle: const TextStyle(
                     fontSize: 12,
-                    color: Colors.grey.shade400,
+                    color: AppColors.textTertiary,
                   ),
                 ),
               ),
@@ -422,13 +328,13 @@ class PaymentFormContent extends StatelessWidget {
               TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
-                color: amountReadOnly ? Colors.black87 : Colors.black,
+                color: amountReadOnly ? AppColors.textPrimary : AppColors.textPrimary,
               ),
           decoration: _inputDecoration(
             prefixText: 'Rp ',
             suffixIcon: amountSuffixIcon,
             filled: amountFilled,
-            fillColor: const Color(0xFFF7F7F7),
+            fillColor: AppColors.surfaceLight,
             focusedBorderSide: amountFocusedBorderSide,
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -437,7 +343,7 @@ class PaymentFormContent extends StatelessWidget {
             prefixStyle: amountPrefixStyle ??
                 const TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  color: AppColors.textPrimary,
                   fontSize: 16,
                 ),
             isDense: true,

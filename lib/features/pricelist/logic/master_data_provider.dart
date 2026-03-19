@@ -53,6 +53,13 @@ class MasterDataNotifier extends StateNotifier<MasterDataState> {
   }
 
   static final ApiClient _api = ApiClient.instance;
+  bool _isDisposed = false;
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
+  }
 
   /// Step 1: Read from local cache first (instant UI).
   /// Step 2: If a valid token exists, sync from API in background.
@@ -87,10 +94,20 @@ class MasterDataNotifier extends StateNotifier<MasterDataState> {
   /// ref.invalidate on login). Prevents StateError when async work completes
   /// after the notifier was disposed.
   void _setState(MasterDataState value) {
+    if (_isDisposed) return;
     try {
       state = value;
     } on StateError {
       // Notifier was disposed (e.g. invalidated on login); ignore
+    }
+  }
+
+  MasterDataState? _readStateOrNull() {
+    if (_isDisposed) return null;
+    try {
+      return state;
+    } on StateError {
+      return null;
     }
   }
 
@@ -100,7 +117,9 @@ class MasterDataNotifier extends StateNotifier<MasterDataState> {
   /// On success the raw JSON is persisted via [StorageService] and the
   /// parsed lists are pushed into state.
   Future<void> syncMasterData() async {
-    _setState(state.copyWith(isLoading: true, error: null));
+    final stateBeforeSync = _readStateOrNull();
+    if (stateBeforeSync == null) return;
+    _setState(stateBeforeSync.copyWith(isLoading: true, error: null));
 
     try {
       final results = await Future.wait([
@@ -119,7 +138,7 @@ class MasterDataNotifier extends StateNotifier<MasterDataState> {
         brands: brandsOk ? results[2].body : null,
       );
 
-      final currentState = state;
+      final currentState = _readStateOrNull() ?? stateBeforeSync;
       _setState(MasterDataState(
         areas: areasOk ? _parseJsonList(results[0].body) : currentState.areas,
         channels: channelsOk ? _parseJsonList(results[1].body) : currentState.channels,
@@ -127,11 +146,11 @@ class MasterDataNotifier extends StateNotifier<MasterDataState> {
         isLoading: false,
       ));
     } catch (e) {
+      if (e is StateError) return;
       debugPrint('MasterData sync error: $e');
-      try {
-        _setState(state.copyWith(isLoading: false, error: e.toString()));
-      } on StateError {
-        // Notifier disposed; ignore
+      final currentState = _readStateOrNull();
+      if (currentState != null) {
+        _setState(currentState.copyWith(isLoading: false, error: e.toString()));
       }
     }
   }

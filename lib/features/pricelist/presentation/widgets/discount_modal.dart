@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../data/models/product.dart';
@@ -200,7 +201,7 @@ class _DiscountModalContentState extends State<DiscountModalContent> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: SafeArea(
@@ -216,9 +217,9 @@ class _DiscountModalContentState extends State<DiscountModalContent> {
                 ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              Text(
+              const Text(
                 'Input persentase (%) atau nominal (Rp). Batas per tingkat dari database.',
-                style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
               ),
               const SizedBox(height: 20),
               ...List.generate(widget.maxLimits.length, (i) {
@@ -291,8 +292,8 @@ class _DiscountModalContentState extends State<DiscountModalContent> {
                                   ),
                                   decoration: BoxDecoration(
                                     color: _inputTypes[i] == '%'
-                                        ? Colors.pink
-                                        : Colors.grey.shade200,
+                                        ? AppColors.accent
+                                        : AppColors.border,
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
@@ -300,8 +301,8 @@ class _DiscountModalContentState extends State<DiscountModalContent> {
                                     style: TextStyle(
                                       fontWeight: FontWeight.w600,
                                       color: _inputTypes[i] == '%'
-                                          ? Colors.white
-                                          : Colors.grey.shade700,
+                                          ? AppColors.onPrimary
+                                          : AppColors.textSecondary,
                                       fontSize: 13,
                                     ),
                                   ),
@@ -337,8 +338,8 @@ class _DiscountModalContentState extends State<DiscountModalContent> {
                                   ),
                                   decoration: BoxDecoration(
                                     color: _inputTypes[i] == 'Rp'
-                                        ? Colors.pink
-                                        : Colors.grey.shade200,
+                                        ? AppColors.accent
+                                        : AppColors.border,
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
@@ -346,8 +347,8 @@ class _DiscountModalContentState extends State<DiscountModalContent> {
                                     style: TextStyle(
                                       fontWeight: FontWeight.w600,
                                       color: _inputTypes[i] == 'Rp'
-                                          ? Colors.white
-                                          : Colors.grey.shade700,
+                                          ? AppColors.onPrimary
+                                          : AppColors.textSecondary,
                                       fontSize: 13,
                                     ),
                                   ),
@@ -394,8 +395,8 @@ class _DiscountModalContentState extends State<DiscountModalContent> {
                     widget.onClose();
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.pink,
-                    foregroundColor: Colors.white,
+                    backgroundColor: AppColors.accent,
+                    foregroundColor: AppColors.onPrimary,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),

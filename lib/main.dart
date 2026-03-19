@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:upgrader/upgrader.dart';
 import 'core/router/app_router.dart';
 import 'core/services/notification_handler_service.dart';
 import 'core/theme/app_theme.dart';
@@ -60,6 +61,16 @@ class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp> {
   final GlobalKey<ScaffoldMessengerState> _scaffoldKey =
       GlobalKey<ScaffoldMessengerState>();
   bool _initialMessageHandled = false;
+  final Upgrader _upgrader = Upgrader(
+    debugLogging: false,
+    countryCode: 'id',
+    languageCode: 'id',
+    messages: _AlitaUpgraderMessages(),
+    storeController: UpgraderStoreController(
+      onAndroid: () => UpgraderPlayStore(),
+      oniOS: () => UpgraderAppStore(),
+    ),
+  );
 
   @override
   void initState() {
@@ -97,9 +108,39 @@ class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp> {
       builder: (context, child) {
         return ScaffoldMessenger(
           key: _scaffoldKey,
-          child: OfflineBannerWrapper(child: child ?? const SizedBox.shrink()),
+          child: UpgradeAlert(
+            upgrader: _upgrader,
+            showIgnore: false,
+            showLater: false,
+            barrierDismissible: false,
+            shouldPopScope: () => false,
+            child: OfflineBannerWrapper(
+              child: child ?? const SizedBox.shrink(),
+            ),
+          ),
         );
       },
     );
   }
+}
+
+class _AlitaUpgraderMessages extends UpgraderMessages {
+  _AlitaUpgraderMessages() : super(code: 'id');
+
+  @override
+  String get title => 'Pembaruan Tersedia';
+
+  @override
+  String get body =>
+      'Versi baru aplikasi {{appName}} telah tersedia.\n'
+      'Anda wajib memperbarui aplikasi untuk melanjutkan dan memastikan '
+      'perhitungan harga akurat.\n\n'
+      'Versi terpasang: {{currentInstalledVersion}}\n'
+      'Versi terbaru: {{currentAppStoreVersion}}';
+
+  @override
+  String get prompt => 'Silakan perbarui aplikasi sekarang untuk melanjutkan.';
+
+  @override
+  String get buttonTitleUpdate => 'Perbarui Sekarang';
 }

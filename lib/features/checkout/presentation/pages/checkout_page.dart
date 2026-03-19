@@ -12,6 +12,7 @@ import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/utils/number_input_formatter.dart';
 import '../../../../core/utils/platform_utils.dart';
 import '../../../../core/widgets/action_button_bar.dart';
+import '../../../../core/widgets/image_source_sheet.dart';
 import '../../../../core/widgets/empty_state_view.dart';
 import '../../../../core/widgets/form_field_label.dart';
 import '../../../../core/widgets/payment_form_content.dart';
@@ -19,6 +20,7 @@ import '../../../../core/widgets/section_card.dart';
 import '../../../cart/data/cart_item.dart';
 import '../../../cart/logic/cart_provider.dart';
 import '../../../profile/logic/profile_provider.dart';
+import '../../data/checkout_config.dart';
 import '../../data/models/approver_model.dart';
 import '../../data/services/local_contact_service.dart';
 import '../../data/utils/checkout_payload_builder.dart';
@@ -75,32 +77,6 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   final _paymentNoteCtrl = TextEditingController();
   File? _receiptImage;
   final ImagePicker _picker = ImagePicker();
-
-  static const Map<String, List<String>> _paymentChannelsMap = {
-    'Transfer Bank': [
-      'BCA',
-      'Mandiri',
-      'BNI',
-      'BRI',
-      'CIMB Niaga',
-      'Permata',
-      'BSI',
-      'Bank Jago',
-    ],
-    'Kartu Kredit': ['BCA Card', 'Visa', 'Mastercard', 'JCB', 'Amex'],
-    'E-Wallet': ['GoPay', 'OVO', 'Dana', 'ShopeePay', 'LinkAja'],
-    'QRIS': ['QRIS BCA', 'QRIS Mandiri', 'QRIS BNI', 'QRIS BRI', 'QRIS Nobu'],
-    'PayLater': [
-      'Kredivo',
-      'Shopee PayLater',
-      'GoPay Later',
-      'Indodana',
-      'Akulaku',
-      'Home Credit',
-      'BCA Paylater',
-    ],
-    'Lainnya': [],
-  };
 
   bool _isShippingSameAsCustomer = true;
   bool _showBackupPhone = false;
@@ -210,6 +186,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
     // Listen for submission results from provider
     ref.listen<CheckoutState>(checkoutProvider, (prev, next) {
+      if (!context.mounted) return;
       // Dismiss loading overlay when submission completes
       if (prev?.isSubmitting == true && !next.isSubmitting) {
         if (Navigator.of(context, rootNavigator: true).canPop()) {
@@ -279,11 +256,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     color: AppColors.surface,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: AppColors.border),
-                    boxShadow: [
+                    boxShadow: const [
                       BoxShadow(
                         color: AppColors.shadow,
                         blurRadius: 12,
-                        offset: const Offset(0, 4),
+                        offset: Offset(0, 4),
                       ),
                     ],
                   ),
@@ -315,12 +292,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                         isShippingSameAsCustomer: _isShippingSameAsCustomer,
                         onToggleSameAddress: (v) =>
                             setState(() => _isShippingSameAsCustomer = v),
-                        onPickCustomerRegion: _pickCustomerRegion,
+                        onPickCustomerRegion: () => _pickRegion(isShipping: false),
                         shippingNameCtrl: _shippingNameCtrl,
                         shippingPhoneCtrl: _shippingPhoneCtrl,
                         shippingAddressCtrl: _shippingAddressCtrl,
                         shippingRegionCtrl: _shippingRegionCtrl,
-                        onPickShippingRegion: _pickShippingRegion,
+                        onPickShippingRegion: () => _pickRegion(isShipping: true),
                       ),
                     ],
                   ),
@@ -377,14 +354,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                               ),
                               decoration: BoxDecoration(
                                 color:
-                                    AppColors.primary.withValues(alpha: 0.08),
+                                    AppColors.accent.withValues(alpha: 0.08),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: const Text(
                                 'Diskon 3 terdeteksi',
                                 style: TextStyle(
                                   fontSize: 10,
-                                  color: AppColors.primary,
+                                  color: AppColors.accent,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -496,11 +473,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                                   color: AppColors.textSecondary,
                                 ),
                               ),
-                        paymentMethods: _paymentChannelsMap.keys.toList(),
+                        paymentMethods: CheckoutConfig.paymentMethods,
                         paymentMethod: _paymentMethod,
                         paymentChannel: _paymentBank,
                         customChannelController: _otherChannelCtrl,
-                        paymentChannelsMap: _paymentChannelsMap,
+                        paymentChannelsMap: CheckoutConfig.paymentChannelsMap,
                         onPaymentMethodChanged: (val) => setState(() {
                           _paymentMethod = val;
                           _paymentBank = null;
@@ -521,6 +498,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                             firstDate: DateTime(2020),
                             lastDate: DateTime(2100),
                           );
+                          if (!mounted) return;
                           if (picked != null) {
                             setState(() => _paymentDate = picked);
                           }
@@ -575,11 +553,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       helpText: 'Pilih Tanggal Permintaan Kirim',
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(primary: AppColors.primary),
+          colorScheme: const ColorScheme.light(primary: AppColors.accent),
         ),
         child: child!,
       ),
     );
+    if (!mounted) return;
     if (picked != null) setState(() => _requestDate = picked);
   }
 
@@ -589,6 +568,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         source: source,
         imageQuality: 70,
       );
+      if (!mounted) return;
       if (picked != null) {
         setState(() => _receiptImage = File(picked.path));
         _formKey.currentState?.validate();
@@ -599,78 +579,37 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   }
 
   void _showImageSourceBottomSheet() {
-    showModalBottomSheet(
+    ImageSourceSheet.show(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Wrap(
-          children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
-              child: Text(
-                'Upload Bukti Pembayaran',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_camera, color: AppColors.primary),
-              title: const Text('Ambil dari Kamera'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _pickImage(ImageSource.camera);
-              },
-            ),
-            ListTile(
-              leading:
-                  const Icon(Icons.photo_library, color: AppColors.primary),
-              title: const Text('Pilih dari Galeri'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _pickImage(ImageSource.gallery);
-              },
-            ),
-          ],
-        ),
-      ),
+      title: 'Upload Bukti Pembayaran',
+      onCamera: () => _pickImage(ImageSource.camera),
+      onGallery: () => _pickImage(ImageSource.gallery),
     );
   }
 
-  Future<void> _pickCustomerRegion() async {
+  Future<void> _pickRegion({required bool isShipping}) async {
     final result = await showModalBottomSheet<RegionResult>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => const RegionPickerBottomSheet(),
     );
-    if (result != null) {
-      setState(() {
-        _selectedProvinsi = result.provinsi;
-        _selectedKota = result.kota;
-        _selectedKecamatan = result.kecamatan;
-        _regionCtrl.text =
-            'Kec. ${result.kecamatan}, ${result.kota}, ${result.provinsi}';
-      });
-    }
-  }
-
-  Future<void> _pickShippingRegion() async {
-    final result = await showModalBottomSheet<RegionResult>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const RegionPickerBottomSheet(),
-    );
-    if (result != null) {
-      setState(() {
+    if (!mounted || result == null) return;
+    setState(() {
+      if (isShipping) {
         _shippingProvinsi = result.provinsi;
         _shippingKota = result.kota;
         _shippingKecamatan = result.kecamatan;
         _shippingRegionCtrl.text =
             'Kec. ${result.kecamatan}, ${result.kota}, ${result.provinsi}';
-      });
-    }
+      } else {
+        _selectedProvinsi = result.provinsi;
+        _selectedKota = result.kota;
+        _selectedKecamatan = result.kecamatan;
+        _regionCtrl.text =
+            'Kec. ${result.kecamatan}, ${result.kota}, ${result.provinsi}';
+      }
+    });
   }
 
   Future<void> _pickContact() async {
@@ -691,6 +630,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       builder: (_) => ContactPickerBottomSheet(contacts: contacts),
     );
 
+    if (!mounted) return;
     if (selected != null) {
       final phone2 = (selected['phone2'] as String?) ?? '';
       final selectedId = selected['id']?.toString();
@@ -982,7 +922,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     return _checkedTakeAwaySkus.contains(_bonusTakeAwayKey(itemIndex, bonus));
   }
 
-  void _toggleBonusTakeAway(int itemIndex, CartBonusSnapshot bonus, bool checked) {
+  void _toggleBonusTakeAway(
+      int itemIndex, CartBonusSnapshot bonus, bool checked) {
     final key = _bonusTakeAwayKey(itemIndex, bonus);
     setState(() {
       if (checked) {

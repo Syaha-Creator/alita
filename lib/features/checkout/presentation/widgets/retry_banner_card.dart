@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/app_colors.dart';
 
 /// Banner shown when some detail rows failed and can be retried.
 class RetryBannerCard extends StatelessWidget {
@@ -20,27 +21,27 @@ class RetryBannerCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.orange.shade50,
+        color: AppColors.warning.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.orange.shade300),
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.warning_amber_rounded,
-                color: Colors.orange.shade700,
+                color: AppColors.warning,
                 size: 18,
               ),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   'SP $retryNoSp — $failedCount item gagal dikirim',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: Colors.orange.shade800,
+                    color: AppColors.warning,
                     fontSize: 13,
                   ),
                 ),
@@ -50,9 +51,9 @@ class RetryBannerCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             failedLabels.map((e) => '• $e').join('\n'),
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 12,
-              color: Colors.orange.shade900,
+              color: AppColors.warning,
             ),
           ),
           const SizedBox(height: 10),
@@ -61,8 +62,8 @@ class RetryBannerCard extends StatelessWidget {
             child: ElevatedButton.icon(
               onPressed: onRetry,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange.shade700,
-                foregroundColor: Colors.white,
+                backgroundColor: AppColors.warning,
+                foregroundColor: AppColors.onPrimary,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),

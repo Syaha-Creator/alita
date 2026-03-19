@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import '../theme/app_layout_tokens.dart';
 
 /// Reusable frame for order-like list cards.
@@ -31,9 +32,9 @@ class OrderListCardFrame extends StatelessWidget {
     return Container(
       margin: AppLayoutTokens.listCardMargin,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppLayoutTokens.radius16),
-        border: Border.all(color: Colors.grey.shade100),
+        border: Border.all(color: AppColors.surfaceLight),
         boxShadow: [AppLayoutTokens.cardShadowSoft],
       ),
       child: Material(
@@ -52,7 +53,7 @@ class OrderListCardFrame extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(AppLayoutTokens.space8),
                       decoration: BoxDecoration(
-                        color: Colors.blueGrey.shade50,
+                        color: AppColors.surfaceLight,
                         borderRadius: BorderRadius.circular(
                           AppLayoutTokens.radius8,
                         ),
@@ -60,7 +61,7 @@ class OrderListCardFrame extends StatelessWidget {
                       child: const Icon(
                         Icons.receipt_long_rounded,
                         size: 18,
-                        color: Colors.blueGrey,
+                        color: AppColors.textSecondary,
                       ),
                     ),
                     const SizedBox(width: AppLayoutTokens.space10),
@@ -76,16 +77,16 @@ class OrderListCardFrame extends StatelessWidget {
                     trailingStatus,
                   ],
                 ),
-                Padding(
+                const Padding(
                   padding: AppLayoutTokens.verticalDividerPadding,
-                  child: Divider(height: 1, color: Colors.grey.shade100),
+                  child: Divider(height: 1, color: AppColors.surfaceLight),
                 ),
                 body,
                 const SizedBox(height: AppLayoutTokens.space14),
                 Container(
                   padding: AppLayoutTokens.footerBoxPadding,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
+                    color: AppColors.surfaceLight,
                     borderRadius: BorderRadius.circular(
                       AppLayoutTokens.radius10,
                     ),
@@ -96,16 +97,16 @@ class OrderListCardFrame extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.calendar_today_outlined,
                             size: 12,
-                            color: Colors.grey.shade400,
+                            color: AppColors.textTertiary,
                           ),
                           const SizedBox(width: AppLayoutTokens.space4),
                           Text(
                             dateText,
-                            style: TextStyle(
-                              color: Colors.grey.shade500,
+                            style: const TextStyle(
+                              color: AppColors.textTertiary,
                               fontSize: 12,
                             ),
                           ),
@@ -116,7 +117,7 @@ class OrderListCardFrame extends StatelessWidget {
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
-                          color: Colors.black87,
+                          color: AppColors.textPrimary,
                         ),
                       ),
                     ],

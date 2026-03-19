@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 
 enum AppFeedbackType { success, error, info, warning }
 
@@ -59,10 +60,10 @@ class AppFeedback {
   }
 
   static Color _color(AppFeedbackType type) => switch (type) {
-        AppFeedbackType.success => const Color(0xFF16A34A),
-        AppFeedbackType.error => const Color(0xFFDC2626),
-        AppFeedbackType.info => Colors.blueGrey.shade700,
-        AppFeedbackType.warning => const Color(0xFFD97706),
+        AppFeedbackType.success => AppColors.success,
+        AppFeedbackType.error => AppColors.error,
+        AppFeedbackType.info => AppColors.textSecondary,
+        AppFeedbackType.warning => AppColors.warning,
       };
 
   static IconData _icon(AppFeedbackType type) => switch (type) {
@@ -160,13 +161,13 @@ class _FeedbackOverlayState extends State<_FeedbackOverlay>
                     padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
                     child: Row(
                       children: [
-                        Icon(icon, color: Colors.white, size: 22),
+                        Icon(icon, color: AppColors.onPrimary, size: 22),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
                             widget.message,
                             style: const TextStyle(
-                              color: Colors.white,
+                              color: AppColors.onPrimary,
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
                               height: 1.35,

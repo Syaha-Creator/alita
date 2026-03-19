@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/app_colors.dart';
 
 /// Set component breakdown section shown in checkout order summary item.
 class OrderSummarySetDetails extends StatelessWidget {
@@ -34,12 +35,12 @@ class OrderSummarySetDetails extends StatelessWidget {
           padding: EdgeInsets.symmetric(vertical: 8),
           child: Divider(height: 1),
         ),
-        Text(
+        const Text(
           'Rincian Set:',
           style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.bold,
-            color: Colors.grey.shade700,
+            color: AppColors.textSecondary,
           ),
         ),
         const SizedBox(height: 4),
@@ -53,8 +54,8 @@ class OrderSummarySetDetails extends StatelessWidget {
   Widget _skuRow(String label, String sku) => Padding(
         padding: const EdgeInsets.only(bottom: 2),
         child: Text(
-          '• $label  (SKU: $sku)',
-          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+          '• $label  (SKU: ${sku.isNotEmpty ? sku : "—"})',
+          style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
         ),
       );
 }

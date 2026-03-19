@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../cart/data/cart_item.dart';
 import 'bonus_takeaway_control.dart';
 
@@ -32,12 +33,12 @@ class OrderSummaryBonusSection extends StatelessWidget {
           padding: EdgeInsets.symmetric(vertical: 8),
           child: Divider(height: 1),
         ),
-        Text(
+        const Text(
           'Bonus / Aksesoris:',
           style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.bold,
-            color: Colors.grey.shade700,
+            color: AppColors.textSecondary,
           ),
         ),
         const SizedBox(height: 4),

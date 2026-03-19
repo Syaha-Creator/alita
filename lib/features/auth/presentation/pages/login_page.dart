@@ -105,9 +105,9 @@ class _LoginPageState extends ConsumerState<LoginPage>
     }
 
     ref.read(authProvider.notifier).login(
-      _emailController.text.trim().toLowerCase(),
-      _passwordController.text,
-    );
+          _emailController.text.trim().toLowerCase(),
+          _passwordController.text,
+        );
   }
 
   // ── Field with focus shadow ───────────────────────────────────
@@ -146,7 +146,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
 
     final fieldBorder = OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: Colors.grey.shade300),
+      borderSide: const BorderSide(color: AppColors.border),
     );
     final focusedBorder = OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
@@ -162,9 +162,9 @@ class _LoginPageState extends ConsumerState<LoginPage>
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         body: Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Colors.white, Colors.grey.shade100],
+              colors: [AppColors.surface, AppColors.surfaceLight],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
             ),
@@ -230,7 +230,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
-                            color: Colors.grey,
+                            color: AppColors.textTertiary,
                             letterSpacing: 5,
                           ),
                         ),
@@ -253,10 +253,10 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                 Icons.email_outlined,
                                 color: _emailFocus.hasFocus
                                     ? primary
-                                    : Colors.grey,
+                                    : AppColors.textTertiary,
                               ),
                               filled: true,
-                              fillColor: Colors.white,
+                              fillColor: AppColors.surface,
                               border: fieldBorder,
                               enabledBorder: fieldBorder,
                               focusedBorder: focusedBorder,
@@ -295,21 +295,21 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                 Icons.lock_outline,
                                 color: _passwordFocus.hasFocus
                                     ? primary
-                                    : Colors.grey,
+                                    : AppColors.textTertiary,
                               ),
                               suffixIcon: IconButton(
                                 icon: Icon(
                                   _obscurePassword
                                       ? Icons.visibility_off_outlined
                                       : Icons.visibility_outlined,
-                                  color: Colors.grey,
+                                  color: AppColors.textTertiary,
                                 ),
                                 onPressed: () => setState(
                                   () => _obscurePassword = !_obscurePassword,
                                 ),
                               ),
                               filled: true,
-                              fillColor: Colors.white,
+                              fillColor: AppColors.surface,
                               border: fieldBorder,
                               enabledBorder: fieldBorder,
                               focusedBorder: focusedBorder,
@@ -342,11 +342,11 @@ class _LoginPageState extends ConsumerState<LoginPage>
                         const SizedBox(height: 32),
 
                         // ── Footer ────────────────────────────
-                        Text(
+                        const Text(
                           'Gunakan email dan password yang telah diberikan',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: Colors.grey.shade500,
+                            color: AppColors.textTertiary,
                             fontSize: 12,
                           ),
                         ),
@@ -377,19 +377,19 @@ class _ErrorBanner extends StatelessWidget {
       duration: const Duration(milliseconds: 300),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.red.shade50,
+        color: AppColors.accentLight,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.red.shade200),
+        border: Border.all(color: AppColors.accentBorder),
       ),
       child: Row(
         children: [
-          Icon(Icons.error_outline, color: Colors.red.shade600, size: 18),
+          const Icon(Icons.error_outline, color: AppColors.error, size: 18),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               message,
-              style: TextStyle(
-                color: Colors.red.shade700,
+              style: const TextStyle(
+                color: AppColors.error,
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
               ),
@@ -431,13 +431,15 @@ class _LoginButton extends StatelessWidget {
               ],
       ),
       child: ElevatedButton(
-        onPressed: (isLoading || offline) ? null : () {
-          HapticFeedback.lightImpact();
-          onPressed();
-        },
+        onPressed: (isLoading || offline)
+            ? null
+            : () {
+                HapticFeedback.lightImpact();
+                onPressed();
+              },
         style: ElevatedButton.styleFrom(
           backgroundColor: primary,
-          foregroundColor: Colors.white,
+          foregroundColor: AppColors.onPrimary,
           disabledBackgroundColor: primary.withValues(alpha: 0.6),
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
@@ -450,7 +452,7 @@ class _LoginButton extends StatelessWidget {
                 height: 24,
                 width: 24,
                 child: CircularProgressIndicator.adaptive(
-                  valueColor: AlwaysStoppedAnimation(Colors.white),
+                  valueColor: AlwaysStoppedAnimation(AppColors.onPrimary),
                   strokeWidth: 2.5,
                 ),
               )

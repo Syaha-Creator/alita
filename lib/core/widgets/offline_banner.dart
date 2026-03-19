@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/connectivity_service.dart';
+import '../theme/app_colors.dart';
 
 /// WhatsApp/Telegram-style banner shown below the status bar when offline.
 /// Wraps the entire app content via [MaterialApp.router]'s `builder`.
@@ -15,12 +16,10 @@ class OfflineBannerWrapper extends ConsumerWidget {
 
     return Stack(
       children: [
-        // Shift content down when banner is visible
         Positioned.fill(
           top: isOffline ? _kBannerHeight : 0,
           child: child,
         ),
-        // Animated banner at the top
         AnimatedPositioned(
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
@@ -42,8 +41,8 @@ class _OfflineBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: const Color(0xFF424242),
+    return const Material(
+      color: AppColors.textPrimary,
       child: SafeArea(
         bottom: false,
         child: SizedBox(
@@ -51,16 +50,16 @@ class _OfflineBanner extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
+              Icon(
                 Icons.wifi_off_rounded,
                 size: 14,
-                color: Colors.white70,
+                color: AppColors.onPrimaryMedium,
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Text(
                 'Tidak ada koneksi internet',
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.9),
+                  color: AppColors.onPrimaryHigh,
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
                 ),

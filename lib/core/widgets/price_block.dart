@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 
 /// Reusable price presentation for product and cart contexts.
 ///
@@ -40,7 +41,7 @@ class PriceBlock extends StatelessWidget {
                 originalPriceStyle ??
                 const TextStyle(
                   fontSize: 11,
-                  color: Colors.grey,
+                  color: AppColors.textTertiary,
                   decoration: TextDecoration.lineThrough,
                 ),
           ),

@@ -22,7 +22,9 @@ import '../../../cart/presentation/widgets/cart_bottom_sheet.dart';
 import '../../../favorites/logic/favorites_provider.dart';
 import '../../../product/logic/brand_spec_provider.dart';
 import '../widgets/discount_modal.dart';
+import '../widgets/installment_simulation_section.dart';
 import '../widgets/product_anchor_type.dart';
+import '../widgets/product_bonus_builder.dart';
 import '../widgets/product_configurator_section.dart';
 import '../widgets/product_detail_bottom_bar.dart';
 import '../widgets/product_image_carousel.dart';
@@ -326,25 +328,26 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
 
       if (!_isKasurCustom &&
           effectiveKasurLookup != null &&
-          nextKasurLookup?.itemNum != effectiveKasurLookup.itemNum) {
+          _lookupKey(nextKasurLookup) != _lookupKey(effectiveKasurLookup)) {
         nextKasurLookup = effectiveKasurLookup;
         shouldUpdate = true;
       }
       if (!_isDivanCustom &&
           effectiveDivanLookup != null &&
-          nextDivanLookup?.itemNum != effectiveDivanLookup.itemNum) {
+          _lookupKey(nextDivanLookup) != _lookupKey(effectiveDivanLookup)) {
         nextDivanLookup = effectiveDivanLookup;
         shouldUpdate = true;
       }
       if (!_isHeadboardCustom &&
           effectiveHeadboardLookup != null &&
-          nextHeadboardLookup?.itemNum != effectiveHeadboardLookup.itemNum) {
+          _lookupKey(nextHeadboardLookup) !=
+              _lookupKey(effectiveHeadboardLookup)) {
         nextHeadboardLookup = effectiveHeadboardLookup;
         shouldUpdate = true;
       }
       if (!_isSorongCustom &&
           effectiveSorongLookup != null &&
-          nextSorongLookup?.itemNum != effectiveSorongLookup.itemNum) {
+          _lookupKey(nextSorongLookup) != _lookupKey(effectiveSorongLookup)) {
         nextSorongLookup = effectiveSorongLookup;
         shouldUpdate = true;
       }
@@ -369,6 +372,16 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       finalPrice -= (finalPrice * disc);
     }
     return finalPrice;
+  }
+
+  String _lookupKey(ItemLookup? lookup) {
+    if (lookup == null) return '';
+    final tipe = lookup.tipe.trim().toLowerCase();
+    final ukuran = lookup.ukuran.trim().toLowerCase();
+    final itemNum = lookup.itemNum.trim().toLowerCase();
+    final kain = (lookup.jenisKain ?? '').trim().toLowerCase();
+    final warna = (lookup.warnaKain ?? '').trim().toLowerCase();
+    return '$tipe|$ukuran|$itemNum|$kain|$warna';
   }
 
   @override
@@ -542,7 +555,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
         ? null
         : (selectedKasurLookup != null &&
                 kasurLookups.any(
-                  (l) => l.itemNum == selectedKasurLookup!.itemNum,
+                  (l) => _lookupKey(l) == _lookupKey(selectedKasurLookup),
                 ))
             ? selectedKasurLookup!
             : kasurLookups.first;
@@ -562,7 +575,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
         ? null
         : (selectedDivanLookup != null &&
                 divanLookups.any(
-                  (l) => l.itemNum == selectedDivanLookup!.itemNum,
+                  (l) => _lookupKey(l) == _lookupKey(selectedDivanLookup),
                 ))
             ? selectedDivanLookup!
             : divanLookups.first;
@@ -582,7 +595,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
         ? null
         : (selectedHeadboardLookup != null &&
                 headboardLookups.any(
-                  (l) => l.itemNum == selectedHeadboardLookup!.itemNum,
+                  (l) => _lookupKey(l) == _lookupKey(selectedHeadboardLookup),
                 ))
             ? selectedHeadboardLookup!
             : headboardLookups.first;
@@ -601,7 +614,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
         ? null
         : (selectedSorongLookup != null &&
                 sorongLookups.any(
-                  (l) => l.itemNum == selectedSorongLookup!.itemNum,
+                  (l) => _lookupKey(l) == _lookupKey(selectedSorongLookup),
                 ))
             ? selectedSorongLookup!
             : sorongLookups.first;
@@ -685,8 +698,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       }
     }
 
-    // Build default bonuses list for price section
-    final defaultBonuses = _buildDefaultBonusList(activeProduct);
+    final defaultBonuses = ProductBonusBuilder.buildDefaultBonuses(activeProduct);
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -707,8 +719,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                   matchedSpec: matchedSpec,
                   controller: _imagePageController,
                   currentIndex: _currentImageIndex,
-                  onPageChanged: (i) =>
-                      setState(() => _currentImageIndex = i),
+                  onPageChanged: (i) => setState(() => _currentImageIndex = i),
                 ),
                 _buildProductDetails(
                   context: context,
@@ -767,9 +778,10 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
 
   // ───────────────────────── AppBar ─────────────────────────
 
-  AppBar _buildAppBar(int cartCount, AnchorType buildAnchor, String effectiveSize) {
+  AppBar _buildAppBar(
+      int cartCount, AnchorType buildAnchor, String effectiveSize) {
     return AppBar(
-        backgroundColor: _isScrolled ? Colors.white : Colors.transparent,
+      backgroundColor: _isScrolled ? AppColors.background : Colors.transparent,
         elevation: _isScrolled ? 2 : 0,
         scrolledUnderElevation: _isScrolled ? 2 : 0,
         automaticallyImplyLeading: false,
@@ -784,7 +796,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                 shape: BoxShape.circle,
               ),
               child: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.black87),
+              icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
                 onPressed: () => Navigator.pop(context),
               ),
             ),
@@ -801,7 +813,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
               Text(
                 widget.product.name,
                 style: const TextStyle(
-                  color: Colors.black87,
+                color: AppColors.textPrimary,
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
@@ -811,8 +823,8 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                       (buildAnchor == AnchorType.divan && _divanHasSet))
                     ? '${selectedSize ?? widget.product.ukuran} • ${isKasurOnly ? 'Satuan' : 'Set Lengkap'}'
                     : (selectedSize ?? widget.product.ukuran),
-                style: TextStyle(
-                  color: Colors.grey.shade600,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
                 ),
@@ -841,7 +853,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                 : IconButton(
                     icon: const Icon(
                       Icons.share_outlined,
-                      color: Colors.black87,
+                    color: AppColors.textPrimary,
                       size: 22,
                     ),
                     onPressed: _shareProduct,
@@ -861,16 +873,11 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                 IconButton(
                   icon: const Icon(
                     Icons.shopping_cart_outlined,
-                    color: Colors.black87,
+                  color: AppColors.textPrimary,
                     size: 22,
                   ),
                   onPressed: () {
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (context) => const CartBottomSheet(),
-                    );
+                  showCartSheet(context);
                   },
                 ),
                 if (cartCount > 0)
@@ -879,20 +886,20 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                     top: 4,
                     child: Container(
                       decoration: BoxDecoration(
-                        border: Border.all(color: Colors.white, width: 1.5),
+                      border: Border.all(color: AppColors.surface, width: 1.5),
                         shape: BoxShape.circle,
                       ),
                       child: FloatingBadge(
                         count: cartCount,
                         maxCount: 9,
                         padding: const EdgeInsets.all(4),
-                        backgroundColor: Colors.pink,
+                      backgroundColor: AppColors.error,
                         constraints: const BoxConstraints(
                           minWidth: 14,
                           minHeight: 14,
                         ),
                         textStyle: const TextStyle(
-                          color: Colors.white,
+                        color: AppColors.onPrimary,
                           fontSize: 9,
                           fontWeight: FontWeight.bold,
                           height: 1,
@@ -974,9 +981,9 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                         fontWeight: FontWeight.w700,
                             color: AppColors.accent,
                           ),
-                  originalPriceStyle: TextStyle(
+                  originalPriceStyle: const TextStyle(
                     fontSize: 14,
-                    color: Colors.grey[500],
+                    color: AppColors.textTertiary,
                     decoration: TextDecoration.lineThrough,
                     fontWeight: FontWeight.w500,
                   ),
@@ -1139,9 +1146,8 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                     setState(() {
                       targetTotalEup = null;
                       appliedDiscounts = [];
-                      _targetTotalController.text = _totalCurrencyFormat
-                          .format(_lastBaseTotalEup)
-                          .trim();
+                      _targetTotalController.text =
+                          _totalCurrencyFormat.format(_lastBaseTotalEup).trim();
                     });
                   },
                   onDiscountTap: () {
@@ -1170,8 +1176,13 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                 const Divider(height: 1),
                 const SizedBox(height: 16),
 
-                // Installment simulation
-                _buildInstallmentSection(effectiveTotal),
+                InstallmentSimulationSection(
+                  effectiveTotal: effectiveTotal,
+                  selectedTenor: selectedInstallmentTenor,
+                  tenorOptions: installmentOptions,
+                  onTenorChanged: (tenor) =>
+                      setState(() => selectedInstallmentTenor = tenor),
+                ),
                 const SizedBox(height: 32),
 
                 // Specifications
@@ -1187,210 +1198,6 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
         ),
       ]),
     );
-  }
-
-  // ───────────────────────── Installment Section ─────────────────────────
-
-  Widget _buildInstallmentSection(double effectiveTotal) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-                const Row(
-                  children: [
-            Icon(Icons.credit_card_outlined, color: Colors.black87, size: 20),
-                    SizedBox(width: 8),
-                    Text(
-                      'Simulasi Cicilan 0%',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: installmentOptions.map((tenor) {
-                    final isSelected = selectedInstallmentTenor == tenor;
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 10.0),
-                              child: ChoiceChip(
-                                showCheckmark: false,
-                                label: Text('$tenor Bulan'),
-                                selected: isSelected,
-                                onSelected: (selected) {
-                                  if (selected) {
-                                    setState(
-                                      () => selectedInstallmentTenor = tenor,
-                                    );
-                                  }
-                                },
-                                backgroundColor: Colors.white,
-                                selectedColor: Colors.black87,
-                                elevation: 0,
-                                pressElevation: 0,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 10,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20),
-                                  side: BorderSide(
-                                    color: isSelected
-                                        ? Colors.black87
-                                        : Colors.grey.shade300,
-                                  ),
-                                ),
-                                labelStyle: TextStyle(
-                                  color: isSelected
-                                      ? Colors.white
-                                      : Colors.grey.shade700,
-                                  fontWeight: isSelected
-                                      ? FontWeight.bold
-                                      : FontWeight.w500,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            'Cicilan per bulan',
-                            style: TextStyle(
-                              color: Colors.grey.shade600,
-                              fontSize: 13,
-                            ),
-                          ),
-                          RichText(
-                            text: TextSpan(
-                              children: [
-                                TextSpan(
-                                  text: AppFormatters.currencyIdr(
-                                    effectiveTotal / selectedInstallmentTenor,
-                                  ),
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                                TextSpan(
-                                  text: ' / bln',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const Padding(
-                        padding: EdgeInsets.only(top: 12.0),
-                        child: Text(
-                          '*Estimasi menggunakan kartu kredit cicilan 0%. Hubungi bank terkait untuk detail biaya layanan.',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-      ],
-    );
-  }
-
-  // ───────────────────────── Default Bonuses Builder ─────────────────────────
-
-  List<Map<String, dynamic>> _buildDefaultBonusList(Product activeProduct) {
-    return <Map<String, dynamic>>[
-      if (activeProduct.bonus1 != null && activeProduct.bonus1!.isNotEmpty)
-                {
-                  'name': activeProduct.bonus1!,
-                  'qty': activeProduct.qtyBonus1 ?? 1,
-                  'max_qty': ((activeProduct.qtyBonus1 ?? 1) * 2),
-                  'pl': activeProduct.plBonus1,
-                  'is_custom': false,
-                },
-      if (activeProduct.bonus2 != null && activeProduct.bonus2!.isNotEmpty)
-                {
-                  'name': activeProduct.bonus2!,
-                  'qty': activeProduct.qtyBonus2 ?? 1,
-                  'max_qty': ((activeProduct.qtyBonus2 ?? 1) * 2),
-                  'pl': activeProduct.plBonus2,
-                  'is_custom': false,
-                },
-      if (activeProduct.bonus3 != null && activeProduct.bonus3!.isNotEmpty)
-                {
-                  'name': activeProduct.bonus3!,
-                  'qty': activeProduct.qtyBonus3 ?? 1,
-                  'max_qty': ((activeProduct.qtyBonus3 ?? 1) * 2),
-                  'pl': activeProduct.plBonus3,
-                  'is_custom': false,
-                },
-      if (activeProduct.bonus4 != null && activeProduct.bonus4!.isNotEmpty)
-                {
-                  'name': activeProduct.bonus4!,
-                  'qty': activeProduct.qtyBonus4 ?? 1,
-                  'max_qty': ((activeProduct.qtyBonus4 ?? 1) * 2),
-                  'pl': activeProduct.plBonus4,
-                  'is_custom': false,
-                },
-      if (activeProduct.bonus5 != null && activeProduct.bonus5!.isNotEmpty)
-                {
-                  'name': activeProduct.bonus5!,
-                  'qty': activeProduct.qtyBonus5 ?? 1,
-                  'max_qty': ((activeProduct.qtyBonus5 ?? 1) * 2),
-                  'pl': activeProduct.plBonus5,
-                  'is_custom': false,
-                },
-      if (activeProduct.bonus6 != null && activeProduct.bonus6!.isNotEmpty)
-                {
-                  'name': activeProduct.bonus6!,
-                  'qty': activeProduct.qtyBonus6 ?? 1,
-                  'max_qty': ((activeProduct.qtyBonus6 ?? 1) * 2),
-                  'pl': activeProduct.plBonus6,
-                  'is_custom': false,
-                },
-      if (activeProduct.bonus7 != null && activeProduct.bonus7!.isNotEmpty)
-                {
-                  'name': activeProduct.bonus7!,
-                  'qty': activeProduct.qtyBonus7 ?? 1,
-                  'max_qty': ((activeProduct.qtyBonus7 ?? 1) * 2),
-                  'pl': activeProduct.plBonus7,
-                  'is_custom': false,
-                },
-      if (activeProduct.bonus8 != null && activeProduct.bonus8!.isNotEmpty)
-                {
-                  'name': activeProduct.bonus8!,
-                  'qty': activeProduct.qtyBonus8 ?? 1,
-                  'max_qty': ((activeProduct.qtyBonus8 ?? 1) * 2),
-                  'pl': activeProduct.plBonus8,
-                  'is_custom': false,
-                },
-            ];
   }
 
   // ───────────────────────── Bottom Bar ─────────────────────────
@@ -1432,9 +1239,8 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
         ref.read(favoritesProvider.notifier).toggleFavorite(widget.product.id);
         AppFeedback.show(
           context,
-          message: isFavorite
-              ? 'Dihapus dari favorit'
-              : 'Ditambahkan ke favorit',
+          message:
+              isFavorite ? 'Dihapus dari favorit' : 'Ditambahkan ke favorit',
           type: AppFeedbackType.info,
           floating: true,
         );
@@ -1445,8 +1251,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                               final key = name.trim().toLowerCase();
           if (key.isEmpty || key.contains('tanpa')) return [];
                               final all = groupedLookups[key] ?? [];
-          final filtered =
-              all.where((l) => l.ukuran == effectiveSize).toList();
+          final filtered = all.where((l) => l.ukuran == effectiveSize).toList();
                               return filtered.isNotEmpty ? filtered : all;
                             }
 
@@ -1530,59 +1335,57 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                               return parts.join(' - ');
                             }
 
-        final kasurSkuFinal =
-            resolveSku(_isKasurCustom, effectiveKasurLookup);
+        final kasurSkuFinal = resolveSku(_isKasurCustom, effectiveKasurLookup);
                             final kasurKainFinal = resolveKain(
             _isKasurCustom, effectiveKasurLookup, _customKasurCtrl.text.trim());
                             final kasurWarnaFinal = resolveWarna(
             _isKasurCustom, effectiveKasurLookup, _customKasurCtrl.text.trim());
 
-                            final divanSkuFinal = savingAsSet
-            ? resolveSku(_isDivanCustom, effectiveDivanLookup)
-                                : '';
+        final divanSkuFinal =
+            savingAsSet ? resolveSku(_isDivanCustom, effectiveDivanLookup) : '';
                             final divanKainFinal = savingAsSet
-                                ? resolveKain(
-                _isDivanCustom, effectiveDivanLookup, _customDivanCtrl.text.trim())
+            ? resolveKain(_isDivanCustom, effectiveDivanLookup,
+                _customDivanCtrl.text.trim())
                                 : '';
                             final divanWarnaFinal = savingAsSet
-                                ? resolveWarna(
-                _isDivanCustom, effectiveDivanLookup, _customDivanCtrl.text.trim())
+            ? resolveWarna(_isDivanCustom, effectiveDivanLookup,
+                _customDivanCtrl.text.trim())
                                 : '';
 
                             final hbSkuFinal = savingAsSet
             ? resolveSku(_isHeadboardCustom, effectiveHeadboardLookup)
                                 : '';
                             final hbKainFinal = savingAsSet
-                                ? resolveKain(
-                _isHeadboardCustom, effectiveHeadboardLookup, _customHbCtrl.text.trim())
+            ? resolveKain(_isHeadboardCustom, effectiveHeadboardLookup,
+                _customHbCtrl.text.trim())
                                 : '';
                             final hbWarnaFinal = savingAsSet
-                                ? resolveWarna(
-                _isHeadboardCustom, effectiveHeadboardLookup, _customHbCtrl.text.trim())
+            ? resolveWarna(_isHeadboardCustom, effectiveHeadboardLookup,
+                _customHbCtrl.text.trim())
                                 : '';
 
                             final sorongSkuFinal = savingAsSet
             ? resolveSku(_isSorongCustom, effectiveSorongLookup)
                                 : '';
                             final sorongKainFinal = savingAsSet
-                                ? resolveKain(
-                _isSorongCustom, effectiveSorongLookup, _customSorongCtrl.text.trim())
+            ? resolveKain(_isSorongCustom, effectiveSorongLookup,
+                _customSorongCtrl.text.trim())
                                 : '';
                             final sorongWarnaFinal = savingAsSet
-                                ? resolveWarna(
-                _isSorongCustom, effectiveSorongLookup, _customSorongCtrl.text.trim())
-                                : '';
+            ? resolveWarna(_isSorongCustom, effectiveSorongLookup,
+                _customSorongCtrl.text.trim())
+            : '';
 
                             final descLines = <String>[];
                             if (activeProduct.kasur.isNotEmpty) {
-          descLines.add(componentDesc(
-              activeProduct.kasur, kasurSkuFinal, kasurKainFinal, kasurWarnaFinal));
+          descLines.add(componentDesc(activeProduct.kasur, kasurSkuFinal,
+              kasurKainFinal, kasurWarnaFinal));
                             }
                             if (savingAsSet) {
           if (effectiveDivan.toLowerCase() != 'tanpa divan' &&
                                   divanSkuFinal.isNotEmpty) {
-            descLines.add(componentDesc(
-                effectiveDivan, divanSkuFinal, divanKainFinal, divanWarnaFinal));
+            descLines.add(componentDesc(effectiveDivan, divanSkuFinal,
+                divanKainFinal, divanWarnaFinal));
           }
           if (effectiveHeadboard.toLowerCase() != 'tanpa headboard' &&
                                   hbSkuFinal.isNotEmpty) {
@@ -1591,8 +1394,8 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
           }
           if (effectiveSorong.toLowerCase() != 'tanpa sorong' &&
                                   sorongSkuFinal.isNotEmpty) {
-            descLines.add(componentDesc(
-                effectiveSorong, sorongSkuFinal, sorongKainFinal, sorongWarnaFinal));
+            descLines.add(componentDesc(effectiveSorong, sorongSkuFinal,
+                sorongKainFinal, sorongWarnaFinal));
                               }
                             }
                             final componentDescNote = descLines.join('\n');
@@ -1657,15 +1460,12 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                               );
                             }).toList();
 
-                            final discPct1 = appliedDiscounts.isNotEmpty
-                                ? appliedDiscounts[0] * 100
-                                : 0.0;
-                            final discPct2 = appliedDiscounts.length >= 2
-                                ? appliedDiscounts[1] * 100
-                                : 0.0;
-                            final discPct3 = appliedDiscounts.length >= 3
-                                ? appliedDiscounts[2] * 100
-                                : 0.0;
+        final discPct1 =
+            appliedDiscounts.isNotEmpty ? appliedDiscounts[0] * 100 : 0.0;
+        final discPct2 =
+            appliedDiscounts.length >= 2 ? appliedDiscounts[1] * 100 : 0.0;
+        final discPct3 =
+            appliedDiscounts.length >= 3 ? appliedDiscounts[2] * 100 : 0.0;
 
                             final snapshotItem = CartItem(
                               product: configuredProduct,

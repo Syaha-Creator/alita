@@ -20,14 +20,14 @@ class CartSheetFooter extends ConsumerWidget {
     final hasSelection = ref.watch(selectedCartItemIdsProvider).isNotEmpty;
 
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.surface,
         boxShadow: [
           BoxShadow(
             color: AppColors.shadow,
             blurRadius: 12,
             spreadRadius: 0,
-            offset: const Offset(0, -4),
+            offset: Offset(0, -4),
           ),
         ],
       ),
@@ -66,26 +66,18 @@ class CartSheetFooter extends ConsumerWidget {
                               .read(selectedCartItemIdsProvider.notifier)
                               .toggleSelectAll(v ?? false);
                         },
-                        activeColor: AppColors.accent,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(4),
-                        ),
                         visualDensity: const VisualDensity(
                           horizontal: -4,
                           vertical: -4,
                         ),
-                        materialTapTargetSize:
-                            MaterialTapTargetSize.shrinkWrap,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         'Pilih Semua',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleSmall
-                            ?.copyWith(
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w600,
-                              color: const Color(0xFF424242),
+                              color: AppColors.textPrimary,
                             ),
                       ),
                     ],
@@ -101,19 +93,17 @@ class CartSheetFooter extends ConsumerWidget {
                   .textTheme
                   .titleLarge
                   ?.copyWith(fontWeight: FontWeight.w600),
-              valueStyle:
-                  Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.accent,
-                      ),
+              valueStyle: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.accent,
+                  ),
             ),
             const SizedBox(height: 8),
             ActionButtonBar(
               height: 50,
               borderRadius: 14,
               primaryLabel: 'Checkout',
-              primaryLeading:
-                  const Icon(Icons.shopping_bag_outlined, size: 20),
+              primaryLeading: const Icon(Icons.shopping_bag_outlined, size: 20),
               primaryLabelStyle:
                   Theme.of(context).textTheme.titleMedium?.copyWith(
                         color: AppColors.surface,

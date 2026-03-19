@@ -66,6 +66,8 @@ dependencies:
   firebase_crashlytics: ^4.3.2
   cloud_functions: ^5.4.1
   firebase_messaging: ^15.2.4
+  upgrader: ^12.5.0
+  package_info_plus: ^8.0.0
 
 dev_dependencies:
   flutter_test:

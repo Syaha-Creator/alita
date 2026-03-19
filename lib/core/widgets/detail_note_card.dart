@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 
 /// Reusable note card for detail pages.
 class DetailNoteCard extends StatelessWidget {
@@ -17,10 +18,10 @@ class DetailNoteCard extends StatelessWidget {
     this.title = 'Catatan Pesanan',
     required this.note,
     this.borderRadius = 12,
-    this.backgroundColor = const Color(0xFFFFFBEB),
-    this.borderColor = const Color(0xFFFFE082),
-    this.iconColor = const Color(0xFFFF8F00),
-    this.titleColor = const Color(0xFFFF8F00),
+    this.backgroundColor = AppColors.warningLight,
+    this.borderColor = AppColors.warningBorder,
+    this.iconColor = AppColors.warning,
+    this.titleColor = AppColors.warning,
     this.titleStyle,
     this.noteStyle,
   });
@@ -65,7 +66,7 @@ class DetailNoteCard extends StatelessWidget {
                       noteStyle ??
                       const TextStyle(
                         fontSize: 13,
-                        color: Color(0xFF5D4037),
+                        color: AppColors.textPrimary,
                         height: 1.4,
                       ),
                 ),

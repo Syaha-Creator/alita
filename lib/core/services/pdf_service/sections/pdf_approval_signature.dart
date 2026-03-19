@@ -55,8 +55,8 @@ abstract final class PdfApprovalSignature {
             mainAxisSize: pw.MainAxisSize.min,
             children: [
               pw.Text(displayLevel,
-                  style: pw.TextStyle(
-                      fontSize: 8, fontWeight: pw.FontWeight.bold),
+                  style:
+                      pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
                   textAlign: pw.TextAlign.center),
               pw.SizedBox(height: 4),
               pw.SizedBox(
@@ -156,8 +156,7 @@ abstract final class PdfApprovalSignature {
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
         pw.Text('Syarat - Syarat Pembelian :',
-            style:
-                pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8)),
+            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8)),
         pw.SizedBox(height: 3),
         ...terms.asMap().entries.map((e) {
           final idx = e.key;

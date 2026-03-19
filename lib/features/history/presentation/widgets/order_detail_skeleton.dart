@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
+import '../../../../core/theme/app_colors.dart';
 
 /// Skeleton loading placeholder that mirrors the Order Detail page layout.
 class OrderDetailSkeleton extends StatelessWidget {
@@ -8,8 +9,8 @@ class OrderDetailSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Shimmer.fromColors(
-      baseColor: Colors.grey.shade200,
-      highlightColor: Colors.grey.shade50,
+      baseColor: AppColors.border,
+      highlightColor: AppColors.surfaceLight,
       child: SingleChildScrollView(
         physics: const NeverScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 48),
@@ -35,7 +36,7 @@ class _StatusHeaderSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -44,7 +45,7 @@ class _StatusHeaderSkeleton extends StatelessWidget {
           Container(
             height: 36,
             decoration: const BoxDecoration(
-              color: Colors.white,
+              color: AppColors.surface,
               borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
             ),
           ),
@@ -57,7 +58,7 @@ class _StatusHeaderSkeleton extends StatelessWidget {
                 const SizedBox(height: 6),
                 _pill(160, 14),
                 const SizedBox(height: 16),
-                Container(height: 1, color: Colors.white),
+                Container(height: 1, color: AppColors.surface),
                 const SizedBox(height: 14),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -88,7 +89,7 @@ class _ContactCardSkeleton extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -99,7 +100,7 @@ class _ContactCardSkeleton extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const CircleAvatar(radius: 20, backgroundColor: Colors.white),
+              const CircleAvatar(radius: 20, backgroundColor: AppColors.surface),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -129,7 +130,7 @@ class _ProductsSkeleton extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -145,7 +146,7 @@ class _ProductsSkeleton extends StatelessWidget {
                   width: 24,
                   height: 24,
                   decoration: const BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.surface,
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -170,12 +171,12 @@ class _ProductsSkeleton extends StatelessWidget {
             ),
             if (i < 2) ...[
               const SizedBox(height: 14),
-              Container(height: 1, color: Colors.white),
+              Container(height: 1, color: AppColors.surface),
               const SizedBox(height: 14),
             ],
           ],
           const SizedBox(height: 14),
-          Container(height: 1, color: Colors.white),
+          Container(height: 1, color: AppColors.surface),
           const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -198,7 +199,7 @@ class _TimelineSkeleton extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -216,12 +217,12 @@ class _TimelineSkeleton extends StatelessWidget {
                       width: 12,
                       height: 12,
                       decoration: const BoxDecoration(
-                        color: Colors.white,
+                        color: AppColors.surface,
                         shape: BoxShape.circle,
                       ),
                     ),
                     if (i < 1)
-                      Container(width: 2, height: 34, color: Colors.white),
+                      Container(width: 2, height: 34, color: AppColors.surface),
                   ],
                 ),
                 const SizedBox(width: 10),
@@ -254,7 +255,7 @@ Widget _pill(double width, double height) {
     width: width,
     height: height,
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: AppColors.surface,
       borderRadius: BorderRadius.circular(height / 2),
     ),
   );

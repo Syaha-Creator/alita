@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 
 /// Reusable two-column info row used in detail pages.
 ///
@@ -34,7 +35,7 @@ class DetailInfoRow extends StatelessWidget {
             label,
             style:
                 labelStyle ??
-                const TextStyle(color: Color(0xFF9CA3AF), fontSize: 12),
+                const TextStyle(color: AppColors.textTertiary, fontSize: 12),
           ),
         ),
         Expanded(
@@ -47,7 +48,7 @@ class DetailInfoRow extends StatelessWidget {
                 const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF374151),
+                  color: AppColors.textPrimary,
                 ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,

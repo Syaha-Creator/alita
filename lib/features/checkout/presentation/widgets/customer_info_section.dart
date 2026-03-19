@@ -62,12 +62,12 @@ class CustomerInfoSection extends StatelessWidget {
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.import_contacts, size: 18, color: AppColors.primary),
+                  Icon(Icons.import_contacts, size: 18, color: AppColors.accent),
                   SizedBox(width: 6),
                   Text(
                     'Pilih Kontak',
                     style: TextStyle(
-                      color: AppColors.primary,
+                      color: AppColors.accent,
                       fontWeight: FontWeight.w600,
                       fontSize: 13,
                     ),
@@ -144,7 +144,7 @@ class CustomerInfoSection extends StatelessWidget {
                   ),
                   child: IconButton(
                     padding: EdgeInsets.zero,
-                    icon: const Icon(Icons.add, color: AppColors.primary),
+                    icon: const Icon(Icons.add, color: AppColors.accent),
                     tooltip: 'Tambah No. Kedua',
                     onPressed: onToggleBackupPhone,
                   ),
@@ -188,7 +188,6 @@ class CustomerInfoSection extends StatelessWidget {
                 child: Checkbox(
                   value: shouldSaveCustomerContact,
                   onChanged: (v) => onToggleSaveContact(v ?? true),
-                  activeColor: AppColors.primary,
                 ),
               ),
               const SizedBox(width: 8),

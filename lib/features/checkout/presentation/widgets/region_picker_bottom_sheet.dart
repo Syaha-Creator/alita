@@ -110,14 +110,14 @@ class _RegionPickerBottomSheetState extends State<RegionPickerBottomSheet> {
           ? _fullList
           : _fullList
               .where(
-                  (item) => (item['name'] as String).toLowerCase().contains(q))
+                  (item) => (item['name']?.toString() ?? '').toLowerCase().contains(q))
               .toList();
     });
   }
 
   void _onItemTap(Map<String, dynamic> item) {
-    final id = item['id'] as String;
-    final name = item['name'] as String;
+    final id = item['id']?.toString() ?? '';
+    final name = item['name']?.toString() ?? '';
 
     if (_step == 1) {
       _selectedProvId = id;
@@ -160,7 +160,7 @@ class _RegionPickerBottomSheetState extends State<RegionPickerBottomSheet> {
     return Container(
       height: MediaQuery.of(context).size.height * 0.72,
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(
@@ -172,7 +172,7 @@ class _RegionPickerBottomSheetState extends State<RegionPickerBottomSheet> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: const Color(0xFFDDDDDD),
+                color: AppColors.border,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -234,15 +234,15 @@ class _RegionPickerBottomSheetState extends State<RegionPickerBottomSheet> {
               textStyle: const TextStyle(fontSize: 14),
               hintStyle: const TextStyle(
                 fontSize: 13,
-                color: Color(0xFFBBBBBB),
+                color: AppColors.textTertiary,
               ),
-              prefixIconColor: const Color(0xFFAAAAAA),
+              prefixIconColor: AppColors.textTertiary,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
               ),
               filled: true,
-              fillColor: const Color(0xFFF2F2F2),
+              fillColor: AppColors.surfaceLight,
               contentPadding: const EdgeInsets.symmetric(vertical: 0),
             ),
           ),
@@ -268,7 +268,7 @@ class _RegionPickerBottomSheetState extends State<RegionPickerBottomSheet> {
           width: current ? 20 : 8,
           height: 6,
           decoration: BoxDecoration(
-            color: active ? AppColors.primary : const Color(0xFFDDDDDD),
+            color: active ? AppColors.accent : AppColors.border,
             borderRadius: BorderRadius.circular(3),
           ),
         );
@@ -279,7 +279,7 @@ class _RegionPickerBottomSheetState extends State<RegionPickerBottomSheet> {
   Widget _buildBody() {
     if (_isLoading) {
       return const Center(
-        child: CircularProgressIndicator.adaptive(valueColor: AlwaysStoppedAnimation(AppColors.primary)),
+        child: CircularProgressIndicator.adaptive(valueColor: AlwaysStoppedAnimation(AppColors.accent)),
       );
     }
     if (_error.isNotEmpty) {
@@ -288,7 +288,7 @@ class _RegionPickerBottomSheetState extends State<RegionPickerBottomSheet> {
           padding: const EdgeInsets.all(24),
           child: Text(
             _error,
-            style: const TextStyle(color: Color(0xFF999999), fontSize: 14),
+            style: const TextStyle(color: AppColors.textTertiary, fontSize: 14),
             textAlign: TextAlign.center,
           ),
         ),
@@ -298,7 +298,7 @@ class _RegionPickerBottomSheetState extends State<RegionPickerBottomSheet> {
       return const Center(
         child: Text(
           'Tidak ada hasil.',
-          style: TextStyle(color: Color(0xFF999999), fontSize: 14),
+          style: TextStyle(color: AppColors.textTertiary, fontSize: 14),
         ),
       );
     }
@@ -310,19 +310,19 @@ class _RegionPickerBottomSheetState extends State<RegionPickerBottomSheet> {
         return ListTile(
           dense: true,
           title: Text(
-            item['name'] as String,
+            item['name']?.toString() ?? '',
             style: const TextStyle(fontSize: 14),
           ),
           trailing: _step < 3
               ? const Icon(
                   Icons.chevron_right,
                   size: 20,
-                  color: Color(0xFFBBBBBB),
+                  color: AppColors.textTertiary,
                 )
               : const Icon(
                   Icons.check_circle_outline,
                   size: 18,
-                  color: AppColors.primary,
+                  color: AppColors.accent,
                 ),
           onTap: () => _onItemTap(item),
         );

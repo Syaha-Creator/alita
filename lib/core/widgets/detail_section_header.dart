@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import '../theme/app_layout_tokens.dart';
 
 /// Reusable section header for detail cards.
@@ -24,14 +25,14 @@ class DetailSectionHeader extends StatelessWidget {
       padding: padding,
       child: Row(
         children: [
-          Icon(icon, size: 18, color: Colors.blueGrey),
+          Icon(icon, size: 18, color: AppColors.textSecondary),
           const SizedBox(width: AppLayoutTokens.space8),
           Text(
             title,
             style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              color: AppColors.textPrimary,
             ),
           ),
         ],

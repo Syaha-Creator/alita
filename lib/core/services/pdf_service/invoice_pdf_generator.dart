@@ -91,8 +91,7 @@ class InvoicePdfGenerator {
   }
 
   /// Builds a filesystem-safe PDF file name from order data.
-  static String _buildFileName(OrderHistory order,
-      {required bool isInternal}) {
+  static String _buildFileName(OrderHistory order, {required bool isInternal}) {
     final suffix = isInternal ? '' : '';
     final customer = _sanitize(order.customerName);
     final noSp = _sanitize(order.noSp);
@@ -138,11 +137,10 @@ class InvoicePdfGenerator {
     final discounts = PdfHelpers.toListMap(
         orderData['order_letter_discounts'] ?? orderData['discount_data']);
     final grandTotal = PdfHelpers.dbl(letter['extended_amount']);
-    final tglPelunasan =
-        _extractRepaymentDate(orderData, payments, grandTotal);
+    final tglPelunasan = _extractRepaymentDate(orderData, payments, grandTotal);
     final salesCode = orderData['sales_code']?.toString() ?? '';
-    final salesIdentity = _resolveSalesIdentity(orderData, details, letter,
-        salesCode: salesCode);
+    final salesIdentity =
+        _resolveSalesIdentity(orderData, details, letter, salesCode: salesCode);
 
     final fonts = await _loadFonts();
     final logos = await _loadLogos(letter['channel']?.toString());
@@ -153,7 +151,12 @@ class InvoicePdfGenerator {
       approveStamp = await _loadImage('assets/images/approve.png');
     }
 
-    final theme = pw.ThemeData.withFont(base: fonts.$1, bold: fonts.$2);
+    final theme = pw.ThemeData.withFont(
+      base: fonts.$1,
+      bold: fonts.$2,
+      italic: fonts.$3,
+      boldItalic: fonts.$2,
+    );
     final pdf = pw.Document();
 
     pdf.addPage(
@@ -198,9 +201,10 @@ class InvoicePdfGenerator {
   // FONT & ASSET LOADING
   // ═══════════════════════════════════════════════════════════════════════════
 
-  static Future<(pw.Font, pw.Font)> _loadFonts() async {
+  static Future<(pw.Font, pw.Font, pw.Font)> _loadFonts() async {
     pw.Font base = pw.Font.helvetica();
     pw.Font bold = pw.Font.helveticaBold();
+    pw.Font italic = pw.Font.helveticaOblique();
     try {
       final d = await rootBundle
           .load('assets/fonts/Inter-VariableFont_opsz,wght.ttf');
@@ -215,7 +219,12 @@ class InvoicePdfGenerator {
         bold = pw.Font.ttf(d);
       } catch (_) {}
     }
-    return (base, bold);
+    try {
+      final d = await rootBundle
+          .load('assets/fonts/Inter-Italic-VariableFont_opsz,wght.ttf');
+      italic = pw.Font.ttf(d);
+    } catch (_) {}
+    return (base, bold, italic);
   }
 
   static Future<pw.ImageProvider?> _loadImage(String path) async {
@@ -288,9 +297,7 @@ class InvoicePdfGenerator {
                 isApproved
                     ? PdfColors.green300.green
                     : PdfColors.orange300.green,
-                isApproved
-                    ? PdfColors.green300.blue
-                    : PdfColors.orange300.blue,
+                isApproved ? PdfColors.green300.blue : PdfColors.orange300.blue,
                 0.10,
               ),
               fontWeight: pw.FontWeight.bold,
@@ -515,9 +522,8 @@ class InvoicePdfGenerator {
     }
 
     if (salesName.isEmpty) {
-      salesName = creatorId.isNotEmpty
-          ? 'Admin ($creatorId)'
-          : 'SLEEP CONSULTANT';
+      salesName =
+          creatorId.isNotEmpty ? 'Admin ($creatorId)' : 'SLEEP CONSULTANT';
     }
 
     return (salesName, salesCode);

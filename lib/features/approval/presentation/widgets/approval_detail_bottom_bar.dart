@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/services/connectivity_service.dart';
+import '../../../../core/theme/app_colors.dart';
 
 enum ApprovalBarState { pendingAction, completed, viewer, loading }
 
@@ -27,19 +28,19 @@ class ApprovalDetailBottomBar extends ConsumerWidget {
       ApprovalBarState.pendingAction => _buildActionButtons(context, ref),
       ApprovalBarState.completed => _buildBanner(
           icon: Icons.check_circle_rounded,
-          iconColor: const Color(0xFF16A34A),
+          iconColor: AppColors.success,
           text: 'Anda sudah menyelesaikan persetujuan ini',
-          textColor: const Color(0xFF15803D),
-          bgColor: const Color(0xFFF0FDF4),
-          borderColor: const Color(0xFF86EFAC),
+          textColor: AppColors.success,
+          bgColor: AppColors.success.withValues(alpha: 0.08),
+          borderColor: AppColors.success.withValues(alpha: 0.4),
         ),
       ApprovalBarState.viewer => _buildBanner(
           icon: Icons.hourglass_top_rounded,
-          iconColor: const Color(0xFFF59E0B),
+          iconColor: AppColors.warning,
           text: 'Menunggu persetujuan pihak terkait',
-          textColor: const Color(0xFF92400E),
-          bgColor: const Color(0xFFFFFBEB),
-          borderColor: const Color(0xFFFDE68A),
+          textColor: AppColors.warning,
+          bgColor: AppColors.warning.withValues(alpha: 0.08),
+          borderColor: AppColors.warning.withValues(alpha: 0.3),
         ),
     };
   }
@@ -56,7 +57,7 @@ class ApprovalDetailBottomBar extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surface,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.05),
@@ -101,7 +102,7 @@ class ApprovalDetailBottomBar extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surface,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.05),
@@ -114,19 +115,19 @@ class ApprovalDetailBottomBar extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (isOffline)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
+              const Padding(
+                padding: EdgeInsets.only(bottom: 8),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.wifi_off_rounded,
-                        size: 14, color: Colors.orange),
-                    const SizedBox(width: 6),
+                    Icon(Icons.wifi_off_rounded,
+                        size: 14, color: AppColors.warning),
+                    SizedBox(width: 6),
                     Text(
                       'Fungsi ini membutuhkan internet',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.orange.shade800,
+                        color: AppColors.warning,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -144,8 +145,8 @@ class ApprovalDetailBottomBar extends ConsumerWidget {
                             onReject();
                           },
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      side: const BorderSide(color: Colors.red),
+                      foregroundColor: AppColors.error,
+                      side: const BorderSide(color: AppColors.error),
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -167,8 +168,8 @@ class ApprovalDetailBottomBar extends ConsumerWidget {
                             onApprove();
                           },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
+                      backgroundColor: AppColors.success,
+                      foregroundColor: AppColors.onPrimary,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),

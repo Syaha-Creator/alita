@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 
 /// Reusable totals summary section for detail product cards.
 class DetailTotalsSummarySection extends StatelessWidget {
@@ -16,7 +17,7 @@ class DetailTotalsSummarySection extends StatelessWidget {
     return Column(
       children: [
         const SizedBox(height: 14),
-        Container(height: 1, color: const Color(0xFFEEEEEE)),
+        Container(height: 1, color: AppColors.border),
         const SizedBox(height: 12),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -26,14 +27,14 @@ class DetailTotalsSummarySection extends StatelessWidget {
               style: TextStyle(
                 fontWeight: FontWeight.w500,
                 fontSize: 13,
-                color: Color(0xFF6B7280),
+                color: AppColors.textSecondary,
               ),
             ),
             Text(
               postageText,
               style: const TextStyle(
                 fontSize: 13,
-                color: Color(0xFF374151),
+                color: AppColors.textPrimary,
               ),
             ),
           ],
@@ -47,7 +48,7 @@ class DetailTotalsSummarySection extends StatelessWidget {
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 13,
-                color: Color(0xFF374151),
+                color: AppColors.textPrimary,
               ),
             ),
             Text(
@@ -55,7 +56,7 @@ class DetailTotalsSummarySection extends StatelessWidget {
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
-                color: Colors.pink,
+                color: AppColors.accent,
               ),
             ),
           ],

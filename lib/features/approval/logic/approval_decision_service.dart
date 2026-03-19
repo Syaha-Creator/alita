@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:flutter/foundation.dart';
 import '../../../core/enums/order_status.dart';
 import '../../../core/services/api_client.dart';
 import '../../../core/utils/log.dart';
@@ -92,7 +91,7 @@ class ApprovalDecisionService {
     double? longitude,
     String? lokasiApproval,
   }) async {
-    final int discountId = (disc['order_letter_discount_id'] as num).toInt();
+    final int discountId = (disc['order_letter_discount_id'] as num?)?.toInt() ?? 0;
     final int levelId = (disc['approver_level_id'] as num?)?.toInt() ?? 2;
 
     // 1) POST approval log
@@ -227,10 +226,7 @@ class ApprovalDecisionService {
           userId: approverId,
           accessToken: token,
         );
-        if (fcmToken == null || fcmToken.isEmpty) {
-          debugPrint('FCM token kosong untuk approver ID $approverId');
-          return;
-        }
+        if (fcmToken == null || fcmToken.isEmpty) return;
 
         await _callCloudFunction(
           functionName: 'sendApprovalNotification',
@@ -240,11 +236,10 @@ class ApprovalDecisionService {
             'sender_name': senderName,
           },
         );
-        debugPrint('Notifikasi berhasil dikirim ke approver selanjutnya (ID: $approverId)');
       } else {
         // Semua sudah approve → kirim notif ke creator
         final order = orderData['order_letter'] as Map<String, dynamic>? ?? {};
-        final creatorId = order['user_id']?.toString() ?? '';
+        final creatorId = order['creator']?.toString() ?? order['user_id']?.toString() ?? '';
         if (creatorId.isEmpty) return;
 
         final fcmToken = await _fetchFcmToken(
@@ -262,7 +257,6 @@ class ApprovalDecisionService {
             'type': 'fully_approved',
           },
         );
-        debugPrint('Notifikasi fully-approved dikirim ke creator SP $spNumber');
       }
     } catch (e, st) {
       Log.error(e, st, reason: 'triggerNextApprovalNotification');
@@ -329,7 +323,10 @@ class ApprovalDecisionService {
       );
 
       if (res.statusCode != 200) {
-        debugPrint('Gagal fetch FCM token (status ${res.statusCode})');
+        Log.warning(
+          'FCM token fetch failed (status ${res.statusCode})',
+          tag: 'ApprovalDecisionService',
+        );
         return null;
       }
 

@@ -33,7 +33,7 @@ class AsyncStateView<T> extends StatelessWidget {
         if (loading != null) return loading!;
         if (!showDefaultLoading) return const SizedBox.shrink();
         return const Center(
-          child: CircularProgressIndicator.adaptive(valueColor: AlwaysStoppedAnimation(AppColors.primary)),
+          child: CircularProgressIndicator.adaptive(valueColor: AlwaysStoppedAnimation(AppColors.accent)),
         );
       },
       error: (error, stackTrace) {

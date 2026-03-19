@@ -135,7 +135,8 @@ class ProductPriceSection extends StatelessWidget {
           Flexible(
             child: Text(
               title,
-              style: TextStyle(color: Colors.grey[800], fontSize: 13),
+              style:
+                  const TextStyle(color: AppColors.textSecondary, fontSize: 13),
             ),
           ),
           Column(
@@ -151,7 +152,7 @@ class ProductPriceSection extends StatelessWidget {
                 ),
                 originalPriceStyle: const TextStyle(
                   fontSize: 11,
-                  color: Colors.grey,
+                  color: AppColors.textTertiary,
                   decoration: TextDecoration.lineThrough,
                 ),
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -166,16 +167,17 @@ class ProductPriceSection extends StatelessWidget {
   Widget _buildDiscountTile() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.pink.withValues(alpha: 0.05),
+        color: AppColors.accent.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.pink.withValues(alpha: 0.3)),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
       ),
       child: ListTile(
         dense: true,
-        leading: const Icon(Icons.local_offer, color: Colors.pink),
+        leading: const Icon(Icons.local_offer, color: AppColors.accent),
         title: const Text(
           'Diskon Tambahan',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.pink),
+          style:
+              TextStyle(fontWeight: FontWeight.bold, color: AppColors.accent),
         ),
         subtitle: appliedDiscounts.isEmpty
             ? const Text(
@@ -191,7 +193,7 @@ class ProductPriceSection extends StatelessWidget {
                     .join(' + '),
                 style: const TextStyle(fontSize: 12),
               ),
-        trailing: const Icon(Icons.chevron_right, color: Colors.pink),
+        trailing: const Icon(Icons.chevron_right, color: AppColors.accent),
         onTap: onDiscountTap,
       ),
     );
@@ -212,12 +214,12 @@ class ProductPriceSection extends StatelessWidget {
             style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
           ),
           const SizedBox(width: 12),
-          Text(
+          const Text(
             'Rp ',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: Colors.grey[800],
+              color: AppColors.textSecondary,
             ),
           ),
           Expanded(
@@ -267,10 +269,10 @@ class ProductPriceSection extends StatelessWidget {
               message: 'Hapus semua diskon tambahan',
               child: GestureDetector(
                 onTap: onResetDiscounts,
-                child: Icon(
+                child: const Icon(
                   Icons.refresh,
                   size: 18,
-                  color: Colors.grey[600],
+                  color: AppColors.textSecondary,
                 ),
               ),
             ),
@@ -306,8 +308,7 @@ class ProductPriceSection extends StatelessWidget {
   }
 
   Widget _buildBonusSection(BuildContext context) {
-    final displayBonuses =
-        isBonusCustomized ? customBonuses : defaultBonuses;
+    final displayBonuses = isBonusCustomized ? customBonuses : defaultBonuses;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -321,7 +322,7 @@ class ProductPriceSection extends StatelessWidget {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: AppColors.textPrimary,
               ),
             ),
             InkWell(
@@ -339,10 +340,10 @@ class ProductPriceSection extends StatelessWidget {
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.pink.withValues(alpha: 0.08),
+                  color: AppColors.accent.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: Colors.pink.withValues(alpha: 0.3),
+                    color: AppColors.accent.withValues(alpha: 0.3),
                     width: 1,
                   ),
                 ),
@@ -352,7 +353,7 @@ class ProductPriceSection extends StatelessWidget {
                     Icon(
                       Icons.edit_outlined,
                       size: 15,
-                      color: Colors.pink,
+                      color: AppColors.accent,
                     ),
                     SizedBox(width: 6),
                     Text(
@@ -360,7 +361,7 @@ class ProductPriceSection extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: Colors.pink,
+                        color: AppColors.accent,
                       ),
                     ),
                   ],
@@ -371,9 +372,9 @@ class ProductPriceSection extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         if (displayBonuses.isEmpty)
-          Text(
+          const Text(
             'Tidak ada bonus tambahan.',
-            style: TextStyle(color: Colors.grey[600], fontSize: 13),
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
           )
         else
           Column(
@@ -390,14 +391,14 @@ class ProductPriceSection extends StatelessWidget {
                     const Icon(
                       Icons.card_giftcard,
                       size: 16,
-                      color: Colors.pink,
+                      color: AppColors.accent,
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         '${qty}x $name',
-                        style: TextStyle(
-                          color: Colors.grey[800],
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
                           fontSize: 13,
                         ),
                       ),
@@ -411,7 +412,7 @@ class ProductPriceSection extends StatelessWidget {
                         ).format(pl),
                         style: const TextStyle(
                           fontSize: 12,
-                          color: Colors.grey,
+                          color: AppColors.textTertiary,
                           decoration: TextDecoration.lineThrough,
                         ),
                       ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_dropdown_field.dart';
 import '../../../../core/widgets/checkout_input_decoration.dart';
 import '../../../../core/widgets/form_field_label.dart';
 
@@ -24,6 +25,8 @@ class PaymentMethodChannelSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final channels = paymentChannelsMap[paymentMethod] ?? const <String>[];
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -33,32 +36,19 @@ class PaymentMethodChannelSection extends StatelessWidget {
             children: [
               const FormFieldLabel('Metode *'),
               const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                initialValue: paymentMethod,
-                hint: const Text(
-                  'Pilih Metode',
-                  style: TextStyle(fontSize: 12),
-                ),
-                isExpanded: true,
+              AppDropdownField<String>(
+                value: paymentMethod,
+                hintText: 'Pilih Metode',
+                items: paymentChannelsMap.keys.toList(),
+                labelBuilder: (key) => key,
                 decoration: CheckoutInputDecoration.dropdown(
                   contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
+                    horizontal: 14,
                     vertical: 12,
                   ),
                   isDense: true,
                   filled: false,
                 ),
-                items: paymentChannelsMap.keys
-                    .map(
-                      (key) => DropdownMenuItem(
-                        value: key,
-                        child: Text(
-                          key,
-                          style: const TextStyle(fontSize: 13),
-                        ),
-                      ),
-                    )
-                    .toList(),
                 validator: (value) =>
                     value == null ? 'Metode wajib dipilih' : null,
                 onChanged: onPaymentMethodChanged,
@@ -79,59 +69,44 @@ class PaymentMethodChannelSection extends StatelessWidget {
                   textInputAction: TextInputAction.next,
                   decoration: CheckoutInputDecoration.form(
                     hintText: 'Ketik nama bank / channel',
-                    hintStyle: TextStyle(
+                    hintStyle: const TextStyle(
                       fontSize: 12,
-                      color: Colors.grey.shade400,
+                      color: AppColors.textTertiary,
                     ),
                     focusedBorderSide: const BorderSide(
-                      color: AppColors.primary,
+                      color: AppColors.accent,
                       width: 2,
                     ),
                     contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
+                      horizontal: 14,
                       vertical: 12,
                     ),
                     isDense: true,
-                    fillColor: Colors.grey.shade50,
+                    fillColor: AppColors.surfaceLight,
                   ),
                 )
               else
-                DropdownButtonFormField<String>(
-                  initialValue: paymentBank,
-                  hint: const Text(
-                    'Pilih Channel',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                  isExpanded: true,
+                AppDropdownField<String>(
+                  value: paymentBank,
+                  hintText: 'Pilih Channel',
+                  items: channels,
+                  labelBuilder: (ch) => ch,
                   decoration: CheckoutInputDecoration.dropdown(
-                    enabledBorderSide: BorderSide(
-                      color: paymentMethod == null
-                          ? const Color(0xFFEEEEEE)
-                          : const Color(0xFFE0E0E0),
+                    enabledBorderSide: const BorderSide(
+                      color: AppColors.border,
                     ),
                     contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
+                      horizontal: 14,
                       vertical: 12,
                     ),
                     isDense: true,
                     filled: paymentMethod == null,
-                    fillColor: const Color(0xFFF5F5F5),
+                    fillColor: AppColors.surfaceLight,
                   ),
-                  items: (paymentChannelsMap[paymentMethod] ?? [])
-                      .map(
-                        (ch) => DropdownMenuItem(
-                          value: ch,
-                          child: Text(
-                            ch,
-                            style: const TextStyle(fontSize: 13),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      )
-                      .toList(),
                   validator: paymentMethod == null || paymentMethod == 'Lainnya'
                       ? null
-                      : (value) => value == null ? 'Channel wajib dipilih' : null,
+                      : (value) =>
+                          value == null ? 'Channel wajib dipilih' : null,
                   onChanged: paymentMethod == null ? null : onPaymentBankChanged,
                 ),
             ],
@@ -140,5 +115,4 @@ class PaymentMethodChannelSection extends StatelessWidget {
       ],
     );
   }
-
 }

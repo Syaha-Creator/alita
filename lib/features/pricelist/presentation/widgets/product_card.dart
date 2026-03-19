@@ -23,12 +23,12 @@ class ProductCard extends ConsumerWidget {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
+          boxShadow: const [
             BoxShadow(
               color: AppColors.shadow,
               blurRadius: 12,
               spreadRadius: 0,
-              offset: const Offset(0, 4),
+              offset: Offset(0, 4),
             ),
           ],
         ),
@@ -111,9 +111,9 @@ class ProductCard extends ConsumerWidget {
                   Text(
                     product.name,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      height: 1.3,
-                    ),
+                          fontWeight: FontWeight.w600,
+                          height: 1.3,
+                        ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -124,8 +124,8 @@ class ProductCard extends ConsumerWidget {
                   Text(
                     product.category,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textTertiary,
-                    ),
+                          color: AppColors.textTertiary,
+                        ),
                   ),
 
                   const SizedBox(height: 8),
@@ -135,10 +135,11 @@ class ProductCard extends ConsumerWidget {
                     price: product.price,
                     originalPrice: product.pricelist,
                     formatPrice: _formatPrice,
-                    priceStyle: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
-                    ),
+                    priceStyle:
+                        Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
+                            ),
                   ),
                 ],
               ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../theme/app_colors.dart';
 import '../utils/app_feedback.dart';
 import '../utils/log.dart';
 
@@ -39,7 +40,7 @@ class PdfActionSheet {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
+                  color: AppColors.border,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -49,7 +50,7 @@ class PdfActionSheet {
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A1A2E),
+                  color: AppColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 20),
@@ -59,7 +60,7 @@ class PdfActionSheet {
                     child: _PdfActionButton(
                       icon: Icons.print_rounded,
                       label: 'Cetak PDF',
-                      color: const Color(0xFF3B82F6),
+                      color: AppColors.accent,
                       onTap: () {
                         Navigator.pop(ctx);
                         _executePdfAction(context, action: onPrint);
@@ -71,7 +72,7 @@ class PdfActionSheet {
                     child: _PdfActionButton(
                       icon: Icons.share_rounded,
                       label: 'Bagikan PDF',
-                      color: const Color(0xFF10B981),
+                      color: AppColors.success,
                       onTap: () {
                         Navigator.pop(ctx);
                         _executePdfAction(context, action: onShare);

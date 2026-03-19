@@ -1,10 +1,13 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/utils/platform_utils.dart';
 import '../../../../core/enums/order_status.dart';
 import '../../../auth/logic/auth_provider.dart';
@@ -56,7 +59,8 @@ class ProfilePage extends ConsumerWidget {
             : inboxState.pendingApprovals.length.toString())
         : orderHistoryAsync.when(
             data: (orders) => orders
-                .where((o) => OrderStatusX.fromRaw(o.status) == OrderStatus.pending)
+                .where((o) =>
+                    OrderStatusX.fromRaw(o.status) == OrderStatus.pending)
                 .length
                 .toString(),
             loading: () => '...',
@@ -86,12 +90,12 @@ class ProfilePage extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(vertical: 22),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFFFFF0F6), Color(0xFFFFF5F0)],
+                colors: [AppColors.accentLight, AppColors.surface],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFFFD6E8), width: 1),
+              border: Border.all(color: AppColors.accentBorder, width: 1),
             ),
             child: Row(
               children: [
@@ -104,7 +108,7 @@ class ProfilePage extends ConsumerWidget {
                         style: const TextStyle(
                           fontSize: 30,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFFD81B60),
+                          color: AppColors.accent,
                           height: 1,
                         ),
                       ),
@@ -113,14 +117,14 @@ class ProfilePage extends ConsumerWidget {
                         'Pesanan Bulan Ini',
                         style: TextStyle(
                           fontSize: 11,
-                          color: Color(0xFF9E9E9E),
+                          color: AppColors.textTertiary,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
                   ),
                 ),
-                Container(width: 1, height: 40, color: const Color(0xFFFFD6E8)),
+                Container(width: 1, height: 40, color: AppColors.accentBorder),
                 Expanded(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -130,7 +134,7 @@ class ProfilePage extends ConsumerWidget {
                         style: const TextStyle(
                           fontSize: 30,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFFD81B60),
+                          color: AppColors.accent,
                           height: 1,
                         ),
                       ),
@@ -139,7 +143,7 @@ class ProfilePage extends ConsumerWidget {
                         pendingLabel,
                         style: const TextStyle(
                           fontSize: 11,
-                          color: Color(0xFF9E9E9E),
+                          color: AppColors.textTertiary,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -179,7 +183,7 @@ class ProfilePage extends ConsumerWidget {
             _MenuItem(
               icon: Icons.help_outline_rounded,
               title: 'Pusat Bantuan',
-              onTap: () => _showComingSoon(context),
+              onTap: () => context.push('/help_center'),
             ),
             _MenuItem(
               icon: Icons.info_outline_rounded,
@@ -195,11 +199,21 @@ class ProfilePage extends ConsumerWidget {
 
           // ── Version ──
           Center(
-            child: Text(
-              'Alita Pricelist v1.0.0',
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
+            child: FutureBuilder<PackageInfo>(
+              future: PackageInfo.fromPlatform(),
+              builder: (context, snapshot) {
+                final version = snapshot.data?.version;
+                final label = version != null
+                    ? 'Alita Pricelist v$version'
+                    : 'Alita Pricelist';
+                return Text(
+                  label,
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: AppColors.textTertiary),
+                );
+              },
             ),
           ),
           const SizedBox(height: 32),
@@ -216,14 +230,14 @@ class ProfilePage extends ConsumerWidget {
 
     return Container(
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.all(Radius.circular(20)),
         boxShadow: [
           BoxShadow(
             color: AppColors.shadow,
             blurRadius: 12,
-            offset: const Offset(0, 2),
+            offset: Offset(0, 2),
           ),
         ],
       ),
@@ -273,22 +287,22 @@ class ProfilePage extends ConsumerWidget {
         Container(
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.grey.shade200, width: 2),
+            border: Border.all(color: AppColors.border, width: 2),
           ),
           child: CircleAvatar(
             radius: 40,
-            backgroundColor: Colors.black87,
-            backgroundImage:
-                imageUrl.isNotEmpty
-                    ? CachedNetworkImageProvider(imageUrl, maxWidth: 160, maxHeight: 160)
-                    : null,
+            backgroundColor: AppColors.primary,
+            backgroundImage: imageUrl.isNotEmpty
+                ? CachedNetworkImageProvider(imageUrl,
+                    maxWidth: 160, maxHeight: 160)
+                : null,
             child: imageUrl.isEmpty
                 ? Text(
                     name.isNotEmpty ? name[0].toUpperCase() : '?',
                     style: const TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: AppColors.surface,
                     ),
                   )
                 : null,
@@ -300,31 +314,35 @@ class ProfilePage extends ConsumerWidget {
           style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: Colors.black87,
+            color: AppColors.textPrimary,
           ),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 4),
         Text(
           email,
-          style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+          style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
         ),
         const SizedBox(height: 12),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: Colors.pink.shade50,
+            color: AppColors.accentLight,
             borderRadius: BorderRadius.circular(20),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.location_on, size: 14, color: Colors.pink.shade400),
+              const Icon(
+                Icons.location_on,
+                size: 14,
+                color: AppColors.accent,
+              ),
               const SizedBox(width: 4),
               Text(
                 'Area: $formattedArea',
-                style: TextStyle(
-                  color: Colors.pink.shade700,
+                style: const TextStyle(
+                  color: AppColors.accent,
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
                 ),
@@ -353,14 +371,14 @@ class ProfilePage extends ConsumerWidget {
 
   Widget _buildMenuCard(BuildContext context, List<_MenuItem> items) {
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.all(Radius.circular(16)),
         boxShadow: [
           BoxShadow(
             color: AppColors.shadow,
             blurRadius: 12,
-            offset: const Offset(0, 2),
+            offset: Offset(0, 2),
           ),
         ],
       ),
@@ -455,23 +473,86 @@ class ProfilePage extends ConsumerWidget {
 
   // ───────────────────── Dialogs ─────────────────────
 
-  void _showComingSoon(BuildContext context) {
-    AppFeedback.plain(
-      context,
-      'Fitur ini segera hadir!',
-      duration: const Duration(seconds: 1),
-    );
-  }
+  Future<void> _showAbout(BuildContext context) async {
+    final packageInfo = await PackageInfo.fromPlatform();
+    final versionLabel = 'Alita Pricelist v${packageInfo.version}';
 
-  void _showAbout(BuildContext context) {
-    showAdaptiveAlert(
+    if (!context.mounted) return;
+    if (isIOS) {
+      unawaited(showCupertinoDialog<void>(
+        context: context,
+        builder: (_) => CupertinoAlertDialog(
+          title: const Text('Tentang Aplikasi'),
+          content: _AboutDialogContent(versionLabel: versionLabel),
+          actions: [
+            CupertinoDialogAction(
+              isDefaultAction: true,
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Tutup'),
+            ),
+          ],
+        ),
+      ));
+      return;
+    }
+
+    unawaited(showDialog<void>(
       context: context,
-      title: 'Tentang Aplikasi',
-      content: 'Alita Pricelist v1.0.0\n\n'
-          'Aplikasi katalog produk dan harga untuk Alita Group. '
-          'Dibuat dengan Flutter & Riverpod.',
-      actions: [
-        const AdaptiveAction(label: 'Tutup', isDefault: true, popResult: true),
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Tentang Aplikasi'),
+        content: _AboutDialogContent(versionLabel: versionLabel),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Tutup'),
+          ),
+        ],
+      ),
+    ));
+  }
+}
+
+/// Reusable body for About app dialog (iOS & Android).
+class _AboutDialogContent extends StatelessWidget {
+  const _AboutDialogContent({required this.versionLabel});
+
+  static const String _description =
+      'Aplikasi resmi manajemen katalog produk, kalkulasi harga, '
+      'dan pembuatan pesanan untuk jaringan penjualan Massindo Group.';
+  static const String _copyright =
+      '© 2026 Massindo Group. All rights reserved.';
+
+  final String versionLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(
+          versionLabel,
+          style: const TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 15,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 12),
+        const Text(
+          _description,
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 14),
+        const Text(
+          _copyright,
+          style: TextStyle(
+            fontSize: 12,
+            color: AppColors.textTertiary,
+          ),
+          textAlign: TextAlign.center,
+        ),
       ],
     );
   }

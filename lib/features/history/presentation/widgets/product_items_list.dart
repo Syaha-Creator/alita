@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/enums/order_status.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/discount_formatter.dart';
 import '../../../../core/widgets/detail_bonus_items_section.dart';
 import '../../../../core/widgets/detail_discount_block.dart';
@@ -38,8 +39,7 @@ class ProductItemsList extends StatelessWidget {
           ...sorted.asMap().entries.map((entry) {
             final idx = entry.key;
             final item = entry.value;
-            final isLast =
-                idx == sorted.length - 1 && order.bonusItems.isEmpty;
+            final isLast = idx == sorted.length - 1 && order.bonusItems.isEmpty;
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -66,15 +66,15 @@ class ProductItemsList extends StatelessWidget {
                                       style: const TextStyle(
                                         fontWeight: FontWeight.w600,
                                         fontSize: 13,
-                                        color: Color(0xFF1A1A2E),
+                                        color: AppColors.textPrimary,
                                       ),
                                     ),
                                     if (item.brand.isNotEmpty)
                                       Text(
                                         item.brand,
-                                        style: TextStyle(
+                                        style: const TextStyle(
                                           fontSize: 10,
-                                          color: Colors.grey.shade500,
+                                          color: AppColors.textTertiary,
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
@@ -99,16 +99,14 @@ class ProductItemsList extends StatelessWidget {
                 ),
                 if (!isLast) ...[
                   const SizedBox(height: 14),
-                  Container(height: 1, color: const Color(0xFFF3F4F6)),
+                  Container(height: 1, color: AppColors.divider),
                   const SizedBox(height: 14),
                 ],
               ],
             );
           }),
-
           if (order.bonusItems.isNotEmpty)
             _CollapsibleBonusSection(bonusItems: order.bonusItems),
-
           DetailTotalsSummarySection(
             postageText: currencyFormatter(order.postage),
             totalText: currencyFormatter(order.totalAmount),
@@ -150,10 +148,9 @@ class _CollapsibleBonusSectionState extends State<_CollapsibleBonusSection> {
   Widget build(BuildContext context) {
     final items = widget.bonusItems;
     final shouldCollapse = items.length > _kBonusCollapseThreshold;
-    final visibleItems =
-        shouldCollapse && !_expanded
-            ? items.take(_kBonusVisibleWhenCollapsed).toList()
-            : items;
+    final visibleItems = shouldCollapse && !_expanded
+        ? items.take(_kBonusVisibleWhenCollapsed).toList()
+        : items;
     final hiddenCount = items.length - _kBonusVisibleWhenCollapsed;
 
     return DetailBonusItemsSection(
@@ -165,10 +162,10 @@ class _CollapsibleBonusSectionState extends State<_CollapsibleBonusSection> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(width: 2),
-                Text(
+                const Text(
                   '·  ',
                   style: TextStyle(
-                    color: Colors.grey.shade400,
+                    color: AppColors.textTertiary,
                     fontSize: 12,
                   ),
                 ),
@@ -178,9 +175,9 @@ class _CollapsibleBonusSectionState extends State<_CollapsibleBonusSection> {
                       Flexible(
                         child: Text(
                           '${b.qty}x ${b.desc1}',
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 12,
-                            color: Colors.grey.shade600,
+                            color: AppColors.textSecondary,
                           ),
                         ),
                       ),
@@ -192,19 +189,21 @@ class _CollapsibleBonusSectionState extends State<_CollapsibleBonusSection> {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1A1A2E).withValues(alpha: 0.08),
+                            color:
+                                AppColors.textPrimary.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(4),
                             border: Border.all(
-                              color: const Color(0xFF1A1A2E).withValues(alpha: 0.2),
+                              color:
+                                  AppColors.textPrimary.withValues(alpha: 0.2),
                               width: 1,
                             ),
                           ),
-                          child: Text(
+                          child: const Text(
                             'Bawa Langsung',
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
-                              color: Colors.grey.shade700,
+                              color: AppColors.textSecondary,
                             ),
                           ),
                         ),
@@ -229,17 +228,17 @@ class _CollapsibleBonusSectionState extends State<_CollapsibleBonusSection> {
                         ? Icons.keyboard_arrow_up_rounded
                         : Icons.keyboard_arrow_down_rounded,
                     size: 16,
-                    color: Colors.blue.shade600,
+                    color: AppColors.primary,
                   ),
                   const SizedBox(width: 4),
                   Text(
                     _expanded
                         ? 'Sembunyikan'
                         : 'Lihat $hiddenCount item lainnya',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: Colors.blue.shade600,
+                      color: AppColors.primary,
                     ),
                   ),
                 ],
@@ -267,9 +266,8 @@ class _PriceColumn extends StatelessWidget {
     final bool hasApprovalDiscount =
         item.netPrice > 0 && item.netPrice < item.customerPrice;
 
-    final double finalPrice = hasApprovalDiscount
-        ? item.netPrice
-        : item.customerPrice;
+    final double finalPrice =
+        hasApprovalDiscount ? item.netPrice : item.customerPrice;
 
     // Strikethrough always uses the catalog pricelist (unitPrice),
     // regardless of whether the discount came from manual EUP or approval.
@@ -285,11 +283,11 @@ class _PriceColumn extends StatelessWidget {
         if (showStrikethrough)
           Text(
             currencyFormatter(originalPrice.round()),
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 11,
-              color: Colors.grey.shade400,
+              color: AppColors.textTertiary,
               decoration: TextDecoration.lineThrough,
-              decorationColor: Colors.grey.shade400,
+              decorationColor: AppColors.textTertiary,
             ),
           ),
         Text(
@@ -297,7 +295,7 @@ class _PriceColumn extends StatelessWidget {
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 13,
-            color: isFree ? const Color(0xFF16A34A) : const Color(0xFF1A1A2E),
+            color: isFree ? AppColors.success : AppColors.textPrimary,
           ),
         ),
       ],

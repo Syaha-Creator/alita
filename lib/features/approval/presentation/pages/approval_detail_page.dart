@@ -5,10 +5,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/enums/order_status.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../core/utils/contact_actions.dart';
 import '../../../../core/utils/name_matcher.dart';
 import '../../../../core/utils/app_feedback.dart';
+import '../../../../core/utils/shipping_utils.dart';
 import '../../../../core/utils/log.dart';
 import '../../../../core/utils/platform_utils.dart';
 import '../../../../core/widgets/detail_contact_info_card.dart';
@@ -51,26 +53,20 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
 
   // ── Helpers ──────────────────────────────────────────────────────
 
-  bool _isShippingDifferent(Map<String, dynamic> order) {
-    final shipName = (order['ship_to_name'] as String? ?? '').trim();
-    final shipAddr = (order['address_ship_to'] as String? ?? '').trim();
-    if (shipName.isEmpty && shipAddr.isEmpty) return false;
-    final customerName = (order['customer_name'] as String? ?? '').trim();
-    final address = (order['address'] as String? ?? '').trim();
-    final nameDiff = shipName.isNotEmpty &&
-        shipName != '-' &&
-        shipName.toLowerCase() != customerName.toLowerCase();
-    final addrDiff = shipAddr.isNotEmpty &&
-        shipAddr != '-' &&
-        shipAddr.toLowerCase() != address.toLowerCase();
-    return nameDiff || addrDiff;
+  bool _isOrderShippingDifferent(Map<String, dynamic> order) {
+    return isShippingDifferent(
+      shipToName: order['ship_to_name'] as String? ?? '',
+      shipToAddress: order['address_ship_to'] as String? ?? '',
+      customerName: order['customer_name'] as String? ?? '',
+      customerAddress: order['address'] as String? ?? '',
+    );
   }
 
   // ── Confirmation dialog ───────────────────────────────────────────
 
   Future<void> _confirmAction(BuildContext context, bool isApprove) async {
     final actionName = isApprove ? 'Menyetujui' : 'Menolak';
-    final actionColor = isApprove ? Colors.green : Colors.red;
+    final actionColor = isApprove ? AppColors.success : AppColors.error;
 
     unawaited(HapticFeedback.lightImpact());
     if (!context.mounted) return;
@@ -332,25 +328,25 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
     };
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text(
           'Detail Persetujuan',
           style: TextStyle(
-            color: Color(0xFF1A1A2E),
+            color: AppColors.textPrimary,
             fontSize: 16,
             fontWeight: FontWeight.bold,
             letterSpacing: -0.3,
           ),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.background,
         elevation: 0,
         scrolledUnderElevation: 0.5,
         surfaceTintColor: Colors.transparent,
-        iconTheme: const IconThemeData(color: Color(0xFF1A1A2E)),
+        iconTheme: const IconThemeData(color: AppColors.textPrimary),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(height: 1, color: const Color(0xFFF0F0F0)),
+          child: Container(height: 1, color: AppColors.divider),
         ),
       ),
       body: Stack(
@@ -366,8 +362,8 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
                 ),
                 const SizedBox(height: 12),
                 _buildCustomerCard(context, order,
-                    isShippingDifferent: _isShippingDifferent(order)),
-                if (_isShippingDifferent(order)) ...[
+                    isShippingDifferent: _isOrderShippingDifferent(order)),
+                if (_isOrderShippingDifferent(order)) ...[
                   const SizedBox(height: 12),
                   _buildShippingCard(order),
                 ],
@@ -392,7 +388,7 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 28, vertical: 22),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.surface,
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
@@ -406,7 +402,7 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const CircularProgressIndicator.adaptive(
-                        valueColor: AlwaysStoppedAnimation(Color(0xFFE91E8C)),
+                        valueColor: AlwaysStoppedAnimation(AppColors.accent),
                         strokeWidth: 3,
                       ),
                       const SizedBox(height: 16),
@@ -415,7 +411,7 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF1A1A2E),
+                          color: AppColors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -425,7 +421,7 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
                             : 'Harap tunggu sebentar',
                         style: const TextStyle(
                           fontSize: 12,
-                          color: Colors.grey,
+                          color: AppColors.textTertiary,
                         ),
                       ),
                     ],
@@ -496,9 +492,9 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
     return DetailNoteCard(
       note: note.trim(),
       borderRadius: 12,
-      borderColor: const Color(0xFFFFE082),
-      iconColor: const Color(0xFFFF8F00),
-      titleColor: const Color(0xFFFF8F00),
+      borderColor: AppColors.warning.withValues(alpha: 0.4),
+      iconColor: AppColors.warning,
+      titleColor: AppColors.warning,
     );
   }
 

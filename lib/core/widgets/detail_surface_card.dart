@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import 'section_card.dart';
 
 /// Shared card surface style used in detail pages.
@@ -16,12 +17,12 @@ class DetailSurfaceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return SectionCard(
       padding: padding ?? const EdgeInsets.all(16),
-      backgroundColor: Colors.white,
-      boxShadow: [
+      backgroundColor: AppColors.surface,
+      boxShadow: const [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.04),
+          color: AppColors.shadowLight,
           blurRadius: 12,
-          offset: const Offset(0, 4),
+          offset: Offset(0, 4),
         ),
       ],
       child: child,

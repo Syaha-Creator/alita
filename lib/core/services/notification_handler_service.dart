@@ -97,11 +97,12 @@ class NotificationHandlerService {
     switch (type) {
       case 'approval':
       case 'approval_inbox':
+      case 'next_approver':
+      case 'fully_approved':
         router.go('/approval_inbox');
         break;
       case 'order':
       case 'order_history':
-        // No /history route; go home. Can extend when route exists.
         router.go('/');
         break;
       default:

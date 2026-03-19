@@ -196,11 +196,11 @@ class _DeliveryOption extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             color: selected
-                ? AppColors.primary.withValues(alpha: 0.08)
+                ? AppColors.accent.withValues(alpha: 0.08)
                 : AppColors.background,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: selected ? AppColors.primary : AppColors.border,
+              color: selected ? AppColors.accent : AppColors.border,
               width: selected ? 1.5 : 1,
             ),
           ),
@@ -210,7 +210,7 @@ class _DeliveryOption extends StatelessWidget {
               Icon(
                 icon,
                 size: 20,
-                color: selected ? AppColors.primary : AppColors.textSecondary,
+                color: selected ? AppColors.accent : AppColors.textSecondary,
               ),
               const SizedBox(height: 4),
               Text(
@@ -218,7 +218,7 @@ class _DeliveryOption extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                  color: selected ? AppColors.primary : AppColors.textSecondary,
+                  color: selected ? AppColors.accent : AppColors.textSecondary,
                 ),
               ),
             ],

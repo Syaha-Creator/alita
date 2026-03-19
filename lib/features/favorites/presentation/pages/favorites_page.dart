@@ -105,7 +105,8 @@ class FavoritesPage extends ConsumerWidget {
       icon: Icons.favorite_border,
       iconSize: 100,
       title: 'Belum ada produk favorit',
-      subtitle: 'Yuk cari barang impianmu!\nTap ikon ❤️ untuk menandai produk favorit',
+      subtitle:
+          'Yuk cari barang impianmu!\nTap ikon favorit untuk menandai produk favorit',
       action: ActionButtonBar(
         fullWidth: false,
         mainAxisSize: MainAxisSize.min,

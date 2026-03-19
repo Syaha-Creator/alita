@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 
 /// Reusable index badge for numbered detail rows.
 class DetailItemIndexBadge extends StatelessWidget {
@@ -12,7 +13,7 @@ class DetailItemIndexBadge extends StatelessWidget {
       width: 22,
       height: 22,
       decoration: BoxDecoration(
-        color: Colors.pink.shade50,
+        color: AppColors.accentLight,
         borderRadius: BorderRadius.circular(6),
       ),
       alignment: Alignment.center,
@@ -21,7 +22,7 @@ class DetailItemIndexBadge extends StatelessWidget {
         style: const TextStyle(
           fontSize: 10,
           fontWeight: FontWeight.bold,
-          color: Colors.pink,
+          color: AppColors.accent,
         ),
       ),
     );

@@ -51,7 +51,7 @@ class CheckoutApprovalCard extends StatelessWidget {
               children: [
                 Icon(
                   Icons.error_outline,
-                  color: Colors.red,
+                  color: AppColors.error,
                   size: 18,
                 ),
                 SizedBox(width: 8),
@@ -59,7 +59,7 @@ class CheckoutApprovalCard extends StatelessWidget {
                   child: Text(
                     'Gagal memuat daftar approver.',
                     style: TextStyle(
-                      color: Colors.red,
+                      color: AppColors.error,
                       fontSize: 13,
                     ),
                   ),
@@ -71,7 +71,7 @@ class CheckoutApprovalCard extends StatelessWidget {
               Text(
                 errorMessage!,
                 style: const TextStyle(
-                  color: Colors.red,
+                  color: AppColors.error,
                   fontSize: 11,
                 ),
                 maxLines: 3,
@@ -84,8 +84,8 @@ class CheckoutApprovalCard extends StatelessWidget {
               icon: const Icon(Icons.refresh, size: 16),
               label: const Text('Coba Lagi'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: const BorderSide(color: AppColors.primary),
+                foregroundColor: AppColors.accent,
+                side: const BorderSide(color: AppColors.accent),
                 minimumSize: const Size(120, 36),
               ),
             ),

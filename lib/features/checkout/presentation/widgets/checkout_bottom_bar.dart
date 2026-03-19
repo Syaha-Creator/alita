@@ -33,14 +33,14 @@ class CheckoutBottomBar extends ConsumerWidget {
     final isOffline = ref.watch(isOfflineProvider);
     final canSubmit = submitButtonEnabled && !isOffline;
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.surface,
         boxShadow: [
           BoxShadow(
             color: AppColors.shadow,
             blurRadius: 12,
             spreadRadius: 0,
-            offset: const Offset(0, -4),
+            offset: Offset(0, -4),
           ),
         ],
       ),
@@ -72,19 +72,19 @@ class CheckoutBottomBar extends ConsumerWidget {
               ],
               const SizedBox(height: 16),
               if (isOffline)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.wifi_off_rounded,
-                          size: 14, color: Colors.orange),
-                      const SizedBox(width: 6),
+                      Icon(Icons.wifi_off_rounded,
+                          size: 14, color: AppColors.warning),
+                      SizedBox(width: 6),
                       Text(
                         'Fungsi ini membutuhkan internet',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.orange.shade800,
+                          color: AppColors.warning,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -97,8 +97,8 @@ class CheckoutBottomBar extends ConsumerWidget {
                 child: ElevatedButton(
                   onPressed: canSubmit ? onSubmit : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.surface,
+                    backgroundColor: AppColors.accent,
+                    foregroundColor: AppColors.onPrimary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),

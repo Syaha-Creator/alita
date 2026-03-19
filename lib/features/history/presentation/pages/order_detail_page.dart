@@ -10,6 +10,7 @@ import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/utils/contact_actions.dart';
 import '../../../../core/utils/log.dart';
+import '../../../../core/utils/shipping_utils.dart';
 import '../../../../core/widgets/detail_contact_info_card.dart';
 import '../../../../core/widgets/image_viewer_dialog.dart';
 import '../../../../core/widgets/detail_note_card.dart';
@@ -35,7 +36,12 @@ class OrderDetailPage extends ConsumerWidget {
     final detailState = ref.watch(orderDetailProvider(order.id));
     final currentOrder = detailState.valueOrNull ?? order;
     final isOffline = ref.watch(isOfflineProvider);
-    final isShippingDifferent = _isShippingDifferent(currentOrder);
+    final shippingDiffers = isShippingDifferent(
+      shipToName: currentOrder.shipToName,
+      shipToAddress: currentOrder.addressShipTo,
+      customerName: currentOrder.customerName,
+      customerAddress: currentOrder.address,
+    );
     final fmt = AppFormatters.currencyIdr;
 
     final totalPaid = currentOrder.payments.fold<double>(
@@ -46,22 +52,22 @@ class OrderDetailPage extends ConsumerWidget {
         (currentOrder.totalAmount - totalPaid).clamp(0.0, double.infinity);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text(
           'Detail Pesanan',
           style: TextStyle(
-            color: Color(0xFF1A1A2E),
+            color: AppColors.textPrimary,
             fontSize: 16,
             fontWeight: FontWeight.bold,
             letterSpacing: -0.3,
           ),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.background,
         elevation: 0,
         scrolledUnderElevation: 0.5,
         surfaceTintColor: Colors.transparent,
-        iconTheme: const IconThemeData(color: Color(0xFF1A1A2E)),
+        iconTheme: const IconThemeData(color: AppColors.textPrimary),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
@@ -72,10 +78,12 @@ class OrderDetailPage extends ConsumerWidget {
           PopupMenuButton<String>(
             icon: Icon(
               Icons.picture_as_pdf_outlined,
-              color: isOffline ? Colors.grey : null,
+              color: isOffline ? AppColors.textTertiary : null,
             ),
             enabled: !isOffline,
             tooltip: isOffline ? 'Membutuhkan internet' : 'Cetak / Bagikan PDF',
+            position: PopupMenuPosition.under,
+            offset: const Offset(0, 4),
             onSelected: (value) {
               if (value == 'customer' || value == 'internal') {
                 _showPdfActionSheet(
@@ -85,24 +93,88 @@ class OrderDetailPage extends ConsumerWidget {
                 );
               }
             },
-            itemBuilder: (context) => const [
+            itemBuilder: (context) => [
               PopupMenuItem<String>(
                 value: 'customer',
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 child: Row(
                   children: [
-                    Icon(Icons.description_outlined, size: 20),
-                    SizedBox(width: 12),
-                    Text('Surat Pesanan (Customer)'),
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: AppColors.accent.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.description_outlined,
+                          size: 18, color: AppColors.accent),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Surat Pesanan (Customer)',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          Text(
+                            'Versi untuk pelanggan',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textTertiary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
               PopupMenuItem<String>(
                 value: 'internal',
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 child: Row(
                   children: [
-                    Icon(Icons.lock_outline, size: 20),
-                    SizedBox(width: 12),
-                    Text('Surat Pesanan (Internal)'),
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.lock_outline,
+                          size: 18, color: AppColors.primary),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Surat Pesanan (Internal)',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          Text(
+                            'Versi internal dengan harga',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textTertiary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -111,7 +183,7 @@ class OrderDetailPage extends ConsumerWidget {
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(height: 1, color: const Color(0xFFF0F0F0)),
+          child: Container(height: 1, color: AppColors.divider),
         ),
       ),
       body: detailState.isLoading && !detailState.hasValue
@@ -144,7 +216,7 @@ class OrderDetailPage extends ConsumerWidget {
                         ),
                         const SizedBox(height: 12),
                         DetailContactInfoCard(
-                          title: isShippingDifferent
+                          title: shippingDiffers
                               ? 'Informasi Pelanggan'
                               : 'Informasi Pelanggan & Pengiriman',
                           name: currentOrder.customerName,
@@ -167,7 +239,7 @@ class OrderDetailPage extends ConsumerWidget {
                             senderName: ref.read(authProvider).userName,
                           ),
                         ),
-                        if (isShippingDifferent) ...[
+                        if (shippingDiffers) ...[
                           const SizedBox(height: 12),
                           DetailShippingInfoCard(
                             name: currentOrder.shipToName.trim(),
@@ -180,12 +252,12 @@ class OrderDetailPage extends ConsumerWidget {
                           DetailNoteCard(
                             note: currentOrder.note,
                             borderRadius: 14,
-                            borderColor: const Color(0xFFFCD34D),
-                            iconColor: const Color(0xFFB45309),
-                            titleColor: const Color(0xFF92400E),
+                            borderColor: AppColors.warning.withValues(alpha: 0.3),
+                            iconColor: AppColors.warning,
+                            titleColor: AppColors.warning,
                             noteStyle: const TextStyle(
                               fontSize: 12,
-                              color: Color(0xFF78350F),
+                              color: AppColors.warning,
                               height: 1.4,
                             ),
                           ),
@@ -220,19 +292,6 @@ class OrderDetailPage extends ConsumerWidget {
                   ),
                 ),
     );
-  }
-
-  static bool _isShippingDifferent(OrderHistory order) {
-    final shipName = order.shipToName.trim();
-    final shipAddr = order.addressShipTo.trim();
-    if (shipName.isEmpty && shipAddr.isEmpty) return false;
-    final nameDiff = shipName.isNotEmpty &&
-        shipName != '-' &&
-        shipName.toLowerCase() != order.customerName.trim().toLowerCase();
-    final addrDiff = shipAddr.isNotEmpty &&
-        shipAddr != '-' &&
-        shipAddr.toLowerCase() != order.address.trim().toLowerCase();
-    return nameDiff || addrDiff;
   }
 
   // ── PDF ─────────────────────────────────────────────────────
@@ -283,7 +342,7 @@ class OrderDetailPage extends ConsumerWidget {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -381,25 +440,25 @@ class OrderDetailPage extends ConsumerWidget {
       loadingWidget: Container(
         height: 300,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
         ),
         child: const Center(
           child: CircularProgressIndicator.adaptive(
-            valueColor: AlwaysStoppedAnimation(Colors.pink),
+            valueColor: AlwaysStoppedAnimation(AppColors.accent),
           ),
         ),
       ),
       errorWidget: Container(
         height: 300,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
         ),
         child: const Center(
           child: Text(
             'Gagal memuat gambar',
-            style: TextStyle(color: Colors.grey),
+            style: TextStyle(color: AppColors.textTertiary),
           ),
         ),
       ),

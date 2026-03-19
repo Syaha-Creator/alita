@@ -73,9 +73,9 @@ class ProductSpecificationsSection extends StatelessWidget {
                   children: [
                     Text(
                       f['name']?.toString() ?? '',
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 11,
-                        color: Colors.grey.shade600,
+                        color: AppColors.textSecondary,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -86,7 +86,7 @@ class ProductSpecificationsSection extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: AppColors.textPrimary,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -109,16 +109,16 @@ class ProductSpecificationsSection extends StatelessWidget {
                   children: [
                     const Icon(
                       Icons.check_circle,
-                      color: Colors.green,
+                      color: AppColors.success,
                       size: 18,
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         f['name']?.toString() ?? '',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 13,
-                          color: Colors.grey.shade800,
+                          color: AppColors.textSecondary,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
