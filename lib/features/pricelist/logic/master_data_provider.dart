@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/services/api_client.dart';
 import '../../../core/services/storage_service.dart';
+import '../../../core/utils/log.dart';
 
 // ─────────────────────────────────────────────────────────
 //  State
@@ -53,7 +53,9 @@ class MasterDataNotifier extends StateNotifier<MasterDataState> {
   }
 
   static final ApiClient _api = ApiClient.instance;
+  static const _staleDuration = Duration(hours: 6);
   bool _isDisposed = false;
+  bool _isSyncing = false;
 
   @override
   void dispose() {
@@ -80,8 +82,8 @@ class MasterDataNotifier extends StateNotifier<MasterDataState> {
       if (token.isNotEmpty) {
         unawaited(syncMasterData());
       }
-    } catch (e) {
-      debugPrint('MasterData cache load error: $e');
+    } catch (e, st) {
+      Log.error(e, st, reason: 'MasterData cache load');
       try {
         _setState(state.copyWith(isLoading: false, error: e.toString()));
       } on StateError {
@@ -117,8 +119,14 @@ class MasterDataNotifier extends StateNotifier<MasterDataState> {
   /// On success the raw JSON is persisted via [StorageService] and the
   /// parsed lists are pushed into state.
   Future<void> syncMasterData() async {
+    if (_isSyncing) return;
+    _isSyncing = true;
+
     final stateBeforeSync = _readStateOrNull();
-    if (stateBeforeSync == null) return;
+    if (stateBeforeSync == null) {
+      _isSyncing = false;
+      return;
+    }
     _setState(stateBeforeSync.copyWith(isLoading: true, error: null));
 
     try {
@@ -147,12 +155,26 @@ class MasterDataNotifier extends StateNotifier<MasterDataState> {
       ));
     } catch (e) {
       if (e is StateError) return;
-      debugPrint('MasterData sync error: $e');
+      Log.error(e, StackTrace.current, reason: 'MasterData sync');
       final currentState = _readStateOrNull();
       if (currentState != null) {
         _setState(currentState.copyWith(isLoading: false, error: e.toString()));
       }
+    } finally {
+      _isSyncing = false;
     }
+  }
+
+  /// Syncs master data only if the cached version is older than [_staleDuration].
+  /// Safe to call frequently — skips if already syncing or data is still fresh.
+  Future<void> syncIfStale() async {
+    if (_isSyncing || _isDisposed) return;
+    final lastSync = await StorageService.loadMasterDataLastSync();
+    if (lastSync != null &&
+        DateTime.now().difference(lastSync) < _staleDuration) {
+      return;
+    }
+    await syncMasterData();
   }
 
   /// Safely parses a JSON string into a list of maps.
@@ -189,8 +211,8 @@ class MasterDataNotifier extends StateNotifier<MasterDataState> {
       }
 
       return [];
-    } catch (e) {
-      debugPrint('_parseJsonList error: $e');
+    } catch (e, st) {
+      Log.error(e, st, reason: 'MasterData._parseJsonList');
       return [];
     }
   }

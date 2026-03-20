@@ -118,8 +118,9 @@ class ProductPriceSection extends StatelessWidget {
         _buildDiscountTile(),
         const SizedBox(height: 16),
         _buildEditableTotalField(context),
-        const SizedBox(height: 24),
-        const Divider(height: 24),
+        const SizedBox(height: 20),
+        const Divider(height: 1),
+        const SizedBox(height: 20),
         _buildBonusSection(context),
       ],
     );

@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/config/app_config.dart';
 import '../../../../core/services/api_client.dart';
+import '../../../../core/utils/log.dart';
 
 /// Fetches Indonesian administrative region data from the Emsifa open API
 /// and caches each endpoint in SharedPreferences to avoid repeated network calls.
@@ -39,7 +40,9 @@ class RegionService {
           return decoded.cast<Map<String, dynamic>>();
         }
       }
-    } catch (_) {}
+    } catch (e, st) {
+      Log.error(e, st, reason: 'RegionService._fetchAndCache');
+    }
     return [];
   }
 

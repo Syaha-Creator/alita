@@ -26,14 +26,12 @@ class ItemLookup {
 
   /// Helper untuk UI: label singkat warna/jenis kain.
   String get displayLabel {
-    if (warnaKain != null &&
-        warnaKain!.isNotEmpty &&
-        warnaKain != 'null') {
-      return '$warnaKain (${jenisKain ?? "-"})';
-    } else if (jenisKain != null &&
-        jenisKain!.isNotEmpty &&
-        jenisKain != 'null') {
-      return 'Kain $jenisKain';
+    final warna = warnaKain ?? '';
+    final kain = jenisKain ?? '';
+    if (warna.isNotEmpty && warnaKain != 'null') {
+      return '$warna (${jenisKain ?? "-"})';
+    } else if (kain.isNotEmpty && jenisKain != 'null') {
+      return 'Kain $kain';
     }
     return 'Standard';
   }

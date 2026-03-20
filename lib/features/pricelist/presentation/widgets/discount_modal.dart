@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/utils/app_formatters.dart';
+import '../../../../core/widgets/sheet_scaffold.dart';
 import '../../data/models/product.dart';
 
 /// Shows the cascading discount modal bottom sheet.
@@ -198,216 +199,204 @@ class _DiscountModalContentState extends State<DiscountModalContent> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: SafeArea(
-        child: SingleChildScrollView(
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Diskon Tambahan',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Input persentase (%) atau nominal (Rp). Batas per tingkat dari database.',
-                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: 20),
-              ...List.generate(widget.maxLimits.length, (i) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Diskon ${i + 1}',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
+    return SheetScaffold(
+      topRadius: 20,
+      contentPadding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+      child: SingleChildScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Diskon Tambahan',
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Input persentase (%) atau nominal (Rp). Batas per tingkat dari database.',
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 20),
+            ...List.generate(widget.maxLimits.length, (i) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Diskon ${i + 1}',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
                       ),
-                      const SizedBox(height: 6),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _controllers[i],
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                decimal: true,
-                              ),
-                              decoration: InputDecoration(
-                                hintText: _inputTypes[i] == '%' ? '0' : '0',
-                                border: const OutlineInputBorder(),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 10,
-                                ),
-                              ),
-                              onChanged: (_) => _validateAndCalculate(context),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    if (_inputTypes[i] == 'Rp') {
-                                      final text = _controllers[i]
-                                          .text
-                                          .replaceAll(',', '.');
-                                      final nominal = double.tryParse(text);
-                                      if (nominal != null && nominal > 0) {
-                                        final base =
-                                            _getRunningBaseBeforeTier(i);
-                                        if (base > 0) {
-                                          final percent =
-                                              (nominal / base) * 100;
-                                          _controllers[i].text = percent
-                                              .toStringAsFixed(2)
-                                              .replaceAll('.00', '');
-                                        }
-                                      }
-                                    }
-                                    _inputTypes[i] = '%';
-                                    _validateAndCalculate(context);
-                                  });
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 12,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: _inputTypes[i] == '%'
-                                        ? AppColors.accent
-                                        : AppColors.border,
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    '%',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: _inputTypes[i] == '%'
-                                          ? AppColors.onPrimary
-                                          : AppColors.textSecondary,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    if (_inputTypes[i] == '%') {
-                                      final text = _controllers[i]
-                                          .text
-                                          .replaceAll(',', '.');
-                                      final percentVal = double.tryParse(text);
-                                      if (percentVal != null &&
-                                          percentVal > 0) {
-                                        final base =
-                                            _getRunningBaseBeforeTier(i);
-                                        final nominal =
-                                            base * (percentVal / 100);
-                                        _controllers[i].text =
-                                            nominal.round().toString();
-                                      }
-                                    }
-                                    _inputTypes[i] = 'Rp';
-                                    _validateAndCalculate(context);
-                                  });
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 12,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: _inputTypes[i] == 'Rp'
-                                        ? AppColors.accent
-                                        : AppColors.border,
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    'Rp',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: _inputTypes[i] == 'Rp'
-                                          ? AppColors.onPrimary
-                                          : AppColors.textSecondary,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                );
-              }),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    _validateAndCalculate(context);
-                    if (_errorMessages.any((msg) => msg != null)) return;
-
-                    final finalDiscounts = <double>[];
-                    double currentRunningBase = widget.baseTotalEup;
-
-                    for (int i = 0; i < widget.maxLimits.length; i++) {
-                      final text = _controllers[i].text.replaceAll(',', '.');
-                      if (text.isEmpty || text == '0') continue;
-
-                      final val = double.tryParse(text);
-                      if (val == null || val <= 0) continue;
-
-                      if (_inputTypes[i] == '%') {
-                        finalDiscounts.add(val / 100);
-                        currentRunningBase -=
-                            (currentRunningBase * (val / 100));
-                      } else {
-                        final percentEquivalent = val / currentRunningBase;
-                        finalDiscounts.add(percentEquivalent);
-                        currentRunningBase -= val;
-                      }
-                    }
-
-                    widget.onApply(finalDiscounts);
-                    widget.onClose();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.accent,
-                    foregroundColor: AppColors.onPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
                     ),
-                  ),
-                  child: const Text('Terapkan'),
+                    const SizedBox(height: 6),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _controllers[i],
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: _inputTypes[i] == '%' ? '0' : '0',
+                              border: const OutlineInputBorder(),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                            ),
+                            onChanged: (_) => _validateAndCalculate(context),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  if (_inputTypes[i] == 'Rp') {
+                                    final text = _controllers[i]
+                                        .text
+                                        .replaceAll(',', '.');
+                                    final nominal = double.tryParse(text);
+                                    if (nominal != null && nominal > 0) {
+                                      final base = _getRunningBaseBeforeTier(i);
+                                      if (base > 0) {
+                                        final percent = (nominal / base) * 100;
+                                        _controllers[i].text = percent
+                                            .toStringAsFixed(2)
+                                            .replaceAll('.00', '');
+                                      }
+                                    }
+                                  }
+                                  _inputTypes[i] = '%';
+                                  _validateAndCalculate(context);
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _inputTypes[i] == '%'
+                                      ? AppColors.accent
+                                      : AppColors.border,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '%',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: _inputTypes[i] == '%'
+                                        ? AppColors.onPrimary
+                                        : AppColors.textSecondary,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  if (_inputTypes[i] == '%') {
+                                    final text = _controllers[i]
+                                        .text
+                                        .replaceAll(',', '.');
+                                    final percentVal = double.tryParse(text);
+                                    if (percentVal != null && percentVal > 0) {
+                                      final base = _getRunningBaseBeforeTier(i);
+                                      final nominal = base * (percentVal / 100);
+                                      _controllers[i].text =
+                                          nominal.round().toString();
+                                    }
+                                  }
+                                  _inputTypes[i] = 'Rp';
+                                  _validateAndCalculate(context);
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _inputTypes[i] == 'Rp'
+                                      ? AppColors.accent
+                                      : AppColors.border,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'Rp',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: _inputTypes[i] == 'Rp'
+                                        ? AppColors.onPrimary
+                                        : AppColors.textSecondary,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
+              );
+            }),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  _validateAndCalculate(context);
+                  if (_errorMessages.any((msg) => msg != null)) return;
+
+                  final finalDiscounts = <double>[];
+                  double currentRunningBase = widget.baseTotalEup;
+
+                  for (int i = 0; i < widget.maxLimits.length; i++) {
+                    final text = _controllers[i].text.replaceAll(',', '.');
+                    if (text.isEmpty || text == '0') continue;
+
+                    final val = double.tryParse(text);
+                    if (val == null || val <= 0) continue;
+
+                    if (_inputTypes[i] == '%') {
+                      finalDiscounts.add(val / 100);
+                      currentRunningBase -= (currentRunningBase * (val / 100));
+                    } else {
+                      final percentEquivalent = val / currentRunningBase;
+                      finalDiscounts.add(percentEquivalent);
+                      currentRunningBase -= val;
+                    }
+                  }
+
+                  widget.onApply(finalDiscounts);
+                  widget.onClose();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accent,
+                  foregroundColor: AppColors.onPrimary,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text('Terapkan'),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

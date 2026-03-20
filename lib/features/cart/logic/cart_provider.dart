@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../core/services/storage_service.dart';
+import '../../../core/utils/log.dart';
 import '../data/cart_item.dart';
 
 /// Stable key for a cart line (same product + same component SKUs = same key).
@@ -23,8 +25,8 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
             .map((json) => CartItem.fromJson(json))
             .toList();
         state = items;
-      } catch (e) {
-        // If parsing fails, keep empty cart
+      } catch (e, st) {
+        Log.error(e, st, reason: 'CartNotifier._loadCart parse');
         state = [];
       }
     }

@@ -47,7 +47,8 @@ class ContactPickerBottomSheet extends StatelessWidget {
                     contact['kota']?.toString() ?? '',
                 ].join(' • ');
 
-                return ListTile(
+                return RepaintBoundary(
+                  child: ListTile(
                   leading: CircleAvatar(
                     backgroundColor: AppColors.primary.withValues(alpha: 0.08),
                     child: const Icon(
@@ -67,6 +68,7 @@ class ContactPickerBottomSheet extends StatelessWidget {
                       ? Text(subtitle, style: const TextStyle(fontSize: 12))
                       : null,
                   onTap: () => Navigator.pop(context, contact),
+                ),
                 );
               },
             ),

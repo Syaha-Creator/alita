@@ -165,7 +165,8 @@ class SearchableDropdownField<T> extends StatelessWidget {
                                   ),
                                   itemBuilder: (_, index) {
                                     final item = filtered[index];
-                                    return ListTile(
+                                    return RepaintBoundary(
+                                      child: ListTile(
                                       contentPadding: EdgeInsets.zero,
                                       title: Text(
                                         itemAsString(item),
@@ -175,6 +176,7 @@ class SearchableDropdownField<T> extends StatelessWidget {
                                         onPicked(item);
                                         Navigator.pop(sheetCtx);
                                       },
+                                    ),
                                     );
                                   },
                                 ),

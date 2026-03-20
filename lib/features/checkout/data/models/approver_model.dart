@@ -28,9 +28,8 @@ class Approver {
     );
   }
 
-  /// Display label shown in the dropdown.
-  String get displayLabel =>
-      jobLevelName.isNotEmpty ? '$fullName — $jobLevelName' : fullName;
+  /// Display label shown in the dropdown — name only, no role suffix.
+  String get displayLabel => fullName;
 
   @override
   bool operator ==(Object other) => other is Approver && other.id == id;

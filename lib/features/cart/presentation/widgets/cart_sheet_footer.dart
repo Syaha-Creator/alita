@@ -16,8 +16,9 @@ class CartSheetFooter extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final totalAmount = ref.watch(cartSelectedTotalAmountProvider);
     final isAllSelected = ref.watch(isAllSelectedProvider);
-    final selectedItems = ref.watch(selectedCartItemsProvider);
-    final hasSelection = ref.watch(selectedCartItemIdsProvider).isNotEmpty;
+    final hasSelection = ref.watch(
+      selectedCartItemIdsProvider.select((ids) => ids.isNotEmpty),
+    );
 
     return Container(
       decoration: const BoxDecoration(
@@ -111,8 +112,9 @@ class CartSheetFooter extends ConsumerWidget {
                       ),
               onPrimaryPressed: hasSelection
                   ? () {
+                      final items = ref.read(selectedCartItemsProvider);
                       Navigator.of(context).pop();
-                      context.push('/checkout', extra: selectedItems);
+                      context.push('/checkout', extra: items);
                     }
                   : null,
             ),

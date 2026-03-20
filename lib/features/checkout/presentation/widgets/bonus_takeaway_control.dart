@@ -103,8 +103,8 @@ class BonusTakeAwayControl extends StatelessWidget {
                       const Spacer(),
                       QuantityStepper(
                         quantity: currentTakeAway,
-                        onDecrement: canDecrement ? onDecrement! : () {},
-                        onIncrement: canIncrement ? onIncrement! : () {},
+                        onDecrement: canDecrement ? onDecrement ?? () {} : () {},
+                        onIncrement: canIncrement ? onIncrement ?? () {} : () {},
                         decrementIcon: Icons.remove_circle_outline,
                         incrementIcon: Icons.add_circle_outline,
                         decrementIconColor: canDecrement

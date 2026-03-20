@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/services/connectivity_service.dart';
 import '../../../../core/widgets/async_state_view.dart';
 import '../../../../core/widgets/error_state_view.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/empty_state_view.dart';
+import '../../../../core/widgets/animated_list_item.dart';
 import '../../../../core/widgets/floating_badge.dart';
 import '../../data/models/product.dart';
+import '../../logic/master_data_provider.dart';
 import '../../logic/product_provider.dart';
 import '../widgets/product_card.dart';
 import '../widgets/product_card_shimmer.dart';
@@ -18,15 +21,28 @@ import '../../../cart/presentation/widgets/cart_fab.dart';
 import '../../../favorites/logic/favorites_provider.dart';
 
 /// Product list page with Pinterest-style masonry grid + Cascading Filters
-class ProductListPage extends ConsumerWidget {
+class ProductListPage extends ConsumerStatefulWidget {
   const ProductListPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProductListPage> createState() => _ProductListPageState();
+}
+
+class _ProductListPageState extends ConsumerState<ProductListPage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(masterDataProvider.notifier).syncIfStale();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final productsAsync = ref.watch(productListProvider);
     final filteredProducts = ref.watch(filteredProductsProvider);
     final isFilterComplete = ref.watch(isFilterCompleteProvider);
-    final favoritesCount = ref.watch(favoritesCountProvider);
+    final isOffline = ref.watch(isOfflineProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -37,58 +53,32 @@ class ProductListPage extends ConsumerWidget {
         ),
         elevation: 0,
         actions: [
-          // Profile icon
           IconButton(
             icon: const Icon(Icons.person_outline),
             onPressed: () {
               context.push('/profile');
             },
           ),
-          // Favorites icon with badge
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.favorite_border),
-                onPressed: () {
-                  context.push('/favorites');
-                },
-              ),
-              if (favoritesCount > 0)
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: FloatingBadge(
-                    count: favoritesCount,
-                    maxCount: 9,
-                    padding: const EdgeInsets.all(4),
-                    constraints: const BoxConstraints(
-                      minWidth: 16,
-                      minHeight: 16,
-                    ),
-                    textStyle: const TextStyle(
-                      color: AppColors.onPrimary,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-            ],
-          ),
+          const _FavoritesBadgeButton(),
           const SizedBox(width: 8),
         ],
       ),
-      body: AsyncStateView(
+      body: AsyncStateView<ProductListLoadResult>(
         state: productsAsync,
         loading: _buildShimmerGrid(context),
-        errorBuilder: (error, _) => _buildErrorState(context, ref),
-        dataBuilder: (_) {
+        errorBuilder: (error, _) => _buildErrorState(context, isOffline: isOffline),
+        dataBuilder: (result) {
           if (!isFilterComplete) {
             return _buildFilterPrompt(context);
           }
           if (filteredProducts.isEmpty) {
             return _buildEmptyState(context);
           }
-          return _buildProductGrid(context, filteredProducts);
+          return _buildProductGrid(
+            context,
+            filteredProducts,
+            showStaleCacheBanner: result.isFromStaleCache,
+          );
         },
       ),
       floatingActionButton: const CartFAB(),
@@ -193,10 +183,49 @@ class ProductListPage extends ConsumerWidget {
   }
 
   /// Product grid with data
-  Widget _buildProductGrid(BuildContext context, List<Product> products) {
-    return CustomScrollView(
+  Widget _buildProductGrid(
+    BuildContext context,
+    List<Product> products, {
+    bool showStaleCacheBanner = false,
+  }) {
+    return RefreshIndicator.adaptive(
+      color: AppColors.accent,
+      onRefresh: () async => ref.invalidate(productListProvider),
+      child: CustomScrollView(
       slivers: [
         ..._buildStickyHeaders(context),
+        if (showStaleCacheBanner)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Material(
+                color: AppColors.warning.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.history_edu_outlined,
+                          size: 18, color: AppColors.warning),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Menampilkan data terakhir yang tersimpan. Tarik untuk refresh '
+                          'agar harga mengikuti server terbaru.',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: AppColors.textSecondary,
+                                height: 1.3,
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
         // Products count
         SliverToBoxAdapter(
           child: Padding(
@@ -219,12 +248,15 @@ class ProductListPage extends ConsumerWidget {
             childCount: products.length,
             itemBuilder: (context, index) {
               final product = products[index];
-              return RepaintBoundary(
-                child: ProductCard(
-                  product: product,
-                  onTap: () {
-                    context.push('/product/${product.id}', extra: product);
-                  },
+              return AnimatedListItem(
+                index: index,
+                child: RepaintBoundary(
+                  child: ProductCard(
+                    product: product,
+                    onTap: () {
+                      context.push('/product/${product.id}', extra: product);
+                    },
+                  ),
                 ),
               );
             },
@@ -232,14 +264,19 @@ class ProductListPage extends ConsumerWidget {
         ),
         const SliverToBoxAdapter(child: SizedBox(height: 16)),
       ],
+      ),
     );
   }
 
   /// Error state with retry
-  Widget _buildErrorState(BuildContext context, WidgetRef ref) {
+  Widget _buildErrorState(BuildContext context, {required bool isOffline}) {
     return ErrorStateView(
-      title: 'Gagal memuat produk',
-      message: 'Periksa koneksi internet Anda dan coba lagi',
+      title: isOffline
+          ? 'Sedang offline'
+          : 'Gagal memuat produk',
+      message: isOffline
+          ? 'Tidak ada koneksi internet. Tarik untuk refresh setelah online.'
+          : 'Terjadi kendala saat memuat data server. Coba lagi beberapa saat.',
       icon: Icons.cloud_off_rounded,
       padding: const EdgeInsets.all(32),
       onRetry: () => ref.invalidate(productListProvider),
@@ -331,6 +368,43 @@ class _SortButton extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Isolated ConsumerWidget so only the badge rebuilds when favorites count changes.
+class _FavoritesBadgeButton extends ConsumerWidget {
+  const _FavoritesBadgeButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final count = ref.watch(favoritesCountProvider);
+    return Stack(
+      children: [
+        IconButton(
+          icon: const Icon(Icons.favorite_border),
+          onPressed: () => context.push('/favorites'),
+        ),
+        if (count > 0)
+          Positioned(
+            right: 8,
+            top: 8,
+            child: FloatingBadge(
+              count: count,
+              maxCount: 9,
+              padding: const EdgeInsets.all(4),
+              constraints: const BoxConstraints(
+                minWidth: 16,
+                minHeight: 16,
+              ),
+              textStyle: const TextStyle(
+                color: AppColors.onPrimary,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

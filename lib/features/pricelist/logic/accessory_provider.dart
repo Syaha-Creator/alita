@@ -1,9 +1,9 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/services/api_client.dart';
+import '../../../core/utils/log.dart';
 import '../data/models/accessory.dart';
 
 /// Provider untuk aksesoris (pengganti bonus) dari API pl_accessories.
@@ -15,7 +15,7 @@ final accessoryProvider = FutureProvider<List<Accessory>>((ref) async {
     );
 
     if (response.statusCode != 200) {
-      debugPrint('Accessory: HTTP ${response.statusCode}');
+      Log.warning('HTTP ${response.statusCode}', tag: 'Accessory');
       return [];
     }
 
@@ -37,8 +37,8 @@ final accessoryProvider = FutureProvider<List<Accessory>>((ref) async {
       return uniqueAcc.values.toList();
     }
     return [];
-  } catch (e) {
-    debugPrint('Accessory: $e');
+  } catch (e, st) {
+    Log.error(e, st, reason: 'accessoryProvider');
     return [];
   }
 });

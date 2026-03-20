@@ -1,12 +1,30 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:alitapricelist/core/config/app_config.dart';
 import '../../../core/services/api_client.dart';
+import '../../../core/services/storage_service.dart';
 import '../../../core/utils/area_utils.dart';
+import '../../../core/utils/log.dart';
 import '../data/models/product.dart';
 import '../../auth/logic/auth_provider.dart';
 import 'master_data_provider.dart';
+
+/// Snapshot load result: network success sets [isFromStaleCache] false.
+/// On network/API failure, last successful snapshot may be returned with
+/// [isFromStaleCache] true (full list replace on every successful fetch).
+@immutable
+class ProductListLoadResult {
+  const ProductListLoadResult({
+    required this.products,
+    this.isFromStaleCache = false,
+  });
+
+  final List<Product> products;
+  final bool isFromStaleCache;
+}
 
 // ─────────────────────────────────────────────────────────
 //  Sort
@@ -48,7 +66,8 @@ final areasProvider = Provider<List<String>>((ref) {
         .where((s) => s.isNotEmpty)
         .toSet()
         .toList();
-  } catch (_) {
+  } catch (e, st) {
+    Log.error(e, st, reason: 'areasProvider parse');
     return [];
   }
 });
@@ -87,7 +106,8 @@ final channelsProvider = Provider<List<String>>((ref) {
         .where((name) => name.isNotEmpty)
         .toSet()
         .toList();
-  } catch (_) {
+  } catch (e, st) {
+    Log.error(e, st, reason: 'channelsProvider parse');
     return [];
   }
 });
@@ -130,7 +150,8 @@ final brandsProvider = Provider<List<String>>((ref) {
         .where((name) => name.isNotEmpty)
         .toSet()
         .toList();
-  } catch (_) {
+  } catch (e, st) {
+    Log.error(e, st, reason: 'brandsProvider parse');
     return [];
   }
 });
@@ -165,19 +186,169 @@ String _toTitleCase(String text) {
 //  Product Data (API)
 // ─────────────────────────────────────────────────────────
 
-/// Fetches product list from on-premise API.
-/// Returns empty list when channel or brand is not selected (guard clause).
-/// Response shape: {"status":"success","data":[{ "id", "kasur", "ukuran", "end_user_price", "series", "channel", "brand", ... }]}
-final productListProvider = FutureProvider<List<Product>>((ref) async {
+/// Maps API `data` list rows to [Product] (same rules as historical provider).
+List<Product> mapFilteredPlRawListToProducts(
+  List<dynamic> rawList,
+  String channel,
+  String brand,
+) {
+  return rawList.map((e) {
+    final json = e is Map<String, dynamic> ? e : <String, dynamic>{};
+    final nameRaw = '${json['kasur'] ?? ''} ${json['ukuran'] ?? ''}'.trim();
+    final name = nameRaw.isEmpty ? 'Produk Tanpa Nama' : nameRaw;
+    final priceRaw = json['end_user_price'];
+    final price = (priceRaw is num)
+        ? priceRaw.toDouble()
+        : (double.tryParse(priceRaw?.toString() ?? '') ?? 0.0);
+    double toDouble(dynamic v) =>
+        (v is num) ? v.toDouble() : (double.tryParse(v?.toString() ?? '') ?? 0.0);
+    double readDisc(int i) {
+      final keys = ['disc_$i', 'disc$i', 'discount_$i', 'max_disc_$i'];
+      for (final k in keys) {
+        final v = json[k];
+        if (v == null) continue;
+        final d = toDouble(v);
+        if (d > 0) return d;
+      }
+      return 0.0;
+    }
+
+    double toDiscFraction(int i) {
+      final d = readDisc(i);
+      if (d <= 0) return 0.0;
+      return d > 1 ? (d / 100) : d;
+    }
+
+    return Product(
+      id: (json['id'] ?? '').toString(),
+      name: name,
+      price: price,
+      imageUrl: AppConfig.placeholderProductImageById(json['id']),
+      category: (json['series'] ?? 'Uncategorized').toString(),
+      description: (json['detail_list'] ??
+              'Deskripsi detail belum tersedia untuk produk ini.')
+          .toString(),
+      channel: (json['channel'] ?? channel).toString(),
+      brand: (json['brand'] ?? brand).toString(),
+      program: (json['program'] ?? '-').toString(),
+      kasur: (json['kasur'] ?? '').toString(),
+      ukuran: (json['ukuran'] ?? '').toString(),
+      divan: (json['divan'] ?? '').toString(),
+      headboard: (json['headboard'] ?? '').toString(),
+      sorong: (json['sorong'] ?? '').toString(),
+      isSet: json['set'] == true,
+      pricelist: toDouble(json['pricelist']),
+      eupKasur: toDouble(json['eup_kasur']),
+      eupDivan: toDouble(json['eup_divan']),
+      eupHeadboard: toDouble(json['eup_headboard']),
+      eupSorong: toDouble(json['eup_sorong']),
+      plKasur: toDouble(json['pl_kasur']),
+      plDivan: toDouble(json['pl_divan']),
+      plHeadboard: toDouble(json['pl_headboard']),
+      plSorong: toDouble(json['pl_sorong']),
+      bonus1: json['bonus_1']?.toString(),
+      qtyBonus1: json['qty_bonus1'] is int
+          ? json['qty_bonus1'] as int
+          : int.tryParse(json['qty_bonus1']?.toString() ?? ''),
+      bonus2: json['bonus_2']?.toString(),
+      qtyBonus2: json['qty_bonus2'] is int
+          ? json['qty_bonus2'] as int
+          : int.tryParse(json['qty_bonus2']?.toString() ?? ''),
+      bonus3: json['bonus_3']?.toString(),
+      qtyBonus3: json['qty_bonus3'] is int
+          ? json['qty_bonus3'] as int
+          : int.tryParse(json['qty_bonus3']?.toString() ?? ''),
+      bonus4: json['bonus_4']?.toString(),
+      qtyBonus4: json['qty_bonus4'] is int
+          ? json['qty_bonus4'] as int
+          : int.tryParse(json['qty_bonus4']?.toString() ?? ''),
+      bonus5: json['bonus_5']?.toString(),
+      qtyBonus5: json['qty_bonus5'] is int
+          ? json['qty_bonus5'] as int
+          : int.tryParse(json['qty_bonus5']?.toString() ?? ''),
+      bonus6: json['bonus_6']?.toString(),
+      qtyBonus6: json['qty_bonus6'] is int
+          ? json['qty_bonus6'] as int
+          : int.tryParse(json['qty_bonus6']?.toString() ?? ''),
+      bonus7: json['bonus_7']?.toString(),
+      qtyBonus7: json['qty_bonus7'] is int
+          ? json['qty_bonus7'] as int
+          : int.tryParse(json['qty_bonus7']?.toString() ?? ''),
+      bonus8: json['bonus_8']?.toString(),
+      qtyBonus8: json['qty_bonus8'] is int
+          ? json['qty_bonus8'] as int
+          : int.tryParse(json['qty_bonus8']?.toString() ?? ''),
+      plBonus1: json['pl_bonus_1'] != null ? toDouble(json['pl_bonus_1']) : null,
+      plBonus2: json['pl_bonus_2'] != null ? toDouble(json['pl_bonus_2']) : null,
+      plBonus3: json['pl_bonus_3'] != null ? toDouble(json['pl_bonus_3']) : null,
+      plBonus4: json['pl_bonus_4'] != null ? toDouble(json['pl_bonus_4']) : null,
+      plBonus5: json['pl_bonus_5'] != null ? toDouble(json['pl_bonus_5']) : null,
+      plBonus6: json['pl_bonus_6'] != null ? toDouble(json['pl_bonus_6']) : null,
+      plBonus7: json['pl_bonus_7'] != null ? toDouble(json['pl_bonus_7']) : null,
+      plBonus8: json['pl_bonus_8'] != null ? toDouble(json['pl_bonus_8']) : null,
+      bottomPriceAnalyst: toDouble(json['bottom_price_analyst']),
+      disc1: toDiscFraction(1),
+      disc2: toDiscFraction(2),
+      disc3: toDiscFraction(3),
+      disc4: toDiscFraction(4),
+      disc5: toDiscFraction(5),
+      disc6: toDiscFraction(6),
+      disc7: toDiscFraction(7),
+      disc8: toDiscFraction(8),
+    );
+  }).toList();
+}
+
+List<Product> _productsFromResponseBody(String body, String channel, String brand) {
+  final decoded = jsonDecode(body);
+  if (decoded == null) throw Exception('Response tidak valid.');
+
+  List<dynamic> rawList;
+  if (decoded is Map<String, dynamic> && decoded['data'] is List) {
+    rawList = decoded['data'] as List<dynamic>;
+  } else if (decoded is List) {
+    rawList = decoded;
+  } else {
+    rawList = [];
+  }
+
+  return mapFilteredPlRawListToProducts(rawList, channel, brand);
+}
+
+/// Fetches product list from API; on every **successful** response the full
+/// list for this filter is written to disk (overwrites any previous snapshot).
+/// On failure, returns the last successful snapshot if any ([isFromStaleCache]).
+final productListProvider =
+    FutureProvider<ProductListLoadResult>((ref) async {
   final area = ref.watch(effectiveAreaProvider);
   final channel = ref.watch(selectedChannelProvider);
   final brand = ref.watch(selectedBrandProvider);
 
-  if (channel == null || brand == null) return [];
+  if (channel == null || brand == null) {
+    return const ProductListLoadResult(products: []);
+  }
+
+  final formattedArea = _toTitleCase(area);
+  final cacheKey =
+      StorageService.pricelistCacheStorageKey(formattedArea, channel, brand);
+
+  Future<ProductListLoadResult?> tryLoadStale() async {
+    final rows = await StorageService.loadPricelistProductRows(cacheKey);
+    if (rows == null || rows.isEmpty) return null;
+    try {
+      final products =
+          rows.map((m) => Product.fromJson(m)).toList(growable: false);
+      return ProductListLoadResult(
+        products: products,
+        isFromStaleCache: true,
+      );
+    } catch (e, st) {
+      Log.error(e, st, reason: 'pricelist cache parse');
+      return null;
+    }
+  }
 
   try {
-    final formattedArea = _toTitleCase(area);
-
     final response = await ApiClient.instance.get(
       '/rawdata_price_lists/filtered_pl',
       queryParams: {
@@ -188,112 +359,22 @@ final productListProvider = FutureProvider<List<Product>>((ref) async {
     );
 
     if (response.statusCode != 200) {
+      final stale = await tryLoadStale();
+      if (stale != null) return stale;
       throw Exception(
         'Gagal memuat pricelist (${response.statusCode}). Coba lagi nanti.',
       );
     }
 
-    final decoded = jsonDecode(response.body);
-    if (decoded == null) throw Exception('Response tidak valid.');
+    final products = _productsFromResponseBody(response.body, channel, brand);
+    final rows = products.map((p) => p.toJson()).toList(growable: false);
+    await StorageService.savePricelistProductRows(cacheKey, rows);
 
-    List<dynamic> rawList;
-    if (decoded is Map<String, dynamic> && decoded['data'] is List) {
-      rawList = decoded['data'] as List<dynamic>;
-    } else if (decoded is List) {
-      rawList = decoded;
-    } else {
-      rawList = [];
-    }
-
-    return rawList.map((e) {
-      final json = e is Map<String, dynamic> ? e : <String, dynamic>{};
-      final nameRaw = '${json['kasur'] ?? ''} ${json['ukuran'] ?? ''}'.trim();
-      final name = nameRaw.isEmpty ? 'Produk Tanpa Nama' : nameRaw;
-      final priceRaw = json['end_user_price'];
-      final price = (priceRaw is num)
-          ? priceRaw.toDouble()
-          : (double.tryParse(priceRaw?.toString() ?? '') ?? 0.0);
-      double toDouble(dynamic v) =>
-          (v is num) ? v.toDouble() : (double.tryParse(v?.toString() ?? '') ?? 0.0);
-      // Batas diskon: coba beberapa key (API bisa pakai disc_1, disc1, discount_1, dll)
-      double readDisc(int i) {
-        final keys = ['disc_$i', 'disc$i', 'discount_$i', 'max_disc_$i'];
-        for (final k in keys) {
-          final v = json[k];
-          if (v == null) continue;
-          final d = toDouble(v);
-          if (d > 0) return d;
-        }
-        return 0.0;
-      }
-      // Jika API mengirim persen (10 = 10%), konversi ke fraksi (0.1)
-      double toDiscFraction(int i) {
-        final d = readDisc(i);
-        if (d <= 0) return 0.0;
-        return d > 1 ? (d / 100) : d; // > 1 anggap persen
-      }
-
-      return Product(
-        id: (json['id'] ?? '').toString(),
-        name: name,
-        price: price,
-        imageUrl: 'https://picsum.photos/seed/${json['id'] ?? 0}/400/600',
-        category: (json['series'] ?? 'Uncategorized').toString(),
-        description: (json['detail_list'] ?? 'Deskripsi detail belum tersedia untuk produk ini.').toString(),
-        channel: (json['channel'] ?? channel).toString(),
-        brand: (json['brand'] ?? brand).toString(),
-        program: (json['program'] ?? '-').toString(),
-        kasur: (json['kasur'] ?? '').toString(),
-        ukuran: (json['ukuran'] ?? '').toString(),
-        divan: (json['divan'] ?? '').toString(),
-        headboard: (json['headboard'] ?? '').toString(),
-        sorong: (json['sorong'] ?? '').toString(),
-        isSet: json['set'] == true,
-        pricelist: toDouble(json['pricelist']),
-        eupKasur: toDouble(json['eup_kasur']),
-        eupDivan: toDouble(json['eup_divan']),
-        eupHeadboard: toDouble(json['eup_headboard']),
-        eupSorong: toDouble(json['eup_sorong']),
-        plKasur: toDouble(json['pl_kasur']),
-        plDivan: toDouble(json['pl_divan']),
-        plHeadboard: toDouble(json['pl_headboard']),
-        plSorong: toDouble(json['pl_sorong']),
-        bonus1: json['bonus_1']?.toString(),
-        qtyBonus1: json['qty_bonus1'] is int ? json['qty_bonus1'] as int : int.tryParse(json['qty_bonus1']?.toString() ?? ''),
-        bonus2: json['bonus_2']?.toString(),
-        qtyBonus2: json['qty_bonus2'] is int ? json['qty_bonus2'] as int : int.tryParse(json['qty_bonus2']?.toString() ?? ''),
-        bonus3: json['bonus_3']?.toString(),
-        qtyBonus3: json['qty_bonus3'] is int ? json['qty_bonus3'] as int : int.tryParse(json['qty_bonus3']?.toString() ?? ''),
-        bonus4: json['bonus_4']?.toString(),
-        qtyBonus4: json['qty_bonus4'] is int ? json['qty_bonus4'] as int : int.tryParse(json['qty_bonus4']?.toString() ?? ''),
-        bonus5: json['bonus_5']?.toString(),
-        qtyBonus5: json['qty_bonus5'] is int ? json['qty_bonus5'] as int : int.tryParse(json['qty_bonus5']?.toString() ?? ''),
-        bonus6: json['bonus_6']?.toString(),
-        qtyBonus6: json['qty_bonus6'] is int ? json['qty_bonus6'] as int : int.tryParse(json['qty_bonus6']?.toString() ?? ''),
-        bonus7: json['bonus_7']?.toString(),
-        qtyBonus7: json['qty_bonus7'] is int ? json['qty_bonus7'] as int : int.tryParse(json['qty_bonus7']?.toString() ?? ''),
-        bonus8: json['bonus_8']?.toString(),
-        qtyBonus8: json['qty_bonus8'] is int ? json['qty_bonus8'] as int : int.tryParse(json['qty_bonus8']?.toString() ?? ''),
-        plBonus1: json['pl_bonus_1'] != null ? toDouble(json['pl_bonus_1']) : null,
-        plBonus2: json['pl_bonus_2'] != null ? toDouble(json['pl_bonus_2']) : null,
-        plBonus3: json['pl_bonus_3'] != null ? toDouble(json['pl_bonus_3']) : null,
-        plBonus4: json['pl_bonus_4'] != null ? toDouble(json['pl_bonus_4']) : null,
-        plBonus5: json['pl_bonus_5'] != null ? toDouble(json['pl_bonus_5']) : null,
-        plBonus6: json['pl_bonus_6'] != null ? toDouble(json['pl_bonus_6']) : null,
-        plBonus7: json['pl_bonus_7'] != null ? toDouble(json['pl_bonus_7']) : null,
-        plBonus8: json['pl_bonus_8'] != null ? toDouble(json['pl_bonus_8']) : null,
-        bottomPriceAnalyst: toDouble(json['bottom_price_analyst']),
-        disc1: toDiscFraction(1),
-        disc2: toDiscFraction(2),
-        disc3: toDiscFraction(3),
-        disc4: toDiscFraction(4),
-        disc5: toDiscFraction(5),
-        disc6: toDiscFraction(6),
-        disc7: toDiscFraction(7),
-        disc8: toDiscFraction(8),
-      );
-    }).toList();
-  } catch (e) {
+    return ProductListLoadResult(products: products, isFromStaleCache: false);
+  } catch (e, st) {
+    Log.error(e, st, reason: 'productListProvider fetch');
+    final stale = await tryLoadStale();
+    if (stale != null) return stale;
     rethrow;
   }
 });
@@ -307,7 +388,7 @@ final filteredProductsProvider = Provider<List<Product>>((ref) {
   if (selectedChannel == null || selectedBrand == null) return [];
 
   final productsAsync = ref.watch(productListProvider);
-  var products = productsAsync.valueOrNull ?? [];
+  var products = productsAsync.valueOrNull?.products ?? [];
   if (products.isEmpty) return [];
 
   // --- START LOGIKA GROUPING ---
@@ -335,8 +416,8 @@ final filteredProductsProvider = Provider<List<Product>>((ref) {
     if (!groupedMap.containsKey(groupName)) {
       groupedMap[groupName] = p.copyWith(name: groupName);
     } else {
-      final existingProduct = groupedMap[groupName]!;
-      if (p.price > 0 && p.price < existingProduct.price) {
+      final existingProduct = groupedMap[groupName];
+      if (existingProduct != null && p.price > 0 && p.price < existingProduct.price) {
         groupedMap[groupName] = p.copyWith(name: groupName);
       }
     }

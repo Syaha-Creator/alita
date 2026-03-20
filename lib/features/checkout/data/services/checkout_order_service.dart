@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 
 import '../../../../core/services/api_client.dart';
+import '../../../../core/utils/app_telemetry.dart';
 import '../../../../core/utils/log.dart';
 import '../../../cart/data/cart_item.dart';
 import '../../../pricelist/data/models/item_lookup.dart';
@@ -132,6 +133,7 @@ class CheckoutOrderService {
     required File? receiptImage,
     required String token,
   }) async {
+    final sw = Stopwatch()..start();
     final fields = <String, String>{
       'order_letter_payment[order_letter_id]': orderLetterId.toString(),
     };
@@ -160,11 +162,30 @@ class CheckoutOrderService {
     );
 
     if (response.statusCode != 200 && response.statusCode != 201) {
+      sw.stop();
+      AppTelemetry.error(
+        'checkout_payment_upload_failed',
+        data: {
+          'status_code': response.statusCode,
+          'duration_ms': sw.elapsedMilliseconds,
+          'has_receipt': receiptImage != null,
+        },
+        tag: 'CheckoutUpload',
+      );
       throw Exception(
         'Gagal mengupload bukti pembayaran.\n'
         'Status: ${response.statusCode}\nResponse: ${response.body}',
       );
     }
+    sw.stop();
+    AppTelemetry.event(
+      'checkout_payment_upload_ok',
+      data: {
+        'duration_ms': sw.elapsedMilliseconds,
+        'has_receipt': receiptImage != null,
+      },
+      tag: 'CheckoutUpload',
+    );
   }
 
   // ── Step 4: Post Details (one by one) ─────────────────────────
@@ -234,7 +255,9 @@ class CheckoutOrderService {
             0;
         if (topId > 0) return topId;
       }
-    } catch (_) {}
+    } catch (e, st) {
+      Log.error(e, st, reason: 'CheckoutOrderService._extractDetailId');
+    }
     return 0;
   }
 
@@ -472,7 +495,7 @@ class CheckoutOrderService {
             discount4: item.discount4,
           );
 
-      // 1. MATTRESS (KASUR)
+      // 1. Mattress(KASUR)
       if (hasComponent(p.kasur)) {
         final baseKasurName = appendSizeIfMissing(itemDesc, ukuran);
         CheckoutDetailBuilderUtils.validateRequiredField(

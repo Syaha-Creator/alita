@@ -1,9 +1,10 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/services/api_client.dart';
+import '../../../core/utils/log.dart';
+import '../../../core/utils/retry.dart';
 import '../data/models/item_lookup.dart';
 
 /// Provider untuk data lookup item_num (SKU Pabrik) dari API pl_lookup_item_nums.
@@ -11,13 +12,18 @@ import '../data/models/item_lookup.dart';
 final itemLookupProvider =
     FutureProvider<Map<String, List<ItemLookup>>>((ref) async {
   try {
-    final response = await ApiClient.instance.get(
-      '/pl_lookup_item_nums',
-      timeout: const Duration(seconds: 15),
+    final response = await retry(
+      () => ApiClient.instance.get(
+        '/pl_lookup_item_nums',
+        timeout: const Duration(seconds: 15),
+      ),
+      maxAttempts: 2,
+      tag: 'itemLookup',
     );
 
     if (response.statusCode != 200) {
-      debugPrint('ItemLookup: HTTP ${response.statusCode}');
+      Log.warning('ItemLookup: HTTP ${response.statusCode}',
+          tag: 'itemLookup');
       return {};
     }
 
@@ -36,8 +42,8 @@ final itemLookupProvider =
       groupedMap.putIfAbsent(key, () => []).add(lookup);
     }
     return groupedMap;
-  } catch (e) {
-    debugPrint('ItemLookup: $e');
+  } catch (e, st) {
+    Log.error(e, st, reason: 'itemLookupProvider');
     return {};
   }
 });

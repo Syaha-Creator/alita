@@ -66,10 +66,10 @@ class CheckoutApprovalCard extends StatelessWidget {
                 ),
               ],
             ),
-            if (errorMessage != null && errorMessage!.isNotEmpty) ...[
+            if (errorMessage case final err? when err.isNotEmpty) ...[
               const SizedBox(height: 4),
               Text(
-                errorMessage!,
+                err,
                 style: const TextStyle(
                   color: AppColors.error,
                   fontSize: 11,

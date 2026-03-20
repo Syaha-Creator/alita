@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../../../core/services/storage_service.dart';
+import '../../../core/utils/app_telemetry.dart';
 import '../../../core/utils/log.dart';
 import '../../cart/data/cart_item.dart';
 import '../../cart/logic/cart_provider.dart';
@@ -75,6 +76,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       final companyId = profile?.companyId ?? 0;
       final areaId = profile?.areaId ?? 0;
       final data = await ApprovalService().getApprovers(companyId, areaId);
+      data.sort((a, b) => a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()));
       state = state.copyWith(
         approvers: data,
         isLoadingApprovers: false,
@@ -111,8 +113,8 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     required List<CartItem> cartItems,
     required Map<String, dynamic> headerPayload,
     required List<Map<String, dynamic>> contactsPayload,
-    required Map<String, dynamic> paymentPayload,
-    required File? receiptImage,
+    required List<Map<String, dynamic>> paymentPayloads,
+    required List<File?> receiptImages,
     required bool globalIsTakeAway,
     required bool Function(int itemIndex, CartBonusSnapshot) isBonusTakeAwayChecked,
     required int Function(int itemIndex, CartBonusSnapshot) currentTakeAwayQty,
@@ -123,6 +125,16 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     // Cart cleanup
     required List<CartItem>? selectedCartItems,
   }) async {
+    final totalSw = Stopwatch()..start();
+    AppTelemetry.event(
+      'checkout_submit_started',
+      data: {
+        'cart_items': cartItems.length,
+        'payments': paymentPayloads.length,
+        'has_selected_items': selectedCartItems != null && selectedCartItems.isNotEmpty,
+      },
+      tag: 'CheckoutFlow',
+    );
     state = state.copyWith(
       isSubmitting: true,
       submitError: null,
@@ -131,6 +143,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     );
 
     try {
+      final prepSw = Stopwatch()..start();
       final int userId = await StorageService.loadUserId();
       final String token = await StorageService.loadAccessToken();
 
@@ -164,10 +177,26 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         currentTakeAwayQty: currentTakeAwayQty,
         profileName: profile?.name ?? 'User',
       );
+      prepSw.stop();
+      AppTelemetry.event(
+        'checkout_prep_completed',
+        data: {
+          'duration_ms': prepSw.elapsedMilliseconds,
+          'pending_details': pendingDetails.length,
+        },
+        tag: 'CheckoutFlow',
+      );
 
       // ── STEP 1: Create Order Letter Header ──
+      final step1 = Stopwatch()..start();
       final orderResult =
           await _orderService.createOrderLetter(headerPayload, token);
+      step1.stop();
+      AppTelemetry.event(
+        'checkout_step1_header_ok',
+        data: {'duration_ms': step1.elapsedMilliseconds},
+        tag: 'CheckoutFlow',
+      );
       final orderLetterId = orderResult.orderLetterId;
       final noSp = orderResult.noSp;
 
@@ -185,33 +214,67 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         if (name.isNotEmpty && phone.isNotEmpty) {
           try {
             await LocalContactService.saveContact(newCustomerContact);
-          } catch (e) {
-            debugPrint('Gagal menyimpan kontak lokal: $e');
+          } catch (e, st) {
+            Log.error(e, st, reason: 'Checkout: save local contact');
           }
         }
       }
 
       // ── STEP 2: Post Contacts ──
+      final step2 = Stopwatch()..start();
       await _orderService.postContacts(contactsPayload, orderLetterId, token);
+      step2.stop();
+      AppTelemetry.event(
+        'checkout_step2_contacts_ok',
+        data: {
+          'duration_ms': step2.elapsedMilliseconds,
+          'contacts': contactsPayload.length,
+        },
+        tag: 'CheckoutFlow',
+      );
 
-      // ── STEP 3: Post Payment ──
-      await _orderService.postPayment(
-        paymentPayload: paymentPayload,
-        orderLetterId: orderLetterId,
-        receiptImage: receiptImage,
-        token: token,
+      // ── STEP 3: Post Payments ──
+      final step3 = Stopwatch()..start();
+      for (int i = 0; i < paymentPayloads.length; i++) {
+        await _orderService.postPayment(
+          paymentPayload: paymentPayloads[i],
+          orderLetterId: orderLetterId,
+          receiptImage: i < receiptImages.length ? receiptImages[i] : null,
+          token: token,
+        );
+      }
+      step3.stop();
+      AppTelemetry.event(
+        'checkout_step3_payments_ok',
+        data: {
+          'duration_ms': step3.elapsedMilliseconds,
+          'payments': paymentPayloads.length,
+        },
+        tag: 'CheckoutFlow',
       );
 
       // ── STEP 4: Post Details ──
+      final step4 = Stopwatch()..start();
       final detailResult = await _orderService.postDetails(
         pendingDetails,
         orderLetterId,
         token,
         noSp: noSp,
       );
+      step4.stop();
+      AppTelemetry.event(
+        'checkout_step4_details_done',
+        data: {
+          'duration_ms': step4.elapsedMilliseconds,
+          'succeeded': detailResult.succeeded.length,
+          'failed': detailResult.failed.length,
+        },
+        tag: 'CheckoutFlow',
+      );
 
       // ── STEP 5: Post Discounts ──
       if (detailResult.succeeded.isNotEmpty) {
+        final step5 = Stopwatch()..start();
         // If any detail didn't return an ID from POST, fetch as fallback
         final needsFallback =
             detailResult.succeeded.any((s) => s.detailId <= 0);
@@ -224,6 +287,15 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
           orderLetterId: orderLetterId,
           token: token,
           fallbackDetailIds: fallbackIds,
+        );
+        step5.stop();
+        AppTelemetry.event(
+          'checkout_step5_discounts_done',
+          data: {
+            'duration_ms': step5.elapsedMilliseconds,
+            'needs_fallback': needsFallback,
+          },
+          tag: 'CheckoutFlow',
         );
       }
 
@@ -248,6 +320,12 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
           submitSuccess: true,
           successNoSp: noSp,
         );
+        totalSw.stop();
+        AppTelemetry.event(
+          'checkout_submit_success',
+          data: {'duration_ms': totalSw.elapsedMilliseconds},
+          tag: 'CheckoutFlow',
+        );
       } else {
         state = state.copyWith(
           isSubmitting: false,
@@ -259,9 +337,27 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
               'Tekan tombol "Coba Lagi Kirim Barang Gagal" yang muncul di '
               'halaman ini untuk mengirim ulang tanpa membuat SP baru.',
         );
+        totalSw.stop();
+        AppTelemetry.error(
+          'checkout_submit_partial_failure',
+          data: {
+            'duration_ms': totalSw.elapsedMilliseconds,
+            'failed_details': detailResult.failed.length,
+          },
+          tag: 'CheckoutFlow',
+        );
       }
     } catch (e, st) {
       Log.error(e, st, reason: 'CheckoutNotifier.submitOrder');
+      totalSw.stop();
+      AppTelemetry.error(
+        'checkout_submit_exception',
+        data: {
+          'duration_ms': totalSw.elapsedMilliseconds,
+          'error_type': e.runtimeType.toString(),
+        },
+        tag: 'CheckoutFlow',
+      );
       state = state.copyWith(
         isSubmitting: false,
         submitError: 'Terjadi kesalahan. Jika internet tidak stabil, mohon cek '
@@ -284,6 +380,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       submitSuccess: false,
     );
 
+    final sw = Stopwatch()..start();
     try {
       final String token = await StorageService.loadAccessToken();
 
@@ -326,6 +423,12 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
           submitSuccess: true,
           successNoSp: state.retryNoSp,
         );
+        sw.stop();
+        AppTelemetry.event(
+          'checkout_retry_success',
+          data: {'duration_ms': sw.elapsedMilliseconds},
+          tag: 'CheckoutFlow',
+        );
       } else {
         state = state.copyWith(
           isSubmitting: false,
@@ -333,9 +436,27 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
           submitError:
               '${detailResult.failed.length} item masih gagal. Coba lagi nanti.',
         );
+        sw.stop();
+        AppTelemetry.error(
+          'checkout_retry_partial_failure',
+          data: {
+            'duration_ms': sw.elapsedMilliseconds,
+            'failed_details': detailResult.failed.length,
+          },
+          tag: 'CheckoutFlow',
+        );
       }
     } catch (e, st) {
       Log.error(e, st, reason: 'CheckoutNotifier.retryFailedDetails');
+      sw.stop();
+      AppTelemetry.error(
+        'checkout_retry_exception',
+        data: {
+          'duration_ms': sw.elapsedMilliseconds,
+          'error_type': e.runtimeType.toString(),
+        },
+        tag: 'CheckoutFlow',
+      );
       state = state.copyWith(
         isSubmitting: false,
         submitError: 'Error: $e',

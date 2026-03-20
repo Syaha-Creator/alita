@@ -6,6 +6,7 @@ import '../../../../core/utils/number_input_formatter.dart';
 import '../../../../core/widgets/checkout_input_decoration.dart';
 import '../../../../core/widgets/date_picker_field_tile.dart';
 import '../../../../core/widgets/form_field_label.dart';
+import '../../../../core/widgets/segmented_toggle.dart';
 
 /// Delivery information section extracted from CheckoutPage.
 ///
@@ -53,9 +54,10 @@ class DeliveryInfoSection extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 DatePickerFieldTile(
-                  text: requestDate != null
-                      ? _dateFmt.format(requestDate!)
-                      : '',
+                  text: switch (requestDate) {
+                    final rd? => _dateFmt.format(rd),
+                    null => '',
+                  },
                   hasError: formState.hasError,
                   errorText: formState.errorText,
                   onTap: () {
@@ -73,50 +75,52 @@ class DeliveryInfoSection extends StatelessWidget {
         // 2. Metode Pengiriman
         const FormFieldLabel('Metode Pengiriman'),
         const SizedBox(height: 8),
-        Row(
-          children: [
-            _DeliveryOption(
-              label: 'Kurir Pabrik',
-              icon: Icons.local_shipping_outlined,
-              selected: !isTakeAway,
-              onTap: () => onTakeAwayChanged(false),
-            ),
-            const SizedBox(width: 10),
-            _DeliveryOption(
-              label: 'Bawa Sendiri',
-              icon: Icons.directions_car_outlined,
-              selected: isTakeAway,
-              onTap: () => onTakeAwayChanged(true),
-            ),
-          ],
+        SegmentedToggle(
+          leftLabel: 'Kurir Pabrik',
+          leftIcon: Icons.local_shipping_outlined,
+          rightLabel: 'Bawa Sendiri',
+          rightIcon: Icons.directions_car_outlined,
+          isLeftSelected: !isTakeAway,
+          onTapLeft: () => onTakeAwayChanged(false),
+          onTapRight: () => onTakeAwayChanged(true),
         ),
 
         // Ongkos Kirim (only for factory courier)
-        if (!isTakeAway) ...[
-          const SizedBox(height: 16),
-          const FormFieldLabel('Ongkos Kirim (Jika Ada)'),
-          const SizedBox(height: 8),
-          TextField(
-            controller: postageCtrl,
-            keyboardType: TextInputType.number,
-            textInputAction: TextInputAction.next,
-            inputFormatters: [ThousandsSeparatorInputFormatter()],
-            style: const TextStyle(fontSize: 14),
-            decoration: CheckoutInputDecoration.form(
-              prefixText: 'Rp ',
-              hintText: '0',
-              hintStyle: const TextStyle(
-                fontSize: 13,
-                color: AppColors.textTertiary,
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 12,
-              ),
-              isDense: true,
-            ),
-          ),
-        ],
+        AnimatedSize(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
+          alignment: Alignment.topCenter,
+          child: isTakeAway
+              ? const SizedBox.shrink()
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 16),
+                    const FormFieldLabel('Ongkos Kirim (Jika Ada)'),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: postageCtrl,
+                      keyboardType: TextInputType.number,
+                      textInputAction: TextInputAction.next,
+                      inputFormatters: [ThousandsSeparatorInputFormatter()],
+                      style: const TextStyle(fontSize: 14),
+                      decoration: CheckoutInputDecoration.form(
+                        prefixText: 'Rp ',
+                        hintText: '0',
+                        hintStyle: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textTertiary,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
+                        isDense: true,
+                      ),
+                    ),
+                  ],
+                ),
+        ),
 
         const SizedBox(height: 12),
 
@@ -168,63 +172,3 @@ class DeliveryInfoSection extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────
-// Delivery option toggle pill (promoted from _DeliveryOption)
-// ─────────────────────────────────────────────────────────────────
-
-class _DeliveryOption extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _DeliveryOption({
-    required this.label,
-    required this.icon,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: selected
-                ? AppColors.accent.withValues(alpha: 0.08)
-                : AppColors.background,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: selected ? AppColors.accent : AppColors.border,
-              width: selected ? 1.5 : 1,
-            ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: 20,
-                color: selected ? AppColors.accent : AppColors.textSecondary,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                  color: selected ? AppColors.accent : AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}

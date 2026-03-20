@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/services/api_client.dart';
+import '../../../core/utils/log.dart';
+import '../../../core/utils/retry.dart';
 
 /// Fetches the full brand/product-type spec catalogue from the Comforta API.
 ///
@@ -16,7 +18,11 @@ final brandSpecProvider = FutureProvider<List<dynamic>>((ref) async {
   }).toString();
 
   try {
-    final response = await ApiClient.instance.getExternal(url);
+    final response = await retry(
+      () => ApiClient.instance.getExternal(url),
+      maxAttempts: 2,
+      tag: 'brandSpec',
+    );
 
     if (response.statusCode == 200) {
       final decoded = jsonDecode(response.body);
@@ -25,7 +31,8 @@ final brandSpecProvider = FutureProvider<List<dynamic>>((ref) async {
       }
     }
     return [];
-  } catch (e) {
+  } catch (e, st) {
+    Log.error(e, st, reason: 'brandSpecProvider fetch');
     return [];
   }
 });

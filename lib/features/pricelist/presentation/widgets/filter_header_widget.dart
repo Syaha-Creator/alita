@@ -64,9 +64,6 @@ class FilterHeaderWidget extends ConsumerWidget {
     });
 
     final area = ref.watch(selectedAreaProvider);
-    final areas = ref.watch(areasProvider);
-    final channels = ref.watch(channelsProvider);
-    final brands = ref.watch(brandsProvider);
     final selectedChannel = ref.watch(selectedChannelProvider);
     final selectedBrand = ref.watch(selectedBrandProvider);
 
@@ -85,7 +82,7 @@ class FilterHeaderWidget extends ConsumerWidget {
               onTap: () => _showSelectionBottomSheet(
                 context: context,
                 title: 'Pilih Area',
-                items: areas,
+                items: ref.read(areasProvider),
                 selectedItem: area,
                 labelBuilder: _toTitleCase,
                 onItemSelected: (value) {
@@ -101,7 +98,7 @@ class FilterHeaderWidget extends ConsumerWidget {
               onTap: () => _showSelectionBottomSheet(
                 context: context,
                 title: 'Pilih Channel',
-                items: channels,
+                items: ref.read(channelsProvider),
                 selectedItem: selectedChannel,
                 labelBuilder: (value) => value,
                 onItemSelected: (value) {
@@ -127,7 +124,7 @@ class FilterHeaderWidget extends ConsumerWidget {
                 _showSelectionBottomSheet(
                   context: context,
                   title: 'Pilih Brand',
-                  items: brands,
+                  items: ref.read(brandsProvider),
                   selectedItem: selectedBrand,
                   labelBuilder: (value) => value,
                   onItemSelected: (value) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:alitapricelist/core/config/app_config.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/network_image_view.dart';
 
@@ -26,7 +27,7 @@ class ProductImageCarousel extends StatelessWidget {
   Widget build(BuildContext context) {
     final String baseImage = baseImageUrl.isNotEmpty
         ? baseImageUrl
-        : 'https://images.unsplash.com/photo-1505693416022-14c1c9240ce4?q=80&w=800&auto=format&fit=crop';
+        : AppConfig.placeholderProductImage;
 
     final List<String> productImages = [];
 
@@ -37,10 +38,7 @@ class ProductImageCarousel extends StatelessWidget {
       productImages.add(baseImage);
     }
 
-    productImages.addAll([
-      'https://images.unsplash.com/photo-1631679706909-1844bbd07221?q=80&w=800&auto=format&fit=crop',
-      'https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?q=80&w=800&auto=format&fit=crop',
-    ]);
+    productImages.addAll(AppConfig.placeholderCarouselImages);
 
     return SliverToBoxAdapter(
       child: SizedBox(

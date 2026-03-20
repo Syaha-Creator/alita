@@ -119,7 +119,16 @@ class ShippingInfoSection extends StatelessWidget {
                       controller: shippingPhoneCtrl,
                       label: 'No. HP Penerima *',
                       keyboardType: TextInputType.phone,
-                      isRequired: true,
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Field ini wajib diisi';
+                        }
+                        final digits = value.replaceAll(RegExp(r'\D'), '');
+                        if (digits.length < 10 || digits.length > 15) {
+                          return 'No. HP harus 10–15 digit';
+                        }
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 16),
                     _buildRegionSelector(
@@ -184,11 +193,19 @@ class ShippingInfoSection extends StatelessWidget {
     int maxLines = 1,
     bool alignLabelWithHint = false,
     bool isRequired = false,
+    String? Function(String?)? validator,
   }) {
     final resolvedKeyboardType = keyboardType ??
         (maxLines > 1 ? TextInputType.multiline : TextInputType.text);
     final resolvedInputAction =
         maxLines > 1 ? TextInputAction.newline : TextInputAction.next;
+
+    final effectiveValidator = validator ??
+        (isRequired
+            ? (String? value) => (value == null || value.trim().isEmpty)
+                ? 'Field ini wajib diisi'
+                : null
+            : null);
 
     return TextFormField(
       controller: controller,
@@ -196,11 +213,7 @@ class ShippingInfoSection extends StatelessWidget {
       textInputAction: resolvedInputAction,
       maxLines: maxLines,
       style: const TextStyle(fontSize: 14),
-      validator: isRequired
-          ? (value) => (value == null || value.trim().isEmpty)
-              ? 'Field ini wajib diisi'
-              : null
-          : null,
+      validator: effectiveValidator,
       decoration: CheckoutInputDecoration.form(
         labelText: label,
         alignLabelWithHint: alignLabelWithHint,

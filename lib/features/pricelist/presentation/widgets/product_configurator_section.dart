@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_choice_chip.dart';
 import '../../data/models/item_lookup.dart';
@@ -133,6 +134,7 @@ class ProductConfiguratorSection extends StatelessWidget {
           ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 16),
+        if (hasSetOptions) _buildTipePembelianRow(context),
         _buildHorizontalOptions(
           context,
           'Ukuran',
@@ -184,7 +186,6 @@ class ProductConfiguratorSection extends StatelessWidget {
             customController: customSorongCtrl,
             onCustomTap: onSorongCustomTap,
           ),
-        if (hasSetOptions) _buildTipePembelianRow(context),
         if (hasSetOptions && !isKasurOnly) ...[
           if (anchorType == AnchorType.kasur) ...[
             _buildHorizontalOptions(
@@ -300,8 +301,7 @@ class ProductConfiguratorSection extends StatelessWidget {
           child: Row(
             children: [
               ...uniqueOptions.map((lookup) {
-                final isSelected =
-                    !isCustomSelected &&
+                final isSelected = !isCustomSelected &&
                     selected != null &&
                     lookupKey(selected) == lookupKey(lookup);
                 return Padding(
@@ -334,7 +334,8 @@ class ProductConfiguratorSection extends StatelessWidget {
             onChanged: (_) => onCustomTextChanged(),
             decoration: InputDecoration(
               hintText: 'Tulis nama kain / warna custom…',
-              hintStyle: const TextStyle(color: AppColors.textTertiary, fontSize: 13),
+              hintStyle:
+                  const TextStyle(color: AppColors.textTertiary, fontSize: 13),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 14,
                 vertical: 10,
@@ -367,7 +368,7 @@ class ProductConfiguratorSection extends StatelessWidget {
 
   Widget _buildTipePembelianRow(BuildContext context) {
     final satuanLabel =
-        anchorType == AnchorType.divan ? 'Divan Saja' : 'Matress Only';
+        anchorType == AnchorType.divan ? 'Divan Saja' : 'MattressOnly';
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
@@ -445,8 +446,10 @@ class ProductConfiguratorSection extends StatelessWidget {
   }
 }
 
-/// Purchase type card: "Matress Only" / "Beli Set" toggle.
-class TipePembelianCard extends StatelessWidget {
+/// Purchase type card: "MattressOnly" / "Beli Set" toggle.
+///
+/// Matches the Soft Selection pattern used by [AppChoiceChip].
+class TipePembelianCard extends StatefulWidget {
   final String title;
   final bool isSelected;
   final VoidCallback onTap;
@@ -459,38 +462,76 @@ class TipePembelianCard extends StatelessWidget {
   });
 
   @override
+  State<TipePembelianCard> createState() => _TipePembelianCardState();
+}
+
+class _TipePembelianCardState extends State<TipePembelianCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _scaleCtrl;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _scaleCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 100),
+      reverseDuration: const Duration(milliseconds: 150),
+    );
+    _scale = Tween<double>(begin: 1.0, end: 0.95).animate(
+      CurvedAnimation(parent: _scaleCtrl, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _scaleCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final sel = widget.isSelected;
+
     return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AppColors.accent.withValues(alpha: 0.08)
-              : AppColors.surfaceLight,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? AppColors.accent : AppColors.border,
-            width: isSelected ? 2 : 1.5,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        widget.onTap();
+      },
+      onTapDown: (_) => _scaleCtrl.forward(),
+      onTapUp: (_) => _scaleCtrl.reverse(),
+      onTapCancel: () => _scaleCtrl.reverse(),
+      child: ScaleTransition(
+        scale: _scale,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+          decoration: BoxDecoration(
+            color: sel ? AppColors.accentLight : AppColors.surfaceLight,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: sel ? AppColors.accent : AppColors.border,
+              width: sel ? 1.5 : 1,
+            ),
+            boxShadow: sel
+                ? [
+                    BoxShadow(
+                      color: AppColors.accent.withValues(alpha: 0.15),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
           ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: AppColors.accent.withValues(alpha: 0.2),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+          child: Center(
+            child: Text(
+              widget.title,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: sel ? AppColors.accent : AppColors.textSecondary,
                   ),
-                ]
-              : null,
-        ),
-        child: Center(
-          child: Text(
-            title,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: isSelected ? AppColors.accent : AppColors.textPrimary,
-                ),
+            ),
           ),
         ),
       ),

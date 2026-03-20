@@ -185,4 +185,32 @@ class CheckoutPayloadBuilder {
       'created_by': userId,
     };
   }
+
+  /// Builds a single payment payload from a [PaymentEntry].
+  static Map<String, dynamic> buildPaymentEntryPayload({
+    required String amountText,
+    required String? method,
+    required String? bank,
+    required String otherChannelText,
+    required String refText,
+    required DateTime date,
+    required String noteText,
+    required int userId,
+  }) {
+    final amount = double.tryParse(
+          ThousandsSeparatorInputFormatter.digitsOnly(amountText),
+        ) ??
+        0.0;
+
+    return {
+      'payment_method': method == 'Lainnya' ? 'other' : (method ?? ''),
+      'payment_bank':
+          method == 'Lainnya' ? otherChannelText.trim() : (bank ?? ''),
+      'payment_number': refText.trim(),
+      'payment_amount': amount,
+      'payment_date': AppFormatters.apiDate(date),
+      'note': noteText.trim(),
+      'created_by': userId,
+    };
+  }
 }

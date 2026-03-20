@@ -63,6 +63,7 @@ class _RegionPickerBottomSheetState extends State<RegionPickerBottomSheet> {
       _step = 1;
     });
     final data = await _service.getProvinces();
+    if (!mounted) return;
     _setList(data);
   }
 
@@ -74,6 +75,7 @@ class _RegionPickerBottomSheetState extends State<RegionPickerBottomSheet> {
       _step = 2;
     });
     final data = await _service.getRegencies(provId);
+    if (!mounted) return;
     _setList(data);
   }
 
@@ -85,6 +87,7 @@ class _RegionPickerBottomSheetState extends State<RegionPickerBottomSheet> {
       _step = 3;
     });
     final data = await _service.getDistricts(kotaId);
+    if (!mounted) return;
     _setList(data);
   }
 
@@ -93,7 +96,9 @@ class _RegionPickerBottomSheetState extends State<RegionPickerBottomSheet> {
       _isLoading = false;
       _fullList = data;
       _filteredList = data;
-      if (data.isEmpty) _error = 'Data tidak ditemukan.';
+      if (data.isEmpty) {
+        _error = 'Gagal memuat data wilayah.\nPeriksa koneksi internet dan coba lagi.';
+      }
     });
   }
 
@@ -129,8 +134,8 @@ class _RegionPickerBottomSheetState extends State<RegionPickerBottomSheet> {
     } else {
       Navigator.of(context).pop(
         RegionResult(
-          provinsi: _selectedProvName!,
-          kota: _selectedKotaName!,
+          provinsi: _selectedProvName ?? '',
+          kota: _selectedKotaName ?? '',
           kecamatan: name,
         ),
       );
@@ -141,7 +146,19 @@ class _RegionPickerBottomSheetState extends State<RegionPickerBottomSheet> {
     if (_step == 2) {
       _loadProvinces();
     } else if (_step == 3) {
-      _loadRegencies(_selectedProvId!);
+      final provId = _selectedProvId;
+      if (provId != null) _loadRegencies(provId);
+    }
+  }
+
+  void _retryCurrentStep() {
+    final provId = _selectedProvId;
+    if (_step == 1) {
+      _loadProvinces();
+    } else if (_step == 2 && provId != null) {
+      _loadRegencies(provId);
+    } else if (_step == 3 && provId != null) {
+      _loadRegencies(provId);
     }
   }
 
@@ -277,37 +294,56 @@ class _RegionPickerBottomSheetState extends State<RegionPickerBottomSheet> {
   }
 
   Widget _buildBody() {
+    final Widget content;
     if (_isLoading) {
-      return const Center(
+      content = const Center(
+        key: ValueKey('loading'),
         child: CircularProgressIndicator.adaptive(valueColor: AlwaysStoppedAnimation(AppColors.accent)),
       );
-    }
-    if (_error.isNotEmpty) {
-      return Center(
+    } else if (_error.isNotEmpty) {
+      content = Center(
+        key: const ValueKey('error'),
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Text(
-            _error,
-            style: const TextStyle(color: AppColors.textTertiary, fontSize: 14),
-            textAlign: TextAlign.center,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.wifi_off_rounded,
+                  size: 40, color: AppColors.textTertiary),
+              const SizedBox(height: 12),
+              Text(
+                _error,
+                style: const TextStyle(
+                    color: AppColors.textTertiary, fontSize: 14),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              TextButton.icon(
+                onPressed: _retryCurrentStep,
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('Coba Lagi'),
+                style: TextButton.styleFrom(foregroundColor: AppColors.accent),
+              ),
+            ],
           ),
         ),
       );
-    }
-    if (_filteredList.isEmpty) {
-      return const Center(
+    } else if (_filteredList.isEmpty) {
+      content = const Center(
+        key: ValueKey('empty'),
         child: Text(
           'Tidak ada hasil.',
           style: TextStyle(color: AppColors.textTertiary, fontSize: 14),
         ),
       );
-    }
-    return ListView.builder(
+    } else {
+      content = ListView.builder(
       itemCount: _filteredList.length,
       itemExtent: 52,
       itemBuilder: (context, index) {
         final item = _filteredList[index];
-        return ListTile(
+        return RepaintBoundary(
+          child: ListTile(
           dense: true,
           title: Text(
             item['name']?.toString() ?? '',
@@ -325,8 +361,16 @@ class _RegionPickerBottomSheetState extends State<RegionPickerBottomSheet> {
                   color: AppColors.accent,
                 ),
           onTap: () => _onItemTap(item),
+        ),
         );
       },
+    );
+    }
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 250),
+      switchInCurve: Curves.easeOut,
+      child: content,
     );
   }
 }

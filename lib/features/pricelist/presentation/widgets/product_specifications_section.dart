@@ -128,9 +128,9 @@ class ProductSpecificationsSection extends StatelessWidget {
               );
             }).toList(),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           const Divider(height: 1),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
         ],
 
         _buildSpecItem(

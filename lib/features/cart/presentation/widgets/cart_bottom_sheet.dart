@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/widgets/animated_list_item.dart';
 import '../../../../core/widgets/empty_state_view.dart';
 import '../../../../core/widgets/sheet_scaffold.dart';
 import '../../logic/cart_provider.dart';
@@ -59,8 +60,11 @@ class CartBottomSheet extends ConsumerWidget {
                           const SizedBox(height: 16),
                       itemBuilder: (context, index) {
                         final item = cartItems[index];
-                        return RepaintBoundary(
-                          child: CartItemCard(item: item, index: index),
+                        return AnimatedListItem(
+                          index: index,
+                          child: RepaintBoundary(
+                            child: CartItemCard(item: item, index: index),
+                          ),
                         );
                       },
                     ),

@@ -362,7 +362,8 @@ void showBonusEditorModal(
                                                           )
                                                   ? t
                                                   : '$t ($u)';
-                                              return ListTile(
+                                              return RepaintBoundary(
+                                                child: ListTile(
                                                 dense: true,
                                                 title: Text(
                                                   accDisplayName,
@@ -399,6 +400,7 @@ void showBonusEditorModal(
                                                     context,
                                                   ).unfocus();
                                                 },
+                                              ),
                                               );
                                             },
                                           ),

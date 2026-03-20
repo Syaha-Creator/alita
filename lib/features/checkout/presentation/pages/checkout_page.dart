@@ -9,41 +9,59 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/utils/app_formatters.dart';
+import '../../../../core/utils/log.dart';
+import '../../../../core/utils/app_telemetry.dart';
+import '../../../../core/utils/network_guard.dart';
 import '../../../../core/utils/number_input_formatter.dart';
 import '../../../../core/utils/platform_utils.dart';
 import '../../../../core/widgets/action_button_bar.dart';
 import '../../../../core/widgets/image_source_sheet.dart';
 import '../../../../core/widgets/loading_overlay.dart';
 import '../../../../core/widgets/empty_state_view.dart';
-import '../../../../core/widgets/form_field_label.dart';
-import '../../../../core/widgets/payment_form_content.dart';
 import '../../../../core/widgets/section_card.dart';
+import '../../../../core/services/connectivity_service.dart';
 import '../../../cart/data/cart_item.dart';
 import '../../../cart/logic/cart_provider.dart';
 import '../../../profile/logic/profile_provider.dart';
-import '../../data/checkout_config.dart';
-import '../../data/models/approver_model.dart';
+import '../../data/models/payment_entry.dart';
 import '../../data/services/local_contact_service.dart';
 import '../../data/utils/checkout_payload_builder.dart';
+import '../../logic/bonus_takeaway_state.dart';
+import '../../logic/checkout_form_validator.dart';
 import '../../logic/checkout_provider.dart';
+import '../../logic/quotation_save_handler.dart';
+import '../widgets/active_draft_banner.dart';
 import '../widgets/checkout_approval_card.dart';
 import '../widgets/checkout_bottom_bar.dart';
+import '../widgets/checkout_payment_card.dart';
 import '../widgets/contact_picker_bottom_sheet.dart';
 import '../widgets/customer_info_section.dart';
 import '../widgets/delivery_info_section.dart';
-import '../widgets/order_item_tile.dart';
+import '../widgets/checkout_approver_content.dart';
+import '../widgets/checkout_order_summary.dart';
+import '../widgets/checkout_payment_info_section.dart';
 import '../widgets/region_picker_bottom_sheet.dart';
-import '../widgets/searchable_dropdown_field.dart';
 import '../widgets/shipping_info_section.dart';
+import '../../../quotation/data/quotation_model.dart';
+import '../../../quotation/logic/quotation_list_provider.dart';
+// activeDraftProvider is exported from quotation_list_provider.dart
 
 /// B2B Checkout / Buat Surat Pesanan
 ///
 /// When [selectedCartItems] is non-null, only these items are shown and
 /// submitted; on success only these are removed from the cart (selective checkout).
 class CheckoutPage extends ConsumerStatefulWidget {
-  const CheckoutPage({super.key, this.selectedCartItems});
+  const CheckoutPage({
+    super.key,
+    this.selectedCartItems,
+    this.restoredQuotation,
+  });
 
   final List<CartItem>? selectedCartItems;
+
+  /// When non-null, the checkout was opened from a saved quotation draft.
+  /// Customer info will be pre-filled from this model.
+  final QuotationModel? restoredQuotation;
 
   @override
   ConsumerState<CheckoutPage> createState() => _CheckoutPageState();
@@ -51,7 +69,14 @@ class CheckoutPage extends ConsumerStatefulWidget {
 
 class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   final _formKey = GlobalKey<FormState>();
+  final _scrollController = ScrollController();
   final _postageCtrl = TextEditingController();
+
+  // Section keys for scroll-to-error
+  final _customerSectionKey = GlobalKey();
+  final _deliverySectionKey = GlobalKey();
+  final _approvalSectionKey = GlobalKey();
+  final _paymentSectionKey = GlobalKey();
 
   List<CartItem> _effectiveCartItems(WidgetRef ref) =>
       widget.selectedCartItems ?? ref.read(cartProvider);
@@ -67,27 +92,29 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   DateTime? _requestDate;
   bool _isTakeAway = false;
 
-  // ── Payment ────────────────────────────────────────────────────
+  // ── Payment (multi-payment) ─────────────────────────────────────
   bool _isLunas = true;
-  final _paymentAmountCtrl = TextEditingController();
-  String? _paymentMethod;
-  String? _paymentBank;
-  final _otherChannelCtrl = TextEditingController();
-  final _paymentRefCtrl = TextEditingController();
-  DateTime _paymentDate = DateTime.now();
-  final _paymentNoteCtrl = TextEditingController();
-  File? _receiptImage;
+  final List<PaymentEntry> _payments = [];
   final ImagePicker _picker = ImagePicker();
+
+  bool get _isMultiPayment => _payments.length > 1;
+
+  double get _totalPaid =>
+      _payments.fold(0.0, (sum, e) => sum + e.parsedAmount);
+
+  /// Auto-determined payment status when multi-payment.
+  bool get _effectiveIsLunas =>
+      _isMultiPayment ? _totalPaid >= _totalAkhir : _isLunas;
 
   bool _isShippingSameAsCustomer = true;
   bool _showBackupPhone = false;
   bool _shouldSaveCustomerContact = true;
   bool _isFromContactBook = false;
   String? _selectedContactId;
-  final Set<String> _checkedTakeAwaySkus = <String>{};
-  final Map<String, int> _takeAwayQtys = {};
+  final _takeAway = BonusTakeAwayState();
 
   double _grandTotal = 0;
+  DateTime? _lastPerfReportAt;
 
   // ── Customer ───────────────────────────────────────────────────
   final _customerNameCtrl = TextEditingController();
@@ -120,15 +147,69 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   @override
   void initState() {
     super.initState();
-    // Trigger approvers fetch via provider
+    _payments.add(PaymentEntry());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(checkoutProvider.notifier).fetchApprovers();
     });
     _updatePaymentAmountUI();
     _postageCtrl.addListener(() {
       setState(() {});
-      if (_isLunas) _updatePaymentAmountUI();
+      if (!_isMultiPayment && _isLunas) _updatePaymentAmountUI();
     });
+    _prefillFromQuotation();
+  }
+
+  void _prefillFromQuotation() {
+    final q = widget.restoredQuotation ?? ref.read(activeDraftProvider);
+    if (q == null) return;
+
+    // ── Customer ──
+    _customerNameCtrl.text = q.customerName;
+    _customerEmailCtrl.text = q.customerEmail;
+    _customerPhoneCtrl.text = q.customerPhone;
+    if (q.customerPhone2.isNotEmpty) {
+      _customerPhone2Ctrl.text = q.customerPhone2;
+      _showBackupPhone = true;
+    }
+    _customerAddressCtrl.text = q.customerAddress;
+
+    // ── Region ──
+    if (q.regionProvinsi.isNotEmpty) _selectedProvinsi = q.regionProvinsi;
+    if (q.regionKota.isNotEmpty) _selectedKota = q.regionKota;
+    if (q.regionKecamatan.isNotEmpty) _selectedKecamatan = q.regionKecamatan;
+    if (q.regionText.isNotEmpty) _regionCtrl.text = q.regionText;
+
+    // ── Shipping ──
+    _isShippingSameAsCustomer = q.isShippingSameAsCustomer;
+    if (!q.isShippingSameAsCustomer) {
+      _shippingNameCtrl.text = q.shippingName;
+      _shippingPhoneCtrl.text = q.shippingPhone;
+      _shippingAddressCtrl.text = q.shippingAddress;
+      if (q.shippingRegionProvinsi.isNotEmpty) {
+        _shippingProvinsi = q.shippingRegionProvinsi;
+      }
+      if (q.shippingRegionKota.isNotEmpty) {
+        _shippingKota = q.shippingRegionKota;
+      }
+      if (q.shippingRegionKecamatan.isNotEmpty) {
+        _shippingKecamatan = q.shippingRegionKecamatan;
+      }
+      if (q.shippingRegionText.isNotEmpty) {
+        _shippingRegionCtrl.text = q.shippingRegionText;
+      }
+    }
+
+    // ── Delivery ──
+    final rawDate = q.requestDate;
+    if (rawDate != null) {
+      _requestDate = DateTime.tryParse(rawDate);
+    }
+    _isTakeAway = q.isTakeAway;
+    if (q.postage.isNotEmpty) _postageCtrl.text = q.postage;
+    if (q.scCode.isNotEmpty) _scCodeCtrl.text = q.scCode;
+
+    // ── Notes ──
+    _notesController.text = q.notes;
   }
 
   double get _minimumDp => _grandTotal * 0.3;
@@ -142,10 +223,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   }
 
   void _updatePaymentAmountUI() {
-    if (_isLunas) {
-      _paymentAmountCtrl.text = AppFormatters.currencyIdrNoSymbol(_totalAkhir);
-    } else {
-      _paymentAmountCtrl.clear();
+    if (_payments.isEmpty) return;
+    if (!_isMultiPayment && _isLunas) {
+      _payments.first.amountCtrl.text =
+          AppFormatters.currencyIdrNoSymbol(_totalAkhir);
     }
   }
 
@@ -163,11 +244,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     _shippingRegionCtrl.dispose();
     _notesController.dispose();
     _scCodeCtrl.dispose();
-    _paymentAmountCtrl.dispose();
-    _paymentRefCtrl.dispose();
-    _otherChannelCtrl.dispose();
-    _paymentNoteCtrl.dispose();
+    for (final p in _payments) {
+      p.dispose();
+    }
     _postageCtrl.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -175,15 +256,31 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
   @override
   Widget build(BuildContext context) {
+    final buildSw = Stopwatch()..start();
     final List<CartItem> cartItems =
         widget.selectedCartItems ?? ref.watch(cartProvider);
     final totalAmount = _effectiveTotal(ref);
     final checkoutState = ref.watch(checkoutProvider);
+    final totalBonusRows = cartItems.fold<int>(
+      0,
+      (sum, item) => sum + item.bonusSnapshots.length,
+    );
 
     if (_grandTotal != totalAmount) {
       _grandTotal = totalAmount;
       if (_isLunas) _updatePaymentAmountUI();
     }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      buildSw.stop();
+      _reportCheckoutListPerformance(
+        itemCount: cartItems.length,
+        bonusRows: totalBonusRows,
+        paymentCount: _payments.length,
+        frameBuildMs: buildSw.elapsedMilliseconds,
+      );
+    });
 
     // Listen for submission results from provider
     ref.listen<CheckoutState>(checkoutProvider, (prev, next) {
@@ -196,6 +293,17 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       }
       if (next.submitSuccess && next.successNoSp != null) {
         ref.read(checkoutProvider.notifier).clearSubmitResult();
+
+        // Mark the source quotation as converted (if any).
+        final sourceDraft =
+            widget.restoredQuotation ?? ref.read(activeDraftProvider);
+        if (sourceDraft != null) {
+          ref.read(quotationListProvider.notifier).update(
+                sourceDraft.copyWith(status: QuotationStatus.converted),
+              );
+        }
+        ref.read(activeDraftProvider.notifier).state = null;
+
         AppFeedback.show(
           context,
           message: 'Surat Pesanan ${next.successNoSp} Berhasil Dibuat!',
@@ -205,8 +313,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         );
         context.pushReplacement('/success');
       }
-      if (next.submitError != null && prev?.submitError != next.submitError) {
-        _showSubmitErrorDialog(next.submitError!);
+      final submitError = next.submitError;
+      if (submitError != null && prev?.submitError != submitError) {
+        _showSubmitErrorDialog(submitError);
       }
     });
 
@@ -237,6 +346,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         elevation: 0,
         backgroundColor: AppColors.background,
         foregroundColor: AppColors.textPrimary,
+        actions: [
+          IconButton(
+            tooltip: 'Simpan Penawaran (PDF)',
+            icon: const Icon(Icons.description_outlined),
+            onPressed: () => _handleSaveQuotation(context, cartItems),
+          ),
+        ],
       ),
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
@@ -244,13 +360,24 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
+            controller: _scrollController,
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // ── Active Draft Banner ───────────────────────────
+                if (ref.watch(activeDraftProvider) case final draft?)
+                  ActiveDraftBanner(
+                    name: draft.customerName,
+                    onClear: () {
+                      ref.read(activeDraftProvider.notifier).state = null;
+                    },
+                  ),
+
                 // ── Card 1: Customer Info + Shipping ──────────────
                 Container(
+                  key: _customerSectionKey,
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -308,6 +435,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
                 // ── Card 2: Delivery Info ─────────────────────────
                 _buildSectionCard(
+                  key: _deliverySectionKey,
                   title: 'Informasi Pengiriman',
                   child: DeliveryInfoSection(
                     requestDate: _requestDate,
@@ -324,64 +452,22 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
                 // ── Card 3: Approval ──────────────────────────────
                 CheckoutApprovalCard(
+                  key: _approvalSectionKey,
                   isLoading: checkoutState.isLoadingApprovers,
                   hasError: checkoutState.approversError != null &&
                       checkoutState.approvers.isEmpty,
                   errorMessage: checkoutState.approversError,
                   onRetry: () =>
                       ref.read(checkoutProvider.notifier).fetchApprovers(),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SearchableDropdownField<Approver>(
-                        label: 'Supervisor (SPV)',
-                        hint: 'Pilih SPV',
-                        selectedValue: checkoutState.selectedSpv,
-                        items: checkoutState.approvers,
-                        itemAsString: (a) => a.displayLabel,
-                        onChanged: (v) =>
-                            ref.read(checkoutProvider.notifier).selectSpv(v),
-                      ),
-                      if (_requiresManagerApproval(cartItems)) ...[
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            const FormFieldLabel('Manager'),
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color:
-                                    AppColors.accent.withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: const Text(
-                                'Diskon 3 terdeteksi',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: AppColors.accent,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        SearchableDropdownField<Approver>(
-                          label: 'Manager',
-                          hint: 'Pilih Manager',
-                          selectedValue: checkoutState.selectedManager,
-                          items: checkoutState.approvers,
-                          itemAsString: (a) => a.displayLabel,
-                          onChanged: (v) => ref
-                              .read(checkoutProvider.notifier)
-                              .selectManager(v),
-                        ),
-                      ],
-                    ],
+                  child: CheckoutApproverContent(
+                    approvers: checkoutState.approvers,
+                    selectedSpv: checkoutState.selectedSpv,
+                    selectedManager: checkoutState.selectedManager,
+                    requiresManager: _requiresManagerApproval(cartItems),
+                    onSpvChanged: (v) =>
+                        ref.read(checkoutProvider.notifier).selectSpv(v),
+                    onManagerChanged: (v) =>
+                        ref.read(checkoutProvider.notifier).selectManager(v),
                   ),
                 ),
 
@@ -390,33 +476,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 // ── Card 4: Order Summary ─────────────────────────
                 _buildSectionCard(
                   title: 'Ringkasan Pesanan',
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: cartItems.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
-                        itemBuilder: (context, index) {
-                          return RepaintBoundary(
-                            child: OrderItemTile(
-                              item: cartItems[index],
-                              priceFmt: _priceFmt,
-                              isBonusTakeAwayChecked: (b) =>
-                                  _isBonusTakeAwayChecked(index, b),
-                              currentTakeAwayQty: (b) =>
-                                  _currentTakeAwayQty(index, b),
-                              onTakeAwayToggled: (b, checked) =>
-                                  _toggleBonusTakeAway(index, b, checked),
-                              onTakeAwayQtyChanged: (b, qty) =>
-                                  _setTakeAwayQty(index, b, qty),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
+                  child: CheckoutOrderSummary(
+                    cartItems: cartItems,
+                    priceFmt: _priceFmt,
+                    isBonusTakeAwayChecked: _isBonusTakeAwayChecked,
+                    currentTakeAwayQty: _currentTakeAwayQty,
+                    onTakeAwayToggled: _toggleBonusTakeAway,
+                    onTakeAwayQtyChanged: _setTakeAwayQty,
                   ),
                 ),
 
@@ -424,95 +490,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
                 // ── Card 5: Payment Info ──────────────────────────
                 _buildSectionCard(
+                  key: _paymentSectionKey,
                   title: 'Informasi Pembayaran',
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      PaymentFormContent(
-                        leftModeLabel: 'Lunas',
-                        rightModeLabel: 'Down Payment (DP)',
-                        isLeftModeSelected: _isLunas,
-                        onTapLeftMode: () => setState(() {
-                          _isLunas = true;
-                          _updatePaymentAmountUI();
-                        }),
-                        onTapRightMode: () => setState(() {
-                          _isLunas = false;
-                          _updatePaymentAmountUI();
-                        }),
-                        amountLabel: 'Nominal Pembayaran *',
-                        amountController: _paymentAmountCtrl,
-                        amountReadOnly: _isLunas,
-                        amountFilled: _isLunas,
-                        amountSuffixIcon: _isLunas
-                            ? const Tooltip(
-                                message: 'Nominal otomatis = Total Pesanan',
-                                child: Icon(
-                                  Icons.lock_outline,
-                                  size: 18,
-                                  color: AppColors.textTertiary,
-                                ),
-                              )
-                            : null,
-                        amountFocusedBorderSide: BorderSide(
-                          color:
-                              _isLunas ? AppColors.border : AppColors.primary,
-                          width: _isLunas ? 1 : 2,
-                        ),
-                        amountStatusWidget: !_isLunas
-                            ? Text(
-                                'Minimal DP (30%): ${_priceFmt(_minimumDp)}',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: AppColors.error,
-                                ),
-                              )
-                            : const Text(
-                                'Nominal mengikuti Total Pesanan (Subtotal + Ongkir)',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                        paymentMethods: CheckoutConfig.paymentMethods,
-                        paymentMethod: _paymentMethod,
-                        paymentChannel: _paymentBank,
-                        customChannelController: _otherChannelCtrl,
-                        paymentChannelsMap: CheckoutConfig.paymentChannelsMap,
-                        onPaymentMethodChanged: (val) => setState(() {
-                          _paymentMethod = val;
-                          _paymentBank = null;
-                          if (val != 'Lainnya') _otherChannelCtrl.clear();
-                        }),
-                        onPaymentChannelChanged: (val) => setState(() {
-                          _paymentBank = val;
-                          if (val != 'Lainnya') _otherChannelCtrl.clear();
-                        }),
-                        referenceLabel: 'No. Referensi / Resi',
-                        referenceController: _paymentRefCtrl,
-                        dateLabel: 'Tanggal Bayar *',
-                        paymentDate: _paymentDate,
-                        onPickDate: () async {
-                          final picked = await showAdaptiveDatePicker(
-                            context: context,
-                            initialDate: _paymentDate,
-                            firstDate: DateTime(2020),
-                            lastDate: DateTime(2100),
-                          );
-                          if (!mounted) return;
-                          if (picked != null) {
-                            setState(() => _paymentDate = picked);
-                          }
-                        },
-                        inlineReferenceAndDate: true,
-                        showPaymentNote: true,
-                        paymentNoteController: _paymentNoteCtrl,
-                        receiptImage: _receiptImage,
-                        onPickOrEditReceipt: _showImageSourceBottomSheet,
-                        onRemoveReceipt: () =>
-                            setState(() => _receiptImage = null),
-                      ),
-                    ],
+                  trailing: _buildAddPaymentChip(),
+                  child: CheckoutPaymentInfoSection(
+                    paymentCount: _payments.length,
+                    isMultiPayment: _isMultiPayment,
+                    paymentCardBuilder: (_, i) => _buildPaymentCard(i),
+                    paymentSummary: _buildPaymentSummary(),
                   ),
                 ),
 
@@ -538,6 +523,29 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     );
   }
 
+  void _reportCheckoutListPerformance({
+    required int itemCount,
+    required int bonusRows,
+    required int paymentCount,
+    required int frameBuildMs,
+  }) {
+    if (itemCount < 12) return;
+    final now = DateTime.now();
+    final last = _lastPerfReportAt;
+    if (last != null && now.difference(last).inSeconds < 6) return;
+    _lastPerfReportAt = now;
+    AppTelemetry.event(
+      'checkout_long_list_frame',
+      data: {
+        'items': itemCount,
+        'bonus_rows': bonusRows,
+        'payments': paymentCount,
+        'build_ms': frameBuildMs,
+      },
+      tag: 'CheckoutPerf',
+    );
+  }
+
   // ─────────────────────────── Helpers ──────────────────────────
 
   bool _requiresManagerApproval(List<CartItem> cartItems) {
@@ -557,7 +565,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     if (picked != null) setState(() => _requestDate = picked);
   }
 
-  Future<void> _pickImage(ImageSource source) async {
+  Future<void> _pickImage(ImageSource source, int paymentIndex) async {
+    final sw = Stopwatch()..start();
     try {
       final XFile? picked = await _picker.pickImage(
         source: source,
@@ -565,21 +574,71 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       );
       if (!mounted) return;
       if (picked != null) {
-        setState(() => _receiptImage = File(picked.path));
-        _formKey.currentState?.validate();
+        setState(() => _payments[paymentIndex].receiptImage = File(picked.path));
+        sw.stop();
+        AppTelemetry.event(
+          'checkout_receipt_selected',
+          data: {
+            'source': source.name,
+            'duration_ms': sw.elapsedMilliseconds,
+          },
+          tag: 'CheckoutUpload',
+        );
       }
-    } catch (e) {
-      debugPrint('Error picking image: $e');
+    } catch (e, st) {
+      Log.error(e, st, reason: 'Checkout: image pick');
+      sw.stop();
+      AppTelemetry.error(
+        'checkout_receipt_pick_failed',
+        data: {
+          'source': source.name,
+          'duration_ms': sw.elapsedMilliseconds,
+          'error_type': e.runtimeType.toString(),
+        },
+        tag: 'CheckoutUpload',
+      );
+      if (!mounted) return;
+      AppFeedback.show(
+        context,
+        message: 'Gagal mengambil gambar. Periksa izin kamera/galeri.',
+        type: AppFeedbackType.warning,
+        floating: true,
+      );
     }
   }
 
-  void _showImageSourceBottomSheet() {
+  void _showImageSourceBottomSheet(int paymentIndex) {
     ImageSourceSheet.show(
       context: context,
       title: 'Upload Bukti Pembayaran',
-      onCamera: () => _pickImage(ImageSource.camera),
-      onGallery: () => _pickImage(ImageSource.gallery),
+      onCamera: () => _pickImage(ImageSource.camera, paymentIndex),
+      onGallery: () => _pickImage(ImageSource.gallery, paymentIndex),
     );
+  }
+
+  void _addPayment() {
+    setState(() {
+      _payments.add(PaymentEntry());
+      if (_isMultiPayment) {
+        // Switch first payment to editable (no longer auto-fill)
+        final first = _payments.first;
+        if (first.amountCtrl.text.isNotEmpty && _isLunas) {
+          first.amountCtrl.clear();
+        }
+      }
+    });
+  }
+
+  void _removePayment(int index) {
+    if (_payments.length <= 1) return;
+    setState(() {
+      _payments[index].dispose();
+      _payments.removeAt(index);
+      // Back to single → restore Lunas/DP behavior
+      if (!_isMultiPayment && _isLunas) {
+        _updatePaymentAmountUI();
+      }
+    });
   }
 
   Future<void> _pickRegion({required bool isShipping}) async {
@@ -641,13 +700,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         _selectedKota = selected['kota'] as String?;
         _selectedKecamatan = selected['kecamatan'] as String?;
 
-        if (_selectedKecamatan != null ||
-            _selectedKota != null ||
-            _selectedProvinsi != null) {
+        final kec = _selectedKecamatan;
+        final kota = _selectedKota;
+        final prov = _selectedProvinsi;
+        if (kec != null || kota != null || prov != null) {
           _regionCtrl.text = [
-            if (_selectedKecamatan != null) 'Kec. $_selectedKecamatan',
-            if (_selectedKota != null) _selectedKota!,
-            if (_selectedProvinsi != null) _selectedProvinsi!,
+            if (kec != null) 'Kec. $kec',
+            if (kota != null) kota,
+            if (prov != null) prov,
           ].join(', ');
         }
 
@@ -659,9 +719,54 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     }
   }
 
+  // ── Save Quotation (delegated to extracted handler) ─────────
+
+  Future<void> _handleSaveQuotation(
+      BuildContext context, List<CartItem> cartItems) async {
+    await QuotationSaveHandler.save(
+      context: context,
+      ref: ref,
+      cartItems: cartItems,
+      selectedCartItems: widget.selectedCartItems,
+      existingDraft:
+          widget.restoredQuotation ?? ref.read(activeDraftProvider),
+      popBackToHistory: widget.restoredQuotation != null,
+      customerName: _customerNameCtrl.text.trim(),
+      customerEmail: _customerEmailCtrl.text.trim(),
+      customerPhone: _customerPhoneCtrl.text.trim(),
+      customerPhone2: _customerPhone2Ctrl.text.trim(),
+      customerAddress: _customerAddressCtrl.text.trim(),
+      regionProvinsi: _selectedProvinsi,
+      regionKota: _selectedKota,
+      regionKecamatan: _selectedKecamatan,
+      regionText: _regionCtrl.text.trim(),
+      isShippingSameAsCustomer: _isShippingSameAsCustomer,
+      shippingName: _shippingNameCtrl.text.trim(),
+      shippingPhone: _shippingPhoneCtrl.text.trim(),
+      shippingAddress: _shippingAddressCtrl.text.trim(),
+      shippingRegionProvinsi: _shippingProvinsi,
+      shippingRegionKota: _shippingKota,
+      shippingRegionKecamatan: _shippingKecamatan,
+      shippingRegionText: _shippingRegionCtrl.text.trim(),
+      requestDate: _requestDate,
+      isTakeAway: _isTakeAway,
+      postage: _postageCtrl.text.trim(),
+      scCode: _scCodeCtrl.text.trim(),
+      grandTotal: _grandTotal,
+      totalAkhir: _totalAkhir,
+      notes: _notesController.text.trim(),
+    );
+  }
+
   // ── Submit ────────────────────────────────────────────────────
 
   Future<void> _handleCreateOrder(BuildContext context) async {
+    if (ifOfflineShowFeedback(
+      context,
+      isOffline: ref.read(isOfflineProvider),
+    )) {
+      return;
+    }
     if (!_validateForm()) return;
 
     _showLoadingOverlay(context);
@@ -701,18 +806,40 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       backupPhone: _customerPhone2Ctrl.text,
     );
 
-    final paymentPayload = CheckoutPayloadBuilder.buildPaymentPayload(
-      isLunas: _isLunas,
-      totalAkhir: _totalAkhir,
-      paymentAmountText: _paymentAmountCtrl.text,
-      paymentMethod: _paymentMethod,
-      paymentBank: _paymentBank,
-      otherChannelText: _otherChannelCtrl.text,
-      paymentRefText: _paymentRefCtrl.text,
-      paymentDate: _paymentDate,
-      paymentNoteText: _paymentNoteCtrl.text,
-      userId: profile?.id ?? 0,
-    );
+    final userId = profile?.id ?? 0;
+    final paymentPayloads = <Map<String, dynamic>>[];
+    final receiptImages = <File?>[];
+
+    if (!_isMultiPayment) {
+      // Single payment — use original builder for backward compatibility
+      paymentPayloads.add(CheckoutPayloadBuilder.buildPaymentPayload(
+        isLunas: _isLunas,
+        totalAkhir: _totalAkhir,
+        paymentAmountText: _payments.first.amountCtrl.text,
+        paymentMethod: _payments.first.method,
+        paymentBank: _payments.first.bank,
+        otherChannelText: _payments.first.otherChannelCtrl.text,
+        paymentRefText: _payments.first.refCtrl.text,
+        paymentDate: _payments.first.date,
+        paymentNoteText: _payments.first.noteCtrl.text,
+        userId: userId,
+      ));
+      receiptImages.add(_payments.first.receiptImage);
+    } else {
+      for (final p in _payments) {
+        paymentPayloads.add(CheckoutPayloadBuilder.buildPaymentEntryPayload(
+          amountText: p.amountCtrl.text,
+          method: p.method,
+          bank: p.bank,
+          otherChannelText: p.otherChannelCtrl.text,
+          refText: p.refCtrl.text,
+          date: p.date,
+          noteText: p.noteCtrl.text,
+          userId: userId,
+        ));
+        receiptImages.add(p.receiptImage);
+      }
+    }
 
     final newCustomerContact =
         CheckoutPayloadBuilder.buildNewCustomerContactPayload(
@@ -734,8 +861,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           cartItems: cartItems,
           headerPayload: headerPayload,
           contactsPayload: contactsPayload,
-          paymentPayload: paymentPayload,
-          receiptImage: _receiptImage,
+          paymentPayloads: paymentPayloads,
+          receiptImages: receiptImages,
           globalIsTakeAway: _isTakeAway,
           isBonusTakeAwayChecked: _isBonusTakeAwayChecked,
           currentTakeAwayQty: _currentTakeAwayQty,
@@ -767,88 +894,101 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   // ── Validation ────────────────────────────────────────────────
 
   bool _validateForm() {
-    if (!(_formKey.currentState?.validate() ?? false)) {
-      AppFeedback.show(
-        context,
-        message: 'Harap lengkapi semua field yang wajib.',
-        type: AppFeedbackType.error,
-        floating: true,
-        duration: const Duration(seconds: 3),
-      );
+    final formValid = _formKey.currentState?.validate() ?? false;
+
+    if (!formValid) {
+      final (:key, :label) = _findFirstFormError();
+      _showErrorAndScroll('Lengkapi field wajib di bagian $label.', key);
       return false;
     }
-    if (!_isTakeAway && _requestDate == null) {
-      AppFeedback.show(context,
-          message: 'Pilih Tanggal Permintaan Kirim.',
-          type: AppFeedbackType.error,
-          floating: true,
-          duration: const Duration(seconds: 3));
-      return false;
-    }
+
     if (_selectedProvinsi == null ||
         _selectedKota == null ||
         _selectedKecamatan == null) {
-      AppFeedback.show(context,
-          message: 'Pilih wilayah pelanggan.',
-          type: AppFeedbackType.error,
-          floating: true,
-          duration: const Duration(seconds: 3));
+      _showErrorAndScroll('Pilih wilayah pelanggan.', _customerSectionKey);
       return false;
     }
     if (!_isShippingSameAsCustomer &&
         (_shippingProvinsi == null ||
             _shippingKota == null ||
             _shippingKecamatan == null)) {
-      AppFeedback.show(context,
-          message: 'Pilih wilayah penerima.',
-          type: AppFeedbackType.error,
-          floating: true,
-          duration: const Duration(seconds: 3));
+      _showErrorAndScroll('Pilih wilayah penerima.', _customerSectionKey);
       return false;
     }
     final checkoutState = ref.read(checkoutProvider);
     if (checkoutState.selectedSpv == null) {
-      AppFeedback.show(context,
-          message: 'Pilih Supervisor (SPV).',
-          type: AppFeedbackType.error,
-          floating: true,
-          duration: const Duration(seconds: 3));
+      _showErrorAndScroll('Pilih Supervisor (SPV).', _approvalSectionKey);
       return false;
     }
     final cartItems = _effectiveCartItems(ref);
     if (_requiresManagerApproval(cartItems) &&
         checkoutState.selectedManager == null) {
-      AppFeedback.show(context,
-          message: 'Pesanan ini memerlukan persetujuan Manager.',
-          type: AppFeedbackType.error,
-          floating: true,
-          duration: const Duration(seconds: 3));
+      _showErrorAndScroll(
+          'Pesanan ini memerlukan persetujuan Manager.', _approvalSectionKey);
       return false;
     }
-    if (_receiptImage == null) {
-      AppFeedback.show(context,
-          message: 'Upload Bukti Pembayaran wajib diisi.',
-          type: AppFeedbackType.error,
-          floating: true,
-          duration: const Duration(seconds: 3));
-      return false;
+    for (int i = 0; i < _payments.length; i++) {
+      final p = _payments[i];
+      if (p.receiptImage == null) {
+        final label = _isMultiPayment
+            ? 'Bukti Pembayaran ${i + 1} wajib diupload.'
+            : 'Upload Bukti Pembayaran wajib diisi.';
+        _showErrorAndScroll(label, _paymentSectionKey);
+        return false;
+      }
     }
-    if (!_isLunas) {
-      final inputDp = double.tryParse(
-            ThousandsSeparatorInputFormatter.digitsOnly(
-                _paymentAmountCtrl.text),
-          ) ??
-          0;
-      if (inputDp < _minimumDp) {
-        AppFeedback.show(context,
-            message: 'Nominal DP minimal ${_priceFmt(_minimumDp)}.',
-            type: AppFeedbackType.error,
-            floating: true,
-            duration: const Duration(seconds: 3));
+    if (!_effectiveIsLunas) {
+      if (_totalPaid < _minimumDp) {
+        _showErrorAndScroll(
+            'Total pembayaran minimal ${_priceFmt(_minimumDp)} (30% DP).',
+            _paymentSectionKey);
         return false;
       }
     }
     return true;
+  }
+
+  ({GlobalKey key, String label}) _findFirstFormError() {
+    final checkoutState = ref.read(checkoutProvider);
+    return CheckoutFormValidator.findFirstFormError(
+      customerName: _customerNameCtrl.text,
+      customerEmail: _customerEmailCtrl.text,
+      customerPhone: _customerPhoneCtrl.text,
+      customerAddress: _customerAddressCtrl.text,
+      isShippingSameAsCustomer: _isShippingSameAsCustomer,
+      shippingName: _shippingNameCtrl.text,
+      shippingPhone: _shippingPhoneCtrl.text,
+      shippingAddress: _shippingAddressCtrl.text,
+      isTakeAway: _isTakeAway,
+      requestDate: _requestDate,
+      hasSelectedSpv: checkoutState.selectedSpv != null,
+      requiresManager: _requiresManagerApproval(_effectiveCartItems(ref)),
+      hasSelectedManager: checkoutState.selectedManager != null,
+      payments: _payments,
+      customerSectionKey: _customerSectionKey,
+      deliverySectionKey: _deliverySectionKey,
+      approvalSectionKey: _approvalSectionKey,
+      paymentSectionKey: _paymentSectionKey,
+    );
+  }
+
+  void _showErrorAndScroll(String message, GlobalKey sectionKey) {
+    AppFeedback.show(
+      context,
+      message: message,
+      type: AppFeedbackType.error,
+      floating: true,
+      duration: const Duration(seconds: 3),
+    );
+    final ctx = sectionKey.currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeOutCubic,
+        alignment: 0.1,
+      );
+    }
   }
 
   void _showLoadingOverlay(BuildContext context) {
@@ -862,11 +1002,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   // ── Reusable widgets ──────────────────────────────────────────
 
   Widget _buildSectionCard({
+    Key? key,
     required String title,
     required Widget child,
     Widget? trailing,
   }) {
     return SectionCard(
+      key: key,
       title: title,
       trailing: trailing,
       titleStyle: const TextStyle(
@@ -878,44 +1020,73 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     );
   }
 
-  // ── TakeAway helpers (per-bundle: key = itemIndex + bonus) ─────
+  // ── Payment card builders (delegated to extracted widgets) ───
 
-  String _bonusTakeAwayKey(int itemIndex, CartBonusSnapshot bonus) =>
-      '${itemIndex}_${bonus.sku.isNotEmpty ? bonus.sku : bonus.name}';
-
-  bool _isBonusTakeAwayChecked(int itemIndex, CartBonusSnapshot bonus) {
-    return _checkedTakeAwaySkus.contains(_bonusTakeAwayKey(itemIndex, bonus));
+  Widget _buildPaymentCard(int index) {
+    final entry = _payments[index];
+    return CheckoutPaymentCard(
+      index: index,
+      entry: entry,
+      isMultiPayment: _isMultiPayment,
+      isLunas: _isLunas,
+      totalAkhir: _totalAkhir,
+      minimumDp: _minimumDp,
+      onRemove: () => _removePayment(index),
+      onMethodChanged: (val) => setState(() {
+        entry.method = val;
+        entry.bank = null;
+        if (val != 'Lainnya') entry.otherChannelCtrl.clear();
+      }),
+      onChannelChanged: (val) => setState(() {
+        entry.bank = val;
+        if (val != 'Lainnya') entry.otherChannelCtrl.clear();
+      }),
+      onPickDate: () async {
+        final picked = await showAdaptiveDatePicker(
+          context: context,
+          initialDate: entry.date,
+          firstDate: DateTime(2020),
+          lastDate: DateTime(2100),
+          helpText: 'Pilih Tanggal Bayar',
+        );
+        if (!mounted) return;
+        if (picked != null) setState(() => entry.date = picked);
+      },
+      onPickReceipt: () => _showImageSourceBottomSheet(index),
+      onRemoveReceipt: () => setState(() => entry.receiptImage = null),
+      onLunasTap: () => setState(() {
+        _isLunas = true;
+        _updatePaymentAmountUI();
+      }),
+      onDpTap: () => setState(() {
+        _isLunas = false;
+        _payments.first.amountCtrl.clear();
+      }),
+      onAmountChanged: (_) => setState(() {}),
+    );
   }
+
+  Widget _buildAddPaymentChip() => AddPaymentChip(onTap: _addPayment);
+
+  Widget _buildPaymentSummary() => CheckoutPaymentSummary(
+        totalAkhir: _totalAkhir,
+        totalPaid: _totalPaid,
+      );
+
+  // ── TakeAway helpers (delegated to BonusTakeAwayState) ─────
+
+  bool _isBonusTakeAwayChecked(int itemIndex, CartBonusSnapshot bonus) =>
+      _takeAway.isChecked(itemIndex, bonus);
+
+  int _currentTakeAwayQty(int itemIndex, CartBonusSnapshot bonus) =>
+      _takeAway.currentQty(itemIndex, bonus);
 
   void _toggleBonusTakeAway(
       int itemIndex, CartBonusSnapshot bonus, bool checked) {
-    final key = _bonusTakeAwayKey(itemIndex, bonus);
-    setState(() {
-      if (checked) {
-        _checkedTakeAwaySkus.add(key);
-        _takeAwayQtys[key] = (_takeAwayQtys[key] ?? 0).clamp(1, bonus.qty);
-      } else {
-        _checkedTakeAwaySkus.remove(key);
-        _takeAwayQtys[key] = 0;
-      }
-    });
-  }
-
-  int _currentTakeAwayQty(int itemIndex, CartBonusSnapshot bonus) {
-    final raw = _takeAwayQtys[_bonusTakeAwayKey(itemIndex, bonus)] ?? 0;
-    return raw.clamp(0, bonus.qty);
+    setState(() => _takeAway.toggle(itemIndex, bonus, checked));
   }
 
   void _setTakeAwayQty(int itemIndex, CartBonusSnapshot bonus, int value) {
-    final key = _bonusTakeAwayKey(itemIndex, bonus);
-    final clamped = value.clamp(0, bonus.qty);
-    setState(() {
-      _takeAwayQtys[key] = clamped;
-      if (clamped <= 0) {
-        _checkedTakeAwaySkus.remove(key);
-      } else {
-        _checkedTakeAwaySkus.add(key);
-      }
-    });
+    setState(() => _takeAway.setQty(itemIndex, bonus, value));
   }
 }
