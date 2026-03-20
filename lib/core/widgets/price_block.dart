@@ -29,25 +29,31 @@ class PriceBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final showOriginal = originalPrice != null && originalPrice! > price;
+    final orig = originalPrice;
+    final showOriginal = orig != null && orig > price;
 
-    return Column(
-      crossAxisAlignment: crossAxisAlignment,
-      children: [
-        if (showOriginal)
-          Text(
-            formatPrice(originalPrice!),
-            style:
-                originalPriceStyle ??
-                const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textTertiary,
-                  decoration: TextDecoration.lineThrough,
-                ),
-          ),
-        if (showOriginal) SizedBox(height: spacing),
-        Text(formatPrice(price), style: priceStyle),
-      ],
+    return Semantics(
+      label: showOriginal
+          ? 'Harga ${formatPrice(price)}, sebelumnya ${formatPrice(orig)}'
+          : 'Harga ${formatPrice(price)}',
+      child: Column(
+        crossAxisAlignment: crossAxisAlignment,
+        children: [
+          if (showOriginal)
+            Text(
+              formatPrice(orig),
+              style:
+                  originalPriceStyle ??
+                  const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textTertiary,
+                    decoration: TextDecoration.lineThrough,
+                  ),
+            ),
+          if (showOriginal) SizedBox(height: spacing),
+          Text(formatPrice(price), style: priceStyle),
+        ],
+      ),
     );
   }
 }

@@ -45,7 +45,9 @@ class EmptyStateView extends StatelessWidget {
           height: 1.5,
         );
 
-    return Center(
+    return Semantics(
+      label: '$title. $subtitle',
+      child: Center(
       child: Padding(
         padding: padding,
         child: Column(
@@ -61,13 +63,14 @@ class EmptyStateView extends StatelessWidget {
               style: resolvedSubtitleStyle,
               textAlign: TextAlign.center,
             ),
-            if (action != null) ...[
+            if (action case final a?) ...[
               const SizedBox(height: 24),
-              action!,
+              a,
             ],
           ],
         ),
       ),
+    ),
     );
   }
 }

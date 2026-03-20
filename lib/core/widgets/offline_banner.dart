@@ -41,7 +41,10 @@ class _OfflineBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Material(
+    return Semantics(
+      liveRegion: true,
+      label: 'Tidak ada koneksi internet',
+      child: const Material(
       color: AppColors.textPrimary,
       child: SafeArea(
         bottom: false,
@@ -68,6 +71,7 @@ class _OfflineBanner extends StatelessWidget {
           ),
         ),
       ),
+    ),
     );
   }
 }

@@ -24,6 +24,9 @@ class NetworkImageView extends StatelessWidget {
   /// Max decoded height in pixels kept in memory.
   final int? memCacheHeight;
 
+  /// Accessibility label for screen readers.
+  final String? semanticLabel;
+
   const NetworkImageView({
     super.key,
     required this.imageUrl,
@@ -35,6 +38,7 @@ class NetworkImageView extends StatelessWidget {
     this.loadingBuilder,
     this.memCacheWidth = 400,
     this.memCacheHeight,
+    this.semanticLabel,
   });
 
   @override
@@ -43,7 +47,7 @@ class NetworkImageView extends StatelessWidget {
       return errorWidget ?? _defaultError();
     }
 
-    return CachedNetworkImage(
+    final image = CachedNetworkImage(
       imageUrl: imageUrl,
       fit: fit,
       width: width,
@@ -52,7 +56,7 @@ class NetworkImageView extends StatelessWidget {
       memCacheWidth: memCacheWidth,
       memCacheHeight: memCacheHeight,
       placeholder: (context, url) {
-        if (loadingBuilder != null) return loadingBuilder!(context, null);
+        if (loadingBuilder case final builder?) return builder(context, null);
         return Container(
           color: AppColors.surfaceLight,
           child: const Center(
@@ -67,6 +71,11 @@ class NetworkImageView extends StatelessWidget {
         return errorWidget ?? _defaultError();
       },
     );
+
+    if (semanticLabel != null) {
+      return Semantics(label: semanticLabel, image: true, child: image);
+    }
+    return image;
   }
 
   Widget _defaultError() {

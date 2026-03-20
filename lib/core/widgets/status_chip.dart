@@ -34,7 +34,9 @@ class StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return Semantics(
+      label: 'Status: $label',
+      child: Container(
       padding: padding,
       decoration: BoxDecoration(
         color: backgroundColor,
@@ -60,6 +62,7 @@ class StatusChip extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 }

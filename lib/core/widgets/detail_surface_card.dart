@@ -15,7 +15,9 @@ class DetailSurfaceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SectionCard(
+    return Semantics(
+      container: true,
+      child: SectionCard(
       padding: padding ?? const EdgeInsets.all(16),
       backgroundColor: AppColors.surface,
       boxShadow: const [
@@ -26,6 +28,7 @@ class DetailSurfaceCard extends StatelessWidget {
         ),
       ],
       child: child,
+      ),
     );
   }
 }

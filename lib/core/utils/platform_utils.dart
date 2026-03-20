@@ -146,29 +146,43 @@ Future<DateTime?> showAdaptiveDatePicker({
         ),
         child: Column(
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                CupertinoButton(
-                  child: const Text('Batal'),
-                  onPressed: () => Navigator.pop(context),
-                ),
-                if (helpText != null)
-                  Flexible(
-                    child: Text(
-                      helpText,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
-                      ),
-                      overflow: TextOverflow.ellipsis,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  CupertinoButton(
+                    child: const Text(
+                      'Batal',
+                      style: TextStyle(color: AppColors.textSecondary),
                     ),
+                    onPressed: () => Navigator.pop(context),
                   ),
-                CupertinoButton(
-                  child: const Text('Pilih'),
-                  onPressed: () => Navigator.pop(context, tempDate),
-                ),
-              ],
+                  if (helpText != null)
+                    Flexible(
+                      child: Text(
+                        helpText,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                          color: AppColors.textPrimary,
+                          decoration: TextDecoration.none,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  CupertinoButton(
+                    child: const Text(
+                      'Pilih',
+                      style: TextStyle(
+                        color: AppColors.accent,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    onPressed: () => Navigator.pop(context, tempDate),
+                  ),
+                ],
+              ),
             ),
             Expanded(
               child: CupertinoDatePicker(

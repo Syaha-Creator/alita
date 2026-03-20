@@ -33,61 +33,70 @@ class ImageViewerDialog {
   }) {
     return showDialog<void>(
       context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: insetPadding,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            InteractiveViewer(
-              panEnabled: panEnabled,
-              minScale: minScale,
-              maxScale: maxScale,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(borderRadius),
-                child: NetworkImageView(
-                  imageUrl: imageUrl,
-                  fit: BoxFit.contain,
-                  memCacheWidth: 800,
-                  loadingBuilder:
-                      loadingWidget == null ? null : (_, __) => loadingWidget,
-                  errorWidget: errorWidget ??
-                      const Center(
-                        child: Icon(Icons.broken_image,
-                            color: AppColors.onPrimary),
-                      ),
+      builder: (ctx) => Semantics(
+        label: 'Lihat gambar',
+        image: true,
+        child: Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: insetPadding,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              InteractiveViewer(
+                panEnabled: panEnabled,
+                minScale: minScale,
+                maxScale: maxScale,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(borderRadius),
+                  child: NetworkImageView(
+                    imageUrl: imageUrl,
+                    fit: BoxFit.contain,
+                    memCacheWidth: 800,
+                    loadingBuilder: loadingWidget == null
+                        ? null
+                        : (_, __) => loadingWidget,
+                    errorWidget: errorWidget ??
+                        const Center(
+                          child: Icon(Icons.broken_image,
+                              color: AppColors.onPrimary),
+                        ),
+                  ),
                 ),
               ),
-            ),
-            Positioned(
-              top: closeTop,
-              right: closeRight,
-              child: closeAsIconButton
-                  ? IconButton(
-                      icon: Icon(
-                        closeIcon,
-                        color: closeIconColor,
-                        size: closeIconSize,
-                      ),
-                      onPressed: () => Navigator.pop(ctx),
-                    )
-                  : GestureDetector(
-                      onTap: () => Navigator.pop(ctx),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: closeBackgroundColor,
-                          borderRadius: BorderRadius.circular(20),
+              Positioned(
+                top: closeTop,
+                right: closeRight,
+                child: Semantics(
+                  label: 'Tutup',
+                  button: true,
+                  child: closeAsIconButton
+                      ? IconButton(
+                          icon: Icon(
+                            closeIcon,
+                            color: closeIconColor,
+                            size: closeIconSize,
+                          ),
+                          onPressed: () => Navigator.pop(ctx),
+                        )
+                      : GestureDetector(
+                          onTap: () => Navigator.pop(ctx),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: closeBackgroundColor,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            padding: closePadding,
+                            child: Icon(
+                              closeIcon,
+                              color: closeIconColor,
+                              size: closeIconSize,
+                            ),
+                          ),
                         ),
-                        padding: closePadding,
-                        child: Icon(
-                          closeIcon,
-                          color: closeIconColor,
-                          size: closeIconSize,
-                        ),
-                      ),
-                    ),
-            ),
-          ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

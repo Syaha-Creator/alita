@@ -14,7 +14,10 @@ class DetailDiscountBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return Semantics(
+      container: true,
+      label: title,
+      child: Container(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       decoration: BoxDecoration(
         color: AppColors.background,
@@ -37,6 +40,7 @@ class DetailDiscountBlock extends StatelessWidget {
           ...rows,
         ],
       ),
+    ),
     );
   }
 }

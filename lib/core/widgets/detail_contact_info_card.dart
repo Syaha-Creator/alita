@@ -32,7 +32,10 @@ class DetailContactInfoCard extends StatelessWidget {
     final hasEmail = email.isNotEmpty && email != '-';
     final hasAddress = address.isNotEmpty && address != '-';
 
-    return Container(
+    return Semantics(
+      container: true,
+      label: 'Info kontak',
+      child: Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -47,7 +50,8 @@ class DetailContactInfoCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
+              ExcludeSemantics(
+                child: CircleAvatar(
                 radius: 20,
                 backgroundColor: AppColors.accentLight,
                 child: Text(
@@ -58,6 +62,7 @@ class DetailContactInfoCard extends StatelessWidget {
                     fontSize: 16,
                   ),
                 ),
+              ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -91,10 +96,10 @@ class DetailContactInfoCard extends StatelessWidget {
                             ),
                           ),
                           const Spacer(),
-                          if (onCopyPhone != null)
+                          if (onCopyPhone case final cb?)
                             _ActionIcon(
                               tooltip: 'Salin nomor',
-                              onTap: onCopyPhone!,
+                              onTap: cb,
                               icon: Icons.copy_rounded,
                               backgroundColor: AppColors.surfaceLight,
                               iconColor: AppColors.textSecondary,
@@ -110,12 +115,17 @@ class DetailContactInfoCard extends StatelessWidget {
                               borderColor: AppColors.accent.withValues(alpha: 0.3),
                             ),
                           ],
-                          if (onOpenWhatsApp != null) ...[
+                          if (onOpenWhatsApp case final cb?) ...[
                             const SizedBox(width: 4),
                             _ActionIcon(
                               tooltip: 'Chat WhatsApp',
-                              onTap: onOpenWhatsApp!,
-                              icon: Icons.chat_bubble_outline,
+                              onTap: cb,
+                              customIcon: Image.asset(
+                                'assets/logo/whatsapp-icon.png',
+                                width: 16,
+                                height: 16,
+                                filterQuality: FilterQuality.medium,
+                              ),
                               backgroundColor: AppColors.success.withValues(alpha: 0.08),
                               iconColor: AppColors.success,
                               borderColor: AppColors.success.withValues(alpha: 0.3),
@@ -176,6 +186,7 @@ class DetailContactInfoCard extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 }
@@ -184,7 +195,8 @@ class _ActionIcon extends StatelessWidget {
   const _ActionIcon({
     required this.tooltip,
     required this.onTap,
-    required this.icon,
+    this.icon,
+    this.customIcon,
     required this.backgroundColor,
     required this.iconColor,
     this.borderColor,
@@ -192,7 +204,8 @@ class _ActionIcon extends StatelessWidget {
 
   final String tooltip;
   final VoidCallback onTap;
-  final IconData icon;
+  final IconData? icon;
+  final Widget? customIcon;
   final Color backgroundColor;
   final Color iconColor;
   final Color? borderColor;
@@ -214,7 +227,7 @@ class _ActionIcon extends StatelessWidget {
             borderRadius: BorderRadius.circular(10),
             border: borderColor != null ? Border.all(color: borderColor!) : null,
           ),
-          child: Icon(icon, size: 14, color: iconColor),
+          child: customIcon ?? Icon(icon, size: 14, color: iconColor),
         ),
       ),
     );

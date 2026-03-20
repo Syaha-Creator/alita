@@ -30,7 +30,10 @@ class SelectionBottomSheet<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     final maxSheetHeight = MediaQuery.of(context).size.height * maxHeightFactor;
 
-    return ConstrainedBox(
+    return Semantics(
+      container: true,
+      label: 'Pilih opsi',
+      child: ConstrainedBox(
       constraints: BoxConstraints(maxHeight: maxSheetHeight),
       child: SheetScaffold(
         child: Column(
@@ -54,7 +57,8 @@ class SelectionBottomSheet<T> extends StatelessWidget {
                 itemBuilder: (context, index) {
                   final item = items[index];
                   final isSelected = item == selectedItem;
-                  return ListTile(
+                  return RepaintBoundary(
+                    child: ListTile(
                     title: Text(labelBuilder(item)),
                     trailing: isSelected
                         ? const Icon(
@@ -67,6 +71,7 @@ class SelectionBottomSheet<T> extends StatelessWidget {
                       onItemSelected(item);
                       Navigator.of(context).pop();
                     },
+                  ),
                   );
                 },
               ),
@@ -74,6 +79,7 @@ class SelectionBottomSheet<T> extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
   }
 }

@@ -24,7 +24,6 @@ dependencies:
   
   # Data Classes
   freezed_annotation: ^2.4.4
-  json_annotation: ^4.9.0
   
   # Storage
   shared_preferences: ^2.3.3
@@ -34,8 +33,6 @@ dependencies:
   
   # Networking
   http: ^1.2.2
-  dio: ^5.4.3
-  logging: ^1.2.0
   
   # Environment Config
   flutter_dotenv: ^5.2.1
@@ -50,7 +47,6 @@ dependencies:
   connectivity_plus: ^6.1.1
 
   # Icons
-  cupertino_icons: ^1.0.8
   image_picker: ^1.2.1
   geolocator: ^13.0.2
   geocoding: ^3.0.0
@@ -68,10 +64,16 @@ dependencies:
   firebase_messaging: ^15.2.4
   upgrader: ^12.5.0
   package_info_plus: ^8.0.0
+  flutter_secure_storage: ^10.0.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  integration_test:
+    sdk: flutter
+
+  # Mocking
+  mocktail: ^1.0.4
 
   # Linting
   flutter_lints: ^5.0.0

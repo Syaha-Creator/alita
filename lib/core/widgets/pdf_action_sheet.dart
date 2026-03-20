@@ -31,58 +31,62 @@ class PdfActionSheet {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Surat Pesanan ($label)',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: _PdfActionButton(
-                      icon: Icons.print_rounded,
-                      label: 'Cetak PDF',
-                      color: AppColors.accent,
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        _executePdfAction(context, action: onPrint);
-                      },
-                    ),
+      builder: (ctx) => Semantics(
+        label: 'Aksi PDF: Surat Pesanan ($label)',
+        namesRoute: true,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(2),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _PdfActionButton(
-                      icon: Icons.share_rounded,
-                      label: 'Bagikan PDF',
-                      color: AppColors.success,
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        _executePdfAction(context, action: onShare);
-                      },
-                    ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Surat Pesanan ($label)',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
                   ),
-                ],
-              ),
-            ],
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _PdfActionButton(
+                        icon: Icons.print_rounded,
+                        label: 'Cetak PDF',
+                        color: AppColors.accent,
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          _executePdfAction(context, action: onPrint);
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _PdfActionButton(
+                        icon: Icons.share_rounded,
+                        label: 'Bagikan PDF',
+                        color: AppColors.success,
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          _executePdfAction(context, action: onShare);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -136,38 +140,42 @@ class _PdfActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: color.withValues(alpha: 0.08),
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: () {
-          HapticFeedback.lightImpact();
-          onTap();
-        },
+    return Semantics(
+      label: label,
+      button: true,
+      child: Material(
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 20),
-          child: Column(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            onTap();
+          },
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: Column(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: color, size: 24),
                 ),
-                child: Icon(icon, color: color, size: 24),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: color,
+                const SizedBox(height: 10),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: color,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

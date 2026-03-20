@@ -149,8 +149,8 @@ class DeviceTokenService {
         final err = data['error']?.toString().toLowerCase() ?? '';
         return '$msg $err'.trim();
       }
-    } catch (_) {
-      // not valid JSON
+    } catch (e) {
+      Log.warning('422 body is not valid JSON: $e', tag: 'DeviceToken');
     }
     return body.toLowerCase();
   }

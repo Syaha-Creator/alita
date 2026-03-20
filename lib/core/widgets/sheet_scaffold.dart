@@ -10,6 +10,7 @@ class SheetScaffold extends StatelessWidget {
   final Color backgroundColor;
   final bool includeBottomSafePadding;
   final double bottomSpacing;
+  final String? semanticLabel;
 
   const SheetScaffold({
     super.key,
@@ -20,6 +21,7 @@ class SheetScaffold extends StatelessWidget {
     this.backgroundColor = AppColors.surface,
     this.includeBottomSafePadding = true,
     this.bottomSpacing = 8,
+    this.semanticLabel,
   });
 
   @override
@@ -28,7 +30,7 @@ class SheetScaffold extends StatelessWidget {
         ? MediaQuery.of(context).padding.bottom
         : 0.0;
 
-    return Container(
+    Widget result = Container(
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.vertical(top: Radius.circular(topRadius)),
@@ -38,12 +40,14 @@ class SheetScaffold extends StatelessWidget {
         children: [
           if (showHandle) ...[
             const SizedBox(height: 6),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.divider,
-                borderRadius: BorderRadius.circular(2),
+            ExcludeSemantics(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.divider,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
             const SizedBox(height: 4),
@@ -59,5 +63,15 @@ class SheetScaffold extends StatelessWidget {
         ],
       ),
     );
+
+    if (semanticLabel != null) {
+      result = Semantics(
+        container: true,
+        label: semanticLabel,
+        child: result,
+      );
+    }
+
+    return result;
   }
 }

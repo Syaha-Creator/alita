@@ -9,9 +9,13 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:upgrader/upgrader.dart';
+import 'core/config/app_config.dart';
 import 'core/router/app_router.dart';
 import 'core/services/notification_handler_service.dart';
+import 'core/services/pdf_asset_cache.dart';
+import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
+import 'features/approval/logic/approval_inbox_provider.dart';
 import 'features/auth/logic/auth_provider.dart';
 import 'features/pricelist/logic/master_data_provider.dart';
 import 'core/widgets/offline_banner.dart';
@@ -21,7 +25,14 @@ void main() {
   runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
 
+    // In release, show a friendly error instead of the red error screen
+    if (!kDebugMode) {
+      ErrorWidget.builder = (details) => const _AppErrorFallback();
+    }
+
     await dotenv.load(fileName: '.env');
+    AppConfig.assertConfigured();
+
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
@@ -33,12 +44,24 @@ void main() {
     // Foreground + tap handlers; permission request
     await NotificationHandlerService.init();
 
-    // Disable Crashlytics data collection in debug mode
+    // ── Crashlytics ──────────────────────────────────────────
+    // Enable collection in release; disable in debug to avoid noise
     await FirebaseCrashlytics.instance
         .setCrashlyticsCollectionEnabled(!kDebugMode);
 
-    // Forward all Flutter framework errors to Crashlytics
-    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+    // Flutter framework errors (rendering, layout, etc.)
+    FlutterError.onError = (details) {
+      FirebaseCrashlytics.instance.recordFlutterFatalError(details);
+    };
+
+    // Async errors from platform dispatchers (not caught by runZonedGuarded)
+    PlatformDispatcher.instance.onError = (error, stack) {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      return true;
+    };
+
+    // Pre-load PDF fonts & logos in background so generation is instant later
+    unawaited(PdfAssetCache.warmUp());
 
     runApp(
       const ProviderScope(
@@ -46,6 +69,7 @@ void main() {
       ),
     );
   }, (error, stack) {
+    // Dart async errors within the zone
     FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
   });
 }
@@ -57,7 +81,8 @@ class AlitaPricelistApp extends ConsumerStatefulWidget {
   ConsumerState<AlitaPricelistApp> createState() => _AlitaPricelistAppState();
 }
 
-class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp> {
+class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp>
+    with WidgetsBindingObserver {
   final GlobalKey<ScaffoldMessengerState> _scaffoldKey =
       GlobalKey<ScaffoldMessengerState>();
   bool _initialMessageHandled = false;
@@ -75,11 +100,33 @@ class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     NotificationHandlerService.registerScaffoldMessengerKey(_scaffoldKey);
+    NotificationHandlerService.registerApprovalRefreshCallback(() {
+      ref.read(approvalInboxProvider.notifier).fetchInbox();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.read(masterDataProvider.notifier).syncIfStale();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    precacheImage(
+      const AssetImage('assets/logo/whatsapp-icon.png'),
+      context,
+    );
+
     final router = ref.watch(routerProvider);
     NotificationHandlerService.registerNavigateCallback(router);
 
@@ -124,6 +171,52 @@ class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp> {
   }
 }
 
+/// Friendly fallback shown in release when a widget fails to build.
+/// Prevents the default red "error" screen from scaring users.
+class _AppErrorFallback extends StatelessWidget {
+  const _AppErrorFallback();
+
+  @override
+  Widget build(BuildContext context) {
+    return const ColoredBox(
+      color: AppColors.background,
+      child: Center(
+        child: Padding(
+          padding: EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.warning_amber_rounded,
+                  size: 48, color: AppColors.warning),
+              SizedBox(height: 16),
+              Text(
+                'Terjadi kesalahan tampilan.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Coba kembali ke halaman sebelumnya\natau restart aplikasi.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _AlitaUpgraderMessages extends UpgraderMessages {
   _AlitaUpgraderMessages() : super(code: 'id');
 
@@ -131,8 +224,7 @@ class _AlitaUpgraderMessages extends UpgraderMessages {
   String get title => 'Pembaruan Tersedia';
 
   @override
-  String get body =>
-      'Versi baru aplikasi {{appName}} telah tersedia.\n'
+  String get body => 'Versi baru aplikasi {{appName}} telah tersedia.\n'
       'Anda wajib memperbarui aplikasi untuk melanjutkan dan memastikan '
       'perhitungan harga akurat.\n\n'
       'Versi terpasang: {{currentInstalledVersion}}\n'

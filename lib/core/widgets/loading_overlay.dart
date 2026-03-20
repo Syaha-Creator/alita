@@ -26,11 +26,16 @@ class LoadingOverlay extends StatelessWidget {
     required String title,
     String? subtitle,
   }) {
-    showDialog(
+    showGeneralDialog(
       context: context,
       barrierDismissible: false,
+      barrierLabel: 'Loading',
       barrierColor: Colors.black.withValues(alpha: 0.45),
-      builder: (_) => PopScope(
+      transitionDuration: const Duration(milliseconds: 200),
+      transitionBuilder: (_, anim, __, child) {
+        return FadeTransition(opacity: anim, child: child);
+      },
+      pageBuilder: (_, __, ___) => PopScope(
         canPop: false,
         child: LoadingOverlay(title: title, subtitle: subtitle),
       ),
@@ -46,7 +51,10 @@ class LoadingOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return Semantics(
+      label: title,
+      liveRegion: true,
+      child: Container(
       color: Colors.black.withValues(alpha: 0.45),
       child: Center(
         child: Container(
@@ -78,10 +86,10 @@ class LoadingOverlay extends StatelessWidget {
                   color: AppColors.textPrimary,
                 ),
               ),
-              if (subtitle != null) ...[
+              if (subtitle case final s?) ...[
                 const SizedBox(height: 4),
                 Text(
-                  subtitle!,
+                  s,
                   style: const TextStyle(
                     fontSize: 12,
                     color: AppColors.textTertiary,
@@ -92,6 +100,7 @@ class LoadingOverlay extends StatelessWidget {
           ),
         ),
       ),
+    ),
     );
   }
 }

@@ -28,7 +28,10 @@ class DetailNoteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return Semantics(
+      label: '$title: $note',
+      child: ExcludeSemantics(
+        child: Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -74,6 +77,8 @@ class DetailNoteCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+      ),
       ),
     );
   }

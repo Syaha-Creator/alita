@@ -29,8 +29,11 @@ class OrderListCardFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: AppLayoutTokens.listCardMargin,
+    return Semantics(
+      container: true,
+      label: 'Pesanan $referenceNo',
+      child: Container(
+        margin: AppLayoutTokens.listCardMargin,
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppLayoutTokens.radius16),
@@ -127,6 +130,7 @@ class OrderListCardFrame extends StatelessWidget {
             ),
           ),
         ),
+      ),
       ),
     );
   }

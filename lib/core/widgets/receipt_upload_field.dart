@@ -22,7 +22,9 @@ class ReceiptUploadField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return Semantics(
+      label: imageFile != null ? 'Struk pembayaran sudah diunggah' : 'Upload struk pembayaran',
+      child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         imageFile != null
@@ -34,10 +36,13 @@ class ReceiptUploadField extends StatelessWidget {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: AppColors.border),
-                      image: DecorationImage(
-                        image: FileImage(imageFile!),
-                        fit: BoxFit.cover,
-                      ),
+                      image: switch (imageFile) {
+                        final f? => DecorationImage(
+                          image: FileImage(f),
+                          fit: BoxFit.cover,
+                        ),
+                        null => null,
+                      },
                     ),
                   ),
                   Positioned(
@@ -100,14 +105,16 @@ class ReceiptUploadField extends StatelessWidget {
                 ),
               ),
         if (hasError && (errorText?.isNotEmpty ?? false))
-          Padding(
-            padding: const EdgeInsets.only(top: 6, left: 12),
-            child: Text(
-              errorText!,
-              style: const TextStyle(color: AppColors.error, fontSize: 12),
+          if (errorText case final t?)
+            Padding(
+              padding: const EdgeInsets.only(top: 6, left: 12),
+              child: Text(
+                t,
+                style: const TextStyle(color: AppColors.error, fontSize: 12),
+              ),
             ),
-          ),
       ],
+    ),
     );
   }
 }

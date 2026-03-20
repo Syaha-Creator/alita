@@ -29,7 +29,9 @@ class FloatingBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return Semantics(
+      label: '$count item',
+      child: Container(
       padding: padding,
       constraints: constraints,
       decoration: BoxDecoration(
@@ -56,6 +58,7 @@ class FloatingBadge extends StatelessWidget {
               ),
         ),
       ),
+    ),
     );
   }
 }

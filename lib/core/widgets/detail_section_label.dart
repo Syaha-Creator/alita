@@ -20,7 +20,7 @@ class DetailSectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = Text(
+    final labelText = Text(
       title,
       style: style ??
           const TextStyle(
@@ -31,21 +31,26 @@ class DetailSectionLabel extends StatelessWidget {
           ),
     );
 
-    if (!showAccentBar) return label;
+    if (!showAccentBar) {
+      return Semantics(header: true, child: labelText);
+    }
 
-    return Row(
-      children: [
-        Container(
-          width: 4,
-          height: 18,
-          decoration: BoxDecoration(
-            color: AppColors.accent,
-            borderRadius: BorderRadius.circular(2),
+    return Semantics(
+      header: true,
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 18,
+            decoration: BoxDecoration(
+              color: AppColors.accent,
+              borderRadius: BorderRadius.circular(2),
+            ),
           ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(child: label),
-      ],
+          const SizedBox(width: 10),
+          Expanded(child: labelText),
+        ],
+      ),
     );
   }
 }

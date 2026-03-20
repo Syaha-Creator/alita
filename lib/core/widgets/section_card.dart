@@ -34,7 +34,10 @@ class SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return Semantics(
+      container: true,
+      label: title,
+      child: Container(
       width: double.infinity,
       padding: padding,
       decoration: BoxDecoration(
@@ -53,25 +56,26 @@ class SectionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (title != null) ...[
+          if (title case final t?) ...[
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Text(
-                  title!,
+                  t,
                   style: titleStyle ??
                       Theme.of(context).textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.w700,
                           ),
                 ),
-                if (trailing != null) trailing!,
+                if (trailing case final tr?) tr,
               ],
             ),
             SizedBox(height: contentSpacing),
           ],
           child,
         ],
+      ),
       ),
     );
   }

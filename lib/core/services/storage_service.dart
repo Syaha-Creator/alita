@@ -1,7 +1,14 @@
 import 'dart:convert';
+
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Storage service for persistent data
+import '../utils/log.dart';
+
+/// Storage service for persistent data.
+///
+/// Sensitive credentials (access token) are stored in [FlutterSecureStorage]
+/// (encrypted keychain / keystore). All other data uses [SharedPreferences].
 class StorageService {
   static const String _cartKey = 'cart_items';
   static const String _favoritesKey = 'favorite_ids';
@@ -15,6 +22,11 @@ class StorageService {
   static const String _areasCacheKey = 'master_areas_cache';
   static const String _channelsCacheKey = 'master_channels_cache';
   static const String _brandsCacheKey = 'master_brands_cache';
+  static const String _masterDataLastSyncKey = 'master_data_last_sync';
+
+  static const _secureStorage = FlutterSecureStorage();
+
+  static const String _tokenMigratedKey = 'token_migrated_v1';
 
   /// Save cart data
   static Future<void> saveCart(List<Map<String, dynamic>> cartData) async {
@@ -36,7 +48,7 @@ class StorageService {
       final List<dynamic> decoded = jsonDecode(jsonString);
       return decoded.cast<Map<String, dynamic>>();
     } catch (e) {
-      // If decode fails, return empty list
+      Log.warning('StorageService decode failed: $e', tag: 'Storage');
       return [];
     }
   }
@@ -69,7 +81,7 @@ class StorageService {
     await prefs.setString(_userEmailKey, email);
     await prefs.setString(_defaultAreaKey, defaultArea);
     if (accessToken.isNotEmpty) {
-      await prefs.setString(_accessTokenKey, accessToken);
+      await _secureStorage.write(key: _accessTokenKey, value: accessToken);
     }
     if (userId > 0) {
       await prefs.setInt(_userIdKey, userId);
@@ -112,9 +124,26 @@ class StorageService {
     return prefs.getString(_defaultAreaKey) ?? 'Jakarta';
   }
 
+  /// Loads the access token from encrypted secure storage.
+  ///
+  /// On first call after upgrade, migrates the token from SharedPreferences
+  /// into secure storage and removes the plain-text copy.
   static Future<String> loadAccessToken() async {
+    await _migrateTokenIfNeeded();
+    return await _secureStorage.read(key: _accessTokenKey) ?? '';
+  }
+
+  /// One-time migration: moves token from SharedPreferences → secure storage.
+  static Future<void> _migrateTokenIfNeeded() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_accessTokenKey) ?? '';
+    if (prefs.getBool(_tokenMigratedKey) == true) return;
+
+    final legacyToken = prefs.getString(_accessTokenKey);
+    if (legacyToken != null && legacyToken.isNotEmpty) {
+      await _secureStorage.write(key: _accessTokenKey, value: legacyToken);
+      await prefs.remove(_accessTokenKey);
+    }
+    await prefs.setBool(_tokenMigratedKey, true);
   }
 
   static Future<void> clearAuth() async {
@@ -122,15 +151,15 @@ class StorageService {
     await prefs.remove(_isLoggedInKey);
     await prefs.remove(_userEmailKey);
     await prefs.remove(_defaultAreaKey);
-    await prefs.remove(_accessTokenKey);
     await prefs.remove(_userIdKey);
     await prefs.remove(_userNameKey);
     await prefs.remove(_userImageUrlKey);
+    await _secureStorage.delete(key: _accessTokenKey);
   }
 
   // ── Master Data Cache ──
 
-  /// Save master data JSON strings to local cache.
+  /// Save master data JSON strings to local cache and record sync timestamp.
   /// Pass only the keys you want to update; others remain untouched.
   static Future<void> saveMasterData({
     String? areas,
@@ -141,6 +170,19 @@ class StorageService {
     if (areas != null) await prefs.setString(_areasCacheKey, areas);
     if (channels != null) await prefs.setString(_channelsCacheKey, channels);
     if (brands != null) await prefs.setString(_brandsCacheKey, brands);
+    await prefs.setInt(
+      _masterDataLastSyncKey,
+      DateTime.now().millisecondsSinceEpoch,
+    );
+  }
+
+  /// Returns the last time master data was successfully synced from API.
+  /// Returns null if never synced.
+  static Future<DateTime?> loadMasterDataLastSync() async {
+    final prefs = await SharedPreferences.getInstance();
+    final ms = prefs.getInt(_masterDataLastSyncKey);
+    if (ms == null) return null;
+    return DateTime.fromMillisecondsSinceEpoch(ms);
   }
 
   /// Load cached areas JSON. Returns '[]' if nothing is cached.
@@ -161,9 +203,61 @@ class StorageService {
     return prefs.getString(_brandsCacheKey) ?? '[]';
   }
 
-  /// Clear all stored data
+  /// Clear all stored data (including secure storage).
   static Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
+    await _secureStorage.deleteAll();
+  }
+
+  // ── Pricelist snapshot cache (per Area + Channel + Brand) ──
+
+  /// Stable storage key for one pricelist filter combination.
+  /// When online fetch succeeds, the entire list for this key is overwritten
+  /// (no merge) — always the latest API snapshot.
+  static String pricelistCacheStorageKey(
+    String area,
+    String channel,
+    String brand,
+  ) {
+    final h = Object.hash(
+      area.trim().toLowerCase(),
+      channel.trim().toLowerCase(),
+      brand.trim().toLowerCase(),
+    );
+    return 'alita_pl_v1_$h';
+  }
+
+  /// Persists mapped [Product.toJson()] rows for offline / error fallback.
+  static Future<void> savePricelistProductRows(
+    String storageKey,
+    List<Map<String, dynamic>> rows,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      storageKey,
+      jsonEncode(<String, dynamic>{'v': 1, 'items': rows}),
+    );
+  }
+
+  /// Returns cached JSON rows, or `null` if missing / invalid.
+  static Future<List<Map<String, dynamic>>?> loadPricelistProductRows(
+    String storageKey,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(storageKey);
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return null;
+      final list = decoded['items'];
+      if (list is! List<dynamic>) return null;
+      return list
+          .map((e) => Map<String, dynamic>.from(e as Map<dynamic, dynamic>))
+          .toList();
+    } catch (e, st) {
+      Log.error(e, st, reason: 'StorageService.loadPricelistProductRows');
+      return null;
+    }
   }
 }

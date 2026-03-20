@@ -304,11 +304,14 @@ class PaymentFormContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return Semantics(
+      container: true,
+      label: 'Form pembayaran',
+      child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (topBanner != null) ...[
-          topBanner!,
+        if (topBanner case final b?) ...[
+          b,
           const SizedBox(height: 16),
         ],
         if (showModeToggle) ...[
@@ -349,9 +352,9 @@ class PaymentFormContent extends StatelessWidget {
             isDense: true,
           ),
         ),
-        if (amountStatusWidget != null) ...[
+        if (amountStatusWidget case final w?) ...[
           const SizedBox(height: 6),
-          amountStatusWidget!,
+          w,
         ],
         const SizedBox(height: 16),
         _buildMethodAndChannel(context),
@@ -384,6 +387,7 @@ class PaymentFormContent extends StatelessWidget {
           ),
         ),
       ],
+    ),
     );
   }
 }

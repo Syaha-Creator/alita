@@ -18,14 +18,17 @@ class FormFieldLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: style ??
-          const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textSecondary,
-          ),
+    return Semantics(
+      header: true,
+      child: Text(
+        text,
+        style: style ??
+            const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+            ),
+      ),
     );
   }
 }

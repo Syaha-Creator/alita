@@ -22,7 +22,10 @@ class DateRangeFilterAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Semantics(
+      label: 'Filter tanggal',
+      button: true,
+      child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         if (hasActiveFilter && onClear != null)
@@ -58,6 +61,7 @@ class DateRangeFilterAction extends StatelessWidget {
           ),
         ),
       ],
+      ),
     );
   }
 }

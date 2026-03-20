@@ -14,7 +14,10 @@ class DetailBonusItemsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return Semantics(
+      container: true,
+      label: title,
+      child: Column(
       children: [
         const SizedBox(height: 12),
         Container(height: 1, color: AppColors.surfaceLight),
@@ -41,6 +44,7 @@ class DetailBonusItemsSection extends StatelessWidget {
         const SizedBox(height: 6),
         ...rows,
       ],
+    ),
     );
   }
 }

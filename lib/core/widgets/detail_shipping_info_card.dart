@@ -20,7 +20,10 @@ class DetailShippingInfoCard extends StatelessWidget {
     final hasName = name.isNotEmpty && name != '-';
     final hasAddress = address.isNotEmpty && address != '-';
 
-    return Container(
+    return Semantics(
+      container: true,
+      label: 'Info pengiriman',
+      child: Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -94,6 +97,7 @@ class DetailShippingInfoCard extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 }

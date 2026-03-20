@@ -38,7 +38,9 @@ class ErrorStateView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
+    return Semantics(
+      label: 'Error: $title. $message',
+      child: Center(
       child: Padding(
         padding: padding,
         child: Column(
@@ -80,6 +82,7 @@ class ErrorStateView extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
   }
 }

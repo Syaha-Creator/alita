@@ -1,0 +1,34 @@
+---
+description: Rules for refactoring god-classes and large files — zero behavioral change guarantee
+globs: lib/**/*.dart
+alwaysApply: false
+---
+
+# Refactoring Rules (God-Class Splitting)
+
+When refactoring large files (>300 lines), follow these absolute rules:
+
+## ZERO CHANGE GUARANTEE
+1. **Zero functional change** — all logic, computation, validation, and data flow must remain 100% identical.
+2. **Zero UI/UX change** — pixel-perfect same layout, animations, interactions, colors, spacing.
+3. **Zero data loss** — all fields that are POSTed, all API parameters, all payloads must remain complete.
+4. **Only reorganize** — move code blocks from 1 large file into smaller files, pass data via constructor/parameters.
+
+## EXTRACTION STRATEGIES (Ordered by Safety)
+1. **Pure computation → utility class** — stateless logic that takes inputs and returns outputs (e.g. variant resolution, price calculation, validation rules). Safest extraction.
+2. **Widget builder methods → separate StatelessWidget / ConsumerWidget** — pass all data via constructor, callbacks via VoidCallback/ValueChanged. No implicit state access.
+3. **Private inner widgets → own file** — classes like `_FooBanner` that are already separate widgets, just in the same file.
+4. **Validation logic → validator class** — static methods that check form state and return results.
+
+## WHAT NOT TO DO
+- Never change the order of operations or conditional logic.
+- Never add, remove, or rename parameters in the extracted code vs the original.
+- Never introduce new state management patterns (e.g. don't convert setState to Riverpod during refactor).
+- Never "improve" or "optimize" logic during extraction — refactor is ONLY about file organization.
+- Never break existing imports in other files that depend on the refactored file.
+
+## VERIFICATION CHECKLIST
+1. Run `ReadLints` on all modified and new files — zero new errors.
+2. Count lines before and after to confirm reduction.
+3. Verify all imports resolve — no broken references.
+4. If a method used `ref.watch`/`ref.read`, the extracted widget must be `ConsumerWidget` or receive providers as parameters.

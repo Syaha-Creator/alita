@@ -1,5 +1,7 @@
 import 'package:intl/intl.dart';
 
+import 'log.dart';
+
 /// Centralized app formatters for currency and date output.
 class AppFormatters {
   AppFormatters._();
@@ -30,6 +32,7 @@ class AppFormatters {
     try {
       return _idShortDate.format(DateTime.parse(rawDate));
     } catch (_) {
+      Log.warning('shortDateId parse failed: $rawDate', tag: 'Formatter');
       return rawDate;
     }
   }
@@ -49,6 +52,7 @@ class AppFormatters {
     try {
       return _idDateTime.format(DateTime.parse(rawDateTime));
     } catch (_) {
+      Log.warning('dateTimeId parse failed: $rawDateTime', tag: 'Formatter');
       return rawDateTime;
     }
   }

@@ -2,6 +2,7 @@ import 'package:intl/intl.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import 'package:alitapricelist/core/enums/order_status.dart';
+import 'package:alitapricelist/core/utils/log.dart';
 
 /// Shared PDF utilities used across multiple section builders.
 abstract final class PdfHelpers {
@@ -43,6 +44,7 @@ abstract final class PdfHelpers {
       final parsed = DateTime.parse(raw);
       return DateFormat('dd MMM yyyy', 'id_ID').format(parsed);
     } catch (_) {
+      Log.warning('PDF prettyDate parse failed: $raw', tag: 'PDF');
       return raw;
     }
   }
@@ -55,6 +57,7 @@ abstract final class PdfHelpers {
       final time = createdAt.substring(tIdx + 1);
       return time.length >= 5 ? time.substring(0, 5) : null;
     } catch (_) {
+      Log.warning('PDF extractTime parse failed: $createdAt', tag: 'PDF');
       return null;
     }
   }

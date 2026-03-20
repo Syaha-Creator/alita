@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../utils/platform_utils.dart';
+import '../utils/telemetry_access.dart';
 import '../../features/auth/logic/auth_provider.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/pricelist/data/models/product.dart';
@@ -14,11 +15,14 @@ import '../../features/checkout/presentation/pages/checkout_page.dart';
 import '../../features/checkout/presentation/pages/order_success_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
 import '../../features/profile/presentation/pages/help_center_page.dart';
+import '../../features/profile/presentation/pages/telemetry_debug_page.dart';
 import '../../features/history/presentation/pages/order_history_page.dart';
 import '../../features/history/presentation/pages/order_detail_page.dart';
 import '../../features/history/data/models/order_history.dart';
 import '../../features/approval/presentation/pages/approval_inbox_page.dart';
 import '../../features/approval/presentation/pages/approval_detail_page.dart';
+import '../../features/quotation/data/quotation_model.dart';
+import '../../features/quotation/presentation/pages/quotation_history_page.dart';
 
 /// Returns [CupertinoPage] on iOS for native swipe-back,
 /// [MaterialPage] on Android for Material transitions.
@@ -42,6 +46,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isLoading = auth.isLoading;
       final isLoggedIn = auth.isLoggedIn;
       final isOnLogin = state.matchedLocation == '/login';
+      final isTelemetryRoute = state.matchedLocation == '/telemetry_debug';
 
       // Selagi auth masih load dari storage, jangan redirect dulu
       if (isLoading) return null;
@@ -51,6 +56,10 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // Sudah login tapi masih di halaman login → ke home
       if (isLoggedIn && isOnLogin) return '/';
+
+      if (isTelemetryRoute && !TelemetryAccess.canAccess(auth)) {
+        return '/profile';
+      }
 
       return null;
     },
@@ -99,9 +108,22 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/checkout',
         name: 'checkout',
         pageBuilder: (context, state) {
-          final selectedItems = state.extra as List<CartItem>?;
+          final extra = state.extra;
+          List<CartItem>? selectedItems;
+          QuotationModel? restoredQuotation;
+
+          if (extra is QuotationModel) {
+            restoredQuotation = extra;
+            selectedItems = List.of(extra.items);
+          } else if (extra is List<CartItem>) {
+            selectedItems = extra;
+          }
+
           return _adaptivePage(
-            child: CheckoutPage(selectedCartItems: selectedItems),
+            child: CheckoutPage(
+              selectedCartItems: selectedItems,
+              restoredQuotation: restoredQuotation,
+            ),
             name: 'checkout',
           );
         },
@@ -124,6 +146,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => _adaptivePage(
           child: const HelpCenterPage(),
           name: 'help-center',
+        ),
+      ),
+      GoRoute(
+        path: '/telemetry_debug',
+        name: 'telemetry-debug',
+        pageBuilder: (context, state) => _adaptivePage(
+          child: const TelemetryDebugPage(),
+          name: 'telemetry-debug',
         ),
       ),
       GoRoute(
@@ -159,6 +189,17 @@ final routerProvider = Provider<GoRouter>((ref) {
           return _adaptivePage(
             child: ApprovalDetailPage(orderData: orderData),
             name: 'approval-detail',
+          );
+        },
+      ),
+      GoRoute(
+        path: '/quotation_history',
+        name: 'quotation-history',
+        pageBuilder: (context, state) {
+          final autoPdf = state.extra as QuotationModel?;
+          return _adaptivePage(
+            child: QuotationHistoryPage(autoPdfQuotation: autoPdf),
+            name: 'quotation-history',
           );
         },
       ),

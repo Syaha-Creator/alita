@@ -24,56 +24,141 @@ You are a Senior Flutter Engineer & UI/UX Designer specializing in "Pinterest-st
 4. **Imports:** Use relative imports for files within the same feature, absolute imports for core/shared.
 5. **Safety:** NEVER leave broken imports. Always check for null safety.
 
-# REUSABLE WIDGET POLICY (MANDATORY)
+# REUSABLE WIDGET POLICY (MANDATORY — STRICTLY ENFORCED)
 1. **No repeated declarations:** If a UI pattern appears in 2+ places, extract it into a reusable widget. Avoid re-declaring identical `Container`, `TextField`, `ListTile`, and `BottomSheet` structures.
 2. **Scope decision (required):**
    - Use **core/shared reusable widget** (`lib/core/widgets/`) when used across multiple features.
    - Use **feature-specific widget** (`lib/features/<feature>/presentation/widgets/`) when only relevant to one feature domain.
 3. **Do not over-generalize:** If a widget has business-specific behavior (feature state, feature copy, feature actions), keep it inside that feature and make it private if needed.
-4. **Extraction checklist before creating new UI block:**
-   - Is this layout already present in project?
-   - Can this be parameterized by data/style/callback?
-   - Is the difference only text/icon/color? If yes, reuse.
+4. **ALWAYS CHECK CORE INVENTORY FIRST (NON-NEGOTIABLE):**
+   - Before writing ANY new widget, component, or inline UI pattern, consult the **CORE INVENTORY** section below.
+   - If a matching widget exists, USE IT. No exceptions.
+   - If the difference is only text/icon/color/callback, parameterize and reuse.
+   - Creating a duplicate of an existing core widget is treated as a defect.
 5. **Naming convention:** Use clear intent names (`PriceBlock`, `QuantityStepper`, `FilterPill`, `SheetHeader`) and keep constructor parameters explicit.
-6. **Consistency:** Reusable widgets must consume `AppColors` and app theme tokens; avoid one-off hardcoded styles when shared UI already exists.
-7. **Mandatory reusable sweep (before final answer):**
-   - Run a codebase scan and check whether each existing reusable widget can be applied to newly touched areas.
-   - Apply reusable widgets to all relevant spots in the edited scope before finishing.
-   - Do not stop after applying only one example usage.
-8. **No repeat reminder needed from user:** Assume user expects full propagation to all suitable places in current scope by default.
+6. **Consistency:** ALL widgets must consume `AppColors` and `AppLayoutTokens`. Never hardcode `Color(0xFF...)`, `EdgeInsets.all(16)` when `AppLayoutTokens.cardPadding` exists, or `BoxShadow(...)` when `AppLayoutTokens.cardShadowSoft` exists.
+7. **Mandatory reusable sweep (before EVERY final answer):**
+   - Scan all files you touched in this response.
+   - For EACH inline pattern, check: does a core widget already handle this?
+   - Apply reusable widgets to ALL matching spots — not just one example.
+   - This step is NOT optional. Skipping it is a rule violation.
+8. **No repeat reminder needed from user:** User expects full propagation by default. Do not wait to be asked.
 9. **If a reusable is intentionally not applied:** explicitly document why (feature-specific behavior, incompatible UX, or risk of behavior change).
 
-# REUSABLE NON-WIDGET POLICY (MANDATORY)
+# REUSABLE NON-WIDGET POLICY (MANDATORY — STRICTLY ENFORCED)
 1. **No repeated logic declarations:** If non-UI logic appears in 2+ places, extract it to shared modules.
-2. **Scope decision (required):**
+2. **ALWAYS CHECK CORE INVENTORY FIRST:** Before writing any new helper, formatter, logger, or service, consult the **CORE INVENTORY** tables below. Use what exists.
+3. **Scope decision (required):**
    - Use `lib/core/utils/` for stateless helpers/formatters/matchers/actions.
    - Use `lib/core/services/` for side-effectful integrations (API/storage/platform).
    - Use `lib/core/enums/` for shared domain states (status/type/category).
-3. **Keep behavior stable:** Extraction must preserve existing UX and output format; no implicit behavior change.
-4. **Cleanup required:** Remove dead local helpers/imports after extraction to avoid duplicate sources of truth.
+4. **Specific enforcement:**
+   - Use `AppFormatters` for ALL currency/date formatting — never inline `NumberFormat` or `DateFormat`.
+   - Use `AppFeedback.show()` for ALL user toasts — never call `ScaffoldMessenger` directly.
+   - Use `Log.error()` / `Log.warning()` for ALL error logging — never use bare `debugPrint` for errors.
+   - Use `AppColors.*` for ALL colors — never hardcode `Color(0xFF...)` or `Colors.grey`.
+   - Use `AppLayoutTokens.*` for spacing/radius/shadow — never hardcode magic numbers for padding.
+   - Use `retry()` for transient-failure-prone API calls.
+   - Use `ifOfflineShowFeedback()` before network operations that need offline guard.
+5. **Keep behavior stable:** Extraction must preserve existing UX and output format; no implicit behavior change.
+6. **Cleanup required:** Remove dead local helpers/imports after extraction to avoid duplicate sources of truth.
 
 # QUALITY GATE (MANDATORY AFTER SUBSTANTIVE EDITS)
 1. Run lint checks for edited files.
 2. Run `dart analyze` for edited files when changes include logic/refactor.
 3. Fix newly introduced warnings/errors before finalizing.
 
-# REUSABLE WIDGET CANDIDATES (ALITA PRICELIST)
-- **SheetScaffold:** Handle bar + rounded top + title/header + safe-area footer padding for modal sheets.
-- **SelectionBottomSheet<T>:** Generic selectable list sheet (search optional) for Area/Channel/Brand/Region flows.
-- **FilterPill / DropdownPill:** Horizontal pill selector with icon + label + active state.
-- **AppSearchField:** Search input with prefix icon, clear button, and shared decoration.
-- **NetworkImageCard / ProductImageView:** Reusable image widget with loading/error fallback and optional hero/favorite overlay.
-- **PriceBlock:** Normal price + optional strikethrough pricelist display.
-- **QuantityStepper:** Minus/plus with quantity badge and optional delete-at-min behavior.
-- **FloatingBadge:** Circular numeric badge (`99+`) for FAB/icon overlays.
-- **EmptyStateView:** Standard icon + title + subtitle empty state section.
-- **AsyncStateView:** Loading / empty / error state renderer wrapper for list/grid screens.
-- **SectionCard:** Standard section container (surface + radius + soft shadow + optional title/trailing).
-- **LabelValueRow:** Standard single-line summary row (`label` left, `value` right) for total/subtotal/info bars.
-- **StatusChip:** Standard compact badge for status labels (approved/pending/rejected/take-away) with optional icon/border.
-- **DetailDiscountBlock/Row:** Standard approval discount block and row for detail pages.
-- **DetailNoteCard:** Standard highlighted note card for order/approval detail pages.
-- **DetailItemIndexBadge:** Standard numbered index badge for detail item lists.
+# CORE INVENTORY — MUST USE BEFORE CREATING ANYTHING NEW
+Before writing ANY new widget, utility, style, or layout, you MUST check this inventory and use what already exists. Do NOT recreate, duplicate, or inline what is already available. Failure to use existing core assets is a bug.
+
+## Widgets (`lib/core/widgets/`)
+| Widget | Purpose | USE WHEN |
+|--------|---------|----------|
+| `SheetScaffold` | Handle bar + rounded top + title + safe-area footer | Any modal bottom sheet |
+| `SelectionBottomSheet<T>` | Generic selectable list sheet (search optional) | Area/Channel/Brand/Region/any picker |
+| `AppSearchField` | Search input with prefix icon, clear button | Any search bar |
+| `AppDropdownField` | Styled dropdown field | Any dropdown selector |
+| `AppChoiceChip` | Styled choice chip | Any chip selector row |
+| `FilterPill` | Horizontal pill with icon + label + active state | Filter bars |
+| `SegmentedToggle` | Segmented control toggle | Tab-like toggles |
+| `NetworkImageView` | CachedNetworkImage + placeholder + error fallback + semanticLabel | Any network image |
+| `PriceBlock` | Price + optional strikethrough original price | Any price display |
+| `QuantityStepper` | Minus/plus with badge, delete-at-min | Cart/order qty controls |
+| `FloatingBadge` | Circular count badge (99+) | FAB/icon overlays |
+| `StatusChip` | Compact status badge with Semantics | Status labels everywhere |
+| `EmptyStateView` | Icon + title + subtitle + optional action | Empty lists/grids |
+| `ErrorStateView` | Icon + error message + retry button | Error states |
+| `AsyncStateView` | Loading/empty/error/data state wrapper | Any async list/grid screen |
+| `SectionCard` | Surface + radius + soft shadow + optional title/trailing | Any card section |
+| `LabelValueRow` | Label left, value right | Total/subtotal/info summary rows |
+| `FormFieldLabel` | Styled label for form fields | Any form label |
+| `DatePickerFieldTile` | Date picker with label | Date selection fields |
+| `DateRangeFilterAction` | AppBar action for date range filter | History/list pages |
+| `ActionButtonBar` | Primary + optional secondary button row | Form footers, confirmation bars |
+| `TapScale` | Scale-down animation on tap | Any tappable card/item |
+| `AnimatedListItem` | Staggered fade-in for list items | Any animated list |
+| `LoadingOverlay` | Full-screen loading overlay with title/subtitle | Long async operations |
+| `ImageSourceSheet` | Camera/Gallery picker sheet | Image upload flows |
+| `ImageViewerDialog` | Full-screen image viewer | Any image detail view |
+| `ReceiptUploadField` | Receipt image upload with preview | Payment flows |
+| `PaymentFormContent` | Payment method/bank/amount/receipt form | Payment entry forms |
+| `CheckoutInputDecoration` | Shared InputDecoration for checkout fields | Checkout form fields |
+| `OfflineBanner` / `OfflineWarningRow` | Offline indicator banner/row | Network-aware screens |
+| `WhatsappIcon` | WhatsApp icon asset widget | WA buttons |
+| `PdfActionSheet` | Share/print PDF action sheet | PDF actions |
+| `OrderListCardFrame` | Standard card frame for order lists | Order/history list cards |
+| **Detail page widgets:** | | |
+| `DetailSurfaceCard` | Surface card for detail pages | Detail page sections |
+| `DetailSectionLabel` | Section label in detail pages | Detail section headers |
+| `DetailInfoRow` | Info row in detail pages | Detail info display |
+| `DetailContactInfoCard` | Customer/shipping contact card | Order/approval detail |
+| `DetailShippingInfoCard` | Shipping info card | Order/approval detail |
+| `DetailDiscountBlock` | Discount breakdown block | Order/approval detail |
+| `DetailNoteCard` | Highlighted note card | Order/approval detail |
+| `DetailItemIndexBadge` | Numbered index badge for items | Detail item lists |
+| `DetailBonusItemsSection` | Bonus items section | Order/approval detail |
+| `DetailPaymentItemRow` | Single payment row | Payment sections |
+| `DetailPaymentsSection` | Full payments section | Order/approval detail |
+| `DetailTotalsSummarySection` | Totals breakdown section | Order/approval detail |
+
+## Utils (`lib/core/utils/`)
+| Utility | Purpose | USE WHEN |
+|---------|---------|----------|
+| `AppFormatters` | `currencyIdr()`, `dateTimeId()`, `currencyIdrNoSymbol()` | Any currency/date formatting |
+| `AppFeedback` | `show()` toast/snackbar with type (success/error/warning/info) | Any user feedback |
+| `ThousandsSeparatorInputFormatter` | TextInputFormatter for currency fields | Any money input |
+| `Log` | `Log.error()`, `Log.warning()` with Crashlytics | Any error/warning logging |
+| `retry()` | Exponential backoff retry wrapper | Any API call that can fail transiently |
+| `ifOfflineShowFeedback()` | Check offline + show warning | Before any network operation |
+| `ContactActions` | `callPhone()`, `openWhatsAppChat()` | Phone/WA actions |
+| `WhatsAppHelper` | `openChat()` with phone + message | WhatsApp deep link |
+| `DiscountFormatter` | Format discount percentages | Discount display |
+| `NameMatcher` | Fuzzy name matching | Search/filter logic |
+| `AreaUtils` | Area name formatting | Area display |
+| `ShippingUtils` | Shipping-related helpers | Checkout/delivery |
+| `PlatformUtils` | Platform detection helpers | Platform-specific behavior |
+| `AppTelemetry` | `event()`, `error()` performance/error tracking | Telemetry reporting |
+
+## Theme (`lib/core/theme/`)
+| Token | Purpose | USE WHEN |
+|-------|---------|----------|
+| `AppColors.*` | All app colors (primary, accent, surface, textPrimary, etc.) | ANY color — never hardcode `Color(0xFF...)` |
+| `AppLayoutTokens.*` | Spacing (`space4`–`space20`), radius (`radius8/10/16`), paddings, shadows | ANY spacing/radius/shadow |
+| `AppTheme.lightTheme` | Complete ThemeData | MaterialApp theme |
+
+## Services (`lib/core/services/`)
+| Service | Purpose | USE WHEN |
+|---------|---------|----------|
+| `ApiClient` | HTTP client with auth injection + error logging | Any API call |
+| `StorageService` | SharedPreferences wrapper (cart, auth, favorites, master data) | Any local persistence |
+| `ConnectivityService` | `isOfflineProvider`, `connectivityProvider` | Any network check |
+| `PdfAssetCache` | Pre-loaded PDF fonts & logos | PDF generation |
+| `NotificationHandlerService` | FCM foreground/tap/background handlers | Push notification handling |
+
+## Config (`lib/core/config/`)
+| Config | Purpose |
+|--------|---------|
+| `AppConfig` | `.env` reader: `apiBaseUrl`, `clientId`, `clientSecret`, `comforta*`, `regionApiBaseUrl`, `assertConfigured()` |
 
 # BEHAVIORAL RULES (ANTI-BREAKAGE)
 1. **Context First:** Before editing a file, analyze its dependencies. Do not delete existing functionality unless explicitly asked.

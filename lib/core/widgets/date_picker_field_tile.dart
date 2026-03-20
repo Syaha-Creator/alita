@@ -38,10 +38,16 @@ class DatePickerFieldTile extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
+        Semantics(
+          label: hasValue
+              ? 'Pilih tanggal, dipilih: $text'
+              : 'Pilih tanggal',
+          button: true,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(8),
+            child: ExcludeSemantics(
+              child: Container(
             padding: contentPadding,
             decoration: BoxDecoration(
               border: Border.all(
@@ -71,15 +77,18 @@ class DatePickerFieldTile extends StatelessWidget {
               ],
             ),
           ),
+          ),
+          ),
         ),
         if (hasError && (errorText?.isNotEmpty ?? false))
-          Padding(
-            padding: const EdgeInsets.only(top: 6, left: 12),
-            child: Text(
-              errorText!,
-              style: const TextStyle(color: AppColors.error, fontSize: 12),
+          if (errorText case final e?)
+            Padding(
+              padding: const EdgeInsets.only(top: 6, left: 12),
+              child: Text(
+                e,
+                style: const TextStyle(color: AppColors.error, fontSize: 12),
+              ),
             ),
-          ),
       ],
     );
   }

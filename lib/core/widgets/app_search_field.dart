@@ -102,6 +102,7 @@ class _AppSearchFieldState extends State<AppSearchField> {
   }
 
   void _handleControllerChange() {
+    if (!mounted) return;
     final hasText = _controller.text.isNotEmpty;
     if (hasText != _hasText) {
       setState(() => _hasText = hasText);
@@ -116,7 +117,9 @@ class _AppSearchFieldState extends State<AppSearchField> {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
+    return Semantics(
+      label: 'Pencarian',
+      child: TextField(
       autofocus: widget.autofocus,
       controller: _controller,
       onChanged: widget.onChanged,
@@ -159,6 +162,7 @@ class _AppSearchFieldState extends State<AppSearchField> {
         contentPadding: widget.contentPadding,
         filled: widget.filled,
         fillColor: widget.fillColor,
+      ),
       ),
     );
   }

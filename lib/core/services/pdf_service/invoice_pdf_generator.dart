@@ -9,6 +9,8 @@ import 'package:share_plus/share_plus.dart';
 
 import 'package:alitapricelist/features/history/data/models/order_history.dart';
 
+import '../../utils/log.dart';
+import '../pdf_asset_cache.dart';
 import 'sections/pdf_helpers.dart';
 import 'sections/pdf_header_section.dart';
 import 'sections/pdf_items_table.dart';
@@ -142,20 +144,19 @@ class InvoicePdfGenerator {
     final salesIdentity =
         _resolveSalesIdentity(orderData, details, letter, salesCode: salesCode);
 
-    final fonts = await _loadFonts();
-    final logos = await _loadLogos(letter['channel']?.toString());
+    if (!PdfAssetCache.isWarmedUp) await PdfAssetCache.warmUp();
+
+    final logos = _buildLogos(letter['channel']?.toString());
     final watermark = await _buildWatermark(
         approvals, payments, PdfHelpers.dbl(letter['extended_amount']));
-    pw.ImageProvider? approveStamp;
-    if (isInternal) {
-      approveStamp = await _loadImage('assets/images/approve.png');
-    }
+    final pw.ImageProvider? approveStamp =
+        isInternal ? PdfAssetCache.approveStamp : null;
 
     final theme = pw.ThemeData.withFont(
-      base: fonts.$1,
-      bold: fonts.$2,
-      italic: fonts.$3,
-      boldItalic: fonts.$2,
+      base: PdfAssetCache.fontBase,
+      bold: PdfAssetCache.fontBold,
+      italic: PdfAssetCache.fontItalic,
+      boldItalic: PdfAssetCache.fontBold,
     );
     final pdf = pw.Document();
 
@@ -198,58 +199,14 @@ class InvoicePdfGenerator {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // FONT & ASSET LOADING
+  // LOGO ASSEMBLY (from cache)
   // ═══════════════════════════════════════════════════════════════════════════
 
-  static Future<(pw.Font, pw.Font, pw.Font)> _loadFonts() async {
-    pw.Font base = pw.Font.helvetica();
-    pw.Font bold = pw.Font.helveticaBold();
-    pw.Font italic = pw.Font.helveticaOblique();
-    try {
-      final d = await rootBundle
-          .load('assets/fonts/Inter-VariableFont_opsz,wght.ttf');
-      base = pw.Font.ttf(d);
-    } catch (_) {}
-    try {
-      final d = await rootBundle.load('assets/fonts/Inter-Bold.ttf');
-      bold = pw.Font.ttf(d);
-    } catch (_) {
-      try {
-        final d = await rootBundle.load('assets/fonts/Inter_18pt-Bold.ttf');
-        bold = pw.Font.ttf(d);
-      } catch (_) {}
-    }
-    try {
-      final d = await rootBundle
-          .load('assets/fonts/Inter-Italic-VariableFont_opsz,wght.ttf');
-      italic = pw.Font.ttf(d);
-    } catch (_) {}
-    return (base, bold, italic);
-  }
-
-  static Future<pw.ImageProvider?> _loadImage(String path) async {
-    try {
-      final d = await rootBundle.load(path);
-      return pw.MemoryImage(d.buffer.asUint8List());
-    } catch (_) {
-      return null;
-    }
-  }
-
-  static Future<PdfLogos> _loadLogos(String? channel) async {
+  static PdfLogos _buildLogos(String? channel) {
     final showSleepCenter = channel == null || channel.toUpperCase() != 'S0';
     return PdfLogos(
-      sleepCenter: showSleepCenter
-          ? await _loadImage('assets/logo/sleepcenter_logo.png')
-          : null,
-      others: [
-        await _loadImage('assets/logo/sleepspa_logo.png'),
-        await _loadImage('assets/logo/springair_logo.png'),
-        await _loadImage('assets/logo/therapedic_logo.png'),
-        await _loadImage('assets/logo/comforta_logo.png'),
-        await _loadImage('assets/logo/superfit_logo.png'),
-        await _loadImage('assets/logo/isleep_logo.png'),
-      ],
+      sleepCenter: showSleepCenter ? PdfAssetCache.sleepCenterLogo : null,
+      others: PdfAssetCache.brandLogos,
     );
   }
 
@@ -284,7 +241,8 @@ class InvoicePdfGenerator {
           ),
         ),
       );
-    } catch (_) {
+    } catch (e) {
+      Log.warning('PDF watermark failed: $e', tag: 'PDF');
       return pw.Center(
         child: pw.Transform.rotate(
           angle: 0.785,
@@ -456,7 +414,10 @@ class InvoicePdfGenerator {
             if (latestDate == null || parsedDate.isAfter(latestDate)) {
               latestDate = parsedDate;
             }
-          } catch (_) {}
+          } catch (e) {
+            Log.warning('PDF: failed to parse payment date "$rawDate"',
+                tag: 'InvoicePdf');
+          }
         }
       }
       if (latestDate != null) {
@@ -516,8 +477,8 @@ class InvoicePdfGenerator {
             salesName = discounts.first['approver_name']?.toString() ?? '';
           }
         }
-      } catch (_) {
-        // ignore
+      } catch (e, st) {
+        Log.error(e, st, reason: 'PDF: failed to resolve sales identity');
       }
     }
 

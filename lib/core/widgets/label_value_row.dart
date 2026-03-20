@@ -24,12 +24,15 @@ class LabelValueRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: mainAxisAlignment,
-      children: [
-        Text(label, style: labelStyle),
-        Text(value, style: valueStyle),
-      ],
+    return Semantics(
+      label: '$label: $value',
+      child: Row(
+        mainAxisAlignment: mainAxisAlignment,
+        children: [
+          Text(label, style: labelStyle),
+          Text(value, style: valueStyle),
+        ],
+      ),
     );
   }
 }

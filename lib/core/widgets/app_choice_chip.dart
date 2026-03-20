@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../theme/app_colors.dart';
 
-/// A modern, pill-shaped choice chip with smooth animation.
+/// A refined choice chip with "Soft Selection" pattern.
 ///
-/// Replaces Flutter's default [ChoiceChip] with a cleaner visual
-/// that matches the app's "airy" design language.
-class AppChoiceChip extends StatelessWidget {
+/// - **Unselected**: `surfaceLight` bg + subtle border + secondary text
+/// - **Selected**: `accentLight` bg + accent border + accent text + soft glow
+/// - **Press**: scale 0.95 + haptic feedback
+///
+/// Works beautifully on both iOS and Android without relying on
+/// platform-specific visuals.
+class AppChoiceChip extends StatefulWidget {
   final String label;
   final bool selected;
   final ValueChanged<bool>? onSelected;
@@ -20,57 +25,111 @@ class AppChoiceChip extends StatelessWidget {
     required this.selected,
     this.onSelected,
     this.padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-    this.borderRadius = 20,
+    this.borderRadius = 12,
     this.showCheckmark = false,
   });
 
   @override
+  State<AppChoiceChip> createState() => _AppChoiceChipState();
+}
+
+class _AppChoiceChipState extends State<AppChoiceChip>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _scaleCtrl;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _scaleCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 100),
+      reverseDuration: const Duration(milliseconds: 150),
+      lowerBound: 0.0,
+      upperBound: 1.0,
+    );
+    _scale = Tween<double>(begin: 1.0, end: 0.95).animate(
+      CurvedAnimation(parent: _scaleCtrl, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _scaleCtrl.dispose();
+    super.dispose();
+  }
+
+  void _handleTapDown(TapDownDetails _) => _scaleCtrl.forward();
+
+  void _handleTapUp(TapUpDetails _) => _scaleCtrl.reverse();
+
+  void _handleTapCancel() => _scaleCtrl.reverse();
+
+  void _handleTap() {
+    HapticFeedback.selectionClick();
+    widget.onSelected?.call(!widget.selected);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onSelected != null ? () => onSelected!(!selected) : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOutCubic,
-        padding: padding,
-        decoration: BoxDecoration(
-          color: selected ? AppColors.accent : AppColors.surface,
-          borderRadius: BorderRadius.circular(borderRadius),
-          border: Border.all(
-            color: selected ? AppColors.accent : AppColors.border,
-            width: selected ? 1.5 : 1,
-          ),
-          boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: AppColors.accent.withValues(alpha: 0.25),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (showCheckmark && selected) ...[
-              const Icon(
-                Icons.check_rounded,
-                size: 14,
-                color: AppColors.onPrimary,
-              ),
-              const SizedBox(width: 4),
-            ],
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                color: selected ? AppColors.onPrimary : AppColors.textSecondary,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-              ),
+    final sel = widget.selected;
+
+    return Semantics(
+      button: true,
+      selected: sel,
+      label: widget.label,
+      child: GestureDetector(
+      onTap: widget.onSelected != null ? _handleTap : null,
+      onTapDown: widget.onSelected != null ? _handleTapDown : null,
+      onTapUp: widget.onSelected != null ? _handleTapUp : null,
+      onTapCancel: widget.onSelected != null ? _handleTapCancel : null,
+      child: ScaleTransition(
+        scale: _scale,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          padding: widget.padding,
+          decoration: BoxDecoration(
+            color: sel ? AppColors.accentLight : AppColors.surfaceLight,
+            borderRadius: BorderRadius.circular(widget.borderRadius),
+            border: Border.all(
+              color: sel ? AppColors.accent : AppColors.border,
+              width: sel ? 1.5 : 1,
             ),
-          ],
+            boxShadow: sel
+                ? [
+                    BoxShadow(
+                      color: AppColors.accent.withValues(alpha: 0.15),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (widget.showCheckmark && sel) ...[
+                const Icon(
+                  Icons.check_rounded,
+                  size: 14,
+                  color: AppColors.accent,
+                ),
+                const SizedBox(width: 4),
+              ],
+              Text(
+                widget.label,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: sel ? AppColors.accent : AppColors.textSecondary,
+                  fontWeight: sel ? FontWeight.w600 : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
+    ),
     );
   }
 }

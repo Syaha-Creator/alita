@@ -29,7 +29,10 @@ class DetailPaymentItemRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasReceipt = receiptImageUrl.isNotEmpty;
 
-    return Container(
+    return Semantics(
+      container: true,
+      label: '$method $amountText',
+      child: Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -134,6 +137,7 @@ class DetailPaymentItemRow extends StatelessWidget {
           ],
         ],
       ),
+    ),
     );
   }
 }

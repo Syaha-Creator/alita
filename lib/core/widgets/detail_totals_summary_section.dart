@@ -14,7 +14,10 @@ class DetailTotalsSummarySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return Semantics(
+      container: true,
+      label: 'Ringkasan total',
+      child: Column(
       children: [
         const SizedBox(height: 14),
         Container(height: 1, color: AppColors.border),
@@ -62,6 +65,7 @@ class DetailTotalsSummarySection extends StatelessWidget {
           ],
         ),
       ],
+    ),
     );
   }
 }

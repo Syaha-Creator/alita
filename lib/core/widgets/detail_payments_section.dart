@@ -18,7 +18,10 @@ class DetailPaymentsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return Semantics(
+      container: true,
+      label: 'Pembayaran',
+      child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         header ?? DetailSectionLabel(title: title),
@@ -30,11 +33,12 @@ class DetailPaymentsSection extends StatelessWidget {
             child: entry.value,
           );
         }),
-        if (footer != null) ...[
+        if (footer case final f?) ...[
           const SizedBox(height: 14),
-          footer!,
+          f,
         ],
       ],
+    ),
     );
   }
 }

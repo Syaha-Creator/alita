@@ -60,4 +60,17 @@ class AppConfig {
   static String get regionApiBaseUrl =>
       dotenv.env['REGION_API_BASE_URL'] ??
       'https://www.emsifa.com/api-wilayah-indonesia/api';
+
+  // ── Placeholder Images ────────────────────────────────────────
+
+  static const String placeholderProductImage =
+      'https://images.unsplash.com/photo-1505693416022-14c1c9240ce4?q=80&w=800&auto=format&fit=crop';
+
+  static const List<String> placeholderCarouselImages = [
+    'https://images.unsplash.com/photo-1631679706909-1844bbd07221?q=80&w=800&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?q=80&w=800&auto=format&fit=crop',
+  ];
+
+  static String placeholderProductImageById(dynamic id) =>
+      'https://picsum.photos/seed/${id ?? 0}/400/600';
 }

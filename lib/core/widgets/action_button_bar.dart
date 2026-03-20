@@ -57,7 +57,7 @@ class ActionButtonBar extends StatelessWidget {
             ? null
             : () {
                 HapticFeedback.lightImpact();
-                onPrimaryPressed!();
+                onPrimaryPressed?.call();
               },
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryBackgroundColor,
@@ -96,11 +96,11 @@ class ActionButtonBar extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (secondaryLeading != null) ...[
-                    secondaryLeading!,
+                  if (secondaryLeading case final leading?) ...[
+                    leading,
                     const SizedBox(width: 8),
                   ],
-                  Text(secondaryLabel!, style: secondaryLabelStyle),
+                  Text(secondaryLabel ?? '', style: secondaryLabelStyle),
                 ],
               ),
             ),

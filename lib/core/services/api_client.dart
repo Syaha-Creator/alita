@@ -139,7 +139,9 @@ class ApiClient {
       final response =
           await http.get(Uri.parse(url)).timeout(timeout);
       if (response.statusCode == 200) return response.bodyBytes;
-    } catch (_) {}
+    } catch (e, st) {
+      Log.error(e, st, reason: 'ApiClient.downloadBytes');
+    }
     return null;
   }
 
@@ -167,22 +169,36 @@ class ApiClient {
 
   // ── Global error logging ─────────────────────────────────────
 
+  static const _sensitiveParams = {
+    'access_token', 'client_id', 'client_secret', 'token', 'password',
+  };
+
+  /// Strips sensitive query parameters before logging to Crashlytics/console.
+  static String _sanitizeUrl(Uri? url) {
+    if (url == null) return '<unknown>';
+    if (url.queryParameters.isEmpty) return url.toString();
+    final safeParams = Map<String, String>.from(url.queryParameters)
+      ..removeWhere((k, _) => _sensitiveParams.contains(k.toLowerCase()));
+    return url.replace(queryParameters: safeParams.isEmpty ? null : safeParams)
+        .toString();
+  }
+
   void _logIfServerError(http.Response response) {
     final code = response.statusCode;
-    final url = response.request?.url;
+    final safeUrl = _sanitizeUrl(response.request?.url);
 
     if (code == 401 || code == 403) {
-      Log.warning('Auth error $code: $url', tag: 'ApiClient');
+      Log.warning('Auth error $code: $safeUrl', tag: 'ApiClient');
     } else if (code >= 500) {
       Log.error(
         'Server error $code',
         StackTrace.current,
-        reason: 'ApiClient $url',
+        reason: 'ApiClient $safeUrl',
       );
     }
 
     if (kDebugMode && code >= 400) {
-      debugPrint('[ApiClient] $code $url');
+      debugPrint('[ApiClient] $code $safeUrl');
     }
   }
 }

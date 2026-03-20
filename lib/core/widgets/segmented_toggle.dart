@@ -117,36 +117,42 @@ class _ToggleOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Center(
-        child: AnimatedDefaultTextStyle(
-          duration: const Duration(milliseconds: 200),
-          style: TextStyle(
-            color: isActive ? AppColors.accent : AppColors.textTertiary,
-            fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-            fontSize: 13,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (icon != null) ...[
-                Icon(
-                  icon,
-                  size: 16,
-                  color: isActive ? AppColors.accent : AppColors.textTertiary,
+    return Semantics(
+      label: label,
+      toggled: isActive,
+      inMutuallyExclusiveGroup: true,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Center(
+          child: AnimatedDefaultTextStyle(
+            duration: const Duration(milliseconds: 200),
+            style: TextStyle(
+              color: isActive ? AppColors.accent : AppColors.textTertiary,
+              fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+              fontSize: 13,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (icon != null) ...[
+                  Icon(
+                    icon,
+                    size: 16,
+                    color:
+                        isActive ? AppColors.accent : AppColors.textTertiary,
+                  ),
+                  const SizedBox(width: 6),
+                ],
+                Flexible(
+                  child: Text(
+                    label,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
                 ),
-                const SizedBox(width: 6),
               ],
-              Flexible(
-                child: Text(
-                  label,
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),

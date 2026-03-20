@@ -4,17 +4,17 @@ import '../theme/app_colors.dart';
 
 /// Reusable renderer for `AsyncValue` states (loading/error/data).
 ///
-/// Function:
-/// - Menyatukan pola `when(loading/error/data)` agar tidak berulang.
-/// - Menjaga tampilan loading/error konsisten lintas halaman.
-/// - Tetap fleksibel: caller bisa override loading/error/default widgets.
-class AsyncStateView<T> extends StatelessWidget {
+/// Uses [AnimatedSwitcher] for smooth crossfades between states.
+/// A monotonic counter prevents duplicate-key crashes when the provider
+/// rapidly flip-flops between the same state type (e.g. loading → data → loading).
+class AsyncStateView<T> extends StatefulWidget {
   final AsyncValue<T> state;
   final Widget Function(T data) dataBuilder;
   final Widget? loading;
   final Widget Function(Object error, StackTrace stackTrace)? errorBuilder;
   final bool showDefaultLoading;
   final bool showDefaultError;
+  final Duration transitionDuration;
 
   const AsyncStateView({
     super.key,
@@ -24,24 +24,64 @@ class AsyncStateView<T> extends StatelessWidget {
     this.errorBuilder,
     this.showDefaultLoading = true,
     this.showDefaultError = true,
+    this.transitionDuration = const Duration(milliseconds: 300),
   });
 
   @override
+  State<AsyncStateView<T>> createState() => _AsyncStateViewState<T>();
+}
+
+class _AsyncStateViewState<T> extends State<AsyncStateView<T>> {
+  String _prevTag = '';
+  int _epoch = 0;
+
+  /// Returns a key unique per state-type transition.
+  /// Re-entering the same type (loading → data → loading) bumps the epoch
+  /// so the old outgoing child and the new incoming child never share a key.
+  ValueKey<String> _keyFor(String tag) {
+    if (tag != _prevTag) {
+      _epoch++;
+      _prevTag = tag;
+    }
+    return ValueKey('${tag}_$_epoch');
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return state.when(
+    final child = widget.state.when(
       loading: () {
-        if (loading != null) return loading!;
-        if (!showDefaultLoading) return const SizedBox.shrink();
-        return const Center(
-          child: CircularProgressIndicator.adaptive(valueColor: AlwaysStoppedAnimation(AppColors.accent)),
+        final key = _keyFor('loading');
+        if (widget.loading case final loadingWidget?) {
+          return Semantics(
+            liveRegion: true,
+            label: 'Memuat',
+            child: KeyedSubtree(key: key, child: loadingWidget),
+          );
+        }
+        if (!widget.showDefaultLoading) {
+          return SizedBox.shrink(key: key);
+        }
+        return Semantics(
+          liveRegion: true,
+          label: 'Memuat',
+          child: Center(
+            key: key,
+            child: const CircularProgressIndicator.adaptive(
+              valueColor: AlwaysStoppedAnimation(AppColors.accent),
+            ),
+          ),
         );
       },
       error: (error, stackTrace) {
-        if (errorBuilder != null) {
-          return errorBuilder!(error, stackTrace);
+        final key = _keyFor('error');
+        if (widget.errorBuilder case final builder?) {
+          return KeyedSubtree(key: key, child: builder(error, stackTrace));
         }
-        if (!showDefaultError) return const SizedBox.shrink();
+        if (!widget.showDefaultError) {
+          return SizedBox.shrink(key: key);
+        }
         return Center(
+          key: key,
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Text(
@@ -54,7 +94,17 @@ class AsyncStateView<T> extends StatelessWidget {
           ),
         );
       },
-      data: dataBuilder,
+      data: (data) {
+        final key = _keyFor('data');
+        return KeyedSubtree(key: key, child: widget.dataBuilder(data));
+      },
+    );
+
+    return AnimatedSwitcher(
+      duration: widget.transitionDuration,
+      switchInCurve: Curves.easeOut,
+      switchOutCurve: Curves.easeIn,
+      child: child,
     );
   }
 }

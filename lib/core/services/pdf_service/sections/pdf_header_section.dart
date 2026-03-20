@@ -21,11 +21,11 @@ abstract final class PdfHeaderSection {
 
     return pw.Column(
       children: [
-        if (logos.sleepCenter != null)
+        if (logos.sleepCenter case final sc?)
           pw.Container(
             height: 70,
             alignment: pw.Alignment.center,
-            child: pw.Image(logos.sleepCenter!, fit: pw.BoxFit.contain),
+            child: pw.Image(sc, fit: pw.BoxFit.contain),
           ),
         if (validOtherLogos.isNotEmpty)
           pw.Row(

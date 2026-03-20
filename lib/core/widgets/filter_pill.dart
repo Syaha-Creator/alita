@@ -22,7 +22,10 @@ class FilterPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = isActive ? AppColors.accent : AppColors.textSecondary;
 
-    return InkWell(
+    return Semantics(
+      button: true,
+      label: '$text${isActive ? ', dipilih' : ''}',
+      child: InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
       child: Container(
@@ -55,6 +58,7 @@ class FilterPill extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
   }
 }

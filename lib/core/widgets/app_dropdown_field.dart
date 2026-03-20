@@ -42,7 +42,9 @@ class AppDropdownField<T> extends StatelessWidget {
               const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         );
 
-    return DropdownButtonFormField<T>(
+    return Semantics(
+      label: hintText,
+      child: DropdownButtonFormField<T>(
       initialValue: value,
       hint: Text(
         hintText,
@@ -95,6 +97,7 @@ class AppDropdownField<T> extends StatelessWidget {
       }).toList(),
       onChanged: onChanged,
       validator: validator,
+      ),
     );
   }
 }
@@ -117,8 +120,8 @@ class _DropdownItemTile extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         children: [
-          if (leading != null) ...[
-            leading!,
+          if (leading case final l?) ...[
+            l,
             const SizedBox(width: 10),
           ],
           Expanded(

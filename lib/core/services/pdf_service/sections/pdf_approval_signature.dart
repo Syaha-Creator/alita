@@ -2,6 +2,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import 'package:alitapricelist/core/enums/order_status.dart';
+import 'package:alitapricelist/core/utils/log.dart';
 
 import 'pdf_helpers.dart';
 
@@ -320,6 +321,7 @@ abstract final class PdfApprovalSignature {
       }
       return rawDate.length > 16 ? rawDate.substring(0, 16) : rawDate;
     } catch (_) {
+      Log.warning('PDF date parse failed: $rawDate', tag: 'PDF');
       return rawDate.length > 16 ? rawDate.substring(0, 16) : rawDate;
     }
   }

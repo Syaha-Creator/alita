@@ -26,7 +26,9 @@ class DetailInfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Semantics(
+      label: '$label: $value',
+      child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
@@ -55,6 +57,7 @@ class DetailInfoRow extends StatelessWidget {
           ),
         ),
       ],
+    ),
     );
   }
 }

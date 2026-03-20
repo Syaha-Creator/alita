@@ -20,6 +20,7 @@ class QuantityStepper extends StatelessWidget {
   final EdgeInsetsGeometry quantityPadding;
   final Color borderColor;
   final double borderRadius;
+  final double iconSize;
 
   const QuantityStepper({
     super.key,
@@ -35,46 +36,58 @@ class QuantityStepper extends StatelessWidget {
     this.quantityPadding = const EdgeInsets.symmetric(horizontal: 8),
     this.borderColor = AppColors.border,
     this.borderRadius = 20,
+    this.iconSize = 16,
   });
 
   @override
   Widget build(BuildContext context) {
     final radius = Radius.circular(borderRadius);
 
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: borderColor),
-        borderRadius: BorderRadius.circular(borderRadius),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          InkWell(
-            onTap: onDecrement,
-            borderRadius: BorderRadius.horizontal(left: radius),
-            child: Padding(
-              padding: buttonPadding,
-              child: Icon(decrementIcon, size: 16, color: decrementIconColor),
+    return Semantics(
+      label: 'Jumlah: $quantity',
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border.all(color: borderColor),
+          borderRadius: BorderRadius.circular(borderRadius),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Semantics(
+              button: true,
+              label: 'Kurangi jumlah',
+              child: InkWell(
+                onTap: onDecrement,
+                borderRadius: BorderRadius.horizontal(left: radius),
+                child: Padding(
+                  padding: buttonPadding,
+                  child: Icon(decrementIcon, size: iconSize, color: decrementIconColor),
+                ),
+              ),
             ),
-          ),
-          Padding(
-            padding: quantityPadding,
-            child: Text(
-              '$quantity',
-              style:
-                  quantityTextStyle ??
-                  const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+            Padding(
+              padding: quantityPadding,
+              child: Text(
+                '$quantity',
+                style:
+                    quantityTextStyle ??
+                    const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              ),
             ),
-          ),
-          InkWell(
-            onTap: onIncrement,
-            borderRadius: BorderRadius.horizontal(right: radius),
-            child: Padding(
-              padding: buttonPadding,
-              child: Icon(incrementIcon, size: 16, color: incrementIconColor),
+            Semantics(
+              button: true,
+              label: 'Tambah jumlah',
+              child: InkWell(
+                onTap: onIncrement,
+                borderRadius: BorderRadius.horizontal(right: radius),
+                child: Padding(
+                  padding: buttonPadding,
+                  child: Icon(incrementIcon, size: iconSize, color: incrementIconColor),
+                ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
