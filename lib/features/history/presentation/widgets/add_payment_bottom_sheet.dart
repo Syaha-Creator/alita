@@ -159,6 +159,7 @@ class _AddPaymentBottomSheetState extends State<AddPaymentBottomSheet> {
       initialDate: _paymentDate,
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
+      helpText: 'Pilih Tanggal Bayar',
     );
     if (!mounted) return;
     if (picked != null) {
@@ -168,7 +169,8 @@ class _AddPaymentBottomSheetState extends State<AddPaymentBottomSheet> {
 
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    if (_receiptImage == null) {
+    final receipt = _receiptImage;
+    if (receipt == null) {
       AppFeedback.show(
         context,
         message: 'Bukti bayar wajib diupload.',
@@ -183,26 +185,36 @@ class _AddPaymentBottomSheetState extends State<AddPaymentBottomSheet> {
     final channel = _paymentMethod == 'Lainnya'
         ? _customChannelCtrl.text.trim()
         : (_paymentChannel ?? '');
-    // Sesuai CheckoutPayloadBuilder: backend expect `note`, `payment_method` Lainnya→other
     final methodForApi =
         _paymentMethod == 'Lainnya' ? 'other' : (_paymentMethod ?? '');
 
     setState(() => _isSubmitting = true);
-    await widget.onSave(
-      {
-        'payment_amount': nominal,
-        'payment_method': methodForApi,
-        'payment_bank': channel,
-        'payment_number': _paymentRefCtrl.text.trim(),
-        'note': _paymentNoteCtrl.text.trim(),
-        'payment_date': AppFormatters.apiDate(_paymentDate),
-        'remaining_before': widget.remainingPayment,
-      },
-      _receiptImage!,
-    );
-    if (!mounted) return;
-    setState(() => _isSubmitting = false);
-    Navigator.of(context).pop();
+    try {
+      await widget.onSave(
+        {
+          'payment_amount': nominal,
+          'payment_method': methodForApi,
+          'payment_bank': channel,
+          'payment_number': _paymentRefCtrl.text.trim(),
+          'note': _paymentNoteCtrl.text.trim(),
+          'payment_date': AppFormatters.apiDate(_paymentDate),
+          'remaining_before': widget.remainingPayment,
+        },
+        receipt,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop();
+    } catch (e) {
+      if (!mounted) return;
+      AppFeedback.show(
+        context,
+        message: 'Gagal menyimpan pembayaran. Silakan coba lagi.',
+        type: AppFeedbackType.error,
+        floating: true,
+      );
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   @override
@@ -336,16 +348,20 @@ class _AddPaymentBottomSheetState extends State<AddPaymentBottomSheet> {
                         fontSize: 14,
                       ),
                     ),
-                    child: _isSubmitting
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator.adaptive(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation(AppColors.onPrimary),
-                            ),
-                          )
-                        : const Text('Simpan Pembayaran'),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      child: _isSubmitting
+                          ? const SizedBox(
+                              key: ValueKey('spinner'),
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator.adaptive(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation(AppColors.onPrimary),
+                              ),
+                            )
+                          : const Text('Simpan Pembayaran', key: ValueKey('label')),
+                    ),
                   ),
                 ),
               ),

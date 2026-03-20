@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/services/api_client.dart';
 import '../../../core/utils/app_formatters.dart';
+import '../../../core/utils/retry.dart';
 import '../../auth/logic/auth_provider.dart';
 import '../data/models/order_history.dart';
 
@@ -34,10 +35,15 @@ final orderHistoryProvider = FutureProvider.autoDispose<List<OrderHistory>>((
     queryParams['date_to'] = AppFormatters.apiDate(dateRange.end);
   }
 
-  final response = await ApiClient.instance.get(
-    '/order_letters',
-    queryParams: queryParams,
-    timeout: const Duration(seconds: 15),
+  final response = await retry(
+    () => ApiClient.instance.get(
+      '/order_letters',
+      queryParams: queryParams,
+      timeout: const Duration(seconds: 15),
+    ),
+    maxAttempts: 2,
+    tag: 'orderHistory',
+    retryIf: (e) => e is! Exception || !e.toString().contains('User ID'),
   );
 
   if (response.statusCode != 200) {

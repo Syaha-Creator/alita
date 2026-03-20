@@ -32,8 +32,9 @@ class ApprovalTimelineWidget extends StatelessWidget {
             final approval = entry.value;
             final isLast = idx == approvals.length - 1;
             final status = OrderStatusX.fromRaw(approval.status);
+            final approvedAt = approval.approvedAt;
             final hasTimestamp =
-                approval.approvedAt != null && approval.approvedAt!.isNotEmpty;
+                approvedAt != null && approvedAt.isNotEmpty;
 
             return Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -89,7 +90,7 @@ class ApprovalTimelineWidget extends StatelessWidget {
                           Padding(
                             padding: const EdgeInsets.only(top: 2),
                             child: Text(
-                              AppFormatters.dateTimeId(approval.approvedAt!),
+                              AppFormatters.dateTimeId(approvedAt),
                               style: const TextStyle(
                                 fontSize: 11,
                                 color: AppColors.textTertiary,

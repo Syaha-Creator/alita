@@ -136,7 +136,8 @@ class OrderDetailNotifier extends AutoDisposeFamilyAsyncNotifier<OrderHistory, i
         return OrderHistory.fromApiJson(decoded);
       }
       return null;
-    } catch (_) {
+    } catch (e, st) {
+      Log.error(e, st, reason: 'OrderDetailNotifier._tryParseSingleOrder');
       return null;
     }
   }
@@ -149,7 +150,9 @@ class OrderDetailNotifier extends AutoDisposeFamilyAsyncNotifier<OrderHistory, i
             body['error']?.toString() ??
             'Gagal memproses data ($statusCode)';
       }
-    } catch (_) {}
+    } catch (e, st) {
+      Log.error(e, st, reason: 'OrderDetailNotifier._extractErrorMessage');
+    }
     return 'Gagal memproses data ($statusCode)';
   }
 }

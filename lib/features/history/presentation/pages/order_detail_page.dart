@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/services/connectivity_service.dart';
 import '../../../../core/services/pdf_service/invoice_pdf_generator.dart';
@@ -10,6 +11,7 @@ import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/utils/contact_actions.dart';
 import '../../../../core/utils/log.dart';
+import '../../../../core/utils/network_guard.dart';
 import '../../../../core/utils/shipping_utils.dart';
 import '../../../../core/widgets/detail_contact_info_card.dart';
 import '../../../../core/widgets/image_viewer_dialog.dart';
@@ -72,8 +74,10 @@ class OrderDetailPage extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             tooltip: 'Refresh',
-            onPressed: () =>
-                ref.read(orderDetailProvider(order.id).notifier).refresh(),
+            onPressed: () {
+              if (ifOfflineShowFeedback(context, isOffline: isOffline)) return;
+              ref.read(orderDetailProvider(order.id).notifier).refresh();
+            },
           ),
           PopupMenuButton<String>(
             icon: Icon(
@@ -194,6 +198,7 @@ class OrderDetailPage extends ConsumerWidget {
                       .read(orderDetailProvider(order.id).notifier)
                       .refresh(),
                   message: detailState.error.toString(),
+          onGoHome: () => context.go('/order_history'),
                 )
               : RefreshIndicator.adaptive(
                   onRefresh: () => ref
@@ -349,6 +354,12 @@ class OrderDetailPage extends ConsumerWidget {
       builder: (ctx) => AddPaymentBottomSheet(
         remainingPayment: remainingPayment,
         onSave: (payload, receiptFile) async {
+          if (ifOfflineShowFeedback(
+            context,
+            isOffline: ref.read(isOfflineProvider),
+          )) {
+            return;
+          }
           try {
             await HapticFeedback.mediumImpact();
             await ref
@@ -472,9 +483,14 @@ class OrderDetailPage extends ConsumerWidget {
 }
 
 class _ErrorBody extends StatelessWidget {
-  const _ErrorBody({required this.onRetry, required this.message});
+  const _ErrorBody({
+    required this.onRetry,
+    required this.message,
+    required this.onGoHome,
+  });
 
   final VoidCallback onRetry;
+  final VoidCallback onGoHome;
   final String message;
 
   @override
@@ -496,6 +512,11 @@ class _ErrorBody extends StatelessWidget {
             ElevatedButton(
               onPressed: onRetry,
               child: const Text('Coba lagi'),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: onGoHome,
+              child: const Text('Kembali ke Riwayat'),
             ),
           ],
         ),

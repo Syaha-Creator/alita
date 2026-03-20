@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/enums/order_status.dart';
+import '../../../../core/services/connectivity_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/utils/app_formatters.dart';
-import '../../../../core/widgets/async_state_view.dart';
+import '../../../../core/widgets/animated_list_item.dart';
 import '../../../../core/widgets/date_range_filter_action.dart';
 import '../../../../core/widgets/empty_state_view.dart';
 import '../../../../core/widgets/error_state_view.dart';
+// AsyncStateView no longer needed — using .when() directly for offline-aware error
 import '../../../../core/widgets/order_list_card_frame.dart';
 import '../../../../core/widgets/status_chip.dart';
 import '../../data/models/order_history.dart';
 import '../../logic/order_history_provider.dart';
+import '../widgets/order_history_skeleton.dart';
 
 class OrderHistoryPage extends ConsumerStatefulWidget {
   const OrderHistoryPage({super.key});
@@ -80,38 +85,60 @@ class _OrderHistoryPageState extends ConsumerState<OrderHistoryPage> {
           child: Divider(height: 1, color: AppColors.border),
         ),
       ),
-      body: AsyncStateView(
-        state: historyAsync,
-        loading: const Center(
-          child: CircularProgressIndicator.adaptive(
-              valueColor: AlwaysStoppedAnimation(AppColors.accent),
-              strokeWidth: 2),
-        ),
-        errorBuilder: (err, _) => ErrorStateView(
-          title: 'Gagal memuat data',
-          message: err.toString().replaceFirst('Exception: ', ''),
+      body: _buildBody(historyAsync),
+    );
+  }
+
+  // ── Body (offline-aware error) ───────────────────────────────────
+
+  Widget _buildBody(AsyncValue<List<OrderHistory>> historyAsync) {
+    return historyAsync.when(
+      loading: () => const OrderHistorySkeleton(),
+      error: (err, _) {
+        final isOffline = ref.watch(isOfflineProvider);
+        return ErrorStateView(
+          icon: isOffline
+              ? Icons.wifi_off_rounded
+              : Icons.error_outline_rounded,
+          title: isOffline ? 'Sedang offline' : 'Gagal memuat data',
+          message: isOffline
+              ? 'Periksa koneksi internet Anda dan coba lagi.'
+              : err.toString().replaceFirst('Exception: ', ''),
           onRetry: () => ref.invalidate(orderHistoryProvider),
-          iconColor: AppColors.error,
+          iconColor: isOffline ? AppColors.warning : AppColors.error,
           buttonColor: AppColors.accent,
           buttonTextColor: AppColors.onPrimary,
           messageStyle:
               const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-        ),
-        dataBuilder: (orders) {
-          if (orders.isEmpty) return _buildEmptyState();
-          return RefreshIndicator.adaptive(
-            color: AppColors.accent,
-            onRefresh: () async => ref.invalidate(orderHistoryProvider),
-            child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
-              itemCount: orders.length,
-              itemBuilder: (context, index) => RepaintBoundary(
+        );
+      },
+      data: (orders) {
+        if (orders.isEmpty) return _buildEmptyState();
+        return RefreshIndicator.adaptive(
+          color: AppColors.accent,
+          onRefresh: () async {
+            if (ref.read(isOfflineProvider)) {
+              if (context.mounted) {
+                AppFeedback.show(context,
+                    message: 'Sedang offline — tidak bisa memuat ulang.',
+                    type: AppFeedbackType.warning);
+              }
+              return;
+            }
+            ref.invalidate(orderHistoryProvider);
+          },
+          child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
+            itemCount: orders.length,
+            itemBuilder: (context, index) => AnimatedListItem(
+              index: index,
+              child: RepaintBoundary(
                 child: _buildOrderCard(orders[index]),
               ),
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -234,7 +261,10 @@ class _OrderHistoryPageState extends ConsumerState<OrderHistoryPage> {
       ),
       dateText: formattedDate,
       totalText: AppFormatters.currencyIdr(order.totalAmount),
-      onTap: () => context.push('/order_detail', extra: order),
+      onTap: () {
+        HapticFeedback.lightImpact();
+        context.push('/order_detail', extra: order);
+      },
     );
   }
 }

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/services/connectivity_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/utils/app_formatters.dart';
+import '../../../../core/widgets/animated_list_item.dart';
 import '../../../../core/widgets/date_range_filter_action.dart';
 import '../../../../core/widgets/empty_state_view.dart';
 import '../../../../core/widgets/error_state_view.dart';
@@ -17,6 +20,14 @@ class ApprovalInboxPage extends ConsumerStatefulWidget {
 }
 
 class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(approvalInboxProvider.notifier).fetchInbox();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(approvalInboxProvider);
@@ -124,11 +135,15 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
         body: state.isLoading && state.pendingApprovals.isEmpty
             ? const ApprovalInboxSkeleton()
             : state.error != null
-                ? _buildErrorView(state.error!)
+                ? _buildErrorView(state.error ?? 'Terjadi kesalahan')
                 : TabBarView(
                     children: [
-                      _buildListView(state.pendingApprovals, true),
-                      _buildListView(state.historyApprovals, false),
+                      _KeepAliveTab(
+                        child: _buildListView(state.pendingApprovals, true),
+                      ),
+                      _KeepAliveTab(
+                        child: _buildListView(state.historyApprovals, false),
+                      ),
                     ],
                   ),
       ),
@@ -138,11 +153,15 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
   // ── Error state ──────────────────────────────────────────────────
 
   Widget _buildErrorView(String error) {
+    final isOffline = ref.watch(isOfflineProvider);
     return ErrorStateView(
-      title: 'Gagal memuat data',
-      message: error.replaceFirst('Exception: ', ''),
+      icon: isOffline ? Icons.wifi_off_rounded : Icons.error_outline_rounded,
+      title: isOffline ? 'Sedang offline' : 'Gagal memuat data',
+      message: isOffline
+          ? 'Periksa koneksi internet Anda dan coba lagi.'
+          : error.replaceFirst('Exception: ', ''),
       onRetry: () => ref.read(approvalInboxProvider.notifier).fetchInbox(),
-      iconColor: AppColors.error,
+      iconColor: isOffline ? AppColors.warning : AppColors.error,
       buttonColor: AppColors.accent,
       buttonTextColor: AppColors.onPrimary,
       messageStyle: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
@@ -176,7 +195,17 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
     if (orders.isEmpty) {
       return RefreshIndicator.adaptive(
         color: AppColors.accent,
-        onRefresh: () => ref.read(approvalInboxProvider.notifier).fetchInbox(),
+        onRefresh: () async {
+          if (ref.read(isOfflineProvider)) {
+            if (context.mounted) {
+              AppFeedback.show(context,
+                  message: 'Sedang offline — tidak bisa memuat ulang.',
+                  type: AppFeedbackType.warning);
+            }
+            return;
+          }
+          await ref.read(approvalInboxProvider.notifier).fetchInbox();
+        },
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
@@ -189,18 +218,52 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
 
     return RefreshIndicator.adaptive(
         color: AppColors.accent,
-        onRefresh: () => ref.read(approvalInboxProvider.notifier).fetchInbox(),
+        onRefresh: () async {
+          if (ref.read(isOfflineProvider)) {
+            if (context.mounted) {
+              AppFeedback.show(context,
+                  message: 'Sedang offline — tidak bisa memuat ulang.',
+                  type: AppFeedbackType.warning);
+            }
+            return;
+          }
+          await ref.read(approvalInboxProvider.notifier).fetchInbox();
+        },
         child: ListView.builder(
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
         itemCount: orders.length,
-        itemBuilder: (context, index) => RepaintBoundary(
-          child: ApprovalCardItem(
-            orderWrap: orders[index],
-            isPending: isPending,
+        itemBuilder: (context, index) => AnimatedListItem(
+          index: index,
+          child: RepaintBoundary(
+            child: ApprovalCardItem(
+              orderWrap: orders[index],
+              isPending: isPending,
+            ),
           ),
         ),
       ),
     );
   }
+}
 
+/// Minimal pass-through widget that keeps its child alive when switching tabs.
+class _KeepAliveTab extends StatefulWidget {
+  const _KeepAliveTab({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_KeepAliveTab> createState() => _KeepAliveTabState();
+}
+
+class _KeepAliveTabState extends State<_KeepAliveTab>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
+  }
 }

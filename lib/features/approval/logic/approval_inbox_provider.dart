@@ -6,7 +6,9 @@ import '../../../core/enums/order_status.dart';
 import '../../../core/services/api_client.dart';
 import '../../../core/utils/app_formatters.dart';
 import '../../../core/utils/log.dart';
+import '../../../core/utils/retry.dart';
 import '../../profile/logic/profile_provider.dart';
+import 'approval_decision_service.dart';
 
 // ── Geotagging: alamat + koordinat untuk payload approval ───────
 class ApprovalLocation {
@@ -85,6 +87,16 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
   static OrderStatus _normalizeApprovedStatus(dynamic value) =>
       OrderStatusX.fromDynamic(value);
 
+  /// Delegates to [ApprovalDecisionService.arePriorApproversApproved].
+  static bool _arePriorApproved(
+    List<Map<String, dynamic>> discounts,
+    int targetLevel,
+  ) =>
+      ApprovalDecisionService.arePriorApproversApproved(
+        discountsInDetail: discounts,
+        targetLevelId: targetLevel,
+      );
+
   /// Mendapatkan posisi GPS saat ini untuk geotagging approval.
   /// Mengembalikan null jika layanan lokasi mati, izin ditolak, atau gagal.
   Future<Position?> _getCurrentLocation() async {
@@ -106,7 +118,8 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
           accuracy: LocationAccuracy.high,
         ),
       );
-    } catch (_) {
+    } catch (e, st) {
+      Log.error(e, st, reason: 'ApprovalInbox._getCurrentLocation');
       return null;
     }
   }
@@ -125,21 +138,22 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
       );
       if (placemarks.isNotEmpty) {
         final place = placemarks.first;
+        final street = place.street ?? '';
+        final subLocality = place.subLocality ?? '';
+        final locality = place.locality ?? '';
+        final adminArea = place.administrativeArea ?? '';
         final parts = <String>[
-          if (place.street != null && place.street!.isNotEmpty) place.street!,
-          if (place.subLocality != null && place.subLocality!.isNotEmpty)
-            place.subLocality!,
-          if (place.locality != null && place.locality!.isNotEmpty)
-            place.locality!,
-          if (place.administrativeArea != null &&
-              place.administrativeArea!.isNotEmpty)
-            place.administrativeArea!,
+          if (street.isNotEmpty) street,
+          if (subLocality.isNotEmpty) subLocality,
+          if (locality.isNotEmpty) locality,
+          if (adminArea.isNotEmpty) adminArea,
         ];
         if (parts.isNotEmpty) {
           address = parts.join(', ');
         }
       }
-    } catch (_) {
+    } catch (e, st) {
+      Log.error(e, st, reason: 'ApprovalInbox._getCurrentAddress.geocode');
       address = 'Lokasi tidak terdeteksi';
     }
 
@@ -219,14 +233,20 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
         'user_id': profile?.id.toString() ?? '0',
       };
 
-      if (state.startDate != null && state.endDate != null) {
-        queryParams['start_date'] = AppFormatters.apiDate(state.startDate!);
-        queryParams['end_date'] = AppFormatters.apiDate(state.endDate!);
+      final startDate = state.startDate;
+      final endDate = state.endDate;
+      if (startDate != null && endDate != null) {
+        queryParams['start_date'] = AppFormatters.apiDate(startDate);
+        queryParams['end_date'] = AppFormatters.apiDate(endDate);
       }
 
-      final response = await _api.get(
-        '/order_letter_approvals',
-        queryParams: queryParams,
+      final response = await retry(
+        () => _api.get(
+          '/order_letter_approvals',
+          queryParams: queryParams,
+        ),
+        maxAttempts: 2,
+        tag: 'approvalInbox',
       );
 
       if (response.statusCode == 200) {
@@ -243,8 +263,8 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
             wrapMap['order_letter'] as Map<String, dynamic>?;
             wrapMap['order_letter_details'] as List<dynamic>?;
             rawOrdersSafe.add(wrapMap);
-          } catch (_) {
-            // Skip item yang struktur atau tipenya tidak valid
+          } catch (e) {
+            Log.warning('Skip invalid approval item: $e', tag: 'Approval');
           }
         }
 
@@ -256,15 +276,16 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
               letter['id'] ?? letter['no_sp'] ?? Object.hash(wrap, null);
 
           if (!grouped.containsKey(key)) {
-            grouped[key] = Map<String, dynamic>.from(wrap);
-            grouped[key]!['order_letter_details'] = List<dynamic>.from(
+            final entry = Map<String, dynamic>.from(wrap);
+            entry['order_letter_details'] = List<dynamic>.from(
                 wrap['order_letter_details'] as List<dynamic>? ?? []);
-            grouped[key]!['order_letter_payments'] = List<dynamic>.from(
+            entry['order_letter_payments'] = List<dynamic>.from(
                 wrap['order_letter_payments'] as List<dynamic>? ?? []);
+            grouped[key] = entry;
           } else {
-            // Merge details — hindari duplikasi berdasarkan detail id
+            final entry = grouped[key]!;
             final existing =
-                grouped[key]!['order_letter_details'] as List<dynamic>;
+                entry['order_letter_details'] as List<dynamic>;
             final incoming =
                 wrap['order_letter_details'] as List<dynamic>? ?? [];
             final existingIds = existing
@@ -291,6 +312,7 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
           final orderWrap = allOrders[orderIndex];
           bool isMyApproval = false;
           bool isMyApprovalDone = false;
+          bool hasActionablePending = false;
 
           final letter =
               orderWrap['order_letter'] as Map<String, dynamic>? ?? {};
@@ -310,8 +332,10 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
                 (detail as Map<String, dynamic>)['order_letter_discount']
                         as List<dynamic>? ??
                     [];
+            final discountMaps =
+                discounts.map((d) => d as Map<String, dynamic>).toList();
 
-            for (final disc in discounts) {
+            for (final disc in discountMaps) {
               final discEnum = _normalizeApprovedStatus(disc['approved']);
 
               if (discEnum == OrderStatus.rejected) {
@@ -327,20 +351,26 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
               if (discEnum == OrderStatus.approved ||
                   discEnum == OrderStatus.rejected) {
                 isMyApprovalDone = true;
+              } else if (discEnum == OrderStatus.pending) {
+                final myLevel =
+                    (disc['approver_level_id'] as num?)?.toInt() ?? 99;
+                if (_arePriorApproved(discountMaps, myLevel)) {
+                  hasActionablePending = true;
+                }
               }
             }
           }
 
           if (!isMyApproval) continue;
 
-          final bool spEffectivelyDone =
-              isMyApprovalDone || headerRejected || hasRejectedDiscount;
-
-          if (spEffectivelyDone) {
+          if (headerRejected || hasRejectedDiscount) {
             history.add(orderWrap);
-          } else {
+          } else if (hasActionablePending) {
             pending.add(orderWrap);
+          } else if (isMyApprovalDone) {
+            history.add(orderWrap);
           }
+          // else: waiting for prior approver → don't show yet
         }
 
         // Urutkan terbaru di atas berdasarkan created_at

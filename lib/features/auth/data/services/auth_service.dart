@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -5,6 +6,7 @@ import 'package:http/http.dart' as http;
 
 import '../../../../core/config/app_config.dart';
 import '../../../../core/services/api_client.dart';
+import '../../../../core/utils/log.dart';
 
 /// Parsed result from a successful login API call.
 class AuthLoginResult {
@@ -55,7 +57,7 @@ class AuthService {
           'Accept': 'application/json',
         },
         body: jsonEncode({'email': email, 'password': password}),
-      );
+      ).timeout(const Duration(seconds: 30));
     } on SocketException {
       throw 'Periksa koneksi internet Anda.';
     }
@@ -118,7 +120,8 @@ class AuthService {
       return data['error']?.toString() ??
           data['message']?.toString() ??
           'Login gagal (${response.statusCode})';
-    } catch (_) {
+    } catch (e, st) {
+      Log.error(e, st, reason: 'AuthService._parseErrorResponse');
       return 'Login gagal (${response.statusCode})';
     }
   }

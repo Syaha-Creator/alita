@@ -89,7 +89,7 @@ class OrderStatusHeader extends StatelessWidget {
                               letterSpacing: 0.5,
                             ),
                           ),
-                          if (order.noPo != null && order.noPo!.isNotEmpty)
+                          if (order.noPo case final noPo? when noPo.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 4),
                               child: Text(

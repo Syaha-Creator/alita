@@ -7,7 +7,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import '../../../../core/services/connectivity_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/app_feedback.dart';
+import '../../../../core/utils/telemetry_access.dart';
 import '../../../../core/utils/platform_utils.dart';
 import '../../../../core/enums/order_status.dart';
 import '../../../auth/logic/auth_provider.dart';
@@ -16,11 +19,26 @@ import '../../logic/profile_provider.dart';
 import '../../../approval/logic/approval_inbox_provider.dart';
 
 /// Profile / Settings Page — clean minimalist design
-class ProfilePage extends ConsumerWidget {
+class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends ConsumerState<ProfilePage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(approvalInboxProvider.notifier).fetchInbox();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = ref.watch(authProvider);
+    final canOpenTelemetry = TelemetryAccess.canAccess(auth);
     final profile = ref.watch(profileProvider).valueOrNull;
     final workTitle = profile?.workTitle.toLowerCase() ?? '';
     final isApprover = workTitle.contains('manager') ||
@@ -76,11 +94,35 @@ class ProfilePage extends ConsumerWidget {
         elevation: 0,
         backgroundColor: AppColors.background,
       ),
-      body: ListView(
+      body: RefreshIndicator.adaptive(
+        color: AppColors.accent,
+        onRefresh: () async {
+          final isOffline = ref.read(isOfflineProvider);
+          if (isOffline) {
+            if (context.mounted) {
+              AppFeedback.show(context,
+                  message: 'Sedang offline — tidak bisa memuat ulang.',
+                  type: AppFeedbackType.warning);
+            }
+            return;
+          }
+          ref.invalidate(profileProvider);
+          unawaited(ref.read(approvalInboxProvider.notifier).fetchInbox());
+          try {
+            await ref.read(profileProvider.future);
+          } catch (_) {
+            if (context.mounted) {
+              AppFeedback.show(context,
+                  message: 'Gagal memuat ulang profil.',
+                  type: AppFeedbackType.warning);
+            }
+          }
+        },
+        child: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         children: [
           // ── Header Profil (dinamis dari API contact_work_experiences) ──
-          _buildProfileHeaderFromApi(context, ref),
+          _buildProfileHeaderFromApi(context),
           const SizedBox(height: 24),
 
           // ── Mini Dashboard Performa ──
@@ -163,6 +205,11 @@ class ProfilePage extends ConsumerWidget {
               title: 'Riwayat Pesanan',
               onTap: () => context.push('/order_history'),
             ),
+            _MenuItem(
+              icon: Icons.description_outlined,
+              title: 'Riwayat Penawaran',
+              onTap: () => context.push('/quotation_history'),
+            ),
             if (isApprover)
               _MenuItem(
                 icon: Icons.assignment_turned_in_outlined,
@@ -181,6 +228,12 @@ class ProfilePage extends ConsumerWidget {
               title: 'Pusat Bantuan',
               onTap: () => context.push('/help_center'),
             ),
+            if (canOpenTelemetry)
+              _MenuItem(
+                icon: Icons.bug_report_outlined,
+                title: 'Telemetry Debug (Admin)',
+                onTap: () => context.push('/telemetry_debug'),
+              ),
             _MenuItem(
               icon: Icons.info_outline_rounded,
               title: 'Tentang Aplikasi',
@@ -190,7 +243,7 @@ class ProfilePage extends ConsumerWidget {
           const SizedBox(height: 32),
 
           // ── Logout Button ──
-          _buildLogoutButton(context, ref),
+          _buildLogoutButton(context),
           const SizedBox(height: 16),
 
           // ── Version ──
@@ -215,12 +268,13 @@ class ProfilePage extends ConsumerWidget {
           const SizedBox(height: 32),
         ],
       ),
+      ),
     );
   }
 
   // ───────────────────── Header ─────────────────────
 
-  Widget _buildProfileHeaderFromApi(BuildContext context, WidgetRef ref) {
+  Widget _buildProfileHeaderFromApi(BuildContext context) {
     final profileAsync = ref.watch(profileProvider);
     final auth = ref.watch(authProvider);
 
@@ -260,19 +314,19 @@ class ProfilePage extends ConsumerWidget {
             email: email,
             imageUrl: auth.userImageUrl,
             areaName: areaName,
+            workTitle: profile?.workTitle ?? '',
           );
         },
       ),
     );
   }
 
-  /// Satu blok konten header (avatar, nama, email, badge area).
-  /// Dipakai saat loading (dari auth) dan saat data (dari profile/auth).
   Widget _buildProfileHeaderContent({
     required String name,
     required String email,
     required String imageUrl,
     required String areaName,
+    String workTitle = '',
   }) {
     final formattedArea = areaName.isEmpty
         ? ''
@@ -285,24 +339,32 @@ class ProfilePage extends ConsumerWidget {
             shape: BoxShape.circle,
             border: Border.all(color: AppColors.border, width: 2),
           ),
-          child: CircleAvatar(
-            radius: 40,
-            backgroundColor: AppColors.primary,
-            backgroundImage: imageUrl.isNotEmpty
-                ? CachedNetworkImageProvider(imageUrl,
-                    maxWidth: 160, maxHeight: 160)
-                : null,
-            child: imageUrl.isEmpty
-                ? Text(
-                    name.isNotEmpty ? name[0].toUpperCase() : '?',
-                    style: const TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.surface,
-                    ),
-                  )
-                : null,
-          ),
+          child: imageUrl.isNotEmpty
+              ? CachedNetworkImage(
+                  imageUrl: imageUrl,
+                  memCacheWidth: 160,
+                  memCacheHeight: 160,
+                  imageBuilder: (_, provider) => CircleAvatar(
+                    radius: 40,
+                    backgroundColor: AppColors.primary,
+                    backgroundImage: provider,
+                  ),
+                  placeholder: (_, __) => CircleAvatar(
+                    radius: 40,
+                    backgroundColor: AppColors.primary,
+                    child: _initialsText(name),
+                  ),
+                  errorWidget: (_, __, ___) => CircleAvatar(
+                    radius: 40,
+                    backgroundColor: AppColors.primary,
+                    child: _initialsText(name),
+                  ),
+                )
+              : CircleAvatar(
+                  radius: 40,
+                  backgroundColor: AppColors.primary,
+                  child: _initialsText(name),
+                ),
         ),
         const SizedBox(height: 16),
         Text(
@@ -314,39 +376,66 @@ class ProfilePage extends ConsumerWidget {
           ),
           textAlign: TextAlign.center,
         ),
+        if (workTitle.isNotEmpty) ...[
+          const SizedBox(height: 2),
+          Text(
+            workTitle,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textSecondary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
         const SizedBox(height: 4),
         Text(
           email,
-          style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+          style: const TextStyle(fontSize: 13, color: AppColors.textTertiary),
         ),
         const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: AppColors.accentLight,
-            borderRadius: BorderRadius.circular(20),
+        if (formattedArea.isNotEmpty)
+          _infoPill(
+            icon: Icons.location_on,
+            label: 'Area: $formattedArea',
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.location_on,
-                size: 14,
-                color: AppColors.accent,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                'Area: $formattedArea',
-                style: const TextStyle(
-                  color: AppColors.accent,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ),
       ],
+    );
+  }
+
+  static Widget _initialsText(String name) {
+    return Text(
+      name.isNotEmpty ? name[0].toUpperCase() : '?',
+      style: const TextStyle(
+        fontSize: 32,
+        fontWeight: FontWeight.bold,
+        color: AppColors.surface,
+      ),
+    );
+  }
+
+  Widget _infoPill({required IconData icon, required String label}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.accentLight,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AppColors.accent),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.accent,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -424,12 +513,12 @@ class ProfilePage extends ConsumerWidget {
 
   // ───────────────────── Logout ─────────────────────
 
-  Widget _buildLogoutButton(BuildContext context, WidgetRef ref) {
+  Widget _buildLogoutButton(BuildContext context) {
     return SizedBox(
       width: double.infinity,
       height: 52,
       child: OutlinedButton.icon(
-        onPressed: () => _confirmLogout(context, ref),
+        onPressed: () => _confirmLogout(context),
         icon: const Icon(Icons.logout_rounded, size: 20),
         label: const Text('Keluar'),
         style: OutlinedButton.styleFrom(
@@ -443,7 +532,7 @@ class ProfilePage extends ConsumerWidget {
     );
   }
 
-  void _confirmLogout(BuildContext context, WidgetRef ref) {
+  void _confirmLogout(BuildContext context) {
     HapticFeedback.lightImpact();
     showAdaptiveAlert(
       context: context,

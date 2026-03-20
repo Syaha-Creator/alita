@@ -23,6 +23,22 @@ class ApprovalDecisionService {
 
   static final ApiClient _api = ApiClient.instance;
 
+  /// Checks whether all approvers with a lower [approver_level_id] than
+  /// [targetLevelId] within the same detail's discount list have approved.
+  ///
+  /// This enforces the sequential approval chain: RSM cannot act until
+  /// Supervisor approves, Analyst cannot act until RSM approves, etc.
+  static bool arePriorApproversApproved({
+    required List<Map<String, dynamic>> discountsInDetail,
+    required int targetLevelId,
+  }) {
+    return discountsInDetail
+        .where((d) =>
+            ((d['approver_level_id'] as num?)?.toInt() ?? 99) < targetLevelId)
+        .every((d) =>
+            OrderStatusX.fromDynamic(d['approved']) == OrderStatus.approved);
+  }
+
   /// Collects every discount row across all details that belongs to the
   /// current user AND is still Pending.
   ///
@@ -42,8 +58,10 @@ class ApprovalDecisionService {
           (detail as Map<String, dynamic>)['order_letter_discount']
                   as List<dynamic>? ??
               [];
-      for (final disc in discounts) {
-        final discMap = disc as Map<String, dynamic>;
+      final discountMaps =
+          discounts.map((d) => d as Map<String, dynamic>).toList();
+
+      for (final discMap in discountMaps) {
         final discountId =
             (discMap['order_letter_discount_id'] as num?)?.toInt() ?? 0;
         final approverId = discMap['approver_id']?.toString() ?? '';
@@ -59,7 +77,14 @@ class ApprovalDecisionService {
             (myName.isNotEmpty &&
                 NameMatcher.softMatch(approverName, myName));
 
-        if (isMe && discountId > 0 && seenIds.add(discountId)) {
+        if (!isMe || discountId <= 0 || !seenIds.add(discountId)) continue;
+
+        final myLevel =
+            (discMap['approver_level_id'] as num?)?.toInt() ?? 99;
+        if (arePriorApproversApproved(
+          discountsInDetail: discountMaps,
+          targetLevelId: myLevel,
+        )) {
           result.add(discMap);
         }
       }

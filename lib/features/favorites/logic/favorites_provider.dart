@@ -64,7 +64,8 @@ final favoritesCountProvider = Provider<int>((ref) {
 
 /// Favorite products provider - returns only favorited products
 final favoriteProductsProvider = Provider<List<Product>>((ref) {
-  final allProducts = ref.watch(productListProvider).valueOrNull ?? [];
+  final allProducts =
+      ref.watch(productListProvider.select((v) => v.valueOrNull?.products ?? []));
   final favoriteIds = ref.watch(favoritesProvider);
   
   return allProducts

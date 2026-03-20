@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/enums/order_status.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -49,8 +50,11 @@ class ApprovalCardItem extends StatelessWidget {
             'Item')
         : 'Detail tidak tersedia';
 
-    return OrderListCardFrame(
-      referenceNo: noSp,
+    return Semantics(
+      button: true,
+      label: 'Lihat detail approval $toko',
+      child: OrderListCardFrame(
+        referenceNo: noSp,
       trailingStatus: StatusChip(
         label: statusLabel,
         icon: status.icon,
@@ -100,7 +104,11 @@ class ApprovalCardItem extends StatelessWidget {
       ),
       dateText: dateDisplay,
       totalText: AppFormatters.currencyIdr(amount),
-      onTap: () => context.push('/approval_detail', extra: orderWrap),
+      onTap: () {
+        HapticFeedback.lightImpact();
+        context.push('/approval_detail', extra: orderWrap);
+      },
+      ),
     );
   }
 }

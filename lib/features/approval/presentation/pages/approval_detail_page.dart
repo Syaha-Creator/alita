@@ -246,8 +246,7 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
     final headerEnum = OrderStatusX.fromRaw(
       order['status']?.toString() ?? '',
     );
-    final bool headerTerminal =
-        headerEnum == OrderStatus.rejected ||
+    final bool headerTerminal = headerEnum == OrderStatus.rejected ||
         headerEnum == OrderStatus.approved;
 
     bool needsMyApproval = false;
@@ -257,7 +256,10 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
 
     for (final detail in details) {
       final discounts = detail['order_letter_discount'] as List<dynamic>? ?? [];
-      for (final disc in discounts) {
+      final discountMaps =
+          discounts.map((d) => d as Map<String, dynamic>).toList();
+
+      for (final disc in discountMaps) {
         final approverId = disc['approver_id']?.toString() ?? '';
         final approverName = disc['approver_name'] as String? ?? '';
         final discEnum = OrderStatusX.fromDynamic(disc['approved']);
@@ -272,7 +274,13 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
         if (isMe) {
           isMyApproval = true;
           if (discEnum == OrderStatus.pending) {
-            needsMyApproval = true;
+            final myLevel = (disc['approver_level_id'] as num?)?.toInt() ?? 99;
+            if (ApprovalDecisionService.arePriorApproversApproved(
+              discountsInDetail: discountMaps,
+              targetLevelId: myLevel,
+            )) {
+              needsMyApproval = true;
+            }
           } else {
             alreadyHandledByMe = true;
           }
@@ -320,7 +328,7 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
         widget.orderData['order_letter_payments'] as List<dynamic>? ?? [];
     final shippingDiffers = _isOrderShippingDifferent(order);
 
-    final myName = ref.watch(profileProvider).valueOrNull?.name ?? '';
+    final myName = ref.watch(profileProvider.select((v) => v.valueOrNull?.name ?? ''));
     final approvalState = _resolveMyApprovalState(details, _userId, myName);
     final barState = switch (approvalState) {
       _MyApprovalState.pendingAction => ApprovalBarState.pendingAction,
@@ -373,8 +381,8 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
                   _buildShippingCard(order),
                 ],
                 const SizedBox(height: 12),
-                if (_buildNoteCard(order) != null) ...[
-                  _buildNoteCard(order)!,
+                if (_buildNoteCard(order) case final note?) ...[
+                  note,
                   const SizedBox(height: 12),
                 ],
                 ApprovalProductsCard(details: details, order: order),
@@ -383,13 +391,19 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
               ],
             ),
           ),
-          if (_isLoading)
-            LoadingOverlay(
-              title: _loadingMessage ?? 'Memproses Persetujuan...',
-              subtitle: _loadingMessage != null
-                  ? 'Mengambil koordinat dan alamat'
-                  : 'Harap tunggu sebentar',
+          AnimatedOpacity(
+            opacity: _isLoading ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 200),
+            child: IgnorePointer(
+              ignoring: !_isLoading,
+              child: LoadingOverlay(
+                title: _loadingMessage ?? 'Memproses Persetujuan...',
+                subtitle: _loadingMessage != null
+                    ? 'Mengambil koordinat dan alamat'
+                    : 'Harap tunggu sebentar',
+              ),
             ),
+          ),
         ],
       ),
       bottomNavigationBar: ApprovalDetailBottomBar(
@@ -458,7 +472,6 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
       titleColor: AppColors.warning,
     );
   }
-
 }
 
 /// Three possible states for the logged-in user on this approval:

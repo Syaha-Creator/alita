@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/services/connectivity_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/offline_warning_row.dart';
 
 enum ApprovalBarState { pendingAction, completed, viewer, loading }
 
@@ -114,26 +115,7 @@ class ApprovalDetailBottomBar extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (isOffline)
-              const Padding(
-                padding: EdgeInsets.only(bottom: 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.wifi_off_rounded,
-                        size: 14, color: AppColors.warning),
-                    SizedBox(width: 6),
-                    Text(
-                      'Fungsi ini membutuhkan internet',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.warning,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            if (isOffline) const OfflineWarningRow(),
             Row(
               children: [
                 Expanded(

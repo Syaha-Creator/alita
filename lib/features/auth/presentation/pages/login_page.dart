@@ -41,8 +41,12 @@ class _LoginPageState extends ConsumerState<LoginPage>
       TweenSequenceItem(tween: Tween(begin: 6.0, end: 0.0), weight: 1),
     ]).animate(_shakeController);
 
-    _emailFocus.addListener(() => setState(() {}));
-    _passwordFocus.addListener(() => setState(() {}));
+    _emailFocus.addListener(() {
+      if (mounted) setState(() {});
+    });
+    _passwordFocus.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -82,11 +86,11 @@ class _LoginPageState extends ConsumerState<LoginPage>
         Future.delayed(const Duration(milliseconds: 800), () {
           if (mounted) context.go('/');
         });
-      } else if (next.errorMessage != null) {
+      } else if (next.errorMessage case final errorMsg?) {
         _shakeController.forward(from: 0);
         AppFeedback.show(
           context,
-          message: next.errorMessage!,
+          message: errorMsg,
           type: AppFeedbackType.error,
           duration: const Duration(seconds: 3),
           floating: true,
@@ -130,6 +134,71 @@ class _LoginPageState extends ConsumerState<LoginPage>
             : [],
       ),
       child: child,
+    );
+  }
+
+  void _showForgotPasswordSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const Icon(Icons.lock_reset_rounded,
+                size: 48, color: AppColors.accent),
+            const SizedBox(height: 16),
+            const Text(
+              'Lupa Password?',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Password dikelola oleh Admin. '
+              'Hubungi tim IT atau atasan Anda untuk mereset password.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accent,
+                  foregroundColor: AppColors.onPrimary,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text('Mengerti',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -327,13 +396,31 @@ class _LoginPageState extends ConsumerState<LoginPage>
                           ),
                         ),
 
+                        const SizedBox(height: 8),
+
+                        // ── Lupa password ─────────────────────
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: GestureDetector(
+                            onTap: () => _showForgotPasswordSheet(context),
+                            child: const Text(
+                              'Lupa Password?',
+                              style: TextStyle(
+                                color: AppColors.accent,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+
                         // ── Error banner ──────────────────────
                         if (errorMessage != null) ...[
                           const SizedBox(height: 16),
                           _ErrorBanner(message: errorMessage),
                           const SizedBox(height: 16),
                         ] else
-                          const SizedBox(height: 32),
+                          const SizedBox(height: 24),
 
                         // ── Login button ──────────────────────
                         _LoginButton(
