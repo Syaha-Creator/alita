@@ -269,23 +269,23 @@ class _LoginPageState extends ConsumerState<LoginPage>
                         // ── Logo ──────────────────────────────
                         Center(
                           child: Container(
-                            width: 88,
-                            height: 88,
+                            width: 96,
+                            height: 96,
                             decoration: BoxDecoration(
-                              color: primary.withValues(alpha: 0.1),
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: primary.withValues(alpha: 0.2),
-                                  blurRadius: 20,
-                                  offset: const Offset(0, 6),
+                                  color: primary.withValues(alpha: 0.15),
+                                  blurRadius: 24,
+                                  offset: const Offset(0, 8),
                                 ),
                               ],
                             ),
-                            child: const Icon(
-                              Icons.storefront_rounded,
-                              size: 44,
-                              color: primary,
+                            child: ClipOval(
+                              child: Image.asset(
+                                'assets/images/app_icon.png',
+                                fit: BoxFit.cover,
+                              ),
                             ),
                           ),
                         ),
