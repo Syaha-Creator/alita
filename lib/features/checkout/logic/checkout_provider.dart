@@ -76,7 +76,8 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       final companyId = profile?.companyId ?? 0;
       final areaId = profile?.areaId ?? 0;
       final data = await ApprovalService().getApprovers(companyId, areaId);
-      data.sort((a, b) => a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()));
+      data.sort((a, b) =>
+          a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()));
       state = state.copyWith(
         approvers: data,
         isLoadingApprovers: false,
@@ -116,7 +117,8 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     required List<Map<String, dynamic>> paymentPayloads,
     required List<File?> receiptImages,
     required bool globalIsTakeAway,
-    required bool Function(int itemIndex, CartBonusSnapshot) isBonusTakeAwayChecked,
+    required bool Function(int itemIndex, CartBonusSnapshot)
+        isBonusTakeAwayChecked,
     required int Function(int itemIndex, CartBonusSnapshot) currentTakeAwayQty,
     // Contact saving
     required String? selectedContactId,
@@ -131,7 +133,8 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       data: {
         'cart_items': cartItems.length,
         'payments': paymentPayloads.length,
-        'has_selected_items': selectedCartItems != null && selectedCartItems.isNotEmpty,
+        'has_selected_items':
+            selectedCartItems != null && selectedCartItems.isNotEmpty,
       },
       tag: 'CheckoutFlow',
     );
@@ -149,11 +152,27 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
 
       final int? workPlaceId =
           await _orderService.getLatestWorkPlaceId(userId, token);
-      final leaderData = await _orderService.fetchLeaderByUser(userId, token);
 
-      // Inject workPlaceId into header (it wasn't known at payload-build time
-      // if the caller chose to defer).
-      headerPayload['work_place_id'] = workPlaceId ?? 0;
+      if (workPlaceId == null || workPlaceId <= 0) {
+        state = state.copyWith(
+          isSubmitting: false,
+          submitError: 'Tempat kerja tidak terdeteksi.\n\n'
+              'Riwayat absensi Anda belum memiliki lokasi kantor yang valid. '
+              'Silakan lakukan Check-In ulang di aplikasi absensi dengan '
+              'memilih tempat kerja (bukan WOH/WFH/Work Out Side).\n\n'
+              'Setelah Check-In berhasil, coba buat Surat Pesanan kembali.',
+        );
+        totalSw.stop();
+        AppTelemetry.error(
+          'checkout_missing_workplace',
+          data: {'user_id': userId},
+          tag: 'CheckoutFlow',
+        );
+        return;
+      }
+
+      final leaderData = await _orderService.fetchLeaderByUser(userId, token);
+      headerPayload['work_place_id'] = workPlaceId;
 
       final rawLookup = await _ref.read(itemLookupProvider.future);
       final lookupByItemNum = <String, ItemLookup>{};
@@ -347,6 +366,26 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
           tag: 'CheckoutFlow',
         );
       }
+    } on CheckoutStepException catch (e, st) {
+      Log.error(e, st, reason: 'CheckoutNotifier.submitOrder');
+      totalSw.stop();
+      AppTelemetry.error(
+        'checkout_submit_exception',
+        data: {
+          'duration_ms': totalSw.elapsedMilliseconds,
+          'step': e.step,
+          'step_name': e.stepName,
+          'endpoint': e.endpoint,
+          'status_code': e.statusCode,
+        },
+        tag: 'CheckoutFlow',
+      );
+      state = state.copyWith(
+        isSubmitting: false,
+        submitError: 'Gagal di ${e.stepName}.\n'
+            'Jika internet tidak stabil, mohon cek riwayat pesanan '
+            'sebelum mencoba lagi.\n\n$e',
+      );
     } catch (e, st) {
       Log.error(e, st, reason: 'CheckoutNotifier.submitOrder');
       totalSw.stop();

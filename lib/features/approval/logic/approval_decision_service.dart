@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:cloud_functions/cloud_functions.dart';
 import '../../../core/enums/order_status.dart';
 import '../../../core/services/api_client.dart';
+import '../../../core/utils/app_telemetry.dart';
 import '../../../core/utils/log.dart';
 import '../../../core/utils/name_matcher.dart';
 import 'approval_inbox_provider.dart';
@@ -261,6 +262,11 @@ class ApprovalDecisionService {
             'sender_name': senderName,
           },
         );
+
+        AppTelemetry.event('approval_notification_sent', data: {
+          'type': 'next_approver',
+          'sp_number': spNumber,
+        });
       } else {
         // Semua sudah approve → kirim notif ke creator
         final order = orderData['order_letter'] as Map<String, dynamic>? ?? {};
@@ -282,9 +288,18 @@ class ApprovalDecisionService {
             'type': 'fully_approved',
           },
         );
+
+        AppTelemetry.event('approval_notification_sent', data: {
+          'type': 'fully_approved',
+          'sp_number': spNumber,
+        });
       }
     } catch (e, st) {
       Log.error(e, st, reason: 'triggerNextApprovalNotification');
+      AppTelemetry.error('approval_notification_failed', data: {
+        'sp_number': spNumber,
+        'reason': e.toString(),
+      });
     }
   }
 

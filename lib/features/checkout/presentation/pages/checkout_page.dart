@@ -876,9 +876,20 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   void _showSubmitErrorDialog(String message) {
     if (!mounted) return;
     final hasRetryDetails = ref.read(checkoutProvider).retryDetails.isNotEmpty;
+    final isWorkplaceError = message.contains('Tempat kerja tidak terdeteksi');
+
+    final String title;
+    if (hasRetryDetails) {
+      title = 'Sebagian Barang Gagal';
+    } else if (isWorkplaceError) {
+      title = 'Check-In Diperlukan';
+    } else {
+      title = 'Gagal Memproses';
+    }
+
     showAdaptiveAlert(
       context: context,
-      title: hasRetryDetails ? 'Sebagian Barang Gagal' : 'Gagal Memproses',
+      title: title,
       content: message,
       actions: [
         AdaptiveAction(

@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import '../../../core/enums/order_status.dart';
 import '../../../core/services/api_client.dart';
 import '../../../core/utils/app_formatters.dart';
+import '../../../core/utils/app_telemetry.dart';
 import '../../../core/utils/log.dart';
 import '../../../core/utils/retry.dart';
 import '../../profile/logic/profile_provider.dart';
@@ -224,6 +225,7 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
 
   Future<void> fetchInbox() async {
     state = state.copyWith(isLoading: true, error: null);
+    final sw = Stopwatch()..start();
 
     try {
       final profile = await ref.read(profileProvider.future);
@@ -383,19 +385,36 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
         pending.sort((a, b) => parseDate(b).compareTo(parseDate(a)));
         history.sort((a, b) => parseDate(b).compareTo(parseDate(a)));
 
+        sw.stop();
+        AppTelemetry.event('approval_inbox_loaded', data: {
+          'pending_count': pending.length,
+          'history_count': history.length,
+          'duration_ms': sw.elapsedMilliseconds,
+        });
+
         state = state.copyWith(
           isLoading: false,
           pendingApprovals: pending,
           historyApprovals: history,
         );
       } else {
+        sw.stop();
+        AppTelemetry.error('approval_inbox_failed', data: {
+          'status_code': response.statusCode,
+          'duration_ms': sw.elapsedMilliseconds,
+        });
         state = state.copyWith(
           isLoading: false,
           error: 'Gagal memuat data (Status: ${response.statusCode})',
         );
       }
     } catch (e, st) {
+      sw.stop();
       Log.error(e, st, reason: 'ApprovalInbox.fetchInbox');
+      AppTelemetry.error('approval_inbox_failed', data: {
+        'reason': e.toString(),
+        'duration_ms': sw.elapsedMilliseconds,
+      });
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }

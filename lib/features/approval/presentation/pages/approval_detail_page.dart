@@ -10,6 +10,7 @@ import '../../../../core/services/storage_service.dart';
 import '../../../../core/utils/contact_actions.dart';
 import '../../../../core/utils/name_matcher.dart';
 import '../../../../core/utils/app_feedback.dart';
+import '../../../../core/utils/app_telemetry.dart';
 import '../../../../core/utils/shipping_utils.dart';
 import '../../../../core/utils/log.dart';
 import '../../../../core/utils/platform_utils.dart';
@@ -89,6 +90,10 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
   // ── Approval logic ────────────────────────────────────────────────
 
   Future<void> _processApproval(bool isApproved) async {
+    final action = isApproved ? 'approve' : 'reject';
+    final sw = Stopwatch()..start();
+    AppTelemetry.event('approval_decision_started', data: {'action': action});
+
     setState(() {
       _isLoading = true;
       _loadingMessage = 'Mendeteksi lokasi...';
@@ -99,6 +104,11 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
           .read(approvalInboxProvider.notifier)
           .getCurrentAddressForApproval();
       if (location == null || !mounted) {
+        sw.stop();
+        AppTelemetry.error('approval_location_failed', data: {
+          'action': action,
+          'duration_ms': sw.elapsedMilliseconds,
+        });
         if (mounted) {
           AppFeedback.show(
             context,
@@ -180,6 +190,15 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
       unawaited(ref.read(approvalInboxProvider.notifier).fetchInbox());
       if (!mounted) return;
 
+      sw.stop();
+      AppTelemetry.event('approval_decision_success', data: {
+        'action': action,
+        'processed_count': decision.processedCount,
+        'header_approved': decision.headerApproved,
+        'header_rejected': decision.headerRejected,
+        'duration_ms': sw.elapsedMilliseconds,
+      });
+
       if (decision.headerRejected) {
         AppFeedback.show(
           context,
@@ -207,7 +226,13 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
       }
       if (mounted) context.pop();
     } catch (e, st) {
+      sw.stop();
       Log.error(e, st, reason: 'ApprovalDetail.processDecision');
+      AppTelemetry.error('approval_decision_failed', data: {
+        'action': action,
+        'reason': e.toString(),
+        'duration_ms': sw.elapsedMilliseconds,
+      });
       if (!mounted) return;
       AppFeedback.show(
         context,

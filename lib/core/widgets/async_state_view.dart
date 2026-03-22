@@ -52,22 +52,27 @@ class _AsyncStateViewState<T> extends State<AsyncStateView<T>> {
       loading: () {
         final key = _keyFor('loading');
         if (widget.loading case final loadingWidget?) {
-          return Semantics(
-            liveRegion: true,
-            label: 'Memuat',
-            child: KeyedSubtree(key: key, child: loadingWidget),
+          return KeyedSubtree(
+            key: key,
+            child: Semantics(
+              liveRegion: true,
+              label: 'Memuat',
+              child: loadingWidget,
+            ),
           );
         }
         if (!widget.showDefaultLoading) {
           return SizedBox.shrink(key: key);
         }
-        return Semantics(
-          liveRegion: true,
-          label: 'Memuat',
-          child: Center(
-            key: key,
-            child: const CircularProgressIndicator.adaptive(
-              valueColor: AlwaysStoppedAnimation(AppColors.accent),
+        return KeyedSubtree(
+          key: key,
+          child: Semantics(
+            liveRegion: true,
+            label: 'Memuat',
+            child: const Center(
+              child: CircularProgressIndicator.adaptive(
+                valueColor: AlwaysStoppedAnimation(AppColors.accent),
+              ),
             ),
           ),
         );
@@ -80,15 +85,17 @@ class _AsyncStateViewState<T> extends State<AsyncStateView<T>> {
         if (!widget.showDefaultError) {
           return SizedBox.shrink(key: key);
         }
-        return Center(
+        return KeyedSubtree(
           key: key,
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text(
-              error.toString(),
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.textSecondary,
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                error.toString(),
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
               ),
             ),
           ),

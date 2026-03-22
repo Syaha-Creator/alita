@@ -26,6 +26,10 @@ class CheckoutOrderService {
 
   // ── Attendance ─────────────────────────────────────────────────
 
+  /// Returns the most recent non-null `work_place_id` from the user's
+  /// attendance history. Entries with status "WOH" (Work Out of Home) often
+  /// have `work_place_id: null`, so we skip those and look for the latest
+  /// entry that has a valid ID.
   Future<int?> getLatestWorkPlaceId(int userId, String token) async {
     try {
       final response = await _api.get(
@@ -45,8 +49,13 @@ class CheckoutOrderService {
                     DateTime(2000);
             return dateB.compareTo(dateA);
           });
-          final raw = data.first['work_place_id'];
-          return raw is int ? raw : int.tryParse(raw?.toString() ?? '');
+
+          for (final entry in data) {
+            final raw = entry['work_place_id'];
+            if (raw == null) continue;
+            final id = raw is int ? raw : int.tryParse(raw.toString());
+            if (id != null && id > 0) return id;
+          }
         }
       }
     } catch (e, st) {
@@ -83,23 +92,32 @@ class CheckoutOrderService {
     Map<String, dynamic> headerPayload,
     String token,
   ) async {
+    const endpoint = '/order_letters';
     final response = await _api.post(
       CheckoutEndpoints.orderLetters,
       token: token,
       body: headerPayload,
     );
     if (response.statusCode != 200 && response.statusCode != 201) {
-      throw Exception(
-        'Gagal membuat Surat Pesanan. '
-        '(Status: ${response.statusCode})\n${response.body}',
+      throw CheckoutStepException(
+        step: 1,
+        stepName: 'Buat Header SP',
+        endpoint: endpoint,
+        statusCode: response.statusCode,
+        responseBody: response.body,
+        payloadKeys: headerPayload.keys.toList(),
       );
     }
     final headerData = jsonDecode(response.body) as Map<String, dynamic>;
     final parsed = OrderLetterResponseParser.parse(headerData);
     if (parsed.orderLetterId == 0) {
-      throw Exception(
-        'Gagal membaca ID Surat Pesanan dari server.\n'
-        'Response: ${response.body}',
+      throw CheckoutStepException(
+        step: 1,
+        stepName: 'Buat Header SP',
+        endpoint: endpoint,
+        statusCode: response.statusCode,
+        responseBody: response.body,
+        message: 'Server tidak mengembalikan order_letter_id',
       );
     }
     return CreateOrderResult(
@@ -115,13 +133,25 @@ class CheckoutOrderService {
     int orderLetterId,
     String token,
   ) async {
-    for (final contact in contacts) {
+    const endpoint = '/order_letter_contacts';
+    for (int i = 0; i < contacts.length; i++) {
+      final contact = contacts[i];
       contact['order_letter_id'] = orderLetterId;
-      await _api.post(
+      final response = await _api.post(
         CheckoutEndpoints.orderLetterContacts,
         token: token,
         body: contact,
       );
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw CheckoutStepException(
+          step: 2,
+          stepName: 'Post Kontak #${i + 1}',
+          endpoint: endpoint,
+          statusCode: response.statusCode,
+          responseBody: response.body,
+          payloadKeys: contact.keys.toList(),
+        );
+      }
     }
   }
 
@@ -172,9 +202,13 @@ class CheckoutOrderService {
         },
         tag: 'CheckoutUpload',
       );
-      throw Exception(
-        'Gagal mengupload bukti pembayaran.\n'
-        'Status: ${response.statusCode}\nResponse: ${response.body}',
+      throw CheckoutStepException(
+        step: 3,
+        stepName: 'Upload Pembayaran',
+        endpoint: '/order_letter_payments',
+        statusCode: response.statusCode,
+        responseBody: response.body,
+        payloadKeys: fields.keys.toList(),
       );
     }
     sw.stop();

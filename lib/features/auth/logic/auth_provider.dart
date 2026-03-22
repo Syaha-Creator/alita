@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/device_token_service.dart';
 import '../../../core/services/fcm_token_service.dart';
 import '../../../core/services/storage_service.dart';
+import '../../../core/utils/app_telemetry.dart';
 import '../../../core/utils/log.dart';
 import '../data/services/auth_service.dart';
 
@@ -103,6 +104,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// On failure: sets `errorMessage` on state for the UI to display.
   Future<void> login(String email, String password) async {
     state = state.copyWith(isLoading: true, clearError: true);
+    final sw = Stopwatch()..start();
+    AppTelemetry.event('login_attempted', data: {'email': email});
 
     try {
       final result = await _authService.login(email, password);
@@ -130,11 +133,28 @@ class AuthNotifier extends StateNotifier<AuthState> {
         isLoading: false,
       );
 
+      sw.stop();
+      AppTelemetry.event('login_success', data: {
+        'user_id': result.userId,
+        'area': areaName,
+        'duration_ms': sw.elapsedMilliseconds,
+      });
+
       _initFcm(result.userId.toString(), result.accessToken);
     } on String catch (message) {
+      sw.stop();
+      AppTelemetry.error('login_failed', data: {
+        'reason': message,
+        'duration_ms': sw.elapsedMilliseconds,
+      });
       state = state.copyWith(isLoading: false, errorMessage: message);
     } catch (e, st) {
+      sw.stop();
       Log.error(e, st, reason: 'Auth.login');
+      AppTelemetry.error('login_failed', data: {
+        'reason': e.toString(),
+        'duration_ms': sw.elapsedMilliseconds,
+      });
       state = state.copyWith(
         isLoading: false,
         errorMessage: e.toString().replaceFirst('Exception: ', ''),
@@ -204,6 +224,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> logout() async {
     final uid = state.userId.toString();
     final token = state.accessToken;
+
+    AppTelemetry.event('logout', data: {'user_id': state.userId});
 
     if (uid != '0' && token.isNotEmpty) {
       await DeviceTokenService.deleteToken(

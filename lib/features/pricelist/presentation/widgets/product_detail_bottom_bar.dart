@@ -70,15 +70,19 @@ class ProductDetailBottomBar extends StatelessWidget {
                         ),
                         elevation: 0,
                       ),
-                      child: Text(
-                        buttonText,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium
-                            ?.copyWith(
-                              color: AppColors.surface,
-                              fontWeight: FontWeight.w600,
-                            ),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          buttonText,
+                          maxLines: 1,
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(
+                                color: AppColors.surface,
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
                       ),
                     ),
                   ),

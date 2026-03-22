@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/services/connectivity_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
+import '../../../../core/utils/app_telemetry.dart';
 import '../../logic/auth_provider.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -105,6 +106,12 @@ class _LoginPageState extends ConsumerState<LoginPage>
 
     if (!_formKey.currentState!.validate()) {
       _shakeController.forward(from: 0);
+      AppTelemetry.event('login_validation_failed');
+      return;
+    }
+
+    if (ref.read(isOfflineProvider)) {
+      AppTelemetry.event('login_offline_blocked');
       return;
     }
 

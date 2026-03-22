@@ -46,3 +46,48 @@ class CreateOrderResult {
     required this.noSp,
   });
 }
+
+/// Structured exception for checkout step failures.
+///
+/// Carries enough context (step, endpoint, status, response, payload keys)
+/// so the error dialog can pinpoint *exactly* which API call failed.
+class CheckoutStepException implements Exception {
+  final int step;
+  final String stepName;
+  final String endpoint;
+  final int statusCode;
+  final String responseBody;
+  final List<String> payloadKeys;
+  final String? message;
+
+  const CheckoutStepException({
+    required this.step,
+    required this.stepName,
+    required this.endpoint,
+    required this.statusCode,
+    this.responseBody = '',
+    this.payloadKeys = const [],
+    this.message,
+  });
+
+  @override
+  String toString() {
+    final buf = StringBuffer()
+      ..writeln('Step $step: $stepName')
+      ..writeln('Endpoint: $endpoint')
+      ..writeln('Status: $statusCode');
+    if (message != null) {
+      buf.writeln('Pesan: $message');
+    }
+    if (payloadKeys.isNotEmpty) {
+      buf.writeln('Payload keys: ${payloadKeys.join(', ')}');
+    }
+    if (responseBody.isNotEmpty) {
+      final preview = responseBody.length > 300
+          ? '${responseBody.substring(0, 300)}…'
+          : responseBody;
+      buf.writeln('Response: $preview');
+    }
+    return buf.toString().trimRight();
+  }
+}
