@@ -47,7 +47,7 @@ Future<T?> showAdaptiveAlert<T>({
   if (isIOS) {
     return showCupertinoDialog<T>(
       context: context,
-      builder: (_) => CupertinoAlertDialog(
+      builder: (dialogContext) => CupertinoAlertDialog(
         title: Text(title),
         content: Text(content),
         actions: actions
@@ -56,8 +56,8 @@ Future<T?> showAdaptiveAlert<T>({
                   isDefaultAction: a.isDefault,
                   onPressed: () {
                     a.onPressed?.call();
-                    if (a.popResult != null) {
-                      Navigator.of(context).pop(a.popResult);
+                    if (a.popResult != null && dialogContext.mounted) {
+                      Navigator.of(dialogContext).pop(a.popResult);
                     }
                   },
                   child: Text(a.label),
@@ -69,7 +69,7 @@ Future<T?> showAdaptiveAlert<T>({
 
   return showDialog<T>(
     context: context,
-    builder: (_) => AlertDialog(
+    builder: (dialogContext) => AlertDialog(
       title: Text(title),
       content: Text(content),
       actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -78,8 +78,8 @@ Future<T?> showAdaptiveAlert<T>({
           return TextButton(
             onPressed: () {
               a.onPressed?.call();
-              if (a.popResult != null) {
-                Navigator.of(context).pop(a.popResult);
+              if (a.popResult != null && dialogContext.mounted) {
+                Navigator.of(dialogContext).pop(a.popResult);
               }
             },
             child: Text(
@@ -94,8 +94,8 @@ Future<T?> showAdaptiveAlert<T>({
         return TextButton(
           onPressed: () {
             a.onPressed?.call();
-            if (a.popResult != null) {
-              Navigator.of(context).pop(a.popResult);
+            if (a.popResult != null && dialogContext.mounted) {
+              Navigator.of(dialogContext).pop(a.popResult);
             }
           },
           child: Text(a.label, style: TextStyle(color: a.color)),
@@ -150,7 +150,7 @@ Future<DateTime?> showAdaptiveDatePicker({
     DateTime tempDate = initialDate;
     final result = await showCupertinoModalPopup<DateTime>(
       context: context,
-      builder: (_) => Container(
+      builder: (popupContext) => Container(
         height: 280,
         decoration: const BoxDecoration(
           color: CupertinoColors.systemBackground,
@@ -168,7 +168,9 @@ Future<DateTime?> showAdaptiveDatePicker({
                       'Batal',
                       style: TextStyle(color: AppColors.textSecondary),
                     ),
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () {
+                      if (popupContext.mounted) Navigator.pop(popupContext);
+                    },
                   ),
                   if (helpText != null)
                     Flexible(
@@ -191,7 +193,9 @@ Future<DateTime?> showAdaptiveDatePicker({
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    onPressed: () => Navigator.pop(context, tempDate),
+                    onPressed: () {
+                      if (popupContext.mounted) Navigator.pop(popupContext, tempDate);
+                    },
                   ),
                 ],
               ),

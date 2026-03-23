@@ -61,8 +61,11 @@ void main() {
       return true;
     };
 
-    unawaited(PdfAssetCache.warmUp());
-    unawaited(StorageService.migratePricelistCacheFromPrefs());
+    // Defer non-critical work to avoid competing with surface creation.
+    unawaited(Future.delayed(const Duration(seconds: 1), () {
+      PdfAssetCache.warmUp();
+      StorageService.migratePricelistCacheFromPrefs();
+    }));
 
     runApp(
       const ProviderScope(
@@ -122,12 +125,20 @@ class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    // Defer precacheImage — it blocks main thread during decode. Running it
+    // during surface creation increases ANR risk (pthread_cond_wait in libflutter).
     if (!_imagePrecached) {
       _imagePrecached = true;
-      precacheImage(
-        const AssetImage('assets/logo/whatsapp-icon.png'),
-        context,
-      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (!mounted) return;
+          precacheImage(
+            const AssetImage('assets/logo/whatsapp-icon.png'),
+            context,
+          );
+        });
+      });
     }
   }
 
