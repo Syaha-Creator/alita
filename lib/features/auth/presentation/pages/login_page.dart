@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/utils/platform_utils.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/services/connectivity_service.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -530,7 +530,7 @@ class _LoginButton extends StatelessWidget {
         onPressed: (isLoading || offline)
             ? null
             : () {
-                HapticFeedback.lightImpact();
+                hapticTap();
                 onPressed();
               },
         style: ElevatedButton.styleFrom(

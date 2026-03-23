@@ -24,20 +24,30 @@ class ApprovalDecisionService {
 
   static final ApiClient _api = ApiClient.instance;
 
-  /// Checks whether all approvers with a lower [approver_level_id] than
-  /// [targetLevelId] within the same detail's discount list have approved.
-  ///
-  /// This enforces the sequential approval chain: RSM cannot act until
-  /// Supervisor approves, Analyst cannot act until RSM approves, etc.
-  static bool arePriorApproversApproved({
+  /// Robustly parse [approver_level_id] which the API may send as int, String,
+  /// or null. Returns [fallback] (default 99) when unparseable so the caller
+  /// treats unknown levels conservatively.
+  static int parseLevel(dynamic value, [int fallback = 99]) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? fallback;
+    return fallback;
+  }
+
+  /// Index-based prior approval check: all discounts BEFORE [myIndex]
+  /// in the list must be approved. Uses list ordering from the API which
+  /// is always sequential (User → Supervisor → RSM → Analyst).
+  static bool arePriorApprovedByIndex({
     required List<Map<String, dynamic>> discountsInDetail,
-    required int targetLevelId,
+    required int myIndex,
   }) {
-    return discountsInDetail
-        .where((d) =>
-            ((d['approver_level_id'] as num?)?.toInt() ?? 99) < targetLevelId)
-        .every((d) =>
-            OrderStatusX.fromDynamic(d['approved']) == OrderStatus.approved);
+    for (int i = 0; i < myIndex; i++) {
+      if (OrderStatusX.fromDynamic(discountsInDetail[i]['approved']) !=
+          OrderStatus.approved) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /// Collects every discount row across all details that belongs to the
@@ -62,7 +72,13 @@ class ApprovalDecisionService {
       final discountMaps =
           discounts.map((d) => d as Map<String, dynamic>).toList();
 
-      for (final discMap in discountMaps) {
+      // Track discount IDs that will be approved in this batch,
+      // so cascading same-user levels (e.g. SPV + RSM = 1 person)
+      // are all collected in a single pass.
+      final batchIds = <int>{};
+
+      for (int i = 0; i < discountMaps.length; i++) {
+        final discMap = discountMaps[i];
         final discountId =
             (discMap['order_letter_discount_id'] as num?)?.toInt() ?? 0;
         final approverId = discMap['approver_id']?.toString() ?? '';
@@ -73,29 +89,31 @@ class ApprovalDecisionService {
 
         if (!isPending) continue;
 
-        final isMe =
-            (myUserId > 0 && approverId == myUserId.toString()) ||
-            (myName.isNotEmpty &&
-                NameMatcher.softMatch(approverName, myName));
+        final isMe = (myUserId > 0 && approverId == myUserId.toString()) ||
+            (myName.isNotEmpty && NameMatcher.softMatch(approverName, myName));
 
         if (!isMe || discountId <= 0 || !seenIds.add(discountId)) continue;
 
-        final myLevel =
-            (discMap['approver_level_id'] as num?)?.toInt() ?? 99;
-        if (arePriorApproversApproved(
-          discountsInDetail: discountMaps,
-          targetLevelId: myLevel,
-        )) {
+        // Check all prior discounts: must be approved OR already
+        // collected in this batch (same user, will be approved together).
+        bool allPriorOk = true;
+        for (int j = 0; j < i; j++) {
+          final prior = discountMaps[j];
+          final priorStatus = OrderStatusX.fromDynamic(prior['approved']);
+          if (priorStatus == OrderStatus.approved) continue;
+          final priorId =
+              (prior['order_letter_discount_id'] as num?)?.toInt() ?? 0;
+          if (priorId > 0 && batchIds.contains(priorId)) continue;
+          allPriorOk = false;
+          break;
+        }
+
+        if (allPriorOk) {
           result.add(discMap);
+          batchIds.add(discountId);
         }
       }
     }
-
-    result.sort((a, b) {
-      final aLevel = (a['approver_level_id'] as num?)?.toInt() ?? 99;
-      final bLevel = (b['approver_level_id'] as num?)?.toInt() ?? 99;
-      return aLevel.compareTo(bLevel);
-    });
 
     return result;
   }
@@ -117,8 +135,9 @@ class ApprovalDecisionService {
     double? longitude,
     String? lokasiApproval,
   }) async {
-    final int discountId = (disc['order_letter_discount_id'] as num?)?.toInt() ?? 0;
-    final int levelId = (disc['approver_level_id'] as num?)?.toInt() ?? 2;
+    final int discountId =
+        (disc['order_letter_discount_id'] as num?)?.toInt() ?? 0;
+    final int levelId = parseLevel(disc['approver_level_id'], 2);
 
     // 1) POST approval log
     final postBody = <String, dynamic>{
@@ -203,14 +222,16 @@ class ApprovalDecisionService {
 
     if (!isApproved) {
       await notifier.updateOrderLetterStatus(
-        orderId, OrderStatus.rejected.apiValue,
+        orderId,
+        OrderStatus.rejected.apiValue,
       );
       headerRejected = true;
     } else {
       final isAllApproved = await notifier.isAllDiscountsApproved(orderId);
       if (isAllApproved) {
         await notifier.updateOrderLetterStatus(
-          orderId, OrderStatus.approved.apiValue,
+          orderId,
+          OrderStatus.approved.apiValue,
         );
         headerApproved = true;
       }
@@ -270,7 +291,8 @@ class ApprovalDecisionService {
       } else {
         // Semua sudah approve → kirim notif ke creator
         final order = orderData['order_letter'] as Map<String, dynamic>? ?? {};
-        final creatorId = order['creator']?.toString() ?? order['user_id']?.toString() ?? '';
+        final creatorId =
+            order['creator']?.toString() ?? order['user_id']?.toString() ?? '';
         if (creatorId.isEmpty) return;
 
         final fcmToken = await _fetchFcmToken(
@@ -314,8 +336,7 @@ class ApprovalDecisionService {
     Map<String, dynamic> orderData, {
     int excludeUserId = 0,
   }) {
-    final details =
-        orderData['order_letter_details'] as List<dynamic>? ?? [];
+    final details = orderData['order_letter_details'] as List<dynamic>? ?? [];
     final pending = <Map<String, dynamic>>[];
     final excludeId = excludeUserId > 0 ? excludeUserId.toString() : '';
 
@@ -342,8 +363,8 @@ class ApprovalDecisionService {
     if (pending.isEmpty) return null;
 
     pending.sort((a, b) {
-      final aLevel = (a['approver_level_id'] as num?)?.toInt() ?? 99;
-      final bLevel = (b['approver_level_id'] as num?)?.toInt() ?? 99;
+      final aLevel = parseLevel(a['approver_level_id']);
+      final bLevel = parseLevel(b['approver_level_id']);
       return aLevel.compareTo(bLevel);
     });
 

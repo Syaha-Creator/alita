@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/utils/platform_utils.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/widgets/network_image_view.dart';
@@ -25,7 +25,7 @@ class ProductCard extends ConsumerWidget {
       child: TapScale(
         child: GestureDetector(
           onTap: () {
-            HapticFeedback.lightImpact();
+            hapticTap();
             onTap?.call();
           },
           child: Container(
@@ -81,7 +81,7 @@ class ProductCard extends ConsumerWidget {
                                 : 'Tambah ke favorit',
                             child: GestureDetector(
                               onTap: () {
-                                HapticFeedback.selectionClick();
+                                hapticSelection();
                                 ref
                                     .read(favoritesProvider.notifier)
                                     .toggleFavorite(product.id);

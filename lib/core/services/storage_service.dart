@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/log.dart';
@@ -24,7 +26,9 @@ class StorageService {
   static const String _brandsCacheKey = 'master_brands_cache';
   static const String _masterDataLastSyncKey = 'master_data_last_sync';
 
-  static const _secureStorage = FlutterSecureStorage();
+  static const _secureStorage = FlutterSecureStorage(
+    aOptions: AndroidOptions(resetOnError: true),
+  );
 
   static const String _tokenMigratedKey = 'token_migrated_v1';
 
@@ -81,7 +85,7 @@ class StorageService {
     await prefs.setString(_userEmailKey, email);
     await prefs.setString(_defaultAreaKey, defaultArea);
     if (accessToken.isNotEmpty) {
-      await _secureStorage.write(key: _accessTokenKey, value: accessToken);
+      await _writeSecure(_accessTokenKey, accessToken);
     }
     if (userId > 0) {
       await prefs.setInt(_userIdKey, userId);
@@ -130,7 +134,7 @@ class StorageService {
   /// into secure storage and removes the plain-text copy.
   static Future<String> loadAccessToken() async {
     await _migrateTokenIfNeeded();
-    return await _secureStorage.read(key: _accessTokenKey) ?? '';
+    return await _readSecure(_accessTokenKey) ?? '';
   }
 
   /// One-time migration: moves token from SharedPreferences → secure storage.
@@ -140,7 +144,7 @@ class StorageService {
 
     final legacyToken = prefs.getString(_accessTokenKey);
     if (legacyToken != null && legacyToken.isNotEmpty) {
-      await _secureStorage.write(key: _accessTokenKey, value: legacyToken);
+      await _writeSecure(_accessTokenKey, legacyToken);
       await prefs.remove(_accessTokenKey);
     }
     await prefs.setBool(_tokenMigratedKey, true);
@@ -154,7 +158,7 @@ class StorageService {
     await prefs.remove(_userIdKey);
     await prefs.remove(_userNameKey);
     await prefs.remove(_userImageUrlKey);
-    await _secureStorage.delete(key: _accessTokenKey);
+    await _deleteSecure(_accessTokenKey);
   }
 
   // ── Master Data Cache ──
@@ -207,14 +211,58 @@ class StorageService {
   static Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
-    await _secureStorage.deleteAll();
+    try {
+      await _secureStorage.deleteAll();
+    } catch (e, st) {
+      Log.error(e, st, reason: 'SecureStorage.deleteAll failed');
+    }
   }
 
-  // ── Pricelist snapshot cache (per Area + Channel + Brand) ──
+  // ── Secure storage helpers (defensive against Keystore failures) ──
+
+  static Future<String?> _readSecure(String key) async {
+    try {
+      return await _secureStorage.read(key: key);
+    } catch (e, st) {
+      Log.error(e, st, reason: 'SecureStorage.read($key) failed');
+      return null;
+    }
+  }
+
+  static Future<void> _writeSecure(String key, String value) async {
+    try {
+      await _secureStorage.write(key: key, value: value);
+    } catch (e, st) {
+      Log.error(e, st, reason: 'SecureStorage.write($key) failed');
+    }
+  }
+
+  static Future<void> _deleteSecure(String key) async {
+    try {
+      await _secureStorage.delete(key: key);
+    } catch (e, st) {
+      Log.error(e, st, reason: 'SecureStorage.delete($key) failed');
+    }
+  }
+
+  // ── Pricelist snapshot cache (file-based) ──────────────────
+  //
+  // Large JSON pricelist data is written to individual files instead of
+  // SharedPreferences to avoid OOM when the platform channel serialises
+  // the entire preference map at once (~162 MB crash on low-end devices).
+
+  static Directory? _plCacheDir;
+
+  static Future<Directory> _ensurePlCacheDir() async {
+    if (_plCacheDir != null) return _plCacheDir!;
+    final appDir = await getApplicationSupportDirectory();
+    final dir = Directory('${appDir.path}/pl_cache');
+    if (!dir.existsSync()) await dir.create(recursive: true);
+    _plCacheDir = dir;
+    return dir;
+  }
 
   /// Stable storage key for one pricelist filter combination.
-  /// When online fetch succeeds, the entire list for this key is overwritten
-  /// (no merge) — always the latest API snapshot.
   static String pricelistCacheStorageKey(
     String area,
     String channel,
@@ -233,21 +281,28 @@ class StorageService {
     String storageKey,
     List<Map<String, dynamic>> rows,
   ) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      storageKey,
-      jsonEncode(<String, dynamic>{'v': 1, 'items': rows}),
-    );
+    try {
+      final dir = await _ensurePlCacheDir();
+      final file = File('${dir.path}/$storageKey.json');
+      final json = jsonEncode(<String, dynamic>{'v': 1, 'items': rows});
+      await file.writeAsString(json, flush: true);
+    } catch (e) {
+      Log.warning('savePricelistProductRows: $e', tag: 'Storage');
+    }
   }
 
   /// Returns cached JSON rows, or `null` if missing / invalid.
   static Future<List<Map<String, dynamic>>?> loadPricelistProductRows(
     String storageKey,
   ) async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(storageKey);
-    if (raw == null || raw.isEmpty) return null;
     try {
+      final dir = await _ensurePlCacheDir();
+      final file = File('${dir.path}/$storageKey.json');
+      if (!file.existsSync()) return null;
+
+      final raw = await file.readAsString();
+      if (raw.isEmpty) return null;
+
       final decoded = jsonDecode(raw);
       if (decoded is! Map<String, dynamic>) return null;
       final list = decoded['items'];
@@ -259,5 +314,21 @@ class StorageService {
       Log.error(e, st, reason: 'StorageService.loadPricelistProductRows');
       return null;
     }
+  }
+
+  /// Remove legacy pricelist data from SharedPreferences (one-time migration).
+  /// Call once at startup to reclaim memory.
+  static Future<void> migratePricelistCacheFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final keysToRemove =
+        prefs.getKeys().where((k) => k.startsWith('alita_pl_v1_')).toList();
+    if (keysToRemove.isEmpty) return;
+    for (final key in keysToRemove) {
+      await prefs.remove(key);
+    }
+    Log.warning(
+      'Removed ${keysToRemove.length} legacy pricelist keys from SharedPreferences',
+      tag: 'Storage',
+    );
   }
 }

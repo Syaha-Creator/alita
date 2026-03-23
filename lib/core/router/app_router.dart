@@ -1,7 +1,10 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:upgrader/upgrader.dart';
 import '../utils/platform_utils.dart';
 import '../utils/telemetry_access.dart';
 import '../../features/auth/logic/auth_provider.dart';
@@ -31,6 +34,28 @@ Page<T> _adaptivePage<T>({required Widget child, required String name}) {
   return MaterialPage<T>(child: child, name: name);
 }
 
+/// Root navigator key used by GoRouter.
+final rootNavigatorKey = GlobalKey<NavigatorState>();
+
+// ── Auto-update (UpgradeAlert) ──────────────────────────────────
+// On iOS this is the PRIMARY mechanism. On Android it acts as a
+// FALLBACK — the primary mechanism is `in_app_update` (native Play
+// Store API) triggered from main.dart.
+final _upgrader = Upgrader(
+  debugLogging: true,
+  countryCode: 'id',
+  languageCode: 'id',
+  durationUntilAlertAgain: Duration.zero,
+  messages: _AlitaUpgraderMessages(),
+  storeController: UpgraderStoreController(
+    onAndroid: () => UpgraderPlayStore(),
+    oniOS: () => UpgraderAppStore(),
+  ),
+);
+
+UpgradeDialogStyle get _dialogStyle =>
+    Platform.isIOS ? UpgradeDialogStyle.cupertino : UpgradeDialogStyle.material;
+
 /// GoRouter provider — router dibuat SEKALI, tidak ikut rebuild saat auth berubah.
 /// Redirect dibaca via ref.read di dalam callback agar tidak trigger rebuild router.
 final routerProvider = Provider<GoRouter>((ref) {
@@ -38,6 +63,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   ref.onDispose(notifier.dispose);
 
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/',
     refreshListenable: notifier,
     redirect: (context, state) {
@@ -70,138 +96,154 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) =>
             _adaptivePage(child: const LoginPage(), name: 'login'),
       ),
-      GoRoute(
-        path: '/',
-        name: 'home',
-        pageBuilder: (context, state) =>
-            _adaptivePage(child: const ProductListPage(), name: 'home'),
-      ),
-      GoRoute(
-        path: '/product/:id',
-        name: 'product-detail',
-        pageBuilder: (context, state) {
-          final extra = state.extra;
-          if (extra is Product) {
-            return _adaptivePage(
-              child: ProductDetailPage(product: extra),
-              name: 'product-detail',
-            );
-          }
-          final map = extra as Map<String, dynamic>;
-          return _adaptivePage(
-            child: ProductDetailPage(
-              product: map['product'] as Product,
-              editItem: map['editItem'] as CartItem?,
-              cartIndex: map['cartIndex'] as int?,
-            ),
+
+      // ShellRoute wraps all authenticated routes with UpgradeAlert.
+      // UpgradeAlert's context is INSIDE the Navigator tree, so
+      // Navigator.of(context) will always resolve correctly.
+      ShellRoute(
+        builder: (context, state, child) => UpgradeAlert(
+          navigatorKey: rootNavigatorKey,
+          upgrader: _upgrader,
+          dialogStyle: _dialogStyle,
+          showIgnore: false,
+          showLater: false,
+          child: child,
+        ),
+        routes: [
+          GoRoute(
+            path: '/',
+            name: 'home',
+            pageBuilder: (context, state) =>
+                _adaptivePage(child: const ProductListPage(), name: 'home'),
+          ),
+          GoRoute(
+            path: '/product/:id',
             name: 'product-detail',
-          );
-        },
-      ),
-      GoRoute(
-        path: '/favorites',
-        name: 'favorites',
-        pageBuilder: (context, state) =>
-            _adaptivePage(child: const FavoritesPage(), name: 'favorites'),
-      ),
-      GoRoute(
-        path: '/checkout',
-        name: 'checkout',
-        pageBuilder: (context, state) {
-          final extra = state.extra;
-          List<CartItem>? selectedItems;
-          QuotationModel? restoredQuotation;
-
-          if (extra is QuotationModel) {
-            restoredQuotation = extra;
-            selectedItems = List.of(extra.items);
-          } else if (extra is List<CartItem>) {
-            selectedItems = extra;
-          }
-
-          return _adaptivePage(
-            child: CheckoutPage(
-              selectedCartItems: selectedItems,
-              restoredQuotation: restoredQuotation,
-            ),
+            pageBuilder: (context, state) {
+              final extra = state.extra;
+              if (extra is Product) {
+                return _adaptivePage(
+                  child: ProductDetailPage(product: extra),
+                  name: 'product-detail',
+                );
+              }
+              final map = extra as Map<String, dynamic>;
+              return _adaptivePage(
+                child: ProductDetailPage(
+                  product: map['product'] as Product,
+                  editItem: map['editItem'] as CartItem?,
+                  cartIndex: map['cartIndex'] as int?,
+                ),
+                name: 'product-detail',
+              );
+            },
+          ),
+          GoRoute(
+            path: '/favorites',
+            name: 'favorites',
+            pageBuilder: (context, state) =>
+                _adaptivePage(child: const FavoritesPage(), name: 'favorites'),
+          ),
+          GoRoute(
+            path: '/checkout',
             name: 'checkout',
-          );
-        },
-      ),
-      GoRoute(
-        path: '/success',
-        name: 'order-success',
-        pageBuilder: (context, state) => _adaptivePage(
-            child: const OrderSuccessPage(), name: 'order-success'),
-      ),
-      GoRoute(
-        path: '/profile',
-        name: 'profile',
-        pageBuilder: (context, state) =>
-            _adaptivePage(child: const ProfilePage(), name: 'profile'),
-      ),
-      GoRoute(
-        path: '/help_center',
-        name: 'help-center',
-        pageBuilder: (context, state) => _adaptivePage(
-          child: const HelpCenterPage(),
-          name: 'help-center',
-        ),
-      ),
-      GoRoute(
-        path: '/telemetry_debug',
-        name: 'telemetry-debug',
-        pageBuilder: (context, state) => _adaptivePage(
-          child: const TelemetryDebugPage(),
-          name: 'telemetry-debug',
-        ),
-      ),
-      GoRoute(
-        path: '/order_history',
-        name: 'order-history',
-        pageBuilder: (context, state) => _adaptivePage(
-          child: const OrderHistoryPage(),
-          name: 'order-history',
-        ),
-      ),
-      GoRoute(
-        path: '/order_detail',
-        name: 'order-detail',
-        pageBuilder: (context, state) {
-          final order = state.extra as OrderHistory;
-          return _adaptivePage(
-            child: OrderDetailPage(order: order),
+            pageBuilder: (context, state) {
+              final extra = state.extra;
+              List<CartItem>? selectedItems;
+              QuotationModel? restoredQuotation;
+
+              if (extra is QuotationModel) {
+                restoredQuotation = extra;
+                selectedItems = List.of(extra.items);
+              } else if (extra is List<CartItem>) {
+                selectedItems = extra;
+              }
+
+              return _adaptivePage(
+                child: CheckoutPage(
+                  selectedCartItems: selectedItems,
+                  restoredQuotation: restoredQuotation,
+                ),
+                name: 'checkout',
+              );
+            },
+          ),
+          GoRoute(
+            path: '/success',
+            name: 'order-success',
+            pageBuilder: (context, state) => _adaptivePage(
+                child: const OrderSuccessPage(), name: 'order-success'),
+          ),
+          GoRoute(
+            path: '/profile',
+            name: 'profile',
+            pageBuilder: (context, state) =>
+                _adaptivePage(child: const ProfilePage(), name: 'profile'),
+          ),
+          GoRoute(
+            path: '/help_center',
+            name: 'help-center',
+            pageBuilder: (context, state) => _adaptivePage(
+              child: const HelpCenterPage(),
+              name: 'help-center',
+            ),
+          ),
+          GoRoute(
+            path: '/telemetry_debug',
+            name: 'telemetry-debug',
+            pageBuilder: (context, state) => _adaptivePage(
+              child: const TelemetryDebugPage(),
+              name: 'telemetry-debug',
+            ),
+          ),
+          GoRoute(
+            path: '/order_history',
+            name: 'order-history',
+            pageBuilder: (context, state) => _adaptivePage(
+              child: const OrderHistoryPage(),
+              name: 'order-history',
+            ),
+          ),
+          GoRoute(
+            path: '/order_detail',
             name: 'order-detail',
-          );
-        },
-      ),
-      GoRoute(
-        path: '/approval_inbox',
-        name: 'approval-inbox',
-        pageBuilder: (context, state) => _adaptivePage(
-            child: const ApprovalInboxPage(), name: 'approval-inbox'),
-      ),
-      GoRoute(
-        path: '/approval_detail',
-        name: 'approval-detail',
-        pageBuilder: (context, state) {
-          final orderData = state.extra as Map<String, dynamic>;
-          return _adaptivePage(
-            child: ApprovalDetailPage(orderData: orderData),
+            pageBuilder: (context, state) {
+              final order = state.extra as OrderHistory;
+              return _adaptivePage(
+                child: OrderDetailPage(order: order),
+                name: 'order-detail',
+              );
+            },
+          ),
+          GoRoute(
+            path: '/approval_inbox',
+            name: 'approval-inbox',
+            pageBuilder: (context, state) => _adaptivePage(
+                child: const ApprovalInboxPage(), name: 'approval-inbox'),
+          ),
+          GoRoute(
+            path: '/approval_detail',
             name: 'approval-detail',
-          );
-        },
-      ),
-      GoRoute(
-        path: '/quotation_history',
-        name: 'quotation-history',
-        pageBuilder: (context, state) {
-          final autoPdf = state.extra as QuotationModel?;
-          return _adaptivePage(
-            child: QuotationHistoryPage(autoPdfQuotation: autoPdf),
+            pageBuilder: (context, state) {
+              final orderData = state.extra as Map<String, dynamic>;
+              return _adaptivePage(
+                child: ApprovalDetailPage(orderData: orderData),
+                name: 'approval-detail',
+              );
+            },
+          ),
+          GoRoute(
+            path: '/quotation_history',
             name: 'quotation-history',
-          );
-        },
+            pageBuilder: (context, state) {
+              final autoPdf = state.extra as QuotationModel?;
+              return _adaptivePage(
+                child: QuotationHistoryPage(autoPdfQuotation: autoPdf),
+                name: 'quotation-history',
+              );
+            },
+          ),
+        ],
       ),
     ],
   );
@@ -227,4 +269,24 @@ class _AuthChangeNotifier extends ChangeNotifier {
   }
 
   final Ref _ref;
+}
+
+class _AlitaUpgraderMessages extends UpgraderMessages {
+  _AlitaUpgraderMessages() : super(code: 'id');
+
+  @override
+  String get title => 'Pembaruan Tersedia';
+
+  @override
+  String get body => 'Versi baru aplikasi {{appName}} telah tersedia.\n'
+      'Anda wajib memperbarui aplikasi untuk melanjutkan dan memastikan '
+      'perhitungan harga akurat.\n\n'
+      'Versi terpasang: {{currentInstalledVersion}}\n'
+      'Versi terbaru: {{currentAppStoreVersion}}';
+
+  @override
+  String get prompt => 'Silakan perbarui aplikasi sekarang untuk melanjutkan.';
+
+  @override
+  String get buttonTitleUpdate => 'Perbarui Sekarang';
 }

@@ -421,6 +421,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                   context: context,
                   activeProduct: activeProduct,
                   buildAnchor: buildAnchor,
+                  hasSetOptions: v.hasSetOptions,
                   availableSizes: v.availableSizes,
                   divansForConfigurator: v.divansForConfigurator,
                   headboardsForConfigurator: v.headboardsForConfigurator,
@@ -478,6 +479,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     required BuildContext context,
     required Product activeProduct,
     required AnchorType buildAnchor,
+    required bool hasSetOptions,
     required List<String> availableSizes,
     required List<String> divansForConfigurator,
     required List<String> headboardsForConfigurator,
@@ -573,6 +575,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                   effectiveHeadboard: effectiveHeadboard,
                   effectiveSorong: effectiveSorong,
                   isKasurOnly: isKasurOnly,
+                  hasSetOptions: hasSetOptions,
                   kasurLookups: kasurLookups,
                   effectiveKasurLookup: effectiveKasurLookup,
                   onKasurLookupSelected: (lookup) => setState(() {
@@ -906,6 +909,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       isSorongCustom: _isSorongCustom,
       effectiveSorongLookup: effectiveSorongLookup,
       customSorongNote: _customSorongCtrl.text.trim(),
+      customBonuses: isBonusCustomized ? customBonuses : null,
     );
 
     final summaryForToast = CartItemBuilder.buildSummaryForToast(

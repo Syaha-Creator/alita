@@ -10,15 +10,27 @@ import '../theme/app_colors.dart';
 bool get isIOS => Platform.isIOS;
 
 // ─── Haptic Feedback ────────────────────────────────────────────────────────
+// Wrapped in try/catch — MIUI/Xiaomi devices may lack VIBRATE permission.
 
 /// Light haptic tap for primary action buttons.
-void hapticTap() => HapticFeedback.lightImpact();
+void hapticTap() {
+  try { HapticFeedback.lightImpact(); } on PlatformException catch (_) {}
+}
 
 /// Medium haptic for confirmations (approve, checkout).
-void hapticConfirm() => HapticFeedback.mediumImpact();
+void hapticConfirm() {
+  try { HapticFeedback.mediumImpact(); } on PlatformException catch (_) {}
+}
 
 /// Heavy haptic for destructive actions (reject, delete).
-void hapticDestructive() => HapticFeedback.heavyImpact();
+void hapticDestructive() {
+  try { HapticFeedback.heavyImpact(); } on PlatformException catch (_) {}
+}
+
+/// Selection tick for toggles, chips, pickers.
+void hapticSelection() {
+  try { HapticFeedback.selectionClick(); } on PlatformException catch (_) {}
+}
 
 // ─── Adaptive Alert Dialog ──────────────────────────────────────────────────
 

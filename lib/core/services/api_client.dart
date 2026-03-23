@@ -190,11 +190,7 @@ class ApiClient {
     if (code == 401 || code == 403) {
       Log.warning('Auth error $code: $safeUrl', tag: 'ApiClient');
     } else if (code >= 500) {
-      Log.error(
-        'Server error $code',
-        StackTrace.current,
-        reason: 'ApiClient $safeUrl',
-      );
+      Log.warning('Server error $code: $safeUrl', tag: 'ApiClient');
     }
 
     if (kDebugMode && code >= 400) {

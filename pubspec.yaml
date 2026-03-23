@@ -3,7 +3,7 @@ description: "Alita Price List"
 
 publish_to: 'none'
 
-version: 1.7.25+53
+version: 1.7.40+68
 environment:
   sdk: ^3.6.1
 
@@ -65,6 +65,7 @@ dependencies:
   upgrader: ^12.5.0
   package_info_plus: ^8.0.0
   flutter_secure_storage: ^10.0.0
+  in_app_update: ^4.2.5
 
 dev_dependencies:
   flutter_test:

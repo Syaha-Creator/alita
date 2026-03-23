@@ -8,6 +8,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import '../../../core/services/storage_service.dart';
 import '../../../core/utils/app_telemetry.dart';
 import '../../../core/utils/log.dart';
+import '../../../core/utils/network_error.dart';
 import '../../cart/data/cart_item.dart';
 import '../../cart/logic/cart_provider.dart';
 import '../../profile/logic/profile_provider.dart';
@@ -387,7 +388,12 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
             'sebelum mencoba lagi.\n\n$e',
       );
     } catch (e, st) {
-      Log.error(e, st, reason: 'CheckoutNotifier.submitOrder');
+      if (isNetworkError(e)) {
+        Log.warning('CheckoutNotifier.submitOrder (network): $e',
+            tag: 'Checkout');
+      } else {
+        Log.error(e, st, reason: 'CheckoutNotifier.submitOrder');
+      }
       totalSw.stop();
       AppTelemetry.error(
         'checkout_submit_exception',

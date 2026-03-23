@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/utils/platform_utils.dart';
 import '../../../../core/enums/order_status.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_formatters.dart';
@@ -105,7 +105,7 @@ class ApprovalCardItem extends StatelessWidget {
       dateText: dateDisplay,
       totalText: AppFormatters.currencyIdr(amount),
       onTap: () {
-        HapticFeedback.lightImpact();
+        hapticTap();
         context.push('/approval_detail', extra: orderWrap);
       },
       ),

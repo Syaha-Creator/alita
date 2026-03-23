@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/platform_utils.dart';
 
 /// Bottom bar di halaman detail produk: tombol favorit + tombol utama (Add to Cart / Simpan Perubahan).
 /// Logic (validasi, add to cart) tetap di page via [onAddToCartTap] dan [onFavoriteTap].
@@ -59,7 +59,7 @@ class ProductDetailBottomBar extends StatelessWidget {
                     height: 48,
                     child: ElevatedButton(
                       onPressed: () {
-                        HapticFeedback.mediumImpact();
+                        hapticConfirm();
                         onAddToCartTap();
                       },
                       style: ElevatedButton.styleFrom(
@@ -127,7 +127,7 @@ class _FavoriteButton extends StatelessWidget {
         iconSize: 22,
         padding: EdgeInsets.zero,
         onPressed: () {
-          HapticFeedback.lightImpact();
+          hapticTap();
           onTap();
         },
       ),

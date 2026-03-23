@@ -67,6 +67,13 @@ class FilterHeaderWidget extends ConsumerWidget {
     final selectedChannel = ref.watch(selectedChannelProvider);
     final selectedBrand = ref.watch(selectedBrandProvider);
 
+    final areas = ref.read(areasProvider);
+    final channels = ref.read(channelsProvider);
+    final brands = ref.read(brandsProvider);
+    final areaNotifier = ref.read(selectedAreaProvider.notifier);
+    final channelNotifier = ref.read(selectedChannelProvider.notifier);
+    final brandNotifier = ref.read(selectedBrandProvider.notifier);
+
     return Container(
       color: AppColors.background,
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
@@ -82,11 +89,11 @@ class FilterHeaderWidget extends ConsumerWidget {
               onTap: () => _showSelectionBottomSheet(
                 context: context,
                 title: 'Pilih Area',
-                items: ref.read(areasProvider),
+                items: areas,
                 selectedItem: area,
                 labelBuilder: _toTitleCase,
                 onItemSelected: (value) {
-                  ref.read(selectedAreaProvider.notifier).state = value;
+                  areaNotifier.state = value;
                 },
               ),
             ),
@@ -98,12 +105,12 @@ class FilterHeaderWidget extends ConsumerWidget {
               onTap: () => _showSelectionBottomSheet(
                 context: context,
                 title: 'Pilih Channel',
-                items: ref.read(channelsProvider),
+                items: channels,
                 selectedItem: selectedChannel,
                 labelBuilder: (value) => value,
                 onItemSelected: (value) {
-                  ref.read(selectedChannelProvider.notifier).state = value;
-                  ref.read(selectedBrandProvider.notifier).state = null;
+                  channelNotifier.state = value;
+                  brandNotifier.state = null;
                 },
               ),
             ),
@@ -124,11 +131,11 @@ class FilterHeaderWidget extends ConsumerWidget {
                 _showSelectionBottomSheet(
                   context: context,
                   title: 'Pilih Brand',
-                  items: ref.read(brandsProvider),
+                  items: brands,
                   selectedItem: selectedBrand,
                   labelBuilder: (value) => value,
                   onItemSelected: (value) {
-                    ref.read(selectedBrandProvider.notifier).state = value;
+                    brandNotifier.state = value;
                   },
                 );
               },

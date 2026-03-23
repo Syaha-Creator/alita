@@ -73,13 +73,23 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   /// Read persisted session on startup.
   Future<void> _init() async {
-    final isLoggedIn = await StorageService.loadIsLoggedIn();
-    final email = await StorageService.loadUserEmail();
-    final area = await StorageService.loadDefaultArea();
-    final token = await StorageService.loadAccessToken();
-    final uid = await StorageService.loadUserId();
-    final name = await StorageService.loadUserName();
-    final imageUrl = await StorageService.loadUserImageUrl();
+    final results = await Future.wait([
+      StorageService.loadIsLoggedIn(),    // 0
+      StorageService.loadUserEmail(),     // 1
+      StorageService.loadDefaultArea(),   // 2
+      StorageService.loadAccessToken(),   // 3
+      StorageService.loadUserId(),        // 4
+      StorageService.loadUserName(),      // 5
+      StorageService.loadUserImageUrl(),  // 6
+    ]);
+
+    final isLoggedIn = results[0] as bool;
+    final email = results[1] as String;
+    final area = results[2] as String;
+    final token = results[3] as String;
+    final uid = results[4] as int;
+    final name = results[5] as String;
+    final imageUrl = results[6] as String;
 
     state = AuthState(
       isLoggedIn: isLoggedIn,

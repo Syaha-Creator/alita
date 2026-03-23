@@ -53,10 +53,9 @@ class ProductCartValidator {
 
     final savingAsSet = !isKasurOnly;
     if (savingAsSet) {
-      final hasHeadboardModel = selectedHeadboard != null &&
-          selectedHeadboard.trim().isNotEmpty &&
-          !selectedHeadboard.trim().toLowerCase().contains('tanpa');
-      if (!hasHeadboardModel) {
+      final hasHeadboardSelection = selectedHeadboard != null &&
+          selectedHeadboard.trim().isNotEmpty;
+      if (!hasHeadboardSelection) {
         return const CartValidationResult.invalid(
             'Pilih model Sandaran terlebih dahulu.');
       }

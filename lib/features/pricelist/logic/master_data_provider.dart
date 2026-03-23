@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/api_client.dart';
 import '../../../core/services/storage_service.dart';
 import '../../../core/utils/log.dart';
+import '../../../core/utils/network_error.dart';
 
 // ─────────────────────────────────────────────────────────
 //  State
@@ -67,9 +68,17 @@ class MasterDataNotifier extends StateNotifier<MasterDataState> {
   /// Step 2: If a valid token exists, sync from API in background.
   Future<void> _loadFromCache() async {
     try {
-      final areasJson = await StorageService.loadCachedAreas();
-      final channelsJson = await StorageService.loadCachedChannels();
-      final brandsJson = await StorageService.loadCachedBrands();
+      final results = await Future.wait([
+        StorageService.loadCachedAreas(), // 0
+        StorageService.loadCachedChannels(), // 1
+        StorageService.loadCachedBrands(), // 2
+        StorageService.loadAccessToken(), // 3
+      ]);
+
+      final areasJson = results[0];
+      final channelsJson = results[1];
+      final brandsJson = results[2];
+      final token = results[3];
 
       _setState(MasterDataState(
         areas: _parseJsonList(areasJson),
@@ -78,7 +87,6 @@ class MasterDataNotifier extends StateNotifier<MasterDataState> {
         isLoading: false,
       ));
 
-      final token = await StorageService.loadAccessToken();
       if (token.isNotEmpty) {
         unawaited(syncMasterData());
       }
@@ -149,13 +157,20 @@ class MasterDataNotifier extends StateNotifier<MasterDataState> {
       final currentState = _readStateOrNull() ?? stateBeforeSync;
       _setState(MasterDataState(
         areas: areasOk ? _parseJsonList(results[0].body) : currentState.areas,
-        channels: channelsOk ? _parseJsonList(results[1].body) : currentState.channels,
-        brands: brandsOk ? _parseJsonList(results[2].body) : currentState.brands,
+        channels: channelsOk
+            ? _parseJsonList(results[1].body)
+            : currentState.channels,
+        brands:
+            brandsOk ? _parseJsonList(results[2].body) : currentState.brands,
         isLoading: false,
       ));
     } catch (e) {
       if (e is StateError) return;
-      Log.error(e, StackTrace.current, reason: 'MasterData sync');
+      if (isNetworkError(e)) {
+        Log.warning('MasterData sync: $e', tag: 'MasterData');
+      } else {
+        Log.error(e, StackTrace.current, reason: 'MasterData sync');
+      }
       final currentState = _readStateOrNull();
       if (currentState != null) {
         _setState(currentState.copyWith(isLoading: false, error: e.toString()));

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/utils/platform_utils.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/services/connectivity_service.dart';
@@ -361,7 +361,7 @@ class OrderDetailPage extends ConsumerWidget {
             return;
           }
           try {
-            await HapticFeedback.mediumImpact();
+            hapticConfirm();
             await ref
                 .read(orderDetailProvider(orderId).notifier)
                 .addAdditionalPayment(

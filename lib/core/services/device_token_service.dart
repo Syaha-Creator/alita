@@ -33,14 +33,13 @@ class DeviceTokenService {
         return false;
       }
 
-      return _postToken(
+      return await _postToken(
         userId: userId,
         fcmToken: fcmToken,
         accessToken: accessToken,
       );
-    } catch (e, st) {
+    } catch (e) {
       Log.warning('syncFcmToken failed: $e', tag: 'DeviceToken');
-      Log.error(e, st, reason: 'DeviceToken.syncFcmToken');
       return false;
     }
   }
@@ -63,14 +62,14 @@ class DeviceTokenService {
           tag: 'DeviceToken',
         );
       }
-    } catch (e, st) {
-      Log.error(e, st, reason: 'DeviceToken.deleteFromServer');
+    } catch (e) {
+      Log.warning('DeviceToken.deleteFromServer: $e', tag: 'DeviceToken');
     }
 
     try {
       await FirebaseMessaging.instance.deleteToken();
-    } catch (e, st) {
-      Log.error(e, st, reason: 'DeviceToken.deleteLocal');
+    } catch (e) {
+      Log.warning('DeviceToken.deleteLocal: $e', tag: 'DeviceToken');
     }
   }
 

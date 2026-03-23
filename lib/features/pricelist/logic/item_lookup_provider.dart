@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/services/api_client.dart';
 import '../../../core/utils/log.dart';
+import '../../../core/utils/network_error.dart';
 import '../../../core/utils/retry.dart';
 import '../data/models/item_lookup.dart';
 
@@ -43,7 +44,11 @@ final itemLookupProvider =
     }
     return groupedMap;
   } catch (e, st) {
-    Log.error(e, st, reason: 'itemLookupProvider');
+    if (isNetworkError(e)) {
+      Log.warning('itemLookupProvider: $e', tag: 'itemLookup');
+    } else {
+      Log.error(e, st, reason: 'itemLookupProvider');
+    }
     return {};
   }
 });

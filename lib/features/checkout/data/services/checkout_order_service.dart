@@ -26,10 +26,11 @@ class CheckoutOrderService {
 
   // ── Attendance ─────────────────────────────────────────────────
 
-  /// Returns the most recent non-null `work_place_id` from the user's
-  /// attendance history. Entries with status "WOH" (Work Out of Home) often
-  /// have `work_place_id: null`, so we skip those and look for the latest
-  /// entry that has a valid ID.
+  /// Returns `work_place_id` from the user's **most recent** attendance.
+  ///
+  /// Only checks the latest entry — if it has `work_place_id: null`
+  /// (WOH/WFH/Work Outside), returns null so the checkout flow can
+  /// block submission and prompt the user to check in properly.
   Future<int?> getLatestWorkPlaceId(int userId, String token) async {
     try {
       final response = await _api.get(
@@ -49,13 +50,9 @@ class CheckoutOrderService {
                     DateTime(2000);
             return dateB.compareTo(dateA);
           });
-
-          for (final entry in data) {
-            final raw = entry['work_place_id'];
-            if (raw == null) continue;
-            final id = raw is int ? raw : int.tryParse(raw.toString());
-            if (id != null && id > 0) return id;
-          }
+          final raw = data.first['work_place_id'];
+          if (raw == null) return null;
+          return raw is int ? raw : int.tryParse(raw.toString());
         }
       }
     } catch (e, st) {
@@ -88,6 +85,8 @@ class CheckoutOrderService {
 
   // ── Step 1: Create Order Letter (Header) ──────────────────────
 
+  static const _checkoutTimeout = Duration(seconds: 60);
+
   Future<CreateOrderResult> createOrderLetter(
     Map<String, dynamic> headerPayload,
     String token,
@@ -97,6 +96,7 @@ class CheckoutOrderService {
       CheckoutEndpoints.orderLetters,
       token: token,
       body: headerPayload,
+      timeout: _checkoutTimeout,
     );
     if (response.statusCode != 200 && response.statusCode != 201) {
       throw CheckoutStepException(
@@ -141,6 +141,7 @@ class CheckoutOrderService {
         CheckoutEndpoints.orderLetterContacts,
         token: token,
         body: contact,
+        timeout: _checkoutTimeout,
       );
       if (response.statusCode != 200 && response.statusCode != 201) {
         throw CheckoutStepException(
@@ -176,6 +177,16 @@ class CheckoutOrderService {
 
     final files = <http.MultipartFile>[];
     if (receiptImage != null) {
+      if (!receiptImage.existsSync()) {
+        Log.warning(
+          'Receipt file missing: ${receiptImage.path}',
+          tag: 'CheckoutOrderService',
+        );
+        throw Exception(
+          'File bukti pembayaran tidak ditemukan. '
+          'Silakan lampirkan ulang foto bukti pembayaran.',
+        );
+      }
       files.add(
         await http.MultipartFile.fromPath(
           'order_letter_payment[image]',
@@ -249,6 +260,7 @@ class CheckoutOrderService {
         CheckoutEndpoints.orderLetterDetails,
         token: token,
         body: detailPayload,
+        timeout: _checkoutTimeout,
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -427,6 +439,7 @@ class CheckoutOrderService {
           CheckoutEndpoints.orderLetterDiscounts,
           token: token,
           body: discPayload,
+          timeout: _checkoutTimeout,
         );
 
         if (response.statusCode != 200 && response.statusCode != 201) {

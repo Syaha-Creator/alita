@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../theme/app_colors.dart';
+import '../utils/platform_utils.dart';
 import 'detail_section_label.dart';
 
 /// Reusable customer/contact information card for detail pages.
@@ -216,7 +216,7 @@ class _ActionIcon extends StatelessWidget {
       message: tooltip,
       child: InkWell(
         onTap: () {
-          HapticFeedback.lightImpact();
+          hapticTap();
           onTap();
         },
         borderRadius: BorderRadius.circular(10),

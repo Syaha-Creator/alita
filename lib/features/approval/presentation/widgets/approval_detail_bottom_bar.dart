@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/utils/platform_utils.dart';
 import '../../../../core/services/connectivity_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/offline_warning_row.dart';
@@ -123,7 +123,7 @@ class ApprovalDetailBottomBar extends ConsumerWidget {
                     onPressed: disabled
                         ? null
                         : () {
-                            HapticFeedback.heavyImpact();
+                            hapticDestructive();
                             onReject();
                           },
                     style: OutlinedButton.styleFrom(
@@ -146,7 +146,7 @@ class ApprovalDetailBottomBar extends ConsumerWidget {
                     onPressed: disabled
                         ? null
                         : () {
-                            HapticFeedback.mediumImpact();
+                            hapticConfirm();
                             onApprove();
                           },
                     style: ElevatedButton.styleFrom(

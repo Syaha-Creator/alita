@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/utils/platform_utils.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/enums/order_status.dart';
 import '../../../../core/services/connectivity_service.dart';
@@ -262,7 +262,7 @@ class _OrderHistoryPageState extends ConsumerState<OrderHistoryPage> {
       dateText: formattedDate,
       totalText: AppFormatters.currencyIdr(order.totalAmount),
       onTap: () {
-        HapticFeedback.lightImpact();
+        hapticTap();
         context.push('/order_detail', extra: order);
       },
     );

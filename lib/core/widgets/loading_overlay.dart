@@ -84,6 +84,7 @@ class LoadingOverlay extends StatelessWidget {
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: AppColors.textPrimary,
+                  decoration: TextDecoration.none,
                 ),
               ),
               if (subtitle case final s?) ...[
@@ -93,6 +94,7 @@ class LoadingOverlay extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 12,
                     color: AppColors.textTertiary,
+                    decoration: TextDecoration.none,
                   ),
                 ),
               ],

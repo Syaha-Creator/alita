@@ -47,6 +47,8 @@ class CartItemBuilder {
     required bool isSorongCustom,
     required ItemLookup? effectiveSorongLookup,
     required String customSorongNote,
+    // Bonus override (from "Tukar Bonus")
+    List<Map<String, dynamic>>? customBonuses,
   }) {
     final savingAsSet = !isKasurOnly;
     final summary =
@@ -145,8 +147,11 @@ class CartItemBuilder {
 
     // ── Bonus snapshots ──
 
-    final bonusSnapshots = _buildBonusSnapshots(activeProduct, groupedLookups,
-        effectiveSize: effectiveSize);
+    final bonusSnapshots = customBonuses != null && customBonuses.isNotEmpty
+        ? _buildCustomBonusSnapshots(customBonuses, groupedLookups,
+            effectiveSize: effectiveSize)
+        : _buildBonusSnapshots(activeProduct, groupedLookups,
+            effectiveSize: effectiveSize);
 
     // ── Discount percentages ──
 
@@ -221,6 +226,38 @@ class CartItemBuilder {
     if (kain.isNotEmpty) parts.add(kain);
     if (warna.isNotEmpty) parts.add(warna);
     return parts.join(' - ');
+  }
+
+  static List<CartBonusSnapshot> _buildCustomBonusSnapshots(
+    List<Map<String, dynamic>> customBonuses,
+    Map<String, List<ItemLookup>> groupedLookups, {
+    required String effectiveSize,
+  }) {
+    ItemLookup? lookupFor(String? tipe) {
+      if (tipe == null || tipe.trim().isEmpty) return null;
+      final key = tipe.trim().toLowerCase();
+      final candidates = (groupedLookups[key] ?? [])
+          .where((l) => l.ukuran == effectiveSize)
+          .toList();
+      return candidates.isNotEmpty
+          ? candidates.first
+          : (groupedLookups[key] ?? []).firstOrNull;
+    }
+
+    return customBonuses
+        .where((b) {
+          final name = b['name']?.toString().trim() ?? '';
+          return name.isNotEmpty;
+        })
+        .map((b) {
+          final name = b['name'].toString().trim();
+          final qty = (b['qty'] as num?)?.toInt() ?? 1;
+          final directItemNum = b['item_num']?.toString().trim() ?? '';
+          final lu = lookupFor(name);
+          return CartBonusSnapshot(
+              name: name, qty: qty, sku: lu?.itemNum ?? directItemNum);
+        })
+        .toList();
   }
 
   static List<CartBonusSnapshot> _buildBonusSnapshots(

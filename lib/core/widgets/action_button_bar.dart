@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../theme/app_colors.dart';
+import '../utils/platform_utils.dart';
 
 /// Reusable action button row for primary/secondary actions.
 ///
@@ -56,7 +56,7 @@ class ActionButtonBar extends StatelessWidget {
         onPressed: onPrimaryPressed == null
             ? null
             : () {
-                HapticFeedback.lightImpact();
+                hapticTap();
                 onPrimaryPressed?.call();
               },
         style: ElevatedButton.styleFrom(

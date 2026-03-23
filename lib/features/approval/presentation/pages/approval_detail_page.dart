@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/enums/order_status.dart';
@@ -70,7 +69,7 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
     final actionName = isApprove ? 'Menyetujui' : 'Menolak';
     final actionColor = isApprove ? AppColors.success : AppColors.error;
 
-    unawaited(HapticFeedback.lightImpact());
+    hapticTap();
     if (!context.mounted) return;
     final confirm = await showAdaptiveConfirm(
       context: context,
@@ -94,15 +93,17 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
     final sw = Stopwatch()..start();
     AppTelemetry.event('approval_decision_started', data: {'action': action});
 
+    // Capture ref-dependent values before any async gap.
+    final inboxNotifier = ref.read(approvalInboxProvider.notifier);
+    final profileFuture = ref.read(profileProvider.future);
+
     setState(() {
       _isLoading = true;
       _loadingMessage = 'Mendeteksi lokasi...';
     });
 
     try {
-      final location = await ref
-          .read(approvalInboxProvider.notifier)
-          .getCurrentAddressForApproval();
+      final location = await inboxNotifier.getCurrentAddressForApproval();
       if (location == null || !mounted) {
         sw.stop();
         AppTelemetry.error('approval_location_failed', data: {
@@ -128,7 +129,7 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
 
       final token = await StorageService.loadAccessToken();
       final userId = await StorageService.loadUserId();
-      final profile = await ref.read(profileProvider.future);
+      final profile = await profileFuture;
       final pendingDiscs = ApprovalDecisionService.collectPendingDiscounts(
         orderData: widget.orderData,
         myName: profile?.name ?? '',
@@ -157,7 +158,7 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
         token: token,
         userId: userId,
         orderId: orderId,
-        notifier: ref.read(approvalInboxProvider.notifier),
+        notifier: inboxNotifier,
         latitude: location.latitude,
         longitude: location.longitude,
         lokasiApproval: location.address,
@@ -165,7 +166,6 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
 
       if (!mounted) return;
 
-      // Fire-and-forget: kirim notifikasi ke approver berikutnya
       if (isApproved && !decision.headerRejected) {
         final order =
             widget.orderData['order_letter'] as Map<String, dynamic>? ?? {};
@@ -187,7 +187,7 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
         }
       }
 
-      unawaited(ref.read(approvalInboxProvider.notifier).fetchInbox());
+      unawaited(inboxNotifier.fetchInbox());
       if (!mounted) return;
 
       sw.stop();
@@ -284,7 +284,8 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
       final discountMaps =
           discounts.map((d) => d as Map<String, dynamic>).toList();
 
-      for (final disc in discountMaps) {
+      for (int i = 0; i < discountMaps.length; i++) {
+        final disc = discountMaps[i];
         final approverId = disc['approver_id']?.toString() ?? '';
         final approverName = disc['approver_name'] as String? ?? '';
         final discEnum = OrderStatusX.fromDynamic(disc['approved']);
@@ -299,10 +300,9 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
         if (isMe) {
           isMyApproval = true;
           if (discEnum == OrderStatus.pending) {
-            final myLevel = (disc['approver_level_id'] as num?)?.toInt() ?? 99;
-            if (ApprovalDecisionService.arePriorApproversApproved(
+            if (ApprovalDecisionService.arePriorApprovedByIndex(
               discountsInDetail: discountMaps,
-              targetLevelId: myLevel,
+              myIndex: i,
             )) {
               needsMyApproval = true;
             }
@@ -353,7 +353,8 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
         widget.orderData['order_letter_payments'] as List<dynamic>? ?? [];
     final shippingDiffers = _isOrderShippingDifferent(order);
 
-    final myName = ref.watch(profileProvider.select((v) => v.valueOrNull?.name ?? ''));
+    final myName =
+        ref.watch(profileProvider.select((v) => v.valueOrNull?.name ?? ''));
     final approvalState = _resolveMyApprovalState(details, _userId, myName);
     final barState = switch (approvalState) {
       _MyApprovalState.pendingAction => ApprovalBarState.pendingAction,

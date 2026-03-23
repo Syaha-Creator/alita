@@ -1,12 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.syahrul.alitapricelist.alitapricelist">
 
-    <!-- Galeri: Android 9 ke bawah (image_picker) -->
+    <!-- Galeri: Android 12 ke bawah (image_picker fallback) -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32"/>
-
-    <!-- Galeri: Android 13+ (API 33+) -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
 
     <!-- Kamera: foto struk pembayaran (checkout) -->
     <uses-permission android:name="android.permission.CAMERA"/>
@@ -20,6 +17,12 @@
     <!-- Geotagging approval: rekam lokasi saat atasan setuju/tolak -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!-- AD_ID: wajib Android 13+ (API 33) agar Firebase Analytics berfungsi normal -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID"/>
+
+    <!-- Haptic feedback: wajib di beberapa ROM (MIUI/Xiaomi) -->
+    <uses-permission android:name="android.permission.VIBRATE"/>
 
     <application
         android:label="Alitapricelist"

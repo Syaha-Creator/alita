@@ -9,7 +9,6 @@ import '../../../core/utils/app_telemetry.dart';
 import '../../../core/utils/log.dart';
 import '../../../core/utils/retry.dart';
 import '../../profile/logic/profile_provider.dart';
-import 'approval_decision_service.dart';
 
 // ── Geotagging: alamat + koordinat untuk payload approval ───────
 class ApprovalLocation {
@@ -88,15 +87,21 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
   static OrderStatus _normalizeApprovedStatus(dynamic value) =>
       OrderStatusX.fromDynamic(value);
 
-  /// Delegates to [ApprovalDecisionService.arePriorApproversApproved].
-  static bool _arePriorApproved(
+  /// Index-based prior approval check: all discounts BEFORE [myIndex]
+  /// in the list must be approved. This is more reliable than
+  /// [approver_level_id] which may be null/missing from the API.
+  static bool _arePriorApprovedByIndex(
     List<Map<String, dynamic>> discounts,
-    int targetLevel,
-  ) =>
-      ApprovalDecisionService.arePriorApproversApproved(
-        discountsInDetail: discounts,
-        targetLevelId: targetLevel,
-      );
+    int myIndex,
+  ) {
+    for (int i = 0; i < myIndex; i++) {
+      if (_normalizeApprovedStatus(discounts[i]['approved']) !=
+          OrderStatus.approved) {
+        return false;
+      }
+    }
+    return true;
+  }
 
   /// Mendapatkan posisi GPS saat ini untuk geotagging approval.
   /// Mengembalikan null jika layanan lokasi mati, izin ditolak, atau gagal.
@@ -119,8 +124,8 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
           accuracy: LocationAccuracy.high,
         ),
       );
-    } catch (e, st) {
-      Log.error(e, st, reason: 'ApprovalInbox._getCurrentLocation');
+    } catch (e) {
+      Log.warning('ApprovalInbox._getCurrentLocation: $e', tag: 'Approval');
       return null;
     }
   }
@@ -153,8 +158,8 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
           address = parts.join(', ');
         }
       }
-    } catch (e, st) {
-      Log.error(e, st, reason: 'ApprovalInbox._getCurrentAddress.geocode');
+    } catch (e) {
+      Log.warning('ApprovalInbox.geocode: $e', tag: 'Approval');
       address = 'Lokasi tidak terdeteksi';
     }
 
@@ -278,31 +283,7 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
               letter['id'] ?? letter['no_sp'] ?? Object.hash(wrap, null);
 
           if (!grouped.containsKey(key)) {
-            final entry = Map<String, dynamic>.from(wrap);
-            entry['order_letter_details'] = List<dynamic>.from(
-                wrap['order_letter_details'] as List<dynamic>? ?? []);
-            entry['order_letter_payments'] = List<dynamic>.from(
-                wrap['order_letter_payments'] as List<dynamic>? ?? []);
-            grouped[key] = entry;
-          } else {
-            final entry = grouped[key]!;
-            final existing =
-                entry['order_letter_details'] as List<dynamic>;
-            final incoming =
-                wrap['order_letter_details'] as List<dynamic>? ?? [];
-            final existingIds = existing
-                .map((d) =>
-                    (d as Map<String, dynamic>)['order_letter_detail_id'] ??
-                    (d)['id'])
-                .toSet();
-            for (final d in incoming) {
-              final dMap = d as Map<String, dynamic>;
-              final dId = dMap['order_letter_detail_id'] ?? dMap['id'];
-              if (!existingIds.contains(dId)) {
-                existing.add(d);
-                existingIds.add(dId);
-              }
-            }
+            grouped[key] = Map<String, dynamic>.from(wrap);
           }
         }
         final List<dynamic> allOrders = grouped.values.toList();
@@ -310,7 +291,9 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
         final List<dynamic> pending = [];
         final List<dynamic> history = [];
 
-        for (var orderIndex = 0; orderIndex < allOrders.length; orderIndex++) {
+        for (var orderIndex = 0;
+            orderIndex < allOrders.length;
+            orderIndex++) {
           final orderWrap = allOrders[orderIndex];
           bool isMyApproval = false;
           bool isMyApprovalDone = false;
@@ -321,7 +304,6 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
           final details =
               orderWrap['order_letter_details'] as List<dynamic>? ?? [];
 
-          // ── Rejected gate: SP yang sudah ditolak siapapun → history ──
           final headerEnum = OrderStatusX.fromRaw(
             letter['status']?.toString() ?? '',
           );
@@ -337,16 +319,18 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
             final discountMaps =
                 discounts.map((d) => d as Map<String, dynamic>).toList();
 
-            for (final disc in discountMaps) {
+            for (int i = 0; i < discountMaps.length; i++) {
+              final disc = discountMaps[i];
               final discEnum = _normalizeApprovedStatus(disc['approved']);
 
               if (discEnum == OrderStatus.rejected) {
                 hasRejectedDiscount = true;
               }
 
-              final approverId = disc['approver_id']?.toString();
-              if (approverId == null || approverId.isEmpty) continue;
-              if (approverId != currentUserIdStr) continue;
+              final approverId = disc['approver_id']?.toString() ?? '';
+              if (approverId.isEmpty || approverId != currentUserIdStr) {
+                continue;
+              }
 
               isMyApproval = true;
 
@@ -354,9 +338,9 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
                   discEnum == OrderStatus.rejected) {
                 isMyApprovalDone = true;
               } else if (discEnum == OrderStatus.pending) {
-                final myLevel =
-                    (disc['approver_level_id'] as num?)?.toInt() ?? 99;
-                if (_arePriorApproved(discountMaps, myLevel)) {
+                // Index-based: all discounts BEFORE this user's
+                // position must be approved.
+                if (_arePriorApprovedByIndex(discountMaps, i)) {
                   hasActionablePending = true;
                 }
               }
@@ -372,7 +356,6 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
           } else if (isMyApprovalDone) {
             history.add(orderWrap);
           }
-          // else: waiting for prior approver → don't show yet
         }
 
         // Urutkan terbaru di atas berdasarkan created_at

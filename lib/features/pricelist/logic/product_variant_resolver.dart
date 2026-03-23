@@ -19,6 +19,7 @@ class ResolvedVariant {
     required this.availableSorongs,
     required this.divansForConfigurator,
     required this.headboardsForConfigurator,
+    required this.hasSetOptions,
     required this.kasurLookups,
     required this.effectiveKasurLookup,
     required this.divanLookups,
@@ -43,6 +44,12 @@ class ResolvedVariant {
   final List<String> availableSorongs;
   final List<String> divansForConfigurator;
   final List<String> headboardsForConfigurator;
+
+  /// Whether this product has meaningful set options (headboard/sorong) to
+  /// display, computed from the *unfiltered* available lists. The configurator
+  /// uses this to decide whether to show the "Beli Set" toggle independently
+  /// of [isKasurOnly] (which zeroes out the configurator lists).
+  final bool hasSetOptions;
 
   final List<ItemLookup> kasurLookups;
   final ItemLookup? effectiveKasurLookup;
@@ -85,6 +92,11 @@ abstract final class ProductVariantResolver {
     String lKey(ItemLookup? l) => ProductDetailUtils.lookupKey(l);
 
     // ── 0. Sibling list ──
+    // For divan/headboard/sorong anchors we use a strict filter first
+    // (matching anchor + no higher-priority component). If that yields
+    // no set-level headboard/sorong choices, we broaden the search to
+    // include ALL rows sharing the same anchor component name so that
+    // accessories from kasur-based set rows are also available.
     final siblings = rawProducts.where((p) {
       switch (anchor) {
         case AnchorType.kasur:
@@ -103,6 +115,23 @@ abstract final class ProductVariantResolver {
               !isPresent(p.headboard);
       }
     }).toList();
+
+    // Broadened sibling list: match by anchor name only (ignoring kasur
+    // presence). Used to discover headboard/sorong options that may only
+    // exist on full-set rows.
+    final List<Product> broadSiblings;
+    if (anchor == AnchorType.divan) {
+      broadSiblings = rawProducts
+          .where((p) => p.divan.trim() == masterProduct.divan.trim())
+          .toList();
+    } else if (anchor == AnchorType.headboard) {
+      broadSiblings = rawProducts
+          .where((p) => p.headboard.trim() == masterProduct.headboard.trim())
+          .toList();
+    } else {
+      broadSiblings = siblings;
+    }
+
     final siblingsList = siblings.isEmpty ? [masterProduct] : siblings;
 
     // ── 1. Size filter ──
@@ -128,10 +157,21 @@ abstract final class ProductVariantResolver {
         .toList()
       ..sort();
 
+    // Broad siblings filtered by size — used to discover headboard/sorong
+    // options that exist on full-set rows (kasur+divan+hb+sorong) but not
+    // on the strict divan-only / headboard-only rows.
+    final broadBySize =
+        broadSiblings.where((p) => p.ukuran == effectiveSize).toList();
+
     // ── 2. Auto-select default "Beli Set" ──
     String effectiveDivan;
     String effectiveHeadboard;
     String effectiveSorong;
+
+    // Source for auto-select: prefer strict siblings, fall back to broad.
+    final autoSelectPool =
+        siblingsBySize.length > 1 ? siblingsBySize : broadBySize;
+
     if (isKasurOnly) {
       effectiveDivan =
           anchor == AnchorType.divan ? masterProduct.divan : 'Tanpa Divan';
@@ -148,17 +188,19 @@ abstract final class ProductVariantResolver {
               selectedDivan.trim().toLowerCase().contains('tanpa'));
 
       if (needsAutoSelect) {
-        final officialSet = siblingsBySize.firstWhere(
+        final officialSet = autoSelectPool.firstWhere(
           (p) =>
               p.isSet == true &&
               (anchor == AnchorType.kasur
                   ? !p.divan.toLowerCase().contains('tanpa')
                   : !p.headboard.toLowerCase().contains('tanpa')),
-          orElse: () => siblingsBySize.firstWhere(
+          orElse: () => autoSelectPool.firstWhere(
             (p) => anchor == AnchorType.kasur
                 ? !p.divan.toLowerCase().contains('tanpa')
                 : !p.headboard.toLowerCase().contains('tanpa'),
-            orElse: () => siblingsBySize.first,
+            orElse: () => autoSelectPool.isNotEmpty
+                ? autoSelectPool.first
+                : siblingsBySize.first,
           ),
         );
         effectiveDivan = anchor == AnchorType.divan
@@ -167,8 +209,9 @@ abstract final class ProductVariantResolver {
         effectiveHeadboard = officialSet.headboard;
         effectiveSorong = officialSet.sorong;
       } else {
-        effectiveDivan =
-            anchor == AnchorType.divan ? masterProduct.divan : (selectedDivan ?? '');
+        effectiveDivan = anchor == AnchorType.divan
+            ? masterProduct.divan
+            : (selectedDivan ?? '');
         effectiveHeadboard = selectedHeadboard ?? 'Tanpa Headboard';
         effectiveSorong = selectedSorong ?? 'Tanpa Sorong';
       }
@@ -189,14 +232,21 @@ abstract final class ProductVariantResolver {
     }
     final siblingsByDivan =
         siblingsBySize.where((p) => p.divan == effectiveDivan).toList();
+    final broadByDivan =
+        broadBySize.where((p) => p.divan == effectiveDivan).toList();
 
     // ── 4. Filter Headboard ──
-    final availableHeadboards = siblingsByDivan
+    // Merge strict + broad sources so headboards from full-set rows are
+    // discoverable even when the strict divan-only filter has none.
+    final strictHeadboards = siblingsByDivan
         .map((p) => p.headboard)
         .where((h) => h.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
+        .toSet();
+    final broadHeadboards =
+        broadByDivan.map((p) => p.headboard).where((h) => h.isNotEmpty).toSet();
+    final availableHeadboards =
+        (strictHeadboards.union(broadHeadboards)).toList()..sort();
+
     if (!availableHeadboards.contains(effectiveHeadboard)) {
       if (!isKasurOnly) {
         effectiveHeadboard = availableHeadboards.firstWhere(
@@ -209,9 +259,10 @@ abstract final class ProductVariantResolver {
         effectiveHeadboard = 'Tanpa Headboard';
       }
     }
-    final siblingsByHeadboard = siblingsByDivan
-        .where((p) => p.headboard == effectiveHeadboard)
-        .toList();
+    // Use both strict and broad to find rows with matching headboard
+    final allByDivan = {...siblingsByDivan, ...broadByDivan}.toList();
+    final siblingsByHeadboard =
+        allByDivan.where((p) => p.headboard == effectiveHeadboard).toList();
 
     // ── 5. Filter Sorong ──
     final availableSorongs = siblingsByHeadboard
@@ -330,6 +381,19 @@ abstract final class ProductVariantResolver {
     final headboardsForConfigurator =
         isKasurOnly ? <String>[] : availableHeadboards;
 
+    // Computed from the FULL available lists (not filtered by isKasurOnly)
+    // so the "Beli Set" toggle is visible even when isKasurOnly = true.
+    final bool hasSetOptions;
+    if (anchor == AnchorType.kasur) {
+      hasSetOptions = true;
+    } else if (anchor == AnchorType.divan) {
+      hasSetOptions = availableHeadboards.any(
+        (h) => !h.trim().toLowerCase().contains('tanpa'),
+      );
+    } else {
+      hasSetOptions = false;
+    }
+
     return ResolvedVariant(
       activeProduct: activeProduct,
       effectiveSize: effectiveSize,
@@ -342,6 +406,7 @@ abstract final class ProductVariantResolver {
       availableSorongs: availableSorongs,
       divansForConfigurator: divansForConfigurator,
       headboardsForConfigurator: headboardsForConfigurator,
+      hasSetOptions: hasSetOptions,
       kasurLookups: kasurLookups,
       effectiveKasurLookup: effectiveKasurLookup,
       divanLookups: divanLookups,

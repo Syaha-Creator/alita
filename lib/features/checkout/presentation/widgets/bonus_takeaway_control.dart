@@ -54,14 +54,13 @@ class BonusTakeAwayControl extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    if (sku.isNotEmpty)
-                      Text(
-                        'SKU: $sku',
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: AppColors.textTertiary,
-                        ),
+                    Text(
+                      'SKU: ${sku.isNotEmpty ? sku : '-'}',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: AppColors.textTertiary,
                       ),
+                    ),
                   ],
                 ),
               ),

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-
 import '../theme/app_colors.dart';
+import '../utils/platform_utils.dart';
 
 /// A refined choice chip with "Soft Selection" pattern.
 ///
@@ -66,7 +65,7 @@ class _AppChoiceChipState extends State<AppChoiceChip>
   void _handleTapCancel() => _scaleCtrl.reverse();
 
   void _handleTap() {
-    HapticFeedback.selectionClick();
+    hapticSelection();
     widget.onSelected?.call(!widget.selected);
   }
 

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
@@ -8,11 +9,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:upgrader/upgrader.dart';
 import 'core/config/app_config.dart';
 import 'core/router/app_router.dart';
+import 'core/services/force_update_service.dart';
 import 'core/services/notification_handler_service.dart';
 import 'core/services/pdf_asset_cache.dart';
+import 'core/services/storage_service.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
 import 'features/approval/logic/approval_inbox_provider.dart';
@@ -25,7 +27,6 @@ void main() {
   runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
 
-    // In release, show a friendly error instead of the red error screen
     if (!kDebugMode) {
       ErrorWidget.builder = (details) => const _AppErrorFallback();
     }
@@ -33,35 +34,35 @@ void main() {
     await dotenv.load(fileName: '.env');
     AppConfig.assertConfigured();
 
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    await initializeDateFormatting('id_ID');
+    // Parallelize independent initializations to reduce startup time.
+    await Future.wait([
+      Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform),
+      initializeDateFormatting('id_ID'),
+    ]);
 
-    // Background/terminated message handler (must be top-level registration)
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-    // Foreground + tap handlers; permission request
-    await NotificationHandlerService.init();
+    // Flag-only call — no need to block runApp().
+    unawaited(
+      FirebaseCrashlytics.instance
+          .setCrashlyticsCollectionEnabled(!kDebugMode),
+    );
 
-    // ── Crashlytics ──────────────────────────────────────────
-    // Enable collection in release; disable in debug to avoid noise
-    await FirebaseCrashlytics.instance
-        .setCrashlyticsCollectionEnabled(!kDebugMode);
-
-    // Flutter framework errors (rendering, layout, etc.)
     FlutterError.onError = (details) {
+      if (_isTransientAssetError(details)) {
+        FirebaseCrashlytics.instance.recordFlutterError(details);
+        return;
+      }
       FirebaseCrashlytics.instance.recordFlutterFatalError(details);
     };
 
-    // Async errors from platform dispatchers (not caught by runZonedGuarded)
     PlatformDispatcher.instance.onError = (error, stack) {
       FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
       return true;
     };
 
-    // Pre-load PDF fonts & logos in background so generation is instant later
     unawaited(PdfAssetCache.warmUp());
+    unawaited(StorageService.migratePricelistCacheFromPrefs());
 
     runApp(
       const ProviderScope(
@@ -69,7 +70,6 @@ void main() {
       ),
     );
   }, (error, stack) {
-    // Dart async errors within the zone
     FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
   });
 }
@@ -86,16 +86,7 @@ class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp>
   final GlobalKey<ScaffoldMessengerState> _scaffoldKey =
       GlobalKey<ScaffoldMessengerState>();
   bool _initialMessageHandled = false;
-  final Upgrader _upgrader = Upgrader(
-    debugLogging: false,
-    countryCode: 'id',
-    languageCode: 'id',
-    messages: _AlitaUpgraderMessages(),
-    storeController: UpgraderStoreController(
-      onAndroid: () => UpgraderPlayStore(),
-      oniOS: () => UpgraderAppStore(),
-    ),
-  );
+  bool _imagePrecached = false;
 
   @override
   void initState() {
@@ -104,6 +95,13 @@ class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp>
     NotificationHandlerService.registerScaffoldMessengerKey(_scaffoldKey);
     NotificationHandlerService.registerApprovalRefreshCallback(() {
       ref.read(approvalInboxProvider.notifier).fetchInbox();
+    });
+
+    // Delay heavy platform-channel work so first frame renders fast.
+    Future.delayed(const Duration(seconds: 2), () {
+      if (!mounted) return;
+      NotificationHandlerService.init();
+      unawaited(ForceUpdateService.checkAndForceUpdate());
     });
   }
 
@@ -117,21 +115,27 @@ class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       ref.read(masterDataProvider.notifier).syncIfStale();
+      unawaited(ForceUpdateService.checkAndForceUpdate());
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_imagePrecached) {
+      _imagePrecached = true;
+      precacheImage(
+        const AssetImage('assets/logo/whatsapp-icon.png'),
+        context,
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    precacheImage(
-      const AssetImage('assets/logo/whatsapp-icon.png'),
-      context,
-    );
-
     final router = ref.watch(routerProvider);
     NotificationHandlerService.registerNavigateCallback(router);
 
-    // When user logs in, invalidate master data so it re-fetches with token
-    // (fixes first-install: area/channel/brand empty because sync never ran)
     ref.listen<AuthState>(authProvider, (prev, next) {
       if (prev?.isLoggedIn != true && next.isLoggedIn) {
         ref.invalidate(masterDataProvider);
@@ -155,15 +159,8 @@ class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp>
       builder: (context, child) {
         return ScaffoldMessenger(
           key: _scaffoldKey,
-          child: UpgradeAlert(
-            upgrader: _upgrader,
-            showIgnore: false,
-            showLater: false,
-            barrierDismissible: false,
-            shouldPopScope: () => false,
-            child: OfflineBannerWrapper(
-              child: child ?? const SizedBox.shrink(),
-            ),
+          child: OfflineBannerWrapper(
+            child: child ?? const SizedBox.shrink(),
           ),
         );
       },
@@ -171,8 +168,24 @@ class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp>
   }
 }
 
+/// Transient asset-loading failures (images, fonts) caused by device/network
+/// issues — not application bugs. Report as non-fatal.
+bool _isTransientAssetError(FlutterErrorDetails details) {
+  final exception = details.exception;
+  if (exception is PathNotFoundException) return true;
+
+  final message = details.exceptionAsString();
+  return message.contains('image decoding') ||
+      message.contains('Failed to submit') ||
+      message.contains('ImageCodecException') ||
+      message.contains('Cannot open file') ||
+      message.contains('FileSystemException') ||
+      message.contains('Failed to load font') ||
+      message.contains('SocketException') ||
+      message.contains('Connection abort');
+}
+
 /// Friendly fallback shown in release when a widget fails to build.
-/// Prevents the default red "error" screen from scaring users.
 class _AppErrorFallback extends StatelessWidget {
   const _AppErrorFallback();
 
@@ -215,24 +228,4 @@ class _AppErrorFallback extends StatelessWidget {
       ),
     );
   }
-}
-
-class _AlitaUpgraderMessages extends UpgraderMessages {
-  _AlitaUpgraderMessages() : super(code: 'id');
-
-  @override
-  String get title => 'Pembaruan Tersedia';
-
-  @override
-  String get body => 'Versi baru aplikasi {{appName}} telah tersedia.\n'
-      'Anda wajib memperbarui aplikasi untuk melanjutkan dan memastikan '
-      'perhitungan harga akurat.\n\n'
-      'Versi terpasang: {{currentInstalledVersion}}\n'
-      'Versi terbaru: {{currentAppStoreVersion}}';
-
-  @override
-  String get prompt => 'Silakan perbarui aplikasi sekarang untuk melanjutkan.';
-
-  @override
-  String get buttonTitleUpdate => 'Perbarui Sekarang';
 }

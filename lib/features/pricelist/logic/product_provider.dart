@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -8,6 +9,7 @@ import '../../../core/services/api_client.dart';
 import '../../../core/services/storage_service.dart';
 import '../../../core/utils/area_utils.dart';
 import '../../../core/utils/log.dart';
+import '../../../core/utils/network_error.dart';
 import '../data/models/product.dart';
 import '../../auth/logic/auth_provider.dart';
 import 'master_data_provider.dart';
@@ -41,7 +43,8 @@ enum SortOption {
 }
 
 /// State provider for sort option (default: newest / original order)
-final sortOptionProvider = StateProvider<SortOption>((ref) => SortOption.newest);
+final sortOptionProvider =
+    StateProvider<SortOption>((ref) => SortOption.newest);
 
 // ─────────────────────────────────────────────────────────
 //  Cascading Filters: Area → Channel → Brand
@@ -135,7 +138,8 @@ final brandsProvider = Provider<List<String>>((ref) {
     );
     final rawId = channelObj['id'];
     if (rawId == null) return [];
-    final selectedChannelId = rawId is int ? rawId : int.tryParse(rawId.toString());
+    final selectedChannelId =
+        rawId is int ? rawId : int.tryParse(rawId.toString());
     if (selectedChannelId == null) return [];
 
     // Step 2: Filter brands by pl_channel_id (may be int or string from API)
@@ -200,8 +204,9 @@ List<Product> mapFilteredPlRawListToProducts(
     final price = (priceRaw is num)
         ? priceRaw.toDouble()
         : (double.tryParse(priceRaw?.toString() ?? '') ?? 0.0);
-    double toDouble(dynamic v) =>
-        (v is num) ? v.toDouble() : (double.tryParse(v?.toString() ?? '') ?? 0.0);
+    double toDouble(dynamic v) => (v is num)
+        ? v.toDouble()
+        : (double.tryParse(v?.toString() ?? '') ?? 0.0);
     double readDisc(int i) {
       final keys = ['disc_$i', 'disc$i', 'discount_$i', 'max_disc_$i'];
       for (final k in keys) {
@@ -278,14 +283,22 @@ List<Product> mapFilteredPlRawListToProducts(
       qtyBonus8: json['qty_bonus8'] is int
           ? json['qty_bonus8'] as int
           : int.tryParse(json['qty_bonus8']?.toString() ?? ''),
-      plBonus1: json['pl_bonus_1'] != null ? toDouble(json['pl_bonus_1']) : null,
-      plBonus2: json['pl_bonus_2'] != null ? toDouble(json['pl_bonus_2']) : null,
-      plBonus3: json['pl_bonus_3'] != null ? toDouble(json['pl_bonus_3']) : null,
-      plBonus4: json['pl_bonus_4'] != null ? toDouble(json['pl_bonus_4']) : null,
-      plBonus5: json['pl_bonus_5'] != null ? toDouble(json['pl_bonus_5']) : null,
-      plBonus6: json['pl_bonus_6'] != null ? toDouble(json['pl_bonus_6']) : null,
-      plBonus7: json['pl_bonus_7'] != null ? toDouble(json['pl_bonus_7']) : null,
-      plBonus8: json['pl_bonus_8'] != null ? toDouble(json['pl_bonus_8']) : null,
+      plBonus1:
+          json['pl_bonus_1'] != null ? toDouble(json['pl_bonus_1']) : null,
+      plBonus2:
+          json['pl_bonus_2'] != null ? toDouble(json['pl_bonus_2']) : null,
+      plBonus3:
+          json['pl_bonus_3'] != null ? toDouble(json['pl_bonus_3']) : null,
+      plBonus4:
+          json['pl_bonus_4'] != null ? toDouble(json['pl_bonus_4']) : null,
+      plBonus5:
+          json['pl_bonus_5'] != null ? toDouble(json['pl_bonus_5']) : null,
+      plBonus6:
+          json['pl_bonus_6'] != null ? toDouble(json['pl_bonus_6']) : null,
+      plBonus7:
+          json['pl_bonus_7'] != null ? toDouble(json['pl_bonus_7']) : null,
+      plBonus8:
+          json['pl_bonus_8'] != null ? toDouble(json['pl_bonus_8']) : null,
       bottomPriceAnalyst: toDouble(json['bottom_price_analyst']),
       disc1: toDiscFraction(1),
       disc2: toDiscFraction(2),
@@ -299,7 +312,8 @@ List<Product> mapFilteredPlRawListToProducts(
   }).toList();
 }
 
-List<Product> _productsFromResponseBody(String body, String channel, String brand) {
+List<Product> _productsFromResponseBody(
+    String body, String channel, String brand) {
   final decoded = jsonDecode(body);
   if (decoded == null) throw Exception('Response tidak valid.');
 
@@ -318,8 +332,7 @@ List<Product> _productsFromResponseBody(String body, String channel, String bran
 /// Fetches product list from API; on every **successful** response the full
 /// list for this filter is written to disk (overwrites any previous snapshot).
 /// On failure, returns the last successful snapshot if any ([isFromStaleCache]).
-final productListProvider =
-    FutureProvider<ProductListLoadResult>((ref) async {
+final productListProvider = FutureProvider<ProductListLoadResult>((ref) async {
   final area = ref.watch(effectiveAreaProvider);
   final channel = ref.watch(selectedChannelProvider);
   final brand = ref.watch(selectedBrandProvider);
@@ -372,7 +385,11 @@ final productListProvider =
 
     return ProductListLoadResult(products: products, isFromStaleCache: false);
   } catch (e, st) {
-    Log.error(e, st, reason: 'productListProvider fetch');
+    if (isNetworkError(e)) {
+      Log.warning('productListProvider fetch: $e', tag: 'Pricelist');
+    } else {
+      Log.error(e, st, reason: 'productListProvider fetch');
+    }
     final stale = await tryLoadStale();
     if (stale != null) return stale;
     rethrow;
@@ -417,7 +434,9 @@ final filteredProductsProvider = Provider<List<Product>>((ref) {
       groupedMap[groupName] = p.copyWith(name: groupName);
     } else {
       final existingProduct = groupedMap[groupName];
-      if (existingProduct != null && p.price > 0 && p.price < existingProduct.price) {
+      if (existingProduct != null &&
+          p.price > 0 &&
+          p.price < existingProduct.price) {
         groupedMap[groupName] = p.copyWith(name: groupName);
       }
     }
@@ -451,4 +470,3 @@ final filteredProductsProvider = Provider<List<Product>>((ref) {
 
   return filtered;
 });
-

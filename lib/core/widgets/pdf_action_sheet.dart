@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-
 import '../theme/app_colors.dart';
+import '../utils/platform_utils.dart';
 import '../utils/app_feedback.dart';
 import '../utils/log.dart';
 import 'loading_overlay.dart';
@@ -148,7 +147,7 @@ class _PdfActionButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
           onTap: () {
-            HapticFeedback.lightImpact();
+            hapticTap();
             onTap();
           },
           borderRadius: BorderRadius.circular(14),

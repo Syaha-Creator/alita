@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/utils/platform_utils.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/services/connectivity_service.dart';
@@ -192,7 +193,7 @@ class QuotationCard extends ConsumerWidget {
   }
 
   void _showDetail(BuildContext context) {
-    HapticFeedback.lightImpact();
+    hapticTap();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -211,7 +212,7 @@ class QuotationCard extends ConsumerWidget {
       if (ifOfflineShowFeedback(context, isOffline: isOffline)) {
         return;
       }
-      unawaited(HapticFeedback.lightImpact());
+      hapticTap();
       AppFeedback.show(context,
           message: 'Membuat PDF…', type: AppFeedbackType.info);
       final box = context.findRenderObject() as RenderBox?;
@@ -272,7 +273,7 @@ class QuotationCard extends ConsumerWidget {
   }
 
   void _addItemsAndBrowse(BuildContext context, WidgetRef ref) {
-    HapticFeedback.lightImpact();
+    hapticTap();
     showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -313,12 +314,12 @@ class QuotationCard extends ConsumerWidget {
   }
 
   void _continueToCheckout(BuildContext context, WidgetRef ref) {
-    HapticFeedback.lightImpact();
+    hapticTap();
     context.push('/checkout', extra: quotation);
   }
 
   void _editCustomerInfo(BuildContext context, WidgetRef ref) {
-    HapticFeedback.lightImpact();
+    hapticTap();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/platform_utils.dart';
 import '../../../../core/widgets/app_choice_chip.dart';
 import '../../data/models/item_lookup.dart';
 import 'product_anchor_type.dart';
@@ -18,6 +18,10 @@ class ProductConfiguratorSection extends StatelessWidget {
   final String effectiveHeadboard;
   final String effectiveSorong;
   final bool isKasurOnly;
+
+  /// Pre-computed by the variant resolver from the *unfiltered* headboard/
+  /// sorong lists. Controls whether the "Beli Set" toggle is visible.
+  final bool hasSetOptions;
 
   // Lookup data per component
   final List<ItemLookup> kasurLookups;
@@ -70,6 +74,7 @@ class ProductConfiguratorSection extends StatelessWidget {
     required this.effectiveHeadboard,
     required this.effectiveSorong,
     required this.isKasurOnly,
+    required this.hasSetOptions,
     required this.kasurLookups,
     required this.effectiveKasurLookup,
     required this.onKasurLookupSelected,
@@ -105,24 +110,11 @@ class ProductConfiguratorSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool hasSetOptions;
-    if (anchorType == AnchorType.kasur) {
-      hasSetOptions = true;
-    } else if (anchorType == AnchorType.divan) {
-      hasSetOptions = availableHeadboards.any(
-        (h) => !h.trim().toLowerCase().contains('tanpa'),
-      );
-    } else {
-      hasSetOptions = false;
-    }
-
     final availableDivansForSet = availableDivans
         .where((d) => !d.trim().toLowerCase().contains('tanpa'))
         .toList();
 
-    final headboardsForSet = availableHeadboards
-        .where((h) => !h.trim().toLowerCase().contains('tanpa'))
-        .toList();
+    final headboardsForSet = availableHeadboards;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -495,7 +487,7 @@ class _TipePembelianCardState extends State<TipePembelianCard>
 
     return GestureDetector(
       onTap: () {
-        HapticFeedback.selectionClick();
+        hapticSelection();
         widget.onTap();
       },
       onTapDown: (_) => _scaleCtrl.forward(),

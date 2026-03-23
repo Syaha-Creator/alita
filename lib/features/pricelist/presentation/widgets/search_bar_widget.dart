@@ -16,6 +16,15 @@ class _SearchBarWidgetState extends ConsumerState<SearchBarWidget> {
   final TextEditingController _controller = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    final currentQuery = ref.read(searchQueryProvider);
+    if (currentQuery.isNotEmpty) {
+      _controller.text = currentQuery;
+    }
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     super.dispose();
