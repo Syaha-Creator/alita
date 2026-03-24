@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_core/firebase_core.dart';
 import '../../../core/enums/order_status.dart';
 import '../../../core/services/api_client.dart';
 import '../../../core/utils/app_telemetry.dart';
 import '../../../core/utils/log.dart';
 import '../../../core/utils/name_matcher.dart';
+import '../../history/data/models/order_history.dart';
 import 'approval_inbox_provider.dart';
 
 class ApprovalDecisionResult {
@@ -48,6 +50,80 @@ class ApprovalDecisionService {
       }
     }
     return true;
+  }
+
+  /// Sinkron dengan aturan inbox / [ApprovalDetailPage]: giliran user dan prior approved.
+  static bool orderHistoryNeedsMyApproval({
+    required OrderHistory order,
+    required int userId,
+    required String myName,
+  }) {
+    if (userId <= 0 && myName.trim().isEmpty) return false;
+
+    final headerEnum = OrderStatusX.fromRaw(order.status);
+    final headerTerminal = headerEnum == OrderStatus.rejected ||
+        headerEnum == OrderStatus.approved;
+    if (headerTerminal) return false;
+
+    var anyDiscountRejected = false;
+    for (final detail in order.details) {
+      final maps = detail.discounts
+          .map(
+            (d) => <String, dynamic>{
+              'approved': d.approvedStatus,
+              'approver_id': d.approverId,
+              'approver_name': d.approverName,
+            },
+          )
+          .toList();
+      for (final disc in maps) {
+        if (OrderStatusX.fromDynamic(disc['approved']) == OrderStatus.rejected) {
+          anyDiscountRejected = true;
+        }
+      }
+    }
+    if (anyDiscountRejected) return false;
+
+    for (final detail in order.details) {
+      final discountMaps = detail.discounts
+          .map(
+            (d) => <String, dynamic>{
+              'approved': d.approvedStatus,
+              'approver_id': d.approverId,
+              'approver_name': d.approverName,
+            },
+          )
+          .toList();
+
+      for (var i = 0; i < discountMaps.length; i++) {
+        final disc = discountMaps[i];
+        final approverId = disc['approver_id']?.toString() ?? '';
+        final approverName = disc['approver_name'] as String? ?? '';
+        final discEnum = OrderStatusX.fromDynamic(disc['approved']);
+
+        final isMe = (userId > 0 && approverId == userId.toString()) ||
+            (myName.isNotEmpty &&
+                NameMatcher.softMatch(approverName, myName));
+
+        if (isMe &&
+            discEnum == OrderStatus.pending &&
+            arePriorApprovedByIndex(
+              discountsInDetail: discountMaps,
+              myIndex: i,
+            )) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  static int? _orderLetterIdFromData(Map<String, dynamic> orderData) {
+    final letter = orderData['order_letter'];
+    if (letter is! Map) return null;
+    final raw = letter['id'];
+    if (raw is int) return raw;
+    return int.tryParse(raw?.toString() ?? '');
   }
 
   /// Collects every discount row across all details that belongs to the
@@ -275,12 +351,14 @@ class ApprovalDecisionService {
         );
         if (fcmToken == null || fcmToken.isEmpty) return;
 
+        final oid = _orderLetterIdFromData(orderData);
         await _callCloudFunction(
           functionName: 'sendApprovalNotification',
           params: {
             'token': fcmToken,
             'sp_number': spNumber,
             'sender_name': senderName,
+            if (oid != null) 'order_letter_id': oid,
           },
         );
 
@@ -301,6 +379,7 @@ class ApprovalDecisionService {
         );
         if (fcmToken == null || fcmToken.isEmpty) return;
 
+        final oid = _orderLetterIdFromData(orderData);
         await _callCloudFunction(
           functionName: 'sendApprovalNotification',
           params: {
@@ -308,6 +387,7 @@ class ApprovalDecisionService {
             'sp_number': spNumber,
             'sender_name': 'Sistem',
             'type': 'fully_approved',
+            if (oid != null) 'order_letter_id': oid,
           },
         );
 
@@ -318,6 +398,51 @@ class ApprovalDecisionService {
       }
     } catch (e, st) {
       Log.error(e, st, reason: 'triggerNextApprovalNotification');
+      AppTelemetry.error('approval_notification_failed', data: {
+        'sp_number': spNumber,
+        'reason': e.toString(),
+      });
+    }
+  }
+
+  /// Sends a push to the SP creator when the order is rejected.
+  static Future<void> triggerRejectionNotification({
+    required Map<String, dynamic> orderData,
+    required String spNumber,
+    required String token,
+    required String senderName,
+  }) async {
+    if (spNumber.isEmpty) return;
+    try {
+      final order = orderData['order_letter'] as Map<String, dynamic>? ?? {};
+      final creatorId =
+          order['creator']?.toString() ?? order['user_id']?.toString() ?? '';
+      if (creatorId.isEmpty) return;
+
+      final fcmToken = await _fetchFcmToken(
+        userId: creatorId,
+        accessToken: token,
+      );
+      if (fcmToken == null || fcmToken.isEmpty) return;
+
+      final oid = _orderLetterIdFromData(orderData);
+      await _callCloudFunction(
+        functionName: 'sendApprovalNotification',
+        params: {
+          'token': fcmToken,
+          'sp_number': spNumber,
+          'sender_name': senderName,
+          'type': 'rejected',
+          if (oid != null) 'order_letter_id': oid,
+        },
+      );
+
+      AppTelemetry.event('approval_notification_sent', data: {
+        'type': 'rejected',
+        'sp_number': spNumber,
+      });
+    } catch (e, st) {
+      Log.error(e, st, reason: 'triggerRejectionNotification');
       AppTelemetry.error('approval_notification_failed', data: {
         'sp_number': spNumber,
         'reason': e.toString(),
@@ -392,7 +517,13 @@ class ApprovalDecisionService {
       }
 
       final body = jsonDecode(res.body) as Map<String, dynamic>;
-      return body['result']?['token']?.toString();
+      final result = body['result'];
+      if (result is List && result.isNotEmpty) {
+        return (result.first as Map<String, dynamic>)['token']?.toString();
+      } else if (result is Map) {
+        return result['token']?.toString();
+      }
+      return null;
     } catch (e, st) {
       Log.error(e, st, reason: 'ApprovalDecision._fetchFcmToken');
       return null;
@@ -400,11 +531,20 @@ class ApprovalDecisionService {
   }
 
   /// Invokes a Firebase Cloud Function by name with the given params.
+  /// Silently no-ops when Firebase Core has not been initialized.
   static Future<void> _callCloudFunction({
     required String functionName,
     required Map<String, dynamic> params,
   }) async {
-    final callable = FirebaseFunctions.instance.httpsCallable(functionName);
-    await callable.call(params);
+    try {
+      final callable = FirebaseFunctions.instanceFor(region: 'asia-southeast2')
+          .httpsCallable(functionName);
+      await callable.call(params);
+    } on FirebaseException catch (e) {
+      Log.warning(
+        'Cloud Function "$functionName" skipped (Firebase: ${e.code})',
+        tag: 'ApprovalDecisionService',
+      );
+    }
   }
 }

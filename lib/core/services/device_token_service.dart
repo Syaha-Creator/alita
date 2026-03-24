@@ -5,23 +5,22 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import '../utils/log.dart';
 import 'api_client.dart';
 
-/// Handles device token (FCM) registration against the Ruby backend
-/// with smart 422 parsing.
+/// Handles device token (FCM) registration against the Ruby/Rails backend.
 ///
-/// Separated from [FcmTokenService] so the backend-interaction logic
-/// (especially the 422 edge-case handling) lives in one testable place.
+/// Flow:
+/// 1. GET existing tokens for user → compare with current FCM token
+/// 2. If match found → skip (already registered)
+/// 3. If old tokens exist but differ → DELETE old + POST new
+/// 4. If none exist → POST new
 class DeviceTokenService {
   DeviceTokenService._();
 
   static final ApiClient _api = ApiClient.instance;
 
-  /// Fetches the current FCM token from Firebase and POSTs it to the
-  /// backend. Runs silently — never throws to the caller.
-  ///
-  /// Returns `true` if the token was successfully registered (including
-  /// the case where the backend says it already exists — HTTP 422 with
-  /// an 'already'/'duplicate'/'exists' message).
-  /// Returns `false` on any genuine failure.
+  // ── Public API ──────────────────────────────────────────────
+
+  /// Ensures the current FCM token is registered on the backend for [userId].
+  /// Returns `true` on success, `false` on failure. Never throws.
   static Future<bool> syncFcmToken({
     required String userId,
     required String accessToken,
@@ -31,6 +30,21 @@ class DeviceTokenService {
       if (fcmToken == null || fcmToken.isEmpty) {
         Log.warning('FCM token kosong — skip sync', tag: 'DeviceToken');
         return false;
+      }
+
+      final records = await _getTokenRecords(
+        userId: userId,
+        accessToken: accessToken,
+      );
+
+      // Token already registered → nothing to do
+      if (records.any((r) => r.token == fcmToken)) {
+        return true;
+      }
+
+      // Old tokens exist → delete them first so POST doesn't hit unique constraint
+      for (final old in records) {
+        await _deleteById(id: old.id, accessToken: accessToken);
       }
 
       return await _postToken(
@@ -44,23 +58,20 @@ class DeviceTokenService {
     }
   }
 
-  /// Removes the device token from the backend, then deletes the local
-  /// Firebase token. Silently swallows errors.
+  /// Removes all device tokens for [userId] from the backend,
+  /// then deletes the local Firebase token. Silently swallows errors.
   static Future<void> deleteToken({
     required String userId,
     required String accessToken,
   }) async {
     try {
-      final res = await _api.delete(
-        '/device_tokens',
-        token: accessToken,
-        queryParams: {'user_id': userId},
+      final records = await _getTokenRecords(
+        userId: userId,
+        accessToken: accessToken,
       );
-      if (res.statusCode != 200 && res.statusCode != 204) {
-        Log.warning(
-          'delete failed (${res.statusCode}): ${res.body}',
-          tag: 'DeviceToken',
-        );
+
+      for (final record in records) {
+        await _deleteById(id: record.id, accessToken: accessToken);
       }
     } catch (e) {
       Log.warning('DeviceToken.deleteFromServer: $e', tag: 'DeviceToken');
@@ -73,15 +84,43 @@ class DeviceTokenService {
     }
   }
 
-  // ── Backend POST with smart 422 handling ──────────────────────
+  // ── Private helpers ─────────────────────────────────────────
 
-  /// POSTs the FCM token to `/device_tokens`.
-  ///
-  /// **422 smart parsing:**
-  ///  - If the response body contains 'already', 'duplicate', or 'exists'
-  ///    → treat as success (token was previously registered).
-  ///  - If it contains 'not save' or 'failed'
-  ///    → treat as real failure.
+  /// GETs token records for [userId]. Returns id + token pairs.
+  static Future<List<_TokenRecord>> _getTokenRecords({
+    required String userId,
+    required String accessToken,
+  }) async {
+    try {
+      final res = await _api.get(
+        '/device_tokens',
+        token: accessToken,
+        queryParams: {'user_id': userId},
+      );
+
+      if (res.statusCode != 200) return [];
+
+      final data = jsonDecode(res.body);
+      if (data is! Map<String, dynamic>) return [];
+
+      final result = data['result'];
+      if (result is List) {
+        return result
+            .whereType<Map<String, dynamic>>()
+            .map(_TokenRecord.fromJson)
+            .where((r) => r.token.isNotEmpty)
+            .toList();
+      } else if (result is Map<String, dynamic>) {
+        final r = _TokenRecord.fromJson(result);
+        return r.token.isNotEmpty ? [r] : [];
+      }
+    } catch (e) {
+      Log.warning('GET /device_tokens failed: $e', tag: 'DeviceToken');
+    }
+    return [];
+  }
+
+  /// POSTs a new FCM token to `/device_tokens`.
   static Future<bool> _postToken({
     required String userId,
     required String fcmToken,
@@ -90,14 +129,10 @@ class DeviceTokenService {
     final res = await _api.post(
       '/device_tokens',
       token: accessToken,
-      body: {'user_id': userId, 'token': fcmToken},
+      body: {'user_id': int.parse(userId), 'token': fcmToken},
     );
 
     if (res.statusCode == 200 || res.statusCode == 201) return true;
-
-    if (res.statusCode == 422) {
-      return _handle422(res.body);
-    }
 
     Log.warning(
       'POST /device_tokens failed (${res.statusCode}): ${res.body}',
@@ -106,51 +141,38 @@ class DeviceTokenService {
     return false;
   }
 
-  /// Parses a 422 response to decide whether the token sync
-  /// actually succeeded (duplicate) or truly failed.
-  static bool _handle422(String body) {
-    final text = _extractMessageText(body);
-
-    const successIndicators = ['already', 'duplicate', 'exists'];
-    const failureIndicators = ['not save', 'failed'];
-
-    for (final keyword in failureIndicators) {
-      if (text.contains(keyword)) {
-        Log.warning(
-          '422 → real failure (matched "$keyword"): $text',
-          tag: 'DeviceToken',
-        );
-        return false;
-      }
-    }
-
-    for (final keyword in successIndicators) {
-      if (text.contains(keyword)) {
-        Log.warning(
-          '422 → treated as success (matched "$keyword"): $text',
-          tag: 'DeviceToken',
-        );
-        return true;
-      }
-    }
-
-    Log.warning('422 → unrecognised message: $text', tag: 'DeviceToken');
-    return false;
-  }
-
-  /// Extracts a combined lowercase string from the `message` and `error`
-  /// fields of a JSON response body. Falls back to the raw body text.
-  static String _extractMessageText(String body) {
+  /// DELETEs a single token record by its server-side [id].
+  static Future<void> _deleteById({
+    required String id,
+    required String accessToken,
+  }) async {
+    if (id.isEmpty) return;
     try {
-      final data = jsonDecode(body);
-      if (data is Map<String, dynamic>) {
-        final msg = data['message']?.toString().toLowerCase() ?? '';
-        final err = data['error']?.toString().toLowerCase() ?? '';
-        return '$msg $err'.trim();
+      final res = await _api.delete(
+        '/device_tokens/$id',
+        token: accessToken,
+      );
+      if (res.statusCode != 200 && res.statusCode != 204) {
+        Log.warning(
+          'DELETE /device_tokens/$id failed (${res.statusCode}): ${res.body}',
+          tag: 'DeviceToken',
+        );
       }
     } catch (e) {
-      Log.warning('422 body is not valid JSON: $e', tag: 'DeviceToken');
+      Log.warning('DELETE /device_tokens/$id error: $e', tag: 'DeviceToken');
     }
-    return body.toLowerCase();
   }
+}
+
+/// Lightweight record from the GET /device_tokens response.
+class _TokenRecord {
+  final String id;
+  final String token;
+
+  const _TokenRecord({required this.id, required this.token});
+
+  factory _TokenRecord.fromJson(Map<String, dynamic> json) => _TokenRecord(
+        id: json['id']?.toString() ?? '',
+        token: json['token']?.toString() ?? '',
+      );
 }

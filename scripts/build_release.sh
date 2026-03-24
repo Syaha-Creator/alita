@@ -17,7 +17,7 @@ cd "$PROJECT_ROOT"
 # Load .env (hanya key yang dipakai untuk build, hindari FIREBASE_* yang kompleks)
 load_env() {
   [[ ! -f .env ]] && return
-  local keys="API_BASE_URL CLIENT_ID CLIENT_SECRET COMFORTA_ACCESS_TOKEN COMFORTA_CLIENT_ID COMFORTA_CLIENT_SECRET"
+  local keys="API_BASE_URL CLIENT_ID_ANDROID CLIENT_SECRET_ANDROID CLIENT_ID_IOS CLIENT_SECRET_IOS COMFORTA_ACCESS_TOKEN COMFORTA_CLIENT_ID COMFORTA_CLIENT_SECRET"
   while IFS= read -r line || [[ -n "$line" ]]; do
     [[ "$line" =~ ^[[:space:]]*# ]] && continue
     [[ "$line" =~ ^[[:space:]]*$ ]] && continue
@@ -50,14 +50,16 @@ add_define() {
 }
 
 add_define API_BASE_URL
-add_define CLIENT_ID
-add_define CLIENT_SECRET
+add_define CLIENT_ID_ANDROID
+add_define CLIENT_SECRET_ANDROID
+add_define CLIENT_ID_IOS
+add_define CLIENT_SECRET_IOS
 add_define COMFORTA_ACCESS_TOKEN
 add_define COMFORTA_CLIENT_ID
 add_define COMFORTA_CLIENT_SECRET
 
 if [[ ${#DART_DEFINES[@]} -eq 0 ]]; then
-  echo "Error: API_BASE_URL, CLIENT_ID, CLIENT_SECRET belum di-set."
+  echo "Error: API_BASE_URL, CLIENT_ID_ANDROID/IOS, CLIENT_SECRET_ANDROID/IOS belum di-set."
   echo "  Pastikan .env ada di project root, atau export manual."
   exit 1
 fi

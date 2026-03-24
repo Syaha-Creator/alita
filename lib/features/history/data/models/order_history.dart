@@ -118,6 +118,105 @@ extension OrderHistoryX on OrderHistory {
       .where((d) => d.itemType.toLowerCase() == 'bonus')
       .toList()
     ..sort((a, b) => a.id.compareTo(b.id)));
+
+  /// Bentuk map seperti response API untuk [ApprovalDetailPage] (dari data ter-parse).
+  Map<String, dynamic> toApprovalOrderDataMap() {
+    return {
+      'order_letter': {
+        'id': id,
+        'no_sp': noSp,
+        'order_date': orderDate,
+        'request_date': requestDate,
+        'note': note,
+        'customer_name': customerName,
+        'phone': phone,
+        'address': address,
+        'email': email,
+        'ship_to_name': shipToName,
+        'address_ship_to': addressShipTo,
+        'no_po': noPo,
+        'take_away': isTakeAway,
+        'work_place_name': workPlaceName,
+        'company_name': companyName,
+        'extended_amount': totalAmount,
+        'postage': postage,
+        'status': status,
+        'creator': creator,
+        'creator_name': creatorName,
+        'sales_code': salesCode,
+        'sales_name': salesName,
+        'created_at': createdAt?.toIso8601String(),
+      },
+      'order_letter_details': details
+          .map(
+            (d) => {
+              'order_letter_detail_id': d.id,
+              'no_sp': d.noSp,
+              'desc_1': d.desc1,
+              'item_description': d.itemDescription,
+              'item_type': d.itemType,
+              'qty': d.qty,
+              'customer_price': d.customerPrice,
+              'net_price': d.netPrice,
+              'brand': d.brand,
+              'unit_price': d.unitPrice,
+              'extended_price': d.extendedPrice,
+              'take_away': d.isTakeAway,
+              'order_letter_discount': d.discounts
+                  .map(
+                    (x) => {
+                      'order_letter_discount_id': x.id,
+                      'discount': x.discountVal,
+                      'approver_name': x.approverName,
+                      'approver_level': x.approverLevel,
+                      'approver_id': x.approverId,
+                      'approved': x.approvedStatus,
+                      'approved_at': x.approvedAt,
+                    },
+                  )
+                  .toList(),
+            },
+          )
+          .toList(),
+      'order_letter_payments': payments
+          .map(
+            (p) => {
+              'payment_method': p.method,
+              'payment_bank': p.bank,
+              'payment_amount': p.amount,
+              'image': p.image,
+              'payment_date': p.paymentDate,
+              'created_at': p.createdAt,
+            },
+          )
+          .toList(),
+    };
+  }
+}
+
+/// Stub agar [OrderDetailPage] bisa refresh penuh dari API (mis. tap notifikasi).
+OrderHistory orderHistoryStubFromNotification({
+  required int id,
+  String orderLetterNo = '-',
+}) {
+  return OrderHistory.fromApiJson({
+    'order_letter': {
+      'id': id,
+      'no_sp': orderLetterNo.isEmpty ? '-' : orderLetterNo,
+      'order_date': '',
+      'request_date': '',
+      'note': '',
+      'customer_name': '',
+      'phone': '',
+      'address': '',
+      'email': '',
+      'status': '',
+      'extended_amount': 0,
+      'postage': 0,
+    },
+    'order_letter_details': <dynamic>[],
+    'order_letter_payments': <dynamic>[],
+  });
 }
 
 /// Returns true if [value] is truthy or string "TAKE AWAY" (API returns string).
@@ -190,6 +289,8 @@ class OrderDiscount with _$OrderDiscount {
     required String discountVal,
     required String approverName,
     required String approverLevel,
+    /// From API `approver_id`; used to detect "giliran Anda" on order detail.
+    String? approverId,
     required String approvedStatus,
     String? approvedAt,
   }) = _OrderDiscount;
@@ -203,6 +304,7 @@ class OrderDiscount with _$OrderDiscount {
       discountVal: json['discount']?.toString() ?? '0',
       approverName: json['approver_name']?.toString() ?? '-',
       approverLevel: json['approver_level']?.toString() ?? '-',
+      approverId: json['approver_id']?.toString(),
       approvedStatus: json['approved']?.toString() ?? OrderStatus.pending.apiValue,
       approvedAt: json['approved_at']?.toString(),
     );

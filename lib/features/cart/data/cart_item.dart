@@ -62,6 +62,31 @@ class CartItem with _$CartItem {
 
   double get totalPrice => quantity * product.price;
 
+  /// Human-friendly name for display in cart / checkout.
+  ///
+  /// If the product has no kasur ("Tanpa Kasur"), shows the first
+  /// present component name (divan / headboard / sorong) + size.
+  String get displayName {
+    final p = product;
+    if (_isPresent(p.kasur)) return p.name;
+
+    String withSize(String base) {
+      if (p.ukuran.isEmpty) return base;
+      if (base.toLowerCase().contains(p.ukuran.toLowerCase())) return base;
+      return '$base ${p.ukuran}';
+    }
+
+    if (_isPresent(p.divan)) return withSize(p.divan);
+    if (_isPresent(p.headboard)) return withSize(p.headboard);
+    if (_isPresent(p.sorong)) return withSize(p.sorong);
+    return p.name;
+  }
+
+  static bool _isPresent(String field) {
+    final v = field.trim().toLowerCase();
+    return v.isNotEmpty && !v.startsWith('tanpa');
+  }
+
   factory CartItem.fromJson(Map<String, dynamic> json) =>
       _$CartItemFromJson(json);
 }

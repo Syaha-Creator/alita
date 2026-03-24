@@ -50,7 +50,8 @@ class CartItemBuilder {
     // Bonus override (from "Tukar Bonus")
     List<Map<String, dynamic>>? customBonuses,
   }) {
-    final savingAsSet = !isKasurOnly;
+    final hasKasur = _isComponentPresent(activeProduct.kasur);
+    final savingAsSet = hasKasur ? !isKasurOnly : true;
     final summary =
         '$effectiveSize · $effectiveDivan · $effectiveHeadboard · $effectiveSorong';
 
@@ -62,9 +63,8 @@ class CartItemBuilder {
     final kasurWarnaFinal =
         _resolveWarna(isKasurCustom, effectiveKasurLookup, customKasurNote);
 
-    final divanSkuFinal = savingAsSet
-        ? _resolveSku(isDivanCustom, effectiveDivanLookup)
-        : '';
+    final divanSkuFinal =
+        savingAsSet ? _resolveSku(isDivanCustom, effectiveDivanLookup) : '';
     final divanKainFinal = savingAsSet
         ? _resolveKain(isDivanCustom, effectiveDivanLookup, customDivanNote)
         : '';
@@ -84,16 +84,13 @@ class CartItemBuilder {
             isHeadboardCustom, effectiveHeadboardLookup, customHbNote)
         : '';
 
-    final sorongSkuFinal = savingAsSet
-        ? _resolveSku(isSorongCustom, effectiveSorongLookup)
-        : '';
+    final sorongSkuFinal =
+        savingAsSet ? _resolveSku(isSorongCustom, effectiveSorongLookup) : '';
     final sorongKainFinal = savingAsSet
-        ? _resolveKain(
-            isSorongCustom, effectiveSorongLookup, customSorongNote)
+        ? _resolveKain(isSorongCustom, effectiveSorongLookup, customSorongNote)
         : '';
     final sorongWarnaFinal = savingAsSet
-        ? _resolveWarna(
-            isSorongCustom, effectiveSorongLookup, customSorongNote)
+        ? _resolveWarna(isSorongCustom, effectiveSorongLookup, customSorongNote)
         : '';
 
     // ── Build description lines ──
@@ -116,26 +113,57 @@ class CartItemBuilder {
       }
       if (effectiveSorong.toLowerCase() != 'tanpa sorong' &&
           sorongSkuFinal.isNotEmpty) {
-        descLines.add(_componentDesc(
-            effectiveSorong, sorongSkuFinal, sorongKainFinal, sorongWarnaFinal));
+        descLines.add(_componentDesc(effectiveSorong, sorongSkuFinal,
+            sorongKainFinal, sorongWarnaFinal));
       }
     }
     final componentDescNote = descLines.join('\n');
 
-    // ── Rounding correction ──
+    // ── Rounding / markup correction ──
+    //
+    // When the user edits the total EUP upward, the difference between
+    // totalFinalPrice and the component sum must be applied to the
+    // PRIMARY component (the one that actually contributes to the price).
+    // For standard products this is kasur; for divan-only or headboard-only
+    // products there is no kasur so we fall through to the first non-zero
+    // component.
 
-    final componentSum =
-        finalKasurPrice + finalDivanPrice + finalHeadboardPrice + finalSorongPrice;
+    final componentSum = finalKasurPrice +
+        finalDivanPrice +
+        finalHeadboardPrice +
+        finalSorongPrice;
     final roundingDiff = totalFinalPrice - componentSum;
+
+    double adjKasur = finalKasurPrice;
+    double adjDivan = finalDivanPrice;
+    double adjHeadboard = finalHeadboardPrice;
+    double adjSorong = finalSorongPrice;
+
+    if (roundingDiff.abs() > 0.001) {
+      if (hasKasur && finalKasurPrice > 0) {
+        adjKasur += roundingDiff;
+      } else if (_isComponentPresent(activeProduct.divan) &&
+          finalDivanPrice > 0) {
+        adjDivan += roundingDiff;
+      } else if (_isComponentPresent(activeProduct.headboard) &&
+          finalHeadboardPrice > 0) {
+        adjHeadboard += roundingDiff;
+      } else if (_isComponentPresent(activeProduct.sorong) &&
+          finalSorongPrice > 0) {
+        adjSorong += roundingDiff;
+      } else {
+        adjKasur += roundingDiff;
+      }
+    }
 
     // ── Configured product snapshot ──
 
     final configuredProduct = activeProduct.copyWith(
       price: totalFinalPrice,
-      eupKasur: finalKasurPrice + roundingDiff,
-      eupDivan: finalDivanPrice,
-      eupHeadboard: finalHeadboardPrice,
-      eupSorong: finalSorongPrice,
+      eupKasur: adjKasur,
+      eupDivan: adjDivan,
+      eupHeadboard: adjHeadboard,
+      eupSorong: adjSorong,
       description: componentDescNote.isNotEmpty
           ? '${activeProduct.description}\n[$summary]\n$componentDescNote'
           : '${activeProduct.description}\n[$summary]',
@@ -203,6 +231,11 @@ class CartItemBuilder {
 
   // ── Private helpers ──
 
+  static bool _isComponentPresent(String field) {
+    final v = field.trim().toLowerCase();
+    return v.isNotEmpty && !v.startsWith('tanpa');
+  }
+
   static String _resolveSku(bool isCustom, ItemLookup? lkp) {
     if (isCustom) return _kCustomItemNum;
     return lkp?.itemNum ?? '';
@@ -244,20 +277,17 @@ class CartItemBuilder {
           : (groupedLookups[key] ?? []).firstOrNull;
     }
 
-    return customBonuses
-        .where((b) {
-          final name = b['name']?.toString().trim() ?? '';
-          return name.isNotEmpty;
-        })
-        .map((b) {
-          final name = b['name'].toString().trim();
-          final qty = (b['qty'] as num?)?.toInt() ?? 1;
-          final directItemNum = b['item_num']?.toString().trim() ?? '';
-          final lu = lookupFor(name);
-          return CartBonusSnapshot(
-              name: name, qty: qty, sku: lu?.itemNum ?? directItemNum);
-        })
-        .toList();
+    return customBonuses.where((b) {
+      final name = b['name']?.toString().trim() ?? '';
+      return name.isNotEmpty;
+    }).map((b) {
+      final name = b['name'].toString().trim();
+      final qty = (b['qty'] as num?)?.toInt() ?? 1;
+      final directItemNum = b['item_num']?.toString().trim() ?? '';
+      final lu = lookupFor(name);
+      return CartBonusSnapshot(
+          name: name, qty: qty, sku: lu?.itemNum ?? directItemNum);
+    }).toList();
   }
 
   static List<CartBonusSnapshot> _buildBonusSnapshots(

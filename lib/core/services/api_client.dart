@@ -108,6 +108,26 @@ class ApiClient {
     return response;
   }
 
+  /// DELETE with JSON body — matches Alita `/sign_out` as used by web-pricelist
+  /// (`client_id`, `client_secret`, `access_token` in body, not query).
+  Future<http.Response> deleteJson(
+    String path, {
+    required String accessToken,
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
+    final uri = buildUri(path);
+    final body = jsonEncode({
+      'client_id': AppConfig.clientId,
+      'client_secret': AppConfig.clientSecret,
+      'access_token': accessToken,
+    });
+    final response = await http
+        .delete(uri, headers: _jsonHeaders, body: body)
+        .timeout(timeout);
+    _logIfServerError(response);
+    return response;
+  }
+
   /// Makes a GET request to any URL without injecting auth credentials.
   /// Use for third-party / external API calls (Comforta, Emsifa, etc.).
   Future<http.Response> getExternal(

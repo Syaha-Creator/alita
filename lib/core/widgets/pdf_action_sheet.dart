@@ -111,7 +111,10 @@ class PdfActionSheet {
         );
       }
     } finally {
-      if (context.mounted) Navigator.of(context).pop();
+      // LoadingOverlay is shown via showGeneralDialog on the root navigator;
+      // popping the nearest navigator would remove the wrong route and leave
+      // the overlay stuck (looks like an infinite loading state).
+      if (context.mounted) LoadingOverlay.dismiss(context);
     }
   }
 

@@ -18,7 +18,10 @@ import '../../../../core/widgets/image_viewer_dialog.dart';
 import '../../../../core/widgets/detail_note_card.dart';
 import '../../../../core/widgets/detail_shipping_info_card.dart';
 import '../../../../core/widgets/pdf_action_sheet.dart';
+import '../../../../core/widgets/section_card.dart';
+import '../../../approval/logic/approval_decision_service.dart';
 import '../../../auth/logic/auth_provider.dart';
+import '../../../profile/logic/profile_provider.dart';
 import '../../data/models/order_history.dart';
 import '../../logic/order_detail_provider.dart';
 import '../widgets/add_payment_bottom_sheet.dart';
@@ -45,6 +48,14 @@ class OrderDetailPage extends ConsumerWidget {
       customerAddress: currentOrder.address,
     );
     final fmt = AppFormatters.currencyIdr;
+    final myName = ref.watch(profileProvider).valueOrNull?.name ?? '';
+    final userId = ref.watch(authProvider).userId;
+    final needsDiscountApproval =
+        ApprovalDecisionService.orderHistoryNeedsMyApproval(
+      order: currentOrder,
+      userId: userId,
+      myName: myName,
+    );
 
     final totalPaid = currentOrder.payments.fold<double>(
       0,
@@ -219,6 +230,58 @@ class OrderDetailPage extends ConsumerWidget {
                             duration: const Duration(seconds: 2),
                           ),
                         ),
+                        if (needsDiscountApproval) ...[
+                          const SizedBox(height: 12),
+                          SectionCard(
+                            title: 'Persetujuan diskon',
+                            backgroundColor:
+                                AppColors.accent.withValues(alpha: 0.08),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'SP ini membutuhkan tindakan persetujuan diskon '
+                                  'dari Anda. Gunakan halaman khusus persetujuan '
+                                  'untuk menyetujui atau menolak.',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    height: 1.35,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                                const SizedBox(height: AppLayoutTokens.space12),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: FilledButton(
+                                    onPressed: () {
+                                      hapticTap();
+                                      context.push(
+                                        '/approval_detail',
+                                        extra: currentOrder
+                                            .toApprovalOrderDataMap(),
+                                      );
+                                    },
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: AppColors.accent,
+                                      foregroundColor: AppColors.onPrimary,
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 12,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(
+                                          AppLayoutTokens.radius10,
+                                        ),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      'Buka halaman persetujuan diskon',
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 12),
                         DetailContactInfoCard(
                           title: shippingDiffers

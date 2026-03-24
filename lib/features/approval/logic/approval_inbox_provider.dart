@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geocoding/geocoding.dart';
@@ -103,27 +104,41 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
     return true;
   }
 
+  static const _locationTimeout = Duration(seconds: 15);
+  static const _geocodeTimeout = Duration(seconds: 10);
+
   /// Mendapatkan posisi GPS saat ini untuk geotagging approval.
-  /// Mengembalikan null jika layanan lokasi mati, izin ditolak, atau gagal.
+  /// Mengembalikan null jika layanan lokasi mati, izin ditolak, atau timeout.
   Future<Position?> _getCurrentLocation() async {
-    final enabled = await Geolocator.isLocationServiceEnabled();
-    if (!enabled) return null;
-
-    var permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-    if (permission == LocationPermission.deniedForever ||
-        permission == LocationPermission.denied) {
-      return null;
-    }
-
     try {
+      final enabled = await Geolocator.isLocationServiceEnabled()
+          .timeout(_locationTimeout);
+      if (!enabled) {
+        Log.warning('Location service disabled', tag: 'Approval');
+        return null;
+      }
+
+      var permission = await Geolocator.checkPermission()
+          .timeout(_locationTimeout);
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission()
+            .timeout(const Duration(seconds: 30));
+      }
+      if (permission == LocationPermission.deniedForever ||
+          permission == LocationPermission.denied) {
+        Log.warning('Location permission denied: $permission', tag: 'Approval');
+        return null;
+      }
+
       return await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
+          timeLimit: _locationTimeout,
         ),
-      );
+      ).timeout(_locationTimeout);
+    } on TimeoutException {
+      Log.warning('Location request timed out', tag: 'Approval');
+      return null;
     } catch (e) {
       Log.warning('ApprovalInbox._getCurrentLocation: $e', tag: 'Approval');
       return null;
@@ -141,7 +156,7 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
       final placemarks = await placemarkFromCoordinates(
         position.latitude,
         position.longitude,
-      );
+      ).timeout(_geocodeTimeout);
       if (placemarks.isNotEmpty) {
         final place = placemarks.first;
         final street = place.street ?? '';
@@ -158,9 +173,10 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
           address = parts.join(', ');
         }
       }
+    } on TimeoutException {
+      Log.warning('Geocoding timed out', tag: 'Approval');
     } catch (e) {
       Log.warning('ApprovalInbox.geocode: $e', tag: 'Approval');
-      address = 'Lokasi tidak terdeteksi';
     }
 
     return ApprovalLocation(

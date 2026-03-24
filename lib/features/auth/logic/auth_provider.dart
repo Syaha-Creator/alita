@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/services/api_client.dart';
 import '../../../core/services/device_token_service.dart';
 import '../../../core/services/fcm_token_service.dart';
 import '../../../core/services/storage_service.dart';
@@ -74,13 +77,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// Read persisted session on startup.
   Future<void> _init() async {
     final results = await Future.wait([
-      StorageService.loadIsLoggedIn(),    // 0
-      StorageService.loadUserEmail(),     // 1
-      StorageService.loadDefaultArea(),   // 2
-      StorageService.loadAccessToken(),   // 3
-      StorageService.loadUserId(),        // 4
-      StorageService.loadUserName(),      // 5
-      StorageService.loadUserImageUrl(),  // 6
+      StorageService.loadIsLoggedIn(), // 0
+      StorageService.loadUserEmail(), // 1
+      StorageService.loadDefaultArea(), // 2
+      StorageService.loadAccessToken(), // 3
+      StorageService.loadUserId(), // 4
+      StorageService.loadUserName(), // 5
+      StorageService.loadUserImageUrl(), // 6
     ]);
 
     final isLoggedIn = results[0] as bool;
@@ -90,6 +93,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final uid = results[4] as int;
     final name = results[5] as String;
     final imageUrl = results[6] as String;
+
+    // Yield to the next event-loop turn so the state mutation doesn't
+    // overlap with Riverpod's vsync flush during the initial build frame.
+    // Fixes ConcurrentModificationError in riverpod 2.6.1.
+    await Future<void>.delayed(Duration.zero);
+    if (!mounted) return;
 
     state = AuthState(
       isLoggedIn: isLoggedIn,
@@ -235,23 +244,37 @@ class AuthNotifier extends StateNotifier<AuthState> {
     return areaMap[id] ?? 'Unknown Area';
   }
 
-  /// Logout — deletes FCM token then clears the session.
+  /// Logout — clears the session immediately, then deletes FCM token
+  /// in the background so the UI never blocks on network requests.
   Future<void> logout() async {
     final uid = state.userId.toString();
     final token = state.accessToken;
 
     AppTelemetry.event('logout', data: {'user_id': state.userId});
 
-    if (uid != '0' && token.isNotEmpty) {
-      await DeviceTokenService.deleteToken(
-        userId: uid,
-        accessToken: token,
-      );
-      await FcmTokenService.cancelRefreshListener();
-    }
-
+    // Clear session first so UI navigates instantly
     await StorageService.clearAuth();
     state = const AuthState(isLoading: false);
+
+    // Fire-and-forget cleanup — never blocks the user
+    if (uid != '0' && token.isNotEmpty) {
+      unawaited(FcmTokenService.cancelRefreshListener());
+      unawaited(_revokeSession(token));
+      unawaited(
+          DeviceTokenService.deleteToken(userId: uid, accessToken: token));
+    }
+  }
+
+  /// Revokes the access token on the server so it can't be reused.
+  static Future<void> _revokeSession(String accessToken) async {
+    try {
+      await ApiClient.instance.deleteJson(
+        '/sign_out',
+        accessToken: accessToken,
+      );
+    } catch (e) {
+      Log.warning('Session revoke failed: $e', tag: 'Auth');
+    }
   }
 }
 

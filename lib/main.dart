@@ -2,19 +2,20 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:app_links/app_links.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:intl/date_symbol_data_local.dart';
 import 'core/config/app_config.dart';
 import 'core/router/app_router.dart';
+import 'core/services/app_analytics_service.dart';
 import 'core/utils/log.dart';
 import 'core/services/force_update_service.dart';
 import 'core/services/notification_handler_service.dart';
@@ -29,116 +30,107 @@ import 'core/widgets/offline_banner.dart';
 import 'firebase_options.dart';
 
 /// Data Connect memakai `@auth(level: USER)` — anonymous auth memenuhi token tanpa UI login terpisah.
+/// [getIdToken(true)] memastikan credential terbaru terpasang sebelum panggilan gRPC.
 Future<void> _ensureFirebaseAuthForDataConnect() async {
   try {
     if (FirebaseAuth.instance.currentUser == null) {
       await FirebaseAuth.instance.signInAnonymously();
     }
+    await FirebaseAuth.instance.currentUser?.getIdToken(true);
   } catch (e, st) {
     Log.error(e, st, reason: 'Firebase anonymous auth (Data Connect)');
   }
 }
 
-Future<bool> _initializeFirebaseWithRetry() async {
-  const maxAttempts = 10;
-  for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  if (!kDebugMode) {
+    ErrorWidget.builder = (details) => const _AppErrorFallback();
+  }
+
+  try {
+    await dotenv.load(fileName: '.env');
+    AppConfig.assertConfigured();
+  } catch (e, st) {
+    Log.error(e, st, reason: 'Gagal memuat .env atau konfigurasi');
+  }
+
+  var firebaseCoreOk = false;
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    firebaseCoreOk = true;
+  } catch (e, st) {
+    Log.error(e, st, reason: 'Firebase Init Failed');
+  }
+
+  if (firebaseCoreOk) {
     try {
-      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-      return true;
-    } on PlatformException catch (e, st) {
-      final isChannelError = e.code == 'channel-error';
+      // Tanpa ini, log: "No AppCheckProvider installed" dan Data Connect yang
+      // enforce App Check mengembalikan UNAUTHENTICATED / "auth rejected".
+      // Debug/profile: daftarkan token debug di Firebase Console → App Check.
+      await FirebaseAppCheck.instance.activate(
+        providerAndroid: kReleaseMode
+            ? const AndroidPlayIntegrityProvider()
+            : const AndroidDebugProvider(),
+        providerApple: kReleaseMode
+            ? const AppleAppAttestWithDeviceCheckFallbackProvider()
+            : const AppleDebugProvider(),
+      );
+    } catch (e, st) {
       Log.error(
         e,
         st,
-        reason: 'Firebase initialize attempt #$attempt',
+        reason: 'Firebase App Check activate failed (Data Connect bisa ditolak)',
       );
-      if (!isChannelError || attempt == maxAttempts) {
-        return false;
-      }
-      await Future.delayed(Duration(milliseconds: 250 * attempt));
-    } catch (e, st) {
-      Log.error(e, st, reason: 'Firebase initialize attempt #$attempt');
-      return false;
-    }
-  }
-  return false;
-}
-
-void main() {
-  // Shared flag visible to both the zone body and the zone error handler.
-  var isFirebaseReady = false;
-
-  // Everything inside the same zone — eliminates the "Zone mismatch" warning
-  // that breaks platform channels (channel-error on Firebase.initializeApp).
-  runZonedGuarded<Future<void>>(() async {
-    WidgetsFlutterBinding.ensureInitialized();
-
-    if (!kDebugMode) {
-      ErrorWidget.builder = (details) => const _AppErrorFallback();
     }
 
-    await dotenv.load(fileName: '.env');
-    AppConfig.assertConfigured();
-
-    isFirebaseReady = await _initializeFirebaseWithRetry();
-    if (isFirebaseReady) {
+    try {
+      await _ensureFirebaseAuthForDataConnect();
       NotificationHandlerService.setFirebaseReady();
       Log.enableCrashlytics();
-    }
-    await initializeDateFormatting('id_ID');
-
-    FlutterError.onError = (details) {
-      if (isFirebaseReady) {
-        if (_isTransientAssetError(details)) {
-          FirebaseCrashlytics.instance.recordFlutterError(details);
-          return;
-        }
-        FirebaseCrashlytics.instance.recordFlutterFatalError(details);
-      } else {
-        Log.error(
-          details.exception,
-          details.stack,
-          reason: 'FlutterError without Firebase',
-        );
-      }
-    };
-
-    PlatformDispatcher.instance.onError = (error, stack) {
-      if (isFirebaseReady) {
-        FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-      } else {
-        Log.error(error, stack, reason: 'Platform error without Firebase');
-      }
-      return true;
-    };
-
-    if (isFirebaseReady) {
-      unawaited(_ensureFirebaseAuthForDataConnect());
+      AppAnalyticsService.enable();
       FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-      unawaited(
-        FirebaseCrashlytics.instance
-            .setCrashlyticsCollectionEnabled(!kDebugMode),
-      );
+      unawaited(FirebaseCrashlytics.instance
+          .setCrashlyticsCollectionEnabled(!kDebugMode));
+    } catch (e, st) {
+      Log.error(e, st, reason: 'Gagal setup Firebase Services');
     }
+  }
 
-    // Defer non-critical work to avoid competing with surface creation.
-    unawaited(Future.delayed(const Duration(seconds: 1), () {
-      PdfAssetCache.warmUp();
-      StorageService.migratePricelistCacheFromPrefs();
-    }));
+  await initializeDateFormatting('id_ID');
 
-    runApp(
-      const ProviderScope(
-        child: AlitaPricelistApp(),
-      ),
-    );
-  }, (error, stack) {
-    if (isFirebaseReady) {
+  FlutterError.onError = (details) {
+    if (_isTransientAssetError(details)) {
+      try {
+        FirebaseCrashlytics.instance.recordFlutterError(details);
+      } catch (_) {}
+      return;
+    }
+    try {
+      FirebaseCrashlytics.instance.recordFlutterFatalError(details);
+    } catch (_) {}
+  };
+
+  PlatformDispatcher.instance.onError = (error, stack) {
+    try {
       FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-    } else {
-      debugPrint('[Fatal zone error] $error\n$stack');
-    }
-  });
+    } catch (_) {}
+    return true;
+  };
+
+  unawaited(Future.delayed(const Duration(seconds: 1), () {
+    PdfAssetCache.warmUp();
+    StorageService.migratePricelistCacheFromPrefs();
+  }));
+
+  runApp(
+    const ProviderScope(
+      child: AlitaPricelistApp(),
+    ),
+  );
 }
 
 class AlitaPricelistApp extends ConsumerStatefulWidget {
@@ -160,7 +152,6 @@ class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    NotificationHandlerService.registerScaffoldMessengerKey(_scaffoldKey);
     NotificationHandlerService.registerApprovalRefreshCallback(() {
       ref.read(approvalInboxProvider.notifier).fetchInbox();
     });
@@ -188,8 +179,7 @@ class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp>
       final appLinks = AppLinks();
       _deepLinkSubscription = appLinks.uriLinkStream.listen((Uri? uri) {
         if (!mounted || uri == null || uri.path.isEmpty) return;
-        final path =
-            uri.query.isEmpty ? uri.path : '${uri.path}?${uri.query}';
+        final path = uri.query.isEmpty ? uri.path : '${uri.path}?${uri.query}';
         ref.read(routerProvider).go(path);
       });
     } catch (e, st) {

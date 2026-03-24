@@ -8,6 +8,7 @@ import '../../../core/services/api_client.dart';
 import '../../../core/services/storage_service.dart';
 import '../../../core/utils/log.dart';
 import '../data/models/order_history.dart';
+import '../data/services/order_letter_fetch.dart';
 import 'order_history_provider.dart';
 
 class OrderDetailNotifier extends AutoDisposeFamilyAsyncNotifier<OrderHistory, int> {
@@ -83,62 +84,14 @@ class OrderDetailNotifier extends AutoDisposeFamilyAsyncNotifier<OrderHistory, i
 
   Future<OrderHistory> _fetchOrderDetail(int orderId) async {
     try {
-      final directResponse = await ApiClient.instance.get('/order_letters/$orderId');
-      if (directResponse.statusCode == 200) {
-        final parsed = _tryParseSingleOrder(directResponse.body);
-        if (parsed != null) return parsed;
+      final wrap = await fetchOrderLetterResultWrap(orderId);
+      if (wrap != null) {
+        return OrderHistory.fromApiJson(wrap);
       }
-
-      final userId = await StorageService.loadUserId();
-      final listResponse = await ApiClient.instance.get(
-        '/order_letters',
-        queryParams: {
-          'user_id': userId.toString(),
-          'order_letter_id': orderId.toString(),
-        },
-      );
-
-      if (listResponse.statusCode != 200) {
-        throw Exception(
-          'Gagal memuat detail pesanan (${listResponse.statusCode})',
-        );
-      }
-
-      final body = jsonDecode(listResponse.body);
-      final result = body is Map<String, dynamic> ? body['result'] : null;
-      if (result is List) {
-        for (final row in result) {
-          final map = row is Map<String, dynamic>
-              ? row
-              : Map<String, dynamic>.from(row as Map);
-          final parsed = OrderHistory.fromApiJson(map);
-          if (parsed.id == orderId) return parsed;
-        }
-      }
-
       throw Exception('Detail pesanan tidak ditemukan.');
     } catch (e, st) {
       Log.error(e, st, reason: 'OrderDetailNotifier._fetchOrderDetail');
       rethrow;
-    }
-  }
-
-  OrderHistory? _tryParseSingleOrder(String body) {
-    try {
-      final decoded = jsonDecode(body);
-      if (decoded is! Map<String, dynamic>) return null;
-
-      final result = decoded['result'];
-      if (result is Map<String, dynamic>) {
-        return OrderHistory.fromApiJson(result);
-      }
-      if (decoded['order_letter'] is Map<String, dynamic>) {
-        return OrderHistory.fromApiJson(decoded);
-      }
-      return null;
-    } catch (e, st) {
-      Log.error(e, st, reason: 'OrderDetailNotifier._tryParseSingleOrder');
-      return null;
     }
   }
 

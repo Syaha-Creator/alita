@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/enums/order_status.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -63,6 +64,33 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
     );
   }
 
+  /// Diagnoses why location is null and returns a user-friendly message.
+  Future<String> _locationPermissionHint() async {
+    try {
+      final enabled = await Geolocator.isLocationServiceEnabled()
+          .timeout(const Duration(seconds: 5));
+      if (!enabled) {
+        return 'GPS/Lokasi perangkat Anda mati. '
+            'Aktifkan di Pengaturan > Lokasi, lalu coba lagi.';
+      }
+
+      final perm = await Geolocator.checkPermission()
+          .timeout(const Duration(seconds: 5));
+      if (perm == LocationPermission.deniedForever) {
+        return 'Izin lokasi ditolak permanen. '
+            'Buka Pengaturan > Aplikasi > Alitapricelist > Izin, '
+            'lalu aktifkan Lokasi.';
+      }
+      if (perm == LocationPermission.denied) {
+        return 'Izin lokasi belum diberikan. Coba lagi dan izinkan akses lokasi saat diminta.';
+      }
+    } catch (_) {
+      // fall through
+    }
+    return 'Gagal mendeteksi lokasi (timeout). '
+        'Pastikan GPS aktif dan coba di area dengan sinyal lebih baik.';
+  }
+
   // ── Confirmation dialog ───────────────────────────────────────────
 
   Future<void> _confirmAction(BuildContext context, bool isApprove) async {
@@ -111,13 +139,14 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
           'duration_ms': sw.elapsedMilliseconds,
         });
         if (mounted) {
+          final permHint = await _locationPermissionHint();
+          if (!mounted) return;
           AppFeedback.show(
             context,
-            message:
-                'Gagal memproses. Mohon aktifkan GPS/Lokasi Anda untuk melakukan persetujuan.',
+            message: permHint,
             type: AppFeedbackType.warning,
             floating: true,
-            duration: const Duration(seconds: 4),
+            duration: const Duration(seconds: 5),
           );
         }
         return;
@@ -184,6 +213,24 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
           Log.warning('Notifikasi next approver gagal: $e',
               tag: 'ApprovalDetail');
           Log.error(e, st, reason: 'triggerNextApprovalNotification');
+        }
+      }
+
+      if (!isApproved && decision.headerRejected) {
+        final orderLetter =
+            widget.orderData['order_letter'] as Map<String, dynamic>? ?? {};
+        final spNumber = orderLetter['no_sp']?.toString() ??
+            orderLetter['order_letter_no']?.toString() ??
+            '';
+        if (spNumber.isNotEmpty) {
+          unawaited(
+            ApprovalDecisionService.triggerRejectionNotification(
+              orderData: widget.orderData,
+              spNumber: spNumber,
+              token: token,
+              senderName: profile?.name ?? 'Approver',
+            ),
+          );
         }
       }
 

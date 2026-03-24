@@ -8,6 +8,7 @@ import '../../../../core/widgets/price_block.dart';
 import '../../../../core/widgets/quantity_stepper.dart';
 import '../../data/cart_item.dart';
 import '../../logic/cart_provider.dart';
+import '../../../pricelist/data/models/product.dart';
 
 /// Kartu item keranjang (e-commerce layout: Checkbox → Image → Detail).
 /// Detail berisi judul, varian/SKU, baris Harga + Stepper kuantitas, dan rincian Set jika ada.
@@ -30,7 +31,7 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
     final index = widget.index;
     final p = item.product;
     final hasDiscount = p.pricelist > p.price && p.pricelist > 0;
-    final tipe = p.isSet ? 'Set Lengkap' : 'Kasur Saja';
+    final tipe = _resolveTypeLabel(p);
     final configText = p.ukuran.isNotEmpty && !p.name.contains(p.ukuran)
         ? '${p.ukuran} • $tipe'
         : tipe;
@@ -97,7 +98,7 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    p.name,
+                    item.displayName,
                     style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 14,
@@ -117,7 +118,7 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'SKU: ${p.id}',
+                    'SKU: ${_primarySkuLabel(item)}',
                     style: const TextStyle(
                       fontSize: 10,
                       color: AppColors.textTertiary,
@@ -163,7 +164,7 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
                       ),
                     ],
                   ),
-                  if (p.isSet) ...[
+                  if (_hasVisibleDetails(item)) ...[
                     const SizedBox(height: 8),
                     GestureDetector(
                       onTap: () => setState(() => _isExpanded = !_isExpanded),
@@ -197,6 +198,28 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
     );
   }
 
+  /// True when there are lines worth showing in the rincian expandable.
+  static bool _hasVisibleDetails(CartItem item) {
+    final componentCount = _visibleComponentCount(item.product);
+    final bonusCount =
+        item.bonusSnapshots.where((b) => b.name.trim().isNotEmpty).length;
+
+    // Multiple components → always show details
+    if (componentCount > 1) return true;
+    // Single component but has bonus → show bonus section
+    if (bonusCount > 0) return true;
+    return false;
+  }
+
+  static int _visibleComponentCount(Product p) {
+    bool present(String f) {
+      final v = f.trim().toLowerCase();
+      return v.isNotEmpty && !v.startsWith('tanpa');
+    }
+
+    return [p.kasur, p.divan, p.headboard, p.sorong].where(present).length;
+  }
+
   Widget _buildComponentDetails(CartItem item) {
     final p = item.product;
     const indent = EdgeInsets.only(left: 12);
@@ -206,6 +229,11 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
       fontWeight: FontWeight.w500,
     );
     const skuStyle = TextStyle(fontSize: 10, color: AppColors.textTertiary);
+
+    bool present(String f) {
+      final v = f.trim().toLowerCase();
+      return v.isNotEmpty && !v.startsWith('tanpa');
+    }
 
     String fabricSuffix(String kain, String warna) {
       final k = kain.isNotEmpty && kain != '-' ? kain : '';
@@ -227,25 +255,31 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
           ),
         );
 
+    final componentCount = _visibleComponentCount(p);
+    final isSingleComponent = componentCount <= 1;
+
     final lines = <Widget>[
-      row('Kasur: ${p.kasur}', item.kasurSku),
-      if (p.divan.isNotEmpty && !p.divan.toLowerCase().contains('tanpa'))
-        row(
-          'Divan: ${p.divan}${fabricSuffix(item.divanKain, item.divanWarna)}',
-          item.divanSku,
-        ),
-      if (p.headboard.isNotEmpty &&
-          !p.headboard.toLowerCase().contains('tanpa'))
-        row(
-          'Sandaran: ${p.headboard}'
-          '${fabricSuffix(item.sandaranKain, item.sandaranWarna)}',
-          item.sandaranSku,
-        ),
-      if (p.sorong.isNotEmpty && !p.sorong.toLowerCase().contains('tanpa'))
-        row(
-          'Sorong: ${p.sorong}${fabricSuffix(item.sorongKain, item.sorongWarna)}',
-          item.sorongSku,
-        ),
+      // Only show component rows when there are multiple; single component
+      // is already represented by the card title + SKU header.
+      if (!isSingleComponent) ...[
+        if (present(p.kasur)) row('Kasur: ${p.kasur}', item.kasurSku),
+        if (present(p.divan))
+          row(
+            'Divan: ${p.divan}${fabricSuffix(item.divanKain, item.divanWarna)}',
+            item.divanSku,
+          ),
+        if (present(p.headboard))
+          row(
+            'Sandaran: ${p.headboard}'
+            '${fabricSuffix(item.sandaranKain, item.sandaranWarna)}',
+            item.sandaranSku,
+          ),
+        if (present(p.sorong))
+          row(
+            'Sorong: ${p.sorong}${fabricSuffix(item.sorongKain, item.sorongWarna)}',
+            item.sorongSku,
+          ),
+      ],
       for (final b in item.bonusSnapshots)
         if (b.name.trim().isNotEmpty) row('Item: ${b.name}', b.sku),
     ];
@@ -261,6 +295,60 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: lines,
     );
+  }
+
+  /// Builds the primary SKU label for the card header.
+  /// Format: `item_number (Jenis Kain - Warna Kain)` or just `item_number`.
+  static String _primarySkuLabel(CartItem item) {
+    bool present(String f) {
+      final v = f.trim().toLowerCase();
+      return v.isNotEmpty && !v.startsWith('tanpa');
+    }
+
+    String format(String sku, String kain, String warna) {
+      if (sku.isEmpty) return item.product.id;
+      final k = kain.isNotEmpty && kain != '-' && kain != 'null' ? kain : '';
+      final w =
+          warna.isNotEmpty && warna != '-' && warna != 'null' ? warna : '';
+      if (k.isEmpty && w.isEmpty) return sku;
+      if (k.isEmpty) return '$sku ($w)';
+      if (w.isEmpty) return '$sku ($k)';
+      return '$sku ($k - $w)';
+    }
+
+    final p = item.product;
+    if (present(p.kasur) && item.kasurSku.isNotEmpty) {
+      return item.kasurSku;
+    }
+    if (present(p.divan) && item.divanSku.isNotEmpty) {
+      return format(item.divanSku, item.divanKain, item.divanWarna);
+    }
+    if (present(p.headboard) && item.sandaranSku.isNotEmpty) {
+      return format(item.sandaranSku, item.sandaranKain, item.sandaranWarna);
+    }
+    if (present(p.sorong) && item.sorongSku.isNotEmpty) {
+      return format(item.sorongSku, item.sorongKain, item.sorongWarna);
+    }
+    return item.product.id;
+  }
+
+  static String _resolveTypeLabel(Product p) {
+    if (!p.isSet) return 'Kasur Saja';
+
+    bool present(String f) {
+      final v = f.trim().toLowerCase();
+      return v.isNotEmpty && !v.startsWith('tanpa');
+    }
+
+    final parts = <String>[
+      if (present(p.kasur)) 'Kasur',
+      if (present(p.divan)) 'Divan',
+      if (present(p.headboard)) 'Sandaran',
+      if (present(p.sorong)) 'Sorong',
+    ];
+    if (parts.length > 1) return 'Set Lengkap';
+    if (parts.length == 1) return '${parts[0]} Saja';
+    return 'Kasur Saja';
   }
 
   String _formatPrice(double value) {

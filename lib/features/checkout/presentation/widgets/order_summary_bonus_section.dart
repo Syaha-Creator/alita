@@ -7,6 +7,7 @@ import 'bonus_takeaway_control.dart';
 /// [BonusTakeAwayControl]. State (checked, qty) and callbacks live in parent.
 class OrderSummaryBonusSection extends StatelessWidget {
   final List<CartBonusSnapshot> bonuses;
+  final int itemQuantity;
   final bool Function(CartBonusSnapshot) isChecked;
   final int Function(CartBonusSnapshot) currentTakeAwayQty;
   final void Function(CartBonusSnapshot, bool) onCheckedChanged;
@@ -15,6 +16,7 @@ class OrderSummaryBonusSection extends StatelessWidget {
   const OrderSummaryBonusSection({
     super.key,
     required this.bonuses,
+    this.itemQuantity = 1,
     required this.isChecked,
     required this.currentTakeAwayQty,
     required this.onCheckedChanged,
@@ -43,18 +45,19 @@ class OrderSummaryBonusSection extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         ...filtered.map((bonus) {
+          final effectiveQty = bonus.qty * itemQuantity;
           final currentTakeAway = currentTakeAwayQty(bonus);
           return BonusTakeAwayControl(
             name: bonus.name,
             sku: bonus.sku,
-            totalQty: bonus.qty,
+            totalQty: effectiveQty,
             isChecked: isChecked(bonus),
             currentTakeAway: currentTakeAway,
             onCheckedChanged: (value) => onCheckedChanged(bonus, value),
             onDecrement: currentTakeAway > 0
                 ? () => onSetTakeAwayQty(bonus, currentTakeAway - 1)
                 : null,
-            onIncrement: currentTakeAway < bonus.qty
+            onIncrement: currentTakeAway < effectiveQty
                 ? () => onSetTakeAwayQty(bonus, currentTakeAway + 1)
                 : null,
           );

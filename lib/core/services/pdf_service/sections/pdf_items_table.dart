@@ -49,6 +49,7 @@ abstract final class PdfItemsTable {
     ];
 
     var bundleOrderCounter = 1;
+    var previousWasBonus = true;
     for (var i = 0; i < details.length; i++) {
       final d = details[i];
       final brand = _brandAbbr(d['brand']?.toString() ?? '');
@@ -66,13 +67,16 @@ abstract final class PdfItemsTable {
       final itemType = (d['item_type']?.toString() ?? '').toLowerCase();
       final isMattress =
           itemType.contains('mattress') || itemType.contains('kasur');
-      final isMainItem = isMattress || (i == 0 && itemType.isEmpty);
-      final brandCell = isMainItem ? brand : '';
-      final orderCell = isMainItem ? '${bundleOrderCounter++}' : '';
+      final isBonus = itemType.contains('bonus');
+      final isLeadItem =
+          isMattress || (!isBonus && previousWasBonus);
+      previousWasBonus = isBonus;
+      final brandCell = isLeadItem ? brand : '';
+      final orderCell = isLeadItem ? '${bundleOrderCounter++}' : '';
 
       final displayName = takeAway ? '$name (TAKE AWAY)' : name;
       final nameWidget = _buildNameCell(displayName,
-          isMattress: isMattress,
+          isBold: isLeadItem,
           subtitle: isInternal ? (d['item_description']?.toString()) : null,
           mainText: isInternal ? (d['desc_1']?.toString()) : null);
 
@@ -165,14 +169,14 @@ abstract final class PdfItemsTable {
   }
 
   static pw.Widget _buildNameCell(String name,
-      {required bool isMattress, String? subtitle, String? mainText}) {
+      {required bool isBold, String? subtitle, String? mainText}) {
+    const padding = pw.EdgeInsets.all(6);
     if (subtitle != null &&
         subtitle.isNotEmpty &&
         mainText != null &&
         mainText.isNotEmpty) {
       return pw.Padding(
-        padding: pw.EdgeInsets.only(
-            left: isMattress ? 6 : 18, top: 6, bottom: 6, right: 6),
+        padding: padding,
         child: pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           mainAxisSize: pw.MainAxisSize.min,
@@ -180,9 +184,8 @@ abstract final class PdfItemsTable {
             pw.Text(mainText,
                 style: pw.TextStyle(
                     fontSize: 8,
-                    fontWeight: isMattress
-                        ? pw.FontWeight.bold
-                        : pw.FontWeight.normal)),
+                    fontWeight:
+                        isBold ? pw.FontWeight.bold : pw.FontWeight.normal)),
             pw.SizedBox(height: 1),
             pw.Text(subtitle,
                 style: pw.TextStyle(
@@ -194,13 +197,12 @@ abstract final class PdfItemsTable {
       );
     }
     return pw.Padding(
-      padding: pw.EdgeInsets.only(
-          left: isMattress ? 6 : 18, top: 6, bottom: 6, right: 6),
+      padding: padding,
       child: pw.Text(name,
           style: pw.TextStyle(
               fontSize: 8,
               fontWeight:
-                  isMattress ? pw.FontWeight.bold : pw.FontWeight.normal)),
+                  isBold ? pw.FontWeight.bold : pw.FontWeight.normal)),
     );
   }
 

@@ -363,11 +363,9 @@ class CheckoutOrderService {
 
   // ── Step 5: Fetch order → map index → detail_id (FALLBACK) ───
 
-  /// Fetches all detail IDs for an order. Used as fallback when the
-  /// individual POST responses didn't include the detail ID.
-  ///
-  /// Returns a list ordered by backend insertion (same order as POST).
-  Future<List<int>> fetchDetailIds(
+  /// Fetches the full order data (header + details + discounts).
+  /// Used for detail-ID fallback and post-checkout notification trigger.
+  Future<Map<String, dynamic>?> fetchFullOrder(
     int orderLetterId,
     String token,
   ) async {
@@ -378,17 +376,30 @@ class CheckoutOrderService {
 
     if (response.statusCode != 200) {
       Log.warning(
-        'GET order failed (${response.statusCode}), fallback unavailable',
+        'GET order failed (${response.statusCode})',
         tag: 'CheckoutOrderService',
       );
-      return [];
+      return null;
     }
 
-    final orderBody = jsonDecode(response.body) as Map<String, dynamic>;
-    final rawDetails =
-        orderBody['result']?['order_letter_details'] as List? ?? [];
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    return body['result'] as Map<String, dynamic>?;
+  }
 
-    // Sort by detail ID (ascending) = insertion order
+  /// Fetches all detail IDs for an order. Used as fallback when the
+  /// individual POST responses didn't include the detail ID.
+  ///
+  /// Returns a list ordered by backend insertion (same order as POST).
+  Future<List<int>> fetchDetailIds(
+    int orderLetterId,
+    String token,
+  ) async {
+    final orderData = await fetchFullOrder(orderLetterId, token);
+    if (orderData == null) return [];
+
+    final rawDetails =
+        orderData['order_letter_details'] as List? ?? [];
+
     final sorted = List<Map<String, dynamic>>.from(
       rawDetails.whereType<Map<String, dynamic>>(),
     )..sort((a, b) {
@@ -542,8 +553,41 @@ class CheckoutOrderService {
             discount4: item.discount4,
           );
 
+      // ── Effective EUP per component ──
+      // When the user edits the total price upward, the markup might be
+      // stored on the wrong component (e.g. eupKasur for a headboard-only
+      // product). Recalculate effective EUPs from p.price to ensure the
+      // markup always reaches the correct (present) component.
+      final bool kcPresent = hasComponent(p.kasur);
+      final bool dvPresent = p.isSet && hasComponent(p.divan);
+      final bool hbPresent = p.isSet && hasComponent(p.headboard);
+      final bool srPresent = p.isSet && hasComponent(p.sorong);
+
+      double effEupKasur = kcPresent ? p.eupKasur : 0;
+      double effEupDivan = dvPresent ? p.eupDivan : 0;
+      double effEupHeadboard = hbPresent ? p.eupHeadboard : 0;
+      double effEupSorong = srPresent ? p.eupSorong : 0;
+
+      final presentEupSum =
+          effEupKasur + effEupDivan + effEupHeadboard + effEupSorong;
+      final markupDiff = p.price - presentEupSum;
+
+      if (markupDiff.abs() > 0.01) {
+        if (kcPresent) {
+          effEupKasur += markupDiff;
+        } else if (dvPresent) {
+          effEupDivan += markupDiff;
+        } else if (hbPresent) {
+          effEupHeadboard += markupDiff;
+        } else if (srPresent) {
+          effEupSorong += markupDiff;
+        }
+      }
+
+      bool componentPosted = false;
+
       // 1. Mattress(KASUR)
-      if (hasComponent(p.kasur)) {
+      if (kcPresent) {
         final baseKasurName = appendSizeIfMissing(itemDesc, ukuran);
         CheckoutDetailBuilderUtils.validateRequiredField(
             'desc_1 (nama produk)', p.name);
@@ -560,7 +604,7 @@ class CheckoutOrderService {
           p.eupKasur,
         );
         final kasurPrices = _resolveComponentPrices(
-          inputPrice: p.eupKasur,
+          inputPrice: effEupKasur,
           originalEup: origKasur,
           qty: item.quantity,
           discount1: item.discount1,
@@ -591,10 +635,11 @@ class CheckoutOrderService {
           discounts: buildDiscounts(),
           label: '${p.name} (Kasur)',
         ));
+        componentPosted = true;
       }
 
       // 2. DIVAN
-      if (p.isSet && hasComponent(p.divan)) {
+      if (dvPresent) {
         CheckoutDetailBuilderUtils.validateRequiredField(
             'desc_1 (divan)', p.divan);
 
@@ -604,7 +649,7 @@ class CheckoutOrderService {
           p.eupDivan,
         );
         final divanPrices = _resolveComponentPrices(
-          inputPrice: p.eupDivan,
+          inputPrice: effEupDivan,
           originalEup: origDivan,
           qty: item.quantity,
           discount1: item.discount1,
@@ -637,10 +682,11 @@ class CheckoutOrderService {
           discounts: p.eupDivan > 0 ? buildDiscounts() : const [],
           label: '${p.name} (Divan)',
         ));
+        componentPosted = true;
       }
 
       // 3. HEADBOARD
-      if (p.isSet && hasComponent(p.headboard)) {
+      if (hbPresent) {
         CheckoutDetailBuilderUtils.validateRequiredField(
             'desc_1 (headboard)', p.headboard);
 
@@ -650,7 +696,7 @@ class CheckoutOrderService {
           p.eupHeadboard,
         );
         final headboardPrices = _resolveComponentPrices(
-          inputPrice: p.eupHeadboard,
+          inputPrice: effEupHeadboard,
           originalEup: origHb,
           qty: item.quantity,
           discount1: item.discount1,
@@ -683,10 +729,11 @@ class CheckoutOrderService {
           discounts: p.eupHeadboard > 0 ? buildDiscounts() : const [],
           label: '${p.name} (Headboard)',
         ));
+        componentPosted = true;
       }
 
       // 4. SORONG
-      if (p.isSet && hasComponent(p.sorong)) {
+      if (srPresent) {
         CheckoutDetailBuilderUtils.validateRequiredField(
             'desc_1 (sorong)', p.sorong);
 
@@ -696,7 +743,7 @@ class CheckoutOrderService {
           p.eupSorong,
         );
         final sorongPrices = _resolveComponentPrices(
-          inputPrice: p.eupSorong,
+          inputPrice: effEupSorong,
           originalEup: origSorong,
           qty: item.quantity,
           discount1: item.discount1,
@@ -729,24 +776,77 @@ class CheckoutOrderService {
           discounts: p.eupSorong > 0 ? buildDiscounts() : const [],
           label: '${p.name} (Sorong)',
         ));
+        componentPosted = true;
       }
 
-      // 5. BONUS
-      final totalBonusQty =
-          item.bonusSnapshots.fold<int>(0, (sum, b) => sum + b.qty);
+      // 5. Fallback: if no component was posted, post the product itself
+      //    (e.g. "Tanpa Kasur" divan-only or headboard-only products).
+      if (!componentPosted && p.price > 0) {
+        final fallbackName = appendSizeIfMissing(itemDesc, ukuran);
+        final origKasur = _pickOriginalEup(
+          item.originalEupKasur,
+          master?.eupKasur,
+          p.eupKasur,
+        );
+        final effectiveOriginal = origKasur > 0 ? origKasur : p.price;
+        final prices = _resolveComponentPrices(
+          inputPrice: p.price,
+          originalEup: effectiveOriginal,
+          qty: item.quantity,
+          discount1: item.discount1,
+          discount2: item.discount2,
+          discount3: item.discount3,
+          discount4: item.discount4,
+        );
+        final fallbackSku = item.kasurSku.isNotEmpty
+            ? item.kasurSku
+            : (item.divanSku.isNotEmpty
+                ? item.divanSku
+                : (item.sandaranSku.isNotEmpty
+                    ? item.sandaranSku
+                    : item.sorongSku));
+        final payload = {
+          'item_number':
+              CheckoutDetailBuilderUtils.normalizeNullableSku(fallbackSku),
+          'item_description': fallbackName,
+          'desc_1': cleanDesc1(p.name, ukuran),
+          'desc_2': ukuran,
+          'brand': brand,
+          'unit_price': p.pricelist > 0
+              ? p.pricelist * item.quantity
+              : p.price * item.quantity,
+          'customer_price': prices.customerPrice,
+          'net_price': prices.netPrice,
+          'qty': item.quantity,
+          'item_type': 'Mattress',
+          if (getTakeAway() != null) 'take_away': getTakeAway(),
+        };
+        pending.add(PendingDetail(
+          payload: payload,
+          discounts: buildDiscounts(),
+          label: '${p.name} (Produk)',
+        ));
+      }
+
+      // 6. BONUS
+      // bonus.qty is per-unit; multiply by item.quantity for actual total.
+      final totalBonusQty = item.bonusSnapshots
+          .fold<int>(0, (sum, b) => sum + b.qty * item.quantity);
 
       for (final bonus in item.bonusSnapshots) {
+        final bonusEffQty = bonus.qty * item.quantity;
         final bonusPlPrice = BonusPriceResolver.resolvePlPrice(p, bonus.name);
         final int totalQty = item.quantity + totalBonusQty;
         final double adjustedUnitPrice = (totalQty > 0 && item.quantity > 0)
             ? bonusPlPrice * item.quantity / totalQty
             : bonusPlPrice;
 
-        final int configuredTakeAway =
-            globalIsTakeAway ? bonus.qty : currentTakeAwayQty(itemIndex, bonus);
+        final int configuredTakeAway = globalIsTakeAway
+            ? bonusEffQty
+            : currentTakeAwayQty(itemIndex, bonus);
 
         final splitSegments = TakeAwaySplitter.split(
-          totalQty: bonus.qty,
+          totalQty: bonusEffQty,
           takeAwayQty: configuredTakeAway,
         );
 

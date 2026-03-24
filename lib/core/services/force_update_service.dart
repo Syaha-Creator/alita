@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:in_app_update/in_app_update.dart';
 
 import '../utils/log.dart';
@@ -26,15 +25,6 @@ class ForceUpdateService {
 
     try {
       final info = await InAppUpdate.checkForUpdate();
-
-      if (kDebugMode) {
-        debugPrint(
-          'ForceUpdate: availability=${info.updateAvailability}, '
-          'availableVersion=${info.availableVersionCode}, '
-          'immediateAllowed=${info.immediateUpdateAllowed}, '
-          'flexibleAllowed=${info.flexibleUpdateAllowed}',
-        );
-      }
 
       if (info.updateAvailability == UpdateAvailability.updateAvailable &&
           info.immediateUpdateAllowed) {

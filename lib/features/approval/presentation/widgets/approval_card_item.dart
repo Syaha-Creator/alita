@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/widgets/order_list_card_frame.dart';
 import '../../../../core/widgets/status_chip.dart';
+import '../../../history/data/models/order_history.dart';
 
 /// A single approval card in the inbox list.
 ///
@@ -106,7 +107,13 @@ class ApprovalCardItem extends StatelessWidget {
       totalText: AppFormatters.currencyIdr(amount),
       onTap: () {
         hapticTap();
-        context.push('/approval_detail', extra: orderWrap);
+        final map = Map<String, dynamic>.from(orderWrap as Map);
+        if (isPending) {
+          context.push('/approval_detail', extra: map);
+        } else {
+          final orderHistory = OrderHistory.fromApiJson(map);
+          context.push('/order_detail', extra: orderHistory);
+        }
       },
       ),
     );

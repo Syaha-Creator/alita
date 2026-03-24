@@ -156,6 +156,23 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       }
       targetTotalEup = p.price;
       _targetTotalController.text = _totalCurrencyFormat.format(p.price).trim();
+
+      // Restore bonus state from the cart snapshot so the user sees
+      // the same bonuses they configured, not the product defaults.
+      if (editItem.bonusSnapshots.isNotEmpty) {
+        customBonuses = editItem.bonusSnapshots
+            .map((b) => <String, dynamic>{
+                  'name': b.name,
+                  'qty': b.qty,
+                  'max_qty': b.qty * 2,
+                  'pl': 0.0,
+                  'is_custom': true,
+                  'item_num': b.sku,
+                })
+            .toList();
+        isBonusCustomized = true;
+      }
+
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         final base = _lastBaseTotalEup;

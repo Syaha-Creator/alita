@@ -15,6 +15,7 @@ import '../../profile/logic/profile_provider.dart';
 import '../../pricelist/data/models/item_lookup.dart';
 import '../../pricelist/logic/item_lookup_provider.dart';
 import '../../history/logic/order_history_provider.dart';
+import '../../approval/logic/approval_decision_service.dart';
 import '../../approval/logic/approval_inbox_provider.dart';
 import '../data/models/approver_model.dart';
 import '../data/services/approval_service.dart';
@@ -348,6 +349,15 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
             newCustomerContact,
           ),
         );
+
+        unawaited(_notifyFirstApprover(
+          orderLetterId: orderLetterId,
+          noSp: noSp,
+          token: token,
+          userId: userId,
+          senderName: profile?.name ?? 'User',
+        ));
+
         totalSw.stop();
         AppTelemetry.event(
           'checkout_submit_success',
@@ -514,6 +524,32 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         isSubmitting: false,
         submitError: 'Error: $e',
       );
+    }
+  }
+
+  /// Fetches the full order from the server and sends a push notification
+  /// to the first pending approver. Fire-and-forget; errors are logged only.
+  Future<void> _notifyFirstApprover({
+    required int orderLetterId,
+    required String noSp,
+    required String token,
+    required int userId,
+    required String senderName,
+  }) async {
+    try {
+      final orderData =
+          await _orderService.fetchFullOrder(orderLetterId, token);
+      if (orderData == null) return;
+
+      await ApprovalDecisionService.triggerNextApprovalNotification(
+        orderData: orderData,
+        spNumber: noSp,
+        token: token,
+        senderName: senderName,
+        currentUserId: userId,
+      );
+    } catch (e, st) {
+      Log.error(e, st, reason: 'Checkout: notify first approver');
     }
   }
 

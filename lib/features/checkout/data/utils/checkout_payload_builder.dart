@@ -63,19 +63,26 @@ class CheckoutPayloadBuilder {
     double hargaAwal = 0;
     for (final item in cartItems) {
       final p = item.product;
-      if (item.kasurSku.isNotEmpty) hargaAwal += p.plKasur * item.quantity;
+      double itemHarga = 0;
+      if (item.kasurSku.isNotEmpty) itemHarga += p.plKasur * item.quantity;
       if (p.isSet) {
         if (item.divanSku.isNotEmpty && !p.divan.toLowerCase().contains('tanpa')) {
-          hargaAwal += p.plDivan * item.quantity;
+          itemHarga += p.plDivan * item.quantity;
         }
         if (item.sandaranSku.isNotEmpty &&
             !p.headboard.toLowerCase().contains('tanpa')) {
-          hargaAwal += p.plHeadboard * item.quantity;
+          itemHarga += p.plHeadboard * item.quantity;
         }
         if (item.sorongSku.isNotEmpty && !p.sorong.toLowerCase().contains('tanpa')) {
-          hargaAwal += p.plSorong * item.quantity;
+          itemHarga += p.plSorong * item.quantity;
         }
       }
+      // Fallback: if no component contributed to harga_awal (e.g. standalone
+      // divan/headboard products), use the product pricelist.
+      if (itemHarga == 0 && p.price > 0) {
+        itemHarga = (p.pricelist > 0 ? p.pricelist : p.price) * item.quantity;
+      }
+      hargaAwal += itemHarga;
     }
     final discountPercentage =
         hargaAwal > 0 ? ((hargaAwal - grandTotal) / hargaAwal) * 100 : 0.0;

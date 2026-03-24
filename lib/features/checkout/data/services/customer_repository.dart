@@ -1,3 +1,6 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+
 import '../../../../core/utils/log.dart';
 import '../dataconnect/generated/alita_connector.dart';
 import '../models/customer_model.dart';
@@ -8,11 +11,43 @@ import '../models/customer_model.dart';
 /// - `dataconnect/` sudah di-deploy (`firebase deploy --only dataconnect`)
 /// - Cloud SQL `instanceId` di [dataconnect.yaml] valid
 /// - Firebase Authentication **Anonymous** aktif (untuk `@auth(level: USER)`)
+/// - **App Check**: di build debug/profile, daftarkan debug token (logcat) di
+///   Firebase Console → App Check jika resource Data Connect memakai enforcement.
 class CustomerRepository {
   CustomerRepository({AlitaConnectorConnector? connector})
       : _connector = connector ?? AlitaConnectorConnector.instance;
 
   final AlitaConnectorConnector _connector;
+
+  /// Ensures a Firebase Auth user exists (anonymous sign-in if needed)
+  /// and wires the auth instance into the Data Connect transport so the
+  /// SDK can attach ID tokens to gRPC calls.
+  Future<void> _ensureAuth() async {
+    _connector.dataConnect.auth = FirebaseAuth.instance;
+
+    // Debug/emulator: jangan kirim App Check token (placeholder dari
+    // AndroidDebugProvider tanpa token terdaftar menyebabkan server menolak
+    // dengan UNAUTHENTICATED / "auth rejected"). Schema hanya pakai
+    // @auth(level: USER) — Firebase Auth saja cukup.
+    if (kDebugMode) {
+      _connector.dataConnect.appCheck = null;
+    }
+
+    var user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      Log.warning('No Firebase user — anonymous sign-in', tag: 'DataConnect');
+      try {
+        final cred = await FirebaseAuth.instance.signInAnonymously();
+        user = cred.user;
+      } catch (e) {
+        Log.warning('Anonymous sign-in FAILED: $e', tag: 'DataConnect');
+        rethrow;
+      }
+    }
+
+    // Force-refresh the ID token so Data Connect has a valid credential.
+    await user?.getIdToken(true);
+  }
 
   /// Normalisasi nomor untuk primary key & pencarian (digit, prefiks 62…).
   static String normalizePhoneKey(String raw) {
@@ -33,6 +68,7 @@ class CustomerRepository {
     final key = normalizePhoneKey(phoneNumber);
     if (key.isEmpty) return null;
 
+    await _ensureAuth();
     final result =
         await _connector.getCustomerByPhone(phoneNumber: key).execute();
     final row = result.data.customer;
@@ -54,6 +90,7 @@ class CustomerRepository {
   Future<void> upsertCustomer(CustomerModel customer) async {
     if (customer.phoneNormalized.isEmpty || customer.name.isEmpty) return;
 
+    await _ensureAuth();
     await _connector
         .upsertCustomer(
           phoneNumber: customer.phoneNormalized,

@@ -1,9 +1,14 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Single source of truth for all environment-based configuration.
 ///
 /// Reads credentials in this order: `--dart-define` (release/CI) → `.env` (dev).
 /// For production builds, pass secrets via `--dart-define` so `.env` is never baked in.
+///
+/// Client credentials are platform-aware: Android and iOS each have their own
+/// `client_id` / `client_secret` pair registered on the backend.
 class AppConfig {
   AppConfig._();
 
@@ -14,9 +19,11 @@ class AppConfig {
 
   static String get apiBaseUrl => _fromEnv('API_BASE_URL');
 
-  static String get clientId => _fromEnv('CLIENT_ID');
+  static String get clientId =>
+      Platform.isAndroid ? _fromEnv('CLIENT_ID_ANDROID') : _fromEnv('CLIENT_ID_IOS');
 
-  static String get clientSecret => _fromEnv('CLIENT_SECRET');
+  static String get clientSecret =>
+      Platform.isAndroid ? _fromEnv('CLIENT_SECRET_ANDROID') : _fromEnv('CLIENT_SECRET_IOS');
 
   /// Shared query map used by almost every API call.
   static Map<String, String> authQuery(String accessToken) => {

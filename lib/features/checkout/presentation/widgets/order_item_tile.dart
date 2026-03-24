@@ -18,6 +18,7 @@ class OrderItemTile extends StatelessWidget {
   final int Function(CartBonusSnapshot) currentTakeAwayQty;
   final void Function(CartBonusSnapshot, bool) onTakeAwayToggled;
   final void Function(CartBonusSnapshot, int) onTakeAwayQtyChanged;
+
   /// When false, only header + set details are shown (bonus shown once below all items).
   final bool showBonusSection;
 
@@ -31,6 +32,37 @@ class OrderItemTile extends StatelessWidget {
     required this.onTakeAwayQtyChanged,
     this.showBonusSection = true,
   });
+
+  static String _primarySkuLabel(CartItem item) {
+    bool present(String f) {
+      final v = f.trim().toLowerCase();
+      return v.isNotEmpty && !v.startsWith('tanpa');
+    }
+
+    String format(String sku, String kain, String warna) {
+      if (sku.isEmpty) return '';
+      final k = kain.isNotEmpty && kain != '-' && kain != 'null' ? kain : '';
+      final w =
+          warna.isNotEmpty && warna != '-' && warna != 'null' ? warna : '';
+      if (k.isEmpty && w.isEmpty) return sku;
+      if (k.isEmpty) return '$sku ($w)';
+      if (w.isEmpty) return '$sku ($k)';
+      return '$sku ($k - $w)';
+    }
+
+    final p = item.product;
+    if (present(p.kasur) && item.kasurSku.isNotEmpty) return item.kasurSku;
+    if (present(p.divan) && item.divanSku.isNotEmpty) {
+      return format(item.divanSku, item.divanKain, item.divanWarna);
+    }
+    if (present(p.headboard) && item.sandaranSku.isNotEmpty) {
+      return format(item.sandaranSku, item.sandaranKain, item.sandaranWarna);
+    }
+    if (present(p.sorong) && item.sorongSku.isNotEmpty) {
+      return format(item.sorongSku, item.sorongKain, item.sorongWarna);
+    }
+    return '';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,16 +79,22 @@ class OrderItemTile extends StatelessWidget {
 
     String bundleTypeLabel() {
       if (!p.isSet) return 'Kasur Saja';
-      if (hasDivan && hasHeadboard) {
+
+      final hasKasur = p.kasur.trim().isNotEmpty &&
+          !p.kasur.trim().toLowerCase().startsWith('tanpa');
+
+      if (hasKasur && hasDivan && hasHeadboard) {
         return hasSorong ? 'Set Lengkap + Sorong' : 'Set Lengkap';
       }
 
       final selected = <String>[
         if (hasDivan) 'Divan',
-        if (hasHeadboard) 'Headboard',
+        if (hasHeadboard) 'Sandaran',
         if (hasSorong) 'Sorong',
       ];
-      return selected.isEmpty ? 'Kasur Saja' : 'Set ${selected.join(' + ')}';
+      if (selected.isEmpty) return hasKasur ? 'Kasur Saja' : 'Produk';
+      if (!hasKasur && selected.length == 1) return '${selected[0]} Saja';
+      return 'Set ${selected.join(' + ')}';
     }
 
     final tipe = bundleTypeLabel();
@@ -64,7 +102,11 @@ class OrderItemTile extends StatelessWidget {
         ? '${p.ukuran} · $tipe'
         : tipe;
 
-    final hasSetComponents = hasDivan || hasHeadboard || hasSorong;
+    final hasKasur = p.kasur.trim().isNotEmpty &&
+        !p.kasur.trim().toLowerCase().startsWith('tanpa');
+    final visibleComponentCount =
+        [hasKasur, hasDivan, hasHeadboard, hasSorong].where((v) => v).length;
+    final showSetDetails = visibleComponentCount > 1;
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -77,13 +119,13 @@ class OrderItemTile extends StatelessWidget {
         children: [
           OrderSummaryItemHeader(
             imageUrl: p.imageUrl,
-            name: p.name,
+            name: item.displayName,
             configText: configText,
-            kasurSku: item.kasurSku,
+            skuLabel: _primarySkuLabel(item),
             quantity: item.quantity,
             totalPriceText: priceFmt(item.totalPrice),
           ),
-          if (hasSetComponents) ...[
+          if (showSetDetails) ...[
             OrderSummarySetDetails(
               divanLabel: p.divan,
               divanSku: item.divanSku,
@@ -99,6 +141,7 @@ class OrderItemTile extends StatelessWidget {
           if (showBonusSection && item.bonusSnapshots.isNotEmpty)
             OrderSummaryBonusSection(
               bonuses: item.bonusSnapshots,
+              itemQuantity: item.quantity,
               isChecked: isBonusTakeAwayChecked,
               currentTakeAwayQty: currentTakeAwayQty,
               onCheckedChanged: onTakeAwayToggled,

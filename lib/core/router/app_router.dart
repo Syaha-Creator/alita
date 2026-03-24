@@ -25,6 +25,7 @@ import '../../features/history/presentation/pages/order_detail_page.dart';
 import '../../features/history/data/models/order_history.dart';
 import '../../features/approval/presentation/pages/approval_inbox_page.dart';
 import '../../features/approval/presentation/pages/approval_detail_page.dart';
+import '../../features/approval/presentation/pages/approval_detail_loader_page.dart';
 import '../../features/quotation/data/quotation_model.dart';
 import '../../features/quotation/presentation/pages/quotation_history_page.dart';
 
@@ -43,7 +44,7 @@ final rootNavigatorKey = GlobalKey<NavigatorState>();
 // FALLBACK — the primary mechanism is `in_app_update` (native Play
 // Store API) triggered from main.dart.
 final _upgrader = Upgrader(
-  debugLogging: true,
+  debugLogging: false,
   countryCode: 'id',
   languageCode: 'id',
   durationUntilAlertAgain: Duration.zero,
@@ -244,6 +245,18 @@ final routerProvider = Provider<GoRouter>((ref) {
               return _adaptivePage(
                 child: ApprovalDetailPage(orderData: orderData),
                 name: 'approval-detail',
+              );
+            },
+          ),
+          GoRoute(
+            path: '/approval_from_order/:orderId',
+            name: 'approval-from-order',
+            pageBuilder: (context, state) {
+              final idStr = state.pathParameters['orderId'] ?? '';
+              final orderId = int.tryParse(idStr) ?? 0;
+              return _adaptivePage(
+                child: ApprovalDetailLoaderPage(orderId: orderId),
+                name: 'approval-from-order',
               );
             },
           ),

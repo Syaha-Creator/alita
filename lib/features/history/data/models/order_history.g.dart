@@ -117,6 +117,7 @@ _$OrderDiscountImpl _$$OrderDiscountImplFromJson(Map<String, dynamic> json) =>
       discountVal: json['discountVal'] as String,
       approverName: json['approverName'] as String,
       approverLevel: json['approverLevel'] as String,
+      approverId: json['approverId'] as String?,
       approvedStatus: json['approvedStatus'] as String,
       approvedAt: json['approvedAt'] as String?,
     );
@@ -127,6 +128,7 @@ Map<String, dynamic> _$$OrderDiscountImplToJson(_$OrderDiscountImpl instance) =>
       'discountVal': instance.discountVal,
       'approverName': instance.approverName,
       'approverLevel': instance.approverLevel,
+      'approverId': instance.approverId,
       'approvedStatus': instance.approvedStatus,
       'approvedAt': instance.approvedAt,
     };

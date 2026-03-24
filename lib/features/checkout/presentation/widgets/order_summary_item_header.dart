@@ -7,7 +7,7 @@ class OrderSummaryItemHeader extends StatelessWidget {
   final String imageUrl;
   final String name;
   final String configText;
-  final String kasurSku;
+  final String skuLabel;
   final int quantity;
   final String totalPriceText;
 
@@ -16,7 +16,7 @@ class OrderSummaryItemHeader extends StatelessWidget {
     required this.imageUrl,
     required this.name,
     required this.configText,
-    required this.kasurSku,
+    required this.skuLabel,
     required this.quantity,
     required this.totalPriceText,
   });
@@ -67,9 +67,9 @@ class OrderSummaryItemHeader extends StatelessWidget {
                   color: AppColors.textSecondary,
                 ),
               ),
-              if (kasurSku.isNotEmpty)
+              if (skuLabel.isNotEmpty)
                 Text(
-                  'SKU: $kasurSku',
+                  'SKU: $skuLabel',
                   style: const TextStyle(
                     fontSize: 10,
                     color: AppColors.textTertiary,

@@ -1162,6 +1162,9 @@ mixin _$OrderDiscount {
   String get discountVal => throw _privateConstructorUsedError;
   String get approverName => throw _privateConstructorUsedError;
   String get approverLevel => throw _privateConstructorUsedError;
+
+  /// From API `approver_id`; used to detect "giliran Anda" on order detail.
+  String? get approverId => throw _privateConstructorUsedError;
   String get approvedStatus => throw _privateConstructorUsedError;
   String? get approvedAt => throw _privateConstructorUsedError;
 
@@ -1186,6 +1189,7 @@ abstract class $OrderDiscountCopyWith<$Res> {
       String discountVal,
       String approverName,
       String approverLevel,
+      String? approverId,
       String approvedStatus,
       String? approvedAt});
 }
@@ -1209,6 +1213,7 @@ class _$OrderDiscountCopyWithImpl<$Res, $Val extends OrderDiscount>
     Object? discountVal = null,
     Object? approverName = null,
     Object? approverLevel = null,
+    Object? approverId = freezed,
     Object? approvedStatus = null,
     Object? approvedAt = freezed,
   }) {
@@ -1229,6 +1234,10 @@ class _$OrderDiscountCopyWithImpl<$Res, $Val extends OrderDiscount>
           ? _value.approverLevel
           : approverLevel // ignore: cast_nullable_to_non_nullable
               as String,
+      approverId: freezed == approverId
+          ? _value.approverId
+          : approverId // ignore: cast_nullable_to_non_nullable
+              as String?,
       approvedStatus: null == approvedStatus
           ? _value.approvedStatus
           : approvedStatus // ignore: cast_nullable_to_non_nullable
@@ -1254,6 +1263,7 @@ abstract class _$$OrderDiscountImplCopyWith<$Res>
       String discountVal,
       String approverName,
       String approverLevel,
+      String? approverId,
       String approvedStatus,
       String? approvedAt});
 }
@@ -1275,6 +1285,7 @@ class __$$OrderDiscountImplCopyWithImpl<$Res>
     Object? discountVal = null,
     Object? approverName = null,
     Object? approverLevel = null,
+    Object? approverId = freezed,
     Object? approvedStatus = null,
     Object? approvedAt = freezed,
   }) {
@@ -1295,6 +1306,10 @@ class __$$OrderDiscountImplCopyWithImpl<$Res>
           ? _value.approverLevel
           : approverLevel // ignore: cast_nullable_to_non_nullable
               as String,
+      approverId: freezed == approverId
+          ? _value.approverId
+          : approverId // ignore: cast_nullable_to_non_nullable
+              as String?,
       approvedStatus: null == approvedStatus
           ? _value.approvedStatus
           : approvedStatus // ignore: cast_nullable_to_non_nullable
@@ -1315,6 +1330,7 @@ class _$OrderDiscountImpl implements _OrderDiscount {
       required this.discountVal,
       required this.approverName,
       required this.approverLevel,
+      this.approverId,
       required this.approvedStatus,
       this.approvedAt});
 
@@ -1329,6 +1345,10 @@ class _$OrderDiscountImpl implements _OrderDiscount {
   final String approverName;
   @override
   final String approverLevel;
+
+  /// From API `approver_id`; used to detect "giliran Anda" on order detail.
+  @override
+  final String? approverId;
   @override
   final String approvedStatus;
   @override
@@ -1336,7 +1356,7 @@ class _$OrderDiscountImpl implements _OrderDiscount {
 
   @override
   String toString() {
-    return 'OrderDiscount(id: $id, discountVal: $discountVal, approverName: $approverName, approverLevel: $approverLevel, approvedStatus: $approvedStatus, approvedAt: $approvedAt)';
+    return 'OrderDiscount(id: $id, discountVal: $discountVal, approverName: $approverName, approverLevel: $approverLevel, approverId: $approverId, approvedStatus: $approvedStatus, approvedAt: $approvedAt)';
   }
 
   @override
@@ -1351,6 +1371,8 @@ class _$OrderDiscountImpl implements _OrderDiscount {
                 other.approverName == approverName) &&
             (identical(other.approverLevel, approverLevel) ||
                 other.approverLevel == approverLevel) &&
+            (identical(other.approverId, approverId) ||
+                other.approverId == approverId) &&
             (identical(other.approvedStatus, approvedStatus) ||
                 other.approvedStatus == approvedStatus) &&
             (identical(other.approvedAt, approvedAt) ||
@@ -1360,7 +1382,7 @@ class _$OrderDiscountImpl implements _OrderDiscount {
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, id, discountVal, approverName,
-      approverLevel, approvedStatus, approvedAt);
+      approverLevel, approverId, approvedStatus, approvedAt);
 
   /// Create a copy of OrderDiscount
   /// with the given fields replaced by the non-null parameter values.
@@ -1384,6 +1406,7 @@ abstract class _OrderDiscount implements OrderDiscount {
       required final String discountVal,
       required final String approverName,
       required final String approverLevel,
+      final String? approverId,
       required final String approvedStatus,
       final String? approvedAt}) = _$OrderDiscountImpl;
 
@@ -1398,6 +1421,10 @@ abstract class _OrderDiscount implements OrderDiscount {
   String get approverName;
   @override
   String get approverLevel;
+
+  /// From API `approver_id`; used to detect "giliran Anda" on order detail.
+  @override
+  String? get approverId;
   @override
   String get approvedStatus;
   @override
