@@ -150,7 +150,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
         'duration_ms': sw.elapsedMilliseconds,
       });
 
-      _initFcm(result.userId.toString(), result.accessToken);
+      // Fire-and-forget — never let FCM failure override login success state.
+      try {
+        _initFcm(result.userId.toString(), result.accessToken);
+      } catch (e, st) {
+        Log.error(e, st, reason: 'Auth.login: FCM init (non-blocking)');
+      }
     } on String catch (message) {
       sw.stop();
       AppTelemetry.error('login_failed', data: {

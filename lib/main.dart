@@ -64,54 +64,57 @@ Future<bool> _initializeFirebaseWithRetry() async {
   return false;
 }
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+void main() {
+  // Shared flag visible to both the zone body and the zone error handler.
+  var isFirebaseReady = false;
 
-  if (!kDebugMode) {
-    ErrorWidget.builder = (details) => const _AppErrorFallback();
-  }
+  // Everything inside the same zone — eliminates the "Zone mismatch" warning
+  // that breaks platform channels (channel-error on Firebase.initializeApp).
+  runZonedGuarded<Future<void>>(() async {
+    WidgetsFlutterBinding.ensureInitialized();
 
-  await dotenv.load(fileName: '.env');
-  AppConfig.assertConfigured();
+    if (!kDebugMode) {
+      ErrorWidget.builder = (details) => const _AppErrorFallback();
+    }
 
-  final isFirebaseReady = await _initializeFirebaseWithRetry();
-  await initializeDateFormatting('id_ID');
+    await dotenv.load(fileName: '.env');
+    AppConfig.assertConfigured();
 
-  FlutterError.onError = (details) {
+    isFirebaseReady = await _initializeFirebaseWithRetry();
     if (isFirebaseReady) {
-      if (_isTransientAssetError(details)) {
-        FirebaseCrashlytics.instance.recordFlutterError(details);
-        return;
+      NotificationHandlerService.setFirebaseReady();
+      Log.enableCrashlytics();
+    }
+    await initializeDateFormatting('id_ID');
+
+    FlutterError.onError = (details) {
+      if (isFirebaseReady) {
+        if (_isTransientAssetError(details)) {
+          FirebaseCrashlytics.instance.recordFlutterError(details);
+          return;
+        }
+        FirebaseCrashlytics.instance.recordFlutterFatalError(details);
+      } else {
+        Log.error(
+          details.exception,
+          details.stack,
+          reason: 'FlutterError without Firebase',
+        );
       }
-      FirebaseCrashlytics.instance.recordFlutterFatalError(details);
-    } else {
-      Log.error(
-        details.exception,
-        details.stack,
-        reason: 'FlutterError without Firebase',
-      );
-    }
-  };
+    };
 
-  PlatformDispatcher.instance.onError = (error, stack) {
-    if (isFirebaseReady) {
-      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-    } else {
-      Log.error(error, stack, reason: 'Platform error without Firebase');
-    }
-    return true;
-  };
+    PlatformDispatcher.instance.onError = (error, stack) {
+      if (isFirebaseReady) {
+        FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      } else {
+        Log.error(error, stack, reason: 'Platform error without Firebase');
+      }
+      return true;
+    };
 
-  runZonedGuarded(() {
     if (isFirebaseReady) {
       unawaited(_ensureFirebaseAuthForDataConnect());
-    }
-
-    if (isFirebaseReady) {
       FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-    }
-
-    if (isFirebaseReady) {
       unawaited(
         FirebaseCrashlytics.instance
             .setCrashlyticsCollectionEnabled(!kDebugMode),
@@ -133,7 +136,7 @@ void main() async {
     if (isFirebaseReady) {
       FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
     } else {
-      Log.error(error, stack, reason: 'runZonedGuarded without Firebase');
+      debugPrint('[Fatal zone error] $error\n$stack');
     }
   });
 }

@@ -1,13 +1,19 @@
 pluginManagement {
     def flutterSdkPath = {
         def properties = new Properties()
-        file("local.properties").withInputStream { properties.load(it) }
-        def flutterSdkPath = properties.getProperty("flutter.sdk")
-        assert flutterSdkPath != null, "flutter.sdk not set in local.properties"
-        return flutterSdkPath
+        def localPropertiesFile = file("local.properties")
+        assert localPropertiesFile.exists(): "Missing android/local.properties. From the project root run: flutter pub get"
+        localPropertiesFile.withInputStream { properties.load(it) }
+        def raw = properties.getProperty("flutter.sdk")?.trim()
+        assert raw != null && !raw.isEmpty(): "flutter.sdk not set in local.properties. From the project root run: flutter pub get"
+        def sdkDir = new File(raw)
+        assert sdkDir.isAbsolute(): "flutter.sdk must be an absolute path (not '${raw}'). Run: flutter doctor -v — use the path after 'at' under Flutter, and set flutter.sdk in android/local.properties to that folder."
+        def flutterGradle = new File(sdkDir, "packages/flutter_tools/gradle")
+        assert flutterGradle.exists(): "Invalid Flutter SDK at '${sdkDir.absolutePath}' (missing packages/flutter_tools/gradle). Fix flutter.sdk in android/local.properties to match flutter doctor -v."
+        return sdkDir.absolutePath.replace('\\', '/')
     }()
 
-    includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
+    includeBuild("${flutterSdkPath}/packages/flutter_tools/gradle")
 
     repositories {
         google()

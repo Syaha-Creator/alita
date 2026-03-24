@@ -15,6 +15,11 @@ import 'package:flutter/foundation.dart';
 class Log {
   Log._();
 
+  static bool _crashlyticsReady = false;
+
+  /// Call once after Firebase.initializeApp() succeeds.
+  static void enableCrashlytics() => _crashlyticsReady = true;
+
   /// Non-fatal error — recorded in Crashlytics dashboard under "Non-Fatals".
   static void error(
     dynamic exception,
@@ -23,7 +28,7 @@ class Log {
   }) {
     final tag = reason ?? 'untagged';
     debugPrint('[Log.error] ($tag) $exception');
-    if (!kDebugMode) {
+    if (!kDebugMode && _crashlyticsReady) {
       FirebaseCrashlytics.instance.recordError(
         exception,
         stackTrace,
@@ -37,7 +42,7 @@ class Log {
   static void warning(String message, {String? tag}) {
     final prefix = tag != null ? '[$tag] ' : '';
     debugPrint('[Log.warning] $prefix$message');
-    if (!kDebugMode) {
+    if (!kDebugMode && _crashlyticsReady) {
       FirebaseCrashlytics.instance.log('$prefix$message');
     }
   }
@@ -45,11 +50,13 @@ class Log {
   /// Attach contextual key-value pairs that appear on the next crash report.
   /// Example: `Log.setContext('current_screen', 'ApprovalDetail');`
   static void setContext(String key, String value) {
+    if (!_crashlyticsReady) return;
     FirebaseCrashlytics.instance.setCustomKey(key, value);
   }
 
   /// Identify the current user in crash reports.
   static void setUser(String userId) {
+    if (!_crashlyticsReady) return;
     FirebaseCrashlytics.instance.setUserIdentifier(userId);
   }
 }

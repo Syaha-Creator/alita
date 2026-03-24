@@ -24,13 +24,20 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 class NotificationHandlerService {
   NotificationHandlerService._();
 
+  static bool _firebaseReady = false;
   static GlobalKey<ScaffoldMessengerState>? _scaffoldKey;
   static GoRouter? _router;
   static VoidCallback? _onApprovalDataChanged;
 
+  /// Mark Firebase as ready so FCM calls are safe.
+  /// Call from main() after Firebase.initializeApp() succeeds.
+  static void setFirebaseReady() => _firebaseReady = true;
+
   /// Request notification permission (iOS/Android).
   /// Call after Firebase is initialized.
-  static Future<NotificationSettings> requestPermission() async {
+  static Future<NotificationSettings?> requestPermission() async {
+    if (!_firebaseReady) return null;
+
     final settings = await FirebaseMessaging.instance.requestPermission(
       alert: true,
       badge: true,
@@ -58,14 +65,14 @@ class NotificationHandlerService {
   /// Initialize: permission + onMessage + onMessageOpenedApp.
   /// Call from main() after Firebase.initializeApp().
   static Future<void> init() async {
+    if (!_firebaseReady) return;
+
     await requestPermission();
 
-    // Foreground: show notification or in-app hint
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       _onForegroundMessage(message);
     });
 
-    // Tap when app in background
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       _navigateFromMessage(message);
     });
@@ -74,6 +81,8 @@ class NotificationHandlerService {
   /// Call once when the app widget is built (e.g. post-frame).
   /// If the app was opened from a notification (killed state), navigates.
   static Future<void> handleInitialMessage() async {
+    if (!_firebaseReady) return;
+
     final message = await FirebaseMessaging.instance.getInitialMessage();
     if (message != null) {
       _navigateFromMessage(message);

@@ -37,17 +37,21 @@ class FcmTokenService {
     required String accessToken,
   }) {
     _refreshSub?.cancel();
-    _refreshSub =
-        FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
-      try {
-        await DeviceTokenService.syncFcmToken(
-          userId: userId,
-          accessToken: accessToken,
-        );
-      } catch (e, st) {
-        Log.error(e, st, reason: 'FCM.onTokenRefresh');
-      }
-    });
+    try {
+      _refreshSub =
+          FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
+        try {
+          await DeviceTokenService.syncFcmToken(
+            userId: userId,
+            accessToken: accessToken,
+          );
+        } catch (e, st) {
+          Log.error(e, st, reason: 'FCM.onTokenRefresh');
+        }
+      });
+    } catch (e, st) {
+      Log.error(e, st, reason: 'FCM.listenToRefresh');
+    }
   }
 
   /// Cancels the refresh subscription without touching the backend.
