@@ -141,6 +141,7 @@ class _AppSearchFieldState extends State<AppSearchField> {
             const BoxConstraints(minWidth: 44, minHeight: 44),
         suffixIcon: widget.showClearButton && _hasText
             ? IconButton(
+                tooltip: 'Hapus teks',
                 icon: Icon(
                   Icons.clear,
                   color: widget.clearIconColor,

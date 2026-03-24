@@ -54,6 +54,7 @@ class _ProductListPageState extends ConsumerState<ProductListPage> {
         elevation: 0,
         actions: [
           IconButton(
+            tooltip: 'Profil',
             icon: const Icon(Icons.person_outline),
             onPressed: () {
               context.push('/profile');
@@ -382,6 +383,7 @@ class _FavoritesBadgeButton extends ConsumerWidget {
     return Stack(
       children: [
         IconButton(
+          tooltip: 'Favorit',
           icon: const Icon(Icons.favorite_border),
           onPressed: () => context.push('/favorites'),
         ),

@@ -183,6 +183,9 @@ void showBonusEditorModal(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
                                               IconButton(
+                                                tooltip: qty == 1
+                                                    ? 'Hapus bonus'
+                                                    : 'Kurangi kuantitas',
                                                 icon: Icon(
                                                   qty == 1
                                                       ? Icons.delete_outline
@@ -225,6 +228,7 @@ void showBonusEditorModal(
                                                 ),
                                               ),
                                               IconButton(
+                                                tooltip: 'Tambah kuantitas',
                                                 icon: Icon(
                                                   Icons.add_circle_outline,
                                                   size: 22,

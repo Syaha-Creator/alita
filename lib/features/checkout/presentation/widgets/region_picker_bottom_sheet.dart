@@ -204,10 +204,10 @@ class _RegionPickerBottomSheetState extends State<RegionPickerBottomSheet> {
                 // Back / spacer
                 if (_step > 1)
                   IconButton(
+                    tooltip: 'Kembali',
                     icon:
                         const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
                     onPressed: _onBackTap,
-                    tooltip: 'Kembali',
                   )
                 else
                   const SizedBox(width: 48),

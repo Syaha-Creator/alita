@@ -2,20 +2,21 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Single source of truth for all environment-based configuration.
 ///
-/// Every API call across the app should read credentials from here
-/// instead of calling `dotenv.env[...]` directly. This makes it easy to
-/// swap between environments (dev / staging / prod) by changing only
-/// the `.env` file — or by passing `--dart-define` at build time.
+/// Reads credentials in this order: `--dart-define` (release/CI) → `.env` (dev).
+/// For production builds, pass secrets via `--dart-define` so `.env` is never baked in.
 class AppConfig {
   AppConfig._();
 
+  static String _fromEnv(String key, [String defaultValue = '']) =>
+      String.fromEnvironment(key, defaultValue: dotenv.env[key] ?? defaultValue);
+
   // ── Alita (Ruby) API ────────────────────────────────────────────
 
-  static String get apiBaseUrl => dotenv.env['API_BASE_URL'] ?? '';
+  static String get apiBaseUrl => _fromEnv('API_BASE_URL');
 
-  static String get clientId => dotenv.env['CLIENT_ID'] ?? '';
+  static String get clientId => _fromEnv('CLIENT_ID');
 
-  static String get clientSecret => dotenv.env['CLIENT_SECRET'] ?? '';
+  static String get clientSecret => _fromEnv('CLIENT_SECRET');
 
   /// Shared query map used by almost every API call.
   static Map<String, String> authQuery(String accessToken) => {
@@ -36,7 +37,7 @@ class AppConfig {
       throw StateError(
         'Konfigurasi API tidak lengkap. '
         'Pastikan API_BASE_URL, CLIENT_ID, dan CLIENT_SECRET '
-        'sudah diisi di file .env',
+        'sudah diisi di .env (dev) atau via --dart-define (release).',
       );
     }
   }
@@ -44,22 +45,22 @@ class AppConfig {
   // ── Comforta (Brand Spec) API ──────────────────────────────────
 
   static String get comfortaHost =>
-      dotenv.env['COMFORTA_API_HOST'] ?? 'comforta.co.id';
+      _fromEnv('COMFORTA_API_HOST', 'comforta.co.id');
 
   static String get comfortaAccessToken =>
-      dotenv.env['COMFORTA_ACCESS_TOKEN'] ?? '';
+      _fromEnv('COMFORTA_ACCESS_TOKEN');
 
   static String get comfortaClientId =>
-      dotenv.env['COMFORTA_CLIENT_ID'] ?? '';
+      _fromEnv('COMFORTA_CLIENT_ID');
 
   static String get comfortaClientSecret =>
-      dotenv.env['COMFORTA_CLIENT_SECRET'] ?? '';
+      _fromEnv('COMFORTA_CLIENT_SECRET');
 
   // ── Region API ─────────────────────────────────────────────────
 
   static String get regionApiBaseUrl =>
-      dotenv.env['REGION_API_BASE_URL'] ??
-      'https://www.emsifa.com/api-wilayah-indonesia/api';
+      _fromEnv('REGION_API_BASE_URL',
+          'https://www.emsifa.com/api-wilayah-indonesia/api');
 
   // ── Placeholder Images ────────────────────────────────────────
 

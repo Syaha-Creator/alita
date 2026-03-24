@@ -83,7 +83,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Sudah login tapi masih di halaman login → ke home
       if (isLoggedIn && isOnLogin) return '/';
 
-      if (isTelemetryRoute && !TelemetryAccess.canAccess(auth)) {
+      if (isTelemetryRoute && !TelemetryAccess.canAccess(auth.userId)) {
         return '/profile';
       }
 

@@ -160,6 +160,22 @@ Before writing ANY new widget, utility, style, or layout, you MUST check this in
 |--------|---------|
 | `AppConfig` | `.env` reader: `apiBaseUrl`, `clientId`, `clientSecret`, `comforta*`, `regionApiBaseUrl`, `assertConfigured()` |
 
+# RELEASE BUILD — SECRETS VIA --dart-define (MANDATORY)
+Rahasia tidak di-bundle dari .env. Untuk release build, WAJIB pass secrets lewat `--dart-define`.
+
+**Script:** `scripts/build_release.sh` — otomatis baca .env di project root.
+```bash
+./scripts/build_release.sh appbundle   # AAB untuk Play Store
+./scripts/build_release.sh apk        # APK
+```
+Tanpa export manual: script load API_BASE_URL, CLIENT_ID, CLIENT_SECRET, COMFORTA_* dari .env.
+
+**Wajib (Alita API):** API_BASE_URL, CLIENT_ID, CLIENT_SECRET  
+**Opsional (Comforta):** COMFORTA_ACCESS_TOKEN, COMFORTA_CLIENT_ID, COMFORTA_CLIENT_SECRET  
+**Punya default (tidak perlu):** COMFORTA_API_HOST, REGION_API_BASE_URL
+
+**Saat build release, SELALU gunakan script ini** — jangan pakai `flutter build` tanpa --dart-define untuk secrets.
+
 # BEHAVIORAL RULES (ANTI-BREAKAGE)
 1. **Context First:** Before editing a file, analyze its dependencies. Do not delete existing functionality unless explicitly asked.
 2. **Incremental Changes:** If I ask for a UI change, only touch the `presentation` layer. Do not break the `logic` or `data` layers.

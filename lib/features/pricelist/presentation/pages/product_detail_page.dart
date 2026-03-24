@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/services/app_analytics_service.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/utils/number_input_formatter.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -34,6 +35,10 @@ import '../widgets/product_specifications_section.dart';
 
 /// Tracks the share-in-progress state via Riverpod instead of setState.
 final _sharingProvider = StateProvider.autoDispose<bool>((ref) => false);
+
+/// Stable empty collections for provider select fallbacks (avoids rebuilds during loading).
+final _emptyGroupedLookups = <String, List<ItemLookup>>{};
+final _emptyProducts = <Product>[];
 
 /// Product detail page with Hero animation, SliverAppBar and Product Configurator
 class ProductDetailPage extends ConsumerStatefulWidget {
@@ -121,6 +126,10 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
   @override
   void initState() {
     super.initState();
+    AppAnalyticsService.logViewItem(
+      widget.product.id.toString(),
+      widget.product.name,
+    );
     _totalFocusNode.addListener(_onTotalFocusChange);
     _scrollController.addListener(() {
       if (!mounted) return;
@@ -152,10 +161,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
         final base = _lastBaseTotalEup;
         final limits = _lastMaxLimits;
         final target = targetTotalEup;
-        if (base > 0 &&
-            limits.isNotEmpty &&
-            target != null &&
-            target < base) {
+        if (base > 0 && limits.isNotEmpty && target != null && target < base) {
           setState(() {
             appliedDiscounts = _computeDiscountsFromTargetTotal(
               target,
@@ -288,14 +294,16 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final asyncProducts = ref.watch(productListProvider);
-    final rawProducts = asyncProducts.valueOrNull?.products ?? [];
+    final rawProducts = ref.watch(
+      productListProvider.select((v) => v.valueOrNull?.products ?? _emptyProducts),
+    );
 
     final AnchorType initialAnchor = _anchor;
     final AnchorType buildAnchor = initialAnchor;
 
-    final lookupAsync = ref.watch(itemLookupProvider);
-    final groupedLookups = lookupAsync.value ?? {};
+    final groupedLookups = ref.watch(
+      itemLookupProvider.select((v) => v.valueOrNull ?? _emptyGroupedLookups),
+    );
 
     final v = ProductVariantResolver.resolve(
       masterProduct: widget.product,
@@ -366,9 +374,10 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     _lastBaseTotalEup = v.baseTotalEup;
     _lastMaxLimits = v.maxLimits;
 
-    final brandSpecsAsync = ref.watch(brandSpecProvider);
+    final brandSpecs = ref.watch(
+      brandSpecProvider.select((v) => v.valueOrNull),
+    );
     Map<String, dynamic>? matchedSpec;
-    final brandSpecs = brandSpecsAsync.valueOrNull;
     if (brandSpecs != null && brandSpecs.isNotEmpty) {
       final erpName = widget.product.name.toLowerCase();
       for (final spec in brandSpecs) {
@@ -380,7 +389,8 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       }
     }
 
-    final defaultBonuses = ProductBonusBuilder.buildDefaultBonuses(activeProduct);
+    final defaultBonuses =
+        ProductBonusBuilder.buildDefaultBonuses(activeProduct);
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -542,8 +552,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                     : null,
                 spacing: 4,
                 formatPrice: AppFormatters.currencyIdr,
-                priceStyle:
-                    Theme.of(context).textTheme.headlineLarge?.copyWith(
+                priceStyle: Theme.of(context).textTheme.headlineLarge?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: AppColors.accent,
                     ),
@@ -565,122 +574,122 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
           decoration: sectionDecoration,
           padding: sectionPadding,
           child: ProductConfiguratorSection(
-                  anchorType: buildAnchor,
-                  availableSizes: availableSizes,
-                  availableDivans: divansForConfigurator,
-                  availableHeadboards: headboardsForConfigurator,
-                  availableSorongs: availableSorongs,
-                  effectiveSize: effectiveSize,
-                  effectiveDivan: effectiveDivan,
-                  effectiveHeadboard: effectiveHeadboard,
-                  effectiveSorong: effectiveSorong,
-                  isKasurOnly: isKasurOnly,
-                  hasSetOptions: hasSetOptions,
-                  kasurLookups: kasurLookups,
-                  effectiveKasurLookup: effectiveKasurLookup,
-                  onKasurLookupSelected: (lookup) => setState(() {
-                    selectedKasurLookup = lookup;
-                    _isKasurCustom = false;
-                  }),
-                  divanLookups: divanLookups,
-                  effectiveDivanLookup: effectiveDivanLookup,
-                  onDivanLookupSelected: (lookup) => setState(() {
-                    selectedDivanLookup = lookup;
-                    _isDivanCustom = false;
-                  }),
-                  headboardLookups: headboardLookups,
-                  effectiveHeadboardLookup: effectiveHeadboardLookup,
-                  onHeadboardLookupSelected: (lookup) => setState(() {
-                    selectedHeadboardLookup = lookup;
-                    _isHeadboardCustom = false;
-                  }),
-                  sorongLookups: sorongLookups,
-                  effectiveSorongLookup: effectiveSorongLookup,
-                  onSorongLookupSelected: (lookup) => setState(() {
-                    selectedSorongLookup = lookup;
-                    _isSorongCustom = false;
-                  }),
-                  isKasurCustom: _isKasurCustom,
-                  isDivanCustom: _isDivanCustom,
-                  isHeadboardCustom: _isHeadboardCustom,
-                  isSorongCustom: _isSorongCustom,
-                  customKasurCtrl: _customKasurCtrl,
-                  customDivanCtrl: _customDivanCtrl,
-                  customHbCtrl: _customHbCtrl,
-                  customSorongCtrl: _customSorongCtrl,
-                  onKasurCustomTap: () => setState(() {
-                    _isKasurCustom = true;
-                    selectedKasurLookup = null;
-                  }),
-                  onDivanCustomTap: () => setState(() {
-                    _isDivanCustom = true;
-                    selectedDivanLookup = null;
-                  }),
-                  onHeadboardCustomTap: () => setState(() {
-                    _isHeadboardCustom = true;
-                    selectedHeadboardLookup = null;
-                  }),
-                  onSorongCustomTap: () => setState(() {
-                    _isSorongCustom = true;
-                    selectedSorongLookup = null;
-                  }),
-                  onSizeSelected: (v) => setState(() {
-                    selectedSize = v;
-                    isBonusCustomized = false;
-                    customBonuses.clear();
-                    _isKasurCustom = false;
-                    _isDivanCustom = false;
-                    _isHeadboardCustom = false;
-                    _isSorongCustom = false;
-                    _customKasurCtrl.clear();
-                    _customDivanCtrl.clear();
-                    _customHbCtrl.clear();
-                    _customSorongCtrl.clear();
-                    selectedKasurLookup = null;
-                    selectedDivanLookup = null;
-                    selectedHeadboardLookup = null;
-                    selectedSorongLookup = null;
-                    targetTotalEup = null;
-                    _targetTotalController.clear();
-                  }),
-                  onDivanSelected: (v) => setState(() {
-                    selectedDivan = v;
-                    isKasurOnly = false;
-                    targetTotalEup = null;
-                    _targetTotalController.clear();
-                  }),
-                  onHeadboardSelected: (v) => setState(() {
-                    selectedHeadboard = v;
-                    isKasurOnly = false;
-                    targetTotalEup = null;
-                    _targetTotalController.clear();
-                  }),
-                  onSorongSelected: (v) => setState(() {
-                    selectedSorong = v;
-                    targetTotalEup = null;
-                    _targetTotalController.clear();
-                  }),
-                  onKasurOnlyTap: () => setState(() {
-                    isKasurOnly = true;
-                    selectedDivan = null;
-                    selectedHeadboard = null;
-                    selectedSorong = null;
-                    isBonusCustomized = false;
-                    customBonuses.clear();
-                    targetTotalEup = null;
-                    _targetTotalController.clear();
-                  }),
-                  onSetTap: () => setState(() {
-                    isKasurOnly = false;
-                    selectedDivan = null;
-                    selectedHeadboard = null;
-                    selectedSorong = null;
-                    isBonusCustomized = false;
-                    customBonuses.clear();
-                    targetTotalEup = null;
-                    _targetTotalController.clear();
-                  }),
-                  onCustomTextChanged: () => setState(() {}),
+            anchorType: buildAnchor,
+            availableSizes: availableSizes,
+            availableDivans: divansForConfigurator,
+            availableHeadboards: headboardsForConfigurator,
+            availableSorongs: availableSorongs,
+            effectiveSize: effectiveSize,
+            effectiveDivan: effectiveDivan,
+            effectiveHeadboard: effectiveHeadboard,
+            effectiveSorong: effectiveSorong,
+            isKasurOnly: isKasurOnly,
+            hasSetOptions: hasSetOptions,
+            kasurLookups: kasurLookups,
+            effectiveKasurLookup: effectiveKasurLookup,
+            onKasurLookupSelected: (lookup) => setState(() {
+              selectedKasurLookup = lookup;
+              _isKasurCustom = false;
+            }),
+            divanLookups: divanLookups,
+            effectiveDivanLookup: effectiveDivanLookup,
+            onDivanLookupSelected: (lookup) => setState(() {
+              selectedDivanLookup = lookup;
+              _isDivanCustom = false;
+            }),
+            headboardLookups: headboardLookups,
+            effectiveHeadboardLookup: effectiveHeadboardLookup,
+            onHeadboardLookupSelected: (lookup) => setState(() {
+              selectedHeadboardLookup = lookup;
+              _isHeadboardCustom = false;
+            }),
+            sorongLookups: sorongLookups,
+            effectiveSorongLookup: effectiveSorongLookup,
+            onSorongLookupSelected: (lookup) => setState(() {
+              selectedSorongLookup = lookup;
+              _isSorongCustom = false;
+            }),
+            isKasurCustom: _isKasurCustom,
+            isDivanCustom: _isDivanCustom,
+            isHeadboardCustom: _isHeadboardCustom,
+            isSorongCustom: _isSorongCustom,
+            customKasurCtrl: _customKasurCtrl,
+            customDivanCtrl: _customDivanCtrl,
+            customHbCtrl: _customHbCtrl,
+            customSorongCtrl: _customSorongCtrl,
+            onKasurCustomTap: () => setState(() {
+              _isKasurCustom = true;
+              selectedKasurLookup = null;
+            }),
+            onDivanCustomTap: () => setState(() {
+              _isDivanCustom = true;
+              selectedDivanLookup = null;
+            }),
+            onHeadboardCustomTap: () => setState(() {
+              _isHeadboardCustom = true;
+              selectedHeadboardLookup = null;
+            }),
+            onSorongCustomTap: () => setState(() {
+              _isSorongCustom = true;
+              selectedSorongLookup = null;
+            }),
+            onSizeSelected: (v) => setState(() {
+              selectedSize = v;
+              isBonusCustomized = false;
+              customBonuses.clear();
+              _isKasurCustom = false;
+              _isDivanCustom = false;
+              _isHeadboardCustom = false;
+              _isSorongCustom = false;
+              _customKasurCtrl.clear();
+              _customDivanCtrl.clear();
+              _customHbCtrl.clear();
+              _customSorongCtrl.clear();
+              selectedKasurLookup = null;
+              selectedDivanLookup = null;
+              selectedHeadboardLookup = null;
+              selectedSorongLookup = null;
+              targetTotalEup = null;
+              _targetTotalController.clear();
+            }),
+            onDivanSelected: (v) => setState(() {
+              selectedDivan = v;
+              isKasurOnly = false;
+              targetTotalEup = null;
+              _targetTotalController.clear();
+            }),
+            onHeadboardSelected: (v) => setState(() {
+              selectedHeadboard = v;
+              isKasurOnly = false;
+              targetTotalEup = null;
+              _targetTotalController.clear();
+            }),
+            onSorongSelected: (v) => setState(() {
+              selectedSorong = v;
+              targetTotalEup = null;
+              _targetTotalController.clear();
+            }),
+            onKasurOnlyTap: () => setState(() {
+              isKasurOnly = true;
+              selectedDivan = null;
+              selectedHeadboard = null;
+              selectedSorong = null;
+              isBonusCustomized = false;
+              customBonuses.clear();
+              targetTotalEup = null;
+              _targetTotalController.clear();
+            }),
+            onSetTap: () => setState(() {
+              isKasurOnly = false;
+              selectedDivan = null;
+              selectedHeadboard = null;
+              selectedSorong = null;
+              isBonusCustomized = false;
+              customBonuses.clear();
+              targetTotalEup = null;
+              _targetTotalController.clear();
+            }),
+            onCustomTextChanged: () => setState(() {}),
           ),
         ),
 
@@ -932,6 +941,10 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
           floating: true);
     } else {
       ref.read(cartProvider.notifier).addItem(snapshotItem);
+      AppAnalyticsService.logAddToCart(
+        widget.product.id.toString(),
+        widget.product.name,
+      );
       AppFeedback.show(context,
           message:
               '${widget.product.name} ($summaryForToast) ditambahkan ke keranjang',

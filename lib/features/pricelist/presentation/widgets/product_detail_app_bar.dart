@@ -58,6 +58,7 @@ class ProductDetailAppBar extends ConsumerWidget {
               shape: BoxShape.circle,
             ),
             child: IconButton(
+              tooltip: 'Kembali',
               icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
               onPressed: onBackTap,
             ),
@@ -114,6 +115,7 @@ class ProductDetailAppBar extends ConsumerWidget {
                   ),
                 )
               : IconButton(
+                  tooltip: isOffline ? 'Membutuhkan internet' : 'Bagikan',
                   icon: Icon(
                     Icons.share_outlined,
                     color: isOffline
@@ -121,7 +123,6 @@ class ProductDetailAppBar extends ConsumerWidget {
                         : AppColors.textPrimary,
                     size: 22,
                   ),
-                  tooltip: isOffline ? 'Membutuhkan internet' : null,
                   onPressed: () {
                     if (ifOfflineShowFeedback(context,
                         isOffline: isOffline)) {
@@ -143,6 +144,7 @@ class ProductDetailAppBar extends ConsumerWidget {
             alignment: Alignment.center,
             children: [
               IconButton(
+                tooltip: 'Tambah ke keranjang',
                 icon: const Icon(
                   Icons.shopping_cart_outlined,
                   color: AppColors.textPrimary,

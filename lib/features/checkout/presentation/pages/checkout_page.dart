@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/services/app_analytics_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/utils/app_formatters.dart';
@@ -14,10 +15,8 @@ import '../../../../core/utils/app_telemetry.dart';
 import '../../../../core/utils/network_guard.dart';
 import '../../../../core/utils/number_input_formatter.dart';
 import '../../../../core/utils/platform_utils.dart';
-import '../../../../core/widgets/action_button_bar.dart';
 import '../../../../core/widgets/image_source_sheet.dart';
 import '../../../../core/widgets/loading_overlay.dart';
-import '../../../../core/widgets/empty_state_view.dart';
 import '../../../../core/widgets/section_card.dart';
 import '../../../../core/services/connectivity_service.dart';
 import '../../../cart/data/cart_item.dart';
@@ -33,15 +32,16 @@ import '../../logic/quotation_save_handler.dart';
 import '../widgets/active_draft_banner.dart';
 import '../widgets/checkout_approval_card.dart';
 import '../widgets/checkout_bottom_bar.dart';
+import '../widgets/checkout_customer_shipping_card.dart';
+import '../widgets/checkout_empty_state.dart';
 import '../widgets/checkout_payment_card.dart';
 import '../widgets/contact_picker_bottom_sheet.dart';
-import '../widgets/customer_info_section.dart';
 import '../widgets/delivery_info_section.dart';
 import '../widgets/checkout_approver_content.dart';
 import '../widgets/checkout_order_summary.dart';
 import '../widgets/checkout_payment_info_section.dart';
 import '../widgets/region_picker_bottom_sheet.dart';
-import '../widgets/shipping_info_section.dart';
+import '../../logic/checkout_performance_reporter.dart';
 import '../../../quotation/data/quotation_model.dart';
 import '../../../quotation/logic/quotation_list_provider.dart';
 // activeDraftProvider is exported from quotation_list_provider.dart
@@ -114,7 +114,6 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   final _takeAway = BonusTakeAwayState();
 
   double _grandTotal = 0;
-  DateTime? _lastPerfReportAt;
 
   // ── Customer ───────────────────────────────────────────────────
   final _customerNameCtrl = TextEditingController();
@@ -150,6 +149,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     _payments.add(PaymentEntry());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(checkoutProvider.notifier).fetchApprovers();
+      AppAnalyticsService.logBeginCheckout(value: _effectiveTotal(ref));
     });
     _updatePaymentAmountUI();
     _postageCtrl.addListener(() {
@@ -260,7 +260,6 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     final List<CartItem> cartItems =
         widget.selectedCartItems ?? ref.watch(cartProvider);
     final totalAmount = _effectiveTotal(ref);
-    final checkoutState = ref.watch(checkoutProvider);
     final totalBonusRows = cartItems.fold<int>(
       0,
       (sum, item) => sum + item.bonusSnapshots.length,
@@ -274,7 +273,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       buildSw.stop();
-      _reportCheckoutListPerformance(
+      CheckoutPerformanceReporter.reportIfNeeded(
         itemCount: cartItems.length,
         bonusRows: totalBonusRows,
         paymentCount: _payments.length,
@@ -319,25 +318,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       }
     });
 
-    if (cartItems.isEmpty) {
-      return Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(title: const Text('Buat Surat Pesanan'), elevation: 0),
-        body: EmptyStateView(
-          icon: Icons.shopping_cart_outlined,
-          title: 'Keranjang kosong',
-          subtitle: 'Tambahkan produk terlebih dahulu',
-          action: ActionButtonBar(
-            fullWidth: false,
-            mainAxisSize: MainAxisSize.min,
-            height: 44,
-            borderRadius: 14,
-            primaryLabel: 'Kembali ke Beranda',
-            onPrimaryPressed: () => context.go('/'),
-          ),
-        ),
-      );
-    }
+    if (cartItems.isEmpty) return const CheckoutEmptyState();
+
+    final checkoutState = ref.watch(
+      checkoutProvider.select(
+        (s) => (retryDetails: s.retryDetails, retryNoSp: s.retryNoSp, isSubmitting: s.isSubmitting),
+      ),
+    );
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -367,67 +354,53 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // ── Active Draft Banner ───────────────────────────
-                if (ref.watch(activeDraftProvider) case final draft?)
-                  ActiveDraftBanner(
-                    name: draft.customerName,
-                    onClear: () {
-                      ref.read(activeDraftProvider.notifier).state = null;
-                    },
-                  ),
+                Consumer(
+                  builder: (context, ref, _) {
+                    final draftName = ref.watch(
+                      activeDraftProvider.select((d) => d?.customerName),
+                    );
+                    if (draftName == null) return const SizedBox.shrink();
+                    return ActiveDraftBanner(
+                      name: draftName,
+                      onClear: () {
+                        ref.read(activeDraftProvider.notifier).state = null;
+                      },
+                    );
+                  },
+                ),
 
                 // ── Card 1: Customer Info + Shipping ──────────────
-                Container(
+                KeyedSubtree(
                   key: _customerSectionKey,
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.border),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: AppColors.shadow,
-                        blurRadius: 12,
-                        offset: Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      CustomerInfoSection(
-                        customerNameCtrl: _customerNameCtrl,
-                        customerEmailCtrl: _customerEmailCtrl,
-                        customerPhoneCtrl: _customerPhoneCtrl,
-                        customerPhone2Ctrl: _customerPhone2Ctrl,
-                        showBackupPhone: _showBackupPhone,
-                        onToggleBackupPhone: () =>
-                            setState(() => _showBackupPhone = true),
-                        isFromContactBook: _isFromContactBook,
-                        shouldSaveCustomerContact: _shouldSaveCustomerContact,
-                        onToggleSaveContact: (v) =>
-                            setState(() => _shouldSaveCustomerContact = v),
-                        selectedContactId: _selectedContactId,
-                        onContactFieldCleared: () => setState(() {
-                          _selectedContactId = null;
-                          _isFromContactBook = false;
-                        }),
-                        onPickContact: _pickContact,
-                      ),
-                      ShippingInfoSection(
-                        customerAddressCtrl: _customerAddressCtrl,
-                        regionCtrl: _regionCtrl,
-                        isShippingSameAsCustomer: _isShippingSameAsCustomer,
-                        onToggleSameAddress: (v) =>
-                            setState(() => _isShippingSameAsCustomer = v),
-                        onPickCustomerRegion: () => _pickRegion(isShipping: false),
-                        shippingNameCtrl: _shippingNameCtrl,
-                        shippingPhoneCtrl: _shippingPhoneCtrl,
-                        shippingAddressCtrl: _shippingAddressCtrl,
-                        shippingRegionCtrl: _shippingRegionCtrl,
-                        onPickShippingRegion: () => _pickRegion(isShipping: true),
-                      ),
-                    ],
+                  child: CheckoutCustomerShippingCard(
+                    customerNameCtrl: _customerNameCtrl,
+                    customerEmailCtrl: _customerEmailCtrl,
+                    customerPhoneCtrl: _customerPhoneCtrl,
+                    customerPhone2Ctrl: _customerPhone2Ctrl,
+                    showBackupPhone: _showBackupPhone,
+                    onToggleBackupPhone: () =>
+                        setState(() => _showBackupPhone = true),
+                    isFromContactBook: _isFromContactBook,
+                    shouldSaveCustomerContact: _shouldSaveCustomerContact,
+                    onToggleSaveContact: (v) =>
+                        setState(() => _shouldSaveCustomerContact = v),
+                    selectedContactId: _selectedContactId,
+                    onContactFieldCleared: () => setState(() {
+                      _selectedContactId = null;
+                      _isFromContactBook = false;
+                    }),
+                    onPickContact: _pickContact,
+                    customerAddressCtrl: _customerAddressCtrl,
+                    regionCtrl: _regionCtrl,
+                    isShippingSameAsCustomer: _isShippingSameAsCustomer,
+                    onToggleSameAddress: (v) =>
+                        setState(() => _isShippingSameAsCustomer = v),
+                    onPickCustomerRegion: () => _pickRegion(isShipping: false),
+                    shippingNameCtrl: _shippingNameCtrl,
+                    shippingPhoneCtrl: _shippingPhoneCtrl,
+                    shippingAddressCtrl: _shippingAddressCtrl,
+                    shippingRegionCtrl: _shippingRegionCtrl,
+                    onPickShippingRegion: () => _pickRegion(isShipping: true),
                   ),
                 ),
 
@@ -451,24 +424,39 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 const SizedBox(height: 16),
 
                 // ── Card 3: Approval ──────────────────────────────
-                CheckoutApprovalCard(
-                  key: _approvalSectionKey,
-                  isLoading: checkoutState.isLoadingApprovers,
-                  hasError: checkoutState.approversError != null &&
-                      checkoutState.approvers.isEmpty,
-                  errorMessage: checkoutState.approversError,
-                  onRetry: () =>
-                      ref.read(checkoutProvider.notifier).fetchApprovers(),
-                  child: CheckoutApproverContent(
-                    approvers: checkoutState.approvers,
-                    selectedSpv: checkoutState.selectedSpv,
-                    selectedManager: checkoutState.selectedManager,
-                    requiresManager: _requiresManagerApproval(cartItems),
-                    onSpvChanged: (v) =>
-                        ref.read(checkoutProvider.notifier).selectSpv(v),
-                    onManagerChanged: (v) =>
-                        ref.read(checkoutProvider.notifier).selectManager(v),
-                  ),
+                Consumer(
+                  builder: (context, ref, _) {
+                    final approvalData = ref.watch(
+                      checkoutProvider.select(
+                        (s) => (
+                          s.isLoadingApprovers,
+                          s.approversError,
+                          s.approvers,
+                          s.selectedSpv,
+                          s.selectedManager,
+                        ),
+                      ),
+                    );
+                    return CheckoutApprovalCard(
+                      key: _approvalSectionKey,
+                      isLoading: approvalData.$1,
+                      hasError: approvalData.$2 != null &&
+                          approvalData.$3.isEmpty,
+                      errorMessage: approvalData.$2,
+                      onRetry: () =>
+                          ref.read(checkoutProvider.notifier).fetchApprovers(),
+                      child: CheckoutApproverContent(
+                        approvers: approvalData.$3,
+                        selectedSpv: approvalData.$4,
+                        selectedManager: approvalData.$5,
+                        requiresManager: _requiresManagerApproval(cartItems),
+                        onSpvChanged: (v) =>
+                            ref.read(checkoutProvider.notifier).selectSpv(v),
+                        onManagerChanged: (v) =>
+                            ref.read(checkoutProvider.notifier).selectManager(v),
+                      ),
+                    );
+                  },
                 ),
 
                 const SizedBox(height: 16),
@@ -520,29 +508,6 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         submitButtonEnabled:
             checkoutState.retryDetails.isEmpty && !checkoutState.isSubmitting,
       ),
-    );
-  }
-
-  void _reportCheckoutListPerformance({
-    required int itemCount,
-    required int bonusRows,
-    required int paymentCount,
-    required int frameBuildMs,
-  }) {
-    if (itemCount < 12) return;
-    final now = DateTime.now();
-    final last = _lastPerfReportAt;
-    if (last != null && now.difference(last).inSeconds < 6) return;
-    _lastPerfReportAt = now;
-    AppTelemetry.event(
-      'checkout_long_list_frame',
-      data: {
-        'items': itemCount,
-        'bonus_rows': bonusRows,
-        'payments': paymentCount,
-        'build_ms': frameBuildMs,
-      },
-      tag: 'CheckoutPerf',
     );
   }
 

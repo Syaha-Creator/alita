@@ -110,6 +110,7 @@ class _EditCustomerSheetState extends State<EditCustomerSheet> {
                     ),
                   ),
                   IconButton(
+                    tooltip: 'Tutup',
                     icon: const Icon(Icons.close, size: 20),
                     onPressed: () => Navigator.pop(context),
                     color: AppColors.textTertiary,

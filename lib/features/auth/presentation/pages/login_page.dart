@@ -376,6 +376,9 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                     : AppColors.textTertiary,
                               ),
                               suffixIcon: IconButton(
+                                tooltip: _obscurePassword
+                                    ? 'Tampilkan sandi'
+                                    : 'Sembunyikan sandi',
                                 icon: Icon(
                                   _obscurePassword
                                       ? Icons.visibility_off_outlined

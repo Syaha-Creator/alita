@@ -118,6 +118,7 @@ class _FavoriteButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
       ),
       child: IconButton(
+        tooltip: isFavorite ? 'Hapus dari favorit' : 'Tambah ke favorit',
         icon: Icon(
           isFavorite ? Icons.favorite : Icons.favorite_border,
         ),
