@@ -1,0 +1,19 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "H6RG844H84.com.syahrul.app2.alitapricelist2",
+        "paths": [
+          "/product/*",
+          "/"
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": [
+      "H6RG844H84.com.syahrul.app2.alitapricelist2"
+    ]
+  }
+}

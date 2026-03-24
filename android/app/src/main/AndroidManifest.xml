@@ -46,6 +46,21 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+
+            <!-- Deep Links: App Links via Firebase Hosting -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data
+                    android:scheme="https"
+                    android:host="alita-pricelist-12d76.web.app"
+                    android:pathPrefix="/product"/>
+                <data
+                    android:scheme="https"
+                    android:host="alita-pricelist-12d76.firebaseapp.com"
+                    android:pathPrefix="/product"/>
+            </intent-filter>
         </activity>
 
         <meta-data

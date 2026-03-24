@@ -26,7 +26,7 @@ class ProductCardShimmer extends StatelessWidget {
                 top: Radius.circular(16),
               ),
               child: AspectRatio(
-                aspectRatio: 0.75,
+                aspectRatio: 0.85,
                 child: Container(color: AppColors.surfaceLight),
               ),
             ),

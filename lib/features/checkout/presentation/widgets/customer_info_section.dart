@@ -22,6 +22,8 @@ class CustomerInfoSection extends StatelessWidget {
     required this.selectedContactId,
     required this.onContactFieldCleared,
     required this.onPickContact,
+    this.onCloudLookup,
+    this.isCloudLookupLoading = false,
   });
 
   final TextEditingController customerNameCtrl;
@@ -36,6 +38,8 @@ class CustomerInfoSection extends StatelessWidget {
   final String? selectedContactId;
   final VoidCallback onContactFieldCleared;
   final VoidCallback onPickContact;
+  final VoidCallback? onCloudLookup;
+  final bool isCloudLookupLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -62,7 +66,8 @@ class CustomerInfoSection extends StatelessWidget {
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.import_contacts, size: 18, color: AppColors.accent),
+                  Icon(Icons.import_contacts,
+                      size: 18, color: AppColors.accent),
                   SizedBox(width: 6),
                   Text(
                     'Pilih Kontak',
@@ -140,6 +145,29 @@ class CustomerInfoSection extends StatelessWidget {
                     size: 16,
                     color: AppColors.textTertiary,
                   ),
+                  suffixIcon: onCloudLookup == null
+                      ? null
+                      : isCloudLookupLoading
+                          ? const Padding(
+                              padding: EdgeInsets.all(12),
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.accent,
+                                ),
+                              ),
+                            )
+                          : IconButton(
+                              tooltip: 'Cari di cloud',
+                              icon: const Icon(
+                                Icons.cloud_download_outlined,
+                                color: AppColors.accent,
+                                size: 22,
+                              ),
+                              onPressed: onCloudLookup,
+                            ),
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 8,
                     vertical: 12,

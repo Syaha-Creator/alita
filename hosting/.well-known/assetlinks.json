@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.syahrul.alitapricelist.alitapricelist",
+      "sha256_cert_fingerprints": [
+        "34:CA:36:97:91:B2:B9:D2:C6:B3:E2:B3:71:57:BE:68:0F:1D:60:9D:40:8F:6E:7A:FC:51:FC:D9:7B:97:07:FD"
+      ]
+    }
+  }
+]

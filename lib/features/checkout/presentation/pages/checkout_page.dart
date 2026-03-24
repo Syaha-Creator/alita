@@ -28,6 +28,8 @@ import '../../data/utils/checkout_payload_builder.dart';
 import '../../logic/bonus_takeaway_state.dart';
 import '../../logic/checkout_form_validator.dart';
 import '../../logic/checkout_provider.dart';
+import '../../logic/customer_repository_provider.dart';
+import '../../data/services/customer_repository.dart';
 import '../../logic/quotation_save_handler.dart';
 import '../widgets/active_draft_banner.dart';
 import '../widgets/checkout_approval_card.dart';
@@ -109,6 +111,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   bool _isShippingSameAsCustomer = true;
   bool _showBackupPhone = false;
   bool _shouldSaveCustomerContact = true;
+  bool _isCloudLookupLoading = false;
   bool _isFromContactBook = false;
   String? _selectedContactId;
   final _takeAway = BonusTakeAwayState();
@@ -322,7 +325,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
     final checkoutState = ref.watch(
       checkoutProvider.select(
-        (s) => (retryDetails: s.retryDetails, retryNoSp: s.retryNoSp, isSubmitting: s.isSubmitting),
+        (s) => (
+          retryDetails: s.retryDetails,
+          retryNoSp: s.retryNoSp,
+          isSubmitting: s.isSubmitting
+        ),
       ),
     );
 
@@ -390,6 +397,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                       _isFromContactBook = false;
                     }),
                     onPickContact: _pickContact,
+                    onCloudLookup: _lookupCustomerFromCloud,
+                    isCloudLookupLoading: _isCloudLookupLoading,
                     customerAddressCtrl: _customerAddressCtrl,
                     regionCtrl: _regionCtrl,
                     isShippingSameAsCustomer: _isShippingSameAsCustomer,
@@ -440,8 +449,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     return CheckoutApprovalCard(
                       key: _approvalSectionKey,
                       isLoading: approvalData.$1,
-                      hasError: approvalData.$2 != null &&
-                          approvalData.$3.isEmpty,
+                      hasError:
+                          approvalData.$2 != null && approvalData.$3.isEmpty,
                       errorMessage: approvalData.$2,
                       onRetry: () =>
                           ref.read(checkoutProvider.notifier).fetchApprovers(),
@@ -452,8 +461,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                         requiresManager: _requiresManagerApproval(cartItems),
                         onSpvChanged: (v) =>
                             ref.read(checkoutProvider.notifier).selectSpv(v),
-                        onManagerChanged: (v) =>
-                            ref.read(checkoutProvider.notifier).selectManager(v),
+                        onManagerChanged: (v) => ref
+                            .read(checkoutProvider.notifier)
+                            .selectManager(v),
                       ),
                     );
                   },
@@ -539,7 +549,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       );
       if (!mounted) return;
       if (picked != null) {
-        setState(() => _payments[paymentIndex].receiptImage = File(picked.path));
+        setState(
+            () => _payments[paymentIndex].receiptImage = File(picked.path));
         sw.stop();
         AppTelemetry.event(
           'checkout_receipt_selected',
@@ -631,6 +642,69 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     });
   }
 
+  Future<void> _lookupCustomerFromCloud() async {
+    final trimmed = _customerPhoneCtrl.text.trim();
+    final key = CustomerRepository.normalizePhoneKey(trimmed);
+    if (key.length < 10) {
+      AppFeedback.show(
+        context,
+        message: 'Isi nomor HP utama yang valid terlebih dahulu.',
+        type: AppFeedbackType.warning,
+        floating: true,
+      );
+      return;
+    }
+    if (ifOfflineShowFeedback(
+      context,
+      isOffline: ref.read(isOfflineProvider),
+    )) {
+      return;
+    }
+
+    setState(() => _isCloudLookupLoading = true);
+    try {
+      final repo = ref.read(customerRepositoryProvider);
+      final c = await repo.getCustomerByPhone(trimmed);
+      if (!mounted) return;
+      if (c != null) {
+        _customerNameCtrl.text = c.name;
+        _customerEmailCtrl.text = c.email;
+        _customerAddressCtrl.text = c.address;
+        _regionCtrl.text = c.region;
+        _selectedProvinsi = (c.provinsi != null && c.provinsi!.isNotEmpty)
+            ? c.provinsi
+            : null;
+        _selectedKota =
+            (c.kota != null && c.kota!.isNotEmpty) ? c.kota : null;
+        _selectedKecamatan = (c.kecamatan != null && c.kecamatan!.isNotEmpty)
+            ? c.kecamatan
+            : null;
+        _selectedContactId = null;
+        _isFromContactBook = false;
+        _shouldSaveCustomerContact = true;
+        AppFeedback.show(
+          context,
+          message: 'Data pelanggan ditemukan dari sistem!',
+          type: AppFeedbackType.success,
+          floating: true,
+          duration: const Duration(seconds: 2),
+        );
+      }
+    } catch (e, st) {
+      Log.error(e, st, reason: 'Checkout: cloud customer lookup');
+      if (!mounted) return;
+      AppFeedback.show(
+        context,
+        message:
+            'Tidak dapat memuat data cloud. Periksa koneksi atau pastikan Data Connect sudah di-deploy.',
+        type: AppFeedbackType.warning,
+        floating: true,
+      );
+    } finally {
+      if (mounted) setState(() => _isCloudLookupLoading = false);
+    }
+  }
+
   Future<void> _pickContact() async {
     final contacts = await LocalContactService.getContacts();
     if (!mounted) return;
@@ -693,8 +767,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       ref: ref,
       cartItems: cartItems,
       selectedCartItems: widget.selectedCartItems,
-      existingDraft:
-          widget.restoredQuotation ?? ref.read(activeDraftProvider),
+      existingDraft: widget.restoredQuotation ?? ref.read(activeDraftProvider),
       popBackToHistory: widget.restoredQuotation != null,
       customerName: _customerNameCtrl.text.trim(),
       customerEmail: _customerEmailCtrl.text.trim(),

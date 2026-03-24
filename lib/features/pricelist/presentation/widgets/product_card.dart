@@ -7,6 +7,7 @@ import '../../../../core/widgets/network_image_view.dart';
 import '../../../../core/widgets/price_block.dart';
 import '../../../../core/widgets/tap_scale.dart';
 import '../../data/models/product.dart';
+import '../../logic/product_display_image_provider.dart';
 import '../../../favorites/logic/favorites_provider.dart';
 
 /// Product card with Pinterest-style minimalist design
@@ -19,6 +20,9 @@ class ProductCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isFavorite = ref.watch(isFavoriteProvider(product.id));
+    final displayImageUrl = ref.watch(productDisplayImageProvider(product));
+    // Placeholder/foto non-kasur: cover agar area terisi rapi. Foto Comforta: contain agar utuh.
+    final useCover = displayImageUrl == product.imageUrl;
     return Semantics(
       button: true,
       label: 'Lihat detail ${product.name}',
@@ -32,6 +36,7 @@ class ProductCard extends ConsumerWidget {
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.border, width: 1),
               boxShadow: const [
                 BoxShadow(
                   color: AppColors.shadow,
@@ -50,23 +55,26 @@ class ProductCard extends ConsumerWidget {
                     top: Radius.circular(16),
                   ),
                   child: AspectRatio(
-                    aspectRatio: 0.75, // Portrait ratio for Pinterest feel
+                    aspectRatio: 0.85, // Slightly wider for bed product photos
                     child: Stack(
                       children: [
                         Hero(
                           tag: 'product-image-${product.id}',
-                          child: NetworkImageView(
-                            imageUrl: product.imageUrl,
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                            height: double.infinity,
-                            memCacheWidth: 300,
-                            errorWidget: Container(
-                              color: AppColors.surfaceLight,
-                              child: const Icon(
-                                Icons.image_outlined,
-                                size: 48,
-                                color: AppColors.textTertiary,
+                          child: Container(
+                            color: AppColors.background,
+                            child: NetworkImageView(
+                              imageUrl: displayImageUrl,
+                              fit: useCover ? BoxFit.cover : BoxFit.contain,
+                              width: double.infinity,
+                              height: double.infinity,
+                              memCacheWidth: 300,
+                              errorWidget: Container(
+                                color: AppColors.surfaceLight,
+                                child: const Icon(
+                                  Icons.image_outlined,
+                                  size: 48,
+                                  color: AppColors.textTertiary,
+                                ),
                               ),
                             ),
                           ),

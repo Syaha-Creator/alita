@@ -1,0 +1,14 @@
+# Firebase Data Connect — selaraskan dengan Firebase Console / GCP.
+# Lihat: https://firebase.google.com/docs/data-connect/quickstart
+specVersion: v1beta
+serviceId: alita-service
+location: asia-southeast1
+schema:
+  source: schema
+  datasource:
+    postgresql:
+      database: alitadb
+      cloudSql:
+        instanceId: alita-db-instance
+connectorDirs:
+  - connector

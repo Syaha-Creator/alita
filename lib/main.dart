@@ -1,16 +1,21 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:app_links/app_links.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:intl/date_symbol_data_local.dart';
 import 'core/config/app_config.dart';
 import 'core/router/app_router.dart';
+import 'core/utils/log.dart';
 import 'core/services/force_update_service.dart';
 import 'core/services/notification_handler_service.dart';
 import 'core/services/pdf_asset_cache.dart';
@@ -23,43 +28,95 @@ import 'features/pricelist/logic/master_data_provider.dart';
 import 'core/widgets/offline_banner.dart';
 import 'firebase_options.dart';
 
-void main() {
-  runZonedGuarded(() async {
-    WidgetsFlutterBinding.ensureInitialized();
-
-    if (!kDebugMode) {
-      ErrorWidget.builder = (details) => const _AppErrorFallback();
+/// Data Connect memakai `@auth(level: USER)` — anonymous auth memenuhi token tanpa UI login terpisah.
+Future<void> _ensureFirebaseAuthForDataConnect() async {
+  try {
+    if (FirebaseAuth.instance.currentUser == null) {
+      await FirebaseAuth.instance.signInAnonymously();
     }
+  } catch (e, st) {
+    Log.error(e, st, reason: 'Firebase anonymous auth (Data Connect)');
+  }
+}
 
-    await dotenv.load(fileName: '.env');
-    AppConfig.assertConfigured();
+Future<bool> _initializeFirebaseWithRetry() async {
+  const maxAttempts = 10;
+  for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+      return true;
+    } on PlatformException catch (e, st) {
+      final isChannelError = e.code == 'channel-error';
+      Log.error(
+        e,
+        st,
+        reason: 'Firebase initialize attempt #$attempt',
+      );
+      if (!isChannelError || attempt == maxAttempts) {
+        return false;
+      }
+      await Future.delayed(Duration(milliseconds: 250 * attempt));
+    } catch (e, st) {
+      Log.error(e, st, reason: 'Firebase initialize attempt #$attempt');
+      return false;
+    }
+  }
+  return false;
+}
 
-    // Parallelize independent initializations to reduce startup time.
-    await Future.wait([
-      Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform),
-      initializeDateFormatting('id_ID'),
-    ]);
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
 
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  if (!kDebugMode) {
+    ErrorWidget.builder = (details) => const _AppErrorFallback();
+  }
 
-    // Flag-only call — no need to block runApp().
-    unawaited(
-      FirebaseCrashlytics.instance
-          .setCrashlyticsCollectionEnabled(!kDebugMode),
-    );
+  await dotenv.load(fileName: '.env');
+  AppConfig.assertConfigured();
 
-    FlutterError.onError = (details) {
+  final isFirebaseReady = await _initializeFirebaseWithRetry();
+  await initializeDateFormatting('id_ID');
+
+  FlutterError.onError = (details) {
+    if (isFirebaseReady) {
       if (_isTransientAssetError(details)) {
         FirebaseCrashlytics.instance.recordFlutterError(details);
         return;
       }
       FirebaseCrashlytics.instance.recordFlutterFatalError(details);
-    };
+    } else {
+      Log.error(
+        details.exception,
+        details.stack,
+        reason: 'FlutterError without Firebase',
+      );
+    }
+  };
 
-    PlatformDispatcher.instance.onError = (error, stack) {
+  PlatformDispatcher.instance.onError = (error, stack) {
+    if (isFirebaseReady) {
       FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-      return true;
-    };
+    } else {
+      Log.error(error, stack, reason: 'Platform error without Firebase');
+    }
+    return true;
+  };
+
+  runZonedGuarded(() {
+    if (isFirebaseReady) {
+      unawaited(_ensureFirebaseAuthForDataConnect());
+    }
+
+    if (isFirebaseReady) {
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    }
+
+    if (isFirebaseReady) {
+      unawaited(
+        FirebaseCrashlytics.instance
+            .setCrashlyticsCollectionEnabled(!kDebugMode),
+      );
+    }
 
     // Defer non-critical work to avoid competing with surface creation.
     unawaited(Future.delayed(const Duration(seconds: 1), () {
@@ -73,7 +130,11 @@ void main() {
       ),
     );
   }, (error, stack) {
-    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    if (isFirebaseReady) {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    } else {
+      Log.error(error, stack, reason: 'runZonedGuarded without Firebase');
+    }
   });
 }
 
@@ -90,6 +151,7 @@ class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp>
       GlobalKey<ScaffoldMessengerState>();
   bool _initialMessageHandled = false;
   bool _imagePrecached = false;
+  StreamSubscription<Uri?>? _deepLinkSubscription;
 
   @override
   void initState() {
@@ -99,6 +161,8 @@ class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp>
     NotificationHandlerService.registerApprovalRefreshCallback(() {
       ref.read(approvalInboxProvider.notifier).fetchInbox();
     });
+
+    _listenDeepLinks();
 
     // Delay heavy platform-channel work so first frame renders fast.
     Future.delayed(const Duration(seconds: 2), () {
@@ -110,8 +174,24 @@ class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp>
 
   @override
   void dispose() {
+    _deepLinkSubscription?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  void _listenDeepLinks() {
+    _deepLinkSubscription?.cancel();
+    try {
+      final appLinks = AppLinks();
+      _deepLinkSubscription = appLinks.uriLinkStream.listen((Uri? uri) {
+        if (!mounted || uri == null || uri.path.isEmpty) return;
+        final path =
+            uri.query.isEmpty ? uri.path : '${uri.path}?${uri.query}';
+        ref.read(routerProvider).go(path);
+      });
+    } catch (e, st) {
+      Log.error(e, st, reason: 'AppLinks deep link listener');
+    }
   }
 
   @override

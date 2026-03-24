@@ -4,6 +4,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/widgets/action_button_bar.dart';
 import '../../../../core/widgets/app_search_field.dart';
+import '../../../../core/widgets/form_field_label.dart';
 import '../../../../core/widgets/sheet_scaffold.dart';
 import '../../logic/accessory_provider.dart';
 
@@ -256,163 +257,170 @@ void showBonusEditorModal(
                                     );
                                   }),
                                 const SizedBox(height: 24),
-                                Container(
-                                  padding: const EdgeInsets.all(14),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.surfaceLight,
+                                const FormFieldLabel(
+                                  'Cari & Tambah Aksesoris Pengganti',
+                                ),
+                                const SizedBox(height: 10),
+                                AppSearchField(
+                                  onChanged: (value) => setModalState(
+                                    () => searchQuery = value,
+                                  ),
+                                  hintText:
+                                      'Ketik nama aksesoris (cth: Pillow)…',
+                                  hintStyle: const TextStyle(
+                                    fontSize: 14,
+                                    color: AppColors.textTertiary,
+                                  ),
+                                  prefixIconSize: 20,
+                                  prefixIconColor: AppColors.textSecondary,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 12,
+                                  ),
+                                  filled: true,
+                                  fillColor: AppColors.surface,
+                                  border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
+                                    borderSide: const BorderSide(
                                       color: AppColors.border,
+                                      width: 1,
                                     ),
                                   ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        'Cari & Tambah Aksesoris Pengganti:',
+                                  isDense: false,
+                                ),
+                                const SizedBox(height: 12),
+                                if (accAsync.isLoading)
+                                  const Center(
+                                    child: Padding(
+                                      padding: EdgeInsets.all(16.0),
+                                      child:
+                                          CircularProgressIndicator.adaptive(),
+                                    ),
+                                  )
+                                else if (availableAcc.isEmpty)
+                                  const Center(
+                                    child: Padding(
+                                      padding: EdgeInsets.all(16.0),
+                                      child: Text(
+                                        'Aksesoris tidak tersedia.',
                                         style: TextStyle(
-                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.textTertiary,
                                           fontSize: 13,
                                         ),
                                       ),
-                                      const SizedBox(height: 8),
-                                      AppSearchField(
-                                        onChanged: (value) => setModalState(
-                                          () => searchQuery = value,
-                                        ),
-                                        hintText:
-                                            'Ketik nama aksesoris (cth: Pillow)...',
-                                        hintStyle: const TextStyle(
+                                    ),
+                                  )
+                                else if (filteredAcc.isEmpty)
+                                  const Center(
+                                    child: Padding(
+                                      padding: EdgeInsets.all(16.0),
+                                      child: Text(
+                                        'Aksesoris tidak ditemukan.',
+                                        style: TextStyle(
+                                          color: AppColors.textTertiary,
                                           fontSize: 13,
                                         ),
-                                        prefixIconSize: 20,
-                                        prefixIconColor: AppColors.textTertiary,
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 0,
-                                        ),
-                                        border: OutlineInputBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                        ),
-                                        isDense: true,
                                       ),
-                                      const SizedBox(height: 8),
-                                      if (accAsync.isLoading)
-                                        const Center(
-                                          child: Padding(
-                                            padding: EdgeInsets.all(16.0),
-                                            child: CircularProgressIndicator
-                                                .adaptive(),
-                                          ),
-                                        )
-                                      else if (availableAcc.isEmpty)
-                                        const Center(
-                                          child: Padding(
-                                            padding: EdgeInsets.all(16.0),
-                                            child: Text(
-                                              'Aksesoris tidak tersedia.',
-                                              style: TextStyle(
-                                                color: AppColors.textTertiary,
-                                                fontSize: 13,
+                                    ),
+                                  )
+                                else
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Container(
+                                      constraints: const BoxConstraints(
+                                        maxHeight: 200,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.surface,
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: AppColors.border,
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: ListView.separated(
+                                        shrinkWrap: true,
+                                        padding: EdgeInsets.zero,
+                                        itemCount: filteredAcc.length,
+                                        separatorBuilder: (context, index) =>
+                                            const Divider(
+                                          height: 1,
+                                          indent: 16,
+                                          endIndent: 16,
+                                          color: AppColors.divider,
+                                        ),
+                                        itemBuilder: (context, index) {
+                                          final acc = filteredAcc[index];
+                                          final t = acc.tipe.trim();
+                                          final u = acc.ukuran.trim();
+                                          final accDisplayName = u.isEmpty ||
+                                                  t.toLowerCase().contains(
+                                                        u.toLowerCase(),
+                                                      )
+                                              ? t
+                                              : '$t ($u)';
+                                          return RepaintBoundary(
+                                            child: ListTile(
+                                              contentPadding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 16,
+                                                vertical: 4,
                                               ),
-                                            ),
-                                          ),
-                                        )
-                                      else if (filteredAcc.isEmpty)
-                                        const Center(
-                                          child: Padding(
-                                            padding: EdgeInsets.all(16.0),
-                                            child: Text(
-                                              'Aksesoris tidak ditemukan.',
-                                              style: TextStyle(
-                                                color: AppColors.textTertiary,
-                                                fontSize: 13,
-                                              ),
-                                            ),
-                                          ),
-                                        )
-                                      else
-                                        Container(
-                                          constraints: const BoxConstraints(
-                                            maxHeight: 180,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            border: Border.all(
-                                              color: AppColors.border,
-                                            ),
-                                            borderRadius:
-                                                BorderRadius.circular(8),
-                                            color: AppColors.surfaceLight,
-                                          ),
-                                          child: ListView.separated(
-                                            shrinkWrap: true,
-                                            itemCount: filteredAcc.length,
-                                            separatorBuilder:
-                                                (context, index) =>
-                                                    const Divider(
-                                              height: 1,
-                                            ),
-                                            itemBuilder: (context, index) {
-                                              final acc = filteredAcc[index];
-                                              final t = acc.tipe.trim();
-                                              final u = acc.ukuran.trim();
-                                              final accDisplayName = u
-                                                          .isEmpty ||
-                                                      t.toLowerCase().contains(
-                                                            u.toLowerCase(),
-                                                          )
-                                                  ? t
-                                                  : '$t ($u)';
-                                              return RepaintBoundary(
-                                                child: ListTile(
-                                                dense: true,
-                                                title: Text(
-                                                  accDisplayName,
-                                                  style: const TextStyle(
-                                                    fontSize: 13,
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
+                                              dense: true,
+                                              title: Text(
+                                                accDisplayName,
+                                                style: const TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w600,
                                                 ),
-                                                subtitle: Text(
+                                              ),
+                                              subtitle: Padding(
+                                                padding: const EdgeInsets.only(
+                                                    top: 2),
+                                                child: Text(
                                                   'Rp ${AppFormatters.currencyIdrNoSymbol(acc.pricelist)}',
                                                   style: const TextStyle(
-                                                    fontSize: 11,
+                                                    fontSize: 12,
                                                     color:
                                                         AppColors.textTertiary,
                                                   ),
                                                 ),
-                                                trailing: const Icon(
-                                                  Icons.add_circle,
-                                                  color: AppColors.accent,
-                                                ),
-                                                onTap: () {
-                                                  setModalState(() {
-                                                    tempBonuses.add({
-                                                      'name': accDisplayName,
-                                                      'qty': 1,
-                                                      'max_qty': 2,
-                                                      'pl': acc.pricelist,
-                                                      'is_custom': true,
-                                                      'item_num': acc.itemNum,
-                                                    });
-                                                    searchQuery = '';
-                                                  });
-                                                  FocusScope.of(
-                                                    context,
-                                                  ).unfocus();
-                                                },
                                               ),
-                                              );
-                                            },
-                                          ),
-                                        ),
-                                      const SizedBox(height: 16),
-                                    ],
+                                              trailing: Container(
+                                                width: 36,
+                                                height: 36,
+                                                decoration: const BoxDecoration(
+                                                  color: AppColors.accentLight,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: const Icon(
+                                                  Icons.add_rounded,
+                                                  color: AppColors.accent,
+                                                  size: 20,
+                                                ),
+                                              ),
+                                              onTap: () {
+                                                setModalState(() {
+                                                  tempBonuses.add({
+                                                    'name': accDisplayName,
+                                                    'qty': 1,
+                                                    'max_qty': 2,
+                                                    'pl': acc.pricelist,
+                                                    'is_custom': true,
+                                                    'item_num': acc.itemNum,
+                                                  });
+                                                  searchQuery = '';
+                                                });
+                                                FocusScope.of(
+                                                  context,
+                                                ).unfocus();
+                                              },
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
                                   ),
-                                ),
                               ],
                             ),
                           ),

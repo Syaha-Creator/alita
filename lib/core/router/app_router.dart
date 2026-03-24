@@ -12,6 +12,7 @@ import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/pricelist/data/models/product.dart';
 import '../../features/pricelist/presentation/pages/product_list_page.dart';
 import '../../features/pricelist/presentation/pages/product_detail_page.dart';
+import '../../features/pricelist/presentation/pages/product_detail_from_link_page.dart';
 import '../../features/favorites/presentation/pages/favorites_page.dart';
 import '../../features/cart/data/cart_item.dart';
 import '../../features/checkout/presentation/pages/checkout_page.dart';
@@ -56,15 +57,20 @@ final _upgrader = Upgrader(
 UpgradeDialogStyle get _dialogStyle =>
     Platform.isIOS ? UpgradeDialogStyle.cupertino : UpgradeDialogStyle.material;
 
+/// Override initial location when app opens from deep link.
+/// Set via [ProviderScope.overrides] in main() when [AppLinks] returns initial URI.
+final initialLocationFromDeepLinkProvider = Provider<String?>((ref) => null);
+
 /// GoRouter provider — router dibuat SEKALI, tidak ikut rebuild saat auth berubah.
 /// Redirect dibaca via ref.read di dalam callback agar tidak trigger rebuild router.
 final routerProvider = Provider<GoRouter>((ref) {
   final notifier = _AuthChangeNotifier(ref);
   ref.onDispose(notifier.dispose);
+  final deepLinkPath = ref.watch(initialLocationFromDeepLinkProvider);
 
   return GoRouter(
     navigatorKey: rootNavigatorKey,
-    initialLocation: '/',
+    initialLocation: deepLinkPath ?? '/',
     refreshListenable: notifier,
     redirect: (context, state) {
       // ref.read — hanya baca state saat redirect dipanggil, tidak subscribe
@@ -121,19 +127,28 @@ final routerProvider = Provider<GoRouter>((ref) {
             name: 'product-detail',
             pageBuilder: (context, state) {
               final extra = state.extra;
+              final id = state.pathParameters['id'] ?? '';
+
               if (extra is Product) {
                 return _adaptivePage(
                   child: ProductDetailPage(product: extra),
                   name: 'product-detail',
                 );
               }
-              final map = extra as Map<String, dynamic>;
+              if (extra is Map<String, dynamic>) {
+                final map = extra;
+                return _adaptivePage(
+                  child: ProductDetailPage(
+                    product: map['product'] as Product,
+                    editItem: map['editItem'] as CartItem?,
+                    cartIndex: map['cartIndex'] as int?,
+                  ),
+                  name: 'product-detail',
+                );
+              }
+              // Deep link: hanya punya product id
               return _adaptivePage(
-                child: ProductDetailPage(
-                  product: map['product'] as Product,
-                  editItem: map['editItem'] as CartItem?,
-                  cartIndex: map['cartIndex'] as int?,
-                ),
+                child: ProductDetailFromLinkPage(productId: id),
                 name: 'product-detail',
               );
             },

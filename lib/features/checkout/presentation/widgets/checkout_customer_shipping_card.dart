@@ -22,6 +22,8 @@ class CheckoutCustomerShippingCard extends StatelessWidget {
     required this.selectedContactId,
     required this.onContactFieldCleared,
     required this.onPickContact,
+    this.onCloudLookup,
+    this.isCloudLookupLoading = false,
     required this.customerAddressCtrl,
     required this.regionCtrl,
     required this.isShippingSameAsCustomer,
@@ -46,6 +48,8 @@ class CheckoutCustomerShippingCard extends StatelessWidget {
   final String? selectedContactId;
   final VoidCallback onContactFieldCleared;
   final VoidCallback onPickContact;
+  final VoidCallback? onCloudLookup;
+  final bool isCloudLookupLoading;
 
   final TextEditingController customerAddressCtrl;
   final TextEditingController regionCtrl;
@@ -92,6 +96,8 @@ class CheckoutCustomerShippingCard extends StatelessWidget {
             selectedContactId: selectedContactId,
             onContactFieldCleared: onContactFieldCleared,
             onPickContact: onPickContact,
+            onCloudLookup: onCloudLookup,
+            isCloudLookupLoading: isCloudLookupLoading,
           ),
           ShippingInfoSection(
             customerAddressCtrl: customerAddressCtrl,

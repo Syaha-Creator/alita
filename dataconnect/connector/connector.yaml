@@ -1,0 +1,5 @@
+connectorId: alita-connector
+generate:
+  dartSdk:
+    outputDir: ../../lib/features/checkout/data/dataconnect/generated
+    package: alita_connector_generated

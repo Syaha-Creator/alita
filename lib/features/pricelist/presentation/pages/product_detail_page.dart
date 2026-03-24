@@ -537,31 +537,31 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               ProductInfoHeader(
                 category: widget.product.category,
                 productName: widget.product.name,
               ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
               PriceBlock(
                 price: effectiveTotal,
                 originalPrice: activeProduct.pricelist > baseTotal
                     ? activeProduct.pricelist
                     : null,
-                spacing: 4,
-                formatPrice: AppFormatters.currencyIdr,
-                priceStyle: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.accent,
-                    ),
+      spacing: 4,
+      formatPrice: AppFormatters.currencyIdr,
+      priceStyle: Theme.of(context).textTheme.headlineLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: AppColors.accent,
+          ),
                 originalPriceStyle: const TextStyle(
-                  fontSize: 14,
+        fontSize: 14,
                   color: AppColors.textTertiary,
-                  decoration: TextDecoration.lineThrough,
-                  fontWeight: FontWeight.w500,
-                ),
+        decoration: TextDecoration.lineThrough,
+        fontWeight: FontWeight.w500,
+      ),
               ),
             ],
           ),
@@ -634,30 +634,30 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
               selectedSorongLookup = null;
             }),
             onSizeSelected: (v) => setState(() {
-              selectedSize = v;
-              isBonusCustomized = false;
-              customBonuses.clear();
-              _isKasurCustom = false;
-              _isDivanCustom = false;
-              _isHeadboardCustom = false;
-              _isSorongCustom = false;
-              _customKasurCtrl.clear();
-              _customDivanCtrl.clear();
-              _customHbCtrl.clear();
-              _customSorongCtrl.clear();
-              selectedKasurLookup = null;
-              selectedDivanLookup = null;
-              selectedHeadboardLookup = null;
-              selectedSorongLookup = null;
-              targetTotalEup = null;
-              _targetTotalController.clear();
-            }),
+            selectedSize = v;
+            isBonusCustomized = false;
+            customBonuses.clear();
+            _isKasurCustom = false;
+            _isDivanCustom = false;
+            _isHeadboardCustom = false;
+            _isSorongCustom = false;
+            _customKasurCtrl.clear();
+            _customDivanCtrl.clear();
+            _customHbCtrl.clear();
+            _customSorongCtrl.clear();
+            selectedKasurLookup = null;
+            selectedDivanLookup = null;
+            selectedHeadboardLookup = null;
+            selectedSorongLookup = null;
+            targetTotalEup = null;
+            _targetTotalController.clear();
+          }),
             onDivanSelected: (v) => setState(() {
-              selectedDivan = v;
-              isKasurOnly = false;
-              targetTotalEup = null;
-              _targetTotalController.clear();
-            }),
+                selectedDivan = v;
+                isKasurOnly = false;
+                targetTotalEup = null;
+                _targetTotalController.clear();
+              }),
             onHeadboardSelected: (v) => setState(() {
               selectedHeadboard = v;
               isKasurOnly = false;
@@ -670,24 +670,24 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
               _targetTotalController.clear();
             }),
             onKasurOnlyTap: () => setState(() {
-              isKasurOnly = true;
-              selectedDivan = null;
-              selectedHeadboard = null;
-              selectedSorong = null;
-              isBonusCustomized = false;
-              customBonuses.clear();
-              targetTotalEup = null;
-              _targetTotalController.clear();
+                  isKasurOnly = true;
+                  selectedDivan = null;
+                  selectedHeadboard = null;
+                  selectedSorong = null;
+                  isBonusCustomized = false;
+                  customBonuses.clear();
+                  targetTotalEup = null;
+                  _targetTotalController.clear();
             }),
             onSetTap: () => setState(() {
-              isKasurOnly = false;
-              selectedDivan = null;
-              selectedHeadboard = null;
-              selectedSorong = null;
-              isBonusCustomized = false;
-              customBonuses.clear();
-              targetTotalEup = null;
-              _targetTotalController.clear();
+                  isKasurOnly = false;
+                  selectedDivan = null;
+                  selectedHeadboard = null;
+                  selectedSorong = null;
+                  isBonusCustomized = false;
+                  customBonuses.clear();
+                  targetTotalEup = null;
+                  _targetTotalController.clear();
             }),
             onCustomTextChanged: () => setState(() {}),
           ),
@@ -751,13 +751,13 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
             customBonuses: customBonuses,
             defaultBonuses: defaultBonuses,
             onBonusesSaved: (newBonuses) {
-              setState(() {
+                    setState(() {
                 customBonuses = newBonuses;
                 isBonusCustomized = true;
-              });
-            },
-          ),
-        ),
+                    });
+                  },
+                ),
+              ),
 
         sectionGap,
 
@@ -884,9 +884,9 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     if (!validation.isValid) {
       AppFeedback.show(context,
           message: validation.errorMessage!,
-          type: AppFeedbackType.error,
+                                  type: AppFeedbackType.error,
           floating: true);
-      return;
+                                return;
     }
 
     // ── Build cart item via extracted builder ──
@@ -930,16 +930,16 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
 
     final cartIndex = widget.cartIndex;
     if (_isEditMode && cartIndex != null) {
-      ref.read(cartProvider.notifier).updateCartItem(
+                              ref.read(cartProvider.notifier).updateCartItem(
             cartIndex,
-            snapshotItem,
-          );
-      Navigator.of(context).pop();
+                                    snapshotItem,
+                                  );
+                              Navigator.of(context).pop();
       AppFeedback.show(context,
-          message: 'Keranjang diperbarui',
-          type: AppFeedbackType.success,
+                                message: 'Keranjang diperbarui',
+                                type: AppFeedbackType.success,
           floating: true);
-    } else {
+                            } else {
       ref.read(cartProvider.notifier).addItem(snapshotItem);
       AppAnalyticsService.logAddToCart(
         widget.product.id.toString(),

@@ -22,6 +22,7 @@ class ImageViewerDialog {
     double maxScale = 2.5,
     Widget? loadingWidget,
     Widget? errorWidget,
+    bool showCloseButton = true,
     bool closeAsIconButton = false,
     double closeTop = 8,
     double closeRight = 8,
@@ -63,38 +64,39 @@ class ImageViewerDialog {
                   ),
                 ),
               ),
-              Positioned(
-                top: closeTop,
-                right: closeRight,
-                child: Semantics(
-                  label: 'Tutup',
-                  button: true,
-                  child: closeAsIconButton
-                      ? IconButton(
-                          icon: Icon(
-                            closeIcon,
-                            color: closeIconColor,
-                            size: closeIconSize,
-                          ),
-                          onPressed: () => Navigator.pop(ctx),
-                        )
-                      : GestureDetector(
-                          onTap: () => Navigator.pop(ctx),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: closeBackgroundColor,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            padding: closePadding,
-                            child: Icon(
+              if (showCloseButton)
+                Positioned(
+                  top: closeTop,
+                  right: closeRight,
+                  child: Semantics(
+                    label: 'Tutup',
+                    button: true,
+                    child: closeAsIconButton
+                        ? IconButton(
+                            icon: Icon(
                               closeIcon,
                               color: closeIconColor,
                               size: closeIconSize,
                             ),
+                            onPressed: () => Navigator.pop(ctx),
+                          )
+                        : GestureDetector(
+                            onTap: () => Navigator.pop(ctx),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: closeBackgroundColor,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              padding: closePadding,
+                              child: Icon(
+                                closeIcon,
+                                color: closeIconColor,
+                                size: closeIconSize,
+                              ),
+                            ),
                           ),
-                        ),
+                  ),
                 ),
-              ),
             ],
           ),
         ),

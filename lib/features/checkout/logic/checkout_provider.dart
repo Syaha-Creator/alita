@@ -20,7 +20,9 @@ import '../data/models/approver_model.dart';
 import '../data/services/approval_service.dart';
 import '../data/models/checkout_models.dart';
 import '../data/services/checkout_order_service.dart';
+import '../data/services/customer_repository.dart';
 import '../data/services/local_contact_service.dart';
+import 'customer_repository_provider.dart';
 
 part 'checkout_provider.freezed.dart';
 
@@ -339,6 +341,12 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
           retryNoSp: '',
           submitSuccess: true,
           successNoSp: noSp,
+        );
+        unawaited(
+          CustomerRepository.upsertFromCheckoutContactMapQuiet(
+            _ref.read(customerRepositoryProvider),
+            newCustomerContact,
+          ),
         );
         totalSw.stop();
         AppTelemetry.event(

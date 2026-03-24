@@ -4,5 +4,10 @@
 <dict>
 	<key>aps-environment</key>
 	<string>development</string>
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:alita-pricelist-12d76.web.app</string>
+		<string>applinks:alita-pricelist-12d76.firebaseapp.com</string>
+	</array>
 </dict>
 </plist>

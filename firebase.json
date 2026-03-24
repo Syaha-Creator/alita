@@ -1,1 +1,15 @@
-{"functions":[{"source":"functions","codebase":"default","ignore":["node_modules",".git","firebase-debug.log","firebase-debug.*.log","*.local"]}],"flutter":{"platforms":{"android":{"default":{"projectId":"alita-pricelist-12d76","appId":"1:422465972499:android:b35dd32c58b2d980fc12e6","fileOutput":"android/app/google-services.json"}},"ios":{"default":{"projectId":"alita-pricelist-12d76","appId":"1:422465972499:ios:684237b9e5d1def6fc12e6","uploadDebugSymbols":false,"fileOutput":"ios/Runner/GoogleService-Info.plist"}},"dart":{"lib/firebase_options.dart":{"projectId":"alita-pricelist-12d76","configurations":{"android":"1:422465972499:android:b35dd32c58b2d980fc12e6","ios":"1:422465972499:ios:684237b9e5d1def6fc12e6"}}}}}}
+{
+  "dataconnect": {
+    "source": "dataconnect"
+  },
+  "functions": [{"source":"functions","codebase":"default","ignore":["node_modules",".git","firebase-debug.log","firebase-debug.*.log","*.local"]}],
+  "hosting": {
+    "public": "hosting",
+    "ignore": ["firebase.json", "**/node_modules/**"],
+    "rewrites": [
+      { "source": "/product/**", "destination": "/index.html" },
+      { "source": "**", "destination": "/index.html" }
+    ]
+  },
+  "flutter": {"platforms":{"android":{"default":{"projectId":"alita-pricelist-12d76","appId":"1:422465972499:android:b35dd32c58b2d980fc12e6","fileOutput":"android/app/google-services.json"}},"ios":{"default":{"projectId":"alita-pricelist-12d76","appId":"1:422465972499:ios:684237b9e5d1def6fc12e6","uploadDebugSymbols":false,"fileOutput":"ios/Runner/GoogleService-Info.plist"}},"dart":{"lib/firebase_options.dart":{"projectId":"alita-pricelist-12d76","configurations":{"android":"1:422465972499:android:b35dd32c58b2d980fc12e6","ios":"1:422465972499:ios:684237b9e5d1def6fc12e6"}}}}}
+}

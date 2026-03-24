@@ -124,3 +124,6 @@ ios/Runner/GoogleService-Info.plist
 # Firebase project config (safe to track, no secrets)
 # firebase.json                      → tracked intentionally
 # .firebaserc                        → tracked intentionally
+
+# Firebase CLI local cache (hosting deploy cache, etc.)
+.firebase/

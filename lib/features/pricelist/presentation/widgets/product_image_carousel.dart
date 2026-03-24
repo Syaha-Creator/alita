@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:alitapricelist/core/config/app_config.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/image_viewer_dialog.dart';
 import '../../../../core/widgets/network_image_view.dart';
 
 class ProductImageCarousel extends StatelessWidget {
@@ -46,33 +47,47 @@ class ProductImageCarousel extends StatelessWidget {
         width: double.infinity,
         child: Stack(
           children: [
-            PageView.builder(
-              controller: controller,
-              itemCount: productImages.length,
-              onPageChanged: onPageChanged,
-              itemBuilder: (context, index) {
-                final img = NetworkImageView(
-                  imageUrl: productImages[index],
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
-                  memCacheWidth: 600,
-                  errorWidget: Container(
-                    color: AppColors.border,
-                    child: const Icon(
-                      Icons.broken_image_outlined,
-                      size: 60,
-                      color: AppColors.textTertiary,
-                    ),
-                  ),
-                );
-                return index == 0
-                    ? Hero(
-                        tag: 'product-image-$productId',
-                        child: img,
-                      )
-                    : img;
+            GestureDetector(
+              onTap: () {
+                // Hanya zoom jika gambar kasur asli dari Comforta, bukan placeholder
+                final hasProductImage = brandImage.isNotEmpty;
+                if (hasProductImage && currentIndex == 0) {
+                  ImageViewerDialog.show(
+                    context: context,
+                    imageUrl: productImages[currentIndex],
+                    maxScale: 4.0,
+                    showCloseButton: false,
+                  );
+                }
               },
+              child: PageView.builder(
+                controller: controller,
+                itemCount: productImages.length,
+                onPageChanged: onPageChanged,
+                itemBuilder: (context, index) {
+                  final img = NetworkImageView(
+                    imageUrl: productImages[index],
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                    memCacheWidth: 600,
+                    errorWidget: Container(
+                      color: AppColors.border,
+                      child: const Icon(
+                        Icons.broken_image_outlined,
+                        size: 60,
+                        color: AppColors.textTertiary,
+                      ),
+                    ),
+                  );
+                  return index == 0
+                      ? Hero(
+                          tag: 'product-image-$productId',
+                          child: img,
+                        )
+                      : img;
+                },
+              ),
             ),
             Positioned(
               bottom: 0,

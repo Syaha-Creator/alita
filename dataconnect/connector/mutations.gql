@@ -1,0 +1,23 @@
+mutation UpsertCustomer(
+  $phoneNumber: String!
+  $name: String!
+  $email: String
+  $region: String
+  $address: String
+  $provinsi: String
+  $kota: String
+  $kecamatan: String
+) @auth(level: USER, insecureReason: "All sales users may upsert customer data for omnichannel sharing.") {
+  customer_upsert(
+    data: {
+      phoneNumber: $phoneNumber
+      name: $name
+      email: $email
+      region: $region
+      address: $address
+      provinsi: $provinsi
+      kota: $kota
+      kecamatan: $kecamatan
+    }
+  )
+}

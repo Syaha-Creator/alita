@@ -1,0 +1,13 @@
+query GetCustomerByPhone($phoneNumber: String!)
+  @auth(level: USER, insecureReason: "All sales users may look up any customer by phone for omnichannel sharing.") {
+  customer(key: { phoneNumber: $phoneNumber }) {
+    phoneNumber
+    name
+    email
+    region
+    address
+    provinsi
+    kota
+    kecamatan
+  }
+}

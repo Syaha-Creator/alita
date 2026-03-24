@@ -1,0 +1,16 @@
+# Pelanggan global (omnichannel) — primary key = nomor HP ternormalisasi (mis. 62…).
+type Customer
+  @table(
+    key: ["phoneNumber"],
+    singular: "customer",
+    plural: "customers"
+  ) {
+  phoneNumber: String!
+  name: String!
+  email: String
+  region: String
+  address: String
+  provinsi: String
+  kota: String
+  kecamatan: String
+}
