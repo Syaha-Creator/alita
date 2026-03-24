@@ -171,12 +171,24 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
         ];
         if (parts.isNotEmpty) {
           address = parts.join(', ');
+        } else {
+          // Geocoder tidak mengisi baris alamat (sering di emulator) — kirim koordinat.
+          address =
+              'Koordinat ${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}';
         }
+      } else {
+        address =
+            'Koordinat ${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}';
       }
     } on TimeoutException {
       Log.warning('Geocoding timed out', tag: 'Approval');
     } catch (e) {
       Log.warning('ApprovalInbox.geocode: $e', tag: 'Approval');
+    }
+
+    if (address == 'Lokasi tidak terdeteksi') {
+      address =
+          'Koordinat ${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}';
     }
 
     return ApprovalLocation(

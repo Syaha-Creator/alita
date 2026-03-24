@@ -202,6 +202,21 @@ class ApprovalDecisionService {
         0;
   }
 
+  /// Teks lokasi untuk `location` dan `lokasi_approval` (dulu `location` salah hardcode).
+  static String resolveApprovalLocationText({
+    String? lokasiApproval,
+    double? latitude,
+    double? longitude,
+  }) {
+    final raw = lokasiApproval?.trim() ?? '';
+    final hasAddress = raw.isNotEmpty && raw != 'Lokasi tidak terdeteksi';
+    if (hasAddress) return raw;
+    if (latitude != null && longitude != null) {
+      return 'Koordinat ${latitude.toStringAsFixed(5)}, ${longitude.toStringAsFixed(5)}';
+    }
+    return raw.isNotEmpty ? raw : 'Lokasi tidak terdeteksi';
+  }
+
   static Future<void> approveOneDiscount({
     required Map<String, dynamic> disc,
     required bool isApproved,
@@ -215,13 +230,19 @@ class ApprovalDecisionService {
         (disc['order_letter_discount_id'] as num?)?.toInt() ?? 0;
     final int levelId = parseLevel(disc['approver_level_id'], 2);
 
+    final locText = resolveApprovalLocationText(
+      lokasiApproval: lokasiApproval,
+      latitude: latitude,
+      longitude: longitude,
+    );
+
     // 1) POST approval log
     final postBody = <String, dynamic>{
       'order_letter_discount_id': discountId,
       'leader': userId,
       'job_level_id': levelId,
-      'location': 'Lokasi terdeteksi via sistem',
-      'lokasi_approval': lokasiApproval ?? 'Lokasi tidak terdeteksi',
+      'location': locText,
+      'lokasi_approval': locText,
     };
     if (latitude != null && longitude != null) {
       postBody['latitude'] = latitude;
@@ -242,7 +263,7 @@ class ApprovalDecisionService {
     // 2) PUT discount status
     final putBody = <String, dynamic>{
       'approved': isApproved,
-      'lokasi_approval': lokasiApproval ?? 'Lokasi tidak terdeteksi',
+      'lokasi_approval': locText,
     };
     if (latitude != null && longitude != null) {
       putBody['latitude'] = latitude;
