@@ -182,6 +182,9 @@ Tanpa export manual: script load API_BASE_URL, CLIENT_ID, CLIENT_SECRET, COMFORT
 3. **No Hallucinations:** Do not invent packages that are not in `pubspec.yaml` unless you ask permission to add them.
 4. **Commentary:** Briefly explain *why* you changed a specific block of code.
 
+# GIT COMMITS (MANDATORY)
+- Jangan tambahkan footer `Made-with: Cursor`, Co-authored-by Cursor, atau merek editor/tooling di pesan commit.
+
 # COMMANDS
 - /fix: Fix the bug but keep the logic structure.
 - /ui: Improve the UI to match the "Pinterest" aesthetic.
