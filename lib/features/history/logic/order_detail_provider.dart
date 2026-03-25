@@ -5,18 +5,33 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
 import '../../../core/services/api_client.dart';
+import '../../../core/services/api_session_expired.dart';
 import '../../../core/services/storage_service.dart';
 import '../../../core/utils/log.dart';
+import '../../auth/logic/auth_provider.dart';
 import '../data/models/order_history.dart';
 import '../data/services/order_letter_fetch.dart';
 import 'order_history_provider.dart';
 
 class OrderDetailNotifier extends AutoDisposeFamilyAsyncNotifier<OrderHistory, int> {
+  /// Satu refresh aktif per notifier — hindari dua assignment `state` bersamaan
+  /// (mis. pull-to-refresh + tombol refresh), yang bisa memicu
+  /// `Bad state: Future already completed` di Riverpod 2.6.
+  Future<void>? _inFlightRefresh;
+
   @override
   Future<OrderHistory> build(int orderId) => _fetchOrderDetail(orderId);
 
-  Future<void> refresh() async {
-    state = const AsyncLoading();
+  Future<void> refresh() {
+    if (_inFlightRefresh != null) return _inFlightRefresh!;
+    return _inFlightRefresh = _refreshBody().whenComplete(() {
+      _inFlightRefresh = null;
+    });
+  }
+
+  Future<void> _refreshBody() async {
+    // Jangan `state = AsyncLoading()` lalu `guard`: bentrok dengan future
+    // internal `build()` / completer `.future` dan memicu double-complete.
     state = await AsyncValue.guard(() => _fetchOrderDetail(arg));
   }
 
@@ -51,6 +66,11 @@ class OrderDetailNotifier extends AutoDisposeFamilyAsyncNotifier<OrderHistory, i
       files: [file],
     );
 
+    if (response.statusCode == 401 || response.statusCode == 403) {
+      await ref.read(authProvider.notifier).logout();
+      throw const ApiSessionExpiredException('POST /order_letter_payments');
+    }
+
     if (response.statusCode != 200 && response.statusCode != 201) {
       throw Exception(
         _extractErrorMessage(response.statusCode, response.body),
@@ -72,6 +92,11 @@ class OrderDetailNotifier extends AutoDisposeFamilyAsyncNotifier<OrderHistory, i
       },
     );
 
+    if (response.statusCode == 401 || response.statusCode == 403) {
+      await ref.read(authProvider.notifier).logout();
+      throw const ApiSessionExpiredException('PUT /order_letters');
+    }
+
     if (response.statusCode != 200 && response.statusCode != 201) {
       throw Exception(
         _extractErrorMessage(response.statusCode, response.body),
@@ -89,6 +114,9 @@ class OrderDetailNotifier extends AutoDisposeFamilyAsyncNotifier<OrderHistory, i
         return OrderHistory.fromApiJson(wrap);
       }
       throw Exception('Detail pesanan tidak ditemukan.');
+    } on ApiSessionExpiredException {
+      await ref.read(authProvider.notifier).logout();
+      rethrow;
     } catch (e, st) {
       Log.error(e, st, reason: 'OrderDetailNotifier._fetchOrderDetail');
       rethrow;

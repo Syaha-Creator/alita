@@ -20,8 +20,11 @@ class TelemetryDebugPage extends StatelessWidget {
       ('Approval', [
         'approval_inbox_loaded',
         'approval_inbox_failed',
+        'approval_inbox_auth',
         'approval_decision_started',
+        'approval_location_resolved',
         'approval_location_failed',
+        'approval_session_expired',
         'approval_decision_success',
         'approval_decision_failed',
         'approval_notification_sent',

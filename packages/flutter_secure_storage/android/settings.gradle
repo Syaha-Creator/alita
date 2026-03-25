@@ -1,0 +1,4 @@
+// Standalone Gradle root agar VS Code + ekstensi Java bisa mengimpor
+// modul ini saat folder ini ada di workspace — tidak dipakai oleh Flutter saat
+// menggabungkan plugin ke app (hanya build.gradle plugin yang dipakai).
+rootProject.name = 'flutter_secure_storage_android'

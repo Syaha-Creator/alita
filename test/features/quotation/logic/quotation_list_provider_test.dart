@@ -1,13 +1,24 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:alitapricelist/core/services/storage_service.dart';
 import 'package:alitapricelist/features/quotation/data/quotation_model.dart';
 import 'package:alitapricelist/features/quotation/logic/quotation_list_provider.dart';
 
+import '../../../helpers/mock_app_support_dir.dart';
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late QuotationListNotifier notifier;
 
   setUp(() async {
+    StorageService.debugResetFileCacheForTests();
+    setMockApplicationSupportDirectory(
+      Directory.systemTemp.createTempSync('alita_quotation_test_').path,
+    );
     SharedPreferences.setMockInitialValues({});
     notifier = QuotationListNotifier();
     await Future.delayed(const Duration(milliseconds: 100));

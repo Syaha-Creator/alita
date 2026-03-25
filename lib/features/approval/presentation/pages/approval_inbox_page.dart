@@ -8,8 +8,10 @@ import '../../../../core/widgets/animated_list_item.dart';
 import '../../../../core/widgets/date_range_filter_action.dart';
 import '../../../../core/widgets/empty_state_view.dart';
 import '../../../../core/widgets/error_state_view.dart';
+import '../../../../core/widgets/selection_bottom_sheet.dart';
 import '../../logic/approval_inbox_provider.dart';
 import '../widgets/approval_card_item.dart';
+import '../widgets/approval_history_work_place_filter_pill.dart';
 import '../widgets/approval_inbox_skeleton.dart';
 
 class ApprovalInboxPage extends ConsumerStatefulWidget {
@@ -62,9 +64,8 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
               label: filterText,
               hasActiveFilter: hasDateFilter,
               accentColor: AppColors.accent,
-              onClear: () => ref
-                  .read(approvalInboxProvider.notifier)
-                  .clearDateFilter(),
+              onClear: () =>
+                  ref.read(approvalInboxProvider.notifier).clearDateFilter(),
               onPick: () async {
                 final initialStart = state.startDate ??
                     DateTime.now().subtract(const Duration(days: 30));
@@ -142,7 +143,7 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
                         child: _buildListView(state.pendingApprovals, true),
                       ),
                       _KeepAliveTab(
-                        child: _buildListView(state.historyApprovals, false),
+                        child: _buildHistoryTabWithWorkPlaceFilter(state),
                       ),
                     ],
                   ),
@@ -164,73 +165,140 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
       iconColor: isOffline ? AppColors.warning : AppColors.error,
       buttonColor: AppColors.accent,
       buttonTextColor: AppColors.onPrimary,
-      messageStyle: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+      messageStyle:
+          const TextStyle(fontSize: 13, color: AppColors.textSecondary),
     );
   }
 
   // ── Empty state ──────────────────────────────────────────────────
 
-  Widget _buildEmptyState(bool isPending) {
+  Widget _buildEmptyState(
+    bool isPending, {
+    bool emptyDueToWorkPlaceFilter = false,
+  }) {
     return EmptyStateView(
       icon: isPending
           ? Icons.check_circle_outline_rounded
           : Icons.receipt_long_outlined,
       iconSize: 72,
-      title: isPending ? 'Semua sudah disetujui!' : 'Belum ada riwayat.',
-      subtitle: isPending
-          ? 'Tidak ada antrean persetujuan saat ini.'
-          : 'Belum ada riwayat persetujuan diskon.',
+      title: emptyDueToWorkPlaceFilter
+          ? 'Tidak ada untuk lokasi ini'
+          : (isPending ? 'Semua sudah disetujui!' : 'Belum ada riwayat.'),
+      subtitle: emptyDueToWorkPlaceFilter
+          ? 'Ubah filter lokasi / toko atau pilih Semua lokasi.'
+          : (isPending
+              ? 'Tidak ada antrean persetujuan saat ini.'
+              : 'Belum ada riwayat persetujuan diskon.'),
       titleStyle: const TextStyle(
         fontSize: 16,
         fontWeight: FontWeight.w600,
         color: AppColors.textTertiary,
       ),
-      subtitleStyle: const TextStyle(fontSize: 13, color: AppColors.textTertiary),
+      subtitleStyle:
+          const TextStyle(fontSize: 13, color: AppColors.textTertiary),
+    );
+  }
+
+  // ── Tab Selesai: filter lokasi / toko ───────────────────────────
+
+  Widget _buildHistoryTabWithWorkPlaceFilter(ApprovalInboxState state) {
+    final options = state.historyWorkPlaceOptions;
+    final filtered = state.filteredHistoryApprovals;
+
+    if (options.isEmpty) {
+      return _buildListView(filtered, false);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
+          child: ApprovalHistoryWorkPlaceFilterPill(
+            selectedWorkPlace: state.historyWorkPlaceFilter,
+            filteredCount: filtered.length,
+            totalCount: state.historyApprovals.length,
+            onTap: () => _openHistoryWorkPlaceSheet(state, options),
+          ),
+        ),
+        Expanded(
+          child: _buildListView(
+            filtered,
+            false,
+            emptyDueToWorkPlaceFilter: filtered.isEmpty &&
+                state.historyApprovals.isNotEmpty &&
+                state.historyWorkPlaceFilter != null,
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _openHistoryWorkPlaceSheet(
+    ApprovalInboxState state,
+    List<String> options,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => SelectionBottomSheet<String?>(
+        title: 'Lokasi / toko',
+        items: <String?>[null, ...options],
+        selectedItem: state.historyWorkPlaceFilter,
+        labelBuilder: (s) => s == null
+            ? 'Semua lokasi'
+            : AppFormatters.titleCase(s.toLowerCase()),
+        onItemSelected: (s) => ref
+            .read(approvalInboxProvider.notifier)
+            .setHistoryWorkPlaceFilter(s),
+      ),
     );
   }
 
   // ── List ─────────────────────────────────────────────────────────
 
-  Widget _buildListView(List<dynamic> orders, bool isPending) {
+  Future<void> _onRefresh() async {
+    if (ref.read(isOfflineProvider)) {
+      if (context.mounted) {
+        AppFeedback.show(
+          context,
+          message: 'Sedang offline — tidak bisa memuat ulang.',
+          type: AppFeedbackType.warning,
+        );
+      }
+      return;
+    }
+    await ref.read(approvalInboxProvider.notifier).fetchInbox();
+  }
+
+  Widget _buildListView(
+    List<dynamic> orders,
+    bool isPending, {
+    bool emptyDueToWorkPlaceFilter = false,
+  }) {
     if (orders.isEmpty) {
       return RefreshIndicator.adaptive(
         color: AppColors.accent,
-        onRefresh: () async {
-          if (ref.read(isOfflineProvider)) {
-            if (context.mounted) {
-              AppFeedback.show(context,
-                  message: 'Sedang offline — tidak bisa memuat ulang.',
-                  type: AppFeedbackType.warning);
-            }
-            return;
-          }
-          await ref.read(approvalInboxProvider.notifier).fetchInbox();
-        },
+        onRefresh: _onRefresh,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
             SizedBox(height: MediaQuery.of(context).size.height * 0.25),
-            _buildEmptyState(isPending),
+            _buildEmptyState(
+              isPending,
+              emptyDueToWorkPlaceFilter: emptyDueToWorkPlaceFilter,
+            ),
           ],
         ),
       );
     }
 
     return RefreshIndicator.adaptive(
-        color: AppColors.accent,
-        onRefresh: () async {
-          if (ref.read(isOfflineProvider)) {
-            if (context.mounted) {
-              AppFeedback.show(context,
-                  message: 'Sedang offline — tidak bisa memuat ulang.',
-                  type: AppFeedbackType.warning);
-            }
-            return;
-          }
-          await ref.read(approvalInboxProvider.notifier).fetchInbox();
-        },
-        child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
+      color: AppColors.accent,
+      onRefresh: _onRefresh,
+      child: ListView.builder(
+        padding: EdgeInsets.fromLTRB(16, isPending ? 20 : 8, 16, 100),
         itemCount: orders.length,
         itemBuilder: (context, index) => AnimatedListItem(
           index: index,

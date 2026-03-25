@@ -440,6 +440,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                         (s) => (
                           s.isLoadingApprovers,
                           s.approversError,
+                          s.approversErrorTitle,
                           s.approvers,
                           s.selectedSpv,
                           s.selectedManager,
@@ -450,14 +451,15 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                       key: _approvalSectionKey,
                       isLoading: approvalData.$1,
                       hasError:
-                          approvalData.$2 != null && approvalData.$3.isEmpty,
+                          approvalData.$2 != null && approvalData.$4.isEmpty,
+                      errorTitle: approvalData.$3,
                       errorMessage: approvalData.$2,
                       onRetry: () =>
                           ref.read(checkoutProvider.notifier).fetchApprovers(),
                       child: CheckoutApproverContent(
-                        approvers: approvalData.$3,
-                        selectedSpv: approvalData.$4,
-                        selectedManager: approvalData.$5,
+                        approvers: approvalData.$4,
+                        selectedSpv: approvalData.$5,
+                        selectedManager: approvalData.$6,
                         requiresManager: _requiresManagerApproval(cartItems),
                         onSpvChanged: (v) =>
                             ref.read(checkoutProvider.notifier).selectSpv(v),
@@ -764,7 +766,6 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       BuildContext context, List<CartItem> cartItems) async {
     await QuotationSaveHandler.save(
       context: context,
-      ref: ref,
       cartItems: cartItems,
       selectedCartItems: widget.selectedCartItems,
       existingDraft: widget.restoredQuotation ?? ref.read(activeDraftProvider),

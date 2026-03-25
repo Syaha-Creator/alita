@@ -3,6 +3,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../../../core/enums/order_status.dart';
 import '../../../core/services/api_client.dart';
+import '../../../core/services/api_session_expired.dart';
 import '../../../core/utils/app_telemetry.dart';
 import '../../../core/utils/log.dart';
 import '../../../core/utils/name_matcher.dart';
@@ -202,19 +203,33 @@ class ApprovalDecisionService {
         0;
   }
 
-  /// Teks lokasi untuk `location` dan `lokasi_approval` (dulu `location` salah hardcode).
-  static String resolveApprovalLocationText({
+  /// Kategori lokasi untuk telemetry (`approval_location_resolved`).
+  static const String _locKindGeocoded = 'geocoded_address';
+  static const String _locKindCoordinates = 'coordinate_fallback';
+  static const String _locKindUnknown = 'unknown';
+
+  /// Teks lokasi + kind untuk `location` / `lokasi_approval` (satu sumber kebenaran).
+  static ({String text, String kind}) resolveApprovalLocationDetails({
     String? lokasiApproval,
     double? latitude,
     double? longitude,
   }) {
     final raw = lokasiApproval?.trim() ?? '';
     final hasAddress = raw.isNotEmpty && raw != 'Lokasi tidak terdeteksi';
-    if (hasAddress) return raw;
-    if (latitude != null && longitude != null) {
-      return 'Koordinat ${latitude.toStringAsFixed(5)}, ${longitude.toStringAsFixed(5)}';
+    if (hasAddress) {
+      return (text: raw, kind: _locKindGeocoded);
     }
-    return raw.isNotEmpty ? raw : 'Lokasi tidak terdeteksi';
+    if (latitude != null && longitude != null) {
+      return (
+        text:
+            'Koordinat ${latitude.toStringAsFixed(5)}, ${longitude.toStringAsFixed(5)}',
+        kind: _locKindCoordinates,
+      );
+    }
+    return (
+      text: raw.isNotEmpty ? raw : 'Lokasi tidak terdeteksi',
+      kind: _locKindUnknown,
+    );
   }
 
   static Future<void> approveOneDiscount({
@@ -222,19 +237,15 @@ class ApprovalDecisionService {
     required bool isApproved,
     required String token,
     required int userId,
+    required String locationText,
     double? latitude,
     double? longitude,
-    String? lokasiApproval,
   }) async {
     final int discountId =
         (disc['order_letter_discount_id'] as num?)?.toInt() ?? 0;
     final int levelId = parseLevel(disc['approver_level_id'], 2);
 
-    final locText = resolveApprovalLocationText(
-      lokasiApproval: lokasiApproval,
-      latitude: latitude,
-      longitude: longitude,
-    );
+    final locText = locationText;
 
     // 1) POST approval log
     final postBody = <String, dynamic>{
@@ -253,6 +264,11 @@ class ApprovalDecisionService {
       token: token,
       body: postBody,
     );
+    if (postRes.statusCode == 401 || postRes.statusCode == 403) {
+      throw ApiSessionExpiredException(
+        'order_letter_approves ${postRes.statusCode}',
+      );
+    }
     if (postRes.statusCode != 200 && postRes.statusCode != 201) {
       throw Exception(
         'Gagal mencatat log persetujuan (ID $discountId, '
@@ -274,6 +290,11 @@ class ApprovalDecisionService {
       token: token,
       body: putBody,
     );
+    if (putRes.statusCode == 401 || putRes.statusCode == 403) {
+      throw ApiSessionExpiredException(
+        'order_letter_discounts $discountId ${putRes.statusCode}',
+      );
+    }
     if (putRes.statusCode != 200 && putRes.statusCode != 201) {
       throw Exception(
         'Gagal mengupdate status diskon (ID $discountId, '
@@ -300,6 +321,16 @@ class ApprovalDecisionService {
     double? longitude,
     String? lokasiApproval,
   }) async {
+    final loc = resolveApprovalLocationDetails(
+      lokasiApproval: lokasiApproval,
+      latitude: latitude,
+      longitude: longitude,
+    );
+    AppTelemetry.event(
+      'approval_location_resolved',
+      data: {'kind': loc.kind},
+    );
+
     // Process ALL pending discounts — no early break
     for (final disc in pendingDiscs) {
       await approveOneDiscount(
@@ -307,9 +338,9 @@ class ApprovalDecisionService {
         isApproved: isApproved,
         token: token,
         userId: userId,
+        locationText: loc.text,
         latitude: latitude,
         longitude: longitude,
-        lokasiApproval: lokasiApproval,
       );
     }
 

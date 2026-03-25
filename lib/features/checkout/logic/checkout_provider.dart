@@ -38,6 +38,8 @@ class CheckoutState with _$CheckoutState {
     @Default([]) List<Approver> approvers,
     @Default(true) bool isLoadingApprovers,
     String? approversError,
+    /// Judul kartu error (bukan lagi satu pesan generik untuk semua kasus).
+    String? approversErrorTitle,
     Approver? selectedSpv,
     Approver? selectedManager,
 
@@ -74,11 +76,54 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     state = state.copyWith(
       isLoadingApprovers: true,
       approversError: null,
+      approversErrorTitle: null,
     );
     try {
       final profile = await _ref.read(profileProvider.future);
-      final companyId = profile?.companyId ?? 0;
-      final areaId = profile?.areaId ?? 0;
+      if (profile == null) {
+        state = state.copyWith(
+          approvers: [],
+          isLoadingApprovers: false,
+          approversErrorTitle: 'Profil kerja tidak tersedia',
+          approversError:
+              'Data tempat kerja (CWE) tidak bisa dimuat. Periksa koneksi internet, lalu ketuk Coba Lagi. Jika berulang, hubungi administrator.',
+        );
+        return;
+      }
+
+      final companyId = profile.companyId;
+      final areaId = profile.areaId;
+      if (companyId <= 0 && areaId <= 0) {
+        state = state.copyWith(
+          approvers: [],
+          isLoadingApprovers: false,
+          approversErrorTitle: 'Perusahaan dan area belum lengkap',
+          approversError:
+              'Profil Anda tidak memiliki perusahaan dan area yang valid untuk persetujuan pesanan. Minta administrator melengkapi data CWE (company & area).',
+        );
+        return;
+      }
+      if (companyId <= 0) {
+        state = state.copyWith(
+          approvers: [],
+          isLoadingApprovers: false,
+          approversErrorTitle: 'Perusahaan belum terpasang',
+          approversError:
+              'Profil Anda tidak memiliki perusahaan (company) yang valid. Hubungi administrator untuk melengkapi data CWE.',
+        );
+        return;
+      }
+      if (areaId <= 0) {
+        state = state.copyWith(
+          approvers: [],
+          isLoadingApprovers: false,
+          approversErrorTitle: 'Area kerja belum terpasang',
+          approversError:
+              'Profil Anda tidak memiliki area yang valid. Hubungi administrator untuk melengkapi data CWE (area).',
+        );
+        return;
+      }
+
       final data = await ApprovalService().getApprovers(companyId, areaId);
       data.sort((a, b) =>
           a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()));
@@ -86,17 +131,42 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         approvers: data,
         isLoadingApprovers: false,
         approversError: data.isEmpty
-            ? 'Tidak ada approver ditemukan untuk area ini.'
+            ? 'Belum ada SPV atau Manager yang terdaftar untuk perusahaan dan area Anda di sistem persetujuan. Hubungi administrator untuk mengatur daftar approver.'
+            : null,
+        approversErrorTitle: data.isEmpty
+            ? 'Tidak ada atasan yang cocok'
             : null,
       );
     } catch (e, st) {
       Log.error(e, st, reason: 'CheckoutNotifier.fetchApprovers');
+      final (title, detail) = _approverFetchFailureMessage(e);
       state = state.copyWith(
         approvers: [],
         isLoadingApprovers: false,
-        approversError: e.toString(),
+        approversErrorTitle: title,
+        approversError: detail,
       );
     }
+  }
+
+  /// Pesan user-facing untuk gagal fetch API (bukan stack / HTTP mentah).
+  (String title, String detail) _approverFetchFailureMessage(Object e) {
+    if (isNetworkError(e)) {
+      return (
+        'Koneksi bermasalah',
+        'Tidak dapat menghubungi server. Periksa internet lalu ketuk Coba Lagi.',
+      );
+    }
+    final raw = e.toString();
+    final stripped =
+        raw.startsWith('Exception: ') ? raw.substring('Exception: '.length) : raw;
+    if (stripped.startsWith('HTTP ')) {
+      return (
+        'Gagal mengambil daftar approver',
+        'Server mengembalikan error. Coba lagi nanti atau hubungi administrator.',
+      );
+    }
+    return ('Gagal memuat daftar approver', stripped);
   }
 
   void selectSpv(Approver? approver) {

@@ -34,6 +34,35 @@ void hapticSelection() {
 
 // ─── Adaptive Alert Dialog ──────────────────────────────────────────────────
 
+/// Pops the dialog route first, then runs [action.onPressed] on the next frame
+/// when [AdaptiveAction.popResult] is set. Avoids races where callbacks call
+/// `logout()` / `Navigator.pop(parentContext)` and tear down the tree while the
+/// dialog route is still handling the tap (seen as null `State` / `Navigator.of`
+/// crashes on newer Android).
+void _adaptiveAlertActionPressed(
+  BuildContext dialogContext,
+  AdaptiveAction action,
+) {
+  final callback = action.onPressed;
+
+  if (action.popResult != null) {
+    if (dialogContext.mounted) {
+      Navigator.maybeOf(dialogContext)?.pop(action.popResult);
+    }
+    if (callback != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => callback());
+    }
+  } else {
+    callback?.call();
+    if (dialogContext.mounted) {
+      final nav = Navigator.maybeOf(dialogContext);
+      if (nav != null && nav.canPop()) {
+        nav.pop();
+      }
+    }
+  }
+}
+
 /// Shows [CupertinoAlertDialog] on iOS, [AlertDialog] on Android.
 ///
 /// [actions] maps label → callback. The last action is treated as the
@@ -54,12 +83,8 @@ Future<T?> showAdaptiveAlert<T>({
             .map((a) => CupertinoDialogAction(
                   isDestructiveAction: a.isDestructive,
                   isDefaultAction: a.isDefault,
-                  onPressed: () {
-                    a.onPressed?.call();
-                    if (a.popResult != null && dialogContext.mounted) {
-                      Navigator.of(dialogContext).pop(a.popResult);
-                    }
-                  },
+                  onPressed: () =>
+                      _adaptiveAlertActionPressed(dialogContext, a),
                   child: Text(a.label),
                 ))
             .toList(),
@@ -76,12 +101,8 @@ Future<T?> showAdaptiveAlert<T>({
       actions: actions.map((a) {
         if (a.isDestructive) {
           return TextButton(
-            onPressed: () {
-              a.onPressed?.call();
-              if (a.popResult != null && dialogContext.mounted) {
-                Navigator.of(dialogContext).pop(a.popResult);
-              }
-            },
+            onPressed: () =>
+                _adaptiveAlertActionPressed(dialogContext, a),
             child: Text(
               a.label,
               style: TextStyle(
@@ -92,12 +113,8 @@ Future<T?> showAdaptiveAlert<T>({
           );
         }
         return TextButton(
-          onPressed: () {
-            a.onPressed?.call();
-            if (a.popResult != null && dialogContext.mounted) {
-              Navigator.of(dialogContext).pop(a.popResult);
-            }
-          },
+          onPressed: () =>
+              _adaptiveAlertActionPressed(dialogContext, a),
           child: Text(a.label, style: TextStyle(color: a.color)),
         );
       }).toList(),
@@ -234,7 +251,8 @@ class AdaptiveAction {
   final bool isDefault;
   final Color? color;
 
-  /// If non-null, pops the dialog with this value after [onPressed].
+  /// If non-null, pops the dialog with this value first; [onPressed] runs on
+  /// the **next frame** after pop (safe for logout / navigation side effects).
   final dynamic popResult;
 
   const AdaptiveAction({

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../../../../core/services/api_client.dart';
+import '../../../../core/services/api_session_expired.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../core/utils/log.dart';
 
@@ -11,6 +12,10 @@ Future<Map<String, dynamic>?> fetchOrderLetterResultWrap(int orderId) async {
   try {
     final directResponse =
         await ApiClient.instance.get('/order_letters/$orderId');
+    if (directResponse.statusCode == 401 ||
+        directResponse.statusCode == 403) {
+      throw ApiSessionExpiredException('GET /order_letters/$orderId');
+    }
     if (directResponse.statusCode == 200) {
       final parsed = _parseResultMap(directResponse.body);
       if (parsed != null) return parsed;
@@ -25,6 +30,9 @@ Future<Map<String, dynamic>?> fetchOrderLetterResultWrap(int orderId) async {
       },
     );
 
+    if (listResponse.statusCode == 401 || listResponse.statusCode == 403) {
+      throw const ApiSessionExpiredException('GET /order_letters (by id)');
+    }
     if (listResponse.statusCode == 200) {
       final body = jsonDecode(listResponse.body);
       final result = body is Map<String, dynamic> ? body['result'] : null;
@@ -42,6 +50,7 @@ Future<Map<String, dynamic>?> fetchOrderLetterResultWrap(int orderId) async {
       }
     }
   } catch (e, st) {
+    if (e is ApiSessionExpiredException) rethrow;
     Log.error(e, st, reason: 'fetchOrderLetterResultWrap');
   }
   return null;

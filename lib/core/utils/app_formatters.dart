@@ -57,6 +57,23 @@ class AppFormatters {
     }
   }
 
+  /// Title case per kata (pemisah spasi). Berguna setelah [String.toLowerCase]
+  /// untuk menormalkan label API yang ALL CAPS.
+  ///
+  /// Kata yang **tepat tiga huruf** (a–z), atau tiga huruf diikuti **hanya angka**
+  /// (mis. `pik`, `pik2`, `idd10`), dipertahankan **ALL CAPS** (`PIK`, `PIK2`).
+  static String titleCase(String text) {
+    final acronymOrCode = RegExp(r'^[a-z]{3}\d*$');
+    return text.split(' ').map((w) {
+      if (w.isEmpty) return '';
+      final lower = w.toLowerCase();
+      if (acronymOrCode.hasMatch(lower)) {
+        return lower.toUpperCase();
+      }
+      return '${lower[0].toUpperCase()}${lower.substring(1)}';
+    }).join(' ');
+  }
+
   /// Build date-range label used in filter action buttons.
   static String dateRangeFilterLabel({
     required DateTime? start,

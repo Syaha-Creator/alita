@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/services/api_client.dart';
+import '../../../core/services/api_session_expired.dart';
 import '../../../core/utils/app_formatters.dart';
 import '../../../core/utils/retry.dart';
 import '../../auth/logic/auth_provider.dart';
@@ -45,6 +46,11 @@ final orderHistoryProvider = FutureProvider.autoDispose<List<OrderHistory>>((
     tag: 'orderHistory',
     retryIf: (e) => e is! Exception || !e.toString().contains('User ID'),
   );
+
+  if (response.statusCode == 401 || response.statusCode == 403) {
+    await ref.read(authProvider.notifier).logout();
+    throw const ApiSessionExpiredException('GET /order_letters');
+  }
 
   if (response.statusCode != 200) {
     throw Exception('Gagal memuat data (${response.statusCode})');

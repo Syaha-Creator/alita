@@ -22,7 +22,7 @@ ehthumbs.db
 *.swo
 .*.swp
 
-# Cursor IDE (keep .cursor/rules/ for shared workspace rules)
+# Aturan editor bersama (hanya subfolder rules yang di-track)
 .cursor/*
 !.cursor/rules/
 

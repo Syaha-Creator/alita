@@ -19,7 +19,6 @@ abstract final class QuotationSaveHandler {
   /// Returns `true` if the save was successful.
   static Future<bool> save({
     required BuildContext context,
-    required WidgetRef ref,
     required List<CartItem> cartItems,
     required List<CartItem>? selectedCartItems,
     required QuotationModel? existingDraft,
@@ -67,7 +66,12 @@ abstract final class QuotationSaveHandler {
       return false;
     }
 
-    final profile = ref.read(profileProvider).valueOrNull;
+    if (!context.mounted) return false;
+    // Jangan pakai [WidgetRef] setelah await: jika user keluar dari checkout
+    // saat penyimpanan berjalan, ref.read melempar. Container dari scope tetap valid.
+    final container = ProviderScope.containerOf(context, listen: false);
+
+    final profile = container.read(profileProvider).valueOrNull;
     final isUpdate = existingDraft != null;
 
     final quotation = QuotationModel(
@@ -107,7 +111,7 @@ abstract final class QuotationSaveHandler {
       validUntil: DateTime.now().add(const Duration(days: 14)),
     );
 
-    final notifier = ref.read(quotationListProvider.notifier);
+    final notifier = container.read(quotationListProvider.notifier);
     if (isUpdate) {
       await notifier.update(quotation);
     } else {
@@ -115,14 +119,14 @@ abstract final class QuotationSaveHandler {
     }
 
     if (selectedCartItems != null && selectedCartItems.isNotEmpty) {
-      await ref.read(cartProvider.notifier).removeItemsByIds(
+      await container.read(cartProvider.notifier).removeItemsByIds(
             selectedCartItems.map(cartItemKey).toSet(),
           );
     } else {
-      await ref.read(cartProvider.notifier).clearCart();
+      await container.read(cartProvider.notifier).clearCart();
     }
 
-    ref.read(activeDraftProvider.notifier).state = null;
+    container.read(activeDraftProvider.notifier).state = null;
 
     if (!context.mounted) return true;
     AppFeedback.show(context,

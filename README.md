@@ -120,3 +120,7 @@ open coverage/html/index.html
 - Env template: `.env.example`
 - Core widgets: `lib/core/widgets/`
 - API client: `lib/core/services/api_client.dart`
+
+## Internal docs (FCM & persetujuan)
+
+Ringkas: notifikasi persetujuan memakai **`type`** + opsional **`order_letter_id`** di data FCM untuk navigasi dan muat SP dari API; POST **`/order_letter_approves`** mengirim **`location`** dan **`lokasi_approval`** dengan **teks lokasi yang sama** (alamat geocode atau fallback koordinat, bukan placeholder “via sistem”). Detail lengkap: [`docs/internal_fcm_and_approval_location.md`](docs/internal_fcm_and_approval_location.md).

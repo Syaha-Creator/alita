@@ -20,7 +20,7 @@ enum QuotationStatus {
 /// A locally-persisted draft quotation (penawaran harga).
 ///
 /// Stores the snapshot of cart items + customer info at the time the
-/// quotation was created. Serialisable to/from JSON for SharedPreferences.
+/// quotation was created. Serialisable to/from JSON for local persistence.
 class QuotationModel {
   final String id;
 

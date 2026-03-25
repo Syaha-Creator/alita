@@ -1,0 +1,2 @@
+# Contoh upstream tidak dibuild di fork; exclude dari analisis induk.
+include: package:flutter_lints/flutter.yaml

@@ -1,0 +1,6 @@
+# Fork Alita: jangan pakai very_good_analysis (tidak selalu ter-resolve di workspace).
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - example/**

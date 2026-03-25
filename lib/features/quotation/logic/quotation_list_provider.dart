@@ -1,15 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:alitapricelist/core/services/storage_service.dart';
 import 'package:alitapricelist/core/utils/log.dart';
 
 import '../data/quotation_model.dart';
 
-const _storageKey = 'quotation_drafts';
-
 /// Manages the list of locally-saved quotation drafts.
 ///
-/// All data is persisted in SharedPreferences as a single JSON string.
+/// Data is persisted as JSON on disk ([StorageService]) to avoid huge SP channel payloads.
 class QuotationListNotifier extends StateNotifier<List<QuotationModel>> {
   QuotationListNotifier() : super([]) {
     _load();
@@ -19,8 +17,7 @@ class QuotationListNotifier extends StateNotifier<List<QuotationModel>> {
 
   Future<void> _load() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_storageKey) ?? '';
+      final raw = await StorageService.loadQuotationsJson();
       if (raw.isNotEmpty) {
         final loaded = QuotationModel.decodeList(raw);
         state = loaded;
@@ -45,8 +42,7 @@ class QuotationListNotifier extends StateNotifier<List<QuotationModel>> {
         );
       }
 
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_storageKey, encoded);
+      await StorageService.saveQuotationsJson(encoded);
     } catch (e, st) {
       Log.error(e, st, reason: 'Quotation._save');
     }

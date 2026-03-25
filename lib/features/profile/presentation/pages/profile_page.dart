@@ -100,14 +100,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           children: [
             const ProfileHeaderCard(),
             const SizedBox(height: 24),
-
             ProfileStatsCard(
               totalPesanan: totalPesanan,
               totalPending: totalPending,
               pendingLabel: pendingLabel,
             ),
             const SizedBox(height: 24),
-
             const ProfileSectionLabel(label: 'Aktivitas'),
             const SizedBox(height: 8),
             ProfileMenuCard(
@@ -131,7 +129,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               ],
             ),
             const SizedBox(height: 20),
-
             const ProfileSectionLabel(label: 'Lainnya'),
             const SizedBox(height: 8),
             ProfileMenuCard(
@@ -155,10 +152,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               ],
             ),
             const SizedBox(height: 32),
-
             const ProfileLogoutButton(),
             const SizedBox(height: 16),
-
             const ProfileVersionFooter(),
             const SizedBox(height: 32),
           ],

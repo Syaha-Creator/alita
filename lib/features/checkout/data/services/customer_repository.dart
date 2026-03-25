@@ -25,11 +25,11 @@ class CustomerRepository {
   Future<void> _ensureAuth() async {
     _connector.dataConnect.auth = FirebaseAuth.instance;
 
-    // Debug/emulator: jangan kirim App Check token (placeholder dari
-    // AndroidDebugProvider tanpa token terdaftar menyebabkan server menolak
-    // dengan UNAUTHENTICATED / "auth rejected"). Schema hanya pakai
-    // @auth(level: USER) — Firebase Auth saja cukup.
-    if (kDebugMode) {
+    // Non-release (debug & profile): jangan lampirkan App Check ke Data Connect.
+    // Di emulator, App Check sering 403 / placeholder → server menolak dengan
+    // UNAUTHENTICATED / "auth rejected" meski Anonymous Auth sudah valid.
+    // Release build wajib App Check + Play Integrity / token terdaftar.
+    if (!kReleaseMode) {
       _connector.dataConnect.appCheck = null;
     }
 

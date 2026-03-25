@@ -1,12 +1,39 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import 'app_colors.dart';
 
-/// App theme configuration with Poppins typography
+/// App theme configuration with **bundled Inter** (no runtime fetch).
+/// Avoids crashes when offline: `google_fonts` + gstatic.com would throw
+/// [SocketException] / network unreachable on first paint.
 class AppTheme {
   AppTheme._();
 
+  static const String _fontFamily = 'Inter';
+
+  static TextStyle _text(
+    double fontSize,
+    FontWeight fontWeight,
+    Color color, {
+    double? height,
+  }) =>
+      TextStyle(
+        fontFamily: _fontFamily,
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: color,
+        height: height,
+      );
+
   static ThemeData get lightTheme {
+    final baseText = ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.light,
+    ).textTheme.apply(
+      fontFamily: _fontFamily,
+      bodyColor: AppColors.textPrimary,
+      displayColor: AppColors.textPrimary,
+    );
+
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
@@ -30,85 +57,29 @@ class AppTheme {
         centerTitle: false,
         backgroundColor: AppColors.background,
         foregroundColor: AppColors.textPrimary,
-        titleTextStyle: GoogleFonts.poppins(
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
+        titleTextStyle: _text(
+          20,
+          FontWeight.w600,
+          AppColors.textPrimary,
         ),
       ),
 
-      // Typography - Poppins for everything
-      textTheme: GoogleFonts.poppinsTextTheme().copyWith(
-        displayLarge: GoogleFonts.poppins(
-          fontSize: 32,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary,
-        ),
-        displayMedium: GoogleFonts.poppins(
-          fontSize: 28,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
-        ),
-        displaySmall: GoogleFonts.poppins(
-          fontSize: 24,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
-        ),
-        headlineLarge: GoogleFonts.poppins(
-          fontSize: 22,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
-        ),
-        headlineMedium: GoogleFonts.poppins(
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
-        ),
-        titleLarge: GoogleFonts.poppins(
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
-        ),
-        titleMedium: GoogleFonts.poppins(
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
-          color: AppColors.textPrimary,
-        ),
-        titleSmall: GoogleFonts.poppins(
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-          color: AppColors.textSecondary,
-        ),
-        bodyLarge: GoogleFonts.poppins(
-          fontSize: 16,
-          fontWeight: FontWeight.w400,
-          color: AppColors.textPrimary,
-        ),
-        bodyMedium: GoogleFonts.poppins(
-          fontSize: 14,
-          fontWeight: FontWeight.w400,
-          color: AppColors.textPrimary,
-        ),
-        bodySmall: GoogleFonts.poppins(
-          fontSize: 12,
-          fontWeight: FontWeight.w400,
-          color: AppColors.textSecondary,
-        ),
-        labelLarge: GoogleFonts.poppins(
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-          color: AppColors.textPrimary,
-        ),
-        labelMedium: GoogleFonts.poppins(
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-          color: AppColors.textSecondary,
-        ),
-        labelSmall: GoogleFonts.poppins(
-          fontSize: 11,
-          fontWeight: FontWeight.w400,
-          color: AppColors.textTertiary,
-        ),
+      // Typography — bundled Inter (works offline)
+      textTheme: baseText.copyWith(
+        displayLarge: _text(32, FontWeight.w700, AppColors.textPrimary),
+        displayMedium: _text(28, FontWeight.w600, AppColors.textPrimary),
+        displaySmall: _text(24, FontWeight.w600, AppColors.textPrimary),
+        headlineLarge: _text(22, FontWeight.w600, AppColors.textPrimary),
+        headlineMedium: _text(20, FontWeight.w600, AppColors.textPrimary),
+        titleLarge: _text(18, FontWeight.w600, AppColors.textPrimary),
+        titleMedium: _text(16, FontWeight.w500, AppColors.textPrimary),
+        titleSmall: _text(14, FontWeight.w500, AppColors.textSecondary),
+        bodyLarge: _text(16, FontWeight.w400, AppColors.textPrimary),
+        bodyMedium: _text(14, FontWeight.w400, AppColors.textPrimary),
+        bodySmall: _text(12, FontWeight.w400, AppColors.textSecondary),
+        labelLarge: _text(14, FontWeight.w500, AppColors.textPrimary),
+        labelMedium: _text(12, FontWeight.w500, AppColors.textSecondary),
+        labelSmall: _text(11, FontWeight.w400, AppColors.textTertiary),
       ),
 
       // Card theme - soft shadows
@@ -151,11 +122,7 @@ class AppTheme {
         elevation: 3,
         color: AppColors.surface,
         surfaceTintColor: Colors.transparent,
-        textStyle: GoogleFonts.poppins(
-          fontSize: 14,
-          color: AppColors.textPrimary,
-          fontWeight: FontWeight.w400,
-        ),
+        textStyle: _text(14, FontWeight.w400, AppColors.textPrimary),
       ),
 
       // Dialog — rounded, clean surface
@@ -166,15 +133,11 @@ class AppTheme {
         elevation: 4,
         backgroundColor: AppColors.surface,
         surfaceTintColor: Colors.transparent,
-        titleTextStyle: GoogleFonts.poppins(
-          fontSize: 17,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
-        ),
-        contentTextStyle: GoogleFonts.poppins(
-          fontSize: 14,
-          fontWeight: FontWeight.w400,
-          color: AppColors.textSecondary,
+        titleTextStyle: _text(17, FontWeight.w600, AppColors.textPrimary),
+        contentTextStyle: _text(
+          14,
+          FontWeight.w400,
+          AppColors.textSecondary,
           height: 1.5,
         ),
       ),
@@ -233,10 +196,7 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          textStyle: GoogleFonts.poppins(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
+          textStyle: _text(14, FontWeight.w600, AppColors.onPrimary),
         ),
       ),
 
@@ -247,10 +207,7 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
-          textStyle: GoogleFonts.poppins(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
+          textStyle: _text(14, FontWeight.w600, AppColors.accent),
         ),
       ),
 
@@ -262,11 +219,7 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
         ),
         elevation: 4,
-        contentTextStyle: GoogleFonts.poppins(
-          fontSize: 13,
-          fontWeight: FontWeight.w500,
-          color: AppColors.onPrimary,
-        ),
+        contentTextStyle: _text(13, FontWeight.w500, AppColors.onPrimary),
       ),
     );
   }

@@ -5,11 +5,101 @@ import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../core/enums/order_status.dart';
 import '../../../core/services/api_client.dart';
+import '../../../core/services/api_session_expired.dart';
 import '../../../core/utils/app_formatters.dart';
 import '../../../core/utils/app_telemetry.dart';
 import '../../../core/utils/log.dart';
 import '../../../core/utils/retry.dart';
+import '../../auth/logic/auth_provider.dart';
 import '../../profile/logic/profile_provider.dart';
+
+/// Susun satu baris alamat baca-manusia dari [Placemark] (prioritas Indonesia).
+/// Memakai `thoroughfare` / `subThoroughfare` bila `street` kosong (sering di Android).
+String _formatPlacemarkAddressForApproval(Placemark place) {
+  String nt(String? s) => (s ?? '').trim();
+
+  var line1 = nt(place.street);
+  if (line1.isEmpty) {
+    final sub = nt(place.subThoroughfare);
+    final thru = nt(place.thoroughfare);
+    if (sub.isNotEmpty && thru.isNotEmpty) {
+      line1 = '$sub $thru';
+    } else if (thru.isNotEmpty) {
+      line1 = thru;
+    } else if (sub.isNotEmpty) {
+      line1 = sub;
+    } else {
+      line1 = nt(place.name);
+    }
+  }
+
+  final parts = <String>[];
+  if (line1.isNotEmpty) parts.add(line1);
+
+  void addUnique(String value) {
+    final t = value.trim();
+    if (t.isEmpty) return;
+    final lower = t.toLowerCase();
+    if (parts.any((p) => p.toLowerCase() == lower)) return;
+    parts.add(t);
+  }
+
+  addUnique(nt(place.subLocality));
+
+  final subAdm = nt(place.subAdministrativeArea);
+  if (subAdm.isNotEmpty) {
+    final lower = subAdm.toLowerCase();
+    addUnique(
+      lower.contains('kecamatan') ? subAdm : 'Kecamatan $subAdm',
+    );
+  }
+
+  addUnique(nt(place.locality));
+  addUnique(nt(place.administrativeArea));
+
+  return parts.join(', ');
+}
+
+/// Label lokasi/toko dari raw `orderWrap` API (sama logika dengan header approval).
+String approvalOrderWrapWorkPlace(dynamic wrap) {
+  if (wrap is! Map) return '';
+  final map = Map<String, dynamic>.from(wrap);
+  final order = map['order_letter'] as Map<String, dynamic>? ?? {};
+  for (final v in <dynamic>[
+    map['work_place_name'],
+    map['workplace_name'],
+    order['work_place_name'],
+    order['workplace_name'],
+    order['work_place'],
+  ]) {
+    final s = v?.toString().trim() ?? '';
+    if (s.isNotEmpty) return s;
+  }
+  return '';
+}
+
+/// Daftar unik `work_place` untuk tab Selesai (urut A–Z).
+List<String> approvalHistoryWorkPlaceOptions(List<dynamic> history) {
+  final set = <String>{};
+  for (final w in history) {
+    final label = approvalOrderWrapWorkPlace(w);
+    if (label.isNotEmpty) set.add(label);
+  }
+  final out = set.toList()
+    ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+  return out;
+}
+
+/// Riwayat approval difilter di klien menurut lokasi/toko.
+List<dynamic> approvalHistoryFilteredByWorkPlace(
+  List<dynamic> history,
+  String? workPlace,
+) {
+  if (workPlace == null || workPlace.isEmpty) return history;
+  return history
+      .where((w) => approvalOrderWrapWorkPlace(w) == workPlace)
+      .toList();
+}
 
 // ── Geotagging: alamat + koordinat untuk payload approval ───────
 class ApprovalLocation {
@@ -33,6 +123,9 @@ class ApprovalInboxState {
   final DateTime? startDate;
   final DateTime? endDate;
 
+  /// Filter tab **Selesai** menurut `work_place_name` (null = semua lokasi).
+  final String? historyWorkPlaceFilter;
+
   const ApprovalInboxState({
     this.isLoading = true,
     this.error,
@@ -40,6 +133,7 @@ class ApprovalInboxState {
     this.historyApprovals = const [],
     this.startDate,
     this.endDate,
+    this.historyWorkPlaceFilter,
   });
 
   ApprovalInboxState copyWith({
@@ -49,6 +143,8 @@ class ApprovalInboxState {
     List<dynamic>? historyApprovals,
     DateTime? startDate,
     DateTime? endDate,
+    bool updateHistoryWorkPlaceFilter = false,
+    String? historyWorkPlaceFilter,
   }) {
     return ApprovalInboxState(
       isLoading: isLoading ?? this.isLoading,
@@ -57,8 +153,22 @@ class ApprovalInboxState {
       historyApprovals: historyApprovals ?? this.historyApprovals,
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
+      historyWorkPlaceFilter: updateHistoryWorkPlaceFilter
+          ? historyWorkPlaceFilter
+          : this.historyWorkPlaceFilter,
     );
   }
+
+  /// Daftar unik lokasi toko dari riwayat (urut A–Z).
+  List<String> get historyWorkPlaceOptions =>
+      approvalHistoryWorkPlaceOptions(historyApprovals);
+
+  /// Riwayat setelah filter lokasi (hanya pengaruh tab Selesai).
+  List<dynamic> get filteredHistoryApprovals =>
+      approvalHistoryFilteredByWorkPlace(
+        historyApprovals,
+        historyWorkPlaceFilter,
+      );
 }
 
 // ── Notifier ──────────────────────────────────────────────────
@@ -80,8 +190,17 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
     state = ApprovalInboxState(
       pendingApprovals: state.pendingApprovals,
       historyApprovals: state.historyApprovals,
+      historyWorkPlaceFilter: state.historyWorkPlaceFilter,
     );
     fetchInbox();
+  }
+
+  /// Filter tab Selesai per lokasi/toko (`work_place_name`). `null` = semua.
+  void setHistoryWorkPlaceFilter(String? workPlace) {
+    state = state.copyWith(
+      updateHistoryWorkPlaceFilter: true,
+      historyWorkPlaceFilter: workPlace,
+    );
   }
 
   /// Normalisasi nilai `approved` dari API ke [OrderStatus] enum.
@@ -153,26 +272,20 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
 
     String address = 'Lokasi tidak terdeteksi';
     try {
+      try {
+        await setLocaleIdentifier('id_ID');
+      } catch (_) {}
+
       final placemarks = await placemarkFromCoordinates(
         position.latitude,
         position.longitude,
       ).timeout(_geocodeTimeout);
       if (placemarks.isNotEmpty) {
         final place = placemarks.first;
-        final street = place.street ?? '';
-        final subLocality = place.subLocality ?? '';
-        final locality = place.locality ?? '';
-        final adminArea = place.administrativeArea ?? '';
-        final parts = <String>[
-          if (street.isNotEmpty) street,
-          if (subLocality.isNotEmpty) subLocality,
-          if (locality.isNotEmpty) locality,
-          if (adminArea.isNotEmpty) adminArea,
-        ];
-        if (parts.isNotEmpty) {
-          address = parts.join(', ');
+        final formatted = _formatPlacemarkAddressForApproval(place);
+        if (formatted.isNotEmpty) {
+          address = formatted;
         } else {
-          // Geocoder tidak mengisi baris alamat (sering di emulator) — kirim koordinat.
           address =
               'Koordinat ${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}';
         }
@@ -215,6 +328,11 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
       body: {'status': newStatus},
     );
 
+    if (res.statusCode == 401 || res.statusCode == 403) {
+      throw ApiSessionExpiredException(
+        'order_letters put $orderId ${res.statusCode}',
+      );
+    }
     if (res.statusCode != 200 && res.statusCode != 201) {
       throw Exception(
         'Gagal update status header SP ($orderId -> $newStatus). '
@@ -227,6 +345,11 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
   Future<bool> isAllDiscountsApproved(int orderId) async {
     final res = await _api.get('/order_letters/$orderId');
 
+    if (res.statusCode == 401 || res.statusCode == 403) {
+      throw ApiSessionExpiredException(
+        'isAllDiscountsApproved $orderId ${res.statusCode}',
+      );
+    }
     if (res.statusCode != 200) {
       throw Exception(
         'Gagal mengambil detail SP untuk final check approval. '
@@ -410,6 +533,20 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
         );
       } else {
         sw.stop();
+        if (response.statusCode == 401 || response.statusCode == 403) {
+          AppTelemetry.error('approval_inbox_auth', data: {
+            'status_code': response.statusCode,
+            'duration_ms': sw.elapsedMilliseconds,
+          });
+          await ref.read(authProvider.notifier).logout();
+          state = state.copyWith(
+            isLoading: false,
+            error: null,
+            pendingApprovals: const [],
+            historyApprovals: const [],
+          );
+          return;
+        }
         AppTelemetry.error('approval_inbox_failed', data: {
           'status_code': response.statusCode,
           'duration_ms': sw.elapsedMilliseconds,

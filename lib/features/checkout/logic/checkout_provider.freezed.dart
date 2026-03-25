@@ -20,6 +20,9 @@ mixin _$CheckoutState {
   List<Approver> get approvers => throw _privateConstructorUsedError;
   bool get isLoadingApprovers => throw _privateConstructorUsedError;
   String? get approversError => throw _privateConstructorUsedError;
+
+  /// Judul kartu error (bukan lagi satu pesan generik untuk semua kasus).
+  String? get approversErrorTitle => throw _privateConstructorUsedError;
   Approver? get selectedSpv => throw _privateConstructorUsedError;
   Approver? get selectedManager =>
       throw _privateConstructorUsedError; // Submission
@@ -49,6 +52,7 @@ abstract class $CheckoutStateCopyWith<$Res> {
       {List<Approver> approvers,
       bool isLoadingApprovers,
       String? approversError,
+      String? approversErrorTitle,
       Approver? selectedSpv,
       Approver? selectedManager,
       bool isSubmitting,
@@ -78,6 +82,7 @@ class _$CheckoutStateCopyWithImpl<$Res, $Val extends CheckoutState>
     Object? approvers = null,
     Object? isLoadingApprovers = null,
     Object? approversError = freezed,
+    Object? approversErrorTitle = freezed,
     Object? selectedSpv = freezed,
     Object? selectedManager = freezed,
     Object? isSubmitting = null,
@@ -100,6 +105,10 @@ class _$CheckoutStateCopyWithImpl<$Res, $Val extends CheckoutState>
       approversError: freezed == approversError
           ? _value.approversError
           : approversError // ignore: cast_nullable_to_non_nullable
+              as String?,
+      approversErrorTitle: freezed == approversErrorTitle
+          ? _value.approversErrorTitle
+          : approversErrorTitle // ignore: cast_nullable_to_non_nullable
               as String?,
       selectedSpv: freezed == selectedSpv
           ? _value.selectedSpv
@@ -153,6 +162,7 @@ abstract class _$$CheckoutStateImplCopyWith<$Res>
       {List<Approver> approvers,
       bool isLoadingApprovers,
       String? approversError,
+      String? approversErrorTitle,
       Approver? selectedSpv,
       Approver? selectedManager,
       bool isSubmitting,
@@ -180,6 +190,7 @@ class __$$CheckoutStateImplCopyWithImpl<$Res>
     Object? approvers = null,
     Object? isLoadingApprovers = null,
     Object? approversError = freezed,
+    Object? approversErrorTitle = freezed,
     Object? selectedSpv = freezed,
     Object? selectedManager = freezed,
     Object? isSubmitting = null,
@@ -202,6 +213,10 @@ class __$$CheckoutStateImplCopyWithImpl<$Res>
       approversError: freezed == approversError
           ? _value.approversError
           : approversError // ignore: cast_nullable_to_non_nullable
+              as String?,
+      approversErrorTitle: freezed == approversErrorTitle
+          ? _value.approversErrorTitle
+          : approversErrorTitle // ignore: cast_nullable_to_non_nullable
               as String?,
       selectedSpv: freezed == selectedSpv
           ? _value.selectedSpv
@@ -252,6 +267,7 @@ class _$CheckoutStateImpl
       {final List<Approver> approvers = const [],
       this.isLoadingApprovers = true,
       this.approversError,
+      this.approversErrorTitle,
       this.selectedSpv,
       this.selectedManager,
       this.isSubmitting = false,
@@ -280,6 +296,10 @@ class _$CheckoutStateImpl
   final bool isLoadingApprovers;
   @override
   final String? approversError;
+
+  /// Judul kartu error (bukan lagi satu pesan generik untuk semua kasus).
+  @override
+  final String? approversErrorTitle;
   @override
   final Approver? selectedSpv;
   @override
@@ -314,7 +334,7 @@ class _$CheckoutStateImpl
 
   @override
   String toString({DiagnosticLevel minLevel = DiagnosticLevel.info}) {
-    return 'CheckoutState(approvers: $approvers, isLoadingApprovers: $isLoadingApprovers, approversError: $approversError, selectedSpv: $selectedSpv, selectedManager: $selectedManager, isSubmitting: $isSubmitting, submitError: $submitError, retryOrderId: $retryOrderId, retryNoSp: $retryNoSp, retryDetails: $retryDetails, submitSuccess: $submitSuccess, successNoSp: $successNoSp)';
+    return 'CheckoutState(approvers: $approvers, isLoadingApprovers: $isLoadingApprovers, approversError: $approversError, approversErrorTitle: $approversErrorTitle, selectedSpv: $selectedSpv, selectedManager: $selectedManager, isSubmitting: $isSubmitting, submitError: $submitError, retryOrderId: $retryOrderId, retryNoSp: $retryNoSp, retryDetails: $retryDetails, submitSuccess: $submitSuccess, successNoSp: $successNoSp)';
   }
 
   @override
@@ -325,6 +345,7 @@ class _$CheckoutStateImpl
       ..add(DiagnosticsProperty('approvers', approvers))
       ..add(DiagnosticsProperty('isLoadingApprovers', isLoadingApprovers))
       ..add(DiagnosticsProperty('approversError', approversError))
+      ..add(DiagnosticsProperty('approversErrorTitle', approversErrorTitle))
       ..add(DiagnosticsProperty('selectedSpv', selectedSpv))
       ..add(DiagnosticsProperty('selectedManager', selectedManager))
       ..add(DiagnosticsProperty('isSubmitting', isSubmitting))
@@ -347,6 +368,8 @@ class _$CheckoutStateImpl
                 other.isLoadingApprovers == isLoadingApprovers) &&
             (identical(other.approversError, approversError) ||
                 other.approversError == approversError) &&
+            (identical(other.approversErrorTitle, approversErrorTitle) ||
+                other.approversErrorTitle == approversErrorTitle) &&
             (identical(other.selectedSpv, selectedSpv) ||
                 other.selectedSpv == selectedSpv) &&
             (identical(other.selectedManager, selectedManager) ||
@@ -373,6 +396,7 @@ class _$CheckoutStateImpl
       const DeepCollectionEquality().hash(_approvers),
       isLoadingApprovers,
       approversError,
+      approversErrorTitle,
       selectedSpv,
       selectedManager,
       isSubmitting,
@@ -397,6 +421,7 @@ abstract class _CheckoutState implements CheckoutState {
       {final List<Approver> approvers,
       final bool isLoadingApprovers,
       final String? approversError,
+      final String? approversErrorTitle,
       final Approver? selectedSpv,
       final Approver? selectedManager,
       final bool isSubmitting,
@@ -414,6 +439,10 @@ abstract class _CheckoutState implements CheckoutState {
   bool get isLoadingApprovers;
   @override
   String? get approversError;
+
+  /// Judul kartu error (bukan lagi satu pesan generik untuk semua kasus).
+  @override
+  String? get approversErrorTitle;
   @override
   Approver? get selectedSpv;
   @override

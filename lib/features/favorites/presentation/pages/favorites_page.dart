@@ -221,14 +221,16 @@ class FavoritesPage extends ConsumerWidget {
         AdaptiveAction(
           label: 'Hapus',
           isDestructive: true,
+          popResult: true,
           onPressed: () {
             ref.read(favoritesProvider.notifier).clearFavorites();
-            Navigator.of(context).pop();
-            AppFeedback.plain(
-              context,
-              'Semua favorit dihapus',
-              duration: const Duration(seconds: 2),
-            );
+            if (context.mounted) {
+              AppFeedback.plain(
+                context,
+                'Semua favorit dihapus',
+                duration: const Duration(seconds: 2),
+              );
+            }
           },
         ),
       ],

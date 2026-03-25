@@ -5,8 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:upgrader/upgrader.dart';
+import '../utils/log.dart';
 import '../utils/platform_utils.dart';
 import '../utils/telemetry_access.dart';
+import '../theme/app_colors.dart';
+import '../widgets/error_state_view.dart';
 import '../../features/auth/logic/auth_provider.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/pricelist/data/models/product.dart';
@@ -34,6 +37,28 @@ import '../../features/quotation/presentation/pages/quotation_history_page.dart'
 Page<T> _adaptivePage<T>({required Widget child, required String name}) {
   if (isIOS) return CupertinoPage<T>(child: child, name: name);
   return MaterialPage<T>(child: child, name: name);
+}
+
+/// [GoRouter] `extra` untuk `/order_detail` biasanya [OrderHistory], tetapi bisa
+/// berupa [Map] (JSON decode, plugin, atau edge platform) — hindari cast keras.
+OrderHistory? _orderHistoryFromRouteExtra(Object? extra) {
+  if (extra == null) return null;
+  if (extra is OrderHistory) return extra;
+  if (extra is Map) {
+    final map = Map<String, dynamic>.from(extra);
+    try {
+      return OrderHistory.fromApiJson(map);
+    } catch (_) {
+      try {
+        return OrderHistory.fromJson(map);
+      } catch (e, st) {
+        Log.error(e, st,
+            reason: 'order_detail route extra (Map → OrderHistory)');
+        return null;
+      }
+    }
+  }
+  return null;
 }
 
 /// Root navigator key used by GoRouter.
@@ -224,7 +249,36 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/order_detail',
             name: 'order-detail',
             pageBuilder: (context, state) {
-              final order = state.extra as OrderHistory;
+              final order = _orderHistoryFromRouteExtra(state.extra);
+              if (order == null) {
+                return _adaptivePage(
+                  name: 'order-detail',
+                  child: Scaffold(
+                    backgroundColor: AppColors.background,
+                    appBar: AppBar(
+                      title: const Text(
+                        'Detail Pesanan',
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      backgroundColor: AppColors.background,
+                      elevation: 0,
+                      foregroundColor: AppColors.textPrimary,
+                    ),
+                    body: ErrorStateView(
+                      title: 'Tidak bisa membuka detail',
+                      message:
+                          'Data pesanan tidak valid atau formatnya berbeda. '
+                          'Buka lagi dari Riwayat Pesanan.',
+                      onRetry: () => GoRouter.of(context).go('/order_history'),
+                      retryLabel: 'Ke riwayat pesanan',
+                    ),
+                  ),
+                );
+              }
               return _adaptivePage(
                 child: OrderDetailPage(order: order),
                 name: 'order-detail',

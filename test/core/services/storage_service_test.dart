@@ -1,10 +1,13 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:alitapricelist/core/services/storage_service.dart';
+
+import '../../helpers/mock_app_support_dir.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -36,9 +39,14 @@ void main() {
     );
   }
 
+  late Directory testSupportDir;
+
   setUp(() {
     SharedPreferences.setMockInitialValues({});
     mockSecureStorage();
+    StorageService.debugResetFileCacheForTests();
+    testSupportDir = Directory.systemTemp.createTempSync('alita_storage_test_');
+    setMockApplicationSupportDirectory(testSupportDir.path);
   });
 
   group('Cart persistence', () {

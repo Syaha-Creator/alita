@@ -9,6 +9,19 @@ import '../../../../core/utils/platform_utils.dart';
 
 /// Reusable body for About app dialog (iOS & Android).
 class AboutDialogContent extends StatelessWidget {
+  /// Tutup route dialog tanpa [Navigator.of] (!) — aman dengan nested / shell navigator.
+  static void _popDialogRoute(BuildContext dialogContext) {
+    final root = Navigator.maybeOf(dialogContext, rootNavigator: true);
+    if (root != null && root.canPop()) {
+      root.pop();
+      return;
+    }
+    final nested = Navigator.maybeOf(dialogContext, rootNavigator: false);
+    if (nested != null && nested.canPop()) {
+      nested.pop();
+    }
+  }
+
   /// Shows the About dialog. Call from menu item or button.
   static Future<void> show(BuildContext context) async {
     final packageInfo = await PackageInfo.fromPlatform();
@@ -18,13 +31,14 @@ class AboutDialogContent extends StatelessWidget {
     if (isIOS) {
       unawaited(showCupertinoDialog<void>(
         context: context,
-        builder: (_) => CupertinoAlertDialog(
+        useRootNavigator: true,
+        builder: (dialogContext) => CupertinoAlertDialog(
           title: const Text('Tentang Aplikasi'),
           content: AboutDialogContent(versionLabel: versionLabel),
           actions: [
             CupertinoDialogAction(
               isDefaultAction: true,
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => _popDialogRoute(dialogContext),
               child: const Text('Tutup'),
             ),
           ],
@@ -35,12 +49,13 @@ class AboutDialogContent extends StatelessWidget {
 
     unawaited(showDialog<void>(
       context: context,
-      builder: (_) => AlertDialog(
+      useRootNavigator: true,
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Tentang Aplikasi'),
         content: AboutDialogContent(versionLabel: versionLabel),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => _popDialogRoute(dialogContext),
             child: const Text('Tutup'),
           ),
         ],
@@ -56,8 +71,7 @@ class AboutDialogContent extends StatelessWidget {
   static const String description =
       'Aplikasi resmi manajemen katalog produk, kalkulasi harga, '
       'dan pembuatan pesanan untuk jaringan penjualan Massindo Group.';
-  static const String copyright =
-      '© 2026 Massindo Group. All rights reserved.';
+  static const String copyright = '© 2026 Massindo Group. All rights reserved.';
 
   final String versionLabel;
 

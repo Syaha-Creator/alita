@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/enums/order_status.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/services/api_session_expired.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../core/utils/contact_actions.dart';
 import '../../../../core/utils/name_matcher.dart';
@@ -23,6 +24,7 @@ import '../widgets/approval_detail_bottom_bar.dart';
 import '../widgets/approval_header_card.dart';
 import '../widgets/approval_payments_card.dart';
 import '../widgets/approval_products_card.dart';
+import '../../../auth/logic/auth_provider.dart';
 import '../../../profile/logic/profile_provider.dart';
 import '../../logic/approval_inbox_provider.dart';
 
@@ -274,6 +276,27 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
       if (mounted) context.pop();
     } catch (e, st) {
       sw.stop();
+      if (e is ApiSessionExpiredException) {
+        Log.warning(
+          'Approval session expired: ${e.detail}',
+          tag: 'Approval',
+        );
+        AppTelemetry.error('approval_session_expired', data: {
+          'action': action,
+          'detail': e.detail ?? '',
+          'duration_ms': sw.elapsedMilliseconds,
+        });
+        if (!mounted) return;
+        AppFeedback.show(
+          context,
+          message: e.toString(),
+          type: AppFeedbackType.warning,
+          floating: true,
+          duration: const Duration(seconds: 5),
+        );
+        await ref.read(authProvider.notifier).logout();
+        return;
+      }
       Log.error(e, st, reason: 'ApprovalDetail.processDecision');
       AppTelemetry.error('approval_decision_failed', data: {
         'action': action,

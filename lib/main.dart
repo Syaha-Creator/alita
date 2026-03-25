@@ -11,6 +11,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' show ClientException;
 
 import 'package:intl/date_symbol_data_local.dart';
 import 'core/config/app_config.dart';
@@ -115,16 +116,28 @@ void main() async {
   };
 
   PlatformDispatcher.instance.onError = (error, stack) {
+    if (_isLikelyTransientNetworkError(error)) {
+      try {
+        FirebaseCrashlytics.instance.recordError(error, stack, fatal: false);
+      } catch (_) {}
+      return true;
+    }
     try {
       FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
     } catch (_) {}
     return true;
   };
 
-  unawaited(Future.delayed(const Duration(seconds: 1), () {
-    PdfAssetCache.warmUp();
-    StorageService.migratePricelistCacheFromPrefs();
-  }));
+  try {
+    await StorageService.migrateQuotationsFromPrefsIfNeeded();
+    await StorageService.migrateMasterDataJsonFromPrefsIfNeeded();
+    await StorageService.migrateCartFromPrefsIfNeeded();
+    await StorageService.migratePricelistCacheFromPrefs();
+  } catch (e, st) {
+    Log.error(e, st, reason: 'Storage migration at startup');
+  }
+
+  unawaited(Future.delayed(const Duration(seconds: 1), PdfAssetCache.warmUp));
 
   runApp(
     const ProviderScope(
@@ -257,6 +270,9 @@ class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp>
 bool _isTransientAssetError(FlutterErrorDetails details) {
   final exception = details.exception;
   if (exception is PathNotFoundException) return true;
+  if (exception is ClientException) return true;
+  if (exception is SocketException) return true;
+  if (exception is TimeoutException) return true;
 
   final message = details.exceptionAsString();
   return message.contains('image decoding') ||
@@ -266,7 +282,27 @@ bool _isTransientAssetError(FlutterErrorDetails details) {
       message.contains('FileSystemException') ||
       message.contains('Failed to load font') ||
       message.contains('SocketException') ||
-      message.contains('Connection abort');
+      message.contains('Connection abort') ||
+      message.contains('Connection closed') ||
+      message.contains('ClientException') ||
+      message.contains('HandshakeException') ||
+      message.contains('Connection reset');
+}
+
+/// Network errors that often surface outside [FlutterError] (zones / isolates).
+bool _isLikelyTransientNetworkError(Object error) {
+  if (error is ClientException ||
+      error is SocketException ||
+      error is TimeoutException) {
+    return true;
+  }
+  final s = error.toString().toLowerCase();
+  return s.contains('clientexception') ||
+      s.contains('socketexception') ||
+      s.contains('connection closed') ||
+      s.contains('connection reset') ||
+      s.contains('failed host lookup') ||
+      s.contains('network is unreachable');
 }
 
 /// Friendly fallback shown in release when a widget fails to build.

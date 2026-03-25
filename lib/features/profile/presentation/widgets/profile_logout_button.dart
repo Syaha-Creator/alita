@@ -34,12 +34,12 @@ class ProfileLogoutButton extends ConsumerWidget {
 
   void _confirmLogout(BuildContext context, WidgetRef ref) {
     hapticTap();
-    showAdaptiveAlert(
+    showAdaptiveAlert<bool>(
       context: context,
       title: 'Keluar',
       content: 'Apakah Anda yakin ingin keluar dari akun?',
-      actions: [
-        const AdaptiveAction(
+      actions: const [
+        AdaptiveAction(
           label: 'Batal',
           color: AppColors.textSecondary,
           popResult: false,
@@ -47,12 +47,13 @@ class ProfileLogoutButton extends ConsumerWidget {
         AdaptiveAction(
           label: 'Keluar',
           isDestructive: true,
-          onPressed: () {
-            Navigator.pop(context);
-            ref.read(authProvider.notifier).logout();
-          },
+          popResult: true,
         ),
       ],
-    );
+    ).then((confirmed) {
+      if (confirmed == true) {
+        ref.read(authProvider.notifier).logout();
+      }
+    });
   }
 }

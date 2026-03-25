@@ -26,7 +26,7 @@ abstract final class PdfTotalsSection {
         final method = p['payment_method']?.toString() ?? '';
         final methodBank = _composePaymentLabel(method, bank);
         final paymentLabel = i == 0 && methodBank.isNotEmpty
-            ? '(${_toTitleCase(methodBank)})'
+            ? '($methodBank)'
             : '(${_paymentOrdinalLabel(i + 1)})';
 
         final payDate = p['payment_date']?.toString();
@@ -180,14 +180,6 @@ abstract final class PdfTotalsSection {
     if (bankUpper.contains(methodUpper)) return bankUpper;
     if (methodUpper.contains(bankUpper)) return methodUpper;
     return '$methodUpper $bankUpper';
-  }
-
-  static String _toTitleCase(String text) {
-    return text.split(' ').map((w) {
-      if (w.isEmpty) return '';
-      if (w.length <= 4 && w == w.toUpperCase()) return w;
-      return '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}';
-    }).join(' ');
   }
 
   static pw.Widget _totalCurrencyRow(String label, double amount,

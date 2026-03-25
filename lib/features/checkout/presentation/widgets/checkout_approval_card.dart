@@ -6,6 +6,8 @@ import '../../../../core/widgets/section_card.dart';
 class CheckoutApprovalCard extends StatelessWidget {
   final bool isLoading;
   final bool hasError;
+  /// Judul error; jika null dipakai fallback generik.
+  final String? errorTitle;
   final String? errorMessage;
   final VoidCallback onRetry;
   final Widget child;
@@ -14,6 +16,7 @@ class CheckoutApprovalCard extends StatelessWidget {
     super.key,
     required this.isLoading,
     required this.hasError,
+    this.errorTitle,
     this.errorMessage,
     required this.onRetry,
     required this.child,
@@ -47,20 +50,21 @@ class CheckoutApprovalCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
-                Icon(
+                const Icon(
                   Icons.error_outline,
                   color: AppColors.error,
                   size: 18,
                 ),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Gagal memuat daftar approver.',
-                    style: TextStyle(
+                    errorTitle ?? 'Gagal memuat daftar approver.',
+                    style: const TextStyle(
                       color: AppColors.error,
                       fontSize: 13,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
