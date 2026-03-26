@@ -249,6 +249,7 @@ open coverage/html/index.html
 - Laporan coverage: `coverage/html/index.html` (setelah `flutter test --coverage`)
 - Data Connect: [`docs/DATA_CONNECT.md`](docs/DATA_CONNECT.md)
 - Deep link & App Links: [`docs/DEEPLINKS_SETUP.md`](docs/DEEPLINKS_SETUP.md)
+- Cabang, proteksi `main`, rahasia Git: [`docs/REPOSITORY.md`](docs/REPOSITORY.md)
 
 ---
 
