@@ -1,126 +1,257 @@
 # Alita Pricelist
 
-A Flutter application for viewing, filtering, and managing price list data with discount calculation, installment options, and approval flows. The project uses **Riverpod** for state management and **GoRouter** for navigation.
+Aplikasi **Flutter** untuk tim lapangan Massindo: pricelist dinamis, keranjang & checkout, riwayat pesanan, penawaran (PDF), dan alur **persetujuan** pesanan. State management memakai **Riverpod**, navigasi **GoRouter**, dengan integrasi **Firebase** (Auth, Messaging, Crashlytics, Analytics, App Check) dan **Firebase Data Connect** untuk data pelanggan di checkout.
 
-## Requirements
+---
 
-- Flutter SDK (matching project constraint in `pubspec.yaml`, currently Dart ^3.6.1)
-- Xcode / Android Studio toolchains for iOS/Android builds
-- `.env` file with API credentials (see Setup below)
-- Firebase (run `flutterfire configure` after clone)
+## Daftar isi
+
+- [Fitur aplikasi](#fitur-aplikasi)
+- [Persyaratan](#persyaratan)
+- [Setup](#setup)
+- [Menjalankan aplikasi](#menjalankan-aplikasi)
+- [Build release & rahasia](#build-release--rahasia)
+- [Pengujian](#pengujian)
+- [Arsitektur](#arsitektur)
+- [Referensi cepat](#referensi-cepat)
+- [Dokumentasi internal](#dokumentasi-internal)
+
+---
+
+## Fitur aplikasi
+
+### Autentikasi & sesi
+
+| Fitur | Deskripsi |
+|-------|-----------|
+| Login API | OAuth2 client credentials ke API Alita (Ruby); sesi disimpan |
+| Persistensi | Token, user, area default, dll. (`StorageService` + secure storage) |
+| Routing terlindungi | Belum login → halaman login; sudah login → home |
+| Firebase Anonymous Auth | Untuk **Data Connect** (token gRPC tanpa UI login terpisah) |
+
+### Pricelist & produk
+
+| Fitur | Deskripsi |
+|-------|-----------|
+| Daftar produk | Grid masonry/staggered, pencarian, filter area/channel/brand |
+| Master data | Sync area, channel, brand dengan cache |
+| Detail produk | Carousel gambar, harga, varian, aksesori, simulasi cicilan |
+| Diskon & bonus | Modal diskon, editor bonus sesuai aturan produk |
+| Deep link produk | `/product/:id` — buka detail dari link tanpa navigasi penuh |
+| Cache besar | Data pricelist besar disimpan ke file (bukan SharedPreferences) |
+
+### Keranjang & favorit
+
+| Fitur | Deskripsi |
+|-------|-----------|
+| Keranjang | Qty, edit item, lanjut ke checkout |
+| Favorit | Daftar produk favorit |
+
+### Checkout & pesanan
+
+| Fitur | Deskripsi |
+|-------|-----------|
+| Checkout | Dari keranjang atau **restore dari quotation** |
+| Pelanggan | Nama, telepon, alamat; **Data Connect** (upsert / lookup by phone) |
+| Wilayah | Picker wilayah Indonesia (API region) |
+| Pengiriman & pembayaran | Metode/channel, bukti pembayaran (upload gambar) |
+| Bonus & takeaway | Kontrol “bawa langsung”, perhitungan diskon & harga net |
+| Order letter | Draft, approver, retry saat gagal |
+| Sukses pesanan | Halaman konfirmasi setelah submit |
+| Offline | Banner + retry saat tidak ada jaringan |
+
+### Riwayat & pembayaran lanjutan
+
+| Fitur | Deskripsi |
+|-------|-----------|
+| Riwayat pesanan | Daftar pesanan |
+| Detail pesanan | Item, status, pembayaran, timeline approval |
+| Tambah pembayaran | Dari detail pesanan (bottom sheet) |
+
+### Quotation (penawaran)
+
+| Fitur | Deskripsi |
+|-------|-----------|
+| Riwayat quotation | Daftar penawaran |
+| PDF | Generate, preview, bagikan (pdf + printing + share_plus) |
+| Edit pelanggan | Sheet edit data di alur quotation |
+
+### Persetujuan (approval)
+
+| Fitur | Deskripsi |
+|-------|-----------|
+| Inbox | Daftar menunggu persetujuan |
+| Detail | Setuju / tolak dengan konteks lengkap |
+| Deep link | `/approval_from_order/:orderId` — buka dari notifikasi/link |
+| Lokasi | GPS + geocoding untuk konteks approval (dengan fallback aman) |
+
+### Profil & bantuan
+
+| Fitur | Deskripsi |
+|-------|-----------|
+| Profil | Info user, menu, statistik ringkas, versi app, logout |
+| Pusat bantuan | FAQ / kontak (sesuai implementasi) |
+| Telemetry debug | Hanya untuk user ID tertentu (halaman debug) |
+
+### Notifikasi & tautan
+
+| Fitur | Deskripsi |
+|-------|-----------|
+| FCM | Foreground, background, tap — navigasi ke fitur relevan |
+| Notifikasi lokal | `flutter_local_notifications` |
+| App Links | Deep link awal (`app_links`) + override `initialLocation` |
+
+### Keandalan, update & keamanan
+
+| Fitur | Deskripsi |
+|-------|-----------|
+| Crashlytics | Pelaporan error; filter error aset/jaringan transien |
+| Analytics | Event lewat `AppAnalyticsService` + route observer |
+| App Check | Play Integrity / App Attest (debug provider di dev) |
+| Force update | Android: **in-app update** (native); iOS + fallback: **UpgradeAlert** |
+| Konfigurasi | `.env` dev; **release: `--dart-define`** (lihat [Build release](#build-release--rahasia)) |
+
+---
+
+## Persyaratan
+
+- Flutter SDK sesuai `pubspec.yaml` (Dart ^3.6.1)
+- Toolchain Xcode (iOS) / Android Studio (Android)
+- File `.env` untuk development (lihat Setup)
+- Firebase: jalankan `flutterfire configure` setelah clone
+
+---
 
 ## Setup
 
-1. **Install dependencies**
+1. **Dependensi**
    ```bash
    flutter pub get
    ```
 
-2. **Prepare environment variables**
-   - Copy `.env.example` to `.env` at project root
-   - Fill in required keys (see `.env.example` for full list):
-     - `API_BASE_URL` — Alita (Ruby) API base URL
-     - `CLIENT_ID` — API client ID
-     - `CLIENT_SECRET` — API client secret
-     - Optional: Comforta, Region API, Firebase credentials
-   - Tests load credentials via `dotenv.testLoad()` inline — no separate test env file needed
+2. **Environment**
+   - Salin `.env.example` → `.env` di root project
+   - Minimal: `API_BASE_URL`, `CLIENT_ID`, `CLIENT_SECRET`
+   - Opsional: Comforta, Region API, variabel Firebase di `.env.example` (server/CF); client memakai `firebase_options.dart`
 
-3. **Firebase (required after fresh clone)**
+3. **Firebase**
    ```bash
    dart pub global activate flutterfire_cli
    flutterfire configure
    ```
-   This generates `lib/firebase_options.dart`, `android/app/google-services.json`, and `ios/Runner/GoogleService-Info.plist`.
+   Menghasilkan `lib/firebase_options.dart`, `google-services.json`, `GoogleService-Info.plist`.
 
-4. **Generate code (when modifying freezed/json_serializable)**
+4. **Code generation** (setelah ubah freezed/json_serializable)
    ```bash
    dart run build_runner build --delete-conflicting-outputs
    ```
 
-## Running the app
+5. **iOS (Pods)** — setelah clone atau update native deps:
+   ```bash
+   cd ios && pod install && cd ..
+   ```
+
+---
+
+## Menjalankan aplikasi
 
 ```bash
 flutter run
 ```
 
-Use `-d <device_id>` to target a specific device.
+Gunakan `-d <device_id>` untuk perangkat tertentu.
 
-## Release builds (secrets)
+---
 
-**Do not** bake real credentials from `.env` into release artifacts. Use `--dart-define` to inject secrets at build time (from CI secrets or a local script):
+## Build release & rahasia
+
+**Jangan** mengandalkan `.env` yang ikut ter-bundle untuk rahasia production. `AppConfig` membaca **`--dart-define` dulu**, lalu fallback `.env`.
+
+**Disarankan:** script yang membaca variabel dari environment / `.env` lokal Anda dan memanggil Flutter dengan `--dart-define`:
 
 ```bash
-flutter build apk --dart-define=API_BASE_URL=https://api.example.com \
-  --dart-define=CLIENT_ID=your_client_id \
-  --dart-define=CLIENT_SECRET=your_client_secret
+# Pastikan .env terisi, lalu:
+./scripts/build_release.sh appbundle   # AAB (Play Store)
+./scripts/build_release.sh apk         # APK
 ```
 
-`AppConfig` reads `--dart-define` first, then falls back to `.env`. When all required vars are passed via `--dart-define`, `.env` is never used and is not bundled.
-
-Required for production: `API_BASE_URL`, `CLIENT_ID`, `CLIENT_SECRET`. Optional: Comforta and Region API vars (see `.env.example`).
-
-## Testing
+Atau manual:
 
 ```bash
-# Run all tests
+flutter build appbundle --release \
+  --dart-define=API_BASE_URL=https://... \
+  --dart-define=CLIENT_ID=... \
+  --dart-define=CLIENT_SECRET=...
+```
+
+| Kategori | Variabel | Wajib `--dart-define` di release? |
+|----------|----------|-------------------------------------|
+| Alita API | `API_BASE_URL`, `CLIENT_ID`, `CLIENT_SECRET` | Ya |
+| Comforta | `COMFORTA_ACCESS_TOKEN`, `COMFORTA_CLIENT_ID`, `COMFORTA_CLIENT_SECRET` | Ya jika dipakai |
+| Default di kode | `COMFORTA_API_HOST`, `REGION_API_BASE_URL` | Tidak |
+| Firebase client | — | Pakai `firebase_options.dart`, bukan `.env` untuk app |
+
+---
+
+## Pengujian
+
+```bash
 flutter test
+flutter test test/<path_ke_test>.dart
 
-# Run a single suite
-flutter test test/<path_to_test>.dart
-
-# Generate coverage (HTML)
+# Coverage + laporan HTML (perlu lcov: brew install lcov)
 flutter test --coverage
 genhtml coverage/lcov.info -o coverage/html
 open coverage/html/index.html
 ```
 
-### Test setup
-
-- Unit/widget tests use `dotenv.testLoad(fileInput: '...')` with inline credentials where needed
-- Integration tests run against the app shell with optional API mocking
-
-### Accessibility
-
-- Icon-only buttons use `tooltip` for screen readers
-- Test checkout at maximum text scale: Settings → Display → Font size (largest), or use `MediaQuery.withClampedTextScaling`
-- Key flows (login, product detail, checkout) use semantic labels on controls
+- Test memakai `dotenv.testLoad()` bila perlu kredensial inline
+- **Aksesibilitas:** tombol icon-only punya `tooltip`; uji dengan text scale maksimum untuk alur login, detail produk, checkout
 
 ### Troubleshooting
 
-- **"command not found: genhtml"** — Install lcov (e.g. `brew install lcov`) then rerun coverage generation
-- **Missing env vars** — Ensure `.env` exists with `API_BASE_URL`, `CLIENT_ID`, `CLIENT_SECRET` at minimum
+| Masalah | Tindakan |
+|---------|----------|
+| `genhtml` tidak ditemukan | Install `lcov` |
+| Konfigurasi API error | Pastikan `.env` berisi minimal tiga key Alita di atas |
 
-## Architecture
+---
 
-- **State management:** Riverpod (`StateNotifierProvider`, `AsyncNotifierProvider`, etc.)
-- **Navigation:** GoRouter
-- **Structure:** Feature-first under `lib/features/` (auth, cart, checkout, pricelist, approval, history, quotation, profile, favorites)
-- **Shared:** `lib/core/` — config, services, theme, widgets, router
+## Arsitektur
 
-### Key paths
+| Lapisan | Pilihan |
+|---------|---------|
+| State | Riverpod (`StateNotifier`, `AsyncNotifier`, dll.) |
+| Navigasi | GoRouter + `ShellRoute` (upgrade alert) |
+| Struktur | **Feature-first** di `lib/features/` |
 
-- Config: `lib/core/config/app_config.dart`
-- Router: `lib/core/router/app_router.dart`
-- Auth: `lib/features/auth/logic/auth_provider.dart`
-- Features: `lib/features/<feature>/data/`, `logic/`, `presentation/`
+**Modul fitur:** `auth`, `cart`, `checkout`, `pricelist`, `approval`, `history`, `quotation`, `profile`, `favorites`, `product` (brand spec, dll.)
 
-## Features (high level)
+**Shared:** `lib/core/` — `config`, `services`, `theme`, `widgets`, `router`
 
-- Dynamic filtering by area, brand, channel, bed configuration
-- Discount calculation and net price display
-- Installment options
-- Approvals monitoring and timelines
-- Cart, checkout, order history
-- Quotation management
-- Profile and help center
+### Path penting
 
-## Useful paths
+| Tujuan | Path |
+|--------|------|
+| Konfigurasi | `lib/core/config/app_config.dart` |
+| Router | `lib/core/router/app_router.dart` |
+| Auth state | `lib/features/auth/logic/auth_provider.dart` |
+| Fitur | `lib/features/<nama>/data/`, `logic/`, `presentation/` |
+| Widget reusable | `lib/core/widgets/` |
+| HTTP | `lib/core/services/api_client.dart` |
+| Build release | `scripts/build_release.sh` |
 
-- Coverage report: `coverage/html/index.html` (after `flutter test --coverage`)
-- Env template: `.env.example`
-- Core widgets: `lib/core/widgets/`
-- API client: `lib/core/services/api_client.dart`
+---
 
-## Internal docs (FCM & persetujuan)
+## Referensi cepat
 
-Ringkas: notifikasi persetujuan memakai **`type`** + opsional **`order_letter_id`** di data FCM untuk navigasi dan muat SP dari API; POST **`/order_letter_approves`** mengirim **`location`** dan **`lokasi_approval`** dengan **teks lokasi yang sama** (alamat geocode atau fallback koordinat, bukan placeholder “via sistem”). Detail lengkap: [`docs/internal_fcm_and_approval_location.md`](docs/internal_fcm_and_approval_location.md).
+- Template env: `.env.example`
+- Laporan coverage: `coverage/html/index.html` (setelah `flutter test --coverage`)
+- Data Connect: [`docs/DATA_CONNECT.md`](docs/DATA_CONNECT.md)
+- Deep link & App Links: [`docs/DEEPLINKS_SETUP.md`](docs/DEEPLINKS_SETUP.md)
+
+---
+
+## Dokumentasi internal
+
+**FCM & lokasi persetujuan:** notifikasi memakai `type` + opsional `order_letter_id` untuk navigasi; POST `/order_letter_approves` mengirim `location` dan `lokasi_approval` dengan teks lokasi yang konsisten (alamat geocode atau fallback koordinat, bukan placeholder generik). Konfigurasi tautan aplikasi: [`docs/DEEPLINKS_SETUP.md`](docs/DEEPLINKS_SETUP.md).
