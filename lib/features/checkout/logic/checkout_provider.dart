@@ -18,6 +18,7 @@ import '../../history/logic/order_history_provider.dart';
 import '../../approval/logic/approval_decision_service.dart';
 import '../../approval/logic/approval_inbox_provider.dart';
 import '../data/models/approver_model.dart';
+import '../data/models/store_model.dart';
 import '../data/services/approval_service.dart';
 import '../data/models/checkout_models.dart';
 import '../data/services/checkout_order_service.dart';
@@ -34,6 +35,13 @@ part 'checkout_provider.freezed.dart';
 @freezed
 class CheckoutState with _$CheckoutState {
   const factory CheckoutState({
+    // Workplace / Store
+    @Default(true) bool isLoadingWorkPlace,
+    int? attendanceWorkPlaceId,
+    @Default('') String attendanceWorkPlaceName,
+    @Default(true) bool useAttendanceStore,
+    StoreModel? selectedStore,
+
     // Approvers
     @Default([]) List<Approver> approvers,
     @Default(true) bool isLoadingApprovers,
@@ -69,6 +77,55 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
 
   final Ref _ref;
   late final CheckoutOrderService _orderService;
+
+  // ── Workplace / Store ───────────────────────────────────────────
+
+  Future<void> fetchAttendanceWorkPlace() async {
+    state = state.copyWith(isLoadingWorkPlace: true);
+    try {
+      final userId = await StorageService.loadUserId();
+      final token = await StorageService.loadAccessToken();
+      final wp = await _orderService.getLatestWorkPlace(userId, token);
+      if (wp != null) {
+        state = state.copyWith(
+          isLoadingWorkPlace: false,
+          attendanceWorkPlaceId: wp.$1,
+          attendanceWorkPlaceName: wp.$2,
+        );
+      } else {
+        state = state.copyWith(
+          isLoadingWorkPlace: false,
+          useAttendanceStore: false,
+        );
+      }
+    } catch (e, st) {
+      Log.error(e, st, reason: 'CheckoutNotifier.fetchAttendanceWorkPlace');
+      state = state.copyWith(
+        isLoadingWorkPlace: false,
+        useAttendanceStore: false,
+      );
+    }
+  }
+
+  void toggleUseAttendanceStore(bool value) {
+    state = state.copyWith(
+      useAttendanceStore: value,
+      selectedStore: value ? null : state.selectedStore,
+    );
+  }
+
+  void updateStore(StoreModel store) {
+    state = state.copyWith(
+      selectedStore: store,
+      useAttendanceStore: false,
+    );
+  }
+
+  /// Returns the effective `work_place_id` to be sent in the header payload.
+  int? get effectiveWorkPlaceId {
+    if (state.useAttendanceStore) return state.attendanceWorkPlaceId;
+    return state.selectedStore?.id;
+  }
 
   // ── Approvers ─────────────────────────────────────────────────
 
@@ -224,17 +281,14 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       final int userId = await StorageService.loadUserId();
       final String token = await StorageService.loadAccessToken();
 
-      final int? workPlaceId =
-          await _orderService.getLatestWorkPlaceId(userId, token);
+      final int? workPlaceId = effectiveWorkPlaceId;
 
       if (workPlaceId == null || workPlaceId <= 0) {
         state = state.copyWith(
           isSubmitting: false,
-          submitError: 'Tempat kerja tidak terdeteksi.\n\n'
-              'Riwayat absensi Anda belum memiliki lokasi kantor yang valid. '
-              'Silakan lakukan Check-In ulang di aplikasi absensi dengan '
-              'memilih tempat kerja (bukan WOH/WFH/Work Out Side).\n\n'
-              'Setelah Check-In berhasil, coba buat Surat Pesanan kembali.',
+          submitError: 'Lokasi toko belum dipilih.\n\n'
+              'Pilih lokasi toko dari absensi atau pilih toko lain '
+              'di bagian Informasi Pengiriman.',
         );
         totalSw.stop();
         AppTelemetry.error(

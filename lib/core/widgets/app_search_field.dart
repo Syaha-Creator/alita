@@ -32,6 +32,12 @@ class AppSearchField extends StatefulWidget {
   final BoxConstraints? prefixIconConstraints;
   final BoxConstraints? suffixIconConstraints;
 
+  /// When false, disables autocorrect (e.g. store/code search — match raw strings).
+  final bool autocorrect;
+
+  /// When false, disables keyboard suggestions.
+  final bool enableSuggestions;
+
   const AppSearchField({
     super.key,
     this.controller,
@@ -60,6 +66,8 @@ class AppSearchField extends StatefulWidget {
     this.autofocus = false,
     this.prefixIconConstraints,
     this.suffixIconConstraints,
+    this.autocorrect = true,
+    this.enableSuggestions = true,
   });
 
   @override
@@ -123,6 +131,8 @@ class _AppSearchFieldState extends State<AppSearchField> {
       autofocus: widget.autofocus,
       controller: _controller,
       onChanged: widget.onChanged,
+      autocorrect: widget.autocorrect,
+      enableSuggestions: widget.enableSuggestions,
       textCapitalization: widget.textCapitalization,
       textAlignVertical: widget.textAlignVertical,
       strutStyle: widget.strutStyle,

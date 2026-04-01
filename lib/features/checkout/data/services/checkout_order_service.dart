@@ -32,6 +32,14 @@ class CheckoutOrderService {
   /// (WOH/WFH/Work Outside), returns null so the checkout flow can
   /// block submission and prompt the user to check in properly.
   Future<int?> getLatestWorkPlaceId(int userId, String token) async {
+    final wp = await getLatestWorkPlace(userId, token);
+    return wp?.$1;
+  }
+
+  /// Returns `(work_place_id, work_place_name)` from the user's most
+  /// recent attendance, or `null` if unavailable / WOH/WFH.
+  Future<(int, String)?> getLatestWorkPlace(
+      int userId, String token) async {
     try {
       final response = await _api.get(
         CheckoutEndpoints.attendanceList,
@@ -50,13 +58,20 @@ class CheckoutOrderService {
                     DateTime(2000);
             return dateB.compareTo(dateA);
           });
-          final raw = data.first['work_place_id'];
-          if (raw == null) return null;
-          return raw is int ? raw : int.tryParse(raw.toString());
+          final latest = data.first as Map<String, dynamic>;
+          final rawId = latest['work_place_id'];
+          if (rawId == null) return null;
+          final id = rawId is int ? rawId : int.tryParse(rawId.toString());
+          if (id == null || id <= 0) return null;
+          final name = latest['office_name']?.toString() ??
+              latest['work_place_name']?.toString() ??
+              latest['workplace_name']?.toString() ??
+              '';
+          return (id, name);
         }
       }
     } catch (e, st) {
-      Log.error(e, st, reason: 'CheckoutOrderService.getLatestWorkPlaceId');
+      Log.error(e, st, reason: 'CheckoutOrderService.getLatestWorkPlace');
     }
     return null;
   }

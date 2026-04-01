@@ -39,45 +39,43 @@ class DatePickerFieldTile extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Semantics(
-          label: hasValue
-              ? 'Pilih tanggal, dipilih: $text'
-              : 'Pilih tanggal',
+          label: hasValue ? 'Pilih tanggal, dipilih: $text' : 'Pilih tanggal',
           button: true,
           child: InkWell(
             onTap: onTap,
             borderRadius: BorderRadius.circular(8),
             child: ExcludeSemantics(
               child: Container(
-            padding: contentPadding,
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: hasError ? AppColors.error : AppColors.border,
-                width: hasError ? 1.5 : 1.0,
+                padding: contentPadding,
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: hasError ? AppColors.error : AppColors.border,
+                    width: hasError ? 1.5 : 1.0,
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      hasValue ? text : placeholder,
+                      style: textStyle ??
+                          TextStyle(
+                            color: hasValue
+                                ? AppColors.textPrimary
+                                : AppColors.textTertiary,
+                            fontSize: 14,
+                          ),
+                    ),
+                    Icon(
+                      icon,
+                      size: iconSize,
+                      color: AppColors.textSecondary,
+                    ),
+                  ],
+                ),
               ),
-              borderRadius: BorderRadius.circular(8),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  hasValue ? text : placeholder,
-                  style: textStyle ??
-                      TextStyle(
-                        color: hasValue
-                            ? AppColors.textPrimary
-                            : AppColors.textTertiary,
-                        fontSize: 14,
-                      ),
-                ),
-                Icon(
-                  icon,
-                  size: iconSize,
-                  color: AppColors.textSecondary,
-                ),
-              ],
-            ),
-          ),
-          ),
           ),
         ),
         if (hasError && (errorText?.isNotEmpty ?? false))

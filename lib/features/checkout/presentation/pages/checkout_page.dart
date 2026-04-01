@@ -43,6 +43,7 @@ import '../widgets/checkout_approver_content.dart';
 import '../widgets/checkout_order_summary.dart';
 import '../widgets/checkout_payment_info_section.dart';
 import '../widgets/region_picker_bottom_sheet.dart';
+import '../widgets/searchable_store_bottom_sheet.dart';
 import '../../logic/checkout_performance_reporter.dart';
 import '../../../quotation/data/quotation_model.dart';
 import '../../../quotation/logic/quotation_list_provider.dart';
@@ -151,7 +152,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     super.initState();
     _payments.add(PaymentEntry());
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(checkoutProvider.notifier).fetchApprovers();
+      final notifier = ref.read(checkoutProvider.notifier);
+      notifier.fetchApprovers();
+      notifier.fetchAttendanceWorkPlace();
       AppAnalyticsService.logBeginCheckout(value: _effectiveTotal(ref));
     });
     _updatePaymentAmountUI();
@@ -416,18 +419,39 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 const SizedBox(height: 16),
 
                 // ── Card 2: Delivery Info ─────────────────────────
-                _buildSectionCard(
-                  key: _deliverySectionKey,
-                  title: 'Informasi Pengiriman',
-                  child: DeliveryInfoSection(
-                    requestDate: _requestDate,
-                    onPickRequestDate: _pickRequestDate,
-                    isTakeAway: _isTakeAway,
-                    onTakeAwayChanged: (v) => setState(() => _isTakeAway = v),
-                    postageCtrl: _postageCtrl,
-                    notesController: _notesController,
-                    scCodeCtrl: _scCodeCtrl,
-                  ),
+                Consumer(
+                  builder: (context, ref, _) {
+                    final storeData = ref.watch(
+                      checkoutProvider.select((s) => (
+                            isLoading: s.isLoadingWorkPlace,
+                            attendanceName: s.attendanceWorkPlaceName,
+                            useAttendance: s.useAttendanceStore,
+                            selectedStore: s.selectedStore,
+                          )),
+                    );
+                    return _buildSectionCard(
+                      key: _deliverySectionKey,
+                      title: 'Informasi Pengiriman',
+                      child: DeliveryInfoSection(
+                        isLoadingWorkPlace: storeData.isLoading,
+                        attendanceWorkPlaceName: storeData.attendanceName,
+                        useAttendanceStore: storeData.useAttendance,
+                        onToggleUseAttendance: (v) => ref
+                            .read(checkoutProvider.notifier)
+                            .toggleUseAttendanceStore(v),
+                        selectedStore: storeData.selectedStore,
+                        onPickStore: () => _pickStore(context),
+                        requestDate: _requestDate,
+                        onPickRequestDate: _pickRequestDate,
+                        isTakeAway: _isTakeAway,
+                        onTakeAwayChanged: (v) =>
+                            setState(() => _isTakeAway = v),
+                        postageCtrl: _postageCtrl,
+                        notesController: _notesController,
+                        scCodeCtrl: _scCodeCtrl,
+                      ),
+                    );
+                  },
                 ),
 
                 const SizedBox(height: 16),
@@ -644,6 +668,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     });
   }
 
+  Future<void> _pickStore(BuildContext context) async {
+    final store = await SearchableStoreBottomSheet.show(context);
+    if (!mounted || store == null) return;
+    ref.read(checkoutProvider.notifier).updateStore(store);
+  }
+
   Future<void> _lookupCustomerFromCloud() async {
     final trimmed = _customerPhoneCtrl.text.trim();
     final key = CustomerRepository.normalizePhoneKey(trimmed);
@@ -673,11 +703,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         _customerEmailCtrl.text = c.email;
         _customerAddressCtrl.text = c.address;
         _regionCtrl.text = c.region;
-        _selectedProvinsi = (c.provinsi != null && c.provinsi!.isNotEmpty)
-            ? c.provinsi
-            : null;
-        _selectedKota =
-            (c.kota != null && c.kota!.isNotEmpty) ? c.kota : null;
+        _selectedProvinsi =
+            (c.provinsi != null && c.provinsi!.isNotEmpty) ? c.provinsi : null;
+        _selectedKota = (c.kota != null && c.kota!.isNotEmpty) ? c.kota : null;
         _selectedKecamatan = (c.kecamatan != null && c.kecamatan!.isNotEmpty)
             ? c.kecamatan
             : null;
@@ -966,6 +994,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       return false;
     }
     final checkoutState = ref.read(checkoutProvider);
+    if (!checkoutState.useAttendanceStore &&
+        checkoutState.selectedStore == null) {
+      _showErrorAndScroll(
+        'Pilih lokasi toko atau aktifkan lokasi absensi.',
+        _deliverySectionKey,
+      );
+      return false;
+    }
     if (checkoutState.selectedSpv == null) {
       _showErrorAndScroll('Pilih Supervisor (SPV).', _approvalSectionKey);
       return false;

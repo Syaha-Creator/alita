@@ -38,44 +38,44 @@ class SectionCard extends StatelessWidget {
       container: true,
       label: title,
       child: Container(
-      width: double.infinity,
-      padding: padding,
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(borderRadius),
-        boxShadow: boxShadow ??
-            [
-              const BoxShadow(
-                color: AppColors.shadow,
-                blurRadius: 12,
-                spreadRadius: 0,
-                offset: Offset(0, 2),
-              ),
-            ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (title case final t?) ...[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Text(
-                  t,
-                  style: titleStyle ??
-                      Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+        width: double.infinity,
+        padding: padding,
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(borderRadius),
+          boxShadow: boxShadow ??
+              [
+                const BoxShadow(
+                  color: AppColors.shadow,
+                  blurRadius: 12,
+                  spreadRadius: 0,
+                  offset: Offset(0, 2),
                 ),
-                if (trailing case final tr?) tr,
               ],
-            ),
-            SizedBox(height: contentSpacing),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (title case final t?) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    t,
+                    style: titleStyle ??
+                        Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                  ),
+                  if (trailing case final tr?) tr,
+                ],
+              ),
+              SizedBox(height: contentSpacing),
+            ],
+            child,
           ],
-          child,
-        ],
-      ),
+        ),
       ),
     );
   }

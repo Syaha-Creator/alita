@@ -16,7 +16,13 @@ final _privateConstructorUsedError = UnsupportedError(
 
 /// @nodoc
 mixin _$CheckoutState {
-// Approvers
+// Workplace / Store
+  bool get isLoadingWorkPlace => throw _privateConstructorUsedError;
+  int? get attendanceWorkPlaceId => throw _privateConstructorUsedError;
+  String get attendanceWorkPlaceName => throw _privateConstructorUsedError;
+  bool get useAttendanceStore => throw _privateConstructorUsedError;
+  StoreModel? get selectedStore =>
+      throw _privateConstructorUsedError; // Approvers
   List<Approver> get approvers => throw _privateConstructorUsedError;
   bool get isLoadingApprovers => throw _privateConstructorUsedError;
   String? get approversError => throw _privateConstructorUsedError;
@@ -49,7 +55,12 @@ abstract class $CheckoutStateCopyWith<$Res> {
       _$CheckoutStateCopyWithImpl<$Res, CheckoutState>;
   @useResult
   $Res call(
-      {List<Approver> approvers,
+      {bool isLoadingWorkPlace,
+      int? attendanceWorkPlaceId,
+      String attendanceWorkPlaceName,
+      bool useAttendanceStore,
+      StoreModel? selectedStore,
+      List<Approver> approvers,
       bool isLoadingApprovers,
       String? approversError,
       String? approversErrorTitle,
@@ -62,6 +73,8 @@ abstract class $CheckoutStateCopyWith<$Res> {
       List<PendingDetail> retryDetails,
       bool submitSuccess,
       String? successNoSp});
+
+  $StoreModelCopyWith<$Res>? get selectedStore;
 }
 
 /// @nodoc
@@ -79,6 +92,11 @@ class _$CheckoutStateCopyWithImpl<$Res, $Val extends CheckoutState>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
+    Object? isLoadingWorkPlace = null,
+    Object? attendanceWorkPlaceId = freezed,
+    Object? attendanceWorkPlaceName = null,
+    Object? useAttendanceStore = null,
+    Object? selectedStore = freezed,
     Object? approvers = null,
     Object? isLoadingApprovers = null,
     Object? approversError = freezed,
@@ -94,6 +112,26 @@ class _$CheckoutStateCopyWithImpl<$Res, $Val extends CheckoutState>
     Object? successNoSp = freezed,
   }) {
     return _then(_value.copyWith(
+      isLoadingWorkPlace: null == isLoadingWorkPlace
+          ? _value.isLoadingWorkPlace
+          : isLoadingWorkPlace // ignore: cast_nullable_to_non_nullable
+              as bool,
+      attendanceWorkPlaceId: freezed == attendanceWorkPlaceId
+          ? _value.attendanceWorkPlaceId
+          : attendanceWorkPlaceId // ignore: cast_nullable_to_non_nullable
+              as int?,
+      attendanceWorkPlaceName: null == attendanceWorkPlaceName
+          ? _value.attendanceWorkPlaceName
+          : attendanceWorkPlaceName // ignore: cast_nullable_to_non_nullable
+              as String,
+      useAttendanceStore: null == useAttendanceStore
+          ? _value.useAttendanceStore
+          : useAttendanceStore // ignore: cast_nullable_to_non_nullable
+              as bool,
+      selectedStore: freezed == selectedStore
+          ? _value.selectedStore
+          : selectedStore // ignore: cast_nullable_to_non_nullable
+              as StoreModel?,
       approvers: null == approvers
           ? _value.approvers
           : approvers // ignore: cast_nullable_to_non_nullable
@@ -148,6 +186,20 @@ class _$CheckoutStateCopyWithImpl<$Res, $Val extends CheckoutState>
               as String?,
     ) as $Val);
   }
+
+  /// Create a copy of CheckoutState
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $StoreModelCopyWith<$Res>? get selectedStore {
+    if (_value.selectedStore == null) {
+      return null;
+    }
+
+    return $StoreModelCopyWith<$Res>(_value.selectedStore!, (value) {
+      return _then(_value.copyWith(selectedStore: value) as $Val);
+    });
+  }
 }
 
 /// @nodoc
@@ -159,7 +211,12 @@ abstract class _$$CheckoutStateImplCopyWith<$Res>
   @override
   @useResult
   $Res call(
-      {List<Approver> approvers,
+      {bool isLoadingWorkPlace,
+      int? attendanceWorkPlaceId,
+      String attendanceWorkPlaceName,
+      bool useAttendanceStore,
+      StoreModel? selectedStore,
+      List<Approver> approvers,
       bool isLoadingApprovers,
       String? approversError,
       String? approversErrorTitle,
@@ -172,6 +229,9 @@ abstract class _$$CheckoutStateImplCopyWith<$Res>
       List<PendingDetail> retryDetails,
       bool submitSuccess,
       String? successNoSp});
+
+  @override
+  $StoreModelCopyWith<$Res>? get selectedStore;
 }
 
 /// @nodoc
@@ -187,6 +247,11 @@ class __$$CheckoutStateImplCopyWithImpl<$Res>
   @pragma('vm:prefer-inline')
   @override
   $Res call({
+    Object? isLoadingWorkPlace = null,
+    Object? attendanceWorkPlaceId = freezed,
+    Object? attendanceWorkPlaceName = null,
+    Object? useAttendanceStore = null,
+    Object? selectedStore = freezed,
     Object? approvers = null,
     Object? isLoadingApprovers = null,
     Object? approversError = freezed,
@@ -202,6 +267,26 @@ class __$$CheckoutStateImplCopyWithImpl<$Res>
     Object? successNoSp = freezed,
   }) {
     return _then(_$CheckoutStateImpl(
+      isLoadingWorkPlace: null == isLoadingWorkPlace
+          ? _value.isLoadingWorkPlace
+          : isLoadingWorkPlace // ignore: cast_nullable_to_non_nullable
+              as bool,
+      attendanceWorkPlaceId: freezed == attendanceWorkPlaceId
+          ? _value.attendanceWorkPlaceId
+          : attendanceWorkPlaceId // ignore: cast_nullable_to_non_nullable
+              as int?,
+      attendanceWorkPlaceName: null == attendanceWorkPlaceName
+          ? _value.attendanceWorkPlaceName
+          : attendanceWorkPlaceName // ignore: cast_nullable_to_non_nullable
+              as String,
+      useAttendanceStore: null == useAttendanceStore
+          ? _value.useAttendanceStore
+          : useAttendanceStore // ignore: cast_nullable_to_non_nullable
+              as bool,
+      selectedStore: freezed == selectedStore
+          ? _value.selectedStore
+          : selectedStore // ignore: cast_nullable_to_non_nullable
+              as StoreModel?,
       approvers: null == approvers
           ? _value._approvers
           : approvers // ignore: cast_nullable_to_non_nullable
@@ -264,7 +349,12 @@ class _$CheckoutStateImpl
     with DiagnosticableTreeMixin
     implements _CheckoutState {
   const _$CheckoutStateImpl(
-      {final List<Approver> approvers = const [],
+      {this.isLoadingWorkPlace = true,
+      this.attendanceWorkPlaceId,
+      this.attendanceWorkPlaceName = '',
+      this.useAttendanceStore = true,
+      this.selectedStore,
+      final List<Approver> approvers = const [],
       this.isLoadingApprovers = true,
       this.approversError,
       this.approversErrorTitle,
@@ -280,6 +370,20 @@ class _$CheckoutStateImpl
       : _approvers = approvers,
         _retryDetails = retryDetails;
 
+// Workplace / Store
+  @override
+  @JsonKey()
+  final bool isLoadingWorkPlace;
+  @override
+  final int? attendanceWorkPlaceId;
+  @override
+  @JsonKey()
+  final String attendanceWorkPlaceName;
+  @override
+  @JsonKey()
+  final bool useAttendanceStore;
+  @override
+  final StoreModel? selectedStore;
 // Approvers
   final List<Approver> _approvers;
 // Approvers
@@ -334,7 +438,7 @@ class _$CheckoutStateImpl
 
   @override
   String toString({DiagnosticLevel minLevel = DiagnosticLevel.info}) {
-    return 'CheckoutState(approvers: $approvers, isLoadingApprovers: $isLoadingApprovers, approversError: $approversError, approversErrorTitle: $approversErrorTitle, selectedSpv: $selectedSpv, selectedManager: $selectedManager, isSubmitting: $isSubmitting, submitError: $submitError, retryOrderId: $retryOrderId, retryNoSp: $retryNoSp, retryDetails: $retryDetails, submitSuccess: $submitSuccess, successNoSp: $successNoSp)';
+    return 'CheckoutState(isLoadingWorkPlace: $isLoadingWorkPlace, attendanceWorkPlaceId: $attendanceWorkPlaceId, attendanceWorkPlaceName: $attendanceWorkPlaceName, useAttendanceStore: $useAttendanceStore, selectedStore: $selectedStore, approvers: $approvers, isLoadingApprovers: $isLoadingApprovers, approversError: $approversError, approversErrorTitle: $approversErrorTitle, selectedSpv: $selectedSpv, selectedManager: $selectedManager, isSubmitting: $isSubmitting, submitError: $submitError, retryOrderId: $retryOrderId, retryNoSp: $retryNoSp, retryDetails: $retryDetails, submitSuccess: $submitSuccess, successNoSp: $successNoSp)';
   }
 
   @override
@@ -342,6 +446,12 @@ class _$CheckoutStateImpl
     super.debugFillProperties(properties);
     properties
       ..add(DiagnosticsProperty('type', 'CheckoutState'))
+      ..add(DiagnosticsProperty('isLoadingWorkPlace', isLoadingWorkPlace))
+      ..add(DiagnosticsProperty('attendanceWorkPlaceId', attendanceWorkPlaceId))
+      ..add(DiagnosticsProperty(
+          'attendanceWorkPlaceName', attendanceWorkPlaceName))
+      ..add(DiagnosticsProperty('useAttendanceStore', useAttendanceStore))
+      ..add(DiagnosticsProperty('selectedStore', selectedStore))
       ..add(DiagnosticsProperty('approvers', approvers))
       ..add(DiagnosticsProperty('isLoadingApprovers', isLoadingApprovers))
       ..add(DiagnosticsProperty('approversError', approversError))
@@ -362,6 +472,17 @@ class _$CheckoutStateImpl
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$CheckoutStateImpl &&
+            (identical(other.isLoadingWorkPlace, isLoadingWorkPlace) ||
+                other.isLoadingWorkPlace == isLoadingWorkPlace) &&
+            (identical(other.attendanceWorkPlaceId, attendanceWorkPlaceId) ||
+                other.attendanceWorkPlaceId == attendanceWorkPlaceId) &&
+            (identical(
+                    other.attendanceWorkPlaceName, attendanceWorkPlaceName) ||
+                other.attendanceWorkPlaceName == attendanceWorkPlaceName) &&
+            (identical(other.useAttendanceStore, useAttendanceStore) ||
+                other.useAttendanceStore == useAttendanceStore) &&
+            (identical(other.selectedStore, selectedStore) ||
+                other.selectedStore == selectedStore) &&
             const DeepCollectionEquality()
                 .equals(other._approvers, _approvers) &&
             (identical(other.isLoadingApprovers, isLoadingApprovers) ||
@@ -393,6 +514,11 @@ class _$CheckoutStateImpl
   @override
   int get hashCode => Object.hash(
       runtimeType,
+      isLoadingWorkPlace,
+      attendanceWorkPlaceId,
+      attendanceWorkPlaceName,
+      useAttendanceStore,
+      selectedStore,
       const DeepCollectionEquality().hash(_approvers),
       isLoadingApprovers,
       approversError,
@@ -418,7 +544,12 @@ class _$CheckoutStateImpl
 
 abstract class _CheckoutState implements CheckoutState {
   const factory _CheckoutState(
-      {final List<Approver> approvers,
+      {final bool isLoadingWorkPlace,
+      final int? attendanceWorkPlaceId,
+      final String attendanceWorkPlaceName,
+      final bool useAttendanceStore,
+      final StoreModel? selectedStore,
+      final List<Approver> approvers,
       final bool isLoadingApprovers,
       final String? approversError,
       final String? approversErrorTitle,
@@ -432,7 +563,17 @@ abstract class _CheckoutState implements CheckoutState {
       final bool submitSuccess,
       final String? successNoSp}) = _$CheckoutStateImpl;
 
-// Approvers
+// Workplace / Store
+  @override
+  bool get isLoadingWorkPlace;
+  @override
+  int? get attendanceWorkPlaceId;
+  @override
+  String get attendanceWorkPlaceName;
+  @override
+  bool get useAttendanceStore;
+  @override
+  StoreModel? get selectedStore; // Approvers
   @override
   List<Approver> get approvers;
   @override
