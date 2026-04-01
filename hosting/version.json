@@ -1,0 +1,13 @@
+{
+  "_info": "File ini digunakan oleh aplikasi Alita Pricelist untuk cek update iOS.",
+  "_cara_update": "Naikkan 'minimum_version' lalu jalankan: firebase deploy --only hosting",
+  "ios": {
+    "minimum_version": "1.7.50",
+    "update_url": "https://apps.apple.com/us/app/alita-pricelist-v2/id6740308588",
+    "force": true,
+    "release_notes": "Perbaikan bug dan peningkatan performa."
+  },
+  "android": {
+    "minimum_version": "1.7.50"
+  }
+}

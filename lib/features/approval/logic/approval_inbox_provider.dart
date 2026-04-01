@@ -15,7 +15,7 @@ import '../../profile/logic/profile_provider.dart';
 
 /// Susun satu baris alamat baca-manusia dari [Placemark] (prioritas Indonesia).
 /// Memakai `thoroughfare` / `subThoroughfare` bila `street` kosong (sering di Android).
-String _formatPlacemarkAddressForApproval(Placemark place) {
+String formatPlacemarkAddressForApproval(Placemark place) {
   String nt(String? s) => (s ?? '').trim();
 
   var line1 = nt(place.street);
@@ -174,9 +174,17 @@ class ApprovalInboxState {
 // ── Notifier ──────────────────────────────────────────────────
 class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
   final Ref ref;
+  final ApiClient _api;
 
-  ApprovalInboxNotifier(this.ref) : super(const ApprovalInboxState()) {
-    fetchInbox();
+  ApprovalInboxNotifier(
+    this.ref, {
+    ApiClient? apiClient,
+    bool skipInitialFetch = false,
+  })  : _api = apiClient ?? ApiClient.instance,
+        super(const ApprovalInboxState()) {
+    if (!skipInitialFetch) {
+      fetchInbox();
+    }
   }
 
   /// Update filter rentang tanggal lalu re-fetch.
@@ -282,7 +290,7 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
       ).timeout(_geocodeTimeout);
       if (placemarks.isNotEmpty) {
         final place = placemarks.first;
-        final formatted = _formatPlacemarkAddressForApproval(place);
+        final formatted = formatPlacemarkAddressForApproval(place);
         if (formatted.isNotEmpty) {
           address = formatted;
         } else {
@@ -318,8 +326,6 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
 
   /// Legacy: hanya koordinat (untuk kompatibilitas).
   Future<Position?> getCurrentLocationForApproval() => _getCurrentLocation();
-
-  static final ApiClient _api = ApiClient.instance;
 
   /// Header Status Sync: update status order letter (Approved/Rejected).
   Future<void> updateOrderLetterStatus(int orderId, String newStatus) async {
@@ -394,8 +400,8 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
       final startDate = state.startDate;
       final endDate = state.endDate;
       if (startDate != null && endDate != null) {
-        queryParams['start_date'] = AppFormatters.apiDate(startDate);
-        queryParams['end_date'] = AppFormatters.apiDate(endDate);
+        queryParams['date_from'] = AppFormatters.apiDate(startDate);
+        queryParams['date_to'] = AppFormatters.apiDate(endDate);
       }
 
       final response = await retry(

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/services/api_client.dart';
@@ -74,45 +75,81 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   final AuthService _authService = AuthService();
 
+  /// Data Connect membutuhkan user Firebase anonim; hanya dipanggil setelah
+  /// login API sukses (bukan dari `main`) agar hot restart / tamu tidak membuat anon ganda.
+  ///
+  /// Selalu mulai dari clean state: [signOut] → [signInAnonymously].
+  /// User anonim tidak menyimpan data bernilai — satu user baru per sesi login
+  /// sudah cukup, dan [_deleteAnonymousFirebaseUserOnLogout] membersihkan saat logout.
+  Future<void> _initFirebaseAnonymousForDataConnect() async {
+    try {
+      final auth = FirebaseAuth.instance;
+
+      // Bersihkan sesi anonim lama yang mungkin stale / user-not-found.
+      if (auth.currentUser != null) {
+        await auth.signOut();
+      }
+
+      await auth.signInAnonymously();
+      await auth.authStateChanges().firstWhere((user) => user != null);
+      await auth.currentUser?.getIdToken(true);
+    } catch (e, st) {
+      Log.error(
+        e,
+        st,
+        reason: 'Gagal inisialisasi Firebase Anonymous setelah login',
+      );
+    }
+  }
+
   /// Read persisted session on startup.
   Future<void> _init() async {
-    final results = await Future.wait([
-      StorageService.loadIsLoggedIn(), // 0
-      StorageService.loadUserEmail(), // 1
-      StorageService.loadDefaultArea(), // 2
-      StorageService.loadAccessToken(), // 3
-      StorageService.loadUserId(), // 4
-      StorageService.loadUserName(), // 5
-      StorageService.loadUserImageUrl(), // 6
-    ]);
+    try {
+      final results = await Future.wait([
+        StorageService.loadIsLoggedIn(), // 0
+        StorageService.loadUserEmail(), // 1
+        StorageService.loadDefaultArea(), // 2
+        StorageService.loadAccessToken(), // 3
+        StorageService.loadUserId(), // 4
+        StorageService.loadUserName(), // 5
+        StorageService.loadUserImageUrl(), // 6
+      ]);
 
-    final isLoggedIn = results[0] as bool;
-    final email = results[1] as String;
-    final area = results[2] as String;
-    final token = results[3] as String;
-    final uid = results[4] as int;
-    final name = results[5] as String;
-    final imageUrl = results[6] as String;
+      final isLoggedIn = results[0] as bool;
+      final email = results[1] as String;
+      final area = results[2] as String;
+      final token = results[3] as String;
+      final uid = results[4] as int;
+      final name = results[5] as String;
+      final imageUrl = results[6] as String;
 
-    // Yield to the next event-loop turn so the state mutation doesn't
-    // overlap with Riverpod's vsync flush during the initial build frame.
-    // Fixes ConcurrentModificationError in riverpod 2.6.1.
-    await Future<void>.delayed(Duration.zero);
-    if (!mounted) return;
+      // Yield to the next event-loop turn so the state mutation doesn't
+      // overlap with Riverpod's vsync flush during the initial build frame.
+      // Fixes ConcurrentModificationError in riverpod 2.6.1.
+      await Future<void>.delayed(Duration.zero);
+      if (!mounted) return;
 
-    state = AuthState(
-      isLoggedIn: isLoggedIn,
-      userEmail: email,
-      defaultArea: area,
-      accessToken: token,
-      userId: uid,
-      userName: name,
-      userImageUrl: imageUrl,
-      isLoading: false,
-    );
+      state = AuthState(
+        isLoggedIn: isLoggedIn,
+        userEmail: email,
+        defaultArea: area,
+        accessToken: token,
+        userId: uid,
+        userName: name,
+        userImageUrl: imageUrl,
+        isLoading: false,
+      );
 
-    if (isLoggedIn && uid > 0 && token.isNotEmpty) {
-      _initFcm(uid.toString(), token);
+      if (isLoggedIn && uid > 0 && token.isNotEmpty) {
+        await _initFirebaseAnonymousForDataConnect();
+        _initFcm(uid.toString(), token);
+      }
+    } catch (e, st) {
+      Log.error(e, st, reason: 'Auth _init (restore session dari storage)');
+      await Future<void>.delayed(Duration.zero);
+      if (!mounted) return;
+      // Jangan biarkan isLoading true selamanya → user stuck di /auth_boot.
+      state = const AuthState(isLoading: false);
     }
   }
 
@@ -151,6 +188,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         userImageUrl: result.userImageUrl,
         isLoading: false,
       );
+
+      await _initFirebaseAnonymousForDataConnect();
 
       sw.stop();
       AppTelemetry.event('login_success', data: {
@@ -244,6 +283,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
     return areaMap[id] ?? 'Unknown Area';
   }
 
+  /// Hapus akun anonim Firebase (Data Connect) agar tidak menumpuk di Console.
+  /// Gagal (offline, dll.) hanya di-log; tidak mengganggu logout aplikasi.
+  static Future<void> _deleteAnonymousFirebaseUserOnLogout() async {
+    try {
+      final firebaseAuth = FirebaseAuth.instance;
+      final currentUser = firebaseAuth.currentUser;
+      if (currentUser != null && currentUser.isAnonymous) {
+        await currentUser.delete();
+        await firebaseAuth.signOut();
+      }
+    } catch (e, st) {
+      Log.error(e, st, reason: 'Gagal menghapus anonymous user saat logout');
+    }
+  }
+
   /// Logout — clears the session immediately, then deletes FCM token
   /// in the background so the UI never blocks on network requests.
   Future<void> logout() async {
@@ -255,6 +309,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     // Clear session first so UI navigates instantly
     await StorageService.clearAuth();
     state = const AuthState(isLoading: false);
+
+    await _deleteAnonymousFirebaseUserOnLogout();
 
     // Fire-and-forget cleanup — never blocks the user
     if (uid != '0' && token.isNotEmpty) {

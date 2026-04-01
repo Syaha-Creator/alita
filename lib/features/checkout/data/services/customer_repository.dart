@@ -1,5 +1,6 @@
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show kReleaseMode;
 
 import '../../../../core/utils/log.dart';
 import '../dataconnect/generated/alita_connector.dart';
@@ -11,8 +12,9 @@ import '../models/customer_model.dart';
 /// - `dataconnect/` sudah di-deploy (`firebase deploy --only dataconnect`)
 /// - Cloud SQL `instanceId` di [dataconnect.yaml] valid
 /// - Firebase Authentication **Anonymous** aktif (untuk `@auth(level: USER)`)
-/// - **App Check**: di build debug/profile, daftarkan debug token (logcat) di
-///   Firebase Console → App Check jika resource Data Connect memakai enforcement.
+/// - **App Check**: Data Connect transport selalu menyertakan
+///   [FirebaseAppCheck.instance]. Jika App Check **enforced** untuk Data Connect,
+///   daftarkan token debug (Xcode log / logcat) di Firebase Console → App Check.
 class CustomerRepository {
   CustomerRepository({AlitaConnectorConnector? connector})
       : _connector = connector ?? AlitaConnectorConnector.instance;
@@ -22,31 +24,50 @@ class CustomerRepository {
   /// Ensures a Firebase Auth user exists (anonymous sign-in if needed)
   /// and wires the auth instance into the Data Connect transport so the
   /// SDK can attach ID tokens to gRPC calls.
+  ///
+  /// Jika user saat ini stale (dihapus saat logout), [signOut] lalu buat baru.
   Future<void> _ensureAuth() async {
-    _connector.dataConnect.auth = FirebaseAuth.instance;
+    final auth = FirebaseAuth.instance;
+    _connector.dataConnect.auth = auth;
+    _connector.dataConnect.appCheck = FirebaseAppCheck.instance;
 
-    // Non-release (debug & profile): jangan lampirkan App Check ke Data Connect.
-    // Di emulator, App Check sering 403 / placeholder → server menolak dengan
-    // UNAUTHENTICATED / "auth rejected" meski Anonymous Auth sudah valid.
-    // Release build wajib App Check + Play Integrity / token terdaftar.
-    if (!kReleaseMode) {
-      _connector.dataConnect.appCheck = null;
+    // Validasi user yang ada — token refresh bisa gagal jika record sudah dihapus.
+    if (auth.currentUser != null) {
+      try {
+        await auth.currentUser!.getIdToken(true);
+      } catch (_) {
+        await auth.signOut();
+      }
     }
 
-    var user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      Log.warning('No Firebase user — anonymous sign-in', tag: 'DataConnect');
+    // Tidak ada user valid → buat anonim baru.
+    if (auth.currentUser == null) {
       try {
-        final cred = await FirebaseAuth.instance.signInAnonymously();
-        user = cred.user;
-      } catch (e) {
-        Log.warning('Anonymous sign-in FAILED: $e', tag: 'DataConnect');
+        final cred = await auth.signInAnonymously();
+        if (cred.user == null) {
+          throw StateError(
+            'Firebase Auth: tidak ada user setelah sign-in '
+            '(periksa Anonymous auth di Console).',
+          );
+        }
+        await cred.user!.getIdToken(true);
+      } catch (e, st) {
+        Log.error(e, st, reason: 'DataConnect anonymous sign-in');
         rethrow;
       }
     }
 
-    // Force-refresh the ID token so Data Connect has a valid credential.
-    await user?.getIdToken(true);
+    // Jangan panggil FirebaseAppCheck.getToken di loop di sini: setiap panggilan
+    // menambah beban ke backend dan memperparah "Too many attempts" di emulator.
+    // Transport Data Connect mengambil token saat execute; debug/profile sudah
+    // memakai debug provider lewat main.dart (!kReleaseMode).
+    if (kReleaseMode) {
+      try {
+        await FirebaseAppCheck.instance.getToken(false);
+      } catch (e, st) {
+        Log.error(e, st, reason: 'DataConnect App Check getToken (release)');
+      }
+    }
   }
 
   /// Normalisasi nomor untuk primary key & pencarian (digit, prefiks 62…).

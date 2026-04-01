@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:app_links/app_links.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -19,6 +18,7 @@ import 'core/router/app_router.dart';
 import 'core/services/app_analytics_service.dart';
 import 'core/utils/log.dart';
 import 'core/services/force_update_service.dart';
+import 'core/services/ios_update_checker.dart';
 import 'core/services/notification_handler_service.dart';
 import 'core/services/pdf_asset_cache.dart';
 import 'core/services/storage_service.dart';
@@ -30,18 +30,9 @@ import 'features/pricelist/logic/master_data_provider.dart';
 import 'core/widgets/offline_banner.dart';
 import 'firebase_options.dart';
 
-/// Data Connect memakai `@auth(level: USER)` — anonymous auth memenuhi token tanpa UI login terpisah.
-/// [getIdToken(true)] memastikan credential terbaru terpasang sebelum panggilan gRPC.
-Future<void> _ensureFirebaseAuthForDataConnect() async {
-  try {
-    if (FirebaseAuth.instance.currentUser == null) {
-      await FirebaseAuth.instance.signInAnonymously();
-    }
-    await FirebaseAuth.instance.currentUser?.getIdToken(true);
-  } catch (e, st) {
-    Log.error(e, st, reason: 'Firebase anonymous auth (Data Connect)');
-  }
-}
+/// Batasi tunggu startup: di iOS release App Check kadang lambat — tanpa timeout,
+/// [runApp] tidak jalan → user stuck di splash native.
+const Duration _firebaseStartupTimeout = Duration(seconds: 25);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -71,15 +62,24 @@ void main() async {
     try {
       // Tanpa ini, log: "No AppCheckProvider installed" dan Data Connect yang
       // enforce App Check mengembalikan UNAUTHENTICATED / "auth rejected".
-      // Debug/profile: daftarkan token debug di Firebase Console → App Check.
-      await FirebaseAppCheck.instance.activate(
-        providerAndroid: kReleaseMode
-            ? const AndroidPlayIntegrityProvider()
-            : const AndroidDebugProvider(),
-        providerApple: kReleaseMode
-            ? const AppleAppAttestWithDeviceCheckFallbackProvider()
-            : const AppleDebugProvider(),
-      );
+      //
+      // Pakai [!kReleaseMode], bukan [kDebugMode]: `flutter run --profile` punya
+      // kDebugMode false — kalau pakai Play Integrity / DeviceCheck di emulator,
+      // attestation gagal + retry → "Too many attempts" + placeholder token.
+      // Hanya `flutter run --release` / build rilis yang pakai provider produksi.
+      await FirebaseAppCheck.instance
+          .activate(
+            // ignore: deprecated_member_use — API enum masih dipakai; setara providerAndroid/Apple.
+            androidProvider: kReleaseMode
+                ? AndroidProvider.playIntegrity
+                : AndroidProvider.debug,
+            // ignore: deprecated_member_use
+            appleProvider: kReleaseMode
+                ? AppleProvider.deviceCheck
+                : AppleProvider.debug,
+          )
+          .timeout(_firebaseStartupTimeout);
+      await FirebaseAppCheck.instance.setTokenAutoRefreshEnabled(true);
     } catch (e, st) {
       Log.error(
         e,
@@ -89,7 +89,6 @@ void main() async {
     }
 
     try {
-      await _ensureFirebaseAuthForDataConnect();
       NotificationHandlerService.setFirebaseReady();
       Log.enableCrashlytics();
       AppAnalyticsService.enable();
@@ -176,6 +175,11 @@ class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp>
       if (!mounted) return;
       NotificationHandlerService.init();
       unawaited(ForceUpdateService.checkAndForceUpdate());
+      // iOS: cek update App Store mandiri (tidak pakai upgrader — lihat
+      // IosUpdateChecker untuk penjelasan kenapa upgrader bermasalah di iOS).
+      if (Platform.isIOS) {
+        unawaited(IosUpdateChecker.checkAndShowIfNeeded(context));
+      }
     });
   }
 
@@ -205,6 +209,11 @@ class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp>
     if (state == AppLifecycleState.resumed) {
       ref.read(masterDataProvider.notifier).syncIfStale();
       unawaited(ForceUpdateService.checkAndForceUpdate());
+      // iOS: cek ulang saat app kembali aktif (misal setelah kembali dari
+      // App Store). Debounce 4 jam di dalam IosUpdateChecker mencegah spam.
+      if (Platform.isIOS && mounted) {
+        unawaited(IosUpdateChecker.checkAndShowIfNeeded(context));
+      }
     }
   }
 
@@ -235,7 +244,13 @@ class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp>
 
     ref.listen<AuthState>(authProvider, (prev, next) {
       if (prev?.isLoggedIn != true && next.isLoggedIn) {
-        ref.invalidate(masterDataProvider);
+        // Jangan invalidate sinkron di dalam listener: Riverpod sedang flush
+        // dependensi auth; invalidate memicu ConcurrentModificationError saat
+        // visitAncestors (riverpod 2.6.x).
+        Future.microtask(() {
+          if (!mounted) return;
+          ref.invalidate(masterDataProvider);
+        });
       }
     });
 

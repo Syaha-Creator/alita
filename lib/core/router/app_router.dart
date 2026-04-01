@@ -1,6 +1,5 @@
-import 'dart:io' show Platform;
-
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,6 +10,7 @@ import '../utils/telemetry_access.dart';
 import '../theme/app_colors.dart';
 import '../widgets/error_state_view.dart';
 import '../../features/auth/logic/auth_provider.dart';
+import '../../features/auth/presentation/pages/auth_boot_page.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/pricelist/data/models/product.dart';
 import '../../features/pricelist/presentation/pages/product_list_page.dart';
@@ -64,10 +64,14 @@ OrderHistory? _orderHistoryFromRouteExtra(Object? extra) {
 /// Root navigator key used by GoRouter.
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 
-// ── Auto-update (UpgradeAlert) ──────────────────────────────────
-// On iOS this is the PRIMARY mechanism. On Android it acts as a
-// FALLBACK — the primary mechanism is `in_app_update` (native Play
-// Store API) triggered from main.dart.
+// ── Auto-update (UpgradeAlert) — hanya Android ─────────────────
+// Android: Play Store via [UpgraderPlayStore] + [ForceUpdateService].
+// iOS: TIDAK menggunakan [UpgradeAlert] di sini. [upgrader] di iOS menyimpan
+//      cache versi dan menampilkan dialog sekalipun app sudah diperbarui.
+//      Sebagai gantinya, [IosUpdateChecker] di main.dart melakukan pengecekan
+//      langsung ke iTunes API dan membandingkan versi secara numerik.
+//
+// Debug: selalu lewati [UpgradeAlert] agar dev tidak terblokir.
 final _upgrader = Upgrader(
   debugLogging: false,
   countryCode: 'id',
@@ -76,12 +80,8 @@ final _upgrader = Upgrader(
   messages: _AlitaUpgraderMessages(),
   storeController: UpgraderStoreController(
     onAndroid: () => UpgraderPlayStore(),
-    oniOS: () => UpgraderAppStore(),
   ),
 );
-
-UpgradeDialogStyle get _dialogStyle =>
-    Platform.isIOS ? UpgradeDialogStyle.cupertino : UpgradeDialogStyle.material;
 
 /// Override initial location when app opens from deep link.
 /// Set via [ProviderScope.overrides] in main() when [AppLinks] returns initial URI.
@@ -96,7 +96,9 @@ final routerProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     navigatorKey: rootNavigatorKey,
-    initialLocation: deepLinkPath ?? '/',
+    // Default boot, bukan `/`: selama auth [isLoading], home tidak boleh tampil
+    // (menghindari kilas product list → login setelah hot restart).
+    initialLocation: deepLinkPath ?? '/auth_boot',
     refreshListenable: notifier,
     redirect: (context, state) {
       // ref.read — hanya baca state saat redirect dipanggil, tidak subscribe
@@ -104,10 +106,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isLoading = auth.isLoading;
       final isLoggedIn = auth.isLoggedIn;
       final isOnLogin = state.matchedLocation == '/login';
+      final isOnAuthBoot = state.matchedLocation == '/auth_boot';
       final isTelemetryRoute = state.matchedLocation == '/telemetry_debug';
 
-      // Selagi auth masih load dari storage, jangan redirect dulu
-      if (isLoading) return null;
+      // Auth belum selesai baca storage: tahan di boot/login, jangan biarkan shell `/`.
+      if (isLoading) {
+        if (isOnLogin || isOnAuthBoot) return null;
+        return '/auth_boot';
+      }
+
+      // Session sudah jelas: lepas dari layar boot.
+      if (isLoggedIn && isOnAuthBoot) return '/';
+      if (!isLoggedIn && isOnAuthBoot) return '/login';
 
       // Belum login → paksa ke login
       if (!isLoggedIn && !isOnLogin) return '/login';
@@ -123,24 +133,34 @@ final routerProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       GoRoute(
+        path: '/auth_boot',
+        name: 'auth-boot',
+        pageBuilder: (context, state) =>
+            _adaptivePage(child: const AuthBootPage(), name: 'auth-boot'),
+      ),
+      GoRoute(
         path: '/login',
         name: 'login',
         pageBuilder: (context, state) =>
             _adaptivePage(child: const LoginPage(), name: 'login'),
       ),
 
-      // ShellRoute wraps all authenticated routes with UpgradeAlert.
-      // UpgradeAlert's context is INSIDE the Navigator tree, so
-      // Navigator.of(context) will always resolve correctly.
+      // ShellRoute: UpgradeAlert hanya Android (release/profile).
+      // iOS: dikecualikan — update handling ditangani [IosUpdateChecker].
       ShellRoute(
-        builder: (context, state, child) => UpgradeAlert(
-          navigatorKey: rootNavigatorKey,
-          upgrader: _upgrader,
-          dialogStyle: _dialogStyle,
-          showIgnore: false,
-          showLater: false,
-          child: child,
-        ),
+        builder: (context, state, child) {
+          if (kDebugMode || isIOS) {
+            return child;
+          }
+          return UpgradeAlert(
+            navigatorKey: rootNavigatorKey,
+            upgrader: _upgrader,
+            dialogStyle: UpgradeDialogStyle.material,
+            showIgnore: false,
+            showLater: false,
+            child: child,
+          );
+        },
         routes: [
           GoRoute(
             path: '/',

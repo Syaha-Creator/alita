@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/enums/order_status.dart';
+import '../../../../core/utils/take_away_parse.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/contact_actions.dart';
 import '../../../../core/utils/app_formatters.dart';
@@ -35,8 +36,9 @@ class ApprovalHeaderCard extends StatelessWidget {
         order['workplace_name'] as String? ??
         order['work_place'] as String? ??
         '';
-    final isTakeAway = (order['is_take_away'] as bool?) ??
-        (order['take_away']?.toString() == 'true');
+    final isTakeAway = order['is_take_away'] is bool
+        ? order['is_take_away'] as bool
+        : parseTakeAway(order['take_away']);
 
     final statusEnum = OrderStatusX.fromRaw(status);
     final statusColor = statusEnum.detailForegroundColor;

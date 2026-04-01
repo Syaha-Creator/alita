@@ -1,4 +1,5 @@
 import 'package:alitapricelist/core/enums/order_status.dart';
+import 'package:alitapricelist/core/utils/take_away_parse.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'order_history.freezed.dart';
@@ -11,6 +12,26 @@ double _parseDouble(dynamic value) {
   if (value is double) return value;
   if (value is int) return value.toDouble();
   return double.tryParse(value.toString()) ?? 0.0;
+}
+
+/// Salin map dan satukan `take_away` / `isTakeAway` ke [isTakeAway] (bool) agar
+/// [json_serializable] (kunci camel) tetap bekerja dengan payload API.
+Map<String, dynamic> _orderHistoryJsonWithResolvedTakeAway(
+  Map<String, dynamic> json,
+) {
+  final m = Map<String, dynamic>.from(json);
+  m['isTakeAway'] = parseTakeAway(m['take_away'] ?? m['isTakeAway']);
+  m.remove('take_away');
+  return m;
+}
+
+Map<String, dynamic> _orderDetailJsonWithResolvedTakeAway(
+  Map<String, dynamic> json,
+) {
+  final m = Map<String, dynamic>.from(json);
+  m['isTakeAway'] = parseTakeAway(m['take_away'] ?? m['isTakeAway']);
+  m.remove('take_away');
+  return m;
 }
 
 @freezed
@@ -44,7 +65,7 @@ class OrderHistory with _$OrderHistory {
   }) = _OrderHistory;
 
   factory OrderHistory.fromJson(Map<String, dynamic> json) =>
-      _$OrderHistoryFromJson(json);
+      _$OrderHistoryFromJson(_orderHistoryJsonWithResolvedTakeAway(json));
 
   factory OrderHistory.fromApiJson(Map<String, dynamic> json) {
     final letter = json['order_letter'] as Map<String, dynamic>? ?? json;
@@ -77,7 +98,7 @@ class OrderHistory with _$OrderHistory {
       shipToName: letter['ship_to_name']?.toString() ?? '',
       addressShipTo: letter['address_ship_to']?.toString() ?? '',
       noPo: letter['no_po']?.toString(),
-      isTakeAway: _parseTakeAway(letter['take_away']),
+      isTakeAway: parseTakeAway(letter['take_away']),
       workPlaceName: json['work_place_name']?.toString() ??
           letter['work_place_name']?.toString() ??
           '-',
@@ -219,13 +240,6 @@ OrderHistory orderHistoryStubFromNotification({
   });
 }
 
-/// Returns true if [value] is truthy or string "TAKE AWAY" (API returns string).
-bool _parseTakeAway(dynamic value) {
-  if (value == null) return false;
-  if (value is bool) return value;
-  return value.toString().trim().toUpperCase() == 'TAKE AWAY';
-}
-
 @freezed
 class OrderDetail with _$OrderDetail {
   const factory OrderDetail({
@@ -245,7 +259,7 @@ class OrderDetail with _$OrderDetail {
   }) = _OrderDetail;
 
   factory OrderDetail.fromJson(Map<String, dynamic> json) =>
-      _$OrderDetailFromJson(json);
+      _$OrderDetailFromJson(_orderDetailJsonWithResolvedTakeAway(json));
 
   /// Parse from API JSON. [parentNoSp] propagates the parent order's SP number
   /// because the API returns null for no_sp at the detail level.
@@ -277,7 +291,7 @@ class OrderDetail with _$OrderDetail {
       unitPrice: up,
       extendedPrice: ep > 0 ? ep : up * q,
       discounts: parsedDiscounts,
-      isTakeAway: _parseTakeAway(json['take_away']),
+      isTakeAway: parseTakeAway(json['take_away']),
     );
   }
 }

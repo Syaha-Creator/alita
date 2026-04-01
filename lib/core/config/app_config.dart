@@ -4,16 +4,27 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Single source of truth for all environment-based configuration.
 ///
-/// Reads credentials in this order: `--dart-define` (release/CI) → `.env` (dev).
-/// For production builds, pass secrets via `--dart-define` so `.env` is never baked in.
+/// Reads credentials in this order:
+/// 1. `--dart-define` (nilai non-kosong di-compile ke binary — release/CI)
+/// 2. `flutter_dotenv` setelah [dotenv.load] di `main` (asset `.env` di bundle)
+///
+/// Catatan: [String.fromEnvironment] hanya memakai lingkungan **waktu compile**.
+/// Menaruh `dotenv.env` sebagai `defaultValue` dari [String.fromEnvironment] tidak
+/// akan memuat `.env` di runtime; makanya urutan dibalik eksplisit di [_fromEnv].
+///
+/// Untuk build yang **tidak** meng-bundle `.env`, wajib pass secrets via
+/// `--dart-define` (lihat `scripts/build_release.sh` untuk Android).
 ///
 /// Client credentials are platform-aware: Android and iOS each have their own
 /// `client_id` / `client_secret` pair registered on the backend.
 class AppConfig {
   AppConfig._();
 
-  static String _fromEnv(String key, [String defaultValue = '']) =>
-      String.fromEnvironment(key, defaultValue: dotenv.env[key] ?? defaultValue);
+  static String _fromEnv(String key, [String defaultValue = '']) {
+    final fromDefine = String.fromEnvironment(key, defaultValue: '');
+    if (fromDefine.isNotEmpty) return fromDefine;
+    return dotenv.env[key] ?? defaultValue;
+  }
 
   // ── Alita (Ruby) API ────────────────────────────────────────────
 
@@ -39,12 +50,24 @@ class AppConfig {
       };
 
   /// Quick validation — throws if essential keys are missing.
+  ///
+  /// **Penting:** credential OAuth per platform. Di iOS yang dibaca adalah
+  /// `CLIENT_ID_IOS` / `CLIENT_SECRET_IOS`, bukan nama generik `CLIENT_ID`.
   static void assertConfigured() {
-    if (apiBaseUrl.isEmpty || clientId.isEmpty || clientSecret.isEmpty) {
+    if (apiBaseUrl.isEmpty) {
       throw StateError(
-        'Konfigurasi API tidak lengkap. '
-        'Pastikan API_BASE_URL, CLIENT_ID, dan CLIENT_SECRET '
-        'sudah diisi di .env (dev) atau via --dart-define (release).',
+        'Konfigurasi API tidak lengkap: API_BASE_URL kosong. '
+        'Isi di .env (dev) atau --dart-define=API_BASE_URL=... (release).',
+      );
+    }
+    if (clientId.isEmpty || clientSecret.isEmpty) {
+      final platformKeys = Platform.isAndroid
+          ? 'CLIENT_ID_ANDROID dan CLIENT_SECRET_ANDROID'
+          : 'CLIENT_ID_IOS dan CLIENT_SECRET_IOS';
+      throw StateError(
+        'Konfigurasi API tidak lengkap untuk ${Platform.operatingSystem}: '
+        'isi $platformKeys (plus API_BASE_URL) di .env atau --dart-define. '
+        'Hanya mengisi CLIENT_ID_ANDROID tidak cukup saat menjalankan di iPhone/Simulator.',
       );
     }
   }

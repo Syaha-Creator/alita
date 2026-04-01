@@ -23,9 +23,9 @@ class _TapScaleState extends State<TapScale> {
   @override
   Widget build(BuildContext context) {
     return Listener(
-      onPointerDown: (_) => setState(() => _pressed = true),
-      onPointerUp: (_) => setState(() => _pressed = false),
-      onPointerCancel: (_) => setState(() => _pressed = false),
+      onPointerDown: (_) { if (mounted) setState(() => _pressed = true); },
+      onPointerUp: (_) { if (mounted) setState(() => _pressed = false); },
+      onPointerCancel: (_) { if (mounted) setState(() => _pressed = false); },
       child: AnimatedScale(
         duration: widget.duration,
         curve: Curves.easeOutCubic,

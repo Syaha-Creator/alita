@@ -5,7 +5,7 @@ import 'package:in_app_update/in_app_update.dart';
 import '../utils/log.dart';
 
 /// Handles mandatory app updates using the native Google Play in-app update
-/// API on Android. iOS is handled separately by [UpgradeAlert] in the router.
+/// API on Android. iOS tidak memakai in-app update di sini.
 ///
 /// [performImmediateUpdate] shows a full-screen Google Play UI that blocks
 /// the app until the user installs the update. This is the most reliable

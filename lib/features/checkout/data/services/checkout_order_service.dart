@@ -427,6 +427,10 @@ class CheckoutOrderService {
     required String token,
     List<int> fallbackDetailIds = const [],
   }) async {
+    int totalDiscounts = 0;
+    int succeededCount = 0;
+    int failedCount = 0;
+
     for (int i = 0; i < succeededDetails.length; i++) {
       final item = succeededDetails[i];
       if (item.pending.discounts.isEmpty) continue;
@@ -437,9 +441,18 @@ class CheckoutOrderService {
         detailId = fallbackDetailIds[i];
       }
 
-      if (detailId <= 0) continue;
+      if (detailId <= 0) {
+        Log.warning(
+          'Skipped ${item.pending.discounts.length} discounts for '
+          '"${item.pending.label}" — detailId=0',
+          tag: 'CheckoutOrderService',
+        );
+        failedCount += item.pending.discounts.length;
+        continue;
+      }
 
       for (final disc in item.pending.discounts) {
+        totalDiscounts++;
         final levelId = disc['approver_level_id'] as int? ?? 0;
         final discPayload = Map<String, dynamic>.from(disc)
           ..['order_letter_id'] = orderLetterId
@@ -453,14 +466,28 @@ class CheckoutOrderService {
           timeout: _checkoutTimeout,
         );
 
-        if (response.statusCode != 200 && response.statusCode != 201) {
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          succeededCount++;
+        } else {
+          failedCount++;
           Log.warning(
             'Discount POST failed: level=$levelId detailId=$detailId '
-            'status=${response.statusCode}',
+            'status=${response.statusCode} body=${response.body}',
             tag: 'CheckoutOrderService',
           );
         }
       }
+    }
+
+    if (failedCount > 0) {
+      throw CheckoutStepException(
+        step: 5,
+        stepName: 'Post Diskon',
+        endpoint: CheckoutEndpoints.orderLetterDiscounts,
+        statusCode: 0,
+        message: '$failedCount dari $totalDiscounts diskon gagal diupload. '
+            'Berhasil: $succeededCount.',
+      );
     }
   }
 
@@ -830,16 +857,11 @@ class CheckoutOrderService {
 
       // 6. BONUS
       // bonus.qty is per-unit; multiply by item.quantity for actual total.
-      final totalBonusQty = item.bonusSnapshots
-          .fold<int>(0, (sum, b) => sum + b.qty * item.quantity);
-
+      // unit_price & customer_price follow the same pattern as main items:
+      //   pricelist_per_unit × row_qty  (e.g. p.plKasur * item.quantity).
       for (final bonus in item.bonusSnapshots) {
         final bonusEffQty = bonus.qty * item.quantity;
         final bonusPlPrice = BonusPriceResolver.resolvePlPrice(p, bonus.name);
-        final int totalQty = item.quantity + totalBonusQty;
-        final double adjustedUnitPrice = (totalQty > 0 && item.quantity > 0)
-            ? bonusPlPrice * item.quantity / totalQty
-            : bonusPlPrice;
 
         final int configuredTakeAway = globalIsTakeAway
             ? bonusEffQty
@@ -861,10 +883,10 @@ class CheckoutOrderService {
             'desc_1': bonus.name,
             'desc_2': 'Bonus',
             'brand': brand,
-            'unit_price': adjustedUnitPrice * segment.qty,
-            'customer_price': adjustedUnitPrice * segment.qty,
+            'unit_price': bonusPlPrice * segment.qty,
+            'customer_price': bonusPlPrice * segment.qty,
             'net_price': CheckoutNetPriceCalculator.calculate(
-              customerPrice: adjustedUnitPrice,
+              customerPrice: bonusPlPrice,
               qty: segment.qty,
               discount1: item.discount1,
               discount2: item.discount2,

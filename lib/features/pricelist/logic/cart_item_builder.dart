@@ -189,6 +189,8 @@ class CartItemBuilder {
         appliedDiscounts.length >= 2 ? appliedDiscounts[1] * 100 : 0.0;
     final discPct3 =
         appliedDiscounts.length >= 3 ? appliedDiscounts[2] * 100 : 0.0;
+    final discPct4 =
+        appliedDiscounts.length >= 4 ? appliedDiscounts[3] * 100 : 0.0;
 
     return CartItem(
       product: configuredProduct,
@@ -210,6 +212,7 @@ class CartItemBuilder {
       discount1: discPct1,
       discount2: discPct2,
       discount3: discPct3,
+      discount4: discPct4,
       bonusSnapshots: bonusSnapshots,
     );
   }

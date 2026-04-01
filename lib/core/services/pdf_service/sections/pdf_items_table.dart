@@ -1,6 +1,7 @@
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+import '../../../utils/take_away_parse.dart';
 import 'pdf_helpers.dart';
 
 /// Builds the main items table for the PDF invoice.
@@ -53,16 +54,18 @@ abstract final class PdfItemsTable {
     for (var i = 0; i < details.length; i++) {
       final d = details[i];
       final brand = _brandAbbr(d['brand']?.toString() ?? '');
-      final name =
-          d['item_description']?.toString() ?? d['desc_1']?.toString() ?? '';
+      final rawItemDesc = d['item_description']?.toString() ?? '';
+      final rawDesc1 = d['desc_1']?.toString() ?? '';
+      final name = (rawItemDesc.isNotEmpty && rawItemDesc != '-')
+          ? rawItemDesc
+          : rawDesc1;
       final qty = PdfHelpers.intFrom(d['qty']);
       final unitPrice = PdfHelpers.dbl(d['unit_price']);
       final extPrice = PdfHelpers.dbl(d['extended_price']);
       final custPrice = PdfHelpers.dbl(d['customer_price']);
       final netPrice = PdfHelpers.dbl(d['net_price'] ?? custPrice);
       final disc = unitPrice - netPrice;
-      final takeAway = d['take_away'] == true ||
-          d['take_away']?.toString().toLowerCase() == 'take away';
+      final takeAway = parseTakeAway(d['take_away']);
 
       final itemType = (d['item_type']?.toString() ?? '').toLowerCase();
       final isMattress =
@@ -75,10 +78,15 @@ abstract final class PdfItemsTable {
       final orderCell = isLeadItem ? '${bundleOrderCounter++}' : '';
 
       final displayName = takeAway ? '$name (TAKE AWAY)' : name;
+      final mainText = isInternal ? (d['desc_1']?.toString()) : null;
+      final mainTextDisplay =
+          takeAway && mainText != null && mainText.isNotEmpty
+              ? '$mainText (TAKE AWAY)'
+              : mainText;
       final nameWidget = _buildNameCell(displayName,
           isBold: isLeadItem,
           subtitle: isInternal ? (d['item_description']?.toString()) : null,
-          mainText: isInternal ? (d['desc_1']?.toString()) : null);
+          mainText: mainTextDisplay);
 
       if (isInternal) {
         final eup = custPrice == 0 ? extPrice : custPrice;

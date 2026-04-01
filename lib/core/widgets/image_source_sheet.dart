@@ -1,8 +1,22 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 import '../theme/app_colors.dart';
 import '../utils/platform_utils.dart';
+
+/// Tutup sheet lalu jalankan [fn] setelah frame berikutnya.
+///
+/// Tanpa ini, `pickImage` dipanggil saat animasi pop masih berjalan — di iOS +
+/// GoRouter sering memicu navigasi salah atau picker macet. Juga hindari
+/// `Navigator.pop` dengan [context] pemanggil: di [ShellRoute] navigator
+/// terdekat bisa navigator bersarang sehingga yang ter-pop malah halaman,
+/// bukan modal.
+void _closeSheetThen(VoidCallback fn) {
+  SchedulerBinding.instance.addPostFrameCallback((_) {
+    fn();
+  });
+}
 
 /// A beautifully styled bottom sheet for choosing between camera and gallery.
 ///
@@ -36,41 +50,44 @@ class ImageSourceSheet extends StatelessWidget {
     if (isIOS) {
       return showCupertinoModalPopup<void>(
         context: context,
-        builder: (_) => CupertinoActionSheet(
+        useRootNavigator: true,
+        builder: (modalContext) => CupertinoActionSheet(
           title: Text(title),
           actions: [
             CupertinoActionSheetAction(
               onPressed: () {
-                Navigator.pop(context);
-                onCamera();
+                Navigator.pop(modalContext);
+                _closeSheetThen(onCamera);
               },
-              child: const Row(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(CupertinoIcons.camera, size: 20),
-                  SizedBox(width: 8),
-                  Text('Kamera'),
+                  Icon(Icons.camera_alt_rounded,
+                      size: 20, color: CupertinoColors.activeBlue.resolveFrom(modalContext)),
+                  const SizedBox(width: 8),
+                  const Text('Kamera'),
                 ],
               ),
             ),
             CupertinoActionSheetAction(
               onPressed: () {
-                Navigator.pop(context);
-                onGallery();
+                Navigator.pop(modalContext);
+                _closeSheetThen(onGallery);
               },
-              child: const Row(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(CupertinoIcons.photo, size: 20),
-                  SizedBox(width: 8),
-                  Text('Galeri'),
+                  Icon(Icons.photo_library_rounded,
+                      size: 20, color: CupertinoColors.activeBlue.resolveFrom(modalContext)),
+                  const SizedBox(width: 8),
+                  const Text('Galeri'),
                 ],
               ),
             ),
           ],
           cancelButton: CupertinoActionSheetAction(
             isDestructiveAction: true,
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(modalContext),
             child: const Text('Batal'),
           ),
         ),
@@ -79,19 +96,20 @@ class ImageSourceSheet extends StatelessWidget {
 
     return showModalBottomSheet<void>(
       context: context,
+      useRootNavigator: true,
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => ImageSourceSheet(
+      builder: (sheetContext) => ImageSourceSheet(
         title: title,
         onCamera: () {
-          Navigator.pop(context);
-          onCamera();
+          Navigator.pop(sheetContext);
+          _closeSheetThen(onCamera);
         },
         onGallery: () {
-          Navigator.pop(context);
-          onGallery();
+          Navigator.pop(sheetContext);
+          _closeSheetThen(onGallery);
         },
       ),
     );
