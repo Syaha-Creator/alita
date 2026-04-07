@@ -4,12 +4,30 @@ import '../../../../core/theme/app_colors.dart';
 import 'customer_info_section.dart';
 import 'shipping_info_section.dart';
 
+void _noopBool(bool _) {}
+
 /// Customer info + shipping card for checkout page.
 ///
 /// Wraps [CustomerInfoSection] and [ShippingInfoSection] in a styled container.
 class CheckoutCustomerShippingCard extends StatelessWidget {
   const CheckoutCustomerShippingCard({
     super.key,
+    this.customerSectionTitle = 'Informasi Pelanggan',
+    this.customerSectionSubtitle,
+    this.shippingSectionTitle = 'Alamat & Pengiriman',
+    this.sameAsCustomerLabel = 'Kirim ke alamat pelanggan di atas',
+    this.receiverBlockTitle = 'Informasi Penerima (Dropship / Lokasi Lain)',
+    this.storeContactOptional = false,
+    this.customerNameFieldLabel = 'Nama Pelanggan *',
+    this.useStoreAddressLabels = false,
+    this.hideCustomerRegionPicker = false,
+    this.receiverContactOptional = false,
+    this.indirectStoreOnly = false,
+    this.showIndirectAlternateReceiverEmail = false,
+    this.shippingEmailCtrl,
+    this.showIndirectSaveReceiverContact = false,
+    this.shouldSaveReceiverContact = true,
+    this.onToggleSaveReceiverContact = _noopBool,
     required this.customerNameCtrl,
     required this.customerEmailCtrl,
     required this.customerPhoneCtrl,
@@ -35,6 +53,23 @@ class CheckoutCustomerShippingCard extends StatelessWidget {
     required this.shippingRegionCtrl,
     required this.onPickShippingRegion,
   });
+
+  final String customerSectionTitle;
+  final String? customerSectionSubtitle;
+  final String shippingSectionTitle;
+  final String sameAsCustomerLabel;
+  final String receiverBlockTitle;
+  final bool storeContactOptional;
+  final String customerNameFieldLabel;
+  final bool useStoreAddressLabels;
+  final bool hideCustomerRegionPicker;
+  final bool receiverContactOptional;
+  final bool indirectStoreOnly;
+  final bool showIndirectAlternateReceiverEmail;
+  final TextEditingController? shippingEmailCtrl;
+  final bool showIndirectSaveReceiverContact;
+  final bool shouldSaveReceiverContact;
+  final ValueChanged<bool> onToggleSaveReceiverContact;
 
   final TextEditingController customerNameCtrl;
   final TextEditingController customerEmailCtrl;
@@ -84,6 +119,11 @@ class CheckoutCustomerShippingCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           CustomerInfoSection(
+            sectionTitle: customerSectionTitle,
+            sectionSubtitle: customerSectionSubtitle,
+            storeContactOptional: storeContactOptional,
+            indirectStoreOnly: indirectStoreOnly,
+            customerNameFieldLabel: customerNameFieldLabel,
             customerNameCtrl: customerNameCtrl,
             customerEmailCtrl: customerEmailCtrl,
             customerPhoneCtrl: customerPhoneCtrl,
@@ -100,6 +140,18 @@ class CheckoutCustomerShippingCard extends StatelessWidget {
             isCloudLookupLoading: isCloudLookupLoading,
           ),
           ShippingInfoSection(
+            sectionTitle: shippingSectionTitle,
+            sameAsCustomerLabel: sameAsCustomerLabel,
+            receiverBlockTitle: receiverBlockTitle,
+            useStoreAddressLabels: useStoreAddressLabels,
+            hideCustomerRegionPicker: hideCustomerRegionPicker,
+            receiverContactOptional: receiverContactOptional,
+            showIndirectAlternateReceiverEmail: showIndirectAlternateReceiverEmail,
+            shippingEmailCtrl: shippingEmailCtrl,
+            showIndirectSaveReceiverContact: showIndirectSaveReceiverContact,
+            isFromContactBook: isFromContactBook,
+            shouldSaveReceiverContact: shouldSaveReceiverContact,
+            onToggleSaveReceiverContact: onToggleSaveReceiverContact,
             customerAddressCtrl: customerAddressCtrl,
             regionCtrl: regionCtrl,
             isShippingSameAsCustomer: isShippingSameAsCustomer,

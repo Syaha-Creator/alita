@@ -25,24 +25,31 @@ class CheckoutPayloadBuilder {
     required List<Map<String, dynamic>> divisions,
     required List<CartItem> cartItems,
     required double grandTotal,
+    required DateTime orderDate,
     required DateTime? requestDate,
     required String customerPhone,
     required String customerEmail,
     required String note,
     required String salesCode,
     required bool isTakeAway,
+
+    /// Indirect: alamat toko cukup dari [customerAddress] (tanpa suffix EMSIFA).
+    bool useCustomerAddressDetailOnly = false,
+    /// Indirect: `no_po` di POST `/order_letters` — `null` jika [indirectNoPoText] kosong.
+    bool isIndirectOrder = false,
+    String indirectNoPoText = '',
   }) {
-    final fullCustomerAddress =
-        '${customerAddress.trim()}, Kec. $selectedKecamatan, $selectedKota, $selectedProvinsi';
-    final shipToName = isShippingSameAsCustomer
-        ? customerName.trim()
-        : shippingName.trim();
+    final fullCustomerAddress = useCustomerAddressDetailOnly
+        ? customerAddress.trim()
+        : '${customerAddress.trim()}, Kec. $selectedKecamatan, $selectedKota, $selectedProvinsi';
+    final shipToName =
+        isShippingSameAsCustomer ? customerName.trim() : shippingName.trim();
     final addressShipTo = isShippingSameAsCustomer
         ? fullCustomerAddress
         : '${shippingAddress.trim()}, Kec. $shippingKecamatan, $shippingKota, $shippingProvinsi';
-    final finalPostage =
-        double.tryParse(ThousandsSeparatorInputFormatter.digitsOnly(postageText)) ??
-            0.0;
+    final finalPostage = double.tryParse(
+            ThousandsSeparatorInputFormatter.digitsOnly(postageText)) ??
+        0.0;
 
     // Channel: S1 (divisionId=25) > S0 (divisionId=24) > MM (default)
     String channel = '';
@@ -52,7 +59,7 @@ class CheckoutPayloadBuilder {
     if (hasS1) {
       channel = 'S1';
     } else if (hasS0) {
-      channel = 'S0';
+      channel = 'SO';
     } else if (hasMM) {
       channel = 'MM';
     } else {
@@ -66,14 +73,16 @@ class CheckoutPayloadBuilder {
       double itemHarga = 0;
       if (item.kasurSku.isNotEmpty) itemHarga += p.plKasur * item.quantity;
       if (p.isSet) {
-        if (item.divanSku.isNotEmpty && !p.divan.toLowerCase().contains('tanpa')) {
+        if (item.divanSku.isNotEmpty &&
+            !p.divan.toLowerCase().contains('tanpa')) {
           itemHarga += p.plDivan * item.quantity;
         }
         if (item.sandaranSku.isNotEmpty &&
             !p.headboard.toLowerCase().contains('tanpa')) {
           itemHarga += p.plHeadboard * item.quantity;
         }
-        if (item.sorongSku.isNotEmpty && !p.sorong.toLowerCase().contains('tanpa')) {
+        if (item.sorongSku.isNotEmpty &&
+            !p.sorong.toLowerCase().contains('tanpa')) {
           itemHarga += p.plSorong * item.quantity;
         }
       }
@@ -87,9 +96,14 @@ class CheckoutPayloadBuilder {
     final discountPercentage =
         hargaAwal > 0 ? ((hargaAwal - grandTotal) / hargaAwal) * 100 : 0.0;
 
+    final noPoTrimmed = indirectNoPoText.trim();
+    final noPoValue =
+        isIndirectOrder ? (noPoTrimmed.isEmpty ? null : noPoTrimmed) : null;
+
     return {
-      'order_date': AppFormatters.apiDate(DateTime.now()),
-      'request_date': requestDate != null ? AppFormatters.apiDate(requestDate) : null,
+      'order_date': AppFormatters.apiDate(orderDate),
+      'request_date':
+          requestDate != null ? AppFormatters.apiDate(requestDate) : null,
       'creator': creatorId,
       'customer_name': customerName.trim(),
       'phone': customerPhone.trim(),
@@ -107,6 +121,7 @@ class CheckoutPayloadBuilder {
       'take_away': isTakeAway ? 'TAKE AWAY' : null,
       'postage': finalPostage,
       'channel': channel,
+      if (isIndirectOrder) 'no_po': noPoValue,
     };
   }
 
@@ -151,9 +166,11 @@ class CheckoutPayloadBuilder {
     required bool includeBackupPhone,
     String? backupPhone,
   }) {
-    final contacts = <Map<String, dynamic>>[
-      {'phone': primaryPhone.trim()},
-    ];
+    final contacts = <Map<String, dynamic>>[];
+    final primary = primaryPhone.trim();
+    if (primary.isNotEmpty) {
+      contacts.add({'phone': primary});
+    }
     if (includeBackupPhone && (backupPhone ?? '').trim().isNotEmpty) {
       contacts.add({'phone': (backupPhone ?? '').trim()});
     }

@@ -7,15 +7,19 @@ import '../../data/models/product.dart';
 
 /// Shows the cascading discount modal bottom sheet.
 ///
-/// [activeProduct] is used to derive disc1..disc8 limits and base EUP.
+/// [activeProduct] is used to derive disc1..disc8 limits.
+/// [additionalDiscountBaseTotal] when set (e.g. dari halaman detail: total EUP
+/// ter-anchor, sudah termasuk diskon toko di mode indirect) dipakai sebagai
+/// dasar diskon tambahan; jika null, dipakai jumlah EUP penuh dari produk.
 /// [currentDiscounts] holds the current applied discount percentages (decimal 0-1).
 /// [onApply] is called with the new list of discount percentages.
 void showDiscountModalGlobal(
   BuildContext context,
   Product activeProduct,
   List<double> currentDiscounts,
-  void Function(List<double>) onApply,
-) {
+  void Function(List<double>) onApply, {
+  double? additionalDiscountBaseTotal,
+}) {
   List<double> maxLimits = [
     activeProduct.disc1,
     activeProduct.disc2,
@@ -27,10 +31,11 @@ void showDiscountModalGlobal(
     activeProduct.disc8,
   ].where((d) => d > 0).toList();
 
-  final baseTotalEup = activeProduct.eupKasur +
-      activeProduct.eupDivan +
-      activeProduct.eupHeadboard +
-      activeProduct.eupSorong;
+  final baseTotalEup = additionalDiscountBaseTotal ??
+      (activeProduct.eupKasur +
+          activeProduct.eupDivan +
+          activeProduct.eupHeadboard +
+          activeProduct.eupSorong);
 
   if (maxLimits.isEmpty && activeProduct.program.isNotEmpty) {
     final match = RegExp(r'(\d+)\s*%?').firstMatch(activeProduct.program);

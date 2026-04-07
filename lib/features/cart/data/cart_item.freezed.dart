@@ -246,6 +246,21 @@ mixin _$CartItem {
   List<CartBonusSnapshot> get bonusSnapshots =>
       throw _privateConstructorUsedError;
 
+  /// Indirect: `address_number` toko (kunci merge baris + diskon).
+  @JsonKey(fromJson: _parseIntNullable)
+  int? get indirectStoreAddressNumber => throw _privateConstructorUsedError;
+  String get indirectStoreAlphaName => throw _privateConstructorUsedError;
+  String get indirectStoreAddress => throw _privateConstructorUsedError;
+  String get indirectStorePhone => throw _privateConstructorUsedError;
+  @JsonKey(fromJson: _parseDoubleList)
+  List<double> get indirectStoreDiscounts => throw _privateConstructorUsedError;
+  String get indirectStoreDiscountDisplay => throw _privateConstructorUsedError;
+
+  /// Voucher FOC 100%: total baris di keranjang = 0; order letter memakai
+  /// harga customer = pricelist & net = 0 + baris diskon bertanda FOC.
+  @JsonKey(fromJson: _parseBoolDefaultFalse)
+  bool get isFocVoucher => throw _privateConstructorUsedError;
+
   /// Serializes this CartItem to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
@@ -283,7 +298,14 @@ abstract class $CartItemCopyWith<$Res> {
       @JsonKey(fromJson: _parseDouble) double discount2,
       @JsonKey(fromJson: _parseDouble) double discount3,
       @JsonKey(fromJson: _parseDouble) double discount4,
-      List<CartBonusSnapshot> bonusSnapshots});
+      List<CartBonusSnapshot> bonusSnapshots,
+      @JsonKey(fromJson: _parseIntNullable) int? indirectStoreAddressNumber,
+      String indirectStoreAlphaName,
+      String indirectStoreAddress,
+      String indirectStorePhone,
+      @JsonKey(fromJson: _parseDoubleList) List<double> indirectStoreDiscounts,
+      String indirectStoreDiscountDisplay,
+      @JsonKey(fromJson: _parseBoolDefaultFalse) bool isFocVoucher});
 
   $ProductCopyWith<$Res> get product;
   $ProductCopyWith<$Res>? get masterProduct;
@@ -326,6 +348,13 @@ class _$CartItemCopyWithImpl<$Res, $Val extends CartItem>
     Object? discount3 = null,
     Object? discount4 = null,
     Object? bonusSnapshots = null,
+    Object? indirectStoreAddressNumber = freezed,
+    Object? indirectStoreAlphaName = null,
+    Object? indirectStoreAddress = null,
+    Object? indirectStorePhone = null,
+    Object? indirectStoreDiscounts = null,
+    Object? indirectStoreDiscountDisplay = null,
+    Object? isFocVoucher = null,
   }) {
     return _then(_value.copyWith(
       product: null == product
@@ -416,6 +445,34 @@ class _$CartItemCopyWithImpl<$Res, $Val extends CartItem>
           ? _value.bonusSnapshots
           : bonusSnapshots // ignore: cast_nullable_to_non_nullable
               as List<CartBonusSnapshot>,
+      indirectStoreAddressNumber: freezed == indirectStoreAddressNumber
+          ? _value.indirectStoreAddressNumber
+          : indirectStoreAddressNumber // ignore: cast_nullable_to_non_nullable
+              as int?,
+      indirectStoreAlphaName: null == indirectStoreAlphaName
+          ? _value.indirectStoreAlphaName
+          : indirectStoreAlphaName // ignore: cast_nullable_to_non_nullable
+              as String,
+      indirectStoreAddress: null == indirectStoreAddress
+          ? _value.indirectStoreAddress
+          : indirectStoreAddress // ignore: cast_nullable_to_non_nullable
+              as String,
+      indirectStorePhone: null == indirectStorePhone
+          ? _value.indirectStorePhone
+          : indirectStorePhone // ignore: cast_nullable_to_non_nullable
+              as String,
+      indirectStoreDiscounts: null == indirectStoreDiscounts
+          ? _value.indirectStoreDiscounts
+          : indirectStoreDiscounts // ignore: cast_nullable_to_non_nullable
+              as List<double>,
+      indirectStoreDiscountDisplay: null == indirectStoreDiscountDisplay
+          ? _value.indirectStoreDiscountDisplay
+          : indirectStoreDiscountDisplay // ignore: cast_nullable_to_non_nullable
+              as String,
+      isFocVoucher: null == isFocVoucher
+          ? _value.isFocVoucher
+          : isFocVoucher // ignore: cast_nullable_to_non_nullable
+              as bool,
     ) as $Val);
   }
 
@@ -474,7 +531,14 @@ abstract class _$$CartItemImplCopyWith<$Res>
       @JsonKey(fromJson: _parseDouble) double discount2,
       @JsonKey(fromJson: _parseDouble) double discount3,
       @JsonKey(fromJson: _parseDouble) double discount4,
-      List<CartBonusSnapshot> bonusSnapshots});
+      List<CartBonusSnapshot> bonusSnapshots,
+      @JsonKey(fromJson: _parseIntNullable) int? indirectStoreAddressNumber,
+      String indirectStoreAlphaName,
+      String indirectStoreAddress,
+      String indirectStorePhone,
+      @JsonKey(fromJson: _parseDoubleList) List<double> indirectStoreDiscounts,
+      String indirectStoreDiscountDisplay,
+      @JsonKey(fromJson: _parseBoolDefaultFalse) bool isFocVoucher});
 
   @override
   $ProductCopyWith<$Res> get product;
@@ -517,6 +581,13 @@ class __$$CartItemImplCopyWithImpl<$Res>
     Object? discount3 = null,
     Object? discount4 = null,
     Object? bonusSnapshots = null,
+    Object? indirectStoreAddressNumber = freezed,
+    Object? indirectStoreAlphaName = null,
+    Object? indirectStoreAddress = null,
+    Object? indirectStorePhone = null,
+    Object? indirectStoreDiscounts = null,
+    Object? indirectStoreDiscountDisplay = null,
+    Object? isFocVoucher = null,
   }) {
     return _then(_$CartItemImpl(
       product: null == product
@@ -607,6 +678,34 @@ class __$$CartItemImplCopyWithImpl<$Res>
           ? _value._bonusSnapshots
           : bonusSnapshots // ignore: cast_nullable_to_non_nullable
               as List<CartBonusSnapshot>,
+      indirectStoreAddressNumber: freezed == indirectStoreAddressNumber
+          ? _value.indirectStoreAddressNumber
+          : indirectStoreAddressNumber // ignore: cast_nullable_to_non_nullable
+              as int?,
+      indirectStoreAlphaName: null == indirectStoreAlphaName
+          ? _value.indirectStoreAlphaName
+          : indirectStoreAlphaName // ignore: cast_nullable_to_non_nullable
+              as String,
+      indirectStoreAddress: null == indirectStoreAddress
+          ? _value.indirectStoreAddress
+          : indirectStoreAddress // ignore: cast_nullable_to_non_nullable
+              as String,
+      indirectStorePhone: null == indirectStorePhone
+          ? _value.indirectStorePhone
+          : indirectStorePhone // ignore: cast_nullable_to_non_nullable
+              as String,
+      indirectStoreDiscounts: null == indirectStoreDiscounts
+          ? _value._indirectStoreDiscounts
+          : indirectStoreDiscounts // ignore: cast_nullable_to_non_nullable
+              as List<double>,
+      indirectStoreDiscountDisplay: null == indirectStoreDiscountDisplay
+          ? _value.indirectStoreDiscountDisplay
+          : indirectStoreDiscountDisplay // ignore: cast_nullable_to_non_nullable
+              as String,
+      isFocVoucher: null == isFocVoucher
+          ? _value.isFocVoucher
+          : isFocVoucher // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }
@@ -637,8 +736,17 @@ class _$CartItemImpl extends _CartItem {
       @JsonKey(fromJson: _parseDouble) this.discount3 = 0.0,
       @JsonKey(fromJson: _parseDouble) this.discount4 = 0.0,
       final List<CartBonusSnapshot> bonusSnapshots =
-          const <CartBonusSnapshot>[]})
+          const <CartBonusSnapshot>[],
+      @JsonKey(fromJson: _parseIntNullable) this.indirectStoreAddressNumber,
+      this.indirectStoreAlphaName = '',
+      this.indirectStoreAddress = '',
+      this.indirectStorePhone = '',
+      @JsonKey(fromJson: _parseDoubleList)
+      final List<double> indirectStoreDiscounts = const <double>[],
+      this.indirectStoreDiscountDisplay = '',
+      @JsonKey(fromJson: _parseBoolDefaultFalse) this.isFocVoucher = false})
       : _bonusSnapshots = bonusSnapshots,
+        _indirectStoreDiscounts = indirectStoreDiscounts,
         super._();
 
   factory _$CartItemImpl.fromJson(Map<String, dynamic> json) =>
@@ -714,9 +822,42 @@ class _$CartItemImpl extends _CartItem {
     return EqualUnmodifiableListView(_bonusSnapshots);
   }
 
+  /// Indirect: `address_number` toko (kunci merge baris + diskon).
+  @override
+  @JsonKey(fromJson: _parseIntNullable)
+  final int? indirectStoreAddressNumber;
+  @override
+  @JsonKey()
+  final String indirectStoreAlphaName;
+  @override
+  @JsonKey()
+  final String indirectStoreAddress;
+  @override
+  @JsonKey()
+  final String indirectStorePhone;
+  final List<double> _indirectStoreDiscounts;
+  @override
+  @JsonKey(fromJson: _parseDoubleList)
+  List<double> get indirectStoreDiscounts {
+    if (_indirectStoreDiscounts is EqualUnmodifiableListView)
+      return _indirectStoreDiscounts;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_indirectStoreDiscounts);
+  }
+
+  @override
+  @JsonKey()
+  final String indirectStoreDiscountDisplay;
+
+  /// Voucher FOC 100%: total baris di keranjang = 0; order letter memakai
+  /// harga customer = pricelist & net = 0 + baris diskon bertanda FOC.
+  @override
+  @JsonKey(fromJson: _parseBoolDefaultFalse)
+  final bool isFocVoucher;
+
   @override
   String toString() {
-    return 'CartItem(product: $product, masterProduct: $masterProduct, quantity: $quantity, kasurSku: $kasurSku, divanSku: $divanSku, sandaranSku: $sandaranSku, sorongSku: $sorongSku, divanKain: $divanKain, divanWarna: $divanWarna, sandaranKain: $sandaranKain, sandaranWarna: $sandaranWarna, sorongKain: $sorongKain, sorongWarna: $sorongWarna, originalEupKasur: $originalEupKasur, originalEupDivan: $originalEupDivan, originalEupHeadboard: $originalEupHeadboard, originalEupSorong: $originalEupSorong, discount1: $discount1, discount2: $discount2, discount3: $discount3, discount4: $discount4, bonusSnapshots: $bonusSnapshots)';
+    return 'CartItem(product: $product, masterProduct: $masterProduct, quantity: $quantity, kasurSku: $kasurSku, divanSku: $divanSku, sandaranSku: $sandaranSku, sorongSku: $sorongSku, divanKain: $divanKain, divanWarna: $divanWarna, sandaranKain: $sandaranKain, sandaranWarna: $sandaranWarna, sorongKain: $sorongKain, sorongWarna: $sorongWarna, originalEupKasur: $originalEupKasur, originalEupDivan: $originalEupDivan, originalEupHeadboard: $originalEupHeadboard, originalEupSorong: $originalEupSorong, discount1: $discount1, discount2: $discount2, discount3: $discount3, discount4: $discount4, bonusSnapshots: $bonusSnapshots, indirectStoreAddressNumber: $indirectStoreAddressNumber, indirectStoreAlphaName: $indirectStoreAlphaName, indirectStoreAddress: $indirectStoreAddress, indirectStorePhone: $indirectStorePhone, indirectStoreDiscounts: $indirectStoreDiscounts, indirectStoreDiscountDisplay: $indirectStoreDiscountDisplay, isFocVoucher: $isFocVoucher)';
   }
 
   @override
@@ -766,7 +907,25 @@ class _$CartItemImpl extends _CartItem {
             (identical(other.discount4, discount4) ||
                 other.discount4 == discount4) &&
             const DeepCollectionEquality()
-                .equals(other._bonusSnapshots, _bonusSnapshots));
+                .equals(other._bonusSnapshots, _bonusSnapshots) &&
+            (identical(other.indirectStoreAddressNumber,
+                    indirectStoreAddressNumber) ||
+                other.indirectStoreAddressNumber ==
+                    indirectStoreAddressNumber) &&
+            (identical(other.indirectStoreAlphaName, indirectStoreAlphaName) ||
+                other.indirectStoreAlphaName == indirectStoreAlphaName) &&
+            (identical(other.indirectStoreAddress, indirectStoreAddress) ||
+                other.indirectStoreAddress == indirectStoreAddress) &&
+            (identical(other.indirectStorePhone, indirectStorePhone) ||
+                other.indirectStorePhone == indirectStorePhone) &&
+            const DeepCollectionEquality().equals(
+                other._indirectStoreDiscounts, _indirectStoreDiscounts) &&
+            (identical(other.indirectStoreDiscountDisplay,
+                    indirectStoreDiscountDisplay) ||
+                other.indirectStoreDiscountDisplay ==
+                    indirectStoreDiscountDisplay) &&
+            (identical(other.isFocVoucher, isFocVoucher) ||
+                other.isFocVoucher == isFocVoucher));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -794,7 +953,14 @@ class _$CartItemImpl extends _CartItem {
         discount2,
         discount3,
         discount4,
-        const DeepCollectionEquality().hash(_bonusSnapshots)
+        const DeepCollectionEquality().hash(_bonusSnapshots),
+        indirectStoreAddressNumber,
+        indirectStoreAlphaName,
+        indirectStoreAddress,
+        indirectStorePhone,
+        const DeepCollectionEquality().hash(_indirectStoreDiscounts),
+        indirectStoreDiscountDisplay,
+        isFocVoucher
       ]);
 
   /// Create a copy of CartItem
@@ -815,28 +981,38 @@ class _$CartItemImpl extends _CartItem {
 
 abstract class _CartItem extends CartItem {
   const factory _CartItem(
-      {required final Product product,
-      final Product? masterProduct,
-      @JsonKey(fromJson: _parseInt) final int quantity,
-      final String kasurSku,
-      final String divanSku,
-      final String sandaranSku,
-      final String sorongSku,
-      final String divanKain,
-      final String divanWarna,
-      final String sandaranKain,
-      final String sandaranWarna,
-      final String sorongKain,
-      final String sorongWarna,
-      @JsonKey(fromJson: _parseDouble) final double originalEupKasur,
-      @JsonKey(fromJson: _parseDouble) final double originalEupDivan,
-      @JsonKey(fromJson: _parseDouble) final double originalEupHeadboard,
-      @JsonKey(fromJson: _parseDouble) final double originalEupSorong,
-      @JsonKey(fromJson: _parseDouble) final double discount1,
-      @JsonKey(fromJson: _parseDouble) final double discount2,
-      @JsonKey(fromJson: _parseDouble) final double discount3,
-      @JsonKey(fromJson: _parseDouble) final double discount4,
-      final List<CartBonusSnapshot> bonusSnapshots}) = _$CartItemImpl;
+          {required final Product product,
+          final Product? masterProduct,
+          @JsonKey(fromJson: _parseInt) final int quantity,
+          final String kasurSku,
+          final String divanSku,
+          final String sandaranSku,
+          final String sorongSku,
+          final String divanKain,
+          final String divanWarna,
+          final String sandaranKain,
+          final String sandaranWarna,
+          final String sorongKain,
+          final String sorongWarna,
+          @JsonKey(fromJson: _parseDouble) final double originalEupKasur,
+          @JsonKey(fromJson: _parseDouble) final double originalEupDivan,
+          @JsonKey(fromJson: _parseDouble) final double originalEupHeadboard,
+          @JsonKey(fromJson: _parseDouble) final double originalEupSorong,
+          @JsonKey(fromJson: _parseDouble) final double discount1,
+          @JsonKey(fromJson: _parseDouble) final double discount2,
+          @JsonKey(fromJson: _parseDouble) final double discount3,
+          @JsonKey(fromJson: _parseDouble) final double discount4,
+          final List<CartBonusSnapshot> bonusSnapshots,
+          @JsonKey(fromJson: _parseIntNullable)
+          final int? indirectStoreAddressNumber,
+          final String indirectStoreAlphaName,
+          final String indirectStoreAddress,
+          final String indirectStorePhone,
+          @JsonKey(fromJson: _parseDoubleList)
+          final List<double> indirectStoreDiscounts,
+          final String indirectStoreDiscountDisplay,
+          @JsonKey(fromJson: _parseBoolDefaultFalse) final bool isFocVoucher}) =
+      _$CartItemImpl;
   const _CartItem._() : super._();
 
   factory _CartItem.fromJson(Map<String, dynamic> json) =
@@ -895,6 +1071,28 @@ abstract class _CartItem extends CartItem {
   double get discount4;
   @override
   List<CartBonusSnapshot> get bonusSnapshots;
+
+  /// Indirect: `address_number` toko (kunci merge baris + diskon).
+  @override
+  @JsonKey(fromJson: _parseIntNullable)
+  int? get indirectStoreAddressNumber;
+  @override
+  String get indirectStoreAlphaName;
+  @override
+  String get indirectStoreAddress;
+  @override
+  String get indirectStorePhone;
+  @override
+  @JsonKey(fromJson: _parseDoubleList)
+  List<double> get indirectStoreDiscounts;
+  @override
+  String get indirectStoreDiscountDisplay;
+
+  /// Voucher FOC 100%: total baris di keranjang = 0; order letter memakai
+  /// harga customer = pricelist & net = 0 + baris diskon bertanda FOC.
+  @override
+  @JsonKey(fromJson: _parseBoolDefaultFalse)
+  bool get isFocVoucher;
 
   /// Create a copy of CartItem
   /// with the given fields replaced by the non-null parameter values.

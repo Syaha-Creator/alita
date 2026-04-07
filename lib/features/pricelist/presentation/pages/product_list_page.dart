@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/enums/sales_mode.dart';
 import '../../../../core/services/connectivity_service.dart';
+import '../../../../core/utils/telemetry_access.dart';
 import '../../../../core/widgets/async_state_view.dart';
 import '../../../../core/widgets/error_state_view.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -19,6 +21,9 @@ import '../widgets/filter_header_widget.dart';
 import '../widgets/sort_bottom_sheet.dart';
 import '../../../cart/presentation/widgets/cart_fab.dart';
 import '../../../favorites/logic/favorites_provider.dart';
+import '../../../auth/logic/auth_provider.dart';
+import '../../../indirect/logic/indirect_session_provider.dart';
+import '../../../indirect/logic/sales_mode_provider.dart';
 
 /// Product list page with Pinterest-style masonry grid + Cascading Filters
 class ProductListPage extends ConsumerStatefulWidget {
@@ -43,6 +48,8 @@ class _ProductListPageState extends ConsumerState<ProductListPage> {
     final filteredProducts = ref.watch(filteredProductsProvider);
     final isFilterComplete = ref.watch(isFilterCompleteProvider);
     final isOffline = ref.watch(isOfflineProvider);
+    final userId = ref.watch(authProvider.select((a) => a.userId));
+    final canPickSalesMode = TelemetryAccess.canChooseSalesMode(userId);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -53,6 +60,12 @@ class _ProductListPageState extends ConsumerState<ProductListPage> {
         ),
         elevation: 0,
         actions: [
+          if (canPickSalesMode)
+            IconButton(
+              tooltip: 'Ganti mode / toko',
+              icon: const Icon(Icons.store_mall_directory_outlined),
+              onPressed: () => context.push('/sales_hub'),
+            ),
           IconButton(
             tooltip: 'Profil',
             icon: const Icon(Icons.person_outline),
@@ -67,7 +80,8 @@ class _ProductListPageState extends ConsumerState<ProductListPage> {
       body: AsyncStateView<ProductListLoadResult>(
         state: productsAsync,
         loading: _buildShimmerGrid(context),
-        errorBuilder: (error, _) => _buildErrorState(context, isOffline: isOffline),
+        errorBuilder: (error, _) =>
+            _buildErrorState(context, isOffline: isOffline),
         dataBuilder: (result) {
           if (!isFilterComplete) {
             return _buildFilterPrompt(context);
@@ -121,7 +135,7 @@ class _ProductListPageState extends ConsumerState<ProductListPage> {
           ),
         ),
       ),
-      // Cascading Filter (Area → Channel → Brand)
+      // Area + Channel + Brand (indirect: pill pertama = pilih toko, menggantikan Area)
       const SliverToBoxAdapter(child: FilterHeaderWidget()),
     ];
   }
@@ -150,17 +164,51 @@ class _ProductListPageState extends ConsumerState<ProductListPage> {
 
   /// Prompt user to complete cascading filter selection
   Widget _buildFilterPrompt(BuildContext context) {
+    final isIndirect = ref.watch(salesModeProvider) == SalesMode.indirect;
+    final hasIndirectStore =
+        ref.watch(indirectSessionProvider.select((s) => s.hasStore));
+    final selectedChannel = ref.watch(selectedChannelProvider);
+    final indirectBrandOptions = isIndirect && hasIndirectStore
+        ? ref.watch(catalogBrandsProvider)
+        : null;
+
+    final (String title, String subtitle) = isIndirect && !hasIndirectStore
+        ? (
+            'Pilih toko',
+            'Tap chip pertama (ikon toko) di bar filter untuk memilih cabang.\n'
+                'Setelah itu channel dan brand mengikuti master data.',
+          )
+        : isIndirect &&
+                hasIndirectStore &&
+                selectedChannel != null &&
+                indirectBrandOptions != null &&
+                indirectBrandOptions.isEmpty
+            ? (
+                'Brand tidak tersedia di channel ini',
+                'Channel "$selectedChannel" tidak punya brand yang selaras '
+                    'dengan catcode toko yang dipilih.\n'
+                    'Pilih channel lain di bar filter, atau periksa master data.',
+              )
+            : (
+                'Pilih Channel & Brand',
+                isIndirect
+                    ? 'Channel dibatasi ke yang mengandung "Toko"; brand '
+                        'disesuaikan dengan catcode toko.\n'
+                        'Jika belum terisi, tap Channel atau Brand di bar filter.'
+                    : 'Silakan pilih channel dan brand terlebih dahulu\n'
+                        'untuk melihat daftar produk.',
+              );
+
     return CustomScrollView(
       slivers: [
         ..._buildStickyHeaders(context),
-        const SliverFillRemaining(
+        SliverFillRemaining(
           child: EmptyStateView(
             icon: Icons.filter_list_rounded,
             iconSize: 72,
-            padding: EdgeInsets.all(32),
-            title: 'Pilih Channel & Brand',
-            subtitle:
-                'Silakan pilih channel dan brand terlebih dahulu\nuntuk melihat daftar produk.',
+            padding: const EdgeInsets.all(32),
+            title: title,
+            subtitle: subtitle,
           ),
         ),
       ],
@@ -189,82 +237,91 @@ class _ProductListPageState extends ConsumerState<ProductListPage> {
     List<Product> products, {
     bool showStaleCacheBanner = false,
   }) {
+    final salesMode = ref.watch(salesModeProvider);
+    final indirectSession = ref.watch(indirectSessionProvider);
+    final List<double>? cardStoreDiscounts =
+        salesMode == SalesMode.indirect && indirectSession.hasDiscounts
+            ? indirectSession.storeDiscounts
+            : null;
+
     return RefreshIndicator.adaptive(
       color: AppColors.accent,
       onRefresh: () async => ref.invalidate(productListProvider),
       child: CustomScrollView(
-      slivers: [
-        ..._buildStickyHeaders(context),
-        if (showStaleCacheBanner)
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Material(
-                color: AppColors.warning.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.history_edu_outlined,
-                          size: 18, color: AppColors.warning),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Menampilkan data terakhir yang tersimpan. Tarik untuk refresh '
-                          'agar harga mengikuti server terbaru.',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppColors.textSecondary,
-                                height: 1.3,
-                                fontWeight: FontWeight.w600,
-                              ),
+        slivers: [
+          ..._buildStickyHeaders(context),
+          if (showStaleCacheBanner)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: Material(
+                  color: AppColors.warning.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.history_edu_outlined,
+                            size: 18, color: AppColors.warning),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Menampilkan data terakhir yang tersimpan. Tarik untuk refresh '
+                            'agar harga mengikuti server terbaru.',
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: AppColors.textSecondary,
+                                      height: 1.3,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        // Products count
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text(
-              '${products.length} produk ditemukan',
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
+          // Products count
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                '${products.length} produk ditemukan',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
+              ),
             ),
           ),
-        ),
-        // Masonry Grid
-        SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          sliver: SliverMasonryGrid.count(
-            crossAxisCount: 2,
-            mainAxisSpacing: 16,
-            crossAxisSpacing: 16,
-            childCount: products.length,
-            itemBuilder: (context, index) {
-              final product = products[index];
-              return AnimatedListItem(
-                index: index,
-                child: RepaintBoundary(
-                  child: ProductCard(
-                    product: product,
-                    onTap: () {
-                      context.push('/product/${product.id}', extra: product);
-                    },
+          // Masonry Grid
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            sliver: SliverMasonryGrid.count(
+              crossAxisCount: 2,
+              mainAxisSpacing: 16,
+              crossAxisSpacing: 16,
+              childCount: products.length,
+              itemBuilder: (context, index) {
+                final product = products[index];
+                return AnimatedListItem(
+                  index: index,
+                  child: RepaintBoundary(
+                    child: ProductCard(
+                      product: product,
+                      indirectStoreDiscounts: cardStoreDiscounts,
+                      onTap: () {
+                        context.push('/product/${product.id}', extra: product);
+                      },
+                    ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
-        ),
-        const SliverToBoxAdapter(child: SizedBox(height: 16)),
-      ],
+          const SliverToBoxAdapter(child: SizedBox(height: 16)),
+        ],
       ),
     );
   }
@@ -272,9 +329,7 @@ class _ProductListPageState extends ConsumerState<ProductListPage> {
   /// Error state with retry
   Widget _buildErrorState(BuildContext context, {required bool isOffline}) {
     return ErrorStateView(
-      title: isOffline
-          ? 'Sedang offline'
-          : 'Gagal memuat produk',
+      title: isOffline ? 'Sedang offline' : 'Gagal memuat produk',
       message: isOffline
           ? 'Tidak ada koneksi internet. Tarik untuk refresh setelah online.'
           : 'Terjadi kendala saat memuat data server. Coba lagi beberapa saat.',

@@ -140,13 +140,22 @@ class InvoicePdfGenerator {
         orderData['order_letter_discounts'] ?? orderData['discount_data']);
     final grandTotal = PdfHelpers.dbl(letter['extended_amount']);
     final tglPelunasan = _extractRepaymentDate(orderData, payments, grandTotal);
+    final channelStr = letter['channel']?.toString();
+    final isSoIndirectPdf = _isSoIndirectPdfChannel(channelStr);
     final salesCode = orderData['sales_code']?.toString() ?? '';
-    final salesIdentity =
-        _resolveSalesIdentity(orderData, details, letter, salesCode: salesCode);
+    final salesIdentity = _resolveSalesIdentity(
+      orderData,
+      details,
+      letter,
+      salesCode: salesCode,
+      isSoIndirectPdf: isSoIndirectPdf,
+    );
 
     if (!PdfAssetCache.isWarmedUp) await PdfAssetCache.warmUp();
-
-    final logos = _buildLogos(letter['channel']?.toString());
+    final logos = _buildLogos(channelStr);
+    final approvalsForPdf = isSoIndirectPdf
+        ? approvals.where((a) => !_isPdfStoreDiscountRow(a)).toList()
+        : approvals;
     final watermark = await _buildWatermark(
         approvals, payments, PdfHelpers.dbl(letter['extended_amount']));
     final pw.ImageProvider? approveStamp =
@@ -169,27 +178,32 @@ class InvoicePdfGenerator {
           buildBackground: (_) => watermark ?? pw.SizedBox(),
         ),
         header: (ctx) => ctx.pageNumber == 1
-            ? PdfHeaderSection.buildHeader(logos, letter)
+            ? PdfHeaderSection.buildHeader(logos, letter,
+                isSoIndirectPdf: isSoIndirectPdf)
             : pw.Container(),
         footer: (ctx) => _buildFooter(ctx),
         build: (ctx) => [
-          PdfHeaderSection.buildCustomerAndOrderInfo(letter),
+          PdfHeaderSection.buildCustomerAndOrderInfo(letter,
+              isSoIndirectPdf: isSoIndirectPdf),
           pw.SizedBox(height: 12),
           ...PdfItemsTable.buildItemsTable(letter, details, discounts,
-              isInternal: isInternal),
+              isInternal: isInternal,
+              hideStoreDiscountTiers: isSoIndirectPdf),
           pw.SizedBox(height: 8),
           PdfTotalsSection.buildNotesAndTotals(letter, payments,
-              repaymentDate: tglPelunasan),
+              repaymentDate: tglPelunasan,
+              isSoIndirectPdf: isSoIndirectPdf),
           pw.SizedBox(height: 10),
-          if (isInternal && approvals.isNotEmpty) ...[
+          if (isInternal && approvalsForPdf.isNotEmpty) ...[
             PdfApprovalSignature.buildApprovalTable(
-                approvals, approveStamp, letter['created_at']?.toString()),
+                approvalsForPdf, approveStamp, letter['created_at']?.toString()),
             pw.SizedBox(height: 10),
           ],
           PdfApprovalSignature.buildTermsAndSignatureSection(
             letter,
             salesName: salesIdentity.$1,
             salesCode: salesIdentity.$2,
+            isSoIndirectPdf: isSoIndirectPdf,
           ),
         ],
       ),
@@ -202,10 +216,27 @@ class InvoicePdfGenerator {
   // LOGO ASSEMBLY (from cache)
   // ═══════════════════════════════════════════════════════════════════════════
 
+  /// Channel `SO` / `S0` (indirect / Sleep Outlet): layout PDF khusus + filter diskon toko.
+  static bool _isSoIndirectPdfChannel(String? channel) {
+    final c = channel?.trim().toUpperCase() ?? '';
+    return c == 'S0' || c == 'SO';
+  }
+
+  /// Baris diskon/approval bertipe diskon toko (level 5+ / label "Diskon Toko …").
+  static bool _isPdfStoreDiscountRow(Map<String, dynamic> d) {
+    final level = d['approver_level']?.toString().toLowerCase() ?? '';
+    return level.startsWith('diskon toko');
+  }
+
+  /// Channel `SO` / `S0` (Sleep Outlet / divisi terkait): header pakai teks, bukan logo SC.
+  static const _massindoHeaderText = 'PT Massindo Karya Prima';
+
   static PdfLogos _buildLogos(String? channel) {
-    final showSleepCenter = channel == null || channel.toUpperCase() != 'S0';
+    final useMassindoText = _isSoIndirectPdfChannel(channel);
     return PdfLogos(
-      sleepCenter: showSleepCenter ? PdfAssetCache.sleepCenterLogo : null,
+      sleepCenter: useMassindoText ? null : PdfAssetCache.sleepCenterLogo,
+      sleepCenterReplacementText:
+          useMassindoText ? _massindoHeaderText : null,
       others: PdfAssetCache.brandLogos,
     );
   }
@@ -354,6 +385,8 @@ class InvoicePdfGenerator {
         'creator_name': order.creatorName,
         'sales_code': order.salesCode,
         'sales_name': order.salesName,
+        'no_po': order.noPo,
+        if ((order.channel ?? '').isNotEmpty) 'channel': order.channel,
       },
       'order_letter_details': detailMaps,
       'order_letter_payments': order.payments
@@ -437,6 +470,7 @@ class InvoicePdfGenerator {
     List<Map<String, dynamic>> details,
     Map<String, dynamic> letter, {
     String salesCode = '',
+    bool isSoIndirectPdf = false,
   }) {
     salesCode = salesCode.isNotEmpty
         ? salesCode
@@ -483,8 +517,12 @@ class InvoicePdfGenerator {
     }
 
     if (salesName.isEmpty) {
-      salesName =
-          creatorId.isNotEmpty ? 'Admin ($creatorId)' : 'SLEEP CONSULTANT';
+      if (isSoIndirectPdf) {
+        salesName = creatorId.isNotEmpty ? 'Admin ($creatorId)' : '-';
+      } else {
+        salesName =
+            creatorId.isNotEmpty ? 'Admin ($creatorId)' : 'SLEEP CONSULTANT';
+      }
     }
 
     return (salesName, salesCode);

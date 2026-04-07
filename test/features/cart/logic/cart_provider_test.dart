@@ -47,12 +47,28 @@ void main() {
         sandaranSku: 'S1',
         sorongSku: 'SR1',
       );
-      expect(cartItemKey(item), '1|K1|D1|S1|SR1');
+      expect(cartItemKey(item), '1|K1|D1|S1|SR1|d');
     });
 
     test('empty SKUs produce pipe-only suffix', () {
       final item = CartItem(product: _product());
-      expect(cartItemKey(item), '1||||');
+      expect(cartItemKey(item), '1|||||d');
+    });
+
+    test('FOC suffix only for indirect + voucher flag', () {
+      final base = CartItem(
+        product: _product(),
+        kasurSku: 'K1',
+      );
+      final focDirect = base.copyWith(isFocVoucher: true);
+      expect(cartItemKey(base), '1|K1||||d');
+      expect(cartItemKey(focDirect), '1|K1||||d');
+
+      final focIndirect = base.copyWith(
+        isFocVoucher: true,
+        indirectStoreAddressNumber: 7,
+      );
+      expect(cartItemKey(focIndirect), '1|K1||||i7|foc');
     });
   });
 
@@ -175,6 +191,52 @@ void main() {
       await notifier.addItem(_item(id: '1', price: 100, qty: 2));
       await notifier.addItem(_item(id: '2', price: 300, qty: 1));
       expect(notifier.totalAmount, 500);
+    });
+
+    test('FOC line contributes zero to totalAmount only when indirect', () async {
+      await notifier.addItem(
+        CartItem(
+          product: _product(id: '1', price: 5000),
+          quantity: 2,
+          isFocVoucher: true,
+          indirectStoreAddressNumber: 1,
+        ),
+      );
+      expect(notifier.totalAmount, 0);
+    });
+
+    test('setItemFocVoucher toggles only on indirect lines', () async {
+      await notifier.addItem(_item(price: 1000, qty: 1));
+      expect(notifier.state.first.isFocVoucher, false);
+      expect(notifier.totalAmount, 1000);
+      await notifier.setItemFocVoucher(0, true);
+      expect(notifier.state.first.isFocVoucher, false);
+      expect(notifier.totalAmount, 1000);
+
+      await notifier.addItem(CartItem(
+        product: _product(id: '2', price: 2000),
+        quantity: 1,
+        indirectStoreAddressNumber: 9,
+      ));
+      await notifier.setItemFocVoucher(1, true);
+      expect(notifier.state[1].isFocVoucher, true);
+      expect(notifier.totalAmount, 1000);
+      await notifier.setItemFocVoucher(1, false);
+      expect(notifier.state[1].isFocVoucher, false);
+      expect(notifier.totalAmount, 3000);
+    });
+
+    test('addItem does not merge FOC and non-FOC same SKU (indirect)', () async {
+      await notifier.addItem(CartItem(
+        product: _product(),
+        indirectStoreAddressNumber: 3,
+      ));
+      await notifier.addItem(CartItem(
+        product: _product(),
+        isFocVoucher: true,
+        indirectStoreAddressNumber: 3,
+      ));
+      expect(notifier.state, hasLength(2));
     });
   });
 }

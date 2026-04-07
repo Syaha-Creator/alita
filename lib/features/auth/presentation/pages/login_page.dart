@@ -1,11 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/utils/platform_utils.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../../core/services/connectivity_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/utils/app_telemetry.dart';
+import '../../../../core/utils/platform_utils.dart';
+import '../../../../core/utils/telemetry_access.dart';
+import '../../../indirect/logic/sales_mode_bootstrap.dart';
 import '../../logic/auth_provider.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -84,9 +89,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
           duration: const Duration(seconds: 3),
           floating: true,
         );
-        Future.delayed(const Duration(milliseconds: 800), () {
-          if (mounted) context.go('/');
-        });
+        unawaited(_navigateAfterLogin(next));
       } else if (next.errorMessage case final errorMsg?) {
         _shakeController.forward(from: 0);
         AppFeedback.show(
@@ -98,6 +101,22 @@ class _LoginPageState extends ConsumerState<LoginPage>
         );
       }
     });
+  }
+
+  Future<void> _navigateAfterLogin(AuthState auth) async {
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    if (!mounted) return;
+    if (TelemetryAccess.canChooseSalesMode(auth.userId)) {
+      context.go('/sales_hub');
+      return;
+    }
+    await syncSalesModeForNonAdminUser(
+      ref,
+      userId: auth.userId,
+      addressNumber: auth.addressNumber,
+    );
+    if (!mounted) return;
+    context.go('/');
   }
 
   // ── Login handler ─────────────────────────────────────────────

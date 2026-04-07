@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../../../../core/services/api_client.dart';
 import '../../../../core/utils/app_telemetry.dart';
+import '../../../../core/utils/store_discount_calculator.dart';
 import '../../../../core/utils/log.dart';
 import '../../../cart/data/cart_item.dart';
 import '../../../pricelist/data/models/item_lookup.dart';
@@ -362,6 +363,23 @@ class CheckoutOrderService {
     return (customerPrice: customerPrice * qty, netPrice: netPrice);
   }
 
+  /// Indirect: [customer_price] mengikuti direct (EUP + logika markup/original).
+  /// Diskon toko diterapkan pada **net per unit setelah diskon sales** (bukan pada PL).
+  static double _netLineAfterIndirectStoreDiscounts({
+    required bool isIndirectLine,
+    required int qty,
+    required List<double> storeDiscounts,
+    required double netLineAfterSalesDiscounts,
+  }) {
+    if (!isIndirectLine || qty <= 0) {
+      return netLineAfterSalesDiscounts;
+    }
+    final perUnitNet = netLineAfterSalesDiscounts / qty;
+    final lineNet =
+        StoreDiscountCalculator.cascade(perUnitNet, storeDiscounts) * qty;
+    return double.parse(lineNet.toStringAsFixed(2));
+  }
+
   /// Pick the best available original EUP with cascading fallback:
   /// 1. CartItem.originalEup* (explicit, always correct for the selected variant)
   /// 2. masterProduct.eup* (original catalog entry, may be wrong variant)
@@ -579,21 +597,51 @@ class CheckoutOrderService {
         return lower.isNotEmpty && !lower.contains('tanpa');
       }
 
-      List<Map<String, dynamic>> buildDiscounts() =>
-          CheckoutDiscountBuilder.build(
-            userId: userId,
-            creatorName: creatorName,
-            creatorTitle: creatorTitle,
-            selectedSpv: selectedSpv,
-            selectedManager: selectedManager,
-            analystId: analystId,
-            analystName: analystName,
-            analystTitle: analystTitle,
-            discount1: item.discount1,
-            discount2: item.discount2,
-            discount3: item.discount3,
-            discount4: item.discount4,
-          );
+      List<Map<String, dynamic>> buildDiscounts() {
+        final base = CheckoutDiscountBuilder.build(
+          userId: userId,
+          creatorName: creatorName,
+          creatorTitle: creatorTitle,
+          selectedSpv: selectedSpv,
+          selectedManager: selectedManager,
+          analystId: analystId,
+          analystName: analystName,
+          analystTitle: analystTitle,
+          discount1: item.discount1,
+          discount2: item.discount2,
+          discount3: item.discount3,
+          discount4: item.discount4,
+        );
+        if (item.isIndirectSale &&
+            item.indirectStoreDiscounts.isNotEmpty &&
+            item.indirectStoreAlphaName.isNotEmpty) {
+          return [
+            ...base,
+            ...CheckoutDiscountBuilder.buildStoreDiscountRows(
+              storeDiscounts: item.indirectStoreDiscounts,
+              storeAlphaName: item.indirectStoreAlphaName,
+            ),
+          ];
+        }
+        return base;
+      }
+
+      /// Baris utama (bukan bonus): FOC → hanya voucher 100%; selain itu rantai diskon biasa.
+      List<Map<String, dynamic>> discountRowsForDetailLine() {
+        if (item.isFocVoucherActive) {
+          final spv = selectedSpv;
+          if (spv == null) {
+            throw StateError(
+              'Baris FOC membutuhkan SPV yang dipilih (validasi checkout harus memastikan ini).',
+            );
+          }
+          return CheckoutDiscountBuilder.buildFocVoucherRow(selectedSpv: spv);
+        }
+        return buildDiscounts();
+      }
+
+      final isIndirectLine = item.isIndirectSale &&
+          item.indirectStoreDiscounts.isNotEmpty;
 
       // ── Effective EUP per component ──
       // When the user edits the total price upward, the markup might be
@@ -654,6 +702,17 @@ class CheckoutOrderService {
           discount3: item.discount3,
           discount4: item.discount4,
         );
+        var kasurCustomer = kasurPrices.customerPrice;
+        var kasurNet = _netLineAfterIndirectStoreDiscounts(
+          isIndirectLine: isIndirectLine,
+          qty: item.quantity,
+          storeDiscounts: item.indirectStoreDiscounts,
+          netLineAfterSalesDiscounts: kasurPrices.netPrice,
+        );
+        if (item.isFocVoucherActive) {
+          kasurCustomer = p.plKasur * item.quantity;
+          kasurNet = 0;
+        }
         final payload = {
           'item_number':
               CheckoutDetailBuilderUtils.normalizeNullableSku(item.kasurSku),
@@ -666,15 +725,15 @@ class CheckoutOrderService {
           'desc_2': ukuran,
           'brand': brand,
           'unit_price': p.plKasur * item.quantity,
-          'customer_price': kasurPrices.customerPrice,
-          'net_price': kasurPrices.netPrice,
+          'customer_price': kasurCustomer,
+          'net_price': kasurNet,
           'qty': item.quantity,
           'item_type': 'Mattress',
           if (getTakeAway() != null) 'take_away': getTakeAway(),
         };
         pending.add(PendingDetail(
           payload: payload,
-          discounts: buildDiscounts(),
+          discounts: discountRowsForDetailLine(),
           label: '${p.name} (Kasur)',
         ));
         componentPosted = true;
@@ -699,11 +758,22 @@ class CheckoutOrderService {
           discount3: item.discount3,
           discount4: item.discount4,
         );
+        var divanCustomer = divanPrices.customerPrice;
+        var divanNet = _netLineAfterIndirectStoreDiscounts(
+          isIndirectLine: isIndirectLine,
+          qty: item.quantity,
+          storeDiscounts: item.indirectStoreDiscounts,
+          netLineAfterSalesDiscounts: divanPrices.netPrice,
+        );
+        if (item.isFocVoucherActive) {
+          divanCustomer = p.plDivan * item.quantity;
+          divanNet = 0;
+        }
         final payload = {
           'item_number':
               CheckoutDetailBuilderUtils.normalizeNullableSku(item.divanSku),
           'item_description': CheckoutDetailBuilderUtils.buildDescription(
-            baseDesc: p.divan,
+            baseDesc: appendSizeIfMissing(p.divan, ukuran),
             sku: item.divanSku,
             lookupByItemNum: lookupByItemNum,
             storedKain: item.divanKain,
@@ -713,15 +783,15 @@ class CheckoutOrderService {
           'desc_2': ukuran,
           'brand': brand,
           'unit_price': p.plDivan * item.quantity,
-          'customer_price': divanPrices.customerPrice,
-          'net_price': divanPrices.netPrice,
+          'customer_price': divanCustomer,
+          'net_price': divanNet,
           'qty': item.quantity,
           'item_type': 'Divan',
           if (getTakeAway() != null) 'take_away': getTakeAway(),
         };
         pending.add(PendingDetail(
           payload: payload,
-          discounts: p.eupDivan > 0 ? buildDiscounts() : const [],
+          discounts: p.eupDivan > 0 ? discountRowsForDetailLine() : const [],
           label: '${p.name} (Divan)',
         ));
         componentPosted = true;
@@ -746,11 +816,22 @@ class CheckoutOrderService {
           discount3: item.discount3,
           discount4: item.discount4,
         );
+        var hbCustomer = headboardPrices.customerPrice;
+        var hbNet = _netLineAfterIndirectStoreDiscounts(
+          isIndirectLine: isIndirectLine,
+          qty: item.quantity,
+          storeDiscounts: item.indirectStoreDiscounts,
+          netLineAfterSalesDiscounts: headboardPrices.netPrice,
+        );
+        if (item.isFocVoucherActive) {
+          hbCustomer = p.plHeadboard * item.quantity;
+          hbNet = 0;
+        }
         final payload = {
           'item_number':
               CheckoutDetailBuilderUtils.normalizeNullableSku(item.sandaranSku),
           'item_description': CheckoutDetailBuilderUtils.buildDescription(
-            baseDesc: p.headboard,
+            baseDesc: appendSizeIfMissing(p.headboard, ukuran),
             sku: item.sandaranSku,
             lookupByItemNum: lookupByItemNum,
             storedKain: item.sandaranKain,
@@ -760,15 +841,15 @@ class CheckoutOrderService {
           'desc_2': ukuran,
           'brand': brand,
           'unit_price': p.plHeadboard * item.quantity,
-          'customer_price': headboardPrices.customerPrice,
-          'net_price': headboardPrices.netPrice,
+          'customer_price': hbCustomer,
+          'net_price': hbNet,
           'qty': item.quantity,
           'item_type': 'Headboard',
           if (getTakeAway() != null) 'take_away': getTakeAway(),
         };
         pending.add(PendingDetail(
           payload: payload,
-          discounts: p.eupHeadboard > 0 ? buildDiscounts() : const [],
+          discounts: p.eupHeadboard > 0 ? discountRowsForDetailLine() : const [],
           label: '${p.name} (Headboard)',
         ));
         componentPosted = true;
@@ -793,11 +874,22 @@ class CheckoutOrderService {
           discount3: item.discount3,
           discount4: item.discount4,
         );
+        var srCustomer = sorongPrices.customerPrice;
+        var srNet = _netLineAfterIndirectStoreDiscounts(
+          isIndirectLine: isIndirectLine,
+          qty: item.quantity,
+          storeDiscounts: item.indirectStoreDiscounts,
+          netLineAfterSalesDiscounts: sorongPrices.netPrice,
+        );
+        if (item.isFocVoucherActive) {
+          srCustomer = p.plSorong * item.quantity;
+          srNet = 0;
+        }
         final payload = {
           'item_number':
               CheckoutDetailBuilderUtils.normalizeNullableSku(item.sorongSku),
           'item_description': CheckoutDetailBuilderUtils.buildDescription(
-            baseDesc: p.sorong,
+            baseDesc: appendSizeIfMissing(p.sorong, ukuran),
             sku: item.sorongSku,
             lookupByItemNum: lookupByItemNum,
             storedKain: item.sorongKain,
@@ -807,15 +899,15 @@ class CheckoutOrderService {
           'desc_2': ukuran,
           'brand': brand,
           'unit_price': p.plSorong * item.quantity,
-          'customer_price': sorongPrices.customerPrice,
-          'net_price': sorongPrices.netPrice,
+          'customer_price': srCustomer,
+          'net_price': srNet,
           'qty': item.quantity,
           'item_type': 'Sorong',
           if (getTakeAway() != null) 'take_away': getTakeAway(),
         };
         pending.add(PendingDetail(
           payload: payload,
-          discounts: p.eupSorong > 0 ? buildDiscounts() : const [],
+          discounts: p.eupSorong > 0 ? discountRowsForDetailLine() : const [],
           label: '${p.name} (Sorong)',
         ));
         componentPosted = true;
@@ -840,6 +932,19 @@ class CheckoutOrderService {
           discount3: item.discount3,
           discount4: item.discount4,
         );
+        final unitPlFallback =
+            (p.pricelist > 0 ? p.pricelist : p.price) * item.quantity;
+        var fbCustomer = prices.customerPrice;
+        var fbNet = _netLineAfterIndirectStoreDiscounts(
+          isIndirectLine: isIndirectLine,
+          qty: item.quantity,
+          storeDiscounts: item.indirectStoreDiscounts,
+          netLineAfterSalesDiscounts: prices.netPrice,
+        );
+        if (item.isFocVoucherActive) {
+          fbCustomer = unitPlFallback;
+          fbNet = 0;
+        }
         final fallbackSku = item.kasurSku.isNotEmpty
             ? item.kasurSku
             : (item.divanSku.isNotEmpty
@@ -854,18 +959,16 @@ class CheckoutOrderService {
           'desc_1': cleanDesc1(p.name, ukuran),
           'desc_2': ukuran,
           'brand': brand,
-          'unit_price': p.pricelist > 0
-              ? p.pricelist * item.quantity
-              : p.price * item.quantity,
-          'customer_price': prices.customerPrice,
-          'net_price': prices.netPrice,
+          'unit_price': unitPlFallback,
+          'customer_price': fbCustomer,
+          'net_price': fbNet,
           'qty': item.quantity,
           'item_type': 'Mattress',
           if (getTakeAway() != null) 'take_away': getTakeAway(),
         };
         pending.add(PendingDetail(
           payload: payload,
-          discounts: buildDiscounts(),
+          discounts: discountRowsForDetailLine(),
           label: '${p.name} (Produk)',
         ));
       }
@@ -888,6 +991,16 @@ class CheckoutOrderService {
         );
 
         for (final segment in splitSegments) {
+          // Bonus: net_price selalu 0 (sama direct & indirect); customer_price = PL bonus.
+          final bonusNet = CheckoutNetPriceCalculator.calculate(
+            customerPrice: bonusPlPrice,
+            qty: segment.qty,
+            discount1: item.discount1,
+            discount2: item.discount2,
+            discount3: item.discount3,
+            discount4: item.discount4,
+            isBonus: true,
+          );
           final payload = {
             'item_number':
                 CheckoutDetailBuilderUtils.normalizeNullableSku(bonus.sku),
@@ -900,15 +1013,7 @@ class CheckoutOrderService {
             'brand': brand,
             'unit_price': bonusPlPrice * segment.qty,
             'customer_price': bonusPlPrice * segment.qty,
-            'net_price': CheckoutNetPriceCalculator.calculate(
-              customerPrice: bonusPlPrice,
-              qty: segment.qty,
-              discount1: item.discount1,
-              discount2: item.discount2,
-              discount3: item.discount3,
-              discount4: item.discount4,
-              isBonus: true,
-            ),
+            'net_price': bonusNet,
             'qty': segment.qty,
             'item_type': 'Bonus',
             'notes': segment.note,

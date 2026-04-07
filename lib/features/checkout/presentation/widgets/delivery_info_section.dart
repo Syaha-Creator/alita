@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_layout_tokens.dart';
 import '../../../../core/utils/app_formatters.dart';
+import '../../../../core/utils/order_letter_date_utils.dart';
 import '../../../../core/utils/number_input_formatter.dart';
 import '../../../../core/widgets/checkout_input_decoration.dart';
 import '../../../../core/widgets/date_picker_field_tile.dart';
@@ -18,6 +19,8 @@ import '../../data/models/store_model.dart';
 class DeliveryInfoSection extends StatelessWidget {
   const DeliveryInfoSection({
     super.key,
+    required this.orderDate,
+    required this.onPickOrderDate,
     required this.requestDate,
     required this.onPickRequestDate,
     required this.isTakeAway,
@@ -31,8 +34,14 @@ class DeliveryInfoSection extends StatelessWidget {
     this.onToggleUseAttendance,
     this.selectedStore,
     this.onPickStore,
+
+    /// Indirect: tampilkan field No. PO (opsional) untuk `order_letters.no_po`.
+    this.showIndirectNoPo = false,
+    this.noPoCtrl,
   });
 
+  final DateTime orderDate;
+  final VoidCallback onPickOrderDate;
   final DateTime? requestDate;
   final VoidCallback onPickRequestDate;
   final bool isTakeAway;
@@ -47,6 +56,9 @@ class DeliveryInfoSection extends StatelessWidget {
   final ValueChanged<bool>? onToggleUseAttendance;
   final StoreModel? selectedStore;
   final VoidCallback? onPickStore;
+
+  final bool showIndirectNoPo;
+  final TextEditingController? noPoCtrl;
 
   static final _dateFmt = DateFormat('EEEE, d MMMM yyyy', 'id_ID');
 
@@ -66,6 +78,59 @@ class DeliveryInfoSection extends StatelessWidget {
           selectedStore: selectedStore,
           onPickStore: onPickStore,
         ),
+        const SizedBox(height: 16),
+
+        if (showIndirectNoPo && noPoCtrl != null) ...[
+          const FormFieldLabel('No. PO'),
+          const SizedBox(height: 8),
+          TextField(
+            controller: noPoCtrl,
+            textInputAction: TextInputAction.next,
+            style: const TextStyle(fontSize: 14),
+            decoration: CheckoutInputDecoration.form(
+              hintText: 'Opsional — nomor PO toko / pelanggan',
+              hintStyle: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textTertiary,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 12,
+              ),
+              isDense: true,
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        // Tanggal Surat Pesanan (order_date) — universal direct/indirect
+        const FormFieldLabel('Tanggal Surat Pesanan'),
+        const SizedBox(height: 8),
+        FormField<DateTime>(
+          validator: (_) {
+            if (!OrderLetterDateUtils.isValidOrderLetterDate(orderDate)) {
+              return 'Tanggal SP harus dalam bulan berjalan dan tidak boleh setelah hari ini';
+            }
+            return null;
+          },
+          builder: (formState) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                DatePickerFieldTile(
+                  text: _dateFmt.format(orderDate),
+                  hasError: formState.hasError,
+                  errorText: formState.errorText,
+                  onTap: () {
+                    onPickOrderDate();
+                    formState.didChange(orderDate);
+                  },
+                ),
+              ],
+            );
+          },
+        ),
+
         const SizedBox(height: 16),
 
         // 1. Tanggal Permintaan Kirim
@@ -273,8 +338,7 @@ class _StoreLocationBlock extends StatelessWidget {
             title: hasStore
                 ? selectedStore!.displayLabelOrFallback
                 : 'Pilih toko lain',
-            caption:
-                (!useAttendance && hasStore) ? 'Dipilih manual' : null,
+            caption: (!useAttendance && hasStore) ? 'Dipilih manual' : null,
             isSelected: !useAttendance,
             isPlaceholder: useAttendance && !hasStore,
             onTap: onPickStore,
@@ -335,9 +399,8 @@ class _OptionTile extends StatelessWidget {
                           title,
                           style: TextStyle(
                             fontSize: 13,
-                            fontWeight: isSelected
-                                ? FontWeight.w600
-                                : FontWeight.w400,
+                            fontWeight:
+                                isSelected ? FontWeight.w600 : FontWeight.w400,
                             color: _titleColor,
                           ),
                           maxLines: 1,

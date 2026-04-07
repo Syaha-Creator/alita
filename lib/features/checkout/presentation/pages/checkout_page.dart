@@ -12,6 +12,7 @@ import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/utils/log.dart';
 import '../../../../core/utils/app_telemetry.dart';
+import '../../../../core/utils/order_letter_date_utils.dart';
 import '../../../../core/utils/network_guard.dart';
 import '../../../../core/utils/number_input_formatter.dart';
 import '../../../../core/utils/platform_utils.dart';
@@ -19,16 +20,21 @@ import '../../../../core/widgets/image_source_sheet.dart';
 import '../../../../core/widgets/loading_overlay.dart';
 import '../../../../core/widgets/section_card.dart';
 import '../../../../core/services/connectivity_service.dart';
+import '../../../auth/logic/auth_provider.dart';
 import '../../../cart/data/cart_item.dart';
 import '../../../cart/logic/cart_provider.dart';
 import '../../../profile/logic/profile_provider.dart';
 import '../../data/models/payment_entry.dart';
+import '../../data/models/region_result.dart';
+import '../../data/models/store_model.dart';
+import '../../data/utils/indirect_store_match.dart';
 import '../../data/services/local_contact_service.dart';
 import '../../data/utils/checkout_payload_builder.dart';
 import '../../logic/bonus_takeaway_state.dart';
 import '../../logic/checkout_form_validator.dart';
 import '../../logic/checkout_provider.dart';
 import '../../logic/customer_repository_provider.dart';
+import '../../logic/store_provider.dart';
 import '../../data/services/customer_repository.dart';
 import '../../logic/quotation_save_handler.dart';
 import '../widgets/active_draft_banner.dart';
@@ -92,6 +98,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     return ref.read(cartTotalAmountProvider);
   }
 
+  /// Tanggal SP (`order_date`): default hari ini; boleh mundur dalam bulan berjalan.
+  DateTime _orderDate = OrderLetterDateUtils.today();
   DateTime? _requestDate;
   bool _isTakeAway = false;
 
@@ -112,6 +120,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   bool _isShippingSameAsCustomer = true;
   bool _showBackupPhone = false;
   bool _shouldSaveCustomerContact = true;
+
+  /// Indirect: simpan ke buku kontak memakai data penerima (bukan toko).
+  bool _shouldSaveReceiverContact = true;
   bool _isCloudLookupLoading = false;
   bool _isFromContactBook = false;
   String? _selectedContactId;
@@ -141,9 +152,15 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   String? _shippingKota;
   String? _shippingKecamatan;
 
+  /// Indirect + alamat penerima beda.
+  final _shippingEmailCtrl = TextEditingController();
+
   // ── Notes ──────────────────────────────────────────────────────
   final _notesController = TextEditingController();
   final _scCodeCtrl = TextEditingController();
+
+  /// Indirect: No. PO untuk field `no_po` pada POST `/order_letters`.
+  final _noPoCtrl = TextEditingController();
 
   static String _priceFmt(num value) => AppFormatters.currencyIdr(value);
 
@@ -152,10 +169,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     super.initState();
     _payments.add(PaymentEntry());
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _syncQuotationFieldsForIndirectIfNeeded();
       final notifier = ref.read(checkoutProvider.notifier);
       notifier.fetchApprovers();
       notifier.fetchAttendanceWorkPlace();
       AppAnalyticsService.logBeginCheckout(value: _effectiveTotal(ref));
+      _prefillIndirectSalesCodeFromAuthIfEmpty();
+      unawaited(_prefillIndirectCheckoutAsync());
     });
     _updatePaymentAmountUI();
     _postageCtrl.addListener(() {
@@ -163,6 +184,23 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       if (!_isMultiPayment && _isLunas) _updatePaymentAmountUI();
     });
     _prefillFromQuotation();
+  }
+
+  /// Draft lama: email/HP di field "customer" bukan data toko indirect — kosongkan;
+  /// jika kirim ke alamat lain, pindahkan email ke field penerima.
+  void _syncQuotationFieldsForIndirectIfNeeded() {
+    if (!mounted) return;
+    final indirect = _effectiveCartItems(ref).any((e) => e.isIndirectSale);
+    if (!indirect) return;
+
+    final email = _customerEmailCtrl.text.trim();
+    if (!_isShippingSameAsCustomer && email.isNotEmpty) {
+      _shippingEmailCtrl.text = email;
+    }
+    _customerEmailCtrl.clear();
+    _customerPhoneCtrl.clear();
+    _customerPhone2Ctrl.clear();
+    if (mounted) setState(() => _showBackupPhone = false);
   }
 
   void _prefillFromQuotation() {
@@ -206,6 +244,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     }
 
     // ── Delivery ──
+    final rawOrderDate = q.orderDate;
+    if (rawOrderDate != null && rawOrderDate.isNotEmpty) {
+      final parsed = DateTime.tryParse(rawOrderDate);
+      if (parsed != null) {
+        _orderDate = OrderLetterDateUtils.clampToValidOrderLetterDate(parsed);
+      }
+    }
     final rawDate = q.requestDate;
     if (rawDate != null) {
       _requestDate = DateTime.tryParse(rawDate);
@@ -216,6 +261,65 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
     // ── Notes ──
     _notesController.text = q.notes;
+  }
+
+  /// SC Code order mengikuti sales code akun (`address_number`) jika masih kosong
+  /// (mis. setelah draft kuotasi tanpa SC).
+  void _prefillIndirectSalesCodeFromAuthIfEmpty() {
+    if (!mounted) return;
+    final items = _effectiveCartItems(ref);
+    if (!items.any((e) => e.isIndirectSale)) return;
+    if (_scCodeCtrl.text.trim().isNotEmpty) return;
+    final raw = ref.read(authProvider).addressNumber?.trim();
+    if (raw == null || raw.isEmpty || raw.toLowerCase() == 'null') return;
+    setState(() => _scCodeCtrl.text = raw);
+  }
+
+  /// Isi nama & alamat toko dari master `/all_stores` (jika nama toko cocok) dan
+  /// fallback ke snapshot keranjang indirect. Email tidak diisi otomatis (boleh kosong).
+  Future<void> _prefillIndirectCheckoutAsync() async {
+    if (!mounted || widget.restoredQuotation != null) return;
+    final items = _effectiveCartItems(ref);
+    final indirect = items.where((e) => e.isIndirectSale).toList();
+    if (indirect.isEmpty) return;
+
+    final first = indirect.first;
+
+    List<StoreModel> stores = const [];
+    try {
+      stores = await ref.read(storeListProvider.future);
+    } catch (e, st) {
+      Log.error(e, st, reason: 'Checkout: storeList indirect prefill');
+    }
+
+    if (!mounted) return;
+
+    final wp = stores.isEmpty
+        ? null
+        : matchWorkPlaceForIndirectCartLine(stores, first);
+
+    var setShippingSame = false;
+    setState(() {
+      if (_customerNameCtrl.text.trim().isEmpty) {
+        if (wp != null && wp.name.trim().isNotEmpty) {
+          _customerNameCtrl.text = wp.displayNameTitleCase;
+        } else if (first.indirectStoreAlphaName.isNotEmpty) {
+          _customerNameCtrl.text = first.indirectStoreAlphaName;
+        }
+      }
+      if (_customerAddressCtrl.text.trim().isEmpty) {
+        final addr = (wp != null && wp.address.trim().isNotEmpty)
+            ? wp.address.trim()
+            : first.indirectStoreAddress.trim();
+        if (addr.isNotEmpty) {
+          _customerAddressCtrl.text = addr;
+          setShippingSame = true;
+        }
+      }
+      if (setShippingSame) _isShippingSameAsCustomer = true;
+    });
+
+    if (mounted) _prefillIndirectSalesCodeFromAuthIfEmpty();
   }
 
   double get _minimumDp => _grandTotal * 0.3;
@@ -236,6 +340,66 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     }
   }
 
+  String _indirectContactPhoneForOrder() =>
+      _isShippingSameAsCustomer ? '' : _shippingPhoneCtrl.text;
+
+  String _indirectContactEmailForOrder() =>
+      _isShippingSameAsCustomer ? '' : _shippingEmailCtrl.text;
+
+  String _indirectSavedContactDisplayName() {
+    if (_isShippingSameAsCustomer) {
+      return '';
+    }
+    final n = _shippingNameCtrl.text.trim();
+    if (n.isNotEmpty) return n;
+    final p = _shippingPhoneCtrl.text.trim();
+    if (p.isNotEmpty) return p;
+    final e = _shippingEmailCtrl.text.trim();
+    if (e.isNotEmpty) return e.split('@').first;
+    return '';
+  }
+
+  Map<String, dynamic> _newCustomerContactPayload(bool isIndirect) {
+    if (!isIndirect) {
+      return CheckoutPayloadBuilder.buildNewCustomerContactPayload(
+        customerName: _customerNameCtrl.text,
+        customerPhone: _customerPhoneCtrl.text,
+        customerEmail: _customerEmailCtrl.text,
+        customerAddress: _customerAddressCtrl.text,
+        regionText: _regionCtrl.text,
+        selectedKecamatan: _selectedKecamatan,
+        selectedKota: _selectedKota,
+        selectedProvinsi: _selectedProvinsi,
+        customerPhone2: _customerPhone2Ctrl.text,
+      );
+    }
+    if (_isShippingSameAsCustomer) {
+      return CheckoutPayloadBuilder.buildNewCustomerContactPayload(
+        customerName: '',
+        customerPhone: '',
+        customerEmail: '',
+        customerAddress: _customerAddressCtrl.text,
+        regionText: _regionCtrl.text,
+        selectedKecamatan: _selectedKecamatan,
+        selectedKota: _selectedKota,
+        selectedProvinsi: _selectedProvinsi,
+        customerPhone2: '',
+      );
+    }
+    final display = _indirectSavedContactDisplayName();
+    return CheckoutPayloadBuilder.buildNewCustomerContactPayload(
+      customerName: display,
+      customerPhone: _shippingPhoneCtrl.text,
+      customerEmail: _shippingEmailCtrl.text,
+      customerAddress: _shippingAddressCtrl.text,
+      regionText: _shippingRegionCtrl.text,
+      selectedKecamatan: _shippingKecamatan,
+      selectedKota: _shippingKota,
+      selectedProvinsi: _shippingProvinsi,
+      customerPhone2: '',
+    );
+  }
+
   @override
   void dispose() {
     _customerNameCtrl.dispose();
@@ -248,8 +412,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     _shippingPhoneCtrl.dispose();
     _shippingAddressCtrl.dispose();
     _shippingRegionCtrl.dispose();
+    _shippingEmailCtrl.dispose();
     _notesController.dispose();
     _scCodeCtrl.dispose();
+    _noPoCtrl.dispose();
     for (final p in _payments) {
       p.dispose();
     }
@@ -326,6 +492,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
     if (cartItems.isEmpty) return const CheckoutEmptyState();
 
+    final isIndirectCheckout = cartItems.any((e) => e.isIndirectSale);
+
     final checkoutState = ref.watch(
       checkoutProvider.select(
         (s) => (
@@ -383,6 +551,34 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 KeyedSubtree(
                   key: _customerSectionKey,
                   child: CheckoutCustomerShippingCard(
+                    customerSectionTitle: isIndirectCheckout
+                        ? 'Informasi Toko'
+                        : 'Informasi Pelanggan',
+                    customerSectionSubtitle: isIndirectCheckout ? null : null,
+                    shippingSectionTitle: isIndirectCheckout
+                        ? 'Alamat toko & pengiriman'
+                        : 'Alamat & Pengiriman',
+                    sameAsCustomerLabel: isIndirectCheckout
+                        ? 'Kirim ke alamat toko di atas'
+                        : 'Kirim ke alamat pelanggan di atas',
+                    receiverBlockTitle: isIndirectCheckout
+                        ? 'Penerima / gudang / cabang lain'
+                        : 'Informasi Penerima (Dropship / Lokasi Lain)',
+                    storeContactOptional: false,
+                    indirectStoreOnly: isIndirectCheckout,
+                    customerNameFieldLabel:
+                        isIndirectCheckout ? 'Nama Toko *' : 'Nama Pelanggan *',
+                    useStoreAddressLabels: isIndirectCheckout,
+                    hideCustomerRegionPicker: isIndirectCheckout,
+                    receiverContactOptional: isIndirectCheckout,
+                    showIndirectAlternateReceiverEmail:
+                        isIndirectCheckout && !_isShippingSameAsCustomer,
+                    shippingEmailCtrl: _shippingEmailCtrl,
+                    showIndirectSaveReceiverContact:
+                        isIndirectCheckout && !_isShippingSameAsCustomer,
+                    shouldSaveReceiverContact: _shouldSaveReceiverContact,
+                    onToggleSaveReceiverContact: (v) =>
+                        setState(() => _shouldSaveReceiverContact = v),
                     customerNameCtrl: _customerNameCtrl,
                     customerEmailCtrl: _customerEmailCtrl,
                     customerPhoneCtrl: _customerPhoneCtrl,
@@ -400,7 +596,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                       _isFromContactBook = false;
                     }),
                     onPickContact: _pickContact,
-                    onCloudLookup: _lookupCustomerFromCloud,
+                    onCloudLookup:
+                        isIndirectCheckout ? null : _lookupCustomerFromCloud,
                     isCloudLookupLoading: _isCloudLookupLoading,
                     customerAddressCtrl: _customerAddressCtrl,
                     regionCtrl: _regionCtrl,
@@ -441,6 +638,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                             .toggleUseAttendanceStore(v),
                         selectedStore: storeData.selectedStore,
                         onPickStore: () => _pickStore(context),
+                        orderDate: _orderDate,
+                        onPickOrderDate: _pickOrderDate,
                         requestDate: _requestDate,
                         onPickRequestDate: _pickRequestDate,
                         isTakeAway: _isTakeAway,
@@ -449,6 +648,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                         postageCtrl: _postageCtrl,
                         notesController: _notesController,
                         scCodeCtrl: _scCodeCtrl,
+                        showIndirectNoPo:
+                            cartItems.any((e) => e.isIndirectSale),
+                        noPoCtrl: _noPoCtrl,
                       ),
                     );
                   },
@@ -510,20 +712,21 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   ),
                 ),
 
-                const SizedBox(height: 16),
-
-                // ── Card 5: Payment Info ──────────────────────────
-                _buildSectionCard(
-                  key: _paymentSectionKey,
-                  title: 'Informasi Pembayaran',
-                  trailing: _buildAddPaymentChip(),
-                  child: CheckoutPaymentInfoSection(
-                    paymentCount: _payments.length,
-                    isMultiPayment: _isMultiPayment,
-                    paymentCardBuilder: (_, i) => _buildPaymentCard(i),
-                    paymentSummary: _buildPaymentSummary(),
+                if (!isIndirectCheckout) ...[
+                  const SizedBox(height: 16),
+                  // ── Card 5: Payment Info (tidak dipakai untuk indirect) ──
+                  _buildSectionCard(
+                    key: _paymentSectionKey,
+                    title: 'Informasi Pembayaran',
+                    trailing: _buildAddPaymentChip(),
+                    child: CheckoutPaymentInfoSection(
+                      paymentCount: _payments.length,
+                      isMultiPayment: _isMultiPayment,
+                      paymentCardBuilder: (_, i) => _buildPaymentCard(i),
+                      paymentSummary: _buildPaymentSummary(),
+                    ),
                   ),
-                ),
+                ],
 
                 const SizedBox(height: 20),
               ],
@@ -551,6 +754,29 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
   bool _requiresManagerApproval(List<CartItem> cartItems) {
     return cartItems.any((item) => item.discount3 > 0);
+  }
+
+  Future<void> _pickOrderDate() async {
+    final now = DateTime.now();
+    final first = OrderLetterDateUtils.firstDayOfMonth(reference: now);
+    final last = OrderLetterDateUtils.today(reference: now);
+    final initial = OrderLetterDateUtils.clampToValidOrderLetterDate(
+      _orderDate,
+      reference: now,
+    );
+    final picked = await showAdaptiveDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: first,
+      lastDate: last,
+      helpText: 'Pilih Tanggal Surat Pesanan',
+    );
+    if (!mounted) return;
+    if (picked != null) {
+      setState(
+        () => _orderDate = OrderLetterDateUtils.dateOnly(picked),
+      );
+    }
   }
 
   Future<void> _pickRequestDate() async {
@@ -792,6 +1018,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
   Future<void> _handleSaveQuotation(
       BuildContext context, List<CartItem> cartItems) async {
+    final isIndirect = cartItems.any((e) => e.isIndirectSale);
     await QuotationSaveHandler.save(
       context: context,
       cartItems: cartItems,
@@ -799,9 +1026,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       existingDraft: widget.restoredQuotation ?? ref.read(activeDraftProvider),
       popBackToHistory: widget.restoredQuotation != null,
       customerName: _customerNameCtrl.text.trim(),
-      customerEmail: _customerEmailCtrl.text.trim(),
-      customerPhone: _customerPhoneCtrl.text.trim(),
-      customerPhone2: _customerPhone2Ctrl.text.trim(),
+      customerEmail: isIndirect
+          ? _indirectContactEmailForOrder().trim()
+          : _customerEmailCtrl.text.trim(),
+      customerPhone: isIndirect
+          ? _indirectContactPhoneForOrder().trim()
+          : _customerPhoneCtrl.text.trim(),
+      customerPhone2: isIndirect ? '' : _customerPhone2Ctrl.text.trim(),
       customerAddress: _customerAddressCtrl.text.trim(),
       regionProvinsi: _selectedProvinsi,
       regionKota: _selectedKota,
@@ -815,6 +1046,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       shippingRegionKota: _shippingKota,
       shippingRegionKecamatan: _shippingKecamatan,
       shippingRegionText: _shippingRegionCtrl.text.trim(),
+      orderDate: _orderDate,
       requestDate: _requestDate,
       isTakeAway: _isTakeAway,
       postage: _postageCtrl.text.trim(),
@@ -840,6 +1072,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
     final cartItems = _effectiveCartItems(ref);
     final profile = ref.read(profileProvider).valueOrNull;
+    final isIndirect = cartItems.any((e) => e.isIndirectSale);
 
     final headerPayload = CheckoutPayloadBuilder.buildHeaderPayload(
       workPlaceId: null,
@@ -859,17 +1092,27 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       divisions: profile?.divisions ?? const [],
       cartItems: cartItems,
       grandTotal: _grandTotal,
+      orderDate: OrderLetterDateUtils.dateOnly(_orderDate),
       requestDate: _requestDate,
-      customerPhone: _customerPhoneCtrl.text,
-      customerEmail: _customerEmailCtrl.text,
+      customerPhone: isIndirect
+          ? _indirectContactPhoneForOrder()
+          : _customerPhoneCtrl.text,
+      customerEmail: isIndirect
+          ? _indirectContactEmailForOrder()
+          : _customerEmailCtrl.text,
       note: _notesController.text,
       salesCode: _scCodeCtrl.text,
       isTakeAway: _isTakeAway,
+      useCustomerAddressDetailOnly: isIndirect,
+      isIndirectOrder: isIndirect,
+      indirectNoPoText: _noPoCtrl.text,
     );
 
     final contactsPayload = CheckoutPayloadBuilder.buildContactsPayload(
-      primaryPhone: _customerPhoneCtrl.text,
-      includeBackupPhone: _showBackupPhone,
+      primaryPhone: isIndirect
+          ? _indirectContactPhoneForOrder()
+          : _customerPhoneCtrl.text,
+      includeBackupPhone: !isIndirect && _showBackupPhone,
       backupPhone: _customerPhone2Ctrl.text,
     );
 
@@ -877,49 +1120,40 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     final paymentPayloads = <Map<String, dynamic>>[];
     final receiptImages = <File?>[];
 
-    if (!_isMultiPayment) {
-      // Single payment — use original builder for backward compatibility
-      paymentPayloads.add(CheckoutPayloadBuilder.buildPaymentPayload(
-        isLunas: _isLunas,
-        totalAkhir: _totalAkhir,
-        paymentAmountText: _payments.first.amountCtrl.text,
-        paymentMethod: _payments.first.method,
-        paymentBank: _payments.first.bank,
-        otherChannelText: _payments.first.otherChannelCtrl.text,
-        paymentRefText: _payments.first.refCtrl.text,
-        paymentDate: _payments.first.date,
-        paymentNoteText: _payments.first.noteCtrl.text,
-        userId: userId,
-      ));
-      receiptImages.add(_payments.first.receiptImage);
-    } else {
-      for (final p in _payments) {
-        paymentPayloads.add(CheckoutPayloadBuilder.buildPaymentEntryPayload(
-          amountText: p.amountCtrl.text,
-          method: p.method,
-          bank: p.bank,
-          otherChannelText: p.otherChannelCtrl.text,
-          refText: p.refCtrl.text,
-          date: p.date,
-          noteText: p.noteCtrl.text,
+    if (!isIndirect) {
+      if (!_isMultiPayment) {
+        // Single payment — use original builder for backward compatibility
+        paymentPayloads.add(CheckoutPayloadBuilder.buildPaymentPayload(
+          isLunas: _isLunas,
+          totalAkhir: _totalAkhir,
+          paymentAmountText: _payments.first.amountCtrl.text,
+          paymentMethod: _payments.first.method,
+          paymentBank: _payments.first.bank,
+          otherChannelText: _payments.first.otherChannelCtrl.text,
+          paymentRefText: _payments.first.refCtrl.text,
+          paymentDate: _payments.first.date,
+          paymentNoteText: _payments.first.noteCtrl.text,
           userId: userId,
         ));
-        receiptImages.add(p.receiptImage);
+        receiptImages.add(_payments.first.receiptImage);
+      } else {
+        for (final p in _payments) {
+          paymentPayloads.add(CheckoutPayloadBuilder.buildPaymentEntryPayload(
+            amountText: p.amountCtrl.text,
+            method: p.method,
+            bank: p.bank,
+            otherChannelText: p.otherChannelCtrl.text,
+            refText: p.refCtrl.text,
+            date: p.date,
+            noteText: p.noteCtrl.text,
+            userId: userId,
+          ));
+          receiptImages.add(p.receiptImage);
+        }
       }
     }
 
-    final newCustomerContact =
-        CheckoutPayloadBuilder.buildNewCustomerContactPayload(
-      customerName: _customerNameCtrl.text,
-      customerPhone: _customerPhoneCtrl.text,
-      customerEmail: _customerEmailCtrl.text,
-      customerAddress: _customerAddressCtrl.text,
-      regionText: _regionCtrl.text,
-      selectedKecamatan: _selectedKecamatan,
-      selectedKota: _selectedKota,
-      selectedProvinsi: _selectedProvinsi,
-      customerPhone2: _customerPhone2Ctrl.text,
-    );
+    final newCustomerContact = _newCustomerContactPayload(isIndirect);
     if (_selectedContactId != null) {
       newCustomerContact['id'] = _selectedContactId;
     }
@@ -934,7 +1168,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           isBonusTakeAwayChecked: _isBonusTakeAwayChecked,
           currentTakeAwayQty: _currentTakeAwayQty,
           selectedContactId: _selectedContactId,
-          shouldSaveCustomerContact: _shouldSaveCustomerContact,
+          shouldSaveCustomerContact: isIndirect
+              ? (!_isShippingSameAsCustomer && _shouldSaveReceiverContact)
+              : _shouldSaveCustomerContact,
           newCustomerContact: newCustomerContact,
           selectedCartItems: widget.selectedCartItems,
         ));
@@ -980,9 +1216,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       return false;
     }
 
-    if (_selectedProvinsi == null ||
-        _selectedKota == null ||
-        _selectedKecamatan == null) {
+    final isIndirectCart =
+        _effectiveCartItems(ref).any((e) => e.isIndirectSale);
+    if (!isIndirectCart &&
+        (_selectedProvinsi == null ||
+            _selectedKota == null ||
+            _selectedKecamatan == null)) {
       _showErrorAndScroll('Pilih wilayah pelanggan.', _customerSectionKey);
       return false;
     }
@@ -1013,22 +1252,24 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           'Pesanan ini memerlukan persetujuan Manager.', _approvalSectionKey);
       return false;
     }
-    for (int i = 0; i < _payments.length; i++) {
-      final p = _payments[i];
-      if (p.receiptImage == null) {
-        final label = _isMultiPayment
-            ? 'Bukti Pembayaran ${i + 1} wajib diupload.'
-            : 'Upload Bukti Pembayaran wajib diisi.';
-        _showErrorAndScroll(label, _paymentSectionKey);
-        return false;
+    if (!isIndirectCart) {
+      for (int i = 0; i < _payments.length; i++) {
+        final p = _payments[i];
+        if (p.receiptImage == null) {
+          final label = _isMultiPayment
+              ? 'Bukti Pembayaran ${i + 1} wajib diupload.'
+              : 'Upload Bukti Pembayaran wajib diisi.';
+          _showErrorAndScroll(label, _paymentSectionKey);
+          return false;
+        }
       }
-    }
-    if (!_effectiveIsLunas) {
-      if (_totalPaid < _minimumDp) {
-        _showErrorAndScroll(
-            'Total pembayaran minimal ${_priceFmt(_minimumDp)} (30% DP).',
-            _paymentSectionKey);
-        return false;
+      if (!_effectiveIsLunas) {
+        if (_totalPaid < _minimumDp) {
+          _showErrorAndScroll(
+              'Total pembayaran minimal ${_priceFmt(_minimumDp)} (30% DP).',
+              _paymentSectionKey);
+          return false;
+        }
       }
     }
     return true;
@@ -1036,6 +1277,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
   ({GlobalKey key, String label}) _findFirstFormError() {
     final checkoutState = ref.read(checkoutProvider);
+    final isIndirect = _effectiveCartItems(ref).any((e) => e.isIndirectSale);
     return CheckoutFormValidator.findFirstFormError(
       customerName: _customerNameCtrl.text,
       customerEmail: _customerEmailCtrl.text,
@@ -1045,7 +1287,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       shippingName: _shippingNameCtrl.text,
       shippingPhone: _shippingPhoneCtrl.text,
       shippingAddress: _shippingAddressCtrl.text,
+      indirectStoreContactOptional: isIndirect,
+      indirectReceiverContactOptional: isIndirect,
+      indirectAlternateReceiverEmail: _shippingEmailCtrl.text,
       isTakeAway: _isTakeAway,
+      orderDate: _orderDate,
       requestDate: _requestDate,
       hasSelectedSpv: checkoutState.selectedSpv != null,
       requiresManager: _requiresManagerApproval(_effectiveCartItems(ref)),
@@ -1055,6 +1301,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       deliverySectionKey: _deliverySectionKey,
       approvalSectionKey: _approvalSectionKey,
       paymentSectionKey: _paymentSectionKey,
+      indirectSkipPaymentValidation: isIndirect,
     );
   }
 

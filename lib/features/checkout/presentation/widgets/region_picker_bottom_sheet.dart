@@ -1,20 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_search_field.dart';
+import '../../data/models/region_result.dart';
 import '../../data/services/region_service.dart';
-
-/// Result returned to the caller when the user completes all 3 steps.
-class RegionResult {
-  final String provinsi;
-  final String kota;
-  final String kecamatan;
-
-  const RegionResult({
-    required this.provinsi,
-    required this.kota,
-    required this.kecamatan,
-  });
-}
 
 /// 3-step region picker (Provinsi → Kota/Kab → Kecamatan).
 /// Pop with a [RegionResult] on success, or null if dismissed.

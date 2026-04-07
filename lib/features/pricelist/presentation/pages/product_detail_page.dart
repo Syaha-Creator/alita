@@ -4,8 +4,11 @@ import 'package:intl/intl.dart';
 import '../../../../core/services/app_analytics_service.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/utils/number_input_formatter.dart';
+import '../../../../core/enums/sales_mode.dart';
+import '../../../../core/utils/store_display_utils.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
+import '../../../../core/utils/store_discount_calculator.dart';
 import '../../../../core/widgets/price_block.dart';
 import '../../data/models/item_lookup.dart';
 import '../../data/models/product.dart';
@@ -17,8 +20,11 @@ import '../../logic/product_provider.dart';
 import '../../logic/product_share_helper.dart';
 import '../../logic/product_variant_resolver.dart';
 import '../../logic/selection_sync_result.dart';
+import '../../../cart/data/cart_indirect_meta.dart';
 import '../../../cart/data/cart_item.dart';
 import '../../../cart/logic/cart_provider.dart';
+import '../../../indirect/logic/indirect_session_provider.dart';
+import '../../../indirect/logic/sales_mode_provider.dart';
 import '../../../favorites/logic/favorites_provider.dart';
 import '../../../product/logic/brand_spec_provider.dart';
 import '../widgets/discount_modal.dart';
@@ -96,7 +102,8 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
   final TextEditingController _customSorongCtrl = TextEditingController();
 
   double _lastBottomPriceAnalyst = 0;
-  double _lastBaseTotalEup = 0;
+  /// Dasar diskon tambahan / edit total: EUP ter-anchor, setelah diskon toko (indirect).
+  double _lastPlDiscountBaseTotal = 0;
   List<double> _lastMaxLimits = const [];
 
   static final _totalCurrencyFormat = NumberFormat.currency(
@@ -175,7 +182,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        final base = _lastBaseTotalEup;
+        final base = _lastPlDiscountBaseTotal;
         final limits = _lastMaxLimits;
         final target = targetTotalEup;
         if (base > 0 && limits.isNotEmpty && target != null && target < base) {
@@ -210,7 +217,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                   _totalCurrencyFormat.format(_lastBottomPriceAnalyst).trim();
               appliedDiscounts = _computeDiscountsFromTargetTotal(
                 _lastBottomPriceAnalyst,
-                _lastBaseTotalEup,
+                _lastPlDiscountBaseTotal,
                 _lastMaxLimits,
               );
             });
@@ -322,6 +329,18 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       itemLookupProvider.select((v) => v.valueOrNull ?? _emptyGroupedLookups),
     );
 
+    final indirectStoreDiscounts = ref.watch(
+      indirectSessionProvider.select((s) => s.storeDiscounts),
+    );
+    final useIndirectStoreNet = ref.watch(salesModeProvider) ==
+            SalesMode.indirect &&
+        indirectStoreDiscounts.isNotEmpty;
+
+    double eupAfterStoreDiscount(double rawEup) {
+      if (!useIndirectStoreNet || rawEup <= 0) return rawEup;
+      return StoreDiscountCalculator.cascade(rawEup, indirectStoreDiscounts);
+    }
+
     final v = ProductVariantResolver.resolve(
       masterProduct: widget.product,
       rawProducts: rawProducts,
@@ -366,19 +385,19 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
             ? activeProduct.eupDivan
             : 0.0;
     final finalKasurPrice = _calculateCascadingPrice(
-      anchoredKasurEup,
+      eupAfterStoreDiscount(anchoredKasurEup),
       appliedDiscounts,
     );
     final finalDivanPrice = _calculateCascadingPrice(
-      anchoredDivanEup,
+      eupAfterStoreDiscount(anchoredDivanEup),
       appliedDiscounts,
     );
     final finalHeadboardPrice = _calculateCascadingPrice(
-      activeProduct.eupHeadboard,
+      eupAfterStoreDiscount(activeProduct.eupHeadboard),
       appliedDiscounts,
     );
     final finalSorongPrice = _calculateCascadingPrice(
-      activeProduct.eupSorong,
+      eupAfterStoreDiscount(activeProduct.eupSorong),
       appliedDiscounts,
     );
     final totalFinalPrice = finalKasurPrice +
@@ -388,7 +407,12 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
 
     final effectiveTotal = targetTotalEup ?? totalFinalPrice;
     _lastBottomPriceAnalyst = activeProduct.bottomPriceAnalyst;
-    _lastBaseTotalEup = v.baseTotalEup;
+    _lastPlDiscountBaseTotal = useIndirectStoreNet
+        ? StoreDiscountCalculator.cascade(
+            v.baseTotalEup,
+            indirectStoreDiscounts,
+          )
+        : v.baseTotalEup;
     _lastMaxLimits = v.maxLimits;
 
     final brandSpecs = ref.watch(
@@ -463,6 +487,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                   finalDivanPrice: finalDivanPrice,
                   finalHeadboardPrice: finalHeadboardPrice,
                   finalSorongPrice: finalSorongPrice,
+                  plDiscountBaseTotal: _lastPlDiscountBaseTotal,
                   kasurLookups: v.kasurLookups,
                   effectiveKasurLookup: v.effectiveKasurLookup,
                   divanLookups: v.divanLookups,
@@ -521,6 +546,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     required double finalDivanPrice,
     required double finalHeadboardPrice,
     required double finalSorongPrice,
+    required double plDiscountBaseTotal,
     required List<ItemLookup> kasurLookups,
     required ItemLookup? effectiveKasurLookup,
     required List<ItemLookup> divanLookups,
@@ -532,6 +558,24 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     required Map<String, dynamic>? matchedSpec,
     required List<Map<String, dynamic>> defaultBonuses,
   }) {
+    final salesMode = ref.watch(salesModeProvider);
+    final indirectSession = ref.watch(indirectSessionProvider);
+    final indirectDiscountSummary =
+        salesMode == SalesMode.indirect &&
+                indirectSession.hasStore &&
+                indirectSession.hasDiscounts
+            ? StoreDiscountCalculator.formatDisplay(
+                indirectSession.storeDiscounts,
+              )
+            : null;
+    final indirectCatcodeHint =
+        salesMode == SalesMode.indirect &&
+                indirectSession.hasStore &&
+                (indirectSession.selectedStore?.catcode27?.trim().isNotEmpty ??
+                    false)
+            ? indirectSession.selectedStore!.catcode27!.trim()
+            : null;
+
     final baseTotal = activeProduct.eupKasur +
         activeProduct.eupDivan +
         activeProduct.eupHeadboard +
@@ -726,7 +770,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
             totalFinalPrice: totalFinalPrice,
             effectiveTotal: effectiveTotal,
             targetTotalEup: targetTotalEup,
-            baseTotalEup: _lastBaseTotalEup,
+            baseTotalEup: plDiscountBaseTotal,
             selectedInstallmentTenor: selectedInstallmentTenor,
             installmentOptions: installmentOptions,
             onInstallmentTenorChanged: (tenor) =>
@@ -748,8 +792,9 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
               setState(() {
                 targetTotalEup = null;
                 appliedDiscounts = [];
-                _targetTotalController.text =
-                    _totalCurrencyFormat.format(_lastBaseTotalEup).trim();
+                _targetTotalController.text = _totalCurrencyFormat
+                    .format(_lastPlDiscountBaseTotal)
+                    .trim();
               });
             },
             onDiscountTap: () {
@@ -762,6 +807,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                     appliedDiscounts = newDiscs;
                   });
                 },
+                additionalDiscountBaseTotal: plDiscountBaseTotal,
               );
             },
             isBonusCustomized: isBonusCustomized,
@@ -773,8 +819,10 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                 isBonusCustomized = true;
                     });
                   },
-                ),
-              ),
+            indirectStoreDiscountSummary: indirectDiscountSummary,
+            indirectBranchCatcodeHint: indirectCatcodeHint,
+          ),
+        ),
 
         sectionGap,
 
@@ -906,6 +954,45 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                                 return;
     }
 
+    CartIndirectMeta? indirectMeta;
+    final salesMode = ref.read(salesModeProvider);
+    if (salesMode == SalesMode.indirect) {
+      final session = ref.read(indirectSessionProvider);
+      if (session.isLoadingDiscounts) {
+        AppFeedback.show(
+          context,
+          message: 'Diskon toko sedang dimuat. Tunggu sebentar.',
+          type: AppFeedbackType.warning,
+          floating: true,
+        );
+        return;
+      }
+      if (!session.hasStore) {
+        AppFeedback.show(
+          context,
+          message:
+              'Pilih toko assign di katalog terlebih dahulu (strip atas).',
+          type: AppFeedbackType.warning,
+          floating: true,
+        );
+        return;
+      }
+      final store = session.selectedStore!;
+      indirectMeta = CartIndirectMeta(
+        addressNumber: store.addressNumber,
+        alphaName: StoreDisplayUtils.assignedStoreRowLabel(
+          alphaName: store.alphaName,
+          catcode27: store.catcode27,
+        ),
+        address: store.address,
+        phone: '',
+        storeDiscounts: List<double>.from(session.storeDiscounts),
+        discountDisplay: session.storeDiscounts.isNotEmpty
+            ? StoreDiscountCalculator.formatDisplay(session.storeDiscounts)
+            : session.discountDisplay,
+      );
+    }
+
     // ── Build cart item via extracted builder ──
 
     final snapshotItem = CartItemBuilder.build(
@@ -936,6 +1023,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       effectiveSorongLookup: effectiveSorongLookup,
       customSorongNote: _customSorongCtrl.text.trim(),
       customBonuses: isBonusCustomized ? customBonuses : null,
+      indirectMeta: indirectMeta,
     );
 
     final summaryForToast = CartItemBuilder.buildSummaryForToast(
@@ -947,10 +1035,11 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
 
     final cartIndex = widget.cartIndex;
     if (_isEditMode && cartIndex != null) {
-                              ref.read(cartProvider.notifier).updateCartItem(
+      final prevFoc = ref.read(cartProvider)[cartIndex].isFocVoucher;
+      ref.read(cartProvider.notifier).updateCartItem(
             cartIndex,
-                                    snapshotItem,
-                                  );
+            snapshotItem.copyWith(isFocVoucher: prevFoc),
+          );
                               Navigator.of(context).pop();
       AppFeedback.show(context,
                                 message: 'Keranjang diperbarui',

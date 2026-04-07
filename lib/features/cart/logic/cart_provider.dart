@@ -8,7 +8,11 @@ import '../data/cart_item.dart';
 /// Stable key for a cart line (same product + same component SKUs = same key).
 /// Used for selection and for removeItemsByIds.
 String cartItemKey(CartItem item) {
-  return '${item.product.id}|${item.kasurSku}|${item.divanSku}|${item.sandaranSku}|${item.sorongSku}';
+  final indirect = item.isIndirectSale
+      ? '|i${item.indirectStoreAddressNumber}'
+      : '|d';
+  final foc = item.isFocVoucherActive ? '|foc' : '';
+  return '${item.product.id}|${item.kasurSku}|${item.divanSku}|${item.sandaranSku}|${item.sorongSku}$indirect$foc';
 }
 
 /// Cart state notifier with persistent storage
@@ -46,7 +50,9 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
       a.kasurSku == b.kasurSku &&
       a.divanSku == b.divanSku &&
       a.sandaranSku == b.sandaranSku &&
-      a.sorongSku == b.sorongSku;
+      a.sorongSku == b.sorongSku &&
+      a.indirectStoreAddressNumber == b.indirectStoreAddressNumber &&
+      a.isFocVoucherActive == b.isFocVoucherActive;
 
   /// Add a fully-snapshotted CartItem to the cart.
   /// Items are merged only when Product ID AND all component SKUs match.
@@ -118,6 +124,20 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
     state = [
       ...state.sublist(0, index),
       cartItem.copyWith(quantity: preserved),
+      ...state.sublist(index + 1),
+    ];
+    await _saveCart();
+  }
+
+  /// Voucher FOC 100% pada satu baris keranjang (tidak mengubah snapshot produk).
+  Future<void> setItemFocVoucher(int index, bool value) async {
+    if (index < 0 || index >= state.length) return;
+    final current = state[index];
+    if (!current.isIndirectSale && value) return;
+    if (current.isFocVoucher == value) return;
+    state = [
+      ...state.sublist(0, index),
+      current.copyWith(isFocVoucher: value),
       ...state.sublist(index + 1),
     ];
     await _saveCart();

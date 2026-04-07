@@ -18,8 +18,11 @@ class StoreModel with _$StoreModel {
     @Default('') String name,
     @Default('') String category,
     @Default('') String address,
+    /// Provinsi dari API `/all_stores` (mis. "Daerah Khusus Ibukota Jakarta").
+    @Default('') String state,
     @Default('') String city,
     @Default('') String area,
+    @Default('') String phone,
     @Default('') String image,
   }) = _StoreModel;
 

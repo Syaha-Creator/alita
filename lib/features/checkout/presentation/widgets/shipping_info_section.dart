@@ -11,6 +11,21 @@ import '../../../../core/widgets/form_field_label.dart';
 class ShippingInfoSection extends StatelessWidget {
   const ShippingInfoSection({
     super.key,
+    this.sectionTitle = 'Alamat & Pengiriman',
+    this.sameAsCustomerLabel = 'Kirim ke alamat pelanggan di atas',
+    this.receiverBlockTitle = 'Informasi Penerima (Dropship / Lokasi Lain)',
+    this.useStoreAddressLabels = false,
+    /// Indirect: nama & no. HP penerima/gudang opsional (format dicek jika diisi).
+    this.receiverContactOptional = false,
+    /// Indirect: sembunyikan pemilih wilayah toko; cukup detail alamat.
+    this.hideCustomerRegionPicker = false,
+    /// Indirect + alamat beda: email penerima (opsional).
+    this.showIndirectAlternateReceiverEmail = false,
+    this.shippingEmailCtrl,
+    this.showIndirectSaveReceiverContact = false,
+    this.isFromContactBook = false,
+    this.shouldSaveReceiverContact = true,
+    required this.onToggleSaveReceiverContact,
     required this.customerAddressCtrl,
     required this.regionCtrl,
     required this.isShippingSameAsCustomer,
@@ -23,6 +38,19 @@ class ShippingInfoSection extends StatelessWidget {
     required this.shippingRegionCtrl,
     required this.onPickShippingRegion,
   });
+
+  final String sectionTitle;
+  final String sameAsCustomerLabel;
+  final String receiverBlockTitle;
+  final bool useStoreAddressLabels;
+  final bool hideCustomerRegionPicker;
+  final bool receiverContactOptional;
+  final bool showIndirectAlternateReceiverEmail;
+  final TextEditingController? shippingEmailCtrl;
+  final bool showIndirectSaveReceiverContact;
+  final bool isFromContactBook;
+  final bool shouldSaveReceiverContact;
+  final ValueChanged<bool> onToggleSaveReceiverContact;
 
   final TextEditingController customerAddressCtrl;
   final TextEditingController regionCtrl;
@@ -42,24 +70,32 @@ class ShippingInfoSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Divider(height: 32, color: AppColors.border),
-        const Text(
-          'Alamat & Pengiriman',
-          style: TextStyle(
+        Text(
+          sectionTitle,
+          style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
             color: AppColors.textPrimary,
           ),
         ),
         const SizedBox(height: 16),
-        const FormFieldLabel('Wilayah Pelanggan'),
-        const SizedBox(height: 8),
-        _buildRegionSelector(
-          controller: regionCtrl,
-          label: 'Provinsi, Kota/Kab, Kecamatan *',
-          onTap: onPickCustomerRegion,
+        if (!hideCustomerRegionPicker) ...[
+          FormFieldLabel(
+            useStoreAddressLabels ? 'Wilayah Toko' : 'Wilayah Pelanggan',
+          ),
+          const SizedBox(height: 8),
+          _buildRegionSelector(
+            controller: regionCtrl,
+            label: 'Provinsi, Kota/Kab, Kecamatan *',
+            onTap: onPickCustomerRegion,
+          ),
+          const SizedBox(height: 16),
+        ],
+        FormFieldLabel(
+          useStoreAddressLabels
+              ? 'Detail Alamat Toko'
+              : 'Detail Alamat Pelanggan',
         ),
-        const SizedBox(height: 16),
-        const FormFieldLabel('Detail Alamat Pelanggan'),
         const SizedBox(height: 8),
         _buildTextField(
           controller: customerAddressCtrl,
@@ -71,6 +107,7 @@ class ShippingInfoSection extends StatelessWidget {
 
         const SizedBox(height: 16),
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(
               width: 24,
@@ -81,11 +118,13 @@ class ShippingInfoSection extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            const Text(
-              'Kirim ke alamat pelanggan di atas',
-              style: TextStyle(
-                fontSize: 13,
-                color: AppColors.textSecondary,
+            Expanded(
+              child: Text(
+                sameAsCustomerLabel,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                ),
               ),
             ),
           ],
@@ -102,7 +141,7 @@ class ShippingInfoSection extends StatelessWidget {
                   children: [
                     const SizedBox(height: 12),
                     Text(
-                      'Informasi Penerima (Dropship / Lokasi Lain)',
+                      receiverBlockTitle,
                       style: Theme.of(context)
                           .textTheme
                           .titleSmall
@@ -111,25 +150,57 @@ class ShippingInfoSection extends StatelessWidget {
                     const SizedBox(height: 12),
                     _buildTextField(
                       controller: shippingNameCtrl,
-                      label: 'Nama Penerima *',
-                      isRequired: true,
+                      label: receiverContactOptional
+                          ? 'Nama Penerima'
+                          : 'Nama Penerima *',
+                      isRequired: !receiverContactOptional,
                     ),
                     const SizedBox(height: 16),
                     _buildTextField(
                       controller: shippingPhoneCtrl,
-                      label: 'No. HP Penerima *',
+                      label: receiverContactOptional
+                          ? 'No. HP Penerima'
+                          : 'No. HP Penerima *',
                       keyboardType: TextInputType.phone,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Field ini wajib diisi';
-                        }
-                        final digits = value.replaceAll(RegExp(r'\D'), '');
-                        if (digits.length < 10 || digits.length > 15) {
-                          return 'No. HP harus 10–15 digit';
-                        }
-                        return null;
-                      },
+                      validator: receiverContactOptional
+                          ? (value) {
+                              final t = value?.trim() ?? '';
+                              if (t.isEmpty) return null;
+                              final digits = t.replaceAll(RegExp(r'\D'), '');
+                              if (digits.length < 10 || digits.length > 15) {
+                                return 'No. HP harus 10–15 digit';
+                              }
+                              return null;
+                            }
+                          : (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Field ini wajib diisi';
+                              }
+                              final digits = value.replaceAll(RegExp(r'\D'), '');
+                              if (digits.length < 10 || digits.length > 15) {
+                                return 'No. HP harus 10–15 digit';
+                              }
+                              return null;
+                            },
                     ),
+                    if (showIndirectAlternateReceiverEmail &&
+                        shippingEmailCtrl != null) ...[
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: shippingEmailCtrl!,
+                        label: 'Email penerima',
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (value) {
+                          final t = value?.trim() ?? '';
+                          if (t.isEmpty) return null;
+                          if (!RegExp(r'^[\w.+-]+@[\w.-]+\.\w{2,}$')
+                              .hasMatch(t)) {
+                            return 'Format email tidak valid';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     _buildRegionSelector(
                       controller: shippingRegionCtrl,
@@ -149,6 +220,32 @@ class ShippingInfoSection extends StatelessWidget {
                   ],
                 ),
         ),
+        if (showIndirectSaveReceiverContact && !isFromContactBook) ...[
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 24,
+                height: 24,
+                child: Checkbox.adaptive(
+                  value: shouldSaveReceiverContact,
+                  onChanged: (v) => onToggleSaveReceiverContact(v ?? true),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Simpan kontak penerima ke buku kontak',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }

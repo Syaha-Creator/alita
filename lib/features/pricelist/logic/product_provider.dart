@@ -11,7 +11,11 @@ import '../../../core/utils/area_utils.dart';
 import '../../../core/utils/log.dart';
 import '../../../core/utils/network_error.dart';
 import '../data/models/product.dart';
+import '../../../core/enums/sales_mode.dart';
 import '../../auth/logic/auth_provider.dart';
+import '../../indirect/logic/indirect_session_provider.dart';
+import '../../indirect/logic/sales_mode_provider.dart';
+import 'indirect_catalog_filter_utils.dart';
 import 'master_data_provider.dart';
 
 /// Snapshot load result: network success sets [isFromStaleCache] false.
@@ -160,8 +164,53 @@ final brandsProvider = Provider<List<String>>((ref) {
   }
 });
 
+/// Channel list for filter UI: mode indirect → hanya nama yang mengandung "toko".
+final catalogChannelsProvider = Provider<List<String>>((ref) {
+  final all = ref.watch(channelsProvider);
+  final mode = ref.watch(salesModeProvider);
+  if (mode != SalesMode.indirect) return all;
+  return IndirectCatalogFilterUtils.filterTokoChannels(all);
+});
+
+/// Brand list for filter UI: indirect + toko terpilih → sesuai [catcode_27] bila ada.
+final catalogBrandsProvider = Provider<List<String>>((ref) {
+  final mode = ref.watch(salesModeProvider);
+  final session = ref.watch(indirectSessionProvider);
+  final selectedChannel = ref.watch(selectedChannelProvider);
+  if (selectedChannel == null) return [];
+
+  if (mode != SalesMode.indirect || !session.hasStore) {
+    return ref.watch(brandsProvider);
+  }
+
+  final masterData = ref.watch(masterDataProvider);
+  return IndirectCatalogFilterUtils.brandNamesForChannel(
+    masterData.channels,
+    masterData.brands,
+    selectedChannel,
+    catcode27: session.selectedStore!.catcode27,
+  );
+});
+
+/// Berubah saat toko indirect / daftar channel toko / master data siap — untuk sync otomatis filter.
+final indirectCatalogSyncTokenProvider = Provider<String?>((ref) {
+  final mode = ref.watch(salesModeProvider);
+  if (mode != SalesMode.indirect) return null;
+  final store =
+      ref.watch(indirectSessionProvider.select((s) => s.selectedStore));
+  if (store == null) return null;
+  final tokoKey = ref.watch(catalogChannelsProvider).join('|');
+  ref.watch(masterDataProvider);
+  return '${store.addressNumber}|${store.catcode27 ?? ''}|$tokoKey';
+});
+
 /// Whether cascading selection is complete (channel + brand both chosen)
 final isFilterCompleteProvider = Provider<bool>((ref) {
+  final mode = ref.watch(salesModeProvider);
+  if (mode == SalesMode.indirect) {
+    final session = ref.watch(indirectSessionProvider);
+    if (!session.hasStore) return false;
+  }
   return ref.watch(selectedChannelProvider) != null &&
       ref.watch(selectedBrandProvider) != null;
 });

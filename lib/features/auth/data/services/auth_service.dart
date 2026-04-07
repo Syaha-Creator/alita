@@ -17,6 +17,9 @@ class AuthLoginResult {
   final String userImageUrl;
   final int areaId;
 
+  /// `address_number` user (sales code untuk API toko assign indirect).
+  final String? addressNumber;
+
   const AuthLoginResult({
     required this.accessToken,
     required this.userEmail,
@@ -24,6 +27,7 @@ class AuthLoginResult {
     required this.userName,
     required this.userImageUrl,
     required this.areaId,
+    this.addressNumber,
   });
 }
 
@@ -50,14 +54,16 @@ class AuthService {
 
     final http.Response response;
     try {
-      response = await http.post(
-        uri,
-        headers: const {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: jsonEncode({'email': email, 'password': password}),
-      ).timeout(const Duration(seconds: 30));
+      response = await http
+          .post(
+            uri,
+            headers: const {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({'email': email, 'password': password}),
+          )
+          .timeout(const Duration(seconds: 30));
     } on SocketException {
       throw 'Periksa koneksi internet Anda.';
     }
@@ -92,18 +98,26 @@ class AuthService {
     final rawUserId = user['id'];
     final imageObj = user['image'];
 
+    final rawAddr = user['address_number'] ??
+        user['sales_code'] ??
+        user['salesCode'] ??
+        user['code_sales'];
+    final addressNumber = rawAddr?.toString().trim();
+
     return AuthLoginResult(
       accessToken: token.toString(),
       userEmail: user['email']?.toString() ?? fallbackEmail,
       userId: rawUserId is int
           ? rawUserId
           : int.tryParse(rawUserId?.toString() ?? '') ?? 0,
-      userName:
-          user['name']?.toString() ?? user['user_name']?.toString() ?? '',
+      userName: user['name']?.toString() ?? user['user_name']?.toString() ?? '',
       userImageUrl: imageObj is Map<String, dynamic>
           ? (imageObj['url']?.toString() ?? '')
           : '',
       areaId: (user['area_id'] as num?)?.toInt() ?? 0,
+      addressNumber: (addressNumber == null || addressNumber.isEmpty)
+          ? null
+          : addressNumber,
     );
   }
 

@@ -19,6 +19,27 @@ int _parseInt(dynamic value) {
   return int.tryParse(value.toString()) ?? 0;
 }
 
+int? _parseIntNullable(dynamic value) {
+  if (value == null) return null;
+  if (value is int) return value;
+  if (value is double) return value.toInt();
+  return int.tryParse(value.toString());
+}
+
+List<double> _parseDoubleList(dynamic value) {
+  if (value == null) return [];
+  if (value is! List) return [];
+  return value.map((e) => _parseDouble(e)).toList();
+}
+
+bool _parseBoolDefaultFalse(dynamic value) {
+  if (value == null) return false;
+  if (value is bool) return value;
+  if (value is num) return value != 0;
+  final s = value.toString().toLowerCase();
+  return s == 'true' || s == '1';
+}
+
 @freezed
 class CartBonusSnapshot with _$CartBonusSnapshot {
   const factory CartBonusSnapshot({
@@ -34,6 +55,13 @@ class CartBonusSnapshot with _$CartBonusSnapshot {
 @freezed
 class CartItem with _$CartItem {
   const CartItem._();
+
+  /// True jika baris ini dari mode indirect (toko assign + diskon toko API).
+  bool get isIndirectSale =>
+      indirectStoreAddressNumber != null && indirectStoreAddressNumber! > 0;
+
+  /// Voucher FOC 100% hanya untuk indirect; di direct flag disembunyikan & diabaikan.
+  bool get isFocVoucherActive => isIndirectSale && isFocVoucher;
 
   const factory CartItem({
     required Product product,
@@ -58,9 +86,22 @@ class CartItem with _$CartItem {
     @JsonKey(fromJson: _parseDouble) @Default(0.0) double discount3,
     @JsonKey(fromJson: _parseDouble) @Default(0.0) double discount4,
     @Default(<CartBonusSnapshot>[]) List<CartBonusSnapshot> bonusSnapshots,
+    /// Indirect: `address_number` toko (kunci merge baris + diskon).
+    @JsonKey(fromJson: _parseIntNullable) int? indirectStoreAddressNumber,
+    @Default('') String indirectStoreAlphaName,
+    @Default('') String indirectStoreAddress,
+    @Default('') String indirectStorePhone,
+    @JsonKey(fromJson: _parseDoubleList)
+    @Default(<double>[])
+    List<double> indirectStoreDiscounts,
+    @Default('') String indirectStoreDiscountDisplay,
+    /// Voucher FOC 100%: total baris di keranjang = 0; order letter memakai
+    /// harga customer = pricelist & net = 0 + baris diskon bertanda FOC.
+    @JsonKey(fromJson: _parseBoolDefaultFalse) @Default(false) bool isFocVoucher,
   }) = _CartItem;
 
-  double get totalPrice => quantity * product.price;
+  double get totalPrice =>
+      isFocVoucherActive ? 0.0 : quantity * product.price;
 
   /// Human-friendly name for display in cart / checkout.
   ///

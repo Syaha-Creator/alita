@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/error_state_view.dart';
+import '../../../../core/widgets/go_router_pop_scope.dart';
 import '../../logic/approval_order_wrap_provider.dart';
 import 'approval_detail_page.dart';
 
@@ -20,59 +20,71 @@ class ApprovalDetailLoaderPage extends ConsumerWidget {
     final async = ref.watch(approvalOrderWrapProvider(orderId));
 
     return async.when(
-      loading: () => Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(
-          title: const Text(
-            'Persetujuan Diskon',
-            style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+      loading: () => GoRouterPopScope(
+        fallbackLocation: '/approval_inbox',
+        child: Scaffold(
+          backgroundColor: AppColors.background,
+          appBar: AppBar(
+            title: const Text(
+              'Persetujuan Diskon',
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            backgroundColor: AppColors.background,
+            elevation: 0,
+            iconTheme: const IconThemeData(color: AppColors.textPrimary),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded),
+              onPressed: () => GoRouterPopScope.handlePop(
+                context,
+                fallbackLocation: '/approval_inbox',
+              ),
             ),
           ),
-          backgroundColor: AppColors.background,
-          elevation: 0,
-          iconTheme: const IconThemeData(color: AppColors.textPrimary),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded),
-            onPressed: () => context.pop(),
-          ),
-        ),
-        body: const Center(
-          child: CircularProgressIndicator.adaptive(
-            valueColor: AlwaysStoppedAnimation(AppColors.accent),
+          body: const Center(
+            child: CircularProgressIndicator.adaptive(
+              valueColor: AlwaysStoppedAnimation(AppColors.accent),
+            ),
           ),
         ),
       ),
-      error: (error, stackTrace) => Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(
-          title: const Text(
-            'Persetujuan Diskon',
-            style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+      error: (error, stackTrace) => GoRouterPopScope(
+        fallbackLocation: '/approval_inbox',
+        child: Scaffold(
+          backgroundColor: AppColors.background,
+          appBar: AppBar(
+            title: const Text(
+              'Persetujuan Diskon',
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            backgroundColor: AppColors.background,
+            elevation: 0,
+            iconTheme: const IconThemeData(color: AppColors.textPrimary),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded),
+              onPressed: () => GoRouterPopScope.handlePop(
+                context,
+                fallbackLocation: '/approval_inbox',
+              ),
             ),
           ),
-          backgroundColor: AppColors.background,
-          elevation: 0,
-          iconTheme: const IconThemeData(color: AppColors.textPrimary),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded),
-            onPressed: () => context.pop(),
+          body: ErrorStateView(
+            icon: Icons.error_outline_rounded,
+            title: 'Gagal memuat',
+            message: error.toString().replaceFirst('Exception: ', ''),
+            onRetry: () =>
+                ref.invalidate(approvalOrderWrapProvider(orderId)),
+            iconColor: AppColors.error,
+            buttonColor: AppColors.accent,
+            buttonTextColor: AppColors.onPrimary,
           ),
-        ),
-        body: ErrorStateView(
-          icon: Icons.error_outline_rounded,
-          title: 'Gagal memuat',
-          message: error.toString().replaceFirst('Exception: ', ''),
-          onRetry: () =>
-              ref.invalidate(approvalOrderWrapProvider(orderId)),
-          iconColor: AppColors.error,
-          buttonColor: AppColors.accent,
-          buttonTextColor: AppColors.onPrimary,
         ),
       ),
       data: (wrap) => ApprovalDetailPage(orderData: wrap),

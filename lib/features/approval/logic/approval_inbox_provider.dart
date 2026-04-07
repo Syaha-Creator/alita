@@ -347,6 +347,33 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
     }
   }
 
+  /// Void SP dari detail (inbox selesai): GET agar backend mencatat [user_id]
+  /// yang melakukan penolakan (`order_letters_rejected`).
+  ///
+  /// Token & client credentials disuntikkan oleh [ApiClient.get] seperti URL contoh API.
+  Future<void> voidOrderLetterViaRejectedEndpoint({
+    required int orderLetterId,
+    required int userId,
+    String? token,
+  }) async {
+    final res = await _api.get(
+      '/order_letters/$orderLetterId/order_letters_rejected',
+      token: token,
+      queryParams: {'user_id': userId.toString()},
+    );
+
+    if (res.statusCode == 401 || res.statusCode == 403) {
+      throw ApiSessionExpiredException(
+        'order_letters_rejected $orderLetterId ${res.statusCode}',
+      );
+    }
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception(
+        'Gagal void SP (order_letters_rejected). Status: ${res.statusCode}',
+      );
+    }
+  }
+
   /// Final check seluruh approval diskon pada satu SP.
   Future<bool> isAllDiscountsApproved(int orderId) async {
     final res = await _api.get('/order_letters/$orderId');

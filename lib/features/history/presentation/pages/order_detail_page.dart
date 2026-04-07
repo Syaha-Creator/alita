@@ -1,9 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/platform_utils.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/enums/order_status.dart';
+import '../../../../core/services/api_session_expired.dart';
 import '../../../../core/services/connectivity_service.dart';
+import '../../../../core/services/storage_service.dart';
 import '../../../../core/services/pdf_service/invoice_pdf_generator.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_layout_tokens.dart';
@@ -14,32 +19,143 @@ import '../../../../core/utils/log.dart';
 import '../../../../core/utils/network_guard.dart';
 import '../../../../core/utils/shipping_utils.dart';
 import '../../../../core/widgets/detail_contact_info_card.dart';
+import '../../../../core/widgets/loading_overlay.dart';
 import '../../../../core/widgets/image_viewer_dialog.dart';
 import '../../../../core/widgets/detail_note_card.dart';
 import '../../../../core/widgets/detail_shipping_info_card.dart';
 import '../../../../core/widgets/pdf_action_sheet.dart';
 import '../../../../core/widgets/section_card.dart';
 import '../../../approval/logic/approval_decision_service.dart';
+import '../../../approval/logic/approval_inbox_provider.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../profile/logic/profile_provider.dart';
 import '../../data/models/order_history.dart';
 import '../../logic/order_detail_provider.dart';
 import '../widgets/add_payment_bottom_sheet.dart';
 import '../widgets/approval_timeline_widget.dart';
+import '../widgets/order_detail_void_bottom_bar.dart';
 import '../widgets/order_detail_skeleton.dart';
 import '../widgets/order_status_header.dart';
 import '../widgets/payment_info_section.dart';
 import '../widgets/product_items_list.dart';
 
-class OrderDetailPage extends ConsumerWidget {
-  const OrderDetailPage({super.key, required this.order});
+class OrderDetailPage extends ConsumerStatefulWidget {
+  const OrderDetailPage({
+    super.key,
+    required this.order,
+    this.allowVoidFromApprovalContext = false,
+  });
 
   final OrderHistory order;
 
+  /// Hanya `true` dari inbox Persetujuan (tab selesai); bukan dari Riwayat Pesanan.
+  final bool allowVoidFromApprovalContext;
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final detailState = ref.watch(orderDetailProvider(order.id));
-    final currentOrder = detailState.valueOrNull ?? order;
+  ConsumerState<OrderDetailPage> createState() => _OrderDetailPageState();
+}
+
+class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
+  bool _voidingSp = false;
+
+  Future<void> _onVoidSuratPesanan(
+    BuildContext context,
+    OrderHistory currentOrder,
+  ) async {
+    if (!context.mounted) return;
+    final confirm = await showAdaptiveConfirm(
+      context: context,
+      title: 'Void Surat Pesanan?',
+      content: 'SP ${currentOrder.noSp} akan ditandai dibatalkan.',
+      confirmLabel: 'Ya, void SP',
+      isDestructive: true,
+      confirmColor: AppColors.error,
+    );
+    if (confirm != true || !context.mounted) return;
+    if (ifOfflineShowFeedback(
+      context,
+      isOffline: ref.read(isOfflineProvider),
+    )) {
+      return;
+    }
+
+    setState(() => _voidingSp = true);
+    if (!context.mounted) return;
+    LoadingOverlay.show(
+      context,
+      title: 'Memproses void…',
+      subtitle: 'Mohon tunggu',
+    );
+    try {
+      final token = await StorageService.loadAccessToken();
+      final profile = ref.read(profileProvider).valueOrNull;
+      final userId = await StorageService.loadUserId();
+      if (userId <= 0) {
+        throw Exception('ID pengguna tidak valid. Silakan login ulang.');
+      }
+      await ref
+          .read(approvalInboxProvider.notifier)
+          .voidOrderLetterViaRejectedEndpoint(
+            orderLetterId: currentOrder.id,
+            userId: userId,
+            token: token,
+          );
+      unawaited(
+        ApprovalDecisionService.triggerRejectionNotification(
+          orderData: currentOrder.toApprovalOrderDataMap(),
+          spNumber: currentOrder.noSp,
+          token: token,
+          senderName: profile?.name ?? 'Approver',
+        ),
+      );
+      unawaited(ref.read(approvalInboxProvider.notifier).fetchInbox());
+      await ref.read(orderDetailProvider(widget.order.id).notifier).refresh();
+      if (!context.mounted) return;
+      LoadingOverlay.dismiss(context);
+      setState(() => _voidingSp = false);
+      if (!context.mounted) return;
+      AppFeedback.show(
+        context,
+        message: 'Surat Pesanan telah divoid.',
+        type: AppFeedbackType.success,
+        floating: true,
+      );
+      if (!context.mounted) return;
+      context.pop();
+    } catch (e, st) {
+      if (!context.mounted) return;
+      LoadingOverlay.dismiss(context);
+      setState(() => _voidingSp = false);
+      if (!context.mounted) return;
+      if (e is ApiSessionExpiredException) {
+        Log.warning(
+          'Void SP session expired: ${e.detail}',
+          tag: 'OrderDetail',
+        );
+        AppFeedback.show(
+          context,
+          message: e.toString(),
+          type: AppFeedbackType.warning,
+          floating: true,
+          duration: const Duration(seconds: 5),
+        );
+        await ref.read(authProvider.notifier).logout();
+        return;
+      }
+      Log.error(e, st, reason: 'OrderDetail.voidSuratPesanan');
+      AppFeedback.show(
+        context,
+        message: e.toString().replaceFirst('Exception: ', ''),
+        type: AppFeedbackType.error,
+        floating: true,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final detailState = ref.watch(orderDetailProvider(widget.order.id));
+    final currentOrder = detailState.valueOrNull ?? widget.order;
     final isOffline = ref.watch(isOfflineProvider);
     final shippingDiffers = isShippingDifferent(
       shipToName: currentOrder.shipToName,
@@ -64,6 +180,9 @@ class OrderDetailPage extends ConsumerWidget {
     final remainingPayment =
         (currentOrder.totalAmount - totalPaid).clamp(0.0, double.infinity);
 
+    final showVoidBottomBar = widget.allowVoidFromApprovalContext &&
+        OrderStatusX.fromRaw(currentOrder.status) == OrderStatus.approved;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -87,7 +206,7 @@ class OrderDetailPage extends ConsumerWidget {
             tooltip: 'Refresh',
             onPressed: () {
               if (ifOfflineShowFeedback(context, isOffline: isOffline)) return;
-              ref.read(orderDetailProvider(order.id).notifier).refresh();
+              ref.read(orderDetailProvider(widget.order.id).notifier).refresh();
             },
           ),
           PopupMenuButton<String>(
@@ -201,19 +320,25 @@ class OrderDetailPage extends ConsumerWidget {
           child: Container(height: 1, color: AppColors.divider),
         ),
       ),
+      bottomNavigationBar: showVoidBottomBar
+          ? OrderDetailVoidBottomBar(
+              isLoading: _voidingSp,
+              onVoid: () => _onVoidSuratPesanan(context, currentOrder),
+            )
+          : null,
       body: detailState.isLoading && !detailState.hasValue
           ? const OrderDetailSkeleton()
           : detailState.hasError && !detailState.hasValue
               ? _ErrorBody(
                   onRetry: () => ref
-                      .read(orderDetailProvider(order.id).notifier)
+                      .read(orderDetailProvider(widget.order.id).notifier)
                       .refresh(),
                   message: detailState.error.toString(),
-          onGoHome: () => context.go('/order_history'),
+                  onGoHome: () => context.go('/order_history'),
                 )
               : RefreshIndicator.adaptive(
                   onRefresh: () => ref
-                      .read(orderDetailProvider(order.id).notifier)
+                      .read(orderDetailProvider(widget.order.id).notifier)
                       .refresh(),
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
@@ -320,7 +445,8 @@ class OrderDetailPage extends ConsumerWidget {
                           DetailNoteCard(
                             note: currentOrder.note,
                             borderRadius: 14,
-                            borderColor: AppColors.warning.withValues(alpha: 0.3),
+                            borderColor:
+                                AppColors.warning.withValues(alpha: 0.3),
                             iconColor: AppColors.warning,
                             titleColor: AppColors.warning,
                             noteStyle: const TextStyle(

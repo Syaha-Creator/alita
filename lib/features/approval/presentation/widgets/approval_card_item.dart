@@ -7,6 +7,7 @@ import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/widgets/order_list_card_frame.dart';
 import '../../../../core/widgets/status_chip.dart';
 import '../../../history/data/models/order_history.dart';
+import '../../../history/presentation/order_detail_route_args.dart';
 
 /// A single approval card in the inbox list.
 ///
@@ -112,7 +113,13 @@ class ApprovalCardItem extends StatelessWidget {
           context.push('/approval_detail', extra: map);
         } else {
           final orderHistory = OrderHistory.fromApiJson(map);
-          context.push('/order_detail', extra: orderHistory);
+          context.push(
+            '/order_detail',
+            extra: OrderDetailRouteArgs(
+              order: orderHistory,
+              allowVoidFromApprovalContext: true,
+            ),
+          );
         }
       },
       ),

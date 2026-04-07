@@ -25,6 +25,7 @@ class StorageService {
   static const String _userIdKey = 'user_id';
   static const String _userNameKey = 'user_name';
   static const String _userImageUrlKey = 'user_image_url';
+  static const String _userAddressNumberKey = 'user_address_number';
   static const String _areasCacheKey = 'master_areas_cache';
   static const String _channelsCacheKey = 'master_channels_cache';
   static const String _brandsCacheKey = 'master_brands_cache';
@@ -140,6 +141,7 @@ class StorageService {
     int userId = 0,
     String userName = '',
     String userImageUrl = '',
+    String? addressNumber,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_isLoggedInKey, isLoggedIn);
@@ -157,6 +159,11 @@ class StorageService {
     if (userImageUrl.isNotEmpty) {
       await prefs.setString(_userImageUrlKey, userImageUrl);
     }
+    if (addressNumber != null && addressNumber.isNotEmpty) {
+      await prefs.setString(_userAddressNumberKey, addressNumber);
+    } else {
+      await prefs.remove(_userAddressNumberKey);
+    }
   }
 
   static Future<int> loadUserId() async {
@@ -172,6 +179,13 @@ class StorageService {
   static Future<String> loadUserImageUrl() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_userImageUrlKey) ?? '';
+  }
+
+  static Future<String?> loadUserAddressNumber() async {
+    final prefs = await SharedPreferences.getInstance();
+    final v = prefs.getString(_userAddressNumberKey);
+    if (v == null || v.isEmpty) return null;
+    return v;
   }
 
   static Future<bool> loadIsLoggedIn() async {
@@ -219,6 +233,7 @@ class StorageService {
     await prefs.remove(_userIdKey);
     await prefs.remove(_userNameKey);
     await prefs.remove(_userImageUrlKey);
+    await prefs.remove(_userAddressNumberKey);
     await _deleteSecure(_accessTokenKey);
   }
 

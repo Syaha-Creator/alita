@@ -8,6 +8,7 @@ import '../../../../core/widgets/animated_list_item.dart';
 import '../../../../core/widgets/date_range_filter_action.dart';
 import '../../../../core/widgets/empty_state_view.dart';
 import '../../../../core/widgets/error_state_view.dart';
+import '../../../../core/widgets/go_router_pop_scope.dart';
 import '../../../../core/widgets/selection_bottom_sheet.dart';
 import '../../logic/approval_inbox_provider.dart';
 import '../widgets/approval_card_item.dart';
@@ -42,24 +43,34 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
       includeEndYear: true,
     );
 
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(
-          title: const Text(
-            'Persetujuan Diskon',
-            style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+    return GoRouterPopScope(
+      fallbackLocation: '/',
+      child: DefaultTabController(
+        length: 2,
+        child: Scaffold(
           backgroundColor: AppColors.background,
-          elevation: 0,
-          scrolledUnderElevation: 1,
-          iconTheme: const IconThemeData(color: AppColors.textPrimary),
-          actions: [
+          appBar: AppBar(
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded),
+              tooltip: 'Kembali',
+              onPressed: () => GoRouterPopScope.handlePop(
+                context,
+                fallbackLocation: '/',
+              ),
+            ),
+            title: const Text(
+              'Persetujuan Diskon',
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            backgroundColor: AppColors.background,
+            elevation: 0,
+            scrolledUnderElevation: 1,
+            iconTheme: const IconThemeData(color: AppColors.textPrimary),
+            actions: [
             DateRangeFilterAction(
               label: filterText,
               hasActiveFilter: hasDateFilter,
@@ -147,6 +158,7 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
                       ),
                     ],
                   ),
+        ),
       ),
     );
   }

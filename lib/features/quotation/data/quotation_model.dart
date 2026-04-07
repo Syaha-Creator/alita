@@ -48,6 +48,8 @@ class QuotationModel {
   final String shippingRegionText;
 
   // ── Delivery ──
+  /// ISO-8601 tanggal SP saat simpan draft (opsional; lama tanpa field ini).
+  final String? orderDate;
   final String? requestDate;
   final bool isTakeAway;
   final String postage;
@@ -88,6 +90,7 @@ class QuotationModel {
     this.shippingRegionKota = '',
     this.shippingRegionKecamatan = '',
     this.shippingRegionText = '',
+    this.orderDate,
     this.requestDate,
     this.isTakeAway = false,
     this.postage = '',
@@ -135,6 +138,7 @@ class QuotationModel {
     String? shippingRegionKota,
     String? shippingRegionKecamatan,
     String? shippingRegionText,
+    String? orderDate,
     String? requestDate,
     bool? isTakeAway,
     String? postage,
@@ -172,6 +176,7 @@ class QuotationModel {
       shippingRegionKecamatan:
           shippingRegionKecamatan ?? this.shippingRegionKecamatan,
       shippingRegionText: shippingRegionText ?? this.shippingRegionText,
+      orderDate: orderDate ?? this.orderDate,
       requestDate: requestDate ?? this.requestDate,
       isTakeAway: isTakeAway ?? this.isTakeAway,
       postage: postage ?? this.postage,
@@ -208,6 +213,7 @@ class QuotationModel {
         'shippingRegionKota': shippingRegionKota,
         'shippingRegionKecamatan': shippingRegionKecamatan,
         'shippingRegionText': shippingRegionText,
+        'orderDate': orderDate,
         'requestDate': requestDate,
         'isTakeAway': isTakeAway,
         'postage': postage,
@@ -247,6 +253,7 @@ class QuotationModel {
       shippingRegionKecamatan:
           json['shippingRegionKecamatan'] as String? ?? '',
       shippingRegionText: json['shippingRegionText'] as String? ?? '',
+      orderDate: json['orderDate'] as String?,
       requestDate: json['requestDate'] as String?,
       isTakeAway: json['isTakeAway'] as bool? ?? false,
       postage: json['postage'] as String? ?? '',

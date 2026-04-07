@@ -98,9 +98,12 @@ class OrderItemTile extends StatelessWidget {
     }
 
     final tipe = bundleTypeLabel();
-    final configText = p.ukuran.isNotEmpty && !p.name.contains(p.ukuran)
+    var configText = p.ukuran.isNotEmpty && !p.name.contains(p.ukuran)
         ? '${p.ukuran} · $tipe'
         : tipe;
+    if (item.isFocVoucherActive) {
+      configText = '$configText · FOC 100%';
+    }
 
     final hasKasur = p.kasur.trim().isNotEmpty &&
         !p.kasur.trim().toLowerCase().startsWith('tanpa');

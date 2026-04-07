@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_layout_tokens.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/utils/discount_formatter.dart';
 import '../../../../core/utils/number_input_formatter.dart';
@@ -46,6 +47,12 @@ class ProductPriceSection extends StatelessWidget {
   final List<Map<String, dynamic>> defaultBonuses;
   final void Function(List<Map<String, dynamic>> newBonuses) onBonusesSaved;
 
+  /// Mode indirect: ringkasan diskon toko dari API (hanya di halaman detail).
+  final String? indirectStoreDiscountSummary;
+
+  /// Penjelasan singkat kode cabang dari API (`catcode_27`), opsional.
+  final String? indirectBranchCatcodeHint;
+
   const ProductPriceSection({
     super.key,
     required this.activeProduct,
@@ -71,6 +78,8 @@ class ProductPriceSection extends StatelessWidget {
     required this.customBonuses,
     required this.defaultBonuses,
     required this.onBonusesSaved,
+    this.indirectStoreDiscountSummary,
+    this.indirectBranchCatcodeHint,
   });
 
   @override
@@ -89,6 +98,41 @@ class ProductPriceSection extends StatelessWidget {
           'Rincian Harga',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
+        if (indirectStoreDiscountSummary != null &&
+            indirectStoreDiscountSummary!.trim().isNotEmpty) ...[
+          const SizedBox(height: AppLayoutTokens.space12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(AppLayoutTokens.space12),
+            decoration: BoxDecoration(
+              color: AppColors.accent.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(AppLayoutTokens.radius10),
+              border: Border.all(
+                color: AppColors.accent.withValues(alpha: 0.28),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Diskon Toko',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                ),
+                const SizedBox(height: AppLayoutTokens.space6),
+                Text(
+                  indirectStoreDiscountSummary!.trim(),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.accent,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: 12),
         if (finalKasurPrice > 0)
           _buildBreakdownRow(

@@ -138,8 +138,18 @@ abstract final class PdfApprovalSignature {
     Map<String, dynamic> order, {
     required String salesName,
     required String salesCode,
+    bool isSoIndirectPdf = false,
   }) {
     final customerName = order['customer_name']?.toString() ?? 'No Name';
+
+    if (isSoIndirectPdf) {
+      return _buildSignatureSection(
+        customerName,
+        salesName,
+        salesCode,
+        salesBoxTitle: 'SALES',
+      );
+    }
 
     const terms = [
       'Pembayaran dianggap SAH hanya apabila sudah diterima di rekening perusahaan atas nama:\nPT MASSINDO KARYA PRIMA\nBANK BCA 066-328-8871\nPembayaran ke rekening lain tidak akan diakui sebagai pembayaran yang sah.',
@@ -182,7 +192,12 @@ abstract final class PdfApprovalSignature {
           );
         }),
         pw.SizedBox(height: 10),
-        _buildSignatureSection(customerName, salesName, salesCode),
+        _buildSignatureSection(
+          customerName,
+          salesName,
+          salesCode,
+          salesBoxTitle: 'SLEEP CONSULTANT',
+        ),
       ],
     );
   }
@@ -221,7 +236,11 @@ abstract final class PdfApprovalSignature {
   }
 
   static pw.Widget _buildSignatureSection(
-      String customerName, String salesName, String? spgCode) {
+    String customerName,
+    String salesName,
+    String? spgCode, {
+    String salesBoxTitle = 'SLEEP CONSULTANT',
+  }) {
     return pw.Container(
       height: 80,
       decoration: pw.BoxDecoration(
@@ -229,8 +248,7 @@ abstract final class PdfApprovalSignature {
       child: pw.Row(
         children: [
           _sigBox('PEMBELI', customerName),
-          _sigBoxWithCode('SLEEP CONSULTANT', salesName, spgCode,
-              borderLeft: true),
+          _sigBoxWithCode(salesBoxTitle, salesName, spgCode, borderLeft: true),
         ],
       ),
     );

@@ -15,6 +15,7 @@ import '../../../../core/utils/app_telemetry.dart';
 import '../../../../core/utils/shipping_utils.dart';
 import '../../../../core/utils/log.dart';
 import '../../../../core/utils/platform_utils.dart';
+import '../../../../core/widgets/go_router_pop_scope.dart';
 import '../../../../core/widgets/loading_overlay.dart';
 import '../../../../core/widgets/detail_contact_info_card.dart';
 import '../../../../core/widgets/detail_note_card.dart';
@@ -433,28 +434,38 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
       _MyApprovalState.loading => ApprovalBarState.loading,
     };
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text(
-          'Detail Persetujuan',
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            letterSpacing: -0.3,
+    return GoRouterPopScope(
+      fallbackLocation: '/approval_inbox',
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            tooltip: 'Kembali',
+            onPressed: () => GoRouterPopScope.handlePop(
+              context,
+              fallbackLocation: '/approval_inbox',
+            ),
+          ),
+          title: const Text(
+            'Detail Persetujuan',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              letterSpacing: -0.3,
+            ),
+          ),
+          backgroundColor: AppColors.background,
+          elevation: 0,
+          scrolledUnderElevation: 0.5,
+          surfaceTintColor: Colors.transparent,
+          iconTheme: const IconThemeData(color: AppColors.textPrimary),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(1),
+            child: Container(height: 1, color: AppColors.divider),
           ),
         ),
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        scrolledUnderElevation: 0.5,
-        surfaceTintColor: Colors.transparent,
-        iconTheme: const IconThemeData(color: AppColors.textPrimary),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(height: 1, color: AppColors.divider),
-        ),
-      ),
       body: Stack(
         children: [
           SingleChildScrollView(
@@ -502,11 +513,12 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
           ),
         ],
       ),
-      bottomNavigationBar: ApprovalDetailBottomBar(
-        state: barState,
-        isLoading: _isLoading,
-        onReject: () => _confirmAction(context, false),
-        onApprove: () => _confirmAction(context, true),
+        bottomNavigationBar: ApprovalDetailBottomBar(
+          state: barState,
+          isLoading: _isLoading,
+          onReject: () => _confirmAction(context, false),
+          onApprove: () => _confirmAction(context, true),
+        ),
       ),
     );
   }

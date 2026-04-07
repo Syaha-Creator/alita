@@ -24,8 +24,12 @@ mixin _$StoreModel {
   String get name => throw _privateConstructorUsedError;
   String get category => throw _privateConstructorUsedError;
   String get address => throw _privateConstructorUsedError;
+
+  /// Provinsi dari API `/all_stores` (mis. "Daerah Khusus Ibukota Jakarta").
+  String get state => throw _privateConstructorUsedError;
   String get city => throw _privateConstructorUsedError;
   String get area => throw _privateConstructorUsedError;
+  String get phone => throw _privateConstructorUsedError;
   String get image => throw _privateConstructorUsedError;
 
   /// Serializes this StoreModel to a JSON map.
@@ -49,8 +53,10 @@ abstract class $StoreModelCopyWith<$Res> {
       String name,
       String category,
       String address,
+      String state,
       String city,
       String area,
+      String phone,
       String image});
 }
 
@@ -73,8 +79,10 @@ class _$StoreModelCopyWithImpl<$Res, $Val extends StoreModel>
     Object? name = null,
     Object? category = null,
     Object? address = null,
+    Object? state = null,
     Object? city = null,
     Object? area = null,
+    Object? phone = null,
     Object? image = null,
   }) {
     return _then(_value.copyWith(
@@ -94,6 +102,10 @@ class _$StoreModelCopyWithImpl<$Res, $Val extends StoreModel>
           ? _value.address
           : address // ignore: cast_nullable_to_non_nullable
               as String,
+      state: null == state
+          ? _value.state
+          : state // ignore: cast_nullable_to_non_nullable
+              as String,
       city: null == city
           ? _value.city
           : city // ignore: cast_nullable_to_non_nullable
@@ -101,6 +113,10 @@ class _$StoreModelCopyWithImpl<$Res, $Val extends StoreModel>
       area: null == area
           ? _value.area
           : area // ignore: cast_nullable_to_non_nullable
+              as String,
+      phone: null == phone
+          ? _value.phone
+          : phone // ignore: cast_nullable_to_non_nullable
               as String,
       image: null == image
           ? _value.image
@@ -123,8 +139,10 @@ abstract class _$$StoreModelImplCopyWith<$Res>
       String name,
       String category,
       String address,
+      String state,
       String city,
       String area,
+      String phone,
       String image});
 }
 
@@ -145,8 +163,10 @@ class __$$StoreModelImplCopyWithImpl<$Res>
     Object? name = null,
     Object? category = null,
     Object? address = null,
+    Object? state = null,
     Object? city = null,
     Object? area = null,
+    Object? phone = null,
     Object? image = null,
   }) {
     return _then(_$StoreModelImpl(
@@ -166,6 +186,10 @@ class __$$StoreModelImplCopyWithImpl<$Res>
           ? _value.address
           : address // ignore: cast_nullable_to_non_nullable
               as String,
+      state: null == state
+          ? _value.state
+          : state // ignore: cast_nullable_to_non_nullable
+              as String,
       city: null == city
           ? _value.city
           : city // ignore: cast_nullable_to_non_nullable
@@ -173,6 +197,10 @@ class __$$StoreModelImplCopyWithImpl<$Res>
       area: null == area
           ? _value.area
           : area // ignore: cast_nullable_to_non_nullable
+              as String,
+      phone: null == phone
+          ? _value.phone
+          : phone // ignore: cast_nullable_to_non_nullable
               as String,
       image: null == image
           ? _value.image
@@ -190,8 +218,10 @@ class _$StoreModelImpl implements _StoreModel {
       this.name = '',
       this.category = '',
       this.address = '',
+      this.state = '',
       this.city = '',
       this.area = '',
+      this.phone = '',
       this.image = ''});
 
   factory _$StoreModelImpl.fromJson(Map<String, dynamic> json) =>
@@ -208,6 +238,11 @@ class _$StoreModelImpl implements _StoreModel {
   @override
   @JsonKey()
   final String address;
+
+  /// Provinsi dari API `/all_stores` (mis. "Daerah Khusus Ibukota Jakarta").
+  @override
+  @JsonKey()
+  final String state;
   @override
   @JsonKey()
   final String city;
@@ -216,11 +251,14 @@ class _$StoreModelImpl implements _StoreModel {
   final String area;
   @override
   @JsonKey()
+  final String phone;
+  @override
+  @JsonKey()
   final String image;
 
   @override
   String toString() {
-    return 'StoreModel(id: $id, name: $name, category: $category, address: $address, city: $city, area: $area, image: $image)';
+    return 'StoreModel(id: $id, name: $name, category: $category, address: $address, state: $state, city: $city, area: $area, phone: $phone, image: $image)';
   }
 
   @override
@@ -233,15 +271,17 @@ class _$StoreModelImpl implements _StoreModel {
             (identical(other.category, category) ||
                 other.category == category) &&
             (identical(other.address, address) || other.address == address) &&
+            (identical(other.state, state) || other.state == state) &&
             (identical(other.city, city) || other.city == city) &&
             (identical(other.area, area) || other.area == area) &&
+            (identical(other.phone, phone) || other.phone == phone) &&
             (identical(other.image, image) || other.image == image));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, id, name, category, address, city, area, image);
+  int get hashCode => Object.hash(runtimeType, id, name, category, address,
+      state, city, area, phone, image);
 
   /// Create a copy of StoreModel
   /// with the given fields replaced by the non-null parameter values.
@@ -265,8 +305,10 @@ abstract class _StoreModel implements StoreModel {
       final String name,
       final String category,
       final String address,
+      final String state,
       final String city,
       final String area,
+      final String phone,
       final String image}) = _$StoreModelImpl;
 
   factory _StoreModel.fromJson(Map<String, dynamic> json) =
@@ -280,10 +322,16 @@ abstract class _StoreModel implements StoreModel {
   String get category;
   @override
   String get address;
+
+  /// Provinsi dari API `/all_stores` (mis. "Daerah Khusus Ibukota Jakarta").
+  @override
+  String get state;
   @override
   String get city;
   @override
   String get area;
+  @override
+  String get phone;
   @override
   String get image;
 

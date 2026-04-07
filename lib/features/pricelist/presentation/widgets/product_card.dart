@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/platform_utils.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_formatters.dart';
+import '../../../../core/utils/store_discount_calculator.dart';
 import '../../../../core/widgets/network_image_view.dart';
 import '../../../../core/widgets/price_block.dart';
 import '../../../../core/widgets/tap_scale.dart';
@@ -15,12 +16,29 @@ class ProductCard extends ConsumerWidget {
   final Product product;
   final VoidCallback? onTap;
 
-  const ProductCard({super.key, required this.product, this.onTap});
+  /// Jika non-null: harga tampilan setelah diskon toko (EUP × cascade).
+  final List<double>? indirectStoreDiscounts;
+
+  const ProductCard({
+    super.key,
+    required this.product,
+    this.onTap,
+    this.indirectStoreDiscounts,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isFavorite = ref.watch(isFavoriteProvider(product.id));
     final displayImageUrl = ref.watch(productDisplayImageProvider(product));
+
+    final discounts = indirectStoreDiscounts;
+    final bool indirectPricing =
+        discounts != null && discounts.isNotEmpty;
+    final double displayNet = indirectPricing
+        ? StoreDiscountCalculator.cascade(product.price, discounts)
+        : product.price;
+    final double? displayOriginal =
+        indirectPricing ? product.price : null;
     // Placeholder/foto non-kasur: cover agar area terisi rapi. Foto Comforta: contain agar utuh.
     final useCover = displayImageUrl == product.imageUrl;
     return Semantics(
@@ -157,10 +175,10 @@ class ProductCard extends ConsumerWidget {
 
                       const SizedBox(height: 8),
 
-                      // Price (harga coret hanya jika pricelist > price)
+                      // Price — indirect: coret EUP, tampil setelah diskon toko
                       PriceBlock(
-                        price: product.price,
-                        originalPrice: product.pricelist,
+                        price: displayNet,
+                        originalPrice: displayOriginal ?? product.pricelist,
                         formatPrice: _formatPrice,
                         priceStyle:
                             Theme.of(context).textTheme.titleMedium?.copyWith(

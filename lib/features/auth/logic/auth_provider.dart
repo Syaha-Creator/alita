@@ -25,6 +25,8 @@ class AuthState {
   final String userName;
   final String userImageUrl;
   final String? errorMessage;
+  /// Sales code / address_number untuk daftar toko assign (indirect).
+  final String? addressNumber;
 
   const AuthState({
     this.isLoggedIn = false,
@@ -36,6 +38,7 @@ class AuthState {
     this.userName = '',
     this.userImageUrl = '',
     this.errorMessage,
+    this.addressNumber,
   });
 
   AuthState copyWith({
@@ -48,6 +51,8 @@ class AuthState {
     String? userName,
     String? userImageUrl,
     String? errorMessage,
+    String? addressNumber,
+    bool clearAddressNumber = false,
     bool clearError = false,
   }) {
     return AuthState(
@@ -60,6 +65,8 @@ class AuthState {
       userName: userName ?? this.userName,
       userImageUrl: userImageUrl ?? this.userImageUrl,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
+      addressNumber:
+          clearAddressNumber ? null : (addressNumber ?? this.addressNumber),
     );
   }
 }
@@ -113,6 +120,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         StorageService.loadUserId(), // 4
         StorageService.loadUserName(), // 5
         StorageService.loadUserImageUrl(), // 6
+        StorageService.loadUserAddressNumber(), // 7
       ]);
 
       final isLoggedIn = results[0] as bool;
@@ -122,6 +130,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final uid = results[4] as int;
       final name = results[5] as String;
       final imageUrl = results[6] as String;
+      final addr = results[7] as String?;
 
       // Yield to the next event-loop turn so the state mutation doesn't
       // overlap with Riverpod's vsync flush during the initial build frame.
@@ -137,6 +146,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         userId: uid,
         userName: name,
         userImageUrl: imageUrl,
+        addressNumber: addr,
         isLoading: false,
       );
 
@@ -176,6 +186,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         userId: result.userId,
         userName: result.userName,
         userImageUrl: result.userImageUrl,
+        addressNumber: result.addressNumber,
       );
 
       state = AuthState(
@@ -186,6 +197,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         userId: result.userId,
         userName: result.userName,
         userImageUrl: result.userImageUrl,
+        addressNumber: result.addressNumber,
         isLoading: false,
       );
 

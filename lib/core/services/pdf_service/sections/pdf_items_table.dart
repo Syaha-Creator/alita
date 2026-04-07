@@ -11,6 +11,7 @@ abstract final class PdfItemsTable {
     List<Map<String, dynamic>> details,
     List<Map<String, dynamic>> discounts, {
     required bool isInternal,
+    bool hideStoreDiscountTiers = false,
   }) {
     final headers = isInternal
         ? [
@@ -93,7 +94,8 @@ abstract final class PdfItemsTable {
         final discInternal = eup - netPrice;
         final discWidget = _buildDiscountCellInternal(
             discInternal, d, discounts,
-            pricelist: eup);
+            pricelist: eup,
+            hideStoreDiscountTiers: hideStoreDiscountTiers);
         tableRows.add(pw.TableRow(children: [
           PdfHelpers.tc(brandCell, align: pw.TextAlign.center),
           PdfHelpers.tc(orderCell, align: pw.TextAlign.center),
@@ -214,21 +216,31 @@ abstract final class PdfItemsTable {
     );
   }
 
+  static bool _isStoreDiscountTier(Map<String, dynamic> d) {
+    final level = d['approver_level']?.toString().toLowerCase() ?? '';
+    return level.startsWith('diskon toko');
+  }
+
   static pw.Widget _buildDiscountCellInternal(
     double totalDiscount,
     Map<String, dynamic> detail,
     List<Map<String, dynamic>> allDiscounts, {
     double pricelist = 0,
+    bool hideStoreDiscountTiers = false,
   }) {
     final detailId =
         PdfHelpers.intFrom(detail['order_letter_detail_id'] ?? detail['id']);
-    final itemDiscounts = allDiscounts.where((d) {
+    var itemDiscounts = allDiscounts.where((d) {
       final dId =
           PdfHelpers.intFrom(d['order_letter_detail_id'] ?? d['detail_id']);
       return dId == detailId && detailId > 0;
-    }).toList()
-      ..sort((a, b) => PdfHelpers.intFrom(a['approver_level_id'])
-          .compareTo(PdfHelpers.intFrom(b['approver_level_id'])));
+    }).toList();
+    if (hideStoreDiscountTiers) {
+      itemDiscounts =
+          itemDiscounts.where((d) => !_isStoreDiscountTier(d)).toList();
+    }
+    itemDiscounts.sort((a, b) => PdfHelpers.intFrom(a['approver_level_id'])
+        .compareTo(PdfHelpers.intFrom(b['approver_level_id'])));
 
     final pcts = <String>[];
     for (final d in itemDiscounts) {

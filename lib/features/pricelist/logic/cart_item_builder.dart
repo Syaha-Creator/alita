@@ -1,3 +1,4 @@
+import '../../cart/data/cart_indirect_meta.dart';
 import '../../cart/data/cart_item.dart';
 import '../data/models/item_lookup.dart';
 import '../data/models/product.dart';
@@ -47,6 +48,9 @@ class CartItemBuilder {
     required bool isSorongCustom,
     required ItemLookup? effectiveSorongLookup,
     required String customSorongNote,
+    /// Non-null hanya untuk mode indirect (toko assign + diskon API).
+    CartIndirectMeta? indirectMeta,
+
     // Bonus override (from "Tukar Bonus")
     List<Map<String, dynamic>>? customBonuses,
   }) {
@@ -214,6 +218,12 @@ class CartItemBuilder {
       discount3: discPct3,
       discount4: discPct4,
       bonusSnapshots: bonusSnapshots,
+      indirectStoreAddressNumber: indirectMeta?.addressNumber,
+      indirectStoreAlphaName: indirectMeta?.alphaName ?? '',
+      indirectStoreAddress: indirectMeta?.address ?? '',
+      indirectStorePhone: indirectMeta?.phone ?? '',
+      indirectStoreDiscounts: indirectMeta?.storeDiscounts ?? const [],
+      indirectStoreDiscountDisplay: indirectMeta?.discountDisplay ?? '',
     );
   }
 

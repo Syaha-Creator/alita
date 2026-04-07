@@ -9,6 +9,7 @@ abstract final class PdfTotalsSection {
     Map<String, dynamic> order,
     List<Map<String, dynamic>> payments, {
     required String repaymentDate,
+    bool isSoIndirectPdf = false,
   }) {
     final note = (order['note']?.toString() ?? '').trim();
     final grandTotal = PdfHelpers.dbl(order['extended_amount']).roundToDouble();
@@ -75,9 +76,11 @@ abstract final class PdfTotalsSection {
                 _totalCurrencyRow('Subtotal', subtotal),
                 _totalCurrencyRow('PPN 11%', ppn),
                 _totalCurrencyRow('Grand Total', grandTotal, isBold: true),
-                ...paymentRows,
-                _totalCurrencyRow('Sisa Pembayaran', remaining, isBold: true),
-                _totalRow('Tgl Pelunasan', repaymentDate),
+                if (!isSoIndirectPdf) ...[
+                  ...paymentRows,
+                  _totalCurrencyRow('Sisa Pembayaran', remaining, isBold: true),
+                  _totalRow('Tgl Pelunasan', repaymentDate),
+                ],
               ],
             ),
           ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_layout_tokens.dart';
 import '../../../../core/widgets/checkout_input_decoration.dart';
 
 /// Customer information form section extracted from CheckoutPage.
@@ -10,6 +11,13 @@ import '../../../../core/widgets/checkout_input_decoration.dart';
 class CustomerInfoSection extends StatelessWidget {
   const CustomerInfoSection({
     super.key,
+    this.sectionTitle = 'Informasi Pelanggan',
+    this.sectionSubtitle,
+    /// Indirect: email & HP utama tidak wajib; hanya format jika diisi.
+    this.storeContactOptional = false,
+    /// Indirect: hanya nama toko — tanpa email/HP, pilih kontak, simpan kontak.
+    this.indirectStoreOnly = false,
+    this.customerNameFieldLabel = 'Nama Pelanggan *',
     required this.customerNameCtrl,
     required this.customerEmailCtrl,
     required this.customerPhoneCtrl,
@@ -25,6 +33,16 @@ class CustomerInfoSection extends StatelessWidget {
     this.onCloudLookup,
     this.isCloudLookupLoading = false,
   });
+
+  /// Judul blok (mis. "Informasi Pelanggan (Toko)" untuk indirect).
+  final String sectionTitle;
+
+  /// Teks penjelas singkat di bawah judul (opsional).
+  final String? sectionSubtitle;
+
+  final bool storeContactOptional;
+  final bool indirectStoreOnly;
+  final String customerNameFieldLabel;
 
   final TextEditingController customerNameCtrl;
   final TextEditingController customerEmailCtrl;
@@ -46,47 +64,68 @@ class CustomerInfoSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'Informasi Pelanggan',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
+        if (indirectStoreOnly)
+          Text(
+            sectionTitle,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
             ),
-            TextButton(
-              onPressed: onPickContact,
-              style: TextButton.styleFrom(
-                padding: EdgeInsets.zero,
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          )
+        else
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                sectionTitle,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
               ),
-              child: const Row(
-                children: [
-                  Icon(Icons.import_contacts,
-                      size: 18, color: AppColors.accent),
-                  SizedBox(width: 6),
-                  Text(
-                    'Pilih Kontak',
-                    style: TextStyle(
-                      color: AppColors.accent,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
+              TextButton(
+                onPressed: onPickContact,
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.import_contacts,
+                        size: 18, color: AppColors.accent),
+                    SizedBox(width: 6),
+                    Text(
+                      'Pilih Kontak',
+                      style: TextStyle(
+                        color: AppColors.accent,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+            ],
+          ),
+        if (sectionSubtitle != null && sectionSubtitle!.trim().isNotEmpty) ...[
+          const SizedBox(height: AppLayoutTokens.space8),
+          Text(
+            sectionSubtitle!.trim(),
+            style: const TextStyle(
+              fontSize: 12,
+              height: 1.35,
+              color: AppColors.textSecondary,
             ),
-          ],
-        ),
+          ),
+        ],
         const SizedBox(height: 16),
 
         _buildTextField(
           controller: customerNameCtrl,
-          label: 'Nama Pelanggan *',
+          label: customerNameFieldLabel,
           onChanged: (value) {
             if (value.trim().isEmpty && selectedContactId != null) {
               onContactFieldCleared();
@@ -94,20 +133,30 @@ class CustomerInfoSection extends StatelessWidget {
           },
           isRequired: true,
         ),
+        if (!indirectStoreOnly) ...[
         const SizedBox(height: 16),
         _buildTextField(
           controller: customerEmailCtrl,
-          label: 'Email *',
+          label: storeContactOptional ? 'Email' : 'Email *',
           keyboardType: TextInputType.emailAddress,
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return 'Field ini wajib diisi';
-            }
-            if (!RegExp(r'^[\w.+-]+@[\w.-]+\.\w{2,}$').hasMatch(value.trim())) {
-              return 'Format email tidak valid';
-            }
-            return null;
-          },
+          validator: storeContactOptional
+              ? (value) {
+                  final t = value?.trim() ?? '';
+                  if (t.isEmpty) return null;
+                  if (!RegExp(r'^[\w.+-]+@[\w.-]+\.\w{2,}$').hasMatch(t)) {
+                    return 'Format email tidak valid';
+                  }
+                  return null;
+                }
+              : (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Field ini wajib diisi';
+                  }
+                  if (!RegExp(r'^[\w.+-]+@[\w.-]+\.\w{2,}$').hasMatch(value.trim())) {
+                    return 'Format email tidak valid';
+                  }
+                  return null;
+                },
         ),
         const SizedBox(height: 16),
 
@@ -127,18 +176,29 @@ class CustomerInfoSection extends StatelessWidget {
                   }
                 },
                 style: const TextStyle(fontSize: 14),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Field ini wajib diisi';
-                  }
-                  final digits = value.replaceAll(RegExp(r'\D'), '');
-                  if (digits.length < 10 || digits.length > 15) {
-                    return 'No. HP harus 10–15 digit';
-                  }
-                  return null;
-                },
+                validator: storeContactOptional
+                    ? (value) {
+                        final t = value?.trim() ?? '';
+                        if (t.isEmpty) return null;
+                        final digits = t.replaceAll(RegExp(r'\D'), '');
+                        if (digits.length < 10 || digits.length > 15) {
+                          return 'No. HP harus 10–15 digit';
+                        }
+                        return null;
+                      }
+                    : (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Field ini wajib diisi';
+                        }
+                        final digits = value.replaceAll(RegExp(r'\D'), '');
+                        if (digits.length < 10 || digits.length > 15) {
+                          return 'No. HP harus 10–15 digit';
+                        }
+                        return null;
+                      },
                 decoration: CheckoutInputDecoration.form(
-                  labelText: 'No. HP Utama *',
+                  labelText:
+                      storeContactOptional ? 'No. HP Utama' : 'No. HP Utama *',
                   labelStyle: const TextStyle(fontSize: 12),
                   prefixIcon: const Icon(
                     Icons.phone,
@@ -243,6 +303,7 @@ class CustomerInfoSection extends StatelessWidget {
               ),
             ],
           ),
+        ],
         ],
       ],
     );

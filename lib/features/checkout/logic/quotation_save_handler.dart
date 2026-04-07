@@ -47,6 +47,7 @@ abstract final class QuotationSaveHandler {
     required String? shippingRegionKecamatan,
     required String shippingRegionText,
     // Delivery
+    required DateTime orderDate,
     required DateTime? requestDate,
     required bool isTakeAway,
     required String postage,
@@ -96,6 +97,7 @@ abstract final class QuotationSaveHandler {
       shippingRegionKota: shippingRegionKota ?? '',
       shippingRegionKecamatan: shippingRegionKecamatan ?? '',
       shippingRegionText: shippingRegionText,
+      orderDate: orderDate.toIso8601String(),
       requestDate: requestDate?.toIso8601String(),
       isTakeAway: isTakeAway,
       postage: postage,

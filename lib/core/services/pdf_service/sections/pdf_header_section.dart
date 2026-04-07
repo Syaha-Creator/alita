@@ -6,22 +6,47 @@ import 'pdf_helpers.dart';
 /// Holds pre-loaded logo image providers.
 class PdfLogos {
   final pw.ImageProvider? sleepCenter;
+  /// Channel S0/SO: ganti logo Sleep Center dengan teks perusahaan.
+  final String? sleepCenterReplacementText;
   final List<pw.ImageProvider?> others;
-  const PdfLogos({this.sleepCenter, this.others = const []});
+  const PdfLogos({
+    this.sleepCenter,
+    this.sleepCenterReplacementText,
+    this.others = const [],
+  });
 }
 
 /// Builds the PDF header and customer/order info rows.
 abstract final class PdfHeaderSection {
-  static pw.Widget buildHeader(PdfLogos logos, Map<String, dynamic> order) {
+  static pw.Widget buildHeader(
+    PdfLogos logos,
+    Map<String, dynamic> order, {
+    bool isSoIndirectPdf = false,
+  }) {
     final workPlace = order['work_place_name']?.toString() ?? 'SLEEP CENTER';
     final orderDate =
         PdfHelpers.prettyDate(order['order_date']) ?? PdfHelpers.fmtDate(DateTime.now());
 
     final validOtherLogos = logos.others.whereType<pw.ImageProvider>().toList();
 
+    final replacement = logos.sleepCenterReplacementText?.trim() ?? '';
     return pw.Column(
       children: [
-        if (logos.sleepCenter case final sc?)
+        if (replacement.isNotEmpty)
+          pw.Container(
+            height: 70,
+            alignment: pw.Alignment.center,
+            child: pw.Text(
+              replacement,
+              style: pw.TextStyle(
+                fontSize: 14,
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.black,
+              ),
+              textAlign: pw.TextAlign.center,
+            ),
+          )
+        else if (logos.sleepCenter case final sc?)
           pw.Container(
             height: 70,
             alignment: pw.Alignment.center,
@@ -45,10 +70,18 @@ abstract final class PdfHeaderSection {
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            pw.Text('SHOWROOM/PAMERAN: $workPlace',
-                style: const pw.TextStyle(fontSize: 9)),
-            pw.Text('TANGGAL PEMBELIAN: $orderDate',
-                style: const pw.TextStyle(fontSize: 9)),
+            pw.Text(
+              isSoIndirectPdf
+                  ? 'SURAT PESANAN INDIRECT'
+                  : 'SHOWROOM/PAMERAN: $workPlace',
+              style: const pw.TextStyle(fontSize: 9),
+            ),
+            pw.Text(
+              isSoIndirectPdf
+                  ? 'Tanggal: $orderDate'
+                  : 'TANGGAL PEMBELIAN: $orderDate',
+              style: const pw.TextStyle(fontSize: 9),
+            ),
           ],
         ),
         pw.Divider(color: PdfColors.black, thickness: 1.5),
@@ -57,7 +90,15 @@ abstract final class PdfHeaderSection {
     );
   }
 
-  static pw.Widget buildCustomerAndOrderInfo(Map<String, dynamic> order) {
+  static pw.Widget buildCustomerAndOrderInfo(
+    Map<String, dynamic> order, {
+    bool isSoIndirectPdf = false,
+  }) {
+    final noPoRaw = order['no_po'];
+    final noPoText = noPoRaw == null
+        ? '-'
+        : (noPoRaw.toString().trim().isEmpty ? '-' : noPoRaw.toString().trim());
+
     return pw.Row(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -92,6 +133,7 @@ abstract final class PdfHeaderSection {
             },
             children: [
               _infoRow('No. SP.', order['no_sp']?.toString() ?? '-'),
+              if (isSoIndirectPdf) _infoRow('No. PO', noPoText),
               _infoRow(
                   'Tgl Kirim', PdfHelpers.prettyDate(order['request_date']) ?? '-'),
               _infoRow('Telepon', order['phone']?.toString() ?? '-'),

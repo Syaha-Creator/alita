@@ -49,6 +49,8 @@ class OrderHistory with _$OrderHistory {
     @Default('') String shipToName,
     @Default('') String addressShipTo,
     String? noPo,
+    /// Channel order letter (mis. SO, S1, MM) — untuk PDF/layout khusus indirect.
+    String? channel,
     required bool isTakeAway,
     required String workPlaceName,
     required String companyName,
@@ -98,6 +100,7 @@ class OrderHistory with _$OrderHistory {
       shipToName: letter['ship_to_name']?.toString() ?? '',
       addressShipTo: letter['address_ship_to']?.toString() ?? '',
       noPo: letter['no_po']?.toString(),
+      channel: letter['channel']?.toString(),
       isTakeAway: parseTakeAway(letter['take_away']),
       workPlaceName: json['work_place_name']?.toString() ??
           letter['work_place_name']?.toString() ??
@@ -156,6 +159,7 @@ extension OrderHistoryX on OrderHistory {
         'ship_to_name': shipToName,
         'address_ship_to': addressShipTo,
         'no_po': noPo,
+        if ((channel ?? '').isNotEmpty) 'channel': channel,
         'take_away': isTakeAway,
         'work_place_name': workPlaceName,
         'company_name': companyName,

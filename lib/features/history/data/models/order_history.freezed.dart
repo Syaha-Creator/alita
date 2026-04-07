@@ -32,6 +32,9 @@ mixin _$OrderHistory {
   String get shipToName => throw _privateConstructorUsedError;
   String get addressShipTo => throw _privateConstructorUsedError;
   String? get noPo => throw _privateConstructorUsedError;
+
+  /// Channel order letter (mis. SO, S1, MM) — untuk PDF/layout khusus indirect.
+  String? get channel => throw _privateConstructorUsedError;
   bool get isTakeAway => throw _privateConstructorUsedError;
   String get workPlaceName => throw _privateConstructorUsedError;
   String get companyName => throw _privateConstructorUsedError;
@@ -77,6 +80,7 @@ abstract class $OrderHistoryCopyWith<$Res> {
       String shipToName,
       String addressShipTo,
       String? noPo,
+      String? channel,
       bool isTakeAway,
       String workPlaceName,
       String companyName,
@@ -119,6 +123,7 @@ class _$OrderHistoryCopyWithImpl<$Res, $Val extends OrderHistory>
     Object? shipToName = null,
     Object? addressShipTo = null,
     Object? noPo = freezed,
+    Object? channel = freezed,
     Object? isTakeAway = null,
     Object? workPlaceName = null,
     Object? companyName = null,
@@ -181,6 +186,10 @@ class _$OrderHistoryCopyWithImpl<$Res, $Val extends OrderHistory>
       noPo: freezed == noPo
           ? _value.noPo
           : noPo // ignore: cast_nullable_to_non_nullable
+              as String?,
+      channel: freezed == channel
+          ? _value.channel
+          : channel // ignore: cast_nullable_to_non_nullable
               as String?,
       isTakeAway: null == isTakeAway
           ? _value.isTakeAway
@@ -259,6 +268,7 @@ abstract class _$$OrderHistoryImplCopyWith<$Res>
       String shipToName,
       String addressShipTo,
       String? noPo,
+      String? channel,
       bool isTakeAway,
       String workPlaceName,
       String companyName,
@@ -299,6 +309,7 @@ class __$$OrderHistoryImplCopyWithImpl<$Res>
     Object? shipToName = null,
     Object? addressShipTo = null,
     Object? noPo = freezed,
+    Object? channel = freezed,
     Object? isTakeAway = null,
     Object? workPlaceName = null,
     Object? companyName = null,
@@ -361,6 +372,10 @@ class __$$OrderHistoryImplCopyWithImpl<$Res>
       noPo: freezed == noPo
           ? _value.noPo
           : noPo // ignore: cast_nullable_to_non_nullable
+              as String?,
+      channel: freezed == channel
+          ? _value.channel
+          : channel // ignore: cast_nullable_to_non_nullable
               as String?,
       isTakeAway: null == isTakeAway
           ? _value.isTakeAway
@@ -434,6 +449,7 @@ class _$OrderHistoryImpl implements _OrderHistory {
       this.shipToName = '',
       this.addressShipTo = '',
       this.noPo,
+      this.channel,
       required this.isTakeAway,
       required this.workPlaceName,
       required this.companyName,
@@ -479,6 +495,10 @@ class _$OrderHistoryImpl implements _OrderHistory {
   final String addressShipTo;
   @override
   final String? noPo;
+
+  /// Channel order letter (mis. SO, S1, MM) — untuk PDF/layout khusus indirect.
+  @override
+  final String? channel;
   @override
   final bool isTakeAway;
   @override
@@ -528,7 +548,7 @@ class _$OrderHistoryImpl implements _OrderHistory {
 
   @override
   String toString() {
-    return 'OrderHistory(id: $id, noSp: $noSp, orderDate: $orderDate, requestDate: $requestDate, note: $note, customerName: $customerName, phone: $phone, address: $address, email: $email, shipToName: $shipToName, addressShipTo: $addressShipTo, noPo: $noPo, isTakeAway: $isTakeAway, workPlaceName: $workPlaceName, companyName: $companyName, totalAmount: $totalAmount, postage: $postage, status: $status, creator: $creator, creatorName: $creatorName, salesCode: $salesCode, salesName: $salesName, details: $details, payments: $payments, createdAt: $createdAt)';
+    return 'OrderHistory(id: $id, noSp: $noSp, orderDate: $orderDate, requestDate: $requestDate, note: $note, customerName: $customerName, phone: $phone, address: $address, email: $email, shipToName: $shipToName, addressShipTo: $addressShipTo, noPo: $noPo, channel: $channel, isTakeAway: $isTakeAway, workPlaceName: $workPlaceName, companyName: $companyName, totalAmount: $totalAmount, postage: $postage, status: $status, creator: $creator, creatorName: $creatorName, salesCode: $salesCode, salesName: $salesName, details: $details, payments: $payments, createdAt: $createdAt)';
   }
 
   @override
@@ -553,6 +573,7 @@ class _$OrderHistoryImpl implements _OrderHistory {
             (identical(other.addressShipTo, addressShipTo) ||
                 other.addressShipTo == addressShipTo) &&
             (identical(other.noPo, noPo) || other.noPo == noPo) &&
+            (identical(other.channel, channel) || other.channel == channel) &&
             (identical(other.isTakeAway, isTakeAway) ||
                 other.isTakeAway == isTakeAway) &&
             (identical(other.workPlaceName, workPlaceName) ||
@@ -592,6 +613,7 @@ class _$OrderHistoryImpl implements _OrderHistory {
         shipToName,
         addressShipTo,
         noPo,
+        channel,
         isTakeAway,
         workPlaceName,
         companyName,
@@ -637,6 +659,7 @@ abstract class _OrderHistory implements OrderHistory {
       final String shipToName,
       final String addressShipTo,
       final String? noPo,
+      final String? channel,
       required final bool isTakeAway,
       required final String workPlaceName,
       required final String companyName,
@@ -678,6 +701,10 @@ abstract class _OrderHistory implements OrderHistory {
   String get addressShipTo;
   @override
   String? get noPo;
+
+  /// Channel order letter (mis. SO, S1, MM) — untuk PDF/layout khusus indirect.
+  @override
+  String? get channel;
   @override
   bool get isTakeAway;
   @override

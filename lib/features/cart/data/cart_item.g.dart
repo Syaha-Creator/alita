@@ -64,6 +64,19 @@ _$CartItemImpl _$$CartItemImplFromJson(Map<String, dynamic> json) =>
                   (e) => CartBonusSnapshot.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const <CartBonusSnapshot>[],
+      indirectStoreAddressNumber:
+          _parseIntNullable(json['indirectStoreAddressNumber']),
+      indirectStoreAlphaName: json['indirectStoreAlphaName'] as String? ?? '',
+      indirectStoreAddress: json['indirectStoreAddress'] as String? ?? '',
+      indirectStorePhone: json['indirectStorePhone'] as String? ?? '',
+      indirectStoreDiscounts: json['indirectStoreDiscounts'] == null
+          ? const <double>[]
+          : _parseDoubleList(json['indirectStoreDiscounts']),
+      indirectStoreDiscountDisplay:
+          json['indirectStoreDiscountDisplay'] as String? ?? '',
+      isFocVoucher: json['isFocVoucher'] == null
+          ? false
+          : _parseBoolDefaultFalse(json['isFocVoucher']),
     );
 
 Map<String, dynamic> _$$CartItemImplToJson(_$CartItemImpl instance) =>
@@ -90,4 +103,11 @@ Map<String, dynamic> _$$CartItemImplToJson(_$CartItemImpl instance) =>
       'discount3': instance.discount3,
       'discount4': instance.discount4,
       'bonusSnapshots': instance.bonusSnapshots,
+      'indirectStoreAddressNumber': instance.indirectStoreAddressNumber,
+      'indirectStoreAlphaName': instance.indirectStoreAlphaName,
+      'indirectStoreAddress': instance.indirectStoreAddress,
+      'indirectStorePhone': instance.indirectStorePhone,
+      'indirectStoreDiscounts': instance.indirectStoreDiscounts,
+      'indirectStoreDiscountDisplay': instance.indirectStoreDiscountDisplay,
+      'isFocVoucher': instance.isFocVoucher,
     };

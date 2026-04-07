@@ -13,6 +13,9 @@ class CheckoutEndpoints {
   static String get orderLetterDetails => '$_base/order_letter_details';
   static String get orderLetterDiscounts => '$_base/order_letter_discounts';
   static String get leaderByUser => '$_base/leaderbyuser';
+
+  /// GET diskon toko by `kode_toko` (address_number toko, query param).
+  static String get storeDiscounts => '$_base/store_discounts';
 }
 
 /// A single pending detail row (used for retry flow).

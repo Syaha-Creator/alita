@@ -30,8 +30,12 @@ class StoreRepository {
   }
 
   /// Returns all stores — from local cache if fresh, otherwise from API.
+  /// Set [forceRefresh] to bypass cache/TTL and hit `/all_stores` again.
   /// Sorted alphabetically by store name (case-insensitive).
-  Future<List<StoreModel>> getAllStores() async {
+  Future<List<StoreModel>> getAllStores({bool forceRefresh = false}) async {
+    if (forceRefresh) {
+      return await _fetchAndCache();
+    }
     final cached = await _loadCache();
     if (cached != null) return _sortStoresByName(cached);
 
@@ -39,7 +43,7 @@ class StoreRepository {
   }
 
   /// Forces a fresh fetch from API, bypassing any cache.
-  Future<List<StoreModel>> refreshStores() => _fetchAndCache();
+  Future<List<StoreModel>> refreshStores() => getAllStores(forceRefresh: true);
 
   Future<List<StoreModel>> _fetchAndCache() async {
     final response = await retry(

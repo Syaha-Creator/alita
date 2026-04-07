@@ -27,6 +27,7 @@ import 'core/theme/app_theme.dart';
 import 'features/approval/logic/approval_inbox_provider.dart';
 import 'features/auth/logic/auth_provider.dart';
 import 'features/pricelist/logic/master_data_provider.dart';
+import 'features/pricelist/logic/product_provider.dart';
 import 'core/widgets/offline_banner.dart';
 import 'firebase_options.dart';
 
@@ -250,6 +251,16 @@ class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp>
         Future.microtask(() {
           if (!mounted) return;
           ref.invalidate(masterDataProvider);
+        });
+      }
+      if (prev?.isLoggedIn == true && !next.isLoggedIn) {
+        Future.microtask(() {
+          if (!mounted) return;
+          ref.read(selectedChannelProvider.notifier).state = null;
+          ref.read(selectedBrandProvider.notifier).state = null;
+          ref.invalidate(selectedAreaProvider);
+          ref.read(searchQueryProvider.notifier).state = '';
+          ref.read(sortOptionProvider.notifier).state = SortOption.newest;
         });
       }
     });

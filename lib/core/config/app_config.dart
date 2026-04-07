@@ -92,6 +92,21 @@ class AppConfig {
       _fromEnv('REGION_API_BASE_URL',
           'https://www.emsifa.com/api-wilayah-indonesia/api');
 
+  // ── Indirect sales: assigned toko (host terpisah + header API key) ──
+  /// Base URL tanpa trailing slash, contoh: `http://host:8000`
+  static String get indirectStoresBaseUrl =>
+      _fromEnv('INDIRECT_STORES_BASE_URL', '');
+
+  static String get indirectApiKey => _fromEnv('INDIRECT_API_KEY', '');
+
+  static String get indirectClientKey => _fromEnv('INDIRECT_CLIENT_KEY', '');
+
+  /// True jika konfigurasi fetch daftar toko assign sudah lengkap.
+  static bool get isIndirectStoresConfigured =>
+      indirectStoresBaseUrl.isNotEmpty &&
+      indirectApiKey.isNotEmpty &&
+      indirectClientKey.isNotEmpty;
+
   // ── Placeholder Images ────────────────────────────────────────
 
   static const String placeholderProductImage =

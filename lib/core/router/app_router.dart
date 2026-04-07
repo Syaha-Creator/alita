@@ -25,12 +25,14 @@ import '../../features/profile/presentation/pages/help_center_page.dart';
 import '../../features/profile/presentation/pages/telemetry_debug_page.dart';
 import '../../features/history/presentation/pages/order_history_page.dart';
 import '../../features/history/presentation/pages/order_detail_page.dart';
+import '../../features/history/presentation/order_detail_route_args.dart';
 import '../../features/history/data/models/order_history.dart';
 import '../../features/approval/presentation/pages/approval_inbox_page.dart';
 import '../../features/approval/presentation/pages/approval_detail_page.dart';
 import '../../features/approval/presentation/pages/approval_detail_loader_page.dart';
 import '../../features/quotation/data/quotation_model.dart';
 import '../../features/quotation/presentation/pages/quotation_history_page.dart';
+import '../../features/indirect/presentation/pages/sales_hub_page.dart';
 
 /// Returns [CupertinoPage] on iOS for native swipe-back,
 /// [MaterialPage] on Android for Material transitions.
@@ -39,8 +41,8 @@ Page<T> _adaptivePage<T>({required Widget child, required String name}) {
   return MaterialPage<T>(child: child, name: name);
 }
 
-/// [GoRouter] `extra` untuk `/order_detail` biasanya [OrderHistory], tetapi bisa
-/// berupa [Map] (JSON decode, plugin, atau edge platform) — hindari cast keras.
+/// [GoRouter] `extra` untuk `/order_detail`: [OrderDetailRouteArgs], [OrderHistory],
+/// atau [Map] API — hindari cast keras.
 OrderHistory? _orderHistoryFromRouteExtra(Object? extra) {
   if (extra == null) return null;
   if (extra is OrderHistory) return extra;
@@ -59,6 +61,14 @@ OrderHistory? _orderHistoryFromRouteExtra(Object? extra) {
     }
   }
   return null;
+}
+
+OrderDetailRouteArgs? _orderDetailRouteArgsFromExtra(Object? extra) {
+  if (extra == null) return null;
+  if (extra is OrderDetailRouteArgs) return extra;
+  final oh = _orderHistoryFromRouteExtra(extra);
+  if (oh == null) return null;
+  return OrderDetailRouteArgs(order: oh);
 }
 
 /// Root navigator key used by GoRouter.
@@ -115,15 +125,20 @@ final routerProvider = Provider<GoRouter>((ref) {
         return '/auth_boot';
       }
 
-      // Session sudah jelas: lepas dari layar boot.
-      if (isLoggedIn && isOnAuthBoot) return '/';
+      // Session sudah jelas: boot memutuskan sales hub (admin) vs home (non-admin).
+      if (isLoggedIn && isOnAuthBoot) return null;
       if (!isLoggedIn && isOnAuthBoot) return '/login';
 
       // Belum login → paksa ke login
       if (!isLoggedIn && !isOnLogin) return '/login';
 
-      // Sudah login tapi masih di halaman login → ke home
-      if (isLoggedIn && isOnLogin) return '/';
+      // Sudah login di login: admin ke hub; non-admin tetap di login sampai LoginPage selesai sync mode.
+      if (isLoggedIn && isOnLogin) {
+        if (TelemetryAccess.canChooseSalesMode(auth.userId)) {
+          return '/sales_hub';
+        }
+        return null;
+      }
 
       if (isTelemetryRoute && !TelemetryAccess.canAccess(auth.userId)) {
         return '/profile';
@@ -162,6 +177,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
         routes: [
+          GoRoute(
+            path: '/sales_hub',
+            name: 'sales-hub',
+            pageBuilder: (context, state) =>
+                _adaptivePage(child: const SalesHubPage(), name: 'sales-hub'),
+          ),
           GoRoute(
             path: '/',
             name: 'home',
@@ -269,8 +290,8 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/order_detail',
             name: 'order-detail',
             pageBuilder: (context, state) {
-              final order = _orderHistoryFromRouteExtra(state.extra);
-              if (order == null) {
+              final args = _orderDetailRouteArgsFromExtra(state.extra);
+              if (args == null) {
                 return _adaptivePage(
                   name: 'order-detail',
                   child: Scaffold(
@@ -300,7 +321,11 @@ final routerProvider = Provider<GoRouter>((ref) {
                 );
               }
               return _adaptivePage(
-                child: OrderDetailPage(order: order),
+                child: OrderDetailPage(
+                  order: args.order,
+                  allowVoidFromApprovalContext:
+                      args.allowVoidFromApprovalContext,
+                ),
                 name: 'order-detail',
               );
             },

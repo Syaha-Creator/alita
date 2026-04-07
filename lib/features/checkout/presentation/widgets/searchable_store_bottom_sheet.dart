@@ -7,6 +7,7 @@ import '../../../../core/widgets/app_search_field.dart';
 import '../../../../core/widgets/empty_state_view.dart';
 import '../../../../core/widgets/error_state_view.dart';
 import '../../../../core/widgets/network_image_view.dart';
+import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/widgets/sheet_scaffold.dart';
 import '../../data/models/store_model.dart';
 import '../../logic/store_provider.dart';
@@ -159,6 +160,33 @@ class _SearchableStoreBottomSheetState
                     ),
                   ),
                   IconButton(
+                    icon: const Icon(Icons.sync_rounded, size: 22),
+                    color: AppColors.accent,
+                    tooltip: 'Ambil data terbaru dari server',
+                    onPressed: () async {
+                      await ref
+                          .read(storeListProvider.notifier)
+                          .refreshFromNetwork();
+                      if (!context.mounted) return;
+                      final async = ref.read(storeListProvider);
+                      if (async.hasError) {
+                        AppFeedback.show(
+                          context,
+                          message: async.error.toString(),
+                          type: AppFeedbackType.error,
+                          floating: true,
+                        );
+                      } else if (async.hasValue) {
+                        AppFeedback.show(
+                          context,
+                          message: 'Daftar toko diperbarui',
+                          type: AppFeedbackType.success,
+                          floating: true,
+                        );
+                      }
+                    },
+                  ),
+                  IconButton(
                     icon: const Icon(Icons.close, size: 22),
                     color: AppColors.textSecondary,
                     tooltip: 'Tutup',
@@ -219,8 +247,9 @@ class _SearchableStoreBottomSheetState
                 error: (error, _) => ErrorStateView(
                   title: 'Gagal Memuat Toko',
                   message: error.toString(),
-                  onRetry: () =>
-                      ref.invalidate(storeListProvider),
+                  onRetry: () => ref
+                      .read(storeListProvider.notifier)
+                      .refreshFromNetwork(),
                 ),
                 data: (stores) {
                   final filtered = _filter(stores);

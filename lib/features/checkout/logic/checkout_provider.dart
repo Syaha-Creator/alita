@@ -358,7 +358,8 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       if (shouldPersist && newCustomerContact != null) {
         final name = (newCustomerContact['name'] as String?) ?? '';
         final phone = (newCustomerContact['phone'] as String?) ?? '';
-        if (name.isNotEmpty && phone.isNotEmpty) {
+        final email = (newCustomerContact['email'] as String?) ?? '';
+        if (name.isNotEmpty || phone.isNotEmpty || email.isNotEmpty) {
           try {
             await LocalContactService.saveContact(newCustomerContact);
           } catch (e, st) {
