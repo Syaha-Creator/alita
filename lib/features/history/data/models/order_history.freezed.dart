@@ -752,6 +752,7 @@ mixin _$OrderDetail {
   String get noSp => throw _privateConstructorUsedError;
   String get itemDescription => throw _privateConstructorUsedError;
   String get desc1 => throw _privateConstructorUsedError;
+  String get desc2 => throw _privateConstructorUsedError;
   String get itemType => throw _privateConstructorUsedError;
   int get qty => throw _privateConstructorUsedError;
   @JsonKey(fromJson: _parseDouble)
@@ -787,6 +788,7 @@ abstract class $OrderDetailCopyWith<$Res> {
       String noSp,
       String itemDescription,
       String desc1,
+      String desc2,
       String itemType,
       int qty,
       @JsonKey(fromJson: _parseDouble) double customerPrice,
@@ -817,6 +819,7 @@ class _$OrderDetailCopyWithImpl<$Res, $Val extends OrderDetail>
     Object? noSp = null,
     Object? itemDescription = null,
     Object? desc1 = null,
+    Object? desc2 = null,
     Object? itemType = null,
     Object? qty = null,
     Object? customerPrice = null,
@@ -843,6 +846,10 @@ class _$OrderDetailCopyWithImpl<$Res, $Val extends OrderDetail>
       desc1: null == desc1
           ? _value.desc1
           : desc1 // ignore: cast_nullable_to_non_nullable
+              as String,
+      desc2: null == desc2
+          ? _value.desc2
+          : desc2 // ignore: cast_nullable_to_non_nullable
               as String,
       itemType: null == itemType
           ? _value.itemType
@@ -897,6 +904,7 @@ abstract class _$$OrderDetailImplCopyWith<$Res>
       String noSp,
       String itemDescription,
       String desc1,
+      String desc2,
       String itemType,
       int qty,
       @JsonKey(fromJson: _parseDouble) double customerPrice,
@@ -925,6 +933,7 @@ class __$$OrderDetailImplCopyWithImpl<$Res>
     Object? noSp = null,
     Object? itemDescription = null,
     Object? desc1 = null,
+    Object? desc2 = null,
     Object? itemType = null,
     Object? qty = null,
     Object? customerPrice = null,
@@ -951,6 +960,10 @@ class __$$OrderDetailImplCopyWithImpl<$Res>
       desc1: null == desc1
           ? _value.desc1
           : desc1 // ignore: cast_nullable_to_non_nullable
+              as String,
+      desc2: null == desc2
+          ? _value.desc2
+          : desc2 // ignore: cast_nullable_to_non_nullable
               as String,
       itemType: null == itemType
           ? _value.itemType
@@ -1000,6 +1013,7 @@ class _$OrderDetailImpl implements _OrderDetail {
       this.noSp = '-',
       required this.itemDescription,
       required this.desc1,
+      this.desc2 = '',
       required this.itemType,
       required this.qty,
       @JsonKey(fromJson: _parseDouble) required this.customerPrice,
@@ -1023,6 +1037,9 @@ class _$OrderDetailImpl implements _OrderDetail {
   final String itemDescription;
   @override
   final String desc1;
+  @override
+  @JsonKey()
+  final String desc2;
   @override
   final String itemType;
   @override
@@ -1056,7 +1073,7 @@ class _$OrderDetailImpl implements _OrderDetail {
 
   @override
   String toString() {
-    return 'OrderDetail(id: $id, noSp: $noSp, itemDescription: $itemDescription, desc1: $desc1, itemType: $itemType, qty: $qty, customerPrice: $customerPrice, netPrice: $netPrice, brand: $brand, unitPrice: $unitPrice, extendedPrice: $extendedPrice, discounts: $discounts, isTakeAway: $isTakeAway)';
+    return 'OrderDetail(id: $id, noSp: $noSp, itemDescription: $itemDescription, desc1: $desc1, desc2: $desc2, itemType: $itemType, qty: $qty, customerPrice: $customerPrice, netPrice: $netPrice, brand: $brand, unitPrice: $unitPrice, extendedPrice: $extendedPrice, discounts: $discounts, isTakeAway: $isTakeAway)';
   }
 
   @override
@@ -1069,6 +1086,7 @@ class _$OrderDetailImpl implements _OrderDetail {
             (identical(other.itemDescription, itemDescription) ||
                 other.itemDescription == itemDescription) &&
             (identical(other.desc1, desc1) || other.desc1 == desc1) &&
+            (identical(other.desc2, desc2) || other.desc2 == desc2) &&
             (identical(other.itemType, itemType) ||
                 other.itemType == itemType) &&
             (identical(other.qty, qty) || other.qty == qty) &&
@@ -1095,6 +1113,7 @@ class _$OrderDetailImpl implements _OrderDetail {
       noSp,
       itemDescription,
       desc1,
+      desc2,
       itemType,
       qty,
       customerPrice,
@@ -1127,6 +1146,7 @@ abstract class _OrderDetail implements OrderDetail {
       final String noSp,
       required final String itemDescription,
       required final String desc1,
+      final String desc2,
       required final String itemType,
       required final int qty,
       @JsonKey(fromJson: _parseDouble) required final double customerPrice,
@@ -1148,6 +1168,8 @@ abstract class _OrderDetail implements OrderDetail {
   String get itemDescription;
   @override
   String get desc1;
+  @override
+  String get desc2;
   @override
   String get itemType;
   @override

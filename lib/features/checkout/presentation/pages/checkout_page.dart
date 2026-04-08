@@ -16,6 +16,7 @@ import '../../../../core/utils/order_letter_date_utils.dart';
 import '../../../../core/utils/network_guard.dart';
 import '../../../../core/utils/number_input_formatter.dart';
 import '../../../../core/utils/platform_utils.dart';
+import '../../../../core/widgets/go_router_pop_scope.dart';
 import '../../../../core/widgets/image_source_sheet.dart';
 import '../../../../core/widgets/loading_overlay.dart';
 import '../../../../core/widgets/section_card.dart';
@@ -490,7 +491,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       }
     });
 
-    if (cartItems.isEmpty) return const CheckoutEmptyState();
+    if (cartItems.isEmpty) {
+      return const CheckoutEmptyState();
+    }
 
     final isIndirectCheckout = cartItems.any((e) => e.isIndirectSale);
 
@@ -504,14 +507,27 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       ),
     );
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Buat Surat Pesanan'),
-        elevation: 0,
+    return GoRouterPopScope(
+      fallbackLocation: '/',
+      child: Scaffold(
         backgroundColor: AppColors.background,
-        foregroundColor: AppColors.textPrimary,
-        actions: [
+        appBar: AppBar(
+          // iOS: biarkan leading bawaan + swipe-back [CupertinoPage] (tanpa override).
+          leading: isIOS
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  tooltip: 'Kembali',
+                  onPressed: () => GoRouterPopScope.handlePop(
+                    context,
+                    fallbackLocation: '/',
+                  ),
+                ),
+          title: const Text('Buat Surat Pesanan'),
+          elevation: 0,
+          backgroundColor: AppColors.background,
+          foregroundColor: AppColors.textPrimary,
+          actions: [
           IconButton(
             tooltip: 'Simpan Penawaran (PDF)',
             icon: const Icon(Icons.description_outlined),
@@ -746,6 +762,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         onSubmit: () => _handleCreateOrder(context),
         submitButtonEnabled:
             checkoutState.retryDetails.isEmpty && !checkoutState.isSubmitting,
+      ),
       ),
     );
   }

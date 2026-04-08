@@ -79,15 +79,29 @@ abstract final class PdfItemsTable {
       final orderCell = isLeadItem ? '${bundleOrderCounter++}' : '';
 
       final displayName = takeAway ? '$name (TAKE AWAY)' : name;
-      final mainText = isInternal ? (d['desc_1']?.toString()) : null;
       final mainTextDisplay =
-          takeAway && mainText != null && mainText.isNotEmpty
-              ? '$mainText (TAKE AWAY)'
-              : mainText;
-      final nameWidget = _buildNameCell(displayName,
-          isBold: isLeadItem,
-          subtitle: isInternal ? (d['item_description']?.toString()) : null,
-          mainText: mainTextDisplay);
+          _line1Desc1Desc2(d, isBonus: isBonus, takeAway: takeAway);
+      final subtitleRaw = d['item_description']?.toString() ?? '';
+      final trimmedSub = subtitleRaw.trim();
+      final subtitle = trimmedSub.isNotEmpty && trimmedSub != '-'
+          ? subtitleRaw
+          : null;
+      final mainLineForTwoRows = mainTextDisplay.isNotEmpty
+          ? mainTextDisplay
+          : (d['desc_1']?.toString().trim() ?? '');
+      final primaryForCell = subtitle == null && mainTextDisplay.isNotEmpty
+          ? mainTextDisplay
+          : displayName;
+      final nameWidget = _buildNameCell(
+        primaryForCell,
+        isBold: isLeadItem,
+        subtitle: subtitle,
+        mainText: subtitle != null
+            ? (mainLineForTwoRows.isNotEmpty
+                ? mainLineForTwoRows
+                : displayName)
+            : null,
+      );
 
       if (isInternal) {
         final eup = custPrice == 0 ? extPrice : custPrice;
@@ -176,6 +190,27 @@ abstract final class PdfItemsTable {
     );
 
     return [itemsTable, shippingTable];
+  }
+
+  /// Baris 1 kolom NAMA BARANG (PDF internal): [desc_1] + opsional [desc_2] untuk
+  /// barang utama; bonus hanya [desc_1]. [takeAway] ditambahkan di akhir bila perlu.
+  static String _line1Desc1Desc2(
+    Map<String, dynamic> d, {
+    required bool isBonus,
+    required bool takeAway,
+  }) {
+    final desc1 = d['desc_1']?.toString().trim() ?? '';
+    var line = desc1;
+    if (!isBonus) {
+      final desc2 = d['desc_2']?.toString().trim() ?? '';
+      if (desc2.isNotEmpty && desc2 != '-') {
+        line = desc1.isEmpty ? desc2 : '$desc1 · $desc2';
+      }
+    }
+    if (takeAway && line.isNotEmpty) {
+      line = '$line (TAKE AWAY)';
+    }
+    return line;
   }
 
   static pw.Widget _buildNameCell(String name,

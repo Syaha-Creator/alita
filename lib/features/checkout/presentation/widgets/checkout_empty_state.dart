@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/platform_utils.dart';
 import '../../../../core/widgets/action_button_bar.dart';
 import '../../../../core/widgets/empty_state_view.dart';
+import '../../../../core/widgets/go_router_pop_scope.dart';
 
 /// Empty cart state for checkout page.
 class CheckoutEmptyState extends StatelessWidget {
@@ -11,23 +13,36 @@ class CheckoutEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Buat Surat Pesanan'),
-        elevation: 0,
-      ),
-      body: EmptyStateView(
-        icon: Icons.shopping_cart_outlined,
-        title: 'Keranjang kosong',
-        subtitle: 'Tambahkan produk terlebih dahulu',
-        action: ActionButtonBar(
-          fullWidth: false,
-          mainAxisSize: MainAxisSize.min,
-          height: 44,
-          borderRadius: 14,
-          primaryLabel: 'Kembali ke Beranda',
-          onPrimaryPressed: () => context.go('/'),
+    return GoRouterPopScope(
+      fallbackLocation: '/',
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          leading: isIOS
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  tooltip: 'Kembali',
+                  onPressed: () => GoRouterPopScope.handlePop(
+                    context,
+                    fallbackLocation: '/',
+                  ),
+                ),
+          title: const Text('Buat Surat Pesanan'),
+          elevation: 0,
+        ),
+        body: EmptyStateView(
+          icon: Icons.shopping_cart_outlined,
+          title: 'Keranjang kosong',
+          subtitle: 'Tambahkan produk terlebih dahulu',
+          action: ActionButtonBar(
+            fullWidth: false,
+            mainAxisSize: MainAxisSize.min,
+            height: 44,
+            borderRadius: 14,
+            primaryLabel: 'Kembali ke Beranda',
+            onPrimaryPressed: () => context.go('/'),
+          ),
         ),
       ),
     );

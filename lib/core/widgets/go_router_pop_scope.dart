@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../utils/platform_utils.dart';
+
 /// Mengalihkan tombol kembali sistem / gesture ke [GoRouter.pop], bukan hanya
 /// [Navigator.maybePop]. Di Android (terutama release dengan [ShellRoute] +
 /// widget yang memakai [navigatorKey] root), [BackButton] bawaan kadang
 /// menarget navigator yang salah sehingga `maybePop` gagal dan activity selesai
 /// — terasa seperti aplikasi "keluar" padahal user ingin kembali satu layar.
+///
+/// Di **iOS** tidak dibungkus [PopScope] (`canPop: false`), karena itu mematikan
+/// swipe-back interaktif [CupertinoPage] dari router. iOS memakai perilaku
+/// navigator bawaan yang sudah konsisten dengan GoRouter untuk route ini.
 class GoRouterPopScope extends StatelessWidget {
   const GoRouterPopScope({
     super.key,
@@ -30,6 +36,9 @@ class GoRouterPopScope extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (isIOS) {
+      return child;
+    }
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (bool didPop, dynamic result) {

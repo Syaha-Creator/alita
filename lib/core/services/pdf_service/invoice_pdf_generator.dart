@@ -188,7 +188,9 @@ class InvoicePdfGenerator {
           pw.SizedBox(height: 12),
           ...PdfItemsTable.buildItemsTable(letter, details, discounts,
               isInternal: isInternal,
-              hideStoreDiscountTiers: isSoIndirectPdf),
+              // Persentase diskon toko tetap di tabel item; yang disaring hanya
+              // baris approval/stamp diskon toko (approvalsForPdf), bukan kolom DISCOUNT.
+              hideStoreDiscountTiers: false),
           pw.SizedBox(height: 8),
           PdfTotalsSection.buildNotesAndTotals(letter, payments,
               repaymentDate: tglPelunasan,
@@ -216,7 +218,8 @@ class InvoicePdfGenerator {
   // LOGO ASSEMBLY (from cache)
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /// Channel `SO` / `S0` (indirect / Sleep Outlet): layout PDF khusus + filter diskon toko.
+  /// Channel `SO` / `S0` (indirect / Sleep Outlet): layout PDF khusus; stamp approval
+  /// baris "diskon toko" disaring lewat [approvalsForPdf], bukan menyembunyikan % di tabel.
   static bool _isSoIndirectPdfChannel(String? channel) {
     final c = channel?.trim().toUpperCase() ?? '';
     return c == 'S0' || c == 'SO';
@@ -352,6 +355,7 @@ class InvoicePdfGenerator {
         'brand': d.brand,
         'item_description': d.itemDescription,
         'desc_1': d.desc1,
+        'desc_2': d.desc2,
         'qty': d.qty,
         'item_type': d.itemType,
         'unit_price': d.unitPrice,

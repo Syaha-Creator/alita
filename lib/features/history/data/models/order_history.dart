@@ -49,6 +49,7 @@ class OrderHistory with _$OrderHistory {
     @Default('') String shipToName,
     @Default('') String addressShipTo,
     String? noPo,
+
     /// Channel order letter (mis. SO, S1, MM) — untuk PDF/layout khusus indirect.
     String? channel,
     required bool isTakeAway,
@@ -133,15 +134,13 @@ extension OrderHistoryX on OrderHistory {
       ? details.firstWhere((d) => d.itemType.toLowerCase() != 'bonus').desc1
       : 'Pesanan';
 
-  List<OrderDetail> get mainItems => (details
-      .where((d) => d.itemType.toLowerCase() != 'bonus')
-      .toList()
-    ..sort((a, b) => a.id.compareTo(b.id)));
+  List<OrderDetail> get mainItems =>
+      (details.where((d) => d.itemType.toLowerCase() != 'bonus').toList()
+        ..sort((a, b) => a.id.compareTo(b.id)));
 
-  List<OrderDetail> get bonusItems => (details
-      .where((d) => d.itemType.toLowerCase() == 'bonus')
-      .toList()
-    ..sort((a, b) => a.id.compareTo(b.id)));
+  List<OrderDetail> get bonusItems =>
+      (details.where((d) => d.itemType.toLowerCase() == 'bonus').toList()
+        ..sort((a, b) => a.id.compareTo(b.id)));
 
   /// Bentuk map seperti response API untuk [ApprovalDetailPage] (dari data ter-parse).
   Map<String, dynamic> toApprovalOrderDataMap() {
@@ -178,6 +177,7 @@ extension OrderHistoryX on OrderHistory {
               'order_letter_detail_id': d.id,
               'no_sp': d.noSp,
               'desc_1': d.desc1,
+              'desc_2': d.desc2,
               'item_description': d.itemDescription,
               'item_type': d.itemType,
               'qty': d.qty,
@@ -251,6 +251,7 @@ class OrderDetail with _$OrderDetail {
     @Default('-') String noSp,
     required String itemDescription,
     required String desc1,
+    @Default('') String desc2,
     required String itemType,
     required int qty,
     @JsonKey(fromJson: _parseDouble) required double customerPrice,
@@ -287,6 +288,7 @@ class OrderDetail with _$OrderDetail {
       noSp: json['no_sp']?.toString() ?? parentNoSp,
       itemDescription: json['item_description']?.toString() ?? '',
       desc1: json['desc_1']?.toString() ?? '',
+      desc2: json['desc_2']?.toString() ?? '',
       itemType: json['item_type']?.toString() ?? '',
       qty: q,
       customerPrice: _parseDouble(json['customer_price']),
@@ -307,6 +309,7 @@ class OrderDiscount with _$OrderDiscount {
     required String discountVal,
     required String approverName,
     required String approverLevel,
+
     /// From API `approver_id`; used to detect "giliran Anda" on order detail.
     String? approverId,
     required String approvedStatus,
@@ -323,7 +326,8 @@ class OrderDiscount with _$OrderDiscount {
       approverName: json['approver_name']?.toString() ?? '-',
       approverLevel: json['approver_level']?.toString() ?? '-',
       approverId: json['approver_id']?.toString(),
-      approvedStatus: json['approved']?.toString() ?? OrderStatus.pending.apiValue,
+      approvedStatus:
+          json['approved']?.toString() ?? OrderStatus.pending.apiValue,
       approvedAt: json['approved_at']?.toString(),
     );
   }
