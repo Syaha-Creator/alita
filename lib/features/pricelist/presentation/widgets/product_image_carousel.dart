@@ -1,45 +1,39 @@
 import 'package:flutter/material.dart';
-import 'package:alitapricelist/core/config/app_config.dart';
+
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/product_image_utils.dart';
 import '../../../../core/widgets/image_viewer_dialog.dart';
 import '../../../../core/widgets/network_image_view.dart';
 
+/// Full-width image pager for product detail; [imageUrls] from
+/// [productDisplayImageProvider] (network URL or `asset://` logo).
 class ProductImageCarousel extends StatelessWidget {
-  final double screenWidth;
-  final String baseImageUrl;
-  final String productId;
-  final Map<String, dynamic>? matchedSpec;
-  final PageController controller;
-  final int currentIndex;
-  final ValueChanged<int> onPageChanged;
-
   const ProductImageCarousel({
     super.key,
     required this.screenWidth,
-    required this.baseImageUrl,
+    required this.imageUrls,
     required this.productId,
-    required this.matchedSpec,
     required this.controller,
     required this.currentIndex,
     required this.onPageChanged,
   });
 
+  final double screenWidth;
+
+  /// Display sources (network or `asset://…`); typically one slide.
+  final List<String> imageUrls;
+
+  final String productId;
+  final PageController controller;
+  final int currentIndex;
+  final ValueChanged<int> onPageChanged;
+
   @override
   Widget build(BuildContext context) {
-    final String baseImage = baseImageUrl.isNotEmpty
-        ? baseImageUrl
-        : AppConfig.placeholderProductImage;
-
-    final List<String> productImages = [];
-
-    final brandImage = matchedSpec?['image']?.toString() ?? '';
-    if (brandImage.isNotEmpty) {
-      productImages.add(brandImage);
-    } else {
-      productImages.add(baseImage);
-    }
-
-    productImages.addAll(AppConfig.placeholderCarouselImages);
+    final urls = imageUrls.where((e) => e.isNotEmpty).toList();
+    final slides = urls.isEmpty
+        ? <String>[ProductImageUtils.brandLogoAssetUri('')]
+        : urls;
 
     return SliverToBoxAdapter(
       child: SizedBox(
@@ -49,12 +43,12 @@ class ProductImageCarousel extends StatelessWidget {
           children: [
             GestureDetector(
               onTap: () {
-                // Hanya zoom jika gambar kasur asli dari Comforta, bukan placeholder
-                final hasProductImage = brandImage.isNotEmpty;
-                if (hasProductImage && currentIndex == 0) {
+                final u = slides[currentIndex];
+                if (ProductImageUtils.isNetworkProductPhoto(u) &&
+                    currentIndex == 0) {
                   ImageViewerDialog.show(
                     context: context,
-                    imageUrl: productImages[currentIndex],
+                    imageUrl: u,
                     maxScale: 4.0,
                     showCloseButton: false,
                   );
@@ -62,21 +56,27 @@ class ProductImageCarousel extends StatelessWidget {
               },
               child: PageView.builder(
                 controller: controller,
-                itemCount: productImages.length,
+                itemCount: slides.length,
                 onPageChanged: onPageChanged,
                 itemBuilder: (context, index) {
-                  final img = NetworkImageView(
-                    imageUrl: productImages[index],
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
-                    memCacheWidth: 600,
-                    errorWidget: Container(
-                      color: AppColors.border,
-                      child: const Icon(
-                        Icons.broken_image_outlined,
-                        size: 60,
-                        color: AppColors.textTertiary,
+                  final url = slides[index];
+                  final isAsset =
+                      url.startsWith(ProductImageUtils.assetUriPrefix);
+                  final img = ColoredBox(
+                    color: AppColors.background,
+                    child: NetworkImageView(
+                      imageUrl: url,
+                      fit: isAsset ? BoxFit.contain : BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                      memCacheWidth: 600,
+                      errorWidget: Container(
+                        color: AppColors.border,
+                        child: const Icon(
+                          Icons.broken_image_outlined,
+                          size: 60,
+                          color: AppColors.textTertiary,
+                        ),
                       ),
                     ),
                   );
@@ -107,36 +107,37 @@ class ProductImageCarousel extends StatelessWidget {
                 ),
               ),
             ),
-            Positioned(
-              bottom: 16,
-              left: 0,
-              right: 0,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(productImages.length, (i) {
-                  final isActive = currentIndex == i;
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    height: 6,
-                    width: isActive ? 20 : 6,
-                    decoration: BoxDecoration(
-                      color: isActive
-                          ? AppColors.accent
-                          : Colors.white.withValues(alpha: 0.7),
-                      borderRadius: BorderRadius.circular(10),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 4,
-                          offset: Offset(0, 1),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
+            if (slides.length > 1)
+              Positioned(
+                bottom: 16,
+                left: 0,
+                right: 0,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(slides.length, (i) {
+                    final isActive = currentIndex == i;
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      height: 6,
+                      width: isActive ? 20 : 6,
+                      decoration: BoxDecoration(
+                        color: isActive
+                            ? AppColors.accent
+                            : Colors.white.withValues(alpha: 0.7),
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 4,
+                            offset: Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ),
               ),
-            ),
           ],
         ),
       ),

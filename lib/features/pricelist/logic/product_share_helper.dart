@@ -1,11 +1,13 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../core/services/api_client.dart';
 import '../../../core/utils/app_feedback.dart';
+import '../../../core/utils/product_image_utils.dart';
 import '../../../core/utils/app_formatters.dart';
 import '../data/models/product.dart';
 
@@ -34,15 +36,23 @@ class ProductShareHelper {
           '\nLihat detail selengkapnya di Alita Pricelist.';
 
       final files = <XFile>[];
-      if (product.imageUrl.isNotEmpty) {
-        final bytes = await ApiClient.instance.downloadBytes(product.imageUrl);
+      final imgUrl = product.imageUrl;
+      if (ProductImageUtils.isNetworkProductPhoto(imgUrl)) {
+        final bytes = await ApiClient.instance.downloadBytes(imgUrl);
         if (bytes != null) {
           final dir = await getTemporaryDirectory();
-          final ext = product.imageUrl.contains('.png') ? 'png' : 'jpg';
+          final ext = imgUrl.toLowerCase().contains('.png') ? 'png' : 'jpg';
           final file = File('${dir.path}/share_product.$ext');
           await file.writeAsBytes(bytes);
           files.add(XFile(file.path, mimeType: 'image/$ext'));
         }
+      } else if (ProductImageUtils.isSyntheticProductImageUrl(imgUrl)) {
+        final path = ProductImageUtils.brandLogoAssetPath(product.brand);
+        final data = await rootBundle.load(path);
+        final dir = await getTemporaryDirectory();
+        final file = File('${dir.path}/share_product_logo.png');
+        await file.writeAsBytes(data.buffer.asUint8List());
+        files.add(XFile(file.path, mimeType: 'image/png'));
       }
 
       await Share.shareXFiles(

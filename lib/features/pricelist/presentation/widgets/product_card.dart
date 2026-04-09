@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/utils/platform_utils.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/platform_utils.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/utils/store_discount_calculator.dart';
 import '../../../../core/widgets/network_image_view.dart';
@@ -39,8 +39,6 @@ class ProductCard extends ConsumerWidget {
         : product.price;
     final double? displayOriginal =
         indirectPricing ? product.price : null;
-    // Placeholder/foto non-kasur: cover agar area terisi rapi. Foto Comforta: contain agar utuh.
-    final useCover = displayImageUrl == product.imageUrl;
     return Semantics(
       button: true,
       label: 'Lihat detail ${product.name}',
@@ -82,7 +80,7 @@ class ProductCard extends ConsumerWidget {
                             color: AppColors.background,
                             child: NetworkImageView(
                               imageUrl: displayImageUrl,
-                              fit: useCover ? BoxFit.cover : BoxFit.contain,
+                              fit: BoxFit.contain,
                               width: double.infinity,
                               height: double.infinity,
                               memCacheWidth: 300,

@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../utils/product_image_utils.dart';
 
 /// Reusable network image with disk + memory caching and RAM-safe decoding.
 ///
@@ -45,6 +46,29 @@ class NetworkImageView extends StatelessWidget {
   Widget build(BuildContext context) {
     if (imageUrl.isEmpty) {
       return errorWidget ?? _defaultError();
+    }
+
+    if (imageUrl.startsWith(ProductImageUtils.assetUriPrefix)) {
+      final path =
+          imageUrl.substring(ProductImageUtils.assetUriPrefix.length).trim();
+      if (path.isEmpty) {
+        return errorWidget ?? _defaultError();
+      }
+      final asset = Image.asset(
+        path,
+        fit: fit,
+        width: width,
+        height: height,
+        alignment: alignment,
+        cacheWidth: memCacheWidth,
+        cacheHeight: memCacheHeight,
+        errorBuilder: (_, __, ___) =>
+            errorWidget ?? _defaultError(),
+      );
+      if (semanticLabel != null) {
+        return Semantics(label: semanticLabel, image: true, child: asset);
+      }
+      return asset;
     }
 
     final image = CachedNetworkImage(

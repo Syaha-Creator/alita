@@ -9,6 +9,8 @@ import '../../../../core/widgets/quantity_stepper.dart';
 import '../../data/cart_item.dart';
 import '../../logic/cart_provider.dart';
 import '../../../pricelist/data/models/product.dart';
+import '../../../pricelist/logic/product_display_image_provider.dart';
+import '../../../../core/utils/product_image_utils.dart';
 import 'cart_foc_voucher_tile.dart';
 
 /// Kartu item keranjang (e-commerce layout: Checkbox → Image → Detail).
@@ -43,6 +45,8 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
     final item = widget.item;
     final index = widget.index;
     final p = item.product;
+    final thumbUrl = ref.watch(productDisplayImageProvider(p));
+    final thumbAsset = thumbUrl.startsWith(ProductImageUtils.assetUriPrefix);
     final isFoc = item.isFocVoucherActive;
     final hasDiscount =
         !isFoc && p.pricelist > p.price && p.pricelist > 0;
@@ -112,20 +116,23 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
                   const SizedBox(width: 12),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: NetworkImageView(
-                      imageUrl: p.imageUrl,
-                      width: 72,
-                      height: 72,
-                      fit: BoxFit.cover,
-                      memCacheWidth: 150,
-                      errorWidget: Container(
+                    child: ColoredBox(
+                      color: AppColors.surfaceLight,
+                      child: NetworkImageView(
+                        imageUrl: thumbUrl,
                         width: 72,
                         height: 72,
-                        color: AppColors.surfaceLight,
-                        child: const Icon(
-                          Icons.image_not_supported_outlined,
-                          color: AppColors.textTertiary,
-                          size: 22,
+                        fit: thumbAsset ? BoxFit.contain : BoxFit.cover,
+                        memCacheWidth: 150,
+                        errorWidget: Container(
+                          width: 72,
+                          height: 72,
+                          color: AppColors.surfaceLight,
+                          child: const Icon(
+                            Icons.image_not_supported_outlined,
+                            color: AppColors.textTertiary,
+                            size: 22,
+                          ),
                         ),
                       ),
                     ),

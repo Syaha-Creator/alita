@@ -126,6 +126,21 @@ CLIENT_SECRET_IOS=test-sec
       expect(list.single.kasur, 'Spring');
       expect(list.single.price, 2_500_000);
       expect(list.single.category, 'Gold');
+      expect(list.single.imageUrl, isEmpty);
+    });
+
+    test('maps image_url from API when https', () {
+      final raw = [
+        {
+          'id': 1,
+          'kasur': 'K',
+          'ukuran': 'U',
+          'end_user_price': 100,
+          'image_url': 'https://cdn.example/p.jpg',
+        },
+      ];
+      final p = mapFilteredPlRawListToProducts(raw, 'c', 'b').single;
+      expect(p.imageUrl, 'https://cdn.example/p.jpg');
     });
 
     test('parses disc fraction keys', () {

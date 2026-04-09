@@ -1,3 +1,4 @@
+import 'package:alitapricelist/core/utils/product_image_utils.dart';
 import 'package:alitapricelist/features/pricelist/data/models/product.dart';
 import 'package:alitapricelist/features/pricelist/logic/product_display_image_provider.dart';
 import 'package:alitapricelist/features/product/logic/brand_spec_provider.dart';
@@ -63,5 +64,26 @@ void main() {
 
     final url = container.read(productDisplayImageProvider(product));
     expect(url, product.imageUrl);
+  });
+
+  test('uses brand logo asset when imageUrl is synthetic placeholder', () async {
+    final synthetic = product.copyWith(
+      imageUrl: 'https://picsum.photos/seed/99/400/600',
+      brand: 'Spring Air',
+    );
+    final container = ProviderContainer(
+      overrides: [
+        brandSpecProvider.overrideWith((ref) async => []),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(brandSpecProvider.future);
+
+    final url = container.read(productDisplayImageProvider(synthetic));
+    expect(
+      url,
+      '${ProductImageUtils.assetUriPrefix}assets/logo/springair_logo.png',
+    );
   });
 }

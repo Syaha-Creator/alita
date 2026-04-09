@@ -10,6 +10,7 @@ import '../../../core/services/storage_service.dart';
 import '../../../core/utils/area_utils.dart';
 import '../../../core/utils/log.dart';
 import '../../../core/utils/network_error.dart';
+import '../../../core/utils/retry.dart';
 import '../data/models/product.dart';
 import '../../../core/enums/sales_mode.dart';
 import '../../auth/logic/auth_provider.dart';
@@ -239,6 +240,29 @@ String _toTitleCase(String text) {
 //  Product Data (API)
 // ─────────────────────────────────────────────────────────
 
+/// First real HTTP(S) image field from API row, else empty (UI uses brand logo via provider).
+String _resolveProductImageUrlFromJson(Map<String, dynamic> json) {
+  const keys = <String>[
+    'image_url',
+    'imageUrl',
+    'gambar',
+    'foto',
+    'thumbnail',
+    'photo_url',
+    'product_image',
+    'image',
+  ];
+  for (final k in keys) {
+    final v = json[k]?.toString().trim();
+    if (v == null || v.isEmpty) continue;
+    final lower = v.toLowerCase();
+    if (lower.startsWith('http://') || lower.startsWith('https://')) {
+      return v;
+    }
+  }
+  return AppConfig.placeholderProductImageById(json['id']);
+}
+
 /// Maps API `data` list rows to [Product] (same rules as historical provider).
 List<Product> mapFilteredPlRawListToProducts(
   List<dynamic> rawList,
@@ -277,7 +301,7 @@ List<Product> mapFilteredPlRawListToProducts(
       id: (json['id'] ?? '').toString(),
       name: name,
       price: price,
-      imageUrl: AppConfig.placeholderProductImageById(json['id']),
+      imageUrl: _resolveProductImageUrlFromJson(json),
       category: (json['series'] ?? 'Uncategorized').toString(),
       description: (json['detail_list'] ??
               'Deskripsi detail belum tersedia untuk produk ini.')
@@ -376,6 +400,36 @@ List<Product> _productsFromResponseBody(
   }
 
   return mapFilteredPlRawListToProducts(rawList, channel, brand);
+}
+
+/// One-shot pricelist fetch for cart/checkout price refresh.
+/// Does not write disk cache (unlike [productListProvider] success path).
+Future<List<Product>> fetchFilteredPlProductsForRefresh({
+  required String area,
+  required String channel,
+  required String brand,
+}) async {
+  final formattedArea = _toTitleCase(area);
+  final response = await retry(
+    () => ApiClient.instance.get(
+      '/rawdata_price_lists/filtered_pl',
+      queryParams: {
+        'area': formattedArea,
+        'channel': channel,
+        'brand': brand,
+      },
+    ),
+    maxAttempts: 2,
+    tag: 'pricelistPriceRefresh',
+  );
+
+  if (response.statusCode != 200) {
+    throw Exception(
+      'Gagal memuat pricelist (${response.statusCode}). Coba lagi nanti.',
+    );
+  }
+
+  return _productsFromResponseBody(response.body, channel, brand);
 }
 
 /// Fetches product list from API; on every **successful** response the full
