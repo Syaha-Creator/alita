@@ -98,18 +98,25 @@ Keduanya menggunakan `@auth(level: USER)` — setiap user Firebase yang terauten
 
 ## Keamanan & Autentikasi
 
-- Query/mutation menggunakan `@auth(level: USER)` — butuh **Firebase ID token**.
-- Di app, `main.dart` memanggil `signInAnonymously()` saat startup jika belum ada user → token otomatis tersedia.
-- **Prasyarat:** **Anonymous Authentication** harus **enabled** di Firebase Console → Authentication → Sign-in providers.
+- Query/mutation memakai `@auth(level: USER)` — cukup **user Firebase apa pun yang terautentikasi**, termasuk **Anonymous** (bukan “harus email/password”).
+- Di app, setelah **login API Alita sukses** (atau restore sesi), `AuthNotifier._initFirebaseAnonymousForDataConnect()` memanggil `signOut` lalu `signInAnonymously()` agar ada **ID token** untuk Data Connect.
+- **Prasyarat:** **Anonymous** harus **enabled** di Firebase Console → Authentication → Sign-in providers (screenshot Anda sudah menunjukkan user anonim terbuat — bagus).
 
-```dart
-// main.dart — dipanggil setelah Firebase.initializeApp()
-Future<void> _ensureFirebaseAuthForDataConnect() async {
-  if (FirebaseAuth.instance.currentUser == null) {
-    await FirebaseAuth.instance.signInAnonymously();
-  }
-}
-```
+### App Check (penyebab #1 “lookup cloud selalu error”)
+
+Di `main.dart`, **Firebase App Check** diaktifkan sebelum app jalan. Data Connect di backend sering **memaksa App Check**. Kalau token tidak valid, SDK melempar exception → di checkout muncul pesan gagal (bukan “tidak ditemukan”).
+
+| Mode build | Provider | Yang harus dilakukan |
+|------------|----------|----------------------|
+| Debug / Profile | `AndroidProvider.debug` / `AppleProvider.debug` | Ambil **debug token** dari logcat / Xcode, lalu **daftarkan** di Firebase Console → App Check → Apps → Manage debug tokens. Tanpa ini, request Data Connect ditolak. |
+| Release | Play Integrity / DeviceCheck | Pastikan app terdaftar benar (SHA-256 release, dsb.). |
+
+**Console:** App Check → pastikan produk **Data Connect** / API terkait tidak dalam state yang memblokir app Anda, atau coba **monitor** request ditolak.
+
+### Membedakan “error” vs “kosong”
+
+- **Tabel `customers` kosong** di Explorer = `GetCustomerByPhone` tetap **sukses** dengan `customer == null`. Itu **bukan** exception; setelah perbaikan UX, app menampilkan info “belum ada di cloud”.
+- **Metric “Network sent bytes: 0”** di dashboard kadang tidak mencerminkan payload GraphQL ke klien; jangan hanya mengandalkan angka itu untuk menyimpulkan gagal.
 
 ---
 
@@ -121,9 +128,10 @@ Future<void> _ensureFirebaseAuthForDataConnect() async {
 App start
   │
   ├── Firebase.initializeApp()
-  ├── signInAnonymously()  ← ID token untuk @auth(USER)
+  ├── App Check activate (debug / Play Integrity / DeviceCheck)
   │
-  └── App siap — query/mutation bisa dipanggil
+  ├── Login API Alita sukses (atau sesi dipulihkan)
+  └── signInAnonymously()  ← ID token untuk @auth(USER)
 ```
 
 ### B. Sales cari pelanggan di cloud (checkout)
@@ -154,7 +162,7 @@ App start
               │  alamat, prov, │
               │  kota, kec     │
               ├── Tidak ───────┤
-              │  Form tetap    │ Snackbar: "Tidak ditemukan"
+              │  Form tetap    │ Snackbar info: belum ada di cloud
               │  manual        │
               └────────────────┘
 ```
@@ -250,3 +258,5 @@ final customerRepositoryProvider = Provider<CustomerRepository>((ref) {
 | Tabel belum ada di DB | Jalankan `firebase dataconnect:sql:migrate` |
 | SDK generate ke path salah | Periksa `outputDir` di `connector.yaml` — harus relatif dari folder connector |
 | Anonymous auth gagal | Pastikan Anonymous provider **enabled** di Firebase Console |
+| Lookup cloud **selalu** pesan gagal (bukan “belum ada data”) | Hampir selalu **App Check**: daftarkan **debug token** (debug/profile) atau perbaiki Play Integrity / bundle id (release). Lihat log debug: snackbar menyertakan `Exception` di `kDebugMode`. |
+| Tabel kosong tapi tidak ada error | Normal — upsert baru jalan setelah **checkout sukses** (dan nama + HP valid di payload). |

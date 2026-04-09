@@ -107,16 +107,26 @@ class AppConfig {
       indirectApiKey.isNotEmpty &&
       indirectClientKey.isNotEmpty;
 
-  // ── Placeholder Images ────────────────────────────────────────
+  // ── Product image fallbacks (see [ProductImageUtils] + [productDisplayImageProvider]) ──
+  //
+  // Jangan pakai URL random (picsum/unsplash) sebagai "isi" model: boros jaringan, tidak
+  // on-brand, dan sulit di-cache. Pola yang dipakai app:
+  // - [Product.imageUrl] = URL foto asli dari API, atau kosong bila tidak ada.
+  // - Tampilan kartu/detail/keranjang = [productDisplayImageProvider] → spec Comforta,
+  //   foto API, atau logo brand lokal (`asset://…`).
+  // - Saat loading/error: shimmer/spinner + [NetworkImageView.errorWidget].
 
+  /// Legacy neutral fallback (hindari untuk produk baru; prefer string kosong + provider).
+  @Deprecated('Use empty imageUrl + productDisplayImageProvider')
   static const String placeholderProductImage =
       'https://images.unsplash.com/photo-1505693416022-14c1c9240ce4?q=80&w=800&auto=format&fit=crop';
 
+  @Deprecated('Carousel no longer appends random stock photos')
   static const List<String> placeholderCarouselImages = [
     'https://images.unsplash.com/photo-1631679706909-1844bbd07221?q=80&w=800&auto=format&fit=crop',
     'https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?q=80&w=800&auto=format&fit=crop',
   ];
 
-  static String placeholderProductImageById(dynamic id) =>
-      'https://picsum.photos/seed/${id ?? 0}/400/600';
+  /// When API row has no image field: empty string (synthetic → logo in UI via provider).
+  static String placeholderProductImageById(dynamic id) => '';
 }
