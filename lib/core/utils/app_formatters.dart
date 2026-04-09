@@ -46,15 +46,50 @@ class AppFormatters {
   /// Format date to API payload format "yyyy-MM-dd".
   static String apiDate(DateTime value) => _apiDate.format(value);
 
-  /// Format ISO-like datetime string to "dd MMM yyyy, HH:mm".
-  /// Falls back to the original input when parsing fails.
+  /// Format string tanggal-waktu ke "dd MMM yyyy, HH:mm" (locale id_ID).
+  ///
+  /// Menerima:
+  /// - ISO 8601 ([DateTime.parse], mis. `2026-04-08T16:23:00`)
+  /// - `dd-MM-yyyy HH:mm` / `dd-MM-yyyy HH:mm:ss` (sering dari API kuotasi / approval)
+  /// - `dd/MM/yyyy HH:mm` (varian)
+  ///
+  /// Jika tidak ada yang cocok, mengembalikan teks asli dan mencatat peringatan.
   static String dateTimeId(String rawDateTime) {
-    try {
-      return _idDateTime.format(DateTime.parse(rawDateTime));
-    } catch (_) {
-      Log.warning('dateTimeId parse failed: $rawDateTime', tag: 'Formatter');
-      return rawDateTime;
+    final trimmed = rawDateTime.trim();
+    if (trimmed.isEmpty) return rawDateTime;
+
+    final parsed = _tryParseDateTimeLoose(trimmed);
+    if (parsed != null) {
+      try {
+        return _idDateTime.format(parsed);
+      } catch (_) {
+        Log.warning('dateTimeId format failed: $rawDateTime', tag: 'Formatter');
+        return rawDateTime;
+      }
     }
+    Log.warning('dateTimeId parse failed: $rawDateTime', tag: 'Formatter');
+    return rawDateTime;
+  }
+
+  static DateTime? _tryParseDateTimeLoose(String s) {
+    try {
+      return DateTime.parse(s);
+    } catch (_) {}
+
+    final fallbackFormats = <DateFormat>[
+      DateFormat('dd-MM-yyyy HH:mm'),
+      DateFormat('dd-MM-yyyy HH:mm:ss'),
+      DateFormat('dd/MM/yyyy HH:mm'),
+      DateFormat('dd/MM/yyyy HH:mm:ss'),
+      DateFormat('dd-MM-yyyy'),
+      DateFormat('dd/MM/yyyy'),
+    ];
+    for (final fmt in fallbackFormats) {
+      try {
+        return fmt.parse(s);
+      } catch (_) {}
+    }
+    return null;
   }
 
   /// Title case per kata (pemisah spasi). Berguna setelah [String.toLowerCase]

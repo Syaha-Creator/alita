@@ -62,6 +62,12 @@ void main() {
       expect(result, contains('14:30'));
     });
 
+    test('parses dd-MM-yyyy HH:mm from API / quotation requestDate', () {
+      final result = AppFormatters.dateTimeId('08-04-2026 16:23');
+      expect(result, contains('2026'));
+      expect(result, contains('16:23'));
+    });
+
     test('returns raw input on invalid datetime', () {
       expect(AppFormatters.dateTimeId('invalid'), 'invalid');
     });
