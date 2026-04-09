@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -54,6 +55,8 @@ import '../widgets/searchable_store_bottom_sheet.dart';
 import '../../logic/checkout_performance_reporter.dart';
 import '../../../quotation/data/quotation_model.dart';
 import '../../../quotation/logic/quotation_list_provider.dart';
+import '../../../pricelist/logic/product_provider.dart';
+import '../../../cart/logic/cart_item_price_refresh.dart';
 // activeDraftProvider is exported from quotation_list_provider.dart
 
 /// B2B Checkout / Buat Surat Pesanan
@@ -89,14 +92,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   final _paymentSectionKey = GlobalKey();
 
   List<CartItem> _effectiveCartItems(WidgetRef ref) =>
-      widget.selectedCartItems ?? ref.read(cartProvider);
+      _sessionLineItems ?? ref.read(cartProvider);
 
   double _effectiveTotal(WidgetRef ref) {
-    final selected = widget.selectedCartItems;
-    if (selected != null) {
-      return selected.fold(0.0, (sum, item) => sum + item.totalPrice);
-    }
-    return ref.read(cartTotalAmountProvider);
+    final items = _effectiveCartItems(ref);
+    return items.fold(0.0, (sum, item) => sum + item.totalPrice);
   }
 
   /// Tanggal SP (`order_date`): default hari ini; boleh mundur dalam bulan berjalan.
@@ -120,6 +120,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
   bool _isShippingSameAsCustomer = true;
   bool _showBackupPhone = false;
+  bool _showReceiverBackupPhone = false;
   bool _shouldSaveCustomerContact = true;
 
   /// Indirect: simpan ke buku kontak memakai data penerima (bukan toko).
@@ -130,6 +131,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   final _takeAway = BonusTakeAwayState();
 
   double _grandTotal = 0;
+
+  /// Salinan baris checkout dari penawaran (bisa di-refresh harga tanpa mengubah route).
+  List<CartItem>? _sessionLineItems;
+
+  bool _priceRefreshBusy = false;
 
   // ── Customer ───────────────────────────────────────────────────
   final _customerNameCtrl = TextEditingController();
@@ -147,6 +153,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   // ── Shipping ───────────────────────────────────────────────────
   final _shippingNameCtrl = TextEditingController();
   final _shippingPhoneCtrl = TextEditingController();
+  final _shippingPhone2Ctrl = TextEditingController();
   final _shippingAddressCtrl = TextEditingController();
   final _shippingRegionCtrl = TextEditingController();
   String? _shippingProvinsi;
@@ -168,6 +175,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   @override
   void initState() {
     super.initState();
+    if (widget.selectedCartItems != null) {
+      _sessionLineItems = List<CartItem>.from(widget.selectedCartItems!);
+    }
     _payments.add(PaymentEntry());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -187,8 +197,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     _prefillFromQuotation();
   }
 
-  /// Draft lama: email/HP di field "customer" bukan data toko indirect — kosongkan;
-  /// jika kirim ke alamat lain, pindahkan email ke field penerima.
+  /// Indirect: email di field pelanggan sering salah tempat pada draft lama —
+  /// kosongkan; jika kirim ke alamat lain, pindahkan ke email penerima.
   void _syncQuotationFieldsForIndirectIfNeeded() {
     if (!mounted) return;
     final indirect = _effectiveCartItems(ref).any((e) => e.isIndirectSale);
@@ -199,9 +209,6 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       _shippingEmailCtrl.text = email;
     }
     _customerEmailCtrl.clear();
-    _customerPhoneCtrl.clear();
-    _customerPhone2Ctrl.clear();
-    if (mounted) setState(() => _showBackupPhone = false);
   }
 
   void _prefillFromQuotation() {
@@ -229,6 +236,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     if (!q.isShippingSameAsCustomer) {
       _shippingNameCtrl.text = q.shippingName;
       _shippingPhoneCtrl.text = q.shippingPhone;
+      if (q.shippingPhone2.isNotEmpty) {
+        _shippingPhone2Ctrl.text = q.shippingPhone2;
+        _showReceiverBackupPhone = true;
+      }
       _shippingAddressCtrl.text = q.shippingAddress;
       if (q.shippingRegionProvinsi.isNotEmpty) {
         _shippingProvinsi = q.shippingRegionProvinsi;
@@ -341,11 +352,18 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     }
   }
 
-  String _indirectContactPhoneForOrder() =>
-      _isShippingSameAsCustomer ? '' : _shippingPhoneCtrl.text;
+  /// Nomor untuk field `phone` di header SP (dan PDF kolom "Telepon" indirect):
+  /// selalu **kontak penerima** — ke toko jika kirim ke alamat toko, atau HP penerima
+  /// jika alamat berbeda. Jangan disamakan dengan pola direct (HP pemesan di kolom yang sama).
+  String _indirectContactPhoneForOrder() => _isShippingSameAsCustomer
+      ? _customerPhoneCtrl.text.trim()
+      : _shippingPhoneCtrl.text.trim();
 
-  String _indirectContactEmailForOrder() =>
-      _isShippingSameAsCustomer ? '' : _shippingEmailCtrl.text;
+  /// Email untuk field `email` di header SP (dan PDF kolom "Email" indirect):
+  /// sama seperti [_indirectContactPhoneForOrder] — kontak **penerima** (toko atau penerima lain).
+  String _indirectContactEmailForOrder() => _isShippingSameAsCustomer
+      ? _customerEmailCtrl.text.trim()
+      : _shippingEmailCtrl.text.trim();
 
   String _indirectSavedContactDisplayName() {
     if (_isShippingSameAsCustomer) {
@@ -397,7 +415,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       selectedKecamatan: _shippingKecamatan,
       selectedKota: _shippingKota,
       selectedProvinsi: _shippingProvinsi,
-      customerPhone2: '',
+      customerPhone2: _shippingPhone2Ctrl.text,
     );
   }
 
@@ -411,6 +429,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     _regionCtrl.dispose();
     _shippingNameCtrl.dispose();
     _shippingPhoneCtrl.dispose();
+    _shippingPhone2Ctrl.dispose();
     _shippingAddressCtrl.dispose();
     _shippingRegionCtrl.dispose();
     _shippingEmailCtrl.dispose();
@@ -431,7 +450,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   Widget build(BuildContext context) {
     final buildSw = Stopwatch()..start();
     final List<CartItem> cartItems =
-        widget.selectedCartItems ?? ref.watch(cartProvider);
+        _sessionLineItems ?? ref.watch(cartProvider);
     final totalAmount = _effectiveTotal(ref);
     final totalBonusRows = cartItems.fold<int>(
       0,
@@ -528,241 +547,266 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           backgroundColor: AppColors.background,
           foregroundColor: AppColors.textPrimary,
           actions: [
-          IconButton(
-            tooltip: 'Simpan Penawaran (PDF)',
-            icon: const Icon(Icons.description_outlined),
-            onPressed: () => _handleSaveQuotation(context, cartItems),
-          ),
-        ],
-      ),
-      body: GestureDetector(
-        onTap: () => FocusScope.of(context).unfocus(),
-        behavior: HitTestBehavior.opaque,
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            controller: _scrollController,
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ── Active Draft Banner ───────────────────────────
-                Consumer(
-                  builder: (context, ref, _) {
-                    final draftName = ref.watch(
-                      activeDraftProvider.select((d) => d?.customerName),
-                    );
-                    if (draftName == null) return const SizedBox.shrink();
-                    return ActiveDraftBanner(
-                      name: draftName,
-                      onClear: () {
-                        ref.read(activeDraftProvider.notifier).state = null;
-                      },
-                    );
-                  },
-                ),
-
-                // ── Card 1: Customer Info + Shipping ──────────────
-                KeyedSubtree(
-                  key: _customerSectionKey,
-                  child: CheckoutCustomerShippingCard(
-                    customerSectionTitle: isIndirectCheckout
-                        ? 'Informasi Toko'
-                        : 'Informasi Pelanggan',
-                    customerSectionSubtitle: isIndirectCheckout ? null : null,
-                    shippingSectionTitle: isIndirectCheckout
-                        ? 'Alamat toko & pengiriman'
-                        : 'Alamat & Pengiriman',
-                    sameAsCustomerLabel: isIndirectCheckout
-                        ? 'Kirim ke alamat toko di atas'
-                        : 'Kirim ke alamat pelanggan di atas',
-                    receiverBlockTitle: isIndirectCheckout
-                        ? 'Penerima / gudang / cabang lain'
-                        : 'Informasi Penerima (Dropship / Lokasi Lain)',
-                    storeContactOptional: false,
-                    indirectStoreOnly: isIndirectCheckout,
-                    customerNameFieldLabel:
-                        isIndirectCheckout ? 'Nama Toko *' : 'Nama Pelanggan *',
-                    useStoreAddressLabels: isIndirectCheckout,
-                    hideCustomerRegionPicker: isIndirectCheckout,
-                    receiverContactOptional: isIndirectCheckout,
-                    showIndirectAlternateReceiverEmail:
-                        isIndirectCheckout && !_isShippingSameAsCustomer,
-                    shippingEmailCtrl: _shippingEmailCtrl,
-                    showIndirectSaveReceiverContact:
-                        isIndirectCheckout && !_isShippingSameAsCustomer,
-                    shouldSaveReceiverContact: _shouldSaveReceiverContact,
-                    onToggleSaveReceiverContact: (v) =>
-                        setState(() => _shouldSaveReceiverContact = v),
-                    customerNameCtrl: _customerNameCtrl,
-                    customerEmailCtrl: _customerEmailCtrl,
-                    customerPhoneCtrl: _customerPhoneCtrl,
-                    customerPhone2Ctrl: _customerPhone2Ctrl,
-                    showBackupPhone: _showBackupPhone,
-                    onToggleBackupPhone: () =>
-                        setState(() => _showBackupPhone = true),
-                    isFromContactBook: _isFromContactBook,
-                    shouldSaveCustomerContact: _shouldSaveCustomerContact,
-                    onToggleSaveContact: (v) =>
-                        setState(() => _shouldSaveCustomerContact = v),
-                    selectedContactId: _selectedContactId,
-                    onContactFieldCleared: () => setState(() {
-                      _selectedContactId = null;
-                      _isFromContactBook = false;
-                    }),
-                    onPickContact: _pickContact,
-                    onCloudLookup:
-                        isIndirectCheckout ? null : _lookupCustomerFromCloud,
-                    isCloudLookupLoading: _isCloudLookupLoading,
-                    customerAddressCtrl: _customerAddressCtrl,
-                    regionCtrl: _regionCtrl,
-                    isShippingSameAsCustomer: _isShippingSameAsCustomer,
-                    onToggleSameAddress: (v) =>
-                        setState(() => _isShippingSameAsCustomer = v),
-                    onPickCustomerRegion: () => _pickRegion(isShipping: false),
-                    shippingNameCtrl: _shippingNameCtrl,
-                    shippingPhoneCtrl: _shippingPhoneCtrl,
-                    shippingAddressCtrl: _shippingAddressCtrl,
-                    shippingRegionCtrl: _shippingRegionCtrl,
-                    onPickShippingRegion: () => _pickRegion(isShipping: true),
+            IconButton(
+              tooltip: 'Perbarui harga dari server',
+              icon: _priceRefreshBusy
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.accent,
+                      ),
+                    )
+                  : const Icon(Icons.sync_rounded),
+              onPressed: _priceRefreshBusy
+                  ? null
+                  : () => unawaited(_refreshPricesFromServer(context)),
+            ),
+            IconButton(
+              tooltip: 'Simpan Penawaran (PDF)',
+              icon: const Icon(Icons.description_outlined),
+              onPressed: () => _handleSaveQuotation(context, cartItems),
+            ),
+          ],
+        ),
+        body: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
+          behavior: HitTestBehavior.opaque,
+          child: Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Active Draft Banner ───────────────────────────
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final draftName = ref.watch(
+                        activeDraftProvider.select((d) => d?.customerName),
+                      );
+                      if (draftName == null) return const SizedBox.shrink();
+                      return ActiveDraftBanner(
+                        name: draftName,
+                        onClear: () {
+                          ref.read(activeDraftProvider.notifier).state = null;
+                        },
+                      );
+                    },
                   ),
-                ),
 
-                const SizedBox(height: 16),
-
-                // ── Card 2: Delivery Info ─────────────────────────
-                Consumer(
-                  builder: (context, ref, _) {
-                    final storeData = ref.watch(
-                      checkoutProvider.select((s) => (
-                            isLoading: s.isLoadingWorkPlace,
-                            attendanceName: s.attendanceWorkPlaceName,
-                            useAttendance: s.useAttendanceStore,
-                            selectedStore: s.selectedStore,
-                          )),
-                    );
-                    return _buildSectionCard(
-                      key: _deliverySectionKey,
-                      title: 'Informasi Pengiriman',
-                      child: DeliveryInfoSection(
-                        isLoadingWorkPlace: storeData.isLoading,
-                        attendanceWorkPlaceName: storeData.attendanceName,
-                        useAttendanceStore: storeData.useAttendance,
-                        onToggleUseAttendance: (v) => ref
-                            .read(checkoutProvider.notifier)
-                            .toggleUseAttendanceStore(v),
-                        selectedStore: storeData.selectedStore,
-                        onPickStore: () => _pickStore(context),
-                        orderDate: _orderDate,
-                        onPickOrderDate: _pickOrderDate,
-                        requestDate: _requestDate,
-                        onPickRequestDate: _pickRequestDate,
-                        isTakeAway: _isTakeAway,
-                        onTakeAwayChanged: (v) =>
-                            setState(() => _isTakeAway = v),
-                        postageCtrl: _postageCtrl,
-                        notesController: _notesController,
-                        scCodeCtrl: _scCodeCtrl,
-                        showIndirectNoPo:
-                            cartItems.any((e) => e.isIndirectSale),
-                        noPoCtrl: _noPoCtrl,
-                      ),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 16),
-
-                // ── Card 3: Approval ──────────────────────────────
-                Consumer(
-                  builder: (context, ref, _) {
-                    final approvalData = ref.watch(
-                      checkoutProvider.select(
-                        (s) => (
-                          s.isLoadingApprovers,
-                          s.approversError,
-                          s.approversErrorTitle,
-                          s.approvers,
-                          s.selectedSpv,
-                          s.selectedManager,
-                        ),
-                      ),
-                    );
-                    return CheckoutApprovalCard(
-                      key: _approvalSectionKey,
-                      isLoading: approvalData.$1,
-                      hasError:
-                          approvalData.$2 != null && approvalData.$4.isEmpty,
-                      errorTitle: approvalData.$3,
-                      errorMessage: approvalData.$2,
-                      onRetry: () =>
-                          ref.read(checkoutProvider.notifier).fetchApprovers(),
-                      child: CheckoutApproverContent(
-                        approvers: approvalData.$4,
-                        selectedSpv: approvalData.$5,
-                        selectedManager: approvalData.$6,
-                        requiresManager: _requiresManagerApproval(cartItems),
-                        onSpvChanged: (v) =>
-                            ref.read(checkoutProvider.notifier).selectSpv(v),
-                        onManagerChanged: (v) => ref
-                            .read(checkoutProvider.notifier)
-                            .selectManager(v),
-                      ),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 16),
-
-                // ── Card 4: Order Summary ─────────────────────────
-                _buildSectionCard(
-                  title: 'Ringkasan Pesanan',
-                  child: CheckoutOrderSummary(
-                    cartItems: cartItems,
-                    priceFmt: _priceFmt,
-                    isBonusTakeAwayChecked: _isBonusTakeAwayChecked,
-                    currentTakeAwayQty: _currentTakeAwayQty,
-                    onTakeAwayToggled: _toggleBonusTakeAway,
-                    onTakeAwayQtyChanged: _setTakeAwayQty,
-                  ),
-                ),
-
-                if (!isIndirectCheckout) ...[
-                  const SizedBox(height: 16),
-                  // ── Card 5: Payment Info (tidak dipakai untuk indirect) ──
-                  _buildSectionCard(
-                    key: _paymentSectionKey,
-                    title: 'Informasi Pembayaran',
-                    trailing: _buildAddPaymentChip(),
-                    child: CheckoutPaymentInfoSection(
-                      paymentCount: _payments.length,
-                      isMultiPayment: _isMultiPayment,
-                      paymentCardBuilder: (_, i) => _buildPaymentCard(i),
-                      paymentSummary: _buildPaymentSummary(),
+                  // ── Card 1: Customer Info + Shipping ──────────────
+                  KeyedSubtree(
+                    key: _customerSectionKey,
+                    child: CheckoutCustomerShippingCard(
+                      customerSectionTitle: isIndirectCheckout
+                          ? 'Informasi Toko'
+                          : 'Informasi Pelanggan',
+                      customerSectionSubtitle: isIndirectCheckout ? null : null,
+                      shippingSectionTitle: isIndirectCheckout
+                          ? 'Alamat toko & pengiriman'
+                          : 'Alamat & Pengiriman',
+                      sameAsCustomerLabel: isIndirectCheckout
+                          ? 'Kirim ke alamat toko di atas'
+                          : 'Kirim ke alamat pelanggan di atas',
+                      receiverBlockTitle: isIndirectCheckout
+                          ? 'Penerima / gudang / cabang lain'
+                          : 'Informasi Penerima (Dropship / Lokasi Lain)',
+                      storeContactOptional: false,
+                      indirectStoreOnly: isIndirectCheckout,
+                      customerNameFieldLabel: isIndirectCheckout
+                          ? 'Nama Toko *'
+                          : 'Nama Pelanggan *',
+                      useStoreAddressLabels: isIndirectCheckout,
+                      hideCustomerRegionPicker: isIndirectCheckout,
+                      receiverContactOptional: isIndirectCheckout,
+                      showIndirectAlternateReceiverEmail:
+                          isIndirectCheckout && !_isShippingSameAsCustomer,
+                      shippingEmailCtrl: _shippingEmailCtrl,
+                      showIndirectSaveReceiverContact:
+                          isIndirectCheckout && !_isShippingSameAsCustomer,
+                      shouldSaveReceiverContact: _shouldSaveReceiverContact,
+                      onToggleSaveReceiverContact: (v) =>
+                          setState(() => _shouldSaveReceiverContact = v),
+                      customerNameCtrl: _customerNameCtrl,
+                      customerEmailCtrl: _customerEmailCtrl,
+                      customerPhoneCtrl: _customerPhoneCtrl,
+                      customerPhone2Ctrl: _customerPhone2Ctrl,
+                      showBackupPhone: _showBackupPhone,
+                      onToggleBackupPhone: () =>
+                          setState(() => _showBackupPhone = true),
+                      isFromContactBook: _isFromContactBook,
+                      shouldSaveCustomerContact: _shouldSaveCustomerContact,
+                      onToggleSaveContact: (v) =>
+                          setState(() => _shouldSaveCustomerContact = v),
+                      selectedContactId: _selectedContactId,
+                      onContactFieldCleared: () => setState(() {
+                        _selectedContactId = null;
+                        _isFromContactBook = false;
+                      }),
+                      onPickContact: _pickContact,
+                      onCloudLookup:
+                          isIndirectCheckout ? null : _lookupCustomerFromCloud,
+                      isCloudLookupLoading: _isCloudLookupLoading,
+                      customerAddressCtrl: _customerAddressCtrl,
+                      regionCtrl: _regionCtrl,
+                      isShippingSameAsCustomer: _isShippingSameAsCustomer,
+                      onToggleSameAddress: (v) =>
+                          setState(() => _isShippingSameAsCustomer = v),
+                      onPickCustomerRegion: () =>
+                          _pickRegion(isShipping: false),
+                      shippingNameCtrl: _shippingNameCtrl,
+                      shippingPhoneCtrl: _shippingPhoneCtrl,
+                      shippingPhone2Ctrl: _shippingPhone2Ctrl,
+                      showReceiverBackupPhone: _showReceiverBackupPhone,
+                      onToggleReceiverBackupPhone: () =>
+                          setState(() => _showReceiverBackupPhone = true),
+                      shippingAddressCtrl: _shippingAddressCtrl,
+                      shippingRegionCtrl: _shippingRegionCtrl,
+                      onPickShippingRegion: () => _pickRegion(isShipping: true),
                     ),
                   ),
-                ],
 
-                const SizedBox(height: 20),
-              ],
+                  const SizedBox(height: 16),
+
+                  // ── Card 2: Delivery Info ─────────────────────────
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final storeData = ref.watch(
+                        checkoutProvider.select((s) => (
+                              isLoading: s.isLoadingWorkPlace,
+                              attendanceName: s.attendanceWorkPlaceName,
+                              useAttendance: s.useAttendanceStore,
+                              selectedStore: s.selectedStore,
+                            )),
+                      );
+                      return _buildSectionCard(
+                        key: _deliverySectionKey,
+                        title: 'Informasi Pengiriman',
+                        child: DeliveryInfoSection(
+                          isLoadingWorkPlace: storeData.isLoading,
+                          attendanceWorkPlaceName: storeData.attendanceName,
+                          useAttendanceStore: storeData.useAttendance,
+                          onToggleUseAttendance: (v) => ref
+                              .read(checkoutProvider.notifier)
+                              .toggleUseAttendanceStore(v),
+                          selectedStore: storeData.selectedStore,
+                          onPickStore: () => _pickStore(context),
+                          orderDate: _orderDate,
+                          onPickOrderDate: _pickOrderDate,
+                          requestDate: _requestDate,
+                          onPickRequestDate: _pickRequestDate,
+                          isTakeAway: _isTakeAway,
+                          onTakeAwayChanged: (v) =>
+                              setState(() => _isTakeAway = v),
+                          postageCtrl: _postageCtrl,
+                          notesController: _notesController,
+                          scCodeCtrl: _scCodeCtrl,
+                          showIndirectNoPo:
+                              cartItems.any((e) => e.isIndirectSale),
+                          noPoCtrl: _noPoCtrl,
+                        ),
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // ── Card 3: Approval ──────────────────────────────
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final approvalData = ref.watch(
+                        checkoutProvider.select(
+                          (s) => (
+                            s.isLoadingApprovers,
+                            s.approversError,
+                            s.approversErrorTitle,
+                            s.approvers,
+                            s.selectedSpv,
+                            s.selectedManager,
+                          ),
+                        ),
+                      );
+                      return CheckoutApprovalCard(
+                        key: _approvalSectionKey,
+                        isLoading: approvalData.$1,
+                        hasError:
+                            approvalData.$2 != null && approvalData.$4.isEmpty,
+                        errorTitle: approvalData.$3,
+                        errorMessage: approvalData.$2,
+                        onRetry: () => ref
+                            .read(checkoutProvider.notifier)
+                            .fetchApprovers(),
+                        child: CheckoutApproverContent(
+                          approvers: approvalData.$4,
+                          selectedSpv: approvalData.$5,
+                          selectedManager: approvalData.$6,
+                          requiresManager: _requiresManagerApproval(cartItems),
+                          isIndirectCheckout:
+                              cartItems.any((e) => e.isIndirectSale),
+                          onSpvChanged: (v) =>
+                              ref.read(checkoutProvider.notifier).selectSpv(v),
+                          onManagerChanged: (v) => ref
+                              .read(checkoutProvider.notifier)
+                              .selectManager(v),
+                        ),
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // ── Card 4: Order Summary ─────────────────────────
+                  _buildSectionCard(
+                    title: 'Ringkasan Pesanan',
+                    child: CheckoutOrderSummary(
+                      cartItems: cartItems,
+                      priceFmt: _priceFmt,
+                      isBonusTakeAwayChecked: _isBonusTakeAwayChecked,
+                      currentTakeAwayQty: _currentTakeAwayQty,
+                      onTakeAwayToggled: _toggleBonusTakeAway,
+                      onTakeAwayQtyChanged: _setTakeAwayQty,
+                    ),
+                  ),
+
+                  if (!isIndirectCheckout) ...[
+                    const SizedBox(height: 16),
+                    // ── Card 5: Payment Info (tidak dipakai untuk indirect) ──
+                    _buildSectionCard(
+                      key: _paymentSectionKey,
+                      title: 'Informasi Pembayaran',
+                      trailing: _buildAddPaymentChip(),
+                      child: CheckoutPaymentInfoSection(
+                        paymentCount: _payments.length,
+                        isMultiPayment: _isMultiPayment,
+                        paymentCardBuilder: (_, i) => _buildPaymentCard(i),
+                        paymentSummary: _buildPaymentSummary(),
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 20),
+                ],
+              ),
             ),
           ),
         ),
-      ),
-      bottomNavigationBar: CheckoutBottomBar(
-        totalFormatted: _priceFmt(_totalAkhir),
-        showRetryBanner: checkoutState.retryDetails.isNotEmpty,
-        retryNoSp: checkoutState.retryNoSp,
-        failedCount: checkoutState.retryDetails.length,
-        failedLabels: checkoutState.retryDetails.map((e) => e.label).toList(),
-        onRetry: () => ref
-            .read(checkoutProvider.notifier)
-            .retryFailedDetails(selectedCartItems: widget.selectedCartItems),
-        onSubmit: () => _handleCreateOrder(context),
-        submitButtonEnabled:
-            checkoutState.retryDetails.isEmpty && !checkoutState.isSubmitting,
-      ),
+        bottomNavigationBar: CheckoutBottomBar(
+          totalFormatted: _priceFmt(_totalAkhir),
+          showRetryBanner: checkoutState.retryDetails.isNotEmpty,
+          retryNoSp: checkoutState.retryNoSp,
+          failedCount: checkoutState.retryDetails.length,
+          failedLabels: checkoutState.retryDetails.map((e) => e.label).toList(),
+          onRetry: () => ref
+              .read(checkoutProvider.notifier)
+              .retryFailedDetails(selectedCartItems: widget.selectedCartItems),
+          onSubmit: () => _handleCreateOrder(context),
+          submitButtonEnabled:
+              checkoutState.retryDetails.isEmpty && !checkoutState.isSubmitting,
+        ),
       ),
     );
   }
@@ -962,14 +1006,24 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           floating: true,
           duration: const Duration(seconds: 2),
         );
+      } else {
+        AppFeedback.show(
+          context,
+          message:
+              'Pelanggan dengan nomor ini belum ada di data cloud. Lanjutkan isi form manual atau setelah SP sukses data bisa tersimpan ke cloud.',
+          type: AppFeedbackType.info,
+          floating: true,
+          duration: const Duration(seconds: 4),
+        );
       }
     } catch (e, st) {
       Log.error(e, st, reason: 'Checkout: cloud customer lookup');
       if (!mounted) return;
+      final hint = kDebugMode ? ' ($e)' : '';
       AppFeedback.show(
         context,
-        message:
-            'Tidak dapat memuat data cloud. Periksa koneksi atau pastikan Data Connect sudah di-deploy.',
+        message: 'Gagal menghubungi Data Connect.$hint '
+            'Periksa App Check (token debug di Console), koneksi, dan bahwa Anonymous Auth aktif.',
         type: AppFeedbackType.warning,
         floating: true,
       );
@@ -1049,7 +1103,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       customerPhone: isIndirect
           ? _indirectContactPhoneForOrder().trim()
           : _customerPhoneCtrl.text.trim(),
-      customerPhone2: isIndirect ? '' : _customerPhone2Ctrl.text.trim(),
+      customerPhone2: isIndirect
+          ? (_isShippingSameAsCustomer
+              ? _customerPhone2Ctrl.text.trim()
+              : _shippingPhone2Ctrl.text.trim())
+          : _customerPhone2Ctrl.text.trim(),
       customerAddress: _customerAddressCtrl.text.trim(),
       regionProvinsi: _selectedProvinsi,
       regionKota: _selectedKota,
@@ -1058,6 +1116,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       isShippingSameAsCustomer: _isShippingSameAsCustomer,
       shippingName: _shippingNameCtrl.text.trim(),
       shippingPhone: _shippingPhoneCtrl.text.trim(),
+      shippingPhone2:
+          _isShippingSameAsCustomer ? '' : _shippingPhone2Ctrl.text.trim(),
       shippingAddress: _shippingAddressCtrl.text.trim(),
       shippingRegionProvinsi: _shippingProvinsi,
       shippingRegionKota: _shippingKota,
@@ -1125,12 +1185,17 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       indirectNoPoText: _noPoCtrl.text,
     );
 
-    final contactsPayload = CheckoutPayloadBuilder.buildContactsPayload(
-      primaryPhone: isIndirect
-          ? _indirectContactPhoneForOrder()
-          : _customerPhoneCtrl.text,
-      includeBackupPhone: !isIndirect && _showBackupPhone,
-      backupPhone: _customerPhone2Ctrl.text,
+    final contactsPayload =
+        CheckoutPayloadBuilder.buildOrderLetterContactsPayload(
+      isIndirectOrder: isIndirect,
+      isShippingSameAsCustomer: _isShippingSameAsCustomer,
+      customerPrimaryPhone: _customerPhoneCtrl.text,
+      customerBackupPhone: _customerPhone2Ctrl.text,
+      includeCustomerBackupPhone: _showBackupPhone,
+      shippingPrimaryPhone: _shippingPhoneCtrl.text,
+      shippingBackupPhone: _shippingPhone2Ctrl.text,
+      includeShippingBackupPhone:
+          !_isShippingSameAsCustomer && _showReceiverBackupPhone,
     );
 
     final userId = profile?.id ?? 0;
@@ -1259,7 +1324,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       return false;
     }
     if (checkoutState.selectedSpv == null) {
-      _showErrorAndScroll('Pilih Supervisor (SPV).', _approvalSectionKey);
+      _showErrorAndScroll(
+        isIndirectCart
+            ? 'Pilih Area Sales Manager (ASM).'
+            : 'Pilih Supervisor (SPV).',
+        _approvalSectionKey,
+      );
       return false;
     }
     final cartItems = _effectiveCartItems(ref);
@@ -1299,10 +1369,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       customerName: _customerNameCtrl.text,
       customerEmail: _customerEmailCtrl.text,
       customerPhone: _customerPhoneCtrl.text,
+      customerPhone2: _customerPhone2Ctrl.text,
       customerAddress: _customerAddressCtrl.text,
       isShippingSameAsCustomer: _isShippingSameAsCustomer,
       shippingName: _shippingNameCtrl.text,
       shippingPhone: _shippingPhoneCtrl.text,
+      shippingPhone2: _shippingPhone2Ctrl.text,
       shippingAddress: _shippingAddressCtrl.text,
       indirectStoreContactOptional: isIndirect,
       indirectReceiverContactOptional: isIndirect,
@@ -1341,12 +1413,125 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     }
   }
 
-  void _showLoadingOverlay(BuildContext context) {
+  void _showLoadingOverlay(
+    BuildContext context, {
+    String? title,
+    String? subtitle,
+  }) {
     LoadingOverlay.show(
       context,
-      title: 'Menyimpan Pesanan...',
-      subtitle: 'Mohon tidak menutup aplikasi',
+      title: title ?? 'Menyimpan Pesanan...',
+      subtitle: subtitle ?? 'Mohon tidak menutup aplikasi',
     );
+  }
+
+  Future<void> _refreshPricesFromServer(BuildContext context) async {
+    if (_priceRefreshBusy || !mounted) return;
+    if (ifOfflineShowFeedback(
+      context,
+      isOffline: ref.read(isOfflineProvider),
+    )) {
+      return;
+    }
+
+    final items = List<CartItem>.from(_effectiveCartItems(ref));
+    if (items.isEmpty) return;
+
+    var channel = items.first.product.channel.trim();
+    var brand = items.first.product.brand.trim();
+    if (channel.isEmpty) {
+      channel = ref.read(selectedChannelProvider) ?? '';
+    }
+    if (brand.isEmpty) {
+      brand = ref.read(selectedBrandProvider) ?? '';
+    }
+    if (channel.isEmpty || brand.isEmpty) {
+      AppFeedback.show(
+        context,
+        message:
+            'Channel atau brand tidak diketahui. Pilih filter yang sama di Beranda, lalu coba lagi.',
+        type: AppFeedbackType.warning,
+      );
+      return;
+    }
+
+    for (final i in items) {
+      final c =
+          i.product.channel.trim().isEmpty ? channel : i.product.channel.trim();
+      final b = i.product.brand.trim().isEmpty ? brand : i.product.brand.trim();
+      if (c != channel || b != brand) {
+        AppFeedback.show(
+          context,
+          message:
+              'Barang berasal dari channel/brand berbeda. Periksa keranjang atau checkout per kelompok.',
+          type: AppFeedbackType.warning,
+        );
+        return;
+      }
+    }
+
+    setState(() => _priceRefreshBusy = true);
+
+    void dismissOverlay() {
+      if (!context.mounted) return;
+      final nav = Navigator.of(context, rootNavigator: true);
+      if (nav.canPop()) nav.pop();
+    }
+
+    try {
+      _showLoadingOverlay(
+        context,
+        title: 'Memperbarui harga…',
+        subtitle: 'Mengambil pricelist terbaru',
+      );
+
+      final area = ref.read(effectiveAreaProvider);
+      final catalog = await fetchFilteredPlProductsForRefresh(
+        area: area,
+        channel: channel,
+        brand: brand,
+      );
+
+      if (!context.mounted) return;
+      dismissOverlay();
+
+      final result = CartItemPriceRefresh.applyToLines(items, catalog);
+
+      if (_sessionLineItems != null) {
+        setState(() => _sessionLineItems = result.items);
+      } else {
+        await ref.read(cartProvider.notifier).replaceCartItems(result.items);
+      }
+
+      if (!context.mounted) return;
+
+      final baseMsg = result.updatedCount > 0
+          ? 'Harga diperbarui untuk ${result.updatedCount} baris.'
+          : 'Tidak ada perubahan harga dari server.';
+      final msg = result.notFoundCount > 0
+          ? '$baseMsg ${result.notFoundCount} baris tidak ditemukan di pricelist (cek area & filter).'
+          : baseMsg;
+
+      AppFeedback.show(
+        context,
+        message: msg,
+        type: result.updatedCount > 0
+            ? AppFeedbackType.success
+            : AppFeedbackType.info,
+      );
+    } catch (e, st) {
+      Log.error(e, st, reason: 'checkout refresh server prices');
+      if (context.mounted) {
+        dismissOverlay();
+        AppFeedback.show(
+          context,
+          message: 'Gagal memperbarui harga: $e',
+          type: AppFeedbackType.error,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _priceRefreshBusy = false);
+    }
   }
 
   // ── Reusable widgets ──────────────────────────────────────────
