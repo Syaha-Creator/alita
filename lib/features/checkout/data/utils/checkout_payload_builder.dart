@@ -35,6 +35,7 @@ class CheckoutPayloadBuilder {
 
     /// Indirect: alamat toko cukup dari [customerAddress] (tanpa suffix EMSIFA).
     bool useCustomerAddressDetailOnly = false,
+
     /// Indirect: `no_po` di POST `/order_letters` — `null` jika [indirectNoPoText] kosong.
     bool isIndirectOrder = false,
     String indirectNoPoText = '',
@@ -161,20 +162,52 @@ class CheckoutPayloadBuilder {
     return payload;
   }
 
-  static List<Map<String, dynamic>> buildContactsPayload({
-    required String primaryPhone,
-    required bool includeBackupPhone,
-    String? backupPhone,
+  /// Kontak untuk `POST /order_letter_contacts`.
+  ///
+  /// [ship] **false** = pemesan / pelanggan (direct).
+  /// [ship] **true** = **penerima** pengiriman.
+  ///
+  /// **Indirect:** tidak ada input HP toko di app — hanya kirim kontak saat alamat beda
+  /// (nomor **penerima** = customer / gudang, `ship: true`).
+  static List<Map<String, dynamic>> buildOrderLetterContactsPayload({
+    required bool isIndirectOrder,
+    required bool isShippingSameAsCustomer,
+    required String customerPrimaryPhone,
+    required String customerBackupPhone,
+    required bool includeCustomerBackupPhone,
+    required String shippingPrimaryPhone,
+    required String shippingBackupPhone,
+    required bool includeShippingBackupPhone,
   }) {
-    final contacts = <Map<String, dynamic>>[];
-    final primary = primaryPhone.trim();
-    if (primary.isNotEmpty) {
-      contacts.add({'phone': primary});
+    final out = <Map<String, dynamic>>[];
+
+    void add(String raw, bool ship) {
+      final p = raw.trim();
+      if (p.isEmpty) return;
+      out.add({'phone': p, 'ship': ship});
     }
-    if (includeBackupPhone && (backupPhone ?? '').trim().isNotEmpty) {
-      contacts.add({'phone': (backupPhone ?? '').trim()});
+
+    if (isIndirectOrder) {
+      if (!isShippingSameAsCustomer) {
+        add(shippingPrimaryPhone, true);
+        if (includeShippingBackupPhone) {
+          add(shippingBackupPhone, true);
+        }
+      }
+      return out;
     }
-    return contacts;
+
+    add(customerPrimaryPhone, false);
+    if (includeCustomerBackupPhone) {
+      add(customerBackupPhone, false);
+    }
+    if (!isShippingSameAsCustomer) {
+      add(shippingPrimaryPhone, true);
+      if (includeShippingBackupPhone) {
+        add(shippingBackupPhone, true);
+      }
+    }
+    return out;
   }
 
   static Map<String, dynamic> buildPaymentPayload({

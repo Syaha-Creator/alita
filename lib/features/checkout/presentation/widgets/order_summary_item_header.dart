@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/product_image_utils.dart';
 import '../../../../core/widgets/network_image_view.dart';
 
 /// Header row for one order summary item card.
@@ -23,25 +24,30 @@ class OrderSummaryItemHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isAsset =
+        imageUrl.startsWith(ProductImageUtils.assetUriPrefix);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(8),
-          child: NetworkImageView(
-            imageUrl: imageUrl,
-            width: 50,
-            height: 50,
-            fit: BoxFit.cover,
-            memCacheWidth: 100,
-            errorWidget: Container(
+          child: ColoredBox(
+            color: AppColors.surfaceLight,
+            child: NetworkImageView(
+              imageUrl: imageUrl,
               width: 50,
               height: 50,
-              color: AppColors.divider,
-              child: const Icon(
-                Icons.image_outlined,
-                size: 20,
-                color: AppColors.textTertiary,
+              fit: isAsset ? BoxFit.contain : BoxFit.cover,
+              memCacheWidth: 100,
+              errorWidget: Container(
+                width: 50,
+                height: 50,
+                color: AppColors.divider,
+                child: const Icon(
+                  Icons.image_outlined,
+                  size: 20,
+                  color: AppColors.textTertiary,
+                ),
               ),
             ),
           ),

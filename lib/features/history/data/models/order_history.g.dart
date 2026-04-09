@@ -42,6 +42,9 @@ _$OrderHistoryImpl _$$OrderHistoryImplFromJson(Map<String, dynamic> json) =>
       createdAt: json['createdAt'] == null
           ? null
           : DateTime.parse(json['createdAt'] as String),
+      orderLetterContacts: json['order_letter_contacts'] == null
+          ? const <Map<String, dynamic>>[]
+          : _orderLetterContactsFromJson(json['order_letter_contacts']),
     );
 
 Map<String, dynamic> _$$OrderHistoryImplToJson(_$OrderHistoryImpl instance) =>
@@ -72,6 +75,8 @@ Map<String, dynamic> _$$OrderHistoryImplToJson(_$OrderHistoryImpl instance) =>
       'details': instance.details,
       'payments': instance.payments,
       'createdAt': instance.createdAt?.toIso8601String(),
+      'order_letter_contacts':
+          _orderLetterContactsToJson(instance.orderLetterContacts),
     };
 
 _$OrderDetailImpl _$$OrderDetailImplFromJson(Map<String, dynamic> json) =>

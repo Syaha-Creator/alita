@@ -34,10 +34,13 @@ abstract final class CheckoutFormValidator {
     required String customerName,
     required String customerEmail,
     required String customerPhone,
+    /// Indirect toko: HP kedua (opsional; divalidasi jika terisi).
+    String customerPhone2 = '',
     required String customerAddress,
     required bool isShippingSameAsCustomer,
     required String shippingName,
     required String shippingPhone,
+    required String shippingPhone2,
     required String shippingAddress,
     /// Indirect: email & no. HP toko opsional; hanya divalidasi jika diisi.
     bool indirectStoreContactOptional = false,
@@ -73,8 +76,14 @@ abstract final class CheckoutFormValidator {
           isPhoneInvalid(customerPhone)) {
         return (key: customerSectionKey, label: customerInfoLabel);
       }
+    } else {
+      // Indirect toko: email & HP opsional; format dicek jika terisi (termasuk HP kedua).
+      if (isFilledEmailInvalid(customerEmail) ||
+          isFilledPhoneInvalid(customerPhone) ||
+          isFilledPhoneInvalid(customerPhone2)) {
+        return (key: customerSectionKey, label: customerInfoLabel);
+      }
     }
-    // Indirect: email/HP ada di blok kontak penerima, bukan di data toko.
 
     if (customerAddress.trim().isEmpty) {
       return (key: customerSectionKey, label: customerAddressLabel);
@@ -83,7 +92,8 @@ abstract final class CheckoutFormValidator {
     if (!isShippingSameAsCustomer) {
       if (indirectReceiverContactOptional) {
         if (shippingAddress.trim().isEmpty ||
-            isFilledPhoneInvalid(shippingPhone)) {
+            isFilledPhoneInvalid(shippingPhone) ||
+            isFilledPhoneInvalid(shippingPhone2)) {
           return (key: customerSectionKey, label: 'Informasi Penerima');
         }
         if (isFilledEmailInvalid(indirectAlternateReceiverEmail)) {

@@ -81,10 +81,12 @@ void main() {
       String customerName = 'John Doe',
       String customerEmail = 'john@example.com',
       String customerPhone = '081234567890',
+      String customerPhone2 = '',
       String customerAddress = 'Jl. Test 123',
       bool isShippingSameAsCustomer = true,
       String shippingName = '',
       String shippingPhone = '',
+      String shippingPhone2 = '',
       String shippingAddress = '',
       bool isTakeAway = true,
       DateTime? orderDate,
@@ -107,10 +109,12 @@ void main() {
         customerName: customerName,
         customerEmail: customerEmail,
         customerPhone: customerPhone,
+        customerPhone2: customerPhone2,
         customerAddress: customerAddress,
         isShippingSameAsCustomer: isShippingSameAsCustomer,
         shippingName: shippingName,
         shippingPhone: shippingPhone,
+        shippingPhone2: shippingPhone2,
         shippingAddress: shippingAddress,
         indirectStoreContactOptional: indirectStoreContactOptional,
         indirectReceiverContactOptional: indirectReceiverContactOptional,
@@ -174,6 +178,29 @@ void main() {
         shippingName: '',
         shippingPhone: '081234567890',
         shippingAddress: '',
+        indirectStoreContactOptional: true,
+        indirectReceiverContactOptional: true,
+      );
+      expect(result.key, customerKey);
+      expect(result.label, 'Informasi Penerima');
+    });
+
+    test('indirect: invalid HP kedua toko', () {
+      final result = validate(
+        customerPhone2: '12',
+        customerAddress: 'Alamat toko',
+        indirectStoreContactOptional: true,
+      );
+      expect(result.key, customerKey);
+      expect(result.label, 'Informasi Toko');
+    });
+
+    test('indirect receiver: invalid HP kedua penerima', () {
+      final result = validate(
+        isShippingSameAsCustomer: false,
+        shippingPhone: '081234567890',
+        shippingPhone2: '99',
+        shippingAddress: 'Gudang',
         indirectStoreContactOptional: true,
         indirectReceiverContactOptional: true,
       );

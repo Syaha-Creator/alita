@@ -15,7 +15,7 @@ class CustomerInfoSection extends StatelessWidget {
     this.sectionSubtitle,
     /// Indirect: email & HP utama tidak wajib; hanya format jika diisi.
     this.storeContactOptional = false,
-    /// Indirect: hanya nama toko — tanpa email/HP, pilih kontak, simpan kontak.
+    /// Indirect: hanya nama toko — tanpa email/HP (nomor penerima hanya saat alamat beda).
     this.indirectStoreOnly = false,
     this.customerNameFieldLabel = 'Nama Pelanggan *',
     required this.customerNameCtrl,
@@ -160,125 +160,7 @@ class CustomerInfoSection extends StatelessWidget {
         ),
         const SizedBox(height: 16),
 
-        // Phone row
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: TextFormField(
-                controller: customerPhoneCtrl,
-                keyboardType: TextInputType.phone,
-                textInputAction: TextInputAction.next,
-                onChanged: (value) {
-                  final isCleared = value.trim().isEmpty;
-                  if (isCleared && selectedContactId != null) {
-                    onContactFieldCleared();
-                  }
-                },
-                style: const TextStyle(fontSize: 14),
-                validator: storeContactOptional
-                    ? (value) {
-                        final t = value?.trim() ?? '';
-                        if (t.isEmpty) return null;
-                        final digits = t.replaceAll(RegExp(r'\D'), '');
-                        if (digits.length < 10 || digits.length > 15) {
-                          return 'No. HP harus 10–15 digit';
-                        }
-                        return null;
-                      }
-                    : (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Field ini wajib diisi';
-                        }
-                        final digits = value.replaceAll(RegExp(r'\D'), '');
-                        if (digits.length < 10 || digits.length > 15) {
-                          return 'No. HP harus 10–15 digit';
-                        }
-                        return null;
-                      },
-                decoration: CheckoutInputDecoration.form(
-                  labelText:
-                      storeContactOptional ? 'No. HP Utama' : 'No. HP Utama *',
-                  labelStyle: const TextStyle(fontSize: 12),
-                  prefixIcon: const Icon(
-                    Icons.phone,
-                    size: 16,
-                    color: AppColors.textTertiary,
-                  ),
-                  suffixIcon: onCloudLookup == null
-                      ? null
-                      : isCloudLookupLoading
-                          ? const Padding(
-                              padding: EdgeInsets.all(12),
-                              child: SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.accent,
-                                ),
-                              ),
-                            )
-                          : IconButton(
-                              tooltip: 'Cari di cloud',
-                              icon: const Icon(
-                                Icons.cloud_download_outlined,
-                                color: AppColors.accent,
-                                size: 22,
-                              ),
-                              onPressed: onCloudLookup,
-                            ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 12,
-                  ),
-                ),
-              ),
-            ),
-            if (!showBackupPhone) ...[
-              const SizedBox(width: 8),
-              SizedBox(
-                height: 44,
-                width: 44,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: AppColors.border),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: IconButton(
-                    padding: EdgeInsets.zero,
-                    icon: const Icon(Icons.add, color: AppColors.accent),
-                    tooltip: 'Tambah No. Kedua',
-                    onPressed: onToggleBackupPhone,
-                  ),
-                ),
-              ),
-            ] else ...[
-              const SizedBox(width: 8),
-              Expanded(
-                child: TextField(
-                  controller: customerPhone2Ctrl,
-                  keyboardType: TextInputType.phone,
-                  textInputAction: TextInputAction.next,
-                  style: const TextStyle(fontSize: 14),
-                  decoration: CheckoutInputDecoration.form(
-                    labelText: 'No. HP Kedua',
-                    labelStyle: const TextStyle(fontSize: 12),
-                    prefixIcon: const Icon(
-                      Icons.phone_android,
-                      size: 16,
-                      color: AppColors.textTertiary,
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 12,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
+        _buildCustomerPhoneRow(contactOptional: storeContactOptional),
 
         // Save contact checkbox (only when NOT from contact book)
         if (!isFromContactBook) ...[
@@ -304,6 +186,128 @@ class CustomerInfoSection extends StatelessWidget {
             ],
           ),
         ],
+        ],
+      ],
+    );
+  }
+
+  /// Shared HP utama + tombol tambah / HP kedua (sama layout direct & indirect toko).
+  Widget _buildCustomerPhoneRow({required bool contactOptional}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: TextFormField(
+            controller: customerPhoneCtrl,
+            keyboardType: TextInputType.phone,
+            textInputAction: TextInputAction.next,
+            onChanged: (value) {
+              final isCleared = value.trim().isEmpty;
+              if (isCleared && selectedContactId != null) {
+                onContactFieldCleared();
+              }
+            },
+            style: const TextStyle(fontSize: 14),
+            validator: contactOptional
+                ? (value) {
+                    final t = value?.trim() ?? '';
+                    if (t.isEmpty) return null;
+                    final digits = t.replaceAll(RegExp(r'\D'), '');
+                    if (digits.length < 10 || digits.length > 15) {
+                      return 'No. HP harus 10–15 digit';
+                    }
+                    return null;
+                  }
+                : (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Field ini wajib diisi';
+                    }
+                    final digits = value.replaceAll(RegExp(r'\D'), '');
+                    if (digits.length < 10 || digits.length > 15) {
+                      return 'No. HP harus 10–15 digit';
+                    }
+                    return null;
+                  },
+            decoration: CheckoutInputDecoration.form(
+              labelText: contactOptional ? 'No. HP Utama' : 'No. HP Utama *',
+              labelStyle: const TextStyle(fontSize: 12),
+              prefixIcon: const Icon(
+                Icons.phone,
+                size: 16,
+                color: AppColors.textTertiary,
+              ),
+              suffixIcon: onCloudLookup == null
+                  ? null
+                  : isCloudLookupLoading
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.accent,
+                            ),
+                          ),
+                        )
+                      : IconButton(
+                          tooltip: 'Cari di cloud',
+                          icon: const Icon(
+                            Icons.cloud_download_outlined,
+                            color: AppColors.accent,
+                            size: 22,
+                          ),
+                          onPressed: onCloudLookup,
+                        ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 12,
+              ),
+            ),
+          ),
+        ),
+        if (!showBackupPhone) ...[
+          const SizedBox(width: AppLayoutTokens.space8),
+          SizedBox(
+            height: 44,
+            width: 44,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border.all(color: AppColors.border),
+                borderRadius:
+                    BorderRadius.circular(AppLayoutTokens.radius8),
+              ),
+              child: IconButton(
+                padding: EdgeInsets.zero,
+                icon: const Icon(Icons.add, color: AppColors.accent),
+                tooltip: 'Tambah No. Kedua',
+                onPressed: onToggleBackupPhone,
+              ),
+            ),
+          ),
+        ] else ...[
+          const SizedBox(width: AppLayoutTokens.space8),
+          Expanded(
+            child: TextField(
+              controller: customerPhone2Ctrl,
+              keyboardType: TextInputType.phone,
+              textInputAction: TextInputAction.next,
+              style: const TextStyle(fontSize: 14),
+              decoration: CheckoutInputDecoration.form(
+                labelText: 'No. HP Kedua',
+                labelStyle: const TextStyle(fontSize: 12),
+                prefixIcon: const Icon(
+                  Icons.phone_android,
+                  size: 16,
+                  color: AppColors.textTertiary,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 12,
+                ),
+              ),
+            ),
+          ),
         ],
       ],
     );

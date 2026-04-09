@@ -9,6 +9,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/api_session_expired.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../core/utils/contact_actions.dart';
+import '../../../../core/utils/order_letter_contact_utils.dart';
 import '../../../../core/utils/name_matcher.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/utils/app_telemetry.dart';
@@ -481,11 +482,12 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
                 _buildCustomerCard(
                   context,
                   order,
+                  widget.orderData,
                   isShippingDifferent: shippingDiffers,
                 ),
                 if (shippingDiffers) ...[
                   const SizedBox(height: 12),
-                  _buildShippingCard(order),
+                  _buildShippingCard(context, order, widget.orderData),
                 ],
                 const SizedBox(height: 12),
                 if (_buildNoteCard(order) case final note?) ...[
@@ -527,40 +529,82 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
 
   Widget _buildCustomerCard(
     BuildContext context,
-    Map<String, dynamic> order, {
+    Map<String, dynamic> order,
+    Map<String, dynamic> orderData, {
     bool isShippingDifferent = false,
   }) {
     final name = order['customer_name'] as String? ?? 'Pelanggan';
     final address = order['address'] as String? ?? '';
-    final phone =
-        order['phone'] as String? ?? order['customer_phone'] as String? ?? '';
     final email =
         order['email'] as String? ?? order['customer_email'] as String? ?? '';
+    final phones =
+        OrderLetterContactUtils.customerPhoneListFromOrderData(orderData);
     final cardTitle = isShippingDifferent
         ? 'Informasi Pelanggan'
         : 'Informasi Pelanggan & Pengiriman';
     return DetailContactInfoCard(
       title: cardTitle,
       name: name,
-      phone: phone,
+      phones: phones,
       email: email,
       address: address,
-      onCopyPhone: () => ContactActions.copyText(
-        context,
-        text: phone,
-        successMessage: 'Nomor HP disalin',
-        duration: const Duration(seconds: 1),
-      ),
-      onOpenWhatsApp: () => _openWhatsApp(phone),
+      onCopyPhone: phones.isEmpty
+          ? null
+          : (p) => ContactActions.copyText(
+                context,
+                text: p,
+                successMessage: 'Nomor HP disalin',
+                duration: const Duration(seconds: 1),
+              ),
+      onCallPhone: phones.isEmpty
+          ? null
+          : (p) async {
+              final ok = await ContactActions.callPhone(p);
+              if (!context.mounted) return;
+              if (!ok) {
+                AppFeedback.plain(context, 'Tidak dapat membuka telepon');
+              }
+            },
+      onOpenWhatsApp: phones.isEmpty ? null : (p) => _openWhatsApp(p),
     );
   }
 
   // ── Kartu 2b: Informasi Pengiriman ───────────────────────────────
 
-  Widget _buildShippingCard(Map<String, dynamic> order) {
-    final name = (order['ship_to_name'] as String? ?? '').trim();
-    final addr = (order['address_ship_to'] as String? ?? '').trim();
-    return DetailShippingInfoCard(name: name, address: addr);
+  Widget _buildShippingCard(
+    BuildContext context,
+    Map<String, dynamic> letter,
+    Map<String, dynamic> orderData,
+  ) {
+    final name = (letter['ship_to_name'] as String? ?? '').trim();
+    final addr = (letter['address_ship_to'] as String? ?? '').trim();
+    final shipPhones =
+        OrderLetterContactUtils.recipientPhoneListFromOrderData(orderData);
+
+    return DetailShippingInfoCard(
+      name: name,
+      address: addr,
+      phones: shipPhones,
+      onCopyPhone: shipPhones.isEmpty
+          ? null
+          : (phone) => ContactActions.copyText(
+                context,
+                text: phone,
+                successMessage: 'Nomor HP disalin',
+                duration: const Duration(seconds: 1),
+              ),
+      onCallPhone: shipPhones.isEmpty
+          ? null
+          : (phone) async {
+              final ok = await ContactActions.callPhone(phone);
+              if (!context.mounted) return;
+              if (!ok) {
+                AppFeedback.plain(context, 'Tidak dapat membuka telepon');
+              }
+            },
+      onOpenWhatsApp:
+          shipPhones.isEmpty ? null : (phone) => _openWhatsApp(phone),
+    );
   }
 
   // ── Kartu 2c: Catatan Pesanan ─────────────────────────────────────

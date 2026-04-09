@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../cart/data/cart_item.dart';
+import '../../../pricelist/logic/product_display_image_provider.dart';
 import 'order_summary_bonus_section.dart';
 import 'order_summary_item_header.dart';
 import 'order_summary_set_details.dart';
@@ -11,7 +13,7 @@ import 'order_summary_set_details.dart';
 /// Displays item header, set details (divan/headboard/sorong), and optionally
 /// bonus section with take-away controls. When [showBonusSection] is false,
 /// bonus is rendered once in a combined section below all items.
-class OrderItemTile extends StatelessWidget {
+class OrderItemTile extends ConsumerWidget {
   final CartItem item;
   final String Function(num) priceFmt;
   final bool Function(CartBonusSnapshot) isBonusTakeAwayChecked;
@@ -65,8 +67,9 @@ class OrderItemTile extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final p = item.product;
+    final thumbUrl = ref.watch(productDisplayImageProvider(p));
     final hasDivan = p.isSet &&
         p.divan.isNotEmpty &&
         !p.divan.toLowerCase().contains('tanpa');
@@ -121,7 +124,7 @@ class OrderItemTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           OrderSummaryItemHeader(
-            imageUrl: p.imageUrl,
+            imageUrl: thumbUrl,
             name: item.displayName,
             configText: configText,
             skuLabel: _primarySkuLabel(item),

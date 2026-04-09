@@ -49,6 +49,9 @@ class CheckoutCustomerShippingCard extends StatelessWidget {
     required this.onPickCustomerRegion,
     required this.shippingNameCtrl,
     required this.shippingPhoneCtrl,
+    required this.shippingPhone2Ctrl,
+    required this.showReceiverBackupPhone,
+    required this.onToggleReceiverBackupPhone,
     required this.shippingAddressCtrl,
     required this.shippingRegionCtrl,
     required this.onPickShippingRegion,
@@ -94,6 +97,9 @@ class CheckoutCustomerShippingCard extends StatelessWidget {
 
   final TextEditingController shippingNameCtrl;
   final TextEditingController shippingPhoneCtrl;
+  final TextEditingController shippingPhone2Ctrl;
+  final bool showReceiverBackupPhone;
+  final VoidCallback onToggleReceiverBackupPhone;
   final TextEditingController shippingAddressCtrl;
   final TextEditingController shippingRegionCtrl;
   final VoidCallback onPickShippingRegion;
@@ -159,6 +165,9 @@ class CheckoutCustomerShippingCard extends StatelessWidget {
             onPickCustomerRegion: onPickCustomerRegion,
             shippingNameCtrl: shippingNameCtrl,
             shippingPhoneCtrl: shippingPhoneCtrl,
+            shippingPhone2Ctrl: shippingPhone2Ctrl,
+            showReceiverBackupPhone: showReceiverBackupPhone,
+            onToggleReceiverBackupPhone: onToggleReceiverBackupPhone,
             shippingAddressCtrl: shippingAddressCtrl,
             shippingRegionCtrl: shippingRegionCtrl,
             onPickShippingRegion: onPickShippingRegion,

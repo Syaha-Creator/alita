@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_layout_tokens.dart';
 import '../../../../core/widgets/checkout_input_decoration.dart';
 import '../../../../core/widgets/form_field_label.dart';
 
@@ -34,6 +35,9 @@ class ShippingInfoSection extends StatelessWidget {
     // Receiver fields
     required this.shippingNameCtrl,
     required this.shippingPhoneCtrl,
+    required this.shippingPhone2Ctrl,
+    required this.showReceiverBackupPhone,
+    required this.onToggleReceiverBackupPhone,
     required this.shippingAddressCtrl,
     required this.shippingRegionCtrl,
     required this.onPickShippingRegion,
@@ -60,6 +64,9 @@ class ShippingInfoSection extends StatelessWidget {
 
   final TextEditingController shippingNameCtrl;
   final TextEditingController shippingPhoneCtrl;
+  final TextEditingController shippingPhone2Ctrl;
+  final bool showReceiverBackupPhone;
+  final VoidCallback onToggleReceiverBackupPhone;
   final TextEditingController shippingAddressCtrl;
   final TextEditingController shippingRegionCtrl;
   final VoidCallback onPickShippingRegion;
@@ -156,33 +163,7 @@ class ShippingInfoSection extends StatelessWidget {
                       isRequired: !receiverContactOptional,
                     ),
                     const SizedBox(height: 16),
-                    _buildTextField(
-                      controller: shippingPhoneCtrl,
-                      label: receiverContactOptional
-                          ? 'No. HP Penerima'
-                          : 'No. HP Penerima *',
-                      keyboardType: TextInputType.phone,
-                      validator: receiverContactOptional
-                          ? (value) {
-                              final t = value?.trim() ?? '';
-                              if (t.isEmpty) return null;
-                              final digits = t.replaceAll(RegExp(r'\D'), '');
-                              if (digits.length < 10 || digits.length > 15) {
-                                return 'No. HP harus 10–15 digit';
-                              }
-                              return null;
-                            }
-                          : (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return 'Field ini wajib diisi';
-                              }
-                              final digits = value.replaceAll(RegExp(r'\D'), '');
-                              if (digits.length < 10 || digits.length > 15) {
-                                return 'No. HP harus 10–15 digit';
-                              }
-                              return null;
-                            },
-                    ),
+                    _buildReceiverPhoneRow(),
                     if (showIndirectAlternateReceiverEmail &&
                         shippingEmailCtrl != null) ...[
                       const SizedBox(height: 16),
@@ -244,6 +225,101 @@ class ShippingInfoSection extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// HP penerima utama + tambah / HP kedua (layout sama seperti blok pelanggan).
+  Widget _buildReceiverPhoneRow() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: TextFormField(
+            controller: shippingPhoneCtrl,
+            keyboardType: TextInputType.phone,
+            textInputAction: TextInputAction.next,
+            style: const TextStyle(fontSize: 14),
+            validator: receiverContactOptional
+                ? (value) {
+                    final t = value?.trim() ?? '';
+                    if (t.isEmpty) return null;
+                    final digits = t.replaceAll(RegExp(r'\D'), '');
+                    if (digits.length < 10 || digits.length > 15) {
+                      return 'No. HP harus 10–15 digit';
+                    }
+                    return null;
+                  }
+                : (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Field ini wajib diisi';
+                    }
+                    final digits = value.replaceAll(RegExp(r'\D'), '');
+                    if (digits.length < 10 || digits.length > 15) {
+                      return 'No. HP harus 10–15 digit';
+                    }
+                    return null;
+                  },
+            decoration: CheckoutInputDecoration.form(
+              labelText: receiverContactOptional
+                  ? 'No. HP Utama'
+                  : 'No. HP Utama *',
+              labelStyle: const TextStyle(fontSize: 12),
+              prefixIcon: const Icon(
+                Icons.phone,
+                size: 16,
+                color: AppColors.textTertiary,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 12,
+              ),
+            ),
+          ),
+        ),
+        if (!showReceiverBackupPhone) ...[
+          const SizedBox(width: AppLayoutTokens.space8),
+          SizedBox(
+            height: 44,
+            width: 44,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border.all(color: AppColors.border),
+                borderRadius:
+                    BorderRadius.circular(AppLayoutTokens.radius8),
+              ),
+              child: IconButton(
+                padding: EdgeInsets.zero,
+                icon: const Icon(Icons.add, color: AppColors.accent),
+                tooltip: 'Tambah No. Kedua',
+                onPressed: onToggleReceiverBackupPhone,
+              ),
+            ),
+          ),
+        ] else ...[
+          const SizedBox(width: AppLayoutTokens.space8),
+          Expanded(
+            child: TextField(
+              controller: shippingPhone2Ctrl,
+              keyboardType: TextInputType.phone,
+              textInputAction: TextInputAction.next,
+              style: const TextStyle(fontSize: 14),
+              decoration: CheckoutInputDecoration.form(
+                labelText: 'No. HP Kedua',
+                labelStyle: const TextStyle(fontSize: 12),
+                prefixIcon: const Icon(
+                  Icons.phone_android,
+                  size: 16,
+                  color: AppColors.textTertiary,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 12,
+                ),
+              ),
+            ),
           ),
         ],
       ],

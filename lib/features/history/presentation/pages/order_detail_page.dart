@@ -15,6 +15,7 @@ import '../../../../core/theme/app_layout_tokens.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/utils/contact_actions.dart';
+import '../../../../core/utils/order_letter_contact_utils.dart';
 import '../../../../core/utils/log.dart';
 import '../../../../core/utils/network_guard.dart';
 import '../../../../core/utils/shipping_utils.dart';
@@ -408,35 +409,91 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                           ),
                         ],
                         const SizedBox(height: 12),
-                        DetailContactInfoCard(
-                          title: shippingDiffers
-                              ? 'Informasi Pelanggan'
-                              : 'Informasi Pelanggan & Pengiriman',
-                          name: currentOrder.customerName,
-                          phone: currentOrder.phone,
-                          email: currentOrder.email,
-                          address: currentOrder.address,
-                          onCopyPhone: () => ContactActions.copyText(
-                            context,
-                            text: currentOrder.phone,
-                            successMessage: 'Nomor HP disalin',
-                            duration: const Duration(seconds: 1),
-                          ),
-                          onCallPhone: () =>
-                              _callPhone(context, currentOrder.phone),
-                          onOpenWhatsApp: () => _openWhatsApp(
-                            context,
-                            phone: currentOrder.phone,
-                            customerName: currentOrder.customerName,
-                            noSp: currentOrder.noSp,
-                            senderName: ref.read(authProvider).userName,
-                          ),
+                        Builder(
+                          builder: (context) {
+                            final customerPhones =
+                                OrderLetterContactUtils.customerPhoneList(
+                              currentOrder.orderLetterContacts,
+                              fallbackPhone: currentOrder.phone,
+                            );
+                            return DetailContactInfoCard(
+                              title: shippingDiffers
+                                  ? 'Informasi Pelanggan'
+                                  : 'Informasi Pelanggan & Pengiriman',
+                              name: currentOrder.customerName,
+                              phones: customerPhones,
+                              email: currentOrder.email,
+                              address: currentOrder.address,
+                              onCopyPhone: customerPhones.isEmpty
+                                  ? null
+                                  : (phone) => ContactActions.copyText(
+                                        context,
+                                        text: phone,
+                                        successMessage: 'Nomor HP disalin',
+                                        duration: const Duration(seconds: 1),
+                                      ),
+                              onCallPhone: customerPhones.isEmpty
+                                  ? null
+                                  : (phone) =>
+                                      _callPhone(context, phone),
+                              onOpenWhatsApp: customerPhones.isEmpty
+                                  ? null
+                                  : (phone) => _openWhatsApp(
+                                        context,
+                                        phone: phone,
+                                        customerName:
+                                            currentOrder.customerName,
+                                        noSp: currentOrder.noSp,
+                                        senderName: ref
+                                            .read(authProvider)
+                                            .userName,
+                                      ),
+                            );
+                          },
                         ),
                         if (shippingDiffers) ...[
                           const SizedBox(height: 12),
-                          DetailShippingInfoCard(
-                            name: currentOrder.shipToName.trim(),
-                            address: currentOrder.addressShipTo.trim(),
+                          Builder(
+                            builder: (context) {
+                              final shipPhones =
+                                  OrderLetterContactUtils.recipientPhoneList(
+                                currentOrder.orderLetterContacts,
+                                fallbackPhone: currentOrder.phone,
+                              );
+                              final waName = currentOrder.shipToName
+                                      .trim()
+                                      .isNotEmpty
+                                  ? currentOrder.shipToName.trim()
+                                  : currentOrder.customerName;
+                              return DetailShippingInfoCard(
+                                name: currentOrder.shipToName.trim(),
+                                address: currentOrder.addressShipTo.trim(),
+                                phones: shipPhones,
+                                onCopyPhone: shipPhones.isEmpty
+                                    ? null
+                                    : (phone) => ContactActions.copyText(
+                                          context,
+                                          text: phone,
+                                          successMessage: 'Nomor HP disalin',
+                                          duration: const Duration(seconds: 1),
+                                        ),
+                                onCallPhone: shipPhones.isEmpty
+                                    ? null
+                                    : (phone) =>
+                                        _callPhone(context, phone),
+                                onOpenWhatsApp: shipPhones.isEmpty
+                                    ? null
+                                    : (phone) => _openWhatsApp(
+                                          context,
+                                          phone: phone,
+                                          customerName: waName,
+                                          noSp: currentOrder.noSp,
+                                          senderName: ref
+                                              .read(authProvider)
+                                              .userName,
+                                        ),
+                              );
+                            },
                           ),
                         ],
                         if (currentOrder.note.isNotEmpty &&

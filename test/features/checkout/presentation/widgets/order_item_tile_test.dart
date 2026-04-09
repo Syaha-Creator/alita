@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:alitapricelist/features/cart/data/cart_item.dart';
 import 'package:alitapricelist/features/checkout/presentation/widgets/order_item_tile.dart';
+import 'package:alitapricelist/core/utils/product_image_utils.dart';
 import 'package:alitapricelist/features/pricelist/data/models/product.dart';
+import 'package:alitapricelist/features/pricelist/logic/product_display_image_provider.dart';
+import 'package:alitapricelist/features/product/logic/brand_spec_provider.dart';
 
 Product _product({
   String name = 'Comfort Dream 160x200',
@@ -45,22 +49,36 @@ CartItem _cartItem({
       bonusSnapshots: bonuses,
     );
 
+Future<void> _pumpTile(WidgetTester tester, Widget tile) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        brandSpecProvider.overrideWith((ref) async => []),
+        // Hindari CachedNetworkImage di test (pumpAndSettle tidak pernah selesai).
+        productDisplayImageProvider.overrideWith((ref, product) {
+          return '${ProductImageUtils.assetUriPrefix}assets/logo/sleepcenter_logo.png';
+        }),
+      ],
+      child: MaterialApp(home: Scaffold(body: tile)),
+    ),
+  );
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 50));
+}
+
 void main() {
   group('OrderItemTile', () {
     testWidgets('renders product name and config text', (tester) async {
       final item = _cartItem();
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: OrderItemTile(
-              item: item,
-              priceFmt: (n) => 'Rp ${n.toStringAsFixed(0)}',
-              isBonusTakeAwayChecked: (_) => false,
-              currentTakeAwayQty: (_) => 1,
-              onTakeAwayToggled: (_, __) {},
-              onTakeAwayQtyChanged: (_, __) {},
-            ),
-          ),
+      await _pumpTile(
+        tester,
+        OrderItemTile(
+          item: item,
+          priceFmt: (n) => 'Rp ${n.toStringAsFixed(0)}',
+          isBonusTakeAwayChecked: (_) => false,
+          currentTakeAwayQty: (_) => 1,
+          onTakeAwayToggled: (_, __) {},
+          onTakeAwayQtyChanged: (_, __) {},
         ),
       );
 
@@ -77,18 +95,15 @@ void main() {
           sorong: 'Tanpa Sorong',
         ),
       );
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: OrderItemTile(
-              item: item,
-              priceFmt: (n) => 'Rp ${n.toStringAsFixed(0)}',
-              isBonusTakeAwayChecked: (_) => false,
-              currentTakeAwayQty: (_) => 1,
-              onTakeAwayToggled: (_, __) {},
-              onTakeAwayQtyChanged: (_, __) {},
-            ),
-          ),
+      await _pumpTile(
+        tester,
+        OrderItemTile(
+          item: item,
+          priceFmt: (n) => 'Rp ${n.toStringAsFixed(0)}',
+          isBonusTakeAwayChecked: (_) => false,
+          currentTakeAwayQty: (_) => 1,
+          onTakeAwayToggled: (_, __) {},
+          onTakeAwayQtyChanged: (_, __) {},
         ),
       );
 
@@ -101,19 +116,16 @@ void main() {
           CartBonusSnapshot(name: 'Elegant Pillow', qty: 1, sku: '85031'),
         ],
       );
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: OrderItemTile(
-              item: item,
-              priceFmt: (n) => 'Rp ${n.toStringAsFixed(0)}',
-              isBonusTakeAwayChecked: (_) => false,
-              currentTakeAwayQty: (_) => 1,
-              onTakeAwayToggled: (_, __) {},
-              onTakeAwayQtyChanged: (_, __) {},
-              showBonusSection: true,
-            ),
-          ),
+      await _pumpTile(
+        tester,
+        OrderItemTile(
+          item: item,
+          priceFmt: (n) => 'Rp ${n.toStringAsFixed(0)}',
+          isBonusTakeAwayChecked: (_) => false,
+          currentTakeAwayQty: (_) => 1,
+          onTakeAwayToggled: (_, __) {},
+          onTakeAwayQtyChanged: (_, __) {},
+          showBonusSection: true,
         ),
       );
 
@@ -126,19 +138,16 @@ void main() {
           CartBonusSnapshot(name: 'Elegant Pillow', qty: 1, sku: '85031'),
         ],
       );
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: OrderItemTile(
-              item: item,
-              priceFmt: (n) => 'Rp ${n.toStringAsFixed(0)}',
-              isBonusTakeAwayChecked: (_) => false,
-              currentTakeAwayQty: (_) => 1,
-              onTakeAwayToggled: (_, __) {},
-              onTakeAwayQtyChanged: (_, __) {},
-              showBonusSection: false,
-            ),
-          ),
+      await _pumpTile(
+        tester,
+        OrderItemTile(
+          item: item,
+          priceFmt: (n) => 'Rp ${n.toStringAsFixed(0)}',
+          isBonusTakeAwayChecked: (_) => false,
+          currentTakeAwayQty: (_) => 1,
+          onTakeAwayToggled: (_, __) {},
+          onTakeAwayQtyChanged: (_, __) {},
+          showBonusSection: false,
         ),
       );
 

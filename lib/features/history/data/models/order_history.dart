@@ -14,6 +14,17 @@ double _parseDouble(dynamic value) {
   return double.tryParse(value.toString()) ?? 0.0;
 }
 
+List<Map<String, dynamic>> _orderLetterContactsFromJson(dynamic json) {
+  if (json is! List) return [];
+  return json
+      .map((e) => e is Map<String, dynamic>
+          ? e
+          : Map<String, dynamic>.from(e as Map))
+      .toList();
+}
+
+dynamic _orderLetterContactsToJson(List<Map<String, dynamic>> v) => v;
+
 /// Salin map dan satukan `take_away` / `isTakeAway` ke [isTakeAway] (bool) agar
 /// [json_serializable] (kunci camel) tetap bekerja dengan payload API.
 Map<String, dynamic> _orderHistoryJsonWithResolvedTakeAway(
@@ -65,6 +76,15 @@ class OrderHistory with _$OrderHistory {
     @Default(<OrderDetail>[]) List<OrderDetail> details,
     @Default(<OrderPayment>[]) List<OrderPayment> payments,
     DateTime? createdAt,
+
+    /// `order_letter_contacts` dari API: tiap item `phone`, `ship` (bool).
+    @JsonKey(
+      name: 'order_letter_contacts',
+      fromJson: _orderLetterContactsFromJson,
+      toJson: _orderLetterContactsToJson,
+    )
+    @Default(<Map<String, dynamic>>[])
+    List<Map<String, dynamic>> orderLetterContacts,
   }) = _OrderHistory;
 
   factory OrderHistory.fromJson(Map<String, dynamic> json) =>
@@ -119,6 +139,8 @@ class OrderHistory with _$OrderHistory {
           .toList(),
       payments: paymentsList.map(OrderPayment.fromApiJson).toList(),
       createdAt: DateTime.tryParse(letter['created_at']?.toString() ?? ''),
+      orderLetterContacts:
+          _orderLetterContactsFromJson(json['order_letter_contacts']),
     );
   }
 }
@@ -215,6 +237,8 @@ extension OrderHistoryX on OrderHistory {
             },
           )
           .toList(),
+      if (orderLetterContacts.isNotEmpty)
+        'order_letter_contacts': orderLetterContacts,
     };
   }
 }

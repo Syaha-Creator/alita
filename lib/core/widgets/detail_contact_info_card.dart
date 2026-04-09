@@ -1,24 +1,25 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
-import '../utils/platform_utils.dart';
+import 'detail_contact_info_line.dart';
+import 'detail_contact_phone_row.dart';
 import 'detail_section_label.dart';
 
 /// Reusable customer/contact information card for detail pages.
 class DetailContactInfoCard extends StatelessWidget {
   final String title;
   final String name;
-  final String phone;
+  final List<String> phones;
   final String email;
   final String address;
-  final VoidCallback? onCopyPhone;
-  final VoidCallback? onOpenWhatsApp;
-  final VoidCallback? onCallPhone;
+  final void Function(String phone)? onCopyPhone;
+  final void Function(String phone)? onOpenWhatsApp;
+  final void Function(String phone)? onCallPhone;
 
   const DetailContactInfoCard({
     super.key,
     required this.title,
     required this.name,
-    required this.phone,
+    required this.phones,
     required this.email,
     required this.address,
     this.onCopyPhone,
@@ -28,9 +29,12 @@ class DetailContactInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasPhone = phone.isNotEmpty && phone != '-';
     final hasEmail = email.isNotEmpty && email != '-';
     final hasAddress = address.isNotEmpty && address != '-';
+    final hasPhone = phones.any((p) {
+      final t = p.trim();
+      return t.isNotEmpty && t != '-';
+    });
 
     return Semantics(
       container: true,
@@ -72,112 +76,33 @@ class DetailContactInfoCard extends StatelessWidget {
                     Text(
                       name,
                       style: const TextStyle(
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w600,
                         fontSize: 14,
                         color: AppColors.textPrimary,
                       ),
                     ),
-                    if (hasPhone) ...[
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.phone_android_outlined,
-                            size: 14,
-                            color: AppColors.textTertiary,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            phone,
-                            style: const TextStyle(
-                              color: AppColors.textSecondary,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const Spacer(),
-                          if (onCopyPhone case final cb?)
-                            _ActionIcon(
-                              tooltip: 'Salin nomor',
-                              onTap: cb,
-                              icon: Icons.copy_rounded,
-                              backgroundColor: AppColors.surfaceLight,
-                              iconColor: AppColors.textSecondary,
-                            ),
-                          if (onCallPhone != null) ...[
-                            const SizedBox(width: 4),
-                            _ActionIcon(
-                              tooltip: 'Telepon',
-                              onTap: onCallPhone!,
-                              icon: Icons.phone_outlined,
-                              backgroundColor: AppColors.surfaceLight,
-                              iconColor: AppColors.accent,
-                              borderColor: AppColors.accent.withValues(alpha: 0.3),
-                            ),
-                          ],
-                          if (onOpenWhatsApp case final cb?) ...[
-                            const SizedBox(width: 4),
-                            _ActionIcon(
-                              tooltip: 'Chat WhatsApp',
-                              onTap: cb,
-                              customIcon: Image.asset(
-                                'assets/logo/whatsapp-icon.png',
-                                width: 16,
-                                height: 16,
-                                filterQuality: FilterQuality.medium,
-                              ),
-                              backgroundColor: AppColors.success.withValues(alpha: 0.08),
-                              iconColor: AppColors.success,
-                              borderColor: AppColors.success.withValues(alpha: 0.3),
-                            ),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                    ],
+                    if (!hasPhone && hasEmail) const SizedBox(height: 8),
+                    DetailContactPhoneRow(
+                      phones: phones,
+                      onCopyPhone: hasPhone ? onCopyPhone : null,
+                      onCallPhone: hasPhone ? onCallPhone : null,
+                      onOpenWhatsApp: hasPhone ? onOpenWhatsApp : null,
+                    ),
+                    if (hasPhone && (hasEmail || hasAddress))
+                      const SizedBox(height: 12),
                     if (hasEmail) ...[
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.email_outlined,
-                            size: 14,
-                            color: AppColors.textTertiary,
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              email,
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ],
+                      DetailContactInfoLine(
+                        icon: Icons.email_outlined,
+                        text: email,
+                        maxLines: 3,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                       ),
-                      const SizedBox(height: 6),
+                      if (hasAddress) const SizedBox(height: 6),
                     ],
                     if (hasAddress)
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Icon(
-                            Icons.location_on_outlined,
-                            size: 14,
-                            color: AppColors.textTertiary,
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              address,
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 12,
-                                height: 1.4,
-                              ),
-                            ),
-                          ),
-                        ],
+                      DetailContactInfoLine(
+                        icon: Icons.location_on_outlined,
+                        text: address,
                       ),
                   ],
                 ),
@@ -187,49 +112,6 @@ class DetailContactInfoCard extends StatelessWidget {
         ],
       ),
     ),
-    );
-  }
-}
-
-class _ActionIcon extends StatelessWidget {
-  const _ActionIcon({
-    required this.tooltip,
-    required this.onTap,
-    this.icon,
-    this.customIcon,
-    required this.backgroundColor,
-    required this.iconColor,
-    this.borderColor,
-  });
-
-  final String tooltip;
-  final VoidCallback onTap;
-  final IconData? icon;
-  final Widget? customIcon;
-  final Color backgroundColor;
-  final Color iconColor;
-  final Color? borderColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        onTap: () {
-          hapticTap();
-          onTap();
-        },
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          padding: const EdgeInsets.all(5),
-          decoration: BoxDecoration(
-            color: backgroundColor,
-            borderRadius: BorderRadius.circular(10),
-            border: borderColor != null ? Border.all(color: borderColor!) : null,
-          ),
-          child: customIcon ?? Icon(icon, size: 14, color: iconColor),
-        ),
-      ),
     );
   }
 }

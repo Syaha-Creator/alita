@@ -51,6 +51,14 @@ mixin _$OrderHistory {
   List<OrderPayment> get payments => throw _privateConstructorUsedError;
   DateTime? get createdAt => throw _privateConstructorUsedError;
 
+  /// `order_letter_contacts` dari API: tiap item `phone`, `ship` (bool).
+  @JsonKey(
+      name: 'order_letter_contacts',
+      fromJson: _orderLetterContactsFromJson,
+      toJson: _orderLetterContactsToJson)
+  List<Map<String, dynamic>> get orderLetterContacts =>
+      throw _privateConstructorUsedError;
+
   /// Serializes this OrderHistory to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
@@ -93,7 +101,12 @@ abstract class $OrderHistoryCopyWith<$Res> {
       String salesName,
       List<OrderDetail> details,
       List<OrderPayment> payments,
-      DateTime? createdAt});
+      DateTime? createdAt,
+      @JsonKey(
+          name: 'order_letter_contacts',
+          fromJson: _orderLetterContactsFromJson,
+          toJson: _orderLetterContactsToJson)
+      List<Map<String, dynamic>> orderLetterContacts});
 }
 
 /// @nodoc
@@ -137,6 +150,7 @@ class _$OrderHistoryCopyWithImpl<$Res, $Val extends OrderHistory>
     Object? details = null,
     Object? payments = null,
     Object? createdAt = freezed,
+    Object? orderLetterContacts = null,
   }) {
     return _then(_value.copyWith(
       id: null == id
@@ -243,6 +257,10 @@ class _$OrderHistoryCopyWithImpl<$Res, $Val extends OrderHistory>
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      orderLetterContacts: null == orderLetterContacts
+          ? _value.orderLetterContacts
+          : orderLetterContacts // ignore: cast_nullable_to_non_nullable
+              as List<Map<String, dynamic>>,
     ) as $Val);
   }
 }
@@ -281,7 +299,12 @@ abstract class _$$OrderHistoryImplCopyWith<$Res>
       String salesName,
       List<OrderDetail> details,
       List<OrderPayment> payments,
-      DateTime? createdAt});
+      DateTime? createdAt,
+      @JsonKey(
+          name: 'order_letter_contacts',
+          fromJson: _orderLetterContactsFromJson,
+          toJson: _orderLetterContactsToJson)
+      List<Map<String, dynamic>> orderLetterContacts});
 }
 
 /// @nodoc
@@ -323,6 +346,7 @@ class __$$OrderHistoryImplCopyWithImpl<$Res>
     Object? details = null,
     Object? payments = null,
     Object? createdAt = freezed,
+    Object? orderLetterContacts = null,
   }) {
     return _then(_$OrderHistoryImpl(
       id: null == id
@@ -429,6 +453,10 @@ class __$$OrderHistoryImplCopyWithImpl<$Res>
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      orderLetterContacts: null == orderLetterContacts
+          ? _value._orderLetterContacts
+          : orderLetterContacts // ignore: cast_nullable_to_non_nullable
+              as List<Map<String, dynamic>>,
     ));
   }
 }
@@ -462,9 +490,16 @@ class _$OrderHistoryImpl implements _OrderHistory {
       this.salesName = '',
       final List<OrderDetail> details = const <OrderDetail>[],
       final List<OrderPayment> payments = const <OrderPayment>[],
-      this.createdAt})
+      this.createdAt,
+      @JsonKey(
+          name: 'order_letter_contacts',
+          fromJson: _orderLetterContactsFromJson,
+          toJson: _orderLetterContactsToJson)
+      final List<Map<String, dynamic>> orderLetterContacts =
+          const <Map<String, dynamic>>[]})
       : _details = details,
-        _payments = payments;
+        _payments = payments,
+        _orderLetterContacts = orderLetterContacts;
 
   factory _$OrderHistoryImpl.fromJson(Map<String, dynamic> json) =>
       _$$OrderHistoryImplFromJson(json);
@@ -546,9 +581,25 @@ class _$OrderHistoryImpl implements _OrderHistory {
   @override
   final DateTime? createdAt;
 
+  /// `order_letter_contacts` dari API: tiap item `phone`, `ship` (bool).
+  final List<Map<String, dynamic>> _orderLetterContacts;
+
+  /// `order_letter_contacts` dari API: tiap item `phone`, `ship` (bool).
+  @override
+  @JsonKey(
+      name: 'order_letter_contacts',
+      fromJson: _orderLetterContactsFromJson,
+      toJson: _orderLetterContactsToJson)
+  List<Map<String, dynamic>> get orderLetterContacts {
+    if (_orderLetterContacts is EqualUnmodifiableListView)
+      return _orderLetterContacts;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_orderLetterContacts);
+  }
+
   @override
   String toString() {
-    return 'OrderHistory(id: $id, noSp: $noSp, orderDate: $orderDate, requestDate: $requestDate, note: $note, customerName: $customerName, phone: $phone, address: $address, email: $email, shipToName: $shipToName, addressShipTo: $addressShipTo, noPo: $noPo, channel: $channel, isTakeAway: $isTakeAway, workPlaceName: $workPlaceName, companyName: $companyName, totalAmount: $totalAmount, postage: $postage, status: $status, creator: $creator, creatorName: $creatorName, salesCode: $salesCode, salesName: $salesName, details: $details, payments: $payments, createdAt: $createdAt)';
+    return 'OrderHistory(id: $id, noSp: $noSp, orderDate: $orderDate, requestDate: $requestDate, note: $note, customerName: $customerName, phone: $phone, address: $address, email: $email, shipToName: $shipToName, addressShipTo: $addressShipTo, noPo: $noPo, channel: $channel, isTakeAway: $isTakeAway, workPlaceName: $workPlaceName, companyName: $companyName, totalAmount: $totalAmount, postage: $postage, status: $status, creator: $creator, creatorName: $creatorName, salesCode: $salesCode, salesName: $salesName, details: $details, payments: $payments, createdAt: $createdAt, orderLetterContacts: $orderLetterContacts)';
   }
 
   @override
@@ -594,7 +645,9 @@ class _$OrderHistoryImpl implements _OrderHistory {
             const DeepCollectionEquality().equals(other._details, _details) &&
             const DeepCollectionEquality().equals(other._payments, _payments) &&
             (identical(other.createdAt, createdAt) ||
-                other.createdAt == createdAt));
+                other.createdAt == createdAt) &&
+            const DeepCollectionEquality()
+                .equals(other._orderLetterContacts, _orderLetterContacts));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -626,7 +679,8 @@ class _$OrderHistoryImpl implements _OrderHistory {
         salesName,
         const DeepCollectionEquality().hash(_details),
         const DeepCollectionEquality().hash(_payments),
-        createdAt
+        createdAt,
+        const DeepCollectionEquality().hash(_orderLetterContacts)
       ]);
 
   /// Create a copy of OrderHistory
@@ -647,32 +701,38 @@ class _$OrderHistoryImpl implements _OrderHistory {
 
 abstract class _OrderHistory implements OrderHistory {
   const factory _OrderHistory(
-      {required final int id,
-      required final String noSp,
-      required final String orderDate,
-      required final String requestDate,
-      required final String note,
-      required final String customerName,
-      required final String phone,
-      required final String address,
-      required final String email,
-      final String shipToName,
-      final String addressShipTo,
-      final String? noPo,
-      final String? channel,
-      required final bool isTakeAway,
-      required final String workPlaceName,
-      required final String companyName,
-      @JsonKey(fromJson: _parseDouble) required final double totalAmount,
-      @JsonKey(fromJson: _parseDouble) final double postage,
-      required final String status,
-      final String creator,
-      final String creatorName,
-      final String salesCode,
-      final String salesName,
-      final List<OrderDetail> details,
-      final List<OrderPayment> payments,
-      final DateTime? createdAt}) = _$OrderHistoryImpl;
+          {required final int id,
+          required final String noSp,
+          required final String orderDate,
+          required final String requestDate,
+          required final String note,
+          required final String customerName,
+          required final String phone,
+          required final String address,
+          required final String email,
+          final String shipToName,
+          final String addressShipTo,
+          final String? noPo,
+          final String? channel,
+          required final bool isTakeAway,
+          required final String workPlaceName,
+          required final String companyName,
+          @JsonKey(fromJson: _parseDouble) required final double totalAmount,
+          @JsonKey(fromJson: _parseDouble) final double postage,
+          required final String status,
+          final String creator,
+          final String creatorName,
+          final String salesCode,
+          final String salesName,
+          final List<OrderDetail> details,
+          final List<OrderPayment> payments,
+          final DateTime? createdAt,
+          @JsonKey(
+              name: 'order_letter_contacts',
+              fromJson: _orderLetterContactsFromJson,
+              toJson: _orderLetterContactsToJson)
+          final List<Map<String, dynamic>> orderLetterContacts}) =
+      _$OrderHistoryImpl;
 
   factory _OrderHistory.fromJson(Map<String, dynamic> json) =
       _$OrderHistoryImpl.fromJson;
@@ -733,6 +793,14 @@ abstract class _OrderHistory implements OrderHistory {
   List<OrderPayment> get payments;
   @override
   DateTime? get createdAt;
+
+  /// `order_letter_contacts` dari API: tiap item `phone`, `ship` (bool).
+  @override
+  @JsonKey(
+      name: 'order_letter_contacts',
+      fromJson: _orderLetterContactsFromJson,
+      toJson: _orderLetterContactsToJson)
+  List<Map<String, dynamic>> get orderLetterContacts;
 
   /// Create a copy of OrderHistory
   /// with the given fields replaced by the non-null parameter values.
