@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_layout_tokens.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/widgets/detail_info_row.dart';
 import '../../../../core/widgets/detail_item_index_badge.dart';
 import '../../../cart/data/cart_item.dart';
 import '../../data/quotation_model.dart';
+import 'quotation_device_only_notice.dart';
 
 class QuotationDetailSheet extends StatelessWidget {
   const QuotationDetailSheet({super.key, required this.quotation});
@@ -68,6 +70,8 @@ class QuotationDetailSheet extends StatelessWidget {
               controller: scrollController,
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
               children: [
+                const QuotationDeviceOnlyNotice(),
+                const SizedBox(height: AppLayoutTokens.space16),
                 const _SectionTitle(title: 'Informasi Pelanggan'),
                 const SizedBox(height: 8),
                 _DetailCard(

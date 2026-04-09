@@ -7,14 +7,15 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/services/connectivity_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
-import '../../../../core/utils/network_guard.dart';
 import '../../../../core/widgets/animated_list_item.dart';
 import '../../../../core/widgets/app_search_field.dart';
 import '../../../../core/widgets/empty_state_view.dart';
 import '../../data/quotation_model.dart';
 import '../../logic/quotation_list_provider.dart';
 import '../../logic/quotation_pdf_generator.dart';
+import '../../logic/quotation_prices_refresh.dart';
 import '../widgets/quotation_card.dart';
+import '../widgets/quotation_device_only_notice.dart';
 
 // ─── Sort options ────────────────────────────────────────────────────────────
 
@@ -45,6 +46,7 @@ class QuotationHistoryPage extends ConsumerStatefulWidget {
 
 class _QuotationHistoryPageState extends ConsumerState<QuotationHistoryPage> {
   bool _autoPdfTriggered = false;
+  bool _onlinePriceSyncRunning = false;
   final _searchCtrl = TextEditingController();
   _SortMode _sortMode = _SortMode.newestFirst;
   String _searchQuery = '';
@@ -75,8 +77,6 @@ class _QuotationHistoryPageState extends ConsumerState<QuotationHistoryPage> {
     final q = widget.autoPdfQuotation;
     if (q == null || !mounted) return;
 
-    final isOffline = ref.read(isOfflineProvider);
-    if (ifOfflineShowFeedback(context, isOffline: isOffline)) return;
     AppFeedback.show(context,
         message: 'Membuat PDF penawaran…', type: AppFeedbackType.info);
 
@@ -86,6 +86,13 @@ class _QuotationHistoryPageState extends ConsumerState<QuotationHistoryPage> {
           box != null ? box.localToGlobal(Offset.zero) & box.size : Rect.zero;
       await QuotationPdfGenerator.generateAndShare(q,
           sharePositionOrigin: origin);
+      if (mounted && q.status == QuotationStatus.draft) {
+        unawaited(
+          ref.read(quotationListProvider.notifier).update(
+                q.copyWith(status: QuotationStatus.sent),
+              ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         AppFeedback.show(context,
@@ -123,8 +130,33 @@ class _QuotationHistoryPageState extends ConsumerState<QuotationHistoryPage> {
     return list;
   }
 
+  Future<void> _syncQuotationPricesWhenBackOnline() async {
+    if (_onlinePriceSyncRunning || !mounted) return;
+    _onlinePriceSyncRunning = true;
+    try {
+      final n = await refreshAllStoredQuotationsFromServer(ref);
+      if (!mounted) return;
+      if (n > 0) {
+        AppFeedback.show(
+          context,
+          message:
+              'Koneksi kembali: $n penawaran diselaraskan dengan harga server.',
+          type: AppFeedbackType.info,
+        );
+      }
+    } finally {
+      _onlinePriceSyncRunning = false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    ref.listen<bool>(isOfflineProvider, (previous, next) {
+      if (previous == true && next == false) {
+        unawaited(_syncQuotationPricesWhenBackOnline());
+      }
+    });
+
     final allDrafts = ref.watch(quotationListProvider);
     final drafts = _filtered(List.of(allDrafts));
 
@@ -186,13 +218,19 @@ class _QuotationHistoryPageState extends ConsumerState<QuotationHistoryPage> {
                 onChanged: (_) {},
               ),
             ),
-
+          if (allDrafts.isNotEmpty)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: QuotationDeviceOnlyNotice(compact: true),
+            ),
           Expanded(
             child: allDrafts.isEmpty
                 ? EmptyStateView(
                     icon: Icons.description_outlined,
                     title: 'Belum ada penawaran',
-                    subtitle: 'Penawaran yang Anda simpan akan muncul di sini.',
+                    subtitle:
+                        'Penawaran tersimpan hanya di perangkat ini (Offline). '
+                        'Setelah ada draft, daftar akan muncul di sini.',
                     action: FilledButton(
                       onPressed: () => context.go('/'),
                       child: const Text('Buka Beranda'),

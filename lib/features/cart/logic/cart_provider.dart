@@ -161,6 +161,12 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
     await _saveCart();
   }
 
+  /// Replace entire cart (e.g. after server price refresh).
+  Future<void> replaceCartItems(List<CartItem> next) async {
+    state = List<CartItem>.from(next);
+    await _saveCart();
+  }
+
   /// Remove only cart lines whose [cartItemKey] is in [ids].
   /// Used after selective checkout so unchecked items stay in cart.
   Future<void> removeItemsByIds(Set<String> ids) async {

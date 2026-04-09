@@ -12,7 +12,7 @@ enum QuotationStatus {
 
   String get label => switch (this) {
         draft => 'Draft',
-        sent => 'Terkirim',
+        sent => 'Dibagikan',
         converted => 'Jadi SP',
       };
 }
@@ -41,6 +41,7 @@ class QuotationModel {
   final bool isShippingSameAsCustomer;
   final String shippingName;
   final String shippingPhone;
+  final String shippingPhone2;
   final String shippingAddress;
   final String shippingRegionProvinsi;
   final String shippingRegionKota;
@@ -85,6 +86,7 @@ class QuotationModel {
     this.isShippingSameAsCustomer = true,
     this.shippingName = '',
     this.shippingPhone = '',
+    this.shippingPhone2 = '',
     this.shippingAddress = '',
     this.shippingRegionProvinsi = '',
     this.shippingRegionKota = '',
@@ -133,6 +135,7 @@ class QuotationModel {
     bool? isShippingSameAsCustomer,
     String? shippingName,
     String? shippingPhone,
+    String? shippingPhone2,
     String? shippingAddress,
     String? shippingRegionProvinsi,
     String? shippingRegionKota,
@@ -169,6 +172,7 @@ class QuotationModel {
           isShippingSameAsCustomer ?? this.isShippingSameAsCustomer,
       shippingName: shippingName ?? this.shippingName,
       shippingPhone: shippingPhone ?? this.shippingPhone,
+      shippingPhone2: shippingPhone2 ?? this.shippingPhone2,
       shippingAddress: shippingAddress ?? this.shippingAddress,
       shippingRegionProvinsi:
           shippingRegionProvinsi ?? this.shippingRegionProvinsi,
@@ -208,6 +212,7 @@ class QuotationModel {
         'isShippingSameAsCustomer': isShippingSameAsCustomer,
         'shippingName': shippingName,
         'shippingPhone': shippingPhone,
+        'shippingPhone2': shippingPhone2,
         'shippingAddress': shippingAddress,
         'shippingRegionProvinsi': shippingRegionProvinsi,
         'shippingRegionKota': shippingRegionKota,
@@ -246,6 +251,7 @@ class QuotationModel {
           json['isShippingSameAsCustomer'] as bool? ?? true,
       shippingName: json['shippingName'] as String? ?? '',
       shippingPhone: json['shippingPhone'] as String? ?? '',
+      shippingPhone2: json['shippingPhone2'] as String? ?? '',
       shippingAddress: json['shippingAddress'] as String? ?? '',
       shippingRegionProvinsi:
           json['shippingRegionProvinsi'] as String? ?? '',

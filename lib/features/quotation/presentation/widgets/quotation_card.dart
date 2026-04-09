@@ -9,8 +9,9 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/services/connectivity_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
+import '../../../../core/utils/log.dart';
+import '../../../../core/widgets/loading_overlay.dart';
 import '../../../../core/utils/app_formatters.dart';
-import '../../../../core/utils/network_guard.dart';
 import '../../../../core/utils/whatsapp_helper.dart';
 import '../../../../core/widgets/status_chip.dart';
 import '../../../../core/widgets/tap_scale.dart';
@@ -18,6 +19,7 @@ import '../../../cart/logic/cart_provider.dart';
 import '../../data/quotation_model.dart';
 import '../../logic/quotation_list_provider.dart';
 import '../../logic/quotation_pdf_generator.dart';
+import '../../logic/quotation_prices_refresh.dart';
 import 'edit_customer_sheet.dart';
 import 'quotation_detail_sheet.dart';
 
@@ -162,7 +164,7 @@ class QuotationCard extends ConsumerWidget {
                         filterQuality: FilterQuality.medium,
                       ),
                       tooltip: 'Bagikan Teks WA',
-                      onTap: () => _shareWaText(context),
+                      onTap: () => _shareWaText(context, ref),
                     ),
                     _IconAction(
                       icon: Icons.edit_outlined,
@@ -180,7 +182,7 @@ class QuotationCard extends ConsumerWidget {
                       icon: Icons.shopping_cart_checkout_outlined,
                       label: 'Checkout',
                       color: AppColors.success,
-                      onTap: () => _continueToCheckout(context, ref),
+                      onTap: () => unawaited(_continueToCheckout(context, ref)),
                     ),
                   ],
                 ),
@@ -208,10 +210,6 @@ class QuotationCard extends ConsumerWidget {
 
   Future<void> _sharePdf(BuildContext context, WidgetRef ref) async {
     try {
-      final isOffline = ref.read(isOfflineProvider);
-      if (ifOfflineShowFeedback(context, isOffline: isOffline)) {
-        return;
-      }
       hapticTap();
       AppFeedback.show(context,
           message: 'Membuat PDF…', type: AppFeedbackType.info);
@@ -221,11 +219,7 @@ class QuotationCard extends ConsumerWidget {
       await QuotationPdfGenerator.generateAndShare(quotation,
           sharePositionOrigin: origin);
 
-      if (quotation.status == QuotationStatus.draft) {
-        unawaited(ref
-            .read(quotationListProvider.notifier)
-            .update(quotation.copyWith(status: QuotationStatus.sent)));
-      }
+      _markQuotationSharedIfDraft(ref);
     } catch (e) {
       if (context.mounted) {
         AppFeedback.show(context,
@@ -234,7 +228,7 @@ class QuotationCard extends ConsumerWidget {
     }
   }
 
-  Future<void> _shareWaText(BuildContext context) async {
+  Future<void> _shareWaText(BuildContext context, WidgetRef ref) async {
     final lines = <String>[
       'Penawaran untuk *${quotation.customerName}*',
       'Tanggal: ${AppFormatters.dateTimeId(quotation.createdAt.toIso8601String())}',
@@ -251,13 +245,18 @@ class QuotationCard extends ConsumerWidget {
           phone: phone,
           message: text,
         );
-        if (opened && context.mounted) return;
+        if (opened && context.mounted) {
+          _markQuotationSharedIfDraft(ref);
+          return;
+        }
       }
       await Clipboard.setData(ClipboardData(text: text));
       if (context.mounted) {
+        _markQuotationSharedIfDraft(ref);
         AppFeedback.show(
           context,
-          message: 'Teks penawaran disalin. Anda bisa kirim saat online.',
+          message:
+              'Teks penawaran disalin. Tempel ke WhatsApp atau aplikasi lain.',
           type: AppFeedbackType.info,
         );
       }
@@ -269,7 +268,17 @@ class QuotationCard extends ConsumerWidget {
         type: AppFeedbackType.warning,
       );
       await Clipboard.setData(ClipboardData(text: text));
+      _markQuotationSharedIfDraft(ref);
     }
+  }
+
+  void _markQuotationSharedIfDraft(WidgetRef ref) {
+    if (quotation.status != QuotationStatus.draft) return;
+    unawaited(
+      ref.read(quotationListProvider.notifier).update(
+            quotation.copyWith(status: QuotationStatus.sent),
+          ),
+    );
   }
 
   void _addItemsAndBrowse(BuildContext context, WidgetRef ref) {
@@ -313,9 +322,70 @@ class QuotationCard extends ConsumerWidget {
     });
   }
 
-  void _continueToCheckout(BuildContext context, WidgetRef ref) {
+  Future<void> _continueToCheckout(BuildContext context, WidgetRef ref) async {
     hapticTap();
-    context.push('/checkout', extra: quotation);
+    var toSend = quotation;
+
+    final offline = ref.read(isOfflineProvider);
+    if (offline) {
+      if (!context.mounted) return;
+      AppFeedback.show(
+        context,
+        message:
+            'Offline — checkout memakai harga tersimpan. Periksa lagi saat sudah online.',
+        type: AppFeedbackType.warning,
+      );
+      if (!context.mounted) return;
+      unawaited(context.push('/checkout', extra: toSend));
+      return;
+    }
+
+    if (quotationCatalogFilter(quotation, ref) == null) {
+      if (!context.mounted) return;
+      AppFeedback.show(
+        context,
+        message:
+            'Tidak bisa menyelaraskan harga (channel/brand tidak diketahui). Pilih filter di Beranda lalu coba lagi, atau lanjut dengan harga tersimpan.',
+        type: AppFeedbackType.warning,
+      );
+      if (!context.mounted) return;
+      unawaited(context.push('/checkout', extra: toSend));
+      return;
+    }
+
+    if (!context.mounted) return;
+    LoadingOverlay.show(
+      context,
+      title: 'Menyesuaikan harga…',
+      subtitle: 'Mengambil pricelist terbaru sebelum checkout',
+    );
+
+    try {
+      toSend = await refreshQuotationFromServer(quotation, ref);
+      await ref.read(quotationListProvider.notifier).update(toSend);
+      if (!context.mounted) return;
+      LoadingOverlay.dismiss(context);
+      AppFeedback.show(
+        context,
+        message:
+            'Harga diselaraskan dengan server. Lanjut checkout dengan harga terbaru.',
+        type: AppFeedbackType.success,
+      );
+      if (!context.mounted) return;
+      unawaited(context.push('/checkout', extra: toSend));
+    } catch (e, st) {
+      Log.error(e, st, reason: 'QuotationCard checkout pre-refresh');
+      if (!context.mounted) return;
+      LoadingOverlay.dismiss(context);
+      AppFeedback.show(
+        context,
+        message:
+            'Gagal menyelaraskan harga. Melanjutkan dengan harga tersimpan: $e',
+        type: AppFeedbackType.warning,
+      );
+      if (!context.mounted) return;
+      unawaited(context.push('/checkout', extra: quotation));
+    }
   }
 
   void _editCustomerInfo(BuildContext context, WidgetRef ref) {

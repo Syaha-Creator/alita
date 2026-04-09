@@ -5,7 +5,7 @@ void main() {
   group('QuotationStatus', () {
     test('label returns correct string', () {
       expect(QuotationStatus.draft.label, 'Draft');
-      expect(QuotationStatus.sent.label, 'Terkirim');
+      expect(QuotationStatus.sent.label, 'Dibagikan');
       expect(QuotationStatus.converted.label, 'Jadi SP');
     });
   });
@@ -86,6 +86,22 @@ void main() {
       expect(restored.customerPhone, '081234567890');
       expect(restored.status, QuotationStatus.sent);
       expect(restored.id, original.id);
+    });
+
+    test('shippingPhone2 roundtrips in JSON', () {
+      final original = QuotationModel(
+        id: 's2',
+        customerName: 'Toko',
+        isShippingSameAsCustomer: false,
+        shippingPhone: '081111111111',
+        shippingPhone2: '082222222222',
+        items: const [],
+        subtotal: 0,
+        totalPrice: 0,
+        createdAt: DateTime(2026, 3, 1),
+      );
+      final restored = QuotationModel.fromJson(original.toJson());
+      expect(restored.shippingPhone2, '082222222222');
     });
 
     test('fromJson handles missing optional fields', () {
