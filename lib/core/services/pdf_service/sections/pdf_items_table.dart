@@ -15,22 +15,22 @@ abstract final class PdfItemsTable {
   }) {
     final headers = isInternal
         ? [
-            'BRAND',
-            'ORDER',
+            'MEREK',
+            'NO. URUT',
             'NAMA BARANG',
-            'QTY',
-            'PRICELIST',
-            'END USER PRICE',
-            'DISCOUNT',
+            'JML',
+            'HARGA DAFTAR',
+            'HARGA EUP',
+            'DISKON',
             'HARGA TOTAL'
           ]
         : [
-            'BRAND',
-            'ORDER',
+            'MEREK',
+            'NO. URUT',
             'NAMA BARANG',
-            'QTY',
-            'PRICELIST',
-            'DISCOUNT',
+            'JML',
+            'HARGA DAFTAR',
+            'DISKON',
             'HARGA TOTAL'
           ];
 
@@ -72,20 +72,18 @@ abstract final class PdfItemsTable {
       final isMattress =
           itemType.contains('mattress') || itemType.contains('kasur');
       final isBonus = itemType.contains('bonus');
-      final isLeadItem =
-          isMattress || (!isBonus && previousWasBonus);
+      final isLeadItem = isMattress || (!isBonus && previousWasBonus);
       previousWasBonus = isBonus;
       final brandCell = isLeadItem ? brand : '';
       final orderCell = isLeadItem ? '${bundleOrderCounter++}' : '';
 
-      final displayName = takeAway ? '$name (TAKE AWAY)' : name;
+      final displayName = takeAway ? '$name (BAWA PULANG)' : name;
       final mainTextDisplay =
           _line1Desc1Desc2(d, isBonus: isBonus, takeAway: takeAway);
       final subtitleRaw = d['item_description']?.toString() ?? '';
       final trimmedSub = subtitleRaw.trim();
-      final subtitle = trimmedSub.isNotEmpty && trimmedSub != '-'
-          ? subtitleRaw
-          : null;
+      final subtitle =
+          trimmedSub.isNotEmpty && trimmedSub != '-' ? subtitleRaw : null;
       final mainLineForTwoRows = mainTextDisplay.isNotEmpty
           ? mainTextDisplay
           : (d['desc_1']?.toString().trim() ?? '');
@@ -97,9 +95,7 @@ abstract final class PdfItemsTable {
         isBold: isLeadItem,
         subtitle: subtitle,
         mainText: subtitle != null
-            ? (mainLineForTwoRows.isNotEmpty
-                ? mainLineForTwoRows
-                : displayName)
+            ? (mainLineForTwoRows.isNotEmpty ? mainLineForTwoRows : displayName)
             : null,
       );
 
@@ -108,8 +104,7 @@ abstract final class PdfItemsTable {
         final discInternal = eup - netPrice;
         final discWidget = _buildDiscountCellInternal(
             discInternal, d, discounts,
-            pricelist: eup,
-            hideStoreDiscountTiers: hideStoreDiscountTiers);
+            pricelist: eup, hideStoreDiscountTiers: hideStoreDiscountTiers);
         tableRows.add(pw.TableRow(children: [
           PdfHelpers.tc(brandCell, align: pw.TextAlign.center),
           PdfHelpers.tc(orderCell, align: pw.TextAlign.center),
@@ -208,7 +203,7 @@ abstract final class PdfItemsTable {
       }
     }
     if (takeAway && line.isNotEmpty) {
-      line = '$line (TAKE AWAY)';
+      line = '$line (BAWA PULANG)';
     }
     return line;
   }
@@ -246,8 +241,7 @@ abstract final class PdfItemsTable {
       child: pw.Text(name,
           style: pw.TextStyle(
               fontSize: 8,
-              fontWeight:
-                  isBold ? pw.FontWeight.bold : pw.FontWeight.normal)),
+              fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal)),
     );
   }
 

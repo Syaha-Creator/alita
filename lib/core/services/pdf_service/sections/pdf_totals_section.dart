@@ -75,7 +75,7 @@ abstract final class PdfTotalsSection {
               children: [
                 _totalCurrencyRow('Subtotal', subtotal),
                 _totalCurrencyRow('PPN 11%', ppn),
-                _totalCurrencyRow('Grand Total', grandTotal, isBold: true),
+                _totalCurrencyRow('Total', grandTotal, isBold: true),
                 if (!isSoIndirectPdf) ...[
                   ...paymentRows,
                   _totalCurrencyRow('Sisa Pembayaran', remaining, isBold: true),

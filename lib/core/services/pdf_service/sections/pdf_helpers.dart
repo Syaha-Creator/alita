@@ -37,6 +37,46 @@ abstract final class PdfHelpers {
     return [];
   }
 
+  /// [ship] true = penerima; null/false = pemesan (kompatibel data lama).
+  static bool _contactShipTrue(dynamic shipVal) {
+    if (shipVal == null) return false;
+    if (shipVal is bool) return shipVal;
+    final s = shipVal.toString().toLowerCase();
+    return s == 'true' || s == '1';
+  }
+
+  /// Gabungkan `order_letter_contacts` ke salinan [letter] untuk header PDF.
+  /// Set [pdf_phones_pemesan] / [pdf_phones_penerima] dan perbarui [phone] bila perlu.
+  static Map<String, dynamic> letterWithContactPhonesForPdf(
+    Map<String, dynamic> letter,
+    Map<String, dynamic> orderData,
+  ) {
+    final list = toListMap(orderData['order_letter_contacts']);
+    if (list.isEmpty) return Map<String, dynamic>.from(letter);
+
+    final pemesan = <String>[];
+    final penerima = <String>[];
+    for (final m in list) {
+      final p = m['phone']?.toString().trim() ?? '';
+      if (p.isEmpty) continue;
+      final bucket = _contactShipTrue(m['ship']) ? penerima : pemesan;
+      if (!bucket.contains(p)) bucket.add(p);
+    }
+
+    final out = Map<String, dynamic>.from(letter);
+    final pemesanStr = pemesan.join(' / ');
+    final penerimaStr = penerima.join(' / ');
+    if (pemesanStr.isNotEmpty) out['pdf_phones_pemesan'] = pemesanStr;
+    if (penerimaStr.isNotEmpty) out['pdf_phones_penerima'] = penerimaStr;
+
+    if (penerimaStr.isNotEmpty) {
+      out['phone'] = penerimaStr;
+    } else if (pemesanStr.isNotEmpty) {
+      out['phone'] = pemesanStr;
+    }
+    return out;
+  }
+
   static String? prettyDate(dynamic value) {
     final raw = value?.toString().trim();
     if (raw == null || raw.isEmpty || raw == '-') return null;

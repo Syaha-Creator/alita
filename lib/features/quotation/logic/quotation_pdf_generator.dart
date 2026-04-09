@@ -119,8 +119,7 @@ class QuotationPdfGenerator {
                 .map((l) => pw.Expanded(
                       child: pw.Container(
                         height: 45,
-                        padding:
-                            const pw.EdgeInsets.symmetric(horizontal: 4),
+                        padding: const pw.EdgeInsets.symmetric(horizontal: 4),
                         child: pw.Image(l, fit: pw.BoxFit.contain),
                       ),
                     ))
@@ -157,7 +156,7 @@ class QuotationPdfGenerator {
       ),
       child: pw.Center(
         child: pw.Text(
-          'PENAWARAN HARGA (QUOTATION)',
+          'SURAT PESANAN (OFFLINE)',
           style: pw.TextStyle(
             fontSize: 14,
             fontWeight: pw.FontWeight.bold,
@@ -214,13 +213,12 @@ class QuotationPdfGenerator {
           child: pw.Table(
             columnWidths: colWidths,
             children: [
-              QuotationPdfCellHelpers.infoRow(
-                  'No. Ref', _buildRefNumber(q)),
+              QuotationPdfCellHelpers.infoRow('No. Ref', _buildRefNumber(q)),
               QuotationPdfCellHelpers.infoRow('Tgl Kirim', requestDateText),
               QuotationPdfCellHelpers.infoRow(
                   'Telepon', phone.isNotEmpty ? phone : '-'),
-              QuotationPdfCellHelpers.infoRow('Email',
-                  q.customerEmail.isNotEmpty ? q.customerEmail : '-'),
+              QuotationPdfCellHelpers.infoRow(
+                  'Email', q.customerEmail.isNotEmpty ? q.customerEmail : '-'),
             ],
           ),
         ),
@@ -263,8 +261,7 @@ class QuotationPdfGenerator {
             ),
             pw.Column(
               children: [
-                QuotationPdfCellHelpers.totalCurrencyRow(
-                    'Subtotal', subtotal),
+                QuotationPdfCellHelpers.totalCurrencyRow('Subtotal', subtotal),
                 QuotationPdfCellHelpers.totalCurrencyRow('PPN 11%', ppn),
                 if (q.discount > 0)
                   QuotationPdfCellHelpers.totalCurrencyRow(
@@ -303,9 +300,9 @@ class QuotationPdfGenerator {
                   color: const PdfColor(0.73, 0.49, 0.0))),
           pw.SizedBox(height: 4),
           pw.Text(
-            'Dokumen ini adalah penawaran harga sementara dan bukan bukti '
-            'transaksi resmi. Harga dan ketersediaan stok dapat berubah '
-            'sewaktu-waktu.',
+            'Dokumen ini adalah surat pesanan (offline) dan ini adalah'
+            ' bukti transaksi sementara dan SC atau Sales akan mengirimkan'
+            ' Surat Pesanan Resmi kemudian setelah SP Resmi diterima.',
             style: const pw.TextStyle(
                 fontSize: 7.5, color: PdfColor(0.4, 0.4, 0.4)),
           ),

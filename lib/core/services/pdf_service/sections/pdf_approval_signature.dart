@@ -1,7 +1,6 @@
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
-import 'package:alitapricelist/core/enums/order_status.dart';
 import 'package:alitapricelist/core/utils/log.dart';
 
 import 'pdf_helpers.dart';
@@ -17,7 +16,7 @@ abstract final class PdfApprovalSignature {
 
     final byLevel = <String, List<Map<String, dynamic>>>{};
     for (final a in approvals) {
-      final level = a['approver_level']?.toString() ?? 'Unknown';
+      final level = a['approver_level']?.toString() ?? 'Tidak diketahui';
       byLevel.putIfAbsent(level, () => []).add(a);
     }
 
@@ -30,9 +29,8 @@ abstract final class PdfApprovalSignature {
           orElse: () => {});
       final isApproved = approved.isNotEmpty;
       final name = isApproved
-          ? (approved['approver_name']?.toString() ?? 'Unknown')
-          : (list.first['approver_name']?.toString() ??
-              OrderStatus.pending.apiValue);
+          ? (approved['approver_name']?.toString() ?? 'Tidak diketahui')
+          : (list.first['approver_name']?.toString() ?? 'Menunggu');
       final displayLevel = _mapLevel(level);
       final isUser = level.toLowerCase() == 'user';
 
@@ -72,7 +70,7 @@ abstract final class PdfApprovalSignature {
                                     color: PdfColors.green, width: 1.5),
                                 borderRadius: pw.BorderRadius.circular(4)),
                             child: pw.Center(
-                                child: pw.Text('APPROVED',
+                                child: pw.Text('DISETUJUI',
                                     style: pw.TextStyle(
                                         fontSize: 4.5,
                                         color: PdfColors.green,
@@ -85,7 +83,7 @@ abstract final class PdfApprovalSignature {
                                 color: PdfColors.orange, width: 1),
                             borderRadius: pw.BorderRadius.circular(4)),
                         child: pw.Center(
-                            child: pw.Text('PENDING',
+                            child: pw.Text('MENUNGGU',
                                 style: pw.TextStyle(
                                     fontSize: 5,
                                     color: PdfColors.orange,
@@ -122,7 +120,7 @@ abstract final class PdfApprovalSignature {
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text('APPROVAL',
+          pw.Text('PERSETUJUAN',
               style:
                   pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
           pw.SizedBox(height: 6),
@@ -140,7 +138,7 @@ abstract final class PdfApprovalSignature {
     required String salesCode,
     bool isSoIndirectPdf = false,
   }) {
-    final customerName = order['customer_name']?.toString() ?? 'No Name';
+    final customerName = order['customer_name']?.toString() ?? 'Tanpa nama';
 
     if (isSoIndirectPdf) {
       return _buildSignatureSection(
@@ -317,10 +315,14 @@ abstract final class PdfApprovalSignature {
         return 'Supervisor';
       case 'indirect leader':
         return 'RSM';
+      case 'spv':
+        return 'SPV';
+      case 'asm':
+        return 'ASM';
       case 'controller':
         return 'Controller';
       case 'analyst':
-        return 'Analyst';
+        return 'Analis';
       default:
         return level;
     }

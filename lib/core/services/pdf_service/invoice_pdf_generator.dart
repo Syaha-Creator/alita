@@ -130,8 +130,12 @@ class InvoicePdfGenerator {
     Map<String, dynamic> orderData, {
     required bool isInternal,
   }) async {
-    final letter =
+    final letterRaw =
         (orderData['order_letter'] ?? orderData) as Map<String, dynamic>;
+    final letter = PdfHelpers.letterWithContactPhonesForPdf(
+      Map<String, dynamic>.from(letterRaw),
+      orderData,
+    );
     final details = PdfHelpers.toListMap(orderData['order_letter_details']);
     final payments = PdfHelpers.toListMap(orderData['order_letter_payments']);
     final approvals = PdfHelpers.toListMap(
@@ -193,12 +197,11 @@ class InvoicePdfGenerator {
               hideStoreDiscountTiers: false),
           pw.SizedBox(height: 8),
           PdfTotalsSection.buildNotesAndTotals(letter, payments,
-              repaymentDate: tglPelunasan,
-              isSoIndirectPdf: isSoIndirectPdf),
+              repaymentDate: tglPelunasan, isSoIndirectPdf: isSoIndirectPdf),
           pw.SizedBox(height: 10),
           if (isInternal && approvalsForPdf.isNotEmpty) ...[
-            PdfApprovalSignature.buildApprovalTable(
-                approvalsForPdf, approveStamp, letter['created_at']?.toString()),
+            PdfApprovalSignature.buildApprovalTable(approvalsForPdf,
+                approveStamp, letter['created_at']?.toString()),
             pw.SizedBox(height: 10),
           ],
           PdfApprovalSignature.buildTermsAndSignatureSection(
@@ -218,11 +221,12 @@ class InvoicePdfGenerator {
   // LOGO ASSEMBLY (from cache)
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /// Channel `SO` / `S0` (indirect / Sleep Outlet): layout PDF khusus; stamp approval
-  /// baris "diskon toko" disaring lewat [approvalsForPdf], bukan menyembunyikan % di tabel.
+  /// Hanya channel **`SO`** yang memakai layout PDF **indirect** (Massindo header, blok penerima, dll.).
+  /// Channel **`S0`** diperlakukan seperti PDF **direct** (sama MM / tanpa channel).
+  /// Stamp approval: baris "diskon toko" tetap disaring lewat [approvalsForPdf] hanya saat indirect.
   static bool _isSoIndirectPdfChannel(String? channel) {
     final c = channel?.trim().toUpperCase() ?? '';
-    return c == 'S0' || c == 'SO';
+    return c == 'SO';
   }
 
   /// Baris diskon/approval bertipe diskon toko (level 5+ / label "Diskon Toko …").
@@ -231,15 +235,14 @@ class InvoicePdfGenerator {
     return level.startsWith('diskon toko');
   }
 
-  /// Channel `SO` / `S0` (Sleep Outlet / divisi terkait): header pakai teks, bukan logo SC.
+  /// Channel **`SO`** saja: header pakai teks Massindo, bukan logo Sleep Center. **`S0`** pakai logo seperti direct.
   static const _massindoHeaderText = 'PT Massindo Karya Prima';
 
   static PdfLogos _buildLogos(String? channel) {
     final useMassindoText = _isSoIndirectPdfChannel(channel);
     return PdfLogos(
       sleepCenter: useMassindoText ? null : PdfAssetCache.sleepCenterLogo,
-      sleepCenterReplacementText:
-          useMassindoText ? _massindoHeaderText : null,
+      sleepCenterReplacementText: useMassindoText ? _massindoHeaderText : null,
       others: PdfAssetCache.brandLogos,
     );
   }
@@ -281,7 +284,7 @@ class InvoicePdfGenerator {
         child: pw.Transform.rotate(
           angle: 0.785,
           child: pw.Text(
-            isApproved ? 'PAID' : 'UNPAID',
+            isApproved ? 'LUNAS' : 'BELUM LUNAS',
             style: pw.TextStyle(
               fontSize: 120,
               color: PdfColor(
@@ -408,6 +411,8 @@ class InvoicePdfGenerator {
       'sales_name': order.salesName,
       'order_letter_discounts': allDiscounts,
       'order_letter_approvals': approvalList,
+      if (order.orderLetterContacts.isNotEmpty)
+        'order_letter_contacts': order.orderLetterContacts,
     };
   }
 
