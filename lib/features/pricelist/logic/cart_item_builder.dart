@@ -11,8 +11,6 @@ import '../data/models/product.dart';
 class CartItemBuilder {
   CartItemBuilder._();
 
-  static const _kCustomItemNum = 'CUSTOM';
-
   /// Builds a fully-resolved [CartItem] from the current configurator state.
   ///
   /// The caller is responsible for validation (e.g. ensuring required lookups
@@ -250,7 +248,7 @@ class CartItemBuilder {
   }
 
   static String _resolveSku(bool isCustom, ItemLookup? lkp) {
-    if (isCustom) return _kCustomItemNum;
+    if (isCustom) return CartItem.customItemSku;
     return lkp?.itemNum ?? '';
   }
 

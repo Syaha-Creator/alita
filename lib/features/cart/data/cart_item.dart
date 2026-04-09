@@ -56,6 +56,9 @@ class CartBonusSnapshot with _$CartBonusSnapshot {
 class CartItem with _$CartItem {
   const CartItem._();
 
+  /// SKU sentinel untuk opsi custom di konfigurator (sama string di [CartItemBuilder]).
+  static const customItemSku = 'CUSTOM';
+
   /// True jika baris ini dari mode indirect (toko assign + diskon toko API).
   bool get isIndirectSale =>
       indirectStoreAddressNumber != null && indirectStoreAddressNumber! > 0;

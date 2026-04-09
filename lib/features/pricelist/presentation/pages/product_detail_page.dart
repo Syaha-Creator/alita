@@ -13,7 +13,9 @@ import '../../../../core/widgets/price_block.dart';
 import '../../data/models/item_lookup.dart';
 import '../../data/models/product.dart';
 import '../../logic/cart_item_builder.dart';
+import '../../logic/cart_item_snapshot_detail_restore.dart';
 import '../../logic/item_lookup_provider.dart';
+import '../../logic/product_display_image_provider.dart';
 import '../../logic/product_cart_validator.dart';
 import '../../logic/product_detail_utils.dart';
 import '../../logic/product_provider.dart';
@@ -114,10 +116,23 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
 
   bool get _isEditMode => widget.editItem != null && widget.cartIndex != null;
 
+  /// Master baris untuk resolver varian: dari snapshot keranjang bila edit,
+  /// supaya sibling / anchor sama dengan saat konfigurasi awal.
+  Product get _masterProductForResolver {
+    final edit = widget.editItem;
+    if (edit != null) {
+      return edit.masterProduct ?? edit.product;
+    }
+    return widget.product;
+  }
+
+  bool _didApplyCartSnapshotRestore = false;
+  bool _cartSnapshotRestorePostFrameScheduled = false;
+
   // ── ANCHOR ITEM DETECTION ──
 
   AnchorType get _anchor {
-    final p = widget.product;
+    final p = _masterProductForResolver;
     if (ProductDetailUtils.isComponentPresent(p.kasur)) return AnchorType.kasur;
     if (ProductDetailUtils.isComponentPresent(p.divan)) return AnchorType.divan;
     if (ProductDetailUtils.isComponentPresent(p.headboard)) {
@@ -128,7 +143,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
 
   bool get _isHeadboardProduct => _anchor == AnchorType.headboard;
   bool get _isSorongProduct => _anchor == AnchorType.sorong;
-  bool get _divanHasSet => widget.product.eupHeadboard > 0;
+  bool get _divanHasSet => _masterProductForResolver.eupHeadboard > 0;
 
   @override
   void initState() {
@@ -150,6 +165,12 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     final editItem = widget.editItem;
     if (editItem != null) {
       final p = editItem.product;
+      appliedDiscounts = [
+        if (editItem.discount1 > 0) editItem.discount1 / 100.0,
+        if (editItem.discount2 > 0) editItem.discount2 / 100.0,
+        if (editItem.discount3 > 0) editItem.discount3 / 100.0,
+        if (editItem.discount4 > 0) editItem.discount4 / 100.0,
+      ];
       selectedSize = p.ukuran.isNotEmpty ? p.ukuran : null;
       isKasurOnly = (_isHeadboardProduct || _isSorongProduct) ? true : !p.isSet;
       if (isKasurOnly) {
@@ -230,6 +251,17 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
           }
         }
       }
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant ProductDetailPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.editItem != widget.editItem ||
+        oldWidget.product.id != widget.product.id ||
+        oldWidget.cartIndex != widget.cartIndex) {
+      _didApplyCartSnapshotRestore = false;
+      _cartSnapshotRestorePostFrameScheduled = false;
     }
   }
 
@@ -315,8 +347,66 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
   double _calculateCascadingPrice(double basePrice, List<double> discounts) =>
       ProductDetailUtils.calculateCascadingPrice(basePrice, discounts);
 
+  void _applyCartItemSnapshotRestore() {
+    if (!mounted ||
+        _didApplyCartSnapshotRestore ||
+        widget.editItem == null) {
+      _cartSnapshotRestorePostFrameScheduled = false;
+      return;
+    }
+    final g = ref.read(itemLookupProvider).valueOrNull ?? {};
+    final r =
+        CartItemSnapshotDetailRestore.compute(widget.editItem!, g);
+    setState(() {
+      _didApplyCartSnapshotRestore = true;
+      _cartSnapshotRestorePostFrameScheduled = false;
+      if (r.kasurLookup != null) selectedKasurLookup = r.kasurLookup;
+      if (r.divanLookup != null) selectedDivanLookup = r.divanLookup;
+      if (r.headboardLookup != null) {
+        selectedHeadboardLookup = r.headboardLookup;
+      }
+      if (r.sorongLookup != null) {
+        selectedSorongLookup = r.sorongLookup;
+      }
+      if (r.isKasurCustom) _isKasurCustom = true;
+      if (r.isDivanCustom) _isDivanCustom = true;
+      if (r.isHeadboardCustom) _isHeadboardCustom = true;
+      if (r.isSorongCustom) _isSorongCustom = true;
+      if (r.customKasurNote.isNotEmpty) {
+        _customKasurCtrl.text = r.customKasurNote;
+      }
+      if (r.customDivanNote.isNotEmpty) {
+        _customDivanCtrl.text = r.customDivanNote;
+      }
+      if (r.customHeadboardNote.isNotEmpty) {
+        _customHbCtrl.text = r.customHeadboardNote;
+      }
+      if (r.customSorongNote.isNotEmpty) {
+        _customSorongCtrl.text = r.customSorongNote;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (widget.editItem != null &&
+        !_didApplyCartSnapshotRestore &&
+        !_cartSnapshotRestorePostFrameScheduled) {
+      ref.watch(itemLookupProvider).maybeWhen(
+            data: (grouped) {
+              _cartSnapshotRestorePostFrameScheduled = true;
+              WidgetsBinding.instance
+                  .addPostFrameCallback((_) => _applyCartItemSnapshotRestore());
+            },
+            error: (_, __) {
+              _cartSnapshotRestorePostFrameScheduled = true;
+              WidgetsBinding.instance
+                  .addPostFrameCallback((_) => _applyCartItemSnapshotRestore());
+            },
+            orElse: () {},
+          );
+    }
+
     final screenWidth = MediaQuery.of(context).size.width;
     final rawProducts = ref.watch(
       productListProvider.select((v) => v.valueOrNull?.products ?? _emptyProducts),
@@ -342,7 +432,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     }
 
     final v = ProductVariantResolver.resolve(
-      masterProduct: widget.product,
+      masterProduct: _masterProductForResolver,
       rawProducts: rawProducts,
       anchor: initialAnchor,
       isKasurOnly: isKasurOnly,
@@ -461,9 +551,10 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
               slivers: [
                 ProductImageCarousel(
                   screenWidth: screenWidth,
-                  baseImageUrl: widget.product.imageUrl,
+                  imageUrls: [
+                    ref.watch(productDisplayImageProvider(widget.product)),
+                  ],
                   productId: widget.product.id,
-                  matchedSpec: matchedSpec,
                   controller: _imagePageController,
                   currentIndex: _currentImageIndex,
                   onPageChanged: (i) => setState(() => _currentImageIndex = i),
@@ -997,7 +1088,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
 
     final snapshotItem = CartItemBuilder.build(
       activeProduct: activeProduct,
-      masterProduct: widget.product,
+      masterProduct: _masterProductForResolver,
       effectiveSize: effectiveSize,
       effectiveDivan: effectiveDivan,
       effectiveHeadboard: effectiveHeadboard,
