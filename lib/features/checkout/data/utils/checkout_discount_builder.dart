@@ -17,6 +17,8 @@ class CheckoutDiscountBuilder {
     required double discount2,
     required double discount3,
     required double discount4,
+    /// Indirect sales: level-2 `approver_level` harus **ASM** (bukan SPV).
+    bool useAsmSecondApprover = false,
   }) {
     final discounts = <Map<String, dynamic>>[];
     final now = DateTime.now().toIso8601String();
@@ -33,14 +35,14 @@ class CheckoutDiscountBuilder {
       'approved_at': now,
     });
 
-    // Level 2 — Supervisor (selalu disertakan, menunggu approval)
+    // Level 2 — SPV (direct) atau ASM (indirect); selalu disertakan jika dipilih.
     if (selectedSpv != null) {
       discounts.add({
         'discount': discount2.toString(),
         'approver': selectedSpv.id,
         'approver_name': selectedSpv.fullName,
         'approver_level_id': 2,
-        'approver_level': 'SPV',
+        'approver_level': useAsmSecondApprover ? 'ASM' : 'SPV',
         'approver_work_tittle': selectedSpv.jobLevelName,
         'approved': null,
         'approved_at': null,

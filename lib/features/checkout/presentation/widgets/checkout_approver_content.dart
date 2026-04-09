@@ -5,7 +5,7 @@ import '../../../../core/widgets/form_field_label.dart';
 import '../../data/models/approver_model.dart';
 import 'searchable_dropdown_field.dart';
 
-/// Inner content of the Approval card: SPV dropdown + optional Manager dropdown.
+/// Inner content of the Approval card: SPV (direct) atau ASM (indirect) + opsional Manager.
 ///
 /// Extracted from [CheckoutPage] build method to reduce file size.
 /// Receives all data via constructor — no implicit state access.
@@ -14,6 +14,8 @@ class CheckoutApproverContent extends StatelessWidget {
   final Approver? selectedSpv;
   final Approver? selectedManager;
   final bool requiresManager;
+  /// Sales indirect: label dropdown tingkat pertama = ASM, bukan SPV.
+  final bool isIndirectCheckout;
   final ValueChanged<Approver?> onSpvChanged;
   final ValueChanged<Approver?> onManagerChanged;
 
@@ -23,6 +25,7 @@ class CheckoutApproverContent extends StatelessWidget {
     required this.selectedSpv,
     required this.selectedManager,
     required this.requiresManager,
+    this.isIndirectCheckout = false,
     required this.onSpvChanged,
     required this.onManagerChanged,
   });
@@ -33,8 +36,10 @@ class CheckoutApproverContent extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SearchableDropdownField<Approver>(
-          label: 'Supervisor (SPV)',
-          hint: 'Pilih SPV',
+          label: isIndirectCheckout
+              ? 'Area Sales Manager (ASM)'
+              : 'Supervisor (SPV)',
+          hint: isIndirectCheckout ? 'Pilih ASM' : 'Pilih SPV',
           selectedValue: selectedSpv,
           items: approvers,
           itemAsString: (a) => a.displayLabel,

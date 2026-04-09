@@ -3,7 +3,7 @@ import 'dart:convert';
 import '../../../../core/services/api_client.dart';
 import '../models/approver_model.dart';
 
-/// Fetches the list of approvers (SPV / Manager) for a given company + area
+/// Fetches the list of approvers (SPV / ASM / Manager) for a given company + area
 /// from the `approval_sales` endpoint.
 class ApprovalService {
   static final ApiClient _api = ApiClient.instance;

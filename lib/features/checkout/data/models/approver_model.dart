@@ -1,4 +1,4 @@
-/// Represents a single approver (SPV / Manager) returned by the approval_sales API.
+/// Represents a single approver (SPV / ASM / Manager) returned by the approval_sales API.
 class Approver {
   final int id;
   final String userName;

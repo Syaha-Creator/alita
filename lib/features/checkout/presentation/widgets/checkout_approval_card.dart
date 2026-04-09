@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/section_card.dart';
 
-/// Kartu "Persetujuan Surat Pesanan": loading, error+retry, atau [child] (dropdown SPV/Manager).
+/// Kartu "Persetujuan Surat Pesanan": loading, error+retry, atau [child] (dropdown SPV/ASM + Manager).
 class CheckoutApprovalCard extends StatelessWidget {
   final bool isLoading;
   final bool hasError;

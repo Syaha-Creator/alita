@@ -188,7 +188,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         approvers: data,
         isLoadingApprovers: false,
         approversError: data.isEmpty
-            ? 'Belum ada SPV atau Manager yang terdaftar untuk perusahaan dan area Anda di sistem persetujuan. Hubungi administrator untuk mengatur daftar approver.'
+            ? 'Belum ada Supervisor (SPV), Area Sales Manager (ASM), atau Manager yang terdaftar untuk perusahaan dan area Anda di sistem persetujuan. Hubungi administrator untuk mengatur daftar approver.'
             : null,
         approversErrorTitle: data.isEmpty
             ? 'Tidak ada atasan yang cocok'

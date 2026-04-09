@@ -611,6 +611,7 @@ class CheckoutOrderService {
           discount2: item.discount2,
           discount3: item.discount3,
           discount4: item.discount4,
+          useAsmSecondApprover: item.isIndirectSale,
         );
         if (item.isIndirectSale &&
             item.indirectStoreDiscounts.isNotEmpty &&
@@ -632,7 +633,9 @@ class CheckoutOrderService {
           final spv = selectedSpv;
           if (spv == null) {
             throw StateError(
-              'Baris FOC membutuhkan SPV yang dipilih (validasi checkout harus memastikan ini).',
+              item.isIndirectSale
+                  ? 'Baris FOC membutuhkan ASM yang dipilih (validasi checkout harus memastikan ini).'
+                  : 'Baris FOC membutuhkan SPV yang dipilih (validasi checkout harus memastikan ini).',
             );
           }
           return CheckoutDiscountBuilder.buildFocVoucherRow(selectedSpv: spv);
@@ -724,7 +727,7 @@ class CheckoutOrderService {
           'desc_1': cleanDesc1(p.name, ukuran),
           'desc_2': ukuran,
           'brand': brand,
-          'unit_price': p.plKasur * item.quantity,
+          'unit_price': p.plKasur,
           'customer_price': kasurCustomer,
           'net_price': kasurNet,
           'qty': item.quantity,
@@ -782,7 +785,7 @@ class CheckoutOrderService {
           'desc_1': cleanDesc1(p.divan, ukuran),
           'desc_2': ukuran,
           'brand': brand,
-          'unit_price': p.plDivan * item.quantity,
+          'unit_price': p.plDivan,
           'customer_price': divanCustomer,
           'net_price': divanNet,
           'qty': item.quantity,
@@ -840,7 +843,7 @@ class CheckoutOrderService {
           'desc_1': cleanDesc1(p.headboard, ukuran),
           'desc_2': ukuran,
           'brand': brand,
-          'unit_price': p.plHeadboard * item.quantity,
+          'unit_price': p.plHeadboard,
           'customer_price': hbCustomer,
           'net_price': hbNet,
           'qty': item.quantity,
@@ -898,7 +901,7 @@ class CheckoutOrderService {
           'desc_1': cleanDesc1(p.sorong, ukuran),
           'desc_2': ukuran,
           'brand': brand,
-          'unit_price': p.plSorong * item.quantity,
+          'unit_price': p.plSorong,
           'customer_price': srCustomer,
           'net_price': srNet,
           'qty': item.quantity,
@@ -932,8 +935,8 @@ class CheckoutOrderService {
           discount3: item.discount3,
           discount4: item.discount4,
         );
-        final unitPlFallback =
-            (p.pricelist > 0 ? p.pricelist : p.price) * item.quantity;
+        final unitPlPerUnit = p.pricelist > 0 ? p.pricelist : p.price;
+        final unitPlLineTotal = unitPlPerUnit * item.quantity;
         var fbCustomer = prices.customerPrice;
         var fbNet = _netLineAfterIndirectStoreDiscounts(
           isIndirectLine: isIndirectLine,
@@ -942,7 +945,7 @@ class CheckoutOrderService {
           netLineAfterSalesDiscounts: prices.netPrice,
         );
         if (item.isFocVoucherActive) {
-          fbCustomer = unitPlFallback;
+          fbCustomer = unitPlLineTotal;
           fbNet = 0;
         }
         final fallbackSku = item.kasurSku.isNotEmpty
@@ -959,7 +962,7 @@ class CheckoutOrderService {
           'desc_1': cleanDesc1(p.name, ukuran),
           'desc_2': ukuran,
           'brand': brand,
-          'unit_price': unitPlFallback,
+          'unit_price': unitPlPerUnit,
           'customer_price': fbCustomer,
           'net_price': fbNet,
           'qty': item.quantity,
@@ -975,8 +978,8 @@ class CheckoutOrderService {
 
       // 6. BONUS
       // bonus.qty is per-unit; multiply by item.quantity for actual total.
-      // unit_price & customer_price follow the same pattern as main items:
-      //   pricelist_per_unit × row_qty  (e.g. p.plKasur * item.quantity).
+      // unit_price = harga pricelist per unit (murni, tanpa × qty baris).
+      // customer_price = total baris (pricelist bonus × qty segmen).
       for (final bonus in item.bonusSnapshots) {
         final bonusEffQty = bonus.qty * item.quantity;
         final bonusPlPrice = BonusPriceResolver.resolvePlPrice(p, bonus.name);
@@ -1011,7 +1014,7 @@ class CheckoutOrderService {
             'desc_1': bonus.name,
             'desc_2': 'Bonus',
             'brand': brand,
-            'unit_price': bonusPlPrice * segment.qty,
+            'unit_price': bonusPlPrice,
             'customer_price': bonusPlPrice * segment.qty,
             'net_price': bonusNet,
             'qty': segment.qty,
