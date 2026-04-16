@@ -16,6 +16,8 @@ class CheckoutOrderSummary extends StatelessWidget {
       onTakeAwayToggled;
   final void Function(int itemIndex, CartBonusSnapshot bonus, int qty)
       onTakeAwayQtyChanged;
+  final bool Function(int itemIndex) lineTakeAway;
+  final void Function(int itemIndex, bool bawaSendiri) onLineTakeAwayChanged;
 
   const CheckoutOrderSummary({
     super.key,
@@ -25,6 +27,8 @@ class CheckoutOrderSummary extends StatelessWidget {
     required this.currentTakeAwayQty,
     required this.onTakeAwayToggled,
     required this.onTakeAwayQtyChanged,
+    required this.lineTakeAway,
+    required this.onLineTakeAwayChanged,
   });
 
   @override
@@ -50,6 +54,9 @@ class CheckoutOrderSummary extends StatelessWidget {
                     onTakeAwayToggled(index, b, checked),
                 onTakeAwayQtyChanged: (b, qty) =>
                     onTakeAwayQtyChanged(index, b, qty),
+                lineTakeAway: lineTakeAway(index),
+                onLineTakeAwayChanged: (v) =>
+                    onLineTakeAwayChanged(index, v),
               ),
             ),
           );

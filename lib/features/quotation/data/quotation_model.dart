@@ -48,11 +48,22 @@ class QuotationModel {
   final String shippingRegionKecamatan;
   final String shippingRegionText;
 
+  /// Indirect / kirim ke alamat lain: email penerima (validasi opsional di checkout).
+  final String receiverEmail;
+
   // ── Delivery ──
   /// ISO-8601 tanggal SP saat simpan draft (opsional; lama tanpa field ini).
   final String? orderDate;
   final String? requestDate;
+  /// Draft lama: satu flag untuk semua baris.
   final bool isTakeAway;
+  /// Bawa sendiri per baris keranjang (panjang = [items].length). Kosong = tidak ada snapshot.
+  final List<bool> lineTakeAway;
+  /// Indirect: No. PO opsional untuk `order_letters.no_po`.
+  final String indirectNoPo;
+  /// Split bonus take-away (baris kurir pabrik). Kunci = `index_sku` / `index_name` seperti di checkout.
+  final List<String> bonusTakeAwayCheckedKeys;
+  final Map<String, int> bonusTakeAwayQtyByKey;
   final String postage;
   final String scCode;
 
@@ -92,9 +103,14 @@ class QuotationModel {
     this.shippingRegionKota = '',
     this.shippingRegionKecamatan = '',
     this.shippingRegionText = '',
+    this.receiverEmail = '',
     this.orderDate,
     this.requestDate,
     this.isTakeAway = false,
+    this.lineTakeAway = const [],
+    this.indirectNoPo = '',
+    this.bonusTakeAwayCheckedKeys = const [],
+    this.bonusTakeAwayQtyByKey = const {},
     this.postage = '',
     this.scCode = '',
     this.workPlaceName = '',
@@ -141,9 +157,14 @@ class QuotationModel {
     String? shippingRegionKota,
     String? shippingRegionKecamatan,
     String? shippingRegionText,
+    String? receiverEmail,
     String? orderDate,
     String? requestDate,
     bool? isTakeAway,
+    List<bool>? lineTakeAway,
+    String? indirectNoPo,
+    List<String>? bonusTakeAwayCheckedKeys,
+    Map<String, int>? bonusTakeAwayQtyByKey,
     String? postage,
     String? scCode,
     String? workPlaceName,
@@ -180,9 +201,16 @@ class QuotationModel {
       shippingRegionKecamatan:
           shippingRegionKecamatan ?? this.shippingRegionKecamatan,
       shippingRegionText: shippingRegionText ?? this.shippingRegionText,
+      receiverEmail: receiverEmail ?? this.receiverEmail,
       orderDate: orderDate ?? this.orderDate,
       requestDate: requestDate ?? this.requestDate,
       isTakeAway: isTakeAway ?? this.isTakeAway,
+      lineTakeAway: lineTakeAway ?? this.lineTakeAway,
+      indirectNoPo: indirectNoPo ?? this.indirectNoPo,
+      bonusTakeAwayCheckedKeys:
+          bonusTakeAwayCheckedKeys ?? this.bonusTakeAwayCheckedKeys,
+      bonusTakeAwayQtyByKey:
+          bonusTakeAwayQtyByKey ?? this.bonusTakeAwayQtyByKey,
       postage: postage ?? this.postage,
       scCode: scCode ?? this.scCode,
       workPlaceName: workPlaceName ?? this.workPlaceName,
@@ -218,9 +246,17 @@ class QuotationModel {
         'shippingRegionKota': shippingRegionKota,
         'shippingRegionKecamatan': shippingRegionKecamatan,
         'shippingRegionText': shippingRegionText,
+        if (receiverEmail.isNotEmpty) 'receiverEmail': receiverEmail,
         'orderDate': orderDate,
         'requestDate': requestDate,
         'isTakeAway': isTakeAway,
+        if (lineTakeAway.length == items.length && items.isNotEmpty)
+          'lineTakeAway': lineTakeAway,
+        if (indirectNoPo.isNotEmpty) 'indirectNoPo': indirectNoPo,
+        if (bonusTakeAwayCheckedKeys.isNotEmpty)
+          'bonusTakeAwayCheckedKeys': bonusTakeAwayCheckedKeys,
+        if (bonusTakeAwayQtyByKey.isNotEmpty)
+          'bonusTakeAwayQtyByKey': bonusTakeAwayQtyByKey,
         'postage': postage,
         'scCode': scCode,
         'workPlaceName': workPlaceName,
@@ -236,6 +272,39 @@ class QuotationModel {
       };
 
   factory QuotationModel.fromJson(Map<String, dynamic> json) {
+    final items = (json['items'] as List<dynamic>)
+        .map((e) => CartItem.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
+    final bonusQtyRaw = json['bonusTakeAwayQtyByKey'];
+    final bonusQtyParsed = <String, int>{};
+    if (bonusQtyRaw is Map) {
+      bonusQtyRaw.forEach((k, v) {
+        final key = k.toString();
+        if (v is int) {
+          bonusQtyParsed[key] = v;
+        } else if (v is num) {
+          bonusQtyParsed[key] = v.toInt();
+        } else {
+          bonusQtyParsed[key] = int.tryParse(v.toString()) ?? 0;
+        }
+      });
+    }
+    final bonusCheckedRaw = json['bonusTakeAwayCheckedKeys'];
+    final bonusCheckedParsed = bonusCheckedRaw is List
+        ? bonusCheckedRaw.map((e) => e.toString()).toList()
+        : const <String>[];
+    final legacyTakeAway = json['isTakeAway'] as bool? ?? false;
+    final rawLineTakeAway = json['lineTakeAway'] as List<dynamic>?;
+    final lineTakeAwayParsed = List<bool>.generate(
+      items.length,
+      (i) {
+        if (rawLineTakeAway != null && i < rawLineTakeAway.length) {
+          return rawLineTakeAway[i] as bool;
+        }
+        return legacyTakeAway;
+      },
+    );
+
     return QuotationModel(
       id: json['id'] as String,
       customerName: json['customerName'] as String? ?? '',
@@ -259,16 +328,19 @@ class QuotationModel {
       shippingRegionKecamatan:
           json['shippingRegionKecamatan'] as String? ?? '',
       shippingRegionText: json['shippingRegionText'] as String? ?? '',
+      receiverEmail: json['receiverEmail'] as String? ?? '',
       orderDate: json['orderDate'] as String?,
       requestDate: json['requestDate'] as String?,
-      isTakeAway: json['isTakeAway'] as bool? ?? false,
+      isTakeAway: legacyTakeAway,
+      lineTakeAway: lineTakeAwayParsed,
+      indirectNoPo: json['indirectNoPo'] as String? ?? '',
+      bonusTakeAwayCheckedKeys: bonusCheckedParsed,
+      bonusTakeAwayQtyByKey: bonusQtyParsed,
       postage: json['postage'] as String? ?? '',
       scCode: json['scCode'] as String? ?? '',
       workPlaceName: json['workPlaceName'] as String? ?? '',
       salesName: json['salesName'] as String? ?? '',
-      items: (json['items'] as List<dynamic>)
-          .map((e) => CartItem.fromJson(Map<String, dynamic>.from(e as Map)))
-          .toList(),
+      items: items,
       subtotal: (json['subtotal'] as num?)?.toDouble() ?? 0,
       discount: (json['discount'] as num?)?.toDouble() ?? 0,
       totalPrice: (json['totalPrice'] as num?)?.toDouble() ?? 0,

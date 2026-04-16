@@ -119,6 +119,21 @@ class ApprovalDecisionService {
     return false;
   }
 
+  /// Setiap baris [OrderDiscount] pada detail pesanan berstatus disetujui, atau
+  /// tidak ada baris diskon (timeline kosong). Dipakai sebelum PDF Surat Pesanan
+  /// internal; pemanggil melewati pengecekan bila gate bypass PDF internal true
+  /// (lihat `InternalPdfAccess`).
+  static bool orderHistoryAllItemDiscountsApproved(OrderHistory order) {
+    for (final detail in order.details) {
+      for (final disc in detail.discounts) {
+        if (OrderStatusX.fromRaw(disc.approvedStatus) != OrderStatus.approved) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
   static int? _orderLetterIdFromData(Map<String, dynamic> orderData) {
     final letter = orderData['order_letter'];
     if (letter is! Map) return null;

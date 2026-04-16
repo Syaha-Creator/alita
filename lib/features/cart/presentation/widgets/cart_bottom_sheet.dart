@@ -56,6 +56,10 @@ class CartBottomSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final cartItems = ref.watch(cartProvider);
 
+    ref.listen(cartProvider, (previous, next) {
+      ref.read(selectedCartItemIdsProvider.notifier).syncWithCart(next);
+    });
+
     return SizedBox(
       height: MediaQuery.of(context).size.height * 0.75,
       child: SheetScaffold(

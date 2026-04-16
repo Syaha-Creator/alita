@@ -208,6 +208,7 @@
 				9705A1C41CF9048500538489 /* Embed Frameworks */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 				6B18859A62E02BBDC5BBA1DE /* [CP] Embed Pods Frameworks */,
+				E2A91D11B4D04038A1B50101 /* Generate ScreenPreventerKit dSYM */,
 				29E386FA75677CFE0BAFCC5B /* [CP] Copy Pods Resources */,
 				18D4F41E2F6CF10C00136DDB /* Run Script (New) */,
 				0DA55D65345CB37CE57DBA48 /* FlutterFire: "flutterfire upload-crashlytics-symbols" */,
@@ -373,6 +374,25 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		E2A91D11B4D04038A1B50101 /* Generate ScreenPreventerKit dSYM */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Generate ScreenPreventerKit dSYM";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/bin/bash \"${SRCROOT}/scripts/generate_screen_preventer_dsym.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
 		9740EEB61CF901F6004384FC /* Run Script (default) */ = {

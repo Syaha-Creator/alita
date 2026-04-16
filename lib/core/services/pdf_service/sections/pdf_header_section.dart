@@ -101,6 +101,8 @@ abstract final class PdfHeaderSection {
         ? '-'
         : (noPoRaw.toString().trim().isEmpty ? '-' : noPoRaw.toString().trim());
 
+    final tglKirim = PdfHelpers.prettyDate(order['request_date']);
+
     final pemesanPhones = order['pdf_phones_pemesan']?.toString().trim() ?? '';
     final penerimaPhones =
         order['pdf_phones_penerima']?.toString().trim() ?? '';
@@ -109,7 +111,7 @@ abstract final class PdfHeaderSection {
         : (order['phone']?.toString() ?? '-');
 
     if (isSoIndirectPdf) {
-      // Dua band: (1) toko ↔ SP/PO/tgl kirim — (2) penerima ↔ telepon/email
+      // Dua band: (1) toko ↔ SP/PO/(tgl kirim bila ada) — (2) penerima ↔ telepon/email
       // sehingga baris pertama kontak kanan sejajar dengan "Nama Penerima".
       return pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.stretch,
@@ -138,10 +140,7 @@ abstract final class PdfHeaderSection {
                   [
                     _infoRow('No. SP.', order['no_sp']?.toString() ?? '-'),
                     _infoRow('No. PO', noPoText),
-                    _infoRow(
-                      'Tgl Kirim',
-                      PdfHelpers.prettyDate(order['request_date']) ?? '-',
-                    ),
+                    if (tglKirim != null) _infoRow('Tgl Kirim', tglKirim),
                   ],
                   labelColumnWidth: _labelColRight,
                 ),
@@ -207,10 +206,7 @@ abstract final class PdfHeaderSection {
         pemesanPhones.isNotEmpty && penerimaPhones.isNotEmpty;
     final rightRows = <pw.TableRow>[
       _infoRow('No. SP.', order['no_sp']?.toString() ?? '-'),
-      _infoRow(
-        'Tgl Kirim',
-        PdfHelpers.prettyDate(order['request_date']) ?? '-',
-      ),
+      if (tglKirim != null) _infoRow('Tgl Kirim', tglKirim),
       if (hasPemisahTelepon) ...[
         _infoRow('Telepon pemesan', pemesanPhones),
         _infoRow('Telepon penerima', penerimaPhones),

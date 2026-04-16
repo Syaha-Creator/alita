@@ -50,7 +50,15 @@ abstract final class QuotationSaveHandler {
     // Delivery
     required DateTime orderDate,
     required DateTime? requestDate,
-    required bool isTakeAway,
+    /// Panjang harus sama dengan [cartItems]. Per baris: bawa sendiri.
+    required List<bool> lineTakeAway,
+    /// Indirect / alamat lain: email penerima (field checkout).
+    required String receiverEmail,
+    /// Indirect: No. PO opsional.
+    required String indirectNoPo,
+    /// Split bonus take-away (kunci `index_sku` seperti di checkout).
+    required List<String> bonusTakeAwayCheckedKeys,
+    required Map<String, int> bonusTakeAwayQtyByKey,
     required String postage,
     required String scCode,
     // Totals
@@ -60,6 +68,11 @@ abstract final class QuotationSaveHandler {
     required String notes,
   }) async {
     if (cartItems.isEmpty) return false;
+
+    final alignedLineTakeAway = List<bool>.generate(
+      cartItems.length,
+      (i) => i < lineTakeAway.length ? lineTakeAway[i] : false,
+    );
 
     if (customerName.isEmpty) {
       AppFeedback.show(context,
@@ -99,9 +112,15 @@ abstract final class QuotationSaveHandler {
       shippingRegionKota: shippingRegionKota ?? '',
       shippingRegionKecamatan: shippingRegionKecamatan ?? '',
       shippingRegionText: shippingRegionText,
+      receiverEmail: receiverEmail,
       orderDate: orderDate.toIso8601String(),
       requestDate: requestDate?.toIso8601String(),
-      isTakeAway: isTakeAway,
+      isTakeAway: alignedLineTakeAway.isNotEmpty &&
+          alignedLineTakeAway.every((v) => v),
+      lineTakeAway: alignedLineTakeAway,
+      indirectNoPo: indirectNoPo,
+      bonusTakeAwayCheckedKeys: bonusTakeAwayCheckedKeys,
+      bonusTakeAwayQtyByKey: bonusTakeAwayQtyByKey,
       postage: postage,
       scCode: scCode,
       workPlaceName: profile?.workPlaceName ?? '',

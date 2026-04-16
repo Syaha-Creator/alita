@@ -8,6 +8,7 @@ import '../../../../core/widgets/price_block.dart';
 import '../../../../core/widgets/quantity_stepper.dart';
 import '../../data/cart_item.dart';
 import '../../logic/cart_provider.dart';
+import '../../../pricelist/data/models/pricelist_custom_line.dart';
 import '../../../pricelist/data/models/product.dart';
 import '../../../pricelist/logic/product_display_image_provider.dart';
 import '../../../../core/utils/product_image_utils.dart';
@@ -48,8 +49,13 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
     final thumbUrl = ref.watch(productDisplayImageProvider(p));
     final thumbAsset = thumbUrl.startsWith(ProductImageUtils.assetUriPrefix);
     final isFoc = item.isFocVoucherActive;
+    final displayUnitPrice = isFoc
+        ? 0.0
+        : (p.isPricelistCustomCartLine
+            ? item.effectiveUnitSellingPrice
+            : p.price);
     final hasDiscount =
-        !isFoc && p.pricelist > p.price && p.pricelist > 0;
+        !isFoc && p.pricelist > displayUnitPrice && p.pricelist > 0;
     final tipe = _resolveTypeLabel(p);
     final configText = p.ukuran.isNotEmpty && !p.name.contains(p.ukuran)
         ? '${p.ukuran} • $tipe'
@@ -69,7 +75,17 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
       await Future<void>.delayed(Duration.zero);
       if (!anchor.mounted) return;
 
-      await router.push('/product/${p.id}', extra: extra);
+      if (p.isPricelistCustomCartLine) {
+        await router.push(
+          '/pricelist/custom_line',
+          extra: <String, dynamic>{
+            'editItem': item,
+            'cartIndex': index,
+          },
+        );
+      } else {
+        await router.push('/product/${p.id}', extra: extra);
+      }
       if (!anchor.mounted) return;
       widget.onReturnFromProductDetail();
     }
@@ -177,7 +193,7 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
                           children: [
                             Flexible(
                               child: PriceBlock(
-                                price: isFoc ? 0 : p.price,
+                                price: displayUnitPrice,
                                 originalPrice: isFoc
                                     ? (p.pricelist > 0 ? p.pricelist : p.price)
                                     : (hasDiscount ? p.pricelist : null),
@@ -365,6 +381,10 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
   /// Builds the primary SKU label for the card header.
   /// Format: `item_number (Jenis Kain - Warna Kain)` or just `item_number`.
   static String _primarySkuLabel(CartItem item) {
+    if (item.product.isPricelistCustomCartLine) {
+      return '—';
+    }
+
     bool present(String f) {
       final v = f.trim().toLowerCase();
       return v.isNotEmpty && !v.startsWith('tanpa');

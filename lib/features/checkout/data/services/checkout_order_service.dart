@@ -325,17 +325,21 @@ class CheckoutOrderService {
 
   // ── EUP Markup / Discount resolver ──────────────────────────
 
-  /// Resolves the correct `customer_price` and `net_price` for a component.
+  /// Resolves EUP per unit + **total baris** setelah diskon sales (belum indirect).
+  ///
+  /// API `order_letter_details` mengharapkan **`customer_price` dan `net_price`
+  /// per unit**; total baris = nilai itu × [qty] di payload.
   ///
   /// [inputPrice] = user-configured EUP (from `product.eup*`).
   /// [originalEup] = catalog EUP before user discount (from `originalEup*`
   ///   field on CartItem, with cascading fallback to masterProduct/product).
   ///
-  /// - **Markup** (inputPrice > originalEup): customer_price = inputPrice,
-  ///   net_price = calculated from inputPrice with cascading discounts.
-  /// - **Discount** (inputPrice <= originalEup): customer_price = originalEup,
-  ///   net_price = calculated from originalEup with cascading discounts.
-  static ({double customerPrice, double netPrice}) _resolveComponentPrices({
+  /// - **Markup** (inputPrice > originalEup): basis customer per unit = inputPrice.
+  /// - **Discount** (inputPrice <= originalEup): basis customer per unit = originalEup.
+  ///
+  /// [netPriceLineTotal] = basis × qty lalu diskon sales bertingkat (internal).
+  static ({double customerPricePerUnit, double netPriceLineTotal})
+      _resolveComponentPrices({
     required double inputPrice,
     required double originalEup,
     required int qty,
@@ -344,15 +348,15 @@ class CheckoutOrderService {
     required double discount3,
     required double discount4,
   }) {
-    final double customerPrice;
+    final double customerPricePerUnit;
     if (inputPrice > originalEup) {
-      customerPrice = inputPrice;
+      customerPricePerUnit = inputPrice;
     } else {
-      customerPrice = originalEup;
+      customerPricePerUnit = originalEup;
     }
 
-    final netPrice = CheckoutNetPriceCalculator.calculate(
-      customerPrice: customerPrice,
+    final netPriceLineTotal = CheckoutNetPriceCalculator.calculate(
+      customerPrice: customerPricePerUnit,
       qty: qty,
       discount1: discount1,
       discount2: discount2,
@@ -360,7 +364,17 @@ class CheckoutOrderService {
       discount4: discount4,
     );
 
-    return (customerPrice: customerPrice * qty, netPrice: netPrice);
+    return (
+      customerPricePerUnit: customerPricePerUnit,
+      netPriceLineTotal: netPriceLineTotal,
+    );
+  }
+
+  /// Konversi total baris (setelah diskon sales + indirect toko) → **per unit**
+  /// untuk field API `net_price`.
+  static double _apiNetPricePerUnit(double netLineTotal, int qty) {
+    if (qty <= 0) return double.parse(netLineTotal.toStringAsFixed(2));
+    return double.parse((netLineTotal / qty).toStringAsFixed(2));
   }
 
   /// Indirect: [customer_price] mengikuti direct (EUP + logika markup/original).
@@ -533,7 +547,7 @@ class CheckoutOrderService {
     required Map<String, ItemLookup> lookupByItemNum,
     required Approver? selectedSpv,
     required Approver? selectedManager,
-    required bool globalIsTakeAway,
+    required bool Function(int itemIndex) lineIsTakeAway,
     required bool Function(int itemIndex, CartBonusSnapshot)
         isBonusTakeAwayChecked,
     required int Function(int itemIndex, CartBonusSnapshot) currentTakeAwayQty,
@@ -551,12 +565,12 @@ class CheckoutOrderService {
     final String analystName = analystData?['full_name'] as String? ?? '';
     final String analystTitle = analystData?['work_title'] as String? ?? '';
 
-    String? getTakeAway([bool itemTakeAway = false]) =>
-        (globalIsTakeAway || itemTakeAway) ? 'TAKE AWAY' : null;
-
     for (var itemIndex = 0; itemIndex < cartItems.length; itemIndex++) {
       final item = cartItems[itemIndex];
       final p = item.product;
+
+      String? lineTakeAwayTag([bool segmentTakeAway = false]) =>
+          (lineIsTakeAway(itemIndex) || segmentTakeAway) ? 'TAKE AWAY' : null;
       final master = item.masterProduct;
       final String brand = p.brand.isNotEmpty ? p.brand : 'Unknown Brand';
       final String ukuran = p.ukuran;
@@ -705,16 +719,16 @@ class CheckoutOrderService {
           discount3: item.discount3,
           discount4: item.discount4,
         );
-        var kasurCustomer = kasurPrices.customerPrice;
-        var kasurNet = _netLineAfterIndirectStoreDiscounts(
+        var kasurCustomerPerUnit = kasurPrices.customerPricePerUnit;
+        var kasurNetLine = _netLineAfterIndirectStoreDiscounts(
           isIndirectLine: isIndirectLine,
           qty: item.quantity,
           storeDiscounts: item.indirectStoreDiscounts,
-          netLineAfterSalesDiscounts: kasurPrices.netPrice,
+          netLineAfterSalesDiscounts: kasurPrices.netPriceLineTotal,
         );
         if (item.isFocVoucherActive) {
-          kasurCustomer = p.plKasur * item.quantity;
-          kasurNet = 0;
+          kasurCustomerPerUnit = p.plKasur;
+          kasurNetLine = 0;
         }
         final payload = {
           'item_number':
@@ -728,11 +742,11 @@ class CheckoutOrderService {
           'desc_2': ukuran,
           'brand': brand,
           'unit_price': p.plKasur,
-          'customer_price': kasurCustomer,
-          'net_price': kasurNet,
+          'customer_price': kasurCustomerPerUnit,
+          'net_price': _apiNetPricePerUnit(kasurNetLine, item.quantity),
           'qty': item.quantity,
           'item_type': 'Mattress',
-          if (getTakeAway() != null) 'take_away': getTakeAway(),
+          if (lineTakeAwayTag() != null) 'take_away': lineTakeAwayTag(),
         };
         pending.add(PendingDetail(
           payload: payload,
@@ -761,16 +775,16 @@ class CheckoutOrderService {
           discount3: item.discount3,
           discount4: item.discount4,
         );
-        var divanCustomer = divanPrices.customerPrice;
-        var divanNet = _netLineAfterIndirectStoreDiscounts(
+        var divanCustomerPerUnit = divanPrices.customerPricePerUnit;
+        var divanNetLine = _netLineAfterIndirectStoreDiscounts(
           isIndirectLine: isIndirectLine,
           qty: item.quantity,
           storeDiscounts: item.indirectStoreDiscounts,
-          netLineAfterSalesDiscounts: divanPrices.netPrice,
+          netLineAfterSalesDiscounts: divanPrices.netPriceLineTotal,
         );
         if (item.isFocVoucherActive) {
-          divanCustomer = p.plDivan * item.quantity;
-          divanNet = 0;
+          divanCustomerPerUnit = p.plDivan;
+          divanNetLine = 0;
         }
         final payload = {
           'item_number':
@@ -786,11 +800,11 @@ class CheckoutOrderService {
           'desc_2': ukuran,
           'brand': brand,
           'unit_price': p.plDivan,
-          'customer_price': divanCustomer,
-          'net_price': divanNet,
+          'customer_price': divanCustomerPerUnit,
+          'net_price': _apiNetPricePerUnit(divanNetLine, item.quantity),
           'qty': item.quantity,
           'item_type': 'Divan',
-          if (getTakeAway() != null) 'take_away': getTakeAway(),
+          if (lineTakeAwayTag() != null) 'take_away': lineTakeAwayTag(),
         };
         pending.add(PendingDetail(
           payload: payload,
@@ -819,16 +833,16 @@ class CheckoutOrderService {
           discount3: item.discount3,
           discount4: item.discount4,
         );
-        var hbCustomer = headboardPrices.customerPrice;
-        var hbNet = _netLineAfterIndirectStoreDiscounts(
+        var hbCustomerPerUnit = headboardPrices.customerPricePerUnit;
+        var hbNetLine = _netLineAfterIndirectStoreDiscounts(
           isIndirectLine: isIndirectLine,
           qty: item.quantity,
           storeDiscounts: item.indirectStoreDiscounts,
-          netLineAfterSalesDiscounts: headboardPrices.netPrice,
+          netLineAfterSalesDiscounts: headboardPrices.netPriceLineTotal,
         );
         if (item.isFocVoucherActive) {
-          hbCustomer = p.plHeadboard * item.quantity;
-          hbNet = 0;
+          hbCustomerPerUnit = p.plHeadboard;
+          hbNetLine = 0;
         }
         final payload = {
           'item_number':
@@ -844,11 +858,11 @@ class CheckoutOrderService {
           'desc_2': ukuran,
           'brand': brand,
           'unit_price': p.plHeadboard,
-          'customer_price': hbCustomer,
-          'net_price': hbNet,
+          'customer_price': hbCustomerPerUnit,
+          'net_price': _apiNetPricePerUnit(hbNetLine, item.quantity),
           'qty': item.quantity,
           'item_type': 'Headboard',
-          if (getTakeAway() != null) 'take_away': getTakeAway(),
+          if (lineTakeAwayTag() != null) 'take_away': lineTakeAwayTag(),
         };
         pending.add(PendingDetail(
           payload: payload,
@@ -877,16 +891,16 @@ class CheckoutOrderService {
           discount3: item.discount3,
           discount4: item.discount4,
         );
-        var srCustomer = sorongPrices.customerPrice;
-        var srNet = _netLineAfterIndirectStoreDiscounts(
+        var srCustomerPerUnit = sorongPrices.customerPricePerUnit;
+        var srNetLine = _netLineAfterIndirectStoreDiscounts(
           isIndirectLine: isIndirectLine,
           qty: item.quantity,
           storeDiscounts: item.indirectStoreDiscounts,
-          netLineAfterSalesDiscounts: sorongPrices.netPrice,
+          netLineAfterSalesDiscounts: sorongPrices.netPriceLineTotal,
         );
         if (item.isFocVoucherActive) {
-          srCustomer = p.plSorong * item.quantity;
-          srNet = 0;
+          srCustomerPerUnit = p.plSorong;
+          srNetLine = 0;
         }
         final payload = {
           'item_number':
@@ -902,11 +916,11 @@ class CheckoutOrderService {
           'desc_2': ukuran,
           'brand': brand,
           'unit_price': p.plSorong,
-          'customer_price': srCustomer,
-          'net_price': srNet,
+          'customer_price': srCustomerPerUnit,
+          'net_price': _apiNetPricePerUnit(srNetLine, item.quantity),
           'qty': item.quantity,
           'item_type': 'Sorong',
-          if (getTakeAway() != null) 'take_away': getTakeAway(),
+          if (lineTakeAwayTag() != null) 'take_away': lineTakeAwayTag(),
         };
         pending.add(PendingDetail(
           payload: payload,
@@ -936,17 +950,16 @@ class CheckoutOrderService {
           discount4: item.discount4,
         );
         final unitPlPerUnit = p.pricelist > 0 ? p.pricelist : p.price;
-        final unitPlLineTotal = unitPlPerUnit * item.quantity;
-        var fbCustomer = prices.customerPrice;
-        var fbNet = _netLineAfterIndirectStoreDiscounts(
+        var fbCustomerPerUnit = prices.customerPricePerUnit;
+        var fbNetLine = _netLineAfterIndirectStoreDiscounts(
           isIndirectLine: isIndirectLine,
           qty: item.quantity,
           storeDiscounts: item.indirectStoreDiscounts,
-          netLineAfterSalesDiscounts: prices.netPrice,
+          netLineAfterSalesDiscounts: prices.netPriceLineTotal,
         );
         if (item.isFocVoucherActive) {
-          fbCustomer = unitPlLineTotal;
-          fbNet = 0;
+          fbCustomerPerUnit = unitPlPerUnit;
+          fbNetLine = 0;
         }
         final fallbackSku = item.kasurSku.isNotEmpty
             ? item.kasurSku
@@ -963,11 +976,11 @@ class CheckoutOrderService {
           'desc_2': ukuran,
           'brand': brand,
           'unit_price': unitPlPerUnit,
-          'customer_price': fbCustomer,
-          'net_price': fbNet,
+          'customer_price': fbCustomerPerUnit,
+          'net_price': _apiNetPricePerUnit(fbNetLine, item.quantity),
           'qty': item.quantity,
           'item_type': 'Mattress',
-          if (getTakeAway() != null) 'take_away': getTakeAway(),
+          if (lineTakeAwayTag() != null) 'take_away': lineTakeAwayTag(),
         };
         pending.add(PendingDetail(
           payload: payload,
@@ -978,13 +991,12 @@ class CheckoutOrderService {
 
       // 6. BONUS
       // bonus.qty is per-unit; multiply by item.quantity for actual total.
-      // unit_price = harga pricelist per unit (murni, tanpa × qty baris).
-      // customer_price = total baris (pricelist bonus × qty segmen).
+      // unit_price / customer_price = PL bonus per unit; qty = segmen split.
       for (final bonus in item.bonusSnapshots) {
         final bonusEffQty = bonus.qty * item.quantity;
         final bonusPlPrice = BonusPriceResolver.resolvePlPrice(p, bonus.name);
 
-        final int configuredTakeAway = globalIsTakeAway
+        final int configuredTakeAway = lineIsTakeAway(itemIndex)
             ? bonusEffQty
             : currentTakeAwayQty(itemIndex, bonus);
 
@@ -994,7 +1006,7 @@ class CheckoutOrderService {
         );
 
         for (final segment in splitSegments) {
-          // Bonus: net_price selalu 0 (sama direct & indirect); customer_price = PL bonus.
+          // Bonus: net_price selalu 0; customer_price = PL bonus per unit (API).
           final bonusNet = CheckoutNetPriceCalculator.calculate(
             customerPrice: bonusPlPrice,
             qty: segment.qty,
@@ -1015,13 +1027,13 @@ class CheckoutOrderService {
             'desc_2': 'Bonus',
             'brand': brand,
             'unit_price': bonusPlPrice,
-            'customer_price': bonusPlPrice * segment.qty,
+            'customer_price': bonusPlPrice,
             'net_price': bonusNet,
             'qty': segment.qty,
             'item_type': 'Bonus',
             'notes': segment.note,
-            if (getTakeAway(segment.isTakeAway) != null)
-              'take_away': getTakeAway(segment.isTakeAway),
+            if (lineTakeAwayTag(segment.isTakeAway) != null)
+              'take_away': lineTakeAwayTag(segment.isTakeAway),
           };
           pending.add(PendingDetail(
             payload: payload,

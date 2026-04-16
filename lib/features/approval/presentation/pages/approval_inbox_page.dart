@@ -5,11 +5,14 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/widgets/animated_list_item.dart';
+import '../../../../core/theme/app_layout_tokens.dart';
 import '../../../../core/widgets/date_range_filter_action.dart';
 import '../../../../core/widgets/empty_state_view.dart';
 import '../../../../core/widgets/error_state_view.dart';
 import '../../../../core/widgets/go_router_pop_scope.dart';
+import '../../../../core/widgets/label_value_row.dart';
 import '../../../../core/widgets/selection_bottom_sheet.dart';
+import '../../data/utils/approval_wraps_nominal_sum.dart';
 import '../../logic/approval_inbox_provider.dart';
 import '../widgets/approval_card_item.dart';
 import '../widgets/approval_history_work_place_filter_pill.dart';
@@ -71,93 +74,93 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
             scrolledUnderElevation: 1,
             iconTheme: const IconThemeData(color: AppColors.textPrimary),
             actions: [
-            DateRangeFilterAction(
-              label: filterText,
-              hasActiveFilter: hasDateFilter,
-              accentColor: AppColors.accent,
-              onClear: () =>
-                  ref.read(approvalInboxProvider.notifier).clearDateFilter(),
-              onPick: () async {
-                final initialStart = state.startDate ??
-                    DateTime.now().subtract(const Duration(days: 30));
-                final initialEnd = state.endDate ?? DateTime.now();
+              DateRangeFilterAction(
+                label: filterText,
+                hasActiveFilter: hasDateFilter,
+                accentColor: AppColors.accent,
+                onClear: () =>
+                    ref.read(approvalInboxProvider.notifier).clearDateFilter(),
+                onPick: () async {
+                  final initialStart = state.startDate ??
+                      DateTime.now().subtract(const Duration(days: 30));
+                  final initialEnd = state.endDate ?? DateTime.now();
 
-                final picked = await showDateRangePicker(
-                  context: context,
-                  firstDate: DateTime(2020),
-                  lastDate: DateTime.now().add(const Duration(days: 365)),
-                  initialDateRange: DateTimeRange(
-                    start: initialStart,
-                    end: initialEnd,
-                  ),
-                  helpText: 'Pilih Rentang Tanggal',
-                );
-
-                if (picked != null) {
-                  ref
-                      .read(approvalInboxProvider.notifier)
-                      .updateDateFilter(picked.start, picked.end);
-                }
-              },
-            ),
-          ],
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(60),
-            child: Container(
-              height: 44,
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceLight,
-                borderRadius: BorderRadius.circular(25),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: TabBar(
-                indicatorSize: TabBarIndicatorSize.tab,
-                dividerColor: Colors.transparent,
-                indicatorPadding: const EdgeInsets.all(4),
-                indicator: BoxDecoration(
-                  borderRadius: BorderRadius.circular(25),
-                  color: AppColors.accent,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.accent.withValues(alpha: 0.3),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
+                  final picked = await showDateRangePicker(
+                    context: context,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime.now().add(const Duration(days: 365)),
+                    initialDateRange: DateTimeRange(
+                      start: initialStart,
+                      end: initialEnd,
                     ),
-                  ],
-                ),
-                labelColor: AppColors.onPrimary,
-                unselectedLabelColor: AppColors.textSecondary,
-                labelStyle: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
-                unselectedLabelStyle: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
-                tabs: const [
-                  Tab(text: 'Menunggu'),
-                  Tab(text: 'Selesai'),
-                ],
+                    helpText: 'Pilih Rentang Tanggal',
+                  );
+
+                  if (picked != null) {
+                    ref
+                        .read(approvalInboxProvider.notifier)
+                        .updateDateFilter(picked.start, picked.end);
+                  }
+                },
               ),
-            ),
-          ),
-        ),
-        body: state.isLoading && state.pendingApprovals.isEmpty
-            ? const ApprovalInboxSkeleton()
-            : state.error != null
-                ? _buildErrorView(state.error ?? 'Terjadi kesalahan')
-                : TabBarView(
-                    children: [
-                      _KeepAliveTab(
-                        child: _buildListView(state.pendingApprovals, true),
-                      ),
-                      _KeepAliveTab(
-                        child: _buildHistoryTabWithWorkPlaceFilter(state),
+            ],
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(60),
+              child: Container(
+                height: 44,
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceLight,
+                  borderRadius: BorderRadius.circular(25),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: TabBar(
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  dividerColor: Colors.transparent,
+                  indicatorPadding: const EdgeInsets.all(4),
+                  indicator: BoxDecoration(
+                    borderRadius: BorderRadius.circular(25),
+                    color: AppColors.accent,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.accent.withValues(alpha: 0.3),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
                       ),
                     ],
                   ),
+                  labelColor: AppColors.onPrimary,
+                  unselectedLabelColor: AppColors.textSecondary,
+                  labelStyle: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                  unselectedLabelStyle: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                  tabs: const [
+                    Tab(text: 'Menunggu'),
+                    Tab(text: 'Selesai'),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          body: state.isLoading && state.pendingApprovals.isEmpty
+              ? const ApprovalInboxSkeleton()
+              : state.error != null
+                  ? _buildErrorView(state.error ?? 'Terjadi kesalahan')
+                  : TabBarView(
+                      children: [
+                        _KeepAliveTab(
+                          child: _buildPendingTab(state),
+                        ),
+                        _KeepAliveTab(
+                          child: _buildHistoryTabWithWorkPlaceFilter(state),
+                        ),
+                      ],
+                    ),
         ),
       ),
     );
@@ -211,14 +214,77 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
     );
   }
 
+  // ── Tab Menunggu: total nominal (mengikuti filter tanggal API) ───
+
+  Widget _buildPendingTab(ApprovalInboxState state) {
+    final orders = state.pendingApprovals;
+    final sum = sumNominalFromApprovedSpOrderWrapsOnly(orders);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Antrean = belum selesai; total “Approved” biasanya 0 — tampil jika ada.
+        if (orders.isNotEmpty && sum > 0) _buildListTotalBanner(sum),
+        Expanded(child: _buildListView(orders, true)),
+      ],
+    );
+  }
+
+  /// Ringkasan total nilai SP untuk daftar yang sudah difilter (tanggal + lokasi).
+  Widget _buildListTotalBanner(double sum) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppLayoutTokens.space16,
+        AppLayoutTokens.space6,
+        AppLayoutTokens.space16,
+        AppLayoutTokens.space8,
+      ),
+      child: LabelValueRow(
+        label: 'Total Nominal SP disetujui',
+        value: AppFormatters.currencyIdrFlooredWhole(sum),
+        labelStyle: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textSecondary,
+        ),
+        valueStyle: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w800,
+          color: AppColors.accent,
+        ),
+      ),
+    );
+  }
+
   // ── Tab Selesai: filter lokasi / toko ───────────────────────────
 
   Widget _buildHistoryTabWithWorkPlaceFilter(ApprovalInboxState state) {
     final options = state.historyWorkPlaceOptions;
     final filtered = state.filteredHistoryApprovals;
+    final sum = sumNominalFromApprovedSpOrderWrapsOnly(filtered);
+
+    final list = Expanded(
+      child: _buildListView(
+        filtered,
+        false,
+        emptyDueToWorkPlaceFilter: filtered.isEmpty &&
+            state.historyApprovals.isNotEmpty &&
+            state.historyWorkPlaceFilter != null,
+      ),
+    );
+
+    final totalBanner = filtered.isNotEmpty
+        ? _buildListTotalBanner(sum)
+        : const SizedBox.shrink();
 
     if (options.isEmpty) {
-      return _buildListView(filtered, false);
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          totalBanner,
+          list,
+        ],
+      );
     }
 
     return Column(
@@ -233,15 +299,8 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
             onTap: () => _openHistoryWorkPlaceSheet(state, options),
           ),
         ),
-        Expanded(
-          child: _buildListView(
-            filtered,
-            false,
-            emptyDueToWorkPlaceFilter: filtered.isEmpty &&
-                state.historyApprovals.isNotEmpty &&
-                state.historyWorkPlaceFilter != null,
-          ),
-        ),
+        totalBanner,
+        list,
       ],
     );
   }

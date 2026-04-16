@@ -79,6 +79,8 @@ void main() {
           currentTakeAwayQty: (_) => 1,
           onTakeAwayToggled: (_, __) {},
           onTakeAwayQtyChanged: (_, __) {},
+          lineTakeAway: false,
+          onLineTakeAwayChanged: (_) {},
         ),
       );
 
@@ -104,6 +106,8 @@ void main() {
           currentTakeAwayQty: (_) => 1,
           onTakeAwayToggled: (_, __) {},
           onTakeAwayQtyChanged: (_, __) {},
+          lineTakeAway: false,
+          onLineTakeAwayChanged: (_) {},
         ),
       );
 
@@ -125,6 +129,8 @@ void main() {
           currentTakeAwayQty: (_) => 1,
           onTakeAwayToggled: (_, __) {},
           onTakeAwayQtyChanged: (_, __) {},
+          lineTakeAway: false,
+          onLineTakeAwayChanged: (_) {},
           showBonusSection: true,
         ),
       );
@@ -147,6 +153,8 @@ void main() {
           currentTakeAwayQty: (_) => 1,
           onTakeAwayToggled: (_, __) {},
           onTakeAwayQtyChanged: (_, __) {},
+          lineTakeAway: false,
+          onLineTakeAwayChanged: (_) {},
           showBonusSection: false,
         ),
       );

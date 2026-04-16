@@ -46,7 +46,8 @@ abstract final class CheckoutFormValidator {
     bool indirectStoreContactOptional = false,
     /// Indirect: nama & no. HP penerima/gudang opsional; alamat & wilayah tetap dicek di luar.
     bool indirectReceiverContactOptional = false,
-    required bool isTakeAway,
+    /// True jika minimal satu baris memakai kirim pabrik → tanggal permintaan kirim wajib.
+    required bool anyLineNeedsFactoryDelivery,
     required DateTime orderDate,
     required DateTime? requestDate,
     required bool hasSelectedSpv,
@@ -110,7 +111,7 @@ abstract final class CheckoutFormValidator {
       return (key: deliverySectionKey, label: 'Informasi Pengiriman');
     }
 
-    if (!isTakeAway && requestDate == null) {
+    if (anyLineNeedsFactoryDelivery && requestDate == null) {
       return (key: deliverySectionKey, label: 'Informasi Pengiriman');
     }
 

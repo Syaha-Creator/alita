@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_layout_tokens.dart';
 
 enum AppFeedbackType { success, error, info, warning }
 
@@ -127,14 +128,21 @@ class _FeedbackOverlayState extends State<_FeedbackOverlay>
 
   @override
   Widget build(BuildContext context) {
-    final safe = MediaQuery.of(context).padding;
+    final safe = MediaQuery.paddingOf(context);
+    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final color = AppFeedback._color(widget.type);
     final icon = AppFeedback._icon(widget.type);
 
+    // Di atas home indicator + di atas keyboard bila terbuka (modal/input).
+    final bottomOffset = safe.bottom +
+        keyboardInset +
+        AppLayoutTokens.space16 +
+        AppLayoutTokens.space8;
+
     return Positioned(
-      left: 20,
-      right: 20,
-      bottom: safe.bottom + 24,
+      left: AppLayoutTokens.space20,
+      right: AppLayoutTokens.space20,
+      bottom: bottomOffset,
       child: SlideTransition(
         position: _slide,
         child: FadeTransition(

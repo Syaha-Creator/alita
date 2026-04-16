@@ -121,6 +121,30 @@ void main() {
       expect(q.isShippingSameAsCustomer, true);
       expect(q.status, QuotationStatus.draft);
       expect(q.validUntil, isNull);
+      expect(q.receiverEmail, '');
+      expect(q.indirectNoPo, '');
+      expect(q.bonusTakeAwayCheckedKeys, isEmpty);
+      expect(q.bonusTakeAwayQtyByKey, isEmpty);
+    });
+
+    test('receiverEmail indirectNoPo bonusTakeAway roundtrip in JSON', () {
+      final original = QuotationModel(
+        id: 'draft-1',
+        customerName: 'Toko',
+        receiverEmail: 'gudang@toko.id',
+        indirectNoPo: 'PO-99',
+        bonusTakeAwayCheckedKeys: const ['0_SKU1', '1_SKU2'],
+        bonusTakeAwayQtyByKey: const {'0_SKU1': 2, '1_SKU2': 1},
+        items: const [],
+        subtotal: 0,
+        totalPrice: 0,
+        createdAt: DateTime(2026, 3, 1),
+      );
+      final restored = QuotationModel.fromJson(original.toJson());
+      expect(restored.receiverEmail, 'gudang@toko.id');
+      expect(restored.indirectNoPo, 'PO-99');
+      expect(restored.bonusTakeAwayCheckedKeys, ['0_SKU1', '1_SKU2']);
+      expect(restored.bonusTakeAwayQtyByKey, {'0_SKU1': 2, '1_SKU2': 1});
     });
 
     test('_parseStatus defaults to draft for unknown value', () {

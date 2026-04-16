@@ -7,11 +7,12 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/services/connectivity_service.dart';
 import '../../../approval/logic/approval_inbox_provider.dart';
+import '../../../history/logic/order_history_provider.dart';
 import '../../logic/profile_provider.dart';
 
 /// Wraps [child] in [RefreshIndicator] with profile refresh logic.
 ///
-/// Owns the refresh behavior: invalidates profile, fetches approval inbox,
+/// Owns the refresh behavior: invalidates profile & riwayat pesanan, fetch inbox,
 /// handles offline state and errors.
 class ProfileRefreshable extends ConsumerWidget {
   const ProfileRefreshable({
@@ -41,6 +42,7 @@ class ProfileRefreshable extends ConsumerWidget {
       return;
     }
     ref.invalidate(profileProvider);
+    ref.invalidate(orderHistoryProvider);
     unawaited(ref.read(approvalInboxProvider.notifier).fetchInbox());
     try {
       await ref.read(profileProvider.future);

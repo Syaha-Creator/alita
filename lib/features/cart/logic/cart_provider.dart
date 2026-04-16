@@ -117,13 +117,21 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
   }
 
   /// Replace item at [index] with an updated snapshot CartItem (edit mode).
-  /// The original quantity is preserved unless the caller explicitly sets one.
-  Future<void> updateCartItem(int index, CartItem cartItem) async {
+  ///
+  /// Secara default kuantitas baris lama dipertahankan (aliran edit dari
+  /// halaman detail). Set [preserveQuantity] false bila snapshot sudah
+  /// membawa kuantitas baru (mis. editor baris custom pricelist).
+  Future<void> updateCartItem(
+    int index,
+    CartItem cartItem, {
+    bool preserveQuantity = true,
+  }) async {
     if (index < 0 || index >= state.length) return;
     final preserved = state[index].quantity;
+    final qty = preserveQuantity ? preserved : cartItem.quantity;
     state = [
       ...state.sublist(0, index),
-      cartItem.copyWith(quantity: preserved),
+      cartItem.copyWith(quantity: qty),
       ...state.sublist(index + 1),
     ];
     await _saveCart();
@@ -291,11 +299,32 @@ class SelectedCartIdsNotifier extends StateNotifier<Set<String>> {
       state = {};
     }
   }
+
+  /// Hapus ID pilihan yang tidak lagi cocok dengan baris di [cart] (mis. setelah
+  /// edit konfigurasi/FOC atau item dihapus — [cartItemKey] berubah).
+  void syncWithCart(List<CartItem> cart) {
+    final validKeys = cart.map(cartItemKey).toSet();
+    final next = state.intersection(validKeys);
+    if (next.length != state.length) {
+      state = next;
+    }
+  }
 }
 
 final selectedCartItemIdsProvider =
     StateNotifierProvider<SelectedCartIdsNotifier, Set<String>>((ref) {
   return SelectedCartIdsNotifier(ref);
+});
+
+/// True bila minimal satu **baris keranjang saat ini** terpilih.
+/// Tidak memakai [Set.isNotEmpty] mentah — ID bisa stale setelah edit/hapus baris.
+final cartHasSelectedLinesProvider = Provider<bool>((ref) {
+  final cart = ref.watch(cartProvider);
+  final selectedIds = ref.watch(selectedCartItemIdsProvider);
+  for (final item in cart) {
+    if (selectedIds.contains(cartItemKey(item))) return true;
+  }
+  return false;
 });
 
 /// True when every cart line is selected and cart is not empty.

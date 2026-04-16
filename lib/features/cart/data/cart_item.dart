@@ -1,6 +1,9 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../../core/utils/store_discount_calculator.dart';
+import '../../pricelist/data/models/pricelist_custom_line.dart';
 import '../../pricelist/data/models/product.dart';
+import '../../pricelist/logic/product_detail_utils.dart';
 
 part 'cart_item.freezed.dart';
 part 'cart_item.g.dart';
@@ -103,8 +106,38 @@ class CartItem with _$CartItem {
     @JsonKey(fromJson: _parseBoolDefaultFalse) @Default(false) bool isFocVoucher,
   }) = _CartItem;
 
-  double get totalPrice =>
-      isFocVoucherActive ? 0.0 : quantity * product.price;
+  /// EUP per unit setelah diskon toko (indirect) lalu diskon sales (bertingkat).
+  /// Untuk baris pricelist custom, dipakai sebagai harga tampilan & subtotal keranjang.
+  double get effectiveUnitSellingPrice {
+    if (isFocVoucherActive) return 0;
+    final p = product;
+    final unitEup = p.eupKasur +
+        p.eupDivan +
+        p.eupHeadboard +
+        p.eupSorong;
+    if (unitEup <= 0) return p.price;
+
+    var base = unitEup;
+    if (isIndirectSale && indirectStoreDiscounts.isNotEmpty) {
+      base = StoreDiscountCalculator.cascade(base, indirectStoreDiscounts);
+    }
+
+    final fractions = <double>[
+      discount1 / 100,
+      discount2 / 100,
+      discount3 / 100,
+      discount4 / 100,
+    ];
+    return ProductDetailUtils.calculateCascadingPrice(base, fractions);
+  }
+
+  double get totalPrice {
+    if (isFocVoucherActive) return 0.0;
+    if (product.isPricelistCustomCartLine) {
+      return quantity * effectiveUnitSellingPrice;
+    }
+    return quantity * product.price;
+  }
 
   /// Human-friendly name for display in cart / checkout.
   ///

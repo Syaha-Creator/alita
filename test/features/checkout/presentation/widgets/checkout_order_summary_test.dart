@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:alitapricelist/core/utils/product_image_utils.dart';
 import 'package:alitapricelist/features/cart/data/cart_item.dart';
 import 'package:alitapricelist/features/checkout/presentation/widgets/checkout_order_summary.dart';
 import 'package:alitapricelist/features/pricelist/data/models/product.dart';
+import 'package:alitapricelist/features/pricelist/logic/product_display_image_provider.dart';
 
 Product _product({String id = '1', String name = 'Test Product'}) => Product(
       id: id,
@@ -35,22 +38,32 @@ List<CartItem> _cartItems(int count) => List.generate(
       ),
     );
 
+/// [OrderItemTile] memakai Riverpod; hindari jaringan di test.
+Widget _summaryTestApp(Widget body) => ProviderScope(
+      overrides: [
+        productDisplayImageProvider.overrideWith((ref, product) {
+          return '${ProductImageUtils.assetUriPrefix}assets/logo/sleepcenter_logo.png';
+        }),
+      ],
+      child: MaterialApp(
+        home: Scaffold(body: SingleChildScrollView(child: body)),
+      ),
+    );
+
 void main() {
   group('CheckoutOrderSummary', () {
     testWidgets('renders empty when no cart items', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: CheckoutOrderSummary(
-                cartItems: const [],
-                priceFmt: (n) => 'Rp ${n.toStringAsFixed(0)}',
-                isBonusTakeAwayChecked: (_, __) => false,
-                currentTakeAwayQty: (_, __) => 1,
-                onTakeAwayToggled: (_, __, ___) {},
-                onTakeAwayQtyChanged: (_, __, ___) {},
-              ),
-            ),
+        _summaryTestApp(
+          CheckoutOrderSummary(
+            cartItems: const [],
+            priceFmt: (n) => 'Rp ${n.toStringAsFixed(0)}',
+            isBonusTakeAwayChecked: (_, __) => false,
+            currentTakeAwayQty: (_, __) => 1,
+            onTakeAwayToggled: (_, __, ___) {},
+            onTakeAwayQtyChanged: (_, __, ___) {},
+            lineTakeAway: (_) => false,
+            onLineTakeAwayChanged: (_, __) {},
           ),
         ),
       );
@@ -61,42 +74,42 @@ void main() {
 
     testWidgets('renders single cart item', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: CheckoutOrderSummary(
-                cartItems: _cartItems(1),
-                priceFmt: (n) => 'Rp ${n.toStringAsFixed(0)}',
-                isBonusTakeAwayChecked: (_, __) => false,
-                currentTakeAwayQty: (_, __) => 1,
-                onTakeAwayToggled: (_, __, ___) {},
-                onTakeAwayQtyChanged: (_, __, ___) {},
-              ),
-            ),
+        _summaryTestApp(
+          CheckoutOrderSummary(
+            cartItems: _cartItems(1),
+            priceFmt: (n) => 'Rp ${n.toStringAsFixed(0)}',
+            isBonusTakeAwayChecked: (_, __) => false,
+            currentTakeAwayQty: (_, __) => 1,
+            onTakeAwayToggled: (_, __, ___) {},
+            onTakeAwayQtyChanged: (_, __, ___) {},
+            lineTakeAway: (_) => false,
+            onLineTakeAwayChanged: (_, __) {},
           ),
         ),
       );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
 
       expect(find.text('Product 0'), findsOneWidget);
     });
 
     testWidgets('renders multiple cart items', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: CheckoutOrderSummary(
-                cartItems: _cartItems(3),
-                priceFmt: (n) => 'Rp ${n.toStringAsFixed(0)}',
-                isBonusTakeAwayChecked: (_, __) => false,
-                currentTakeAwayQty: (_, __) => 1,
-                onTakeAwayToggled: (_, __, ___) {},
-                onTakeAwayQtyChanged: (_, __, ___) {},
-              ),
-            ),
+        _summaryTestApp(
+          CheckoutOrderSummary(
+            cartItems: _cartItems(3),
+            priceFmt: (n) => 'Rp ${n.toStringAsFixed(0)}',
+            isBonusTakeAwayChecked: (_, __) => false,
+            currentTakeAwayQty: (_, __) => 1,
+            onTakeAwayToggled: (_, __, ___) {},
+            onTakeAwayQtyChanged: (_, __, ___) {},
+            lineTakeAway: (_) => false,
+            onLineTakeAwayChanged: (_, __) {},
           ),
         ),
       );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
 
       expect(find.text('Product 0'), findsOneWidget);
       expect(find.text('Product 1'), findsOneWidget);

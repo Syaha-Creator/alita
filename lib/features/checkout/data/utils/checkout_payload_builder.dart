@@ -31,7 +31,9 @@ class CheckoutPayloadBuilder {
     required String customerEmail,
     required String note,
     required String salesCode,
-    required bool isTakeAway,
+    /// `true` hanya jika **semua** baris checkout bawa sendiri (header API).
+    /// Campur kirim + bawa → `false` (`take_away` header null; per detail tetap di payload).
+    required bool headerAllLinesTakeAway,
 
     /// Indirect: alamat toko cukup dari [customerAddress] (tanpa suffix EMSIFA).
     bool useCustomerAddressDetailOnly = false,
@@ -119,7 +121,7 @@ class CheckoutPayloadBuilder {
       'status': OrderStatus.pending.apiValue,
       'sales_code': salesCode.trim().isEmpty ? null : salesCode.trim(),
       'work_place_id': workPlaceId ?? 0,
-      'take_away': isTakeAway ? 'TAKE AWAY' : null,
+      'take_away': headerAllLinesTakeAway ? 'TAKE AWAY' : null,
       'postage': finalPostage,
       'channel': channel,
       if (isIndirectOrder) 'no_po': noPoValue,

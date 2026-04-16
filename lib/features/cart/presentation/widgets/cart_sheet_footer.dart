@@ -16,9 +16,7 @@ class CartSheetFooter extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final totalAmount = ref.watch(cartSelectedTotalAmountProvider);
     final isAllSelected = ref.watch(isAllSelectedProvider);
-    final hasSelection = ref.watch(
-      selectedCartItemIdsProvider.select((ids) => ids.isNotEmpty),
-    );
+    final hasSelection = ref.watch(cartHasSelectedLinesProvider);
 
     return Container(
       decoration: const BoxDecoration(

@@ -10,6 +10,7 @@ import '../../../../core/services/api_session_expired.dart';
 import '../../../../core/services/connectivity_service.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../core/services/pdf_service/invoice_pdf_generator.dart';
+import '../../../../core/services/screen_capture_guard_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_layout_tokens.dart';
 import '../../../../core/utils/app_feedback.dart';
@@ -18,6 +19,7 @@ import '../../../../core/utils/contact_actions.dart';
 import '../../../../core/utils/order_letter_contact_utils.dart';
 import '../../../../core/utils/log.dart';
 import '../../../../core/utils/network_guard.dart';
+import '../../../../core/utils/internal_pdf_access.dart';
 import '../../../../core/utils/shipping_utils.dart';
 import '../../../../core/widgets/detail_contact_info_card.dart';
 import '../../../../core/widgets/loading_overlay.dart';
@@ -58,6 +60,45 @@ class OrderDetailPage extends ConsumerStatefulWidget {
 
 class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
   bool _voidingSp = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(
+        ScreenCaptureGuardService.enter(
+          onScreenshotAttempt: () {
+            if (!mounted) return;
+            AppFeedback.show(
+              context,
+              message: 'Screenshot tidak diizinkan di halaman ini.',
+              type: AppFeedbackType.warning,
+              floating: true,
+            );
+          },
+          onScreenRecord: (recording) {
+            if (!mounted || !recording) return;
+            AppFeedback.show(
+              context,
+              message:
+                  'Perekaman layar terdeteksi. Konten sensitif dilindungi.',
+              type: AppFeedbackType.warning,
+              floating: true,
+            );
+          },
+        ),
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    // `dispose` tidak boleh async; teardown async dijalankan sampai selesai
+    // di background agar flag native tidak "bocor" ke halaman berikutnya.
+    unawaited(ScreenCaptureGuardService.leave());
+    super.dispose();
+  }
 
   Future<void> _onVoidSuratPesanan(
     BuildContext context,
@@ -220,13 +261,38 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
             position: PopupMenuPosition.under,
             offset: const Offset(0, 4),
             onSelected: (value) {
-              if (value == 'customer' || value == 'internal') {
-                _showPdfActionSheet(
-                  context,
-                  order: currentOrder,
-                  isInternal: value == 'internal',
-                );
+              if (value != 'customer' && value != 'internal') return;
+              if (value == 'internal') {
+                final uid = ref.read(authProvider).userId;
+                final canBypass =
+                    InternalPdfAccess.bypassesItemDiscountApprovalGate(uid);
+                if (!canBypass &&
+                    !ApprovalDecisionService.orderHistoryAllItemDiscountsApproved(
+                      currentOrder,
+                    )) {
+                  showAdaptiveAlert<void>(
+                    context: context,
+                    title: 'Persetujuan belum lengkap',
+                    content:
+                        'Surat Pesanan (Internal) hanya dapat dibuka setelah '
+                        'semua level persetujuan diskon pada timeline berstatus '
+                        'disetujui, tanpa level yang masih menunggu atau ditolak.',
+                    actions: const [
+                      AdaptiveAction(
+                        label: 'Mengerti',
+                        isDefault: true,
+                        popResult: true,
+                      ),
+                    ],
+                  );
+                  return;
+                }
               }
+              _showPdfActionSheet(
+                context,
+                order: currentOrder,
+                isInternal: value == 'internal',
+              );
             },
             itemBuilder: (context) => [
               PopupMenuItem<String>(

@@ -247,7 +247,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     required List<Map<String, dynamic>> contactsPayload,
     required List<Map<String, dynamic>> paymentPayloads,
     required List<File?> receiptImages,
-    required bool globalIsTakeAway,
+    required bool Function(int itemIndex) lineIsTakeAway,
     required bool Function(int itemIndex, CartBonusSnapshot)
         isBonusTakeAwayChecked,
     required int Function(int itemIndex, CartBonusSnapshot) currentTakeAwayQty,
@@ -319,7 +319,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         lookupByItemNum: lookupByItemNum,
         selectedSpv: state.selectedSpv,
         selectedManager: state.selectedManager,
-        globalIsTakeAway: globalIsTakeAway,
+        lineIsTakeAway: lineIsTakeAway,
         isBonusTakeAwayChecked: isBonusTakeAwayChecked,
         currentTakeAwayQty: currentTakeAwayQty,
         profileName: profile?.name ?? 'User',

@@ -9,13 +9,12 @@ import '../../../../core/utils/number_input_formatter.dart';
 import '../../../../core/widgets/checkout_input_decoration.dart';
 import '../../../../core/widgets/date_picker_field_tile.dart';
 import '../../../../core/widgets/form_field_label.dart';
-import '../../../../core/widgets/segmented_toggle.dart';
 import '../../data/models/store_model.dart';
 
 /// Delivery information section extracted from CheckoutPage.
 ///
-/// Contains: store picker, request date picker, delivery method toggle
-/// (Kurir Pabrik / Bawa Sendiri), postage field, order notes, and SC code.
+/// Contains: store picker, request date picker, postage (jika ada baris kirim
+/// pabrik), catatan, SC code. Metode **per baris** diatur di Ringkasan Pesanan.
 class DeliveryInfoSection extends StatelessWidget {
   const DeliveryInfoSection({
     super.key,
@@ -23,8 +22,7 @@ class DeliveryInfoSection extends StatelessWidget {
     required this.onPickOrderDate,
     required this.requestDate,
     required this.onPickRequestDate,
-    required this.isTakeAway,
-    required this.onTakeAwayChanged,
+    required this.anyLineNeedsFactoryDelivery,
     required this.postageCtrl,
     required this.notesController,
     required this.scCodeCtrl,
@@ -44,8 +42,9 @@ class DeliveryInfoSection extends StatelessWidget {
   final VoidCallback onPickOrderDate;
   final DateTime? requestDate;
   final VoidCallback onPickRequestDate;
-  final bool isTakeAway;
-  final ValueChanged<bool> onTakeAwayChanged;
+
+  /// True jika minimal satu baris pesanan memakai kirim pabrik.
+  final bool anyLineNeedsFactoryDelivery;
   final TextEditingController postageCtrl;
   final TextEditingController notesController;
   final TextEditingController scCodeCtrl;
@@ -133,58 +132,45 @@ class DeliveryInfoSection extends StatelessWidget {
 
         const SizedBox(height: 16),
 
-        // 1. Tanggal Permintaan Kirim
-        const FormFieldLabel('Tanggal Permintaan Kirim'),
-        const SizedBox(height: 8),
-        FormField<DateTime>(
-          validator: (_) {
-            if (!isTakeAway && requestDate == null) {
-              return 'Tanggal wajib dipilih';
-            }
-            return null;
-          },
-          builder: (formState) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                DatePickerFieldTile(
-                  text: switch (requestDate) {
-                    final rd? => _dateFmt.format(rd),
-                    null => '',
-                  },
-                  hasError: formState.hasError,
-                  errorText: formState.errorText,
-                  onTap: () {
-                    onPickRequestDate();
-                    formState.didChange(requestDate);
-                  },
-                ),
-              ],
-            );
-          },
-        ),
+        // 1. Tanggal Permintaan Kirim (hanya jika ada baris kirim pabrik)
+        if (anyLineNeedsFactoryDelivery) ...[
+          const FormFieldLabel('Tanggal Permintaan Kirim'),
+          const SizedBox(height: 8),
+          FormField<DateTime>(
+            validator: (_) {
+              if (requestDate == null) {
+                return 'Tanggal wajib dipilih';
+              }
+              return null;
+            },
+            builder: (formState) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  DatePickerFieldTile(
+                    text: switch (requestDate) {
+                      final rd? => _dateFmt.format(rd),
+                      null => '',
+                    },
+                    hasError: formState.hasError,
+                    errorText: formState.errorText,
+                    onTap: () {
+                      onPickRequestDate();
+                      formState.didChange(requestDate);
+                    },
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
 
-        const SizedBox(height: 16),
-
-        // 2. Metode Pengiriman
-        const FormFieldLabel('Metode Pengiriman'),
-        const SizedBox(height: 8),
-        SegmentedToggle(
-          leftLabel: 'Kurir Pabrik',
-          leftIcon: Icons.local_shipping_outlined,
-          rightLabel: 'Bawa Sendiri',
-          rightIcon: Icons.directions_car_outlined,
-          isLeftSelected: !isTakeAway,
-          onTapLeft: () => onTakeAwayChanged(false),
-          onTapRight: () => onTakeAwayChanged(true),
-        ),
-
-        // Ongkos Kirim (only for factory courier)
+        // Ongkos Kirim (hanya jika ada baris kirim pabrik)
         AnimatedSize(
           duration: const Duration(milliseconds: 250),
           curve: Curves.easeInOut,
           alignment: Alignment.topCenter,
-          child: isTakeAway
+          child: !anyLineNeedsFactoryDelivery
               ? const SizedBox.shrink()
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

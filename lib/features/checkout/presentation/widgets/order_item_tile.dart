@@ -2,15 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_layout_tokens.dart';
+import '../../../../core/widgets/form_field_label.dart';
+import '../../../../core/widgets/segmented_toggle.dart';
 import '../../../cart/data/cart_item.dart';
 import '../../../pricelist/logic/product_display_image_provider.dart';
 import 'order_summary_bonus_section.dart';
 import 'order_summary_item_header.dart';
 import 'order_summary_set_details.dart';
 
+/// Kain/warna pada label komponen set (sama seperti rincian di [CartItemCard]).
+String _orderSummaryFabricSuffix(String kain, String warna) {
+  final k = kain.isNotEmpty && kain != '-' ? kain : '';
+  final w = warna.isNotEmpty && warna != '-' ? warna : '';
+  if (k.isEmpty && w.isEmpty) return '';
+  if (k.isEmpty) return ' ($w)';
+  if (w.isEmpty) return ' ($k)';
+  return ' ($k - $w)';
+}
+
 /// Single order item tile inside the checkout Order Summary card.
 ///
-/// Displays item header, set details (divan/headboard/sorong), and optionally
+/// Displays item header, set details (kasur/divan/headboard/sorong), and optionally
 /// bonus section with take-away controls. When [showBonusSection] is false,
 /// bonus is rendered once in a combined section below all items.
 class OrderItemTile extends ConsumerWidget {
@@ -24,6 +37,10 @@ class OrderItemTile extends ConsumerWidget {
   /// When false, only header + set details are shown (bonus shown once below all items).
   final bool showBonusSection;
 
+  /// `true` = bawa sendiri untuk baris ini; bonus ikut penuh tanpa split.
+  final bool lineTakeAway;
+  final ValueChanged<bool> onLineTakeAwayChanged;
+
   const OrderItemTile({
     super.key,
     required this.item,
@@ -32,6 +49,8 @@ class OrderItemTile extends ConsumerWidget {
     required this.currentTakeAwayQty,
     required this.onTakeAwayToggled,
     required this.onTakeAwayQtyChanged,
+    required this.lineTakeAway,
+    required this.onLineTakeAwayChanged,
     this.showBonusSection = true,
   });
 
@@ -131,20 +150,54 @@ class OrderItemTile extends ConsumerWidget {
             quantity: item.quantity,
             totalPriceText: priceFmt(item.totalPrice),
           ),
+          const SizedBox(height: AppLayoutTokens.space12),
+          const FormFieldLabel('Pengiriman barang ini'),
+          const SizedBox(height: AppLayoutTokens.space8),
+          SegmentedToggle(
+            height: 40,
+            borderRadius: AppLayoutTokens.radius10,
+            leftLabel: 'Kurir pabrik',
+            rightLabel: 'Bawa sendiri',
+            leftIcon: Icons.local_shipping_outlined,
+            rightIcon: Icons.directions_car_outlined,
+            isLeftSelected: !lineTakeAway,
+            onTapLeft: () => onLineTakeAwayChanged(false),
+            onTapRight: () => onLineTakeAwayChanged(true),
+          ),
           if (showSetDetails) ...[
+            const SizedBox(height: AppLayoutTokens.space16),
+            const Divider(
+              height: 1,
+              thickness: 0.5,
+              color: AppColors.border,
+            ),
+            const SizedBox(height: AppLayoutTokens.space10),
             OrderSummarySetDetails(
-              divanLabel: p.divan,
+              kasurLabel: 'Kasur: ${p.kasur}',
+              kasurSku: item.kasurSku,
+              showKasur: hasKasur,
+              divanLabel:
+                  'Divan: ${p.divan}${_orderSummaryFabricSuffix(item.divanKain, item.divanWarna)}',
               divanSku: item.divanSku,
               showDivan: hasDivan,
-              headboardLabel: p.headboard,
+              headboardLabel:
+                  'Sandaran: ${p.headboard}${_orderSummaryFabricSuffix(item.sandaranKain, item.sandaranWarna)}',
               headboardSku: item.sandaranSku,
               showHeadboard: hasHeadboard,
-              sorongLabel: p.sorong,
+              sorongLabel:
+                  'Sorong: ${p.sorong}${_orderSummaryFabricSuffix(item.sorongKain, item.sorongWarna)}',
               sorongSku: item.sorongSku,
               showSorong: hasSorong,
             ),
           ],
-          if (showBonusSection && item.bonusSnapshots.isNotEmpty)
+          if (showBonusSection && item.bonusSnapshots.isNotEmpty) ...[
+            const SizedBox(height: AppLayoutTokens.space16),
+            const Divider(
+              height: 1,
+              thickness: 0.5,
+              color: AppColors.border,
+            ),
+            const SizedBox(height: AppLayoutTokens.space10),
             OrderSummaryBonusSection(
               bonuses: item.bonusSnapshots,
               itemQuantity: item.quantity,
@@ -152,7 +205,9 @@ class OrderItemTile extends ConsumerWidget {
               currentTakeAwayQty: currentTakeAwayQty,
               onCheckedChanged: onTakeAwayToggled,
               onSetTakeAwayQty: onTakeAwayQtyChanged,
+              splitControlsEnabled: !lineTakeAway,
             ),
+          ],
         ],
       ),
     );

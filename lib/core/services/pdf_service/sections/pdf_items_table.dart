@@ -5,6 +5,17 @@ import '../../../utils/take_away_parse.dart';
 import 'pdf_helpers.dart';
 
 /// Builds the main items table for the PDF invoice.
+///
+/// Kontrak detail (selaras checkout / API): **`unit_price`**, **`customer_price`**,
+/// dan **`net_price`** = **per unit**; kolom **JML** = [qty]. Maka:
+/// - **Pricelist (internal)** per unit; **eksternal**: kolom total pricelist
+///   baris (supaya selaras dengan diskon & total).
+/// - **Harga EUP** (internal) & **harga total** = per unit × qty (total baris).
+/// - **Diskon internal** = selisih total EUP baris vs total net baris.
+/// - **Diskon eksternal (customer)** = **`total pricelist baris − harga total`**
+///   dengan total pricelist = `unit_price × qty`. Kolom **TOTAL PRICELIST**
+///   menampilkan angka total itu (bukan hanya satuan), supaya selaras dengan
+///   kolom **DISKON** dan **HARGA TOTAL** tanpa mengira-ngira × qty.
 abstract final class PdfItemsTable {
   static List<pw.Widget> buildItemsTable(
     Map<String, dynamic> order,
@@ -19,7 +30,7 @@ abstract final class PdfItemsTable {
             'NO. URUT',
             'NAMA BARANG',
             'JML',
-            'HARGA DAFTAR',
+            'HARGA SATUAN',
             'HARGA EUP',
             'DISKON',
             'HARGA TOTAL'
@@ -29,7 +40,7 @@ abstract final class PdfItemsTable {
             'NO. URUT',
             'NAMA BARANG',
             'JML',
-            'HARGA DAFTAR',
+            'PRICELIST',
             'DISKON',
             'HARGA TOTAL'
           ];
@@ -61,11 +72,19 @@ abstract final class PdfItemsTable {
           ? rawItemDesc
           : rawDesc1;
       final qty = PdfHelpers.intFrom(d['qty']);
+      final qtySafe = qty <= 0 ? 1 : qty;
       final unitPrice = PdfHelpers.dbl(d['unit_price']);
       final extPrice = PdfHelpers.dbl(d['extended_price']);
       final custPrice = PdfHelpers.dbl(d['customer_price']);
       final netPrice = PdfHelpers.dbl(d['net_price'] ?? custPrice);
-      final disc = unitPrice - netPrice;
+
+      /// Total baris: API mengirim customer/net **per unit**; `extended_price` fallback total PL baris (internal).
+      final lineEup = custPrice == 0 ? extPrice : custPrice * qtySafe;
+      final lineNet = netPrice * qtySafe;
+
+      /// Total pricelist baris (eksternal): tampilan kolom + dasar diskon.
+      final linePricelistTotalExternal = unitPrice * qtySafe;
+      final discExternal = linePricelistTotalExternal - lineNet;
       final takeAway = parseTakeAway(d['take_away']);
 
       final itemType = (d['item_type']?.toString() ?? '').toLowerCase();
@@ -100,20 +119,19 @@ abstract final class PdfItemsTable {
       );
 
       if (isInternal) {
-        final eup = custPrice == 0 ? extPrice : custPrice;
-        final discInternal = eup - netPrice;
+        final discInternal = lineEup - lineNet;
         final discWidget = _buildDiscountCellInternal(
             discInternal, d, discounts,
-            pricelist: eup, hideStoreDiscountTiers: hideStoreDiscountTiers);
+            pricelist: lineEup, hideStoreDiscountTiers: hideStoreDiscountTiers);
         tableRows.add(pw.TableRow(children: [
           PdfHelpers.tc(brandCell, align: pw.TextAlign.center),
           PdfHelpers.tc(orderCell, align: pw.TextAlign.center),
           nameWidget,
           PdfHelpers.tc('$qty', align: pw.TextAlign.center),
           PdfHelpers.currencyTc(unitPrice),
-          PdfHelpers.currencyTc(eup),
+          PdfHelpers.currencyTc(lineEup),
           discWidget,
-          PdfHelpers.currencyTc(netPrice),
+          PdfHelpers.currencyTc(lineNet),
         ]));
       } else {
         tableRows.add(pw.TableRow(children: [
@@ -121,9 +139,13 @@ abstract final class PdfItemsTable {
           PdfHelpers.tc(orderCell, align: pw.TextAlign.center),
           nameWidget,
           PdfHelpers.tc('$qty', align: pw.TextAlign.center),
-          PdfHelpers.currencyTc(unitPrice),
-          PdfHelpers.currencyTc(disc > 0 ? disc : 0),
-          PdfHelpers.currencyTc(netPrice),
+          _externalPricelistCell(
+            unitPrice: unitPrice,
+            qtySafe: qtySafe,
+            linePricelistTotal: linePricelistTotalExternal,
+          ),
+          PdfHelpers.currencyTc(discExternal > 0 ? discExternal : 0),
+          PdfHelpers.currencyTc(lineNet),
         ]));
       }
     }
@@ -298,6 +320,28 @@ abstract final class PdfItemsTable {
                 style:
                     const pw.TextStyle(fontSize: 6, color: PdfColors.grey700),
                 textAlign: pw.TextAlign.right),
+        ],
+      ),
+    );
+  }
+
+  /// PDF customer: isi kolom total pricelist = [linePricelistTotal] (`unit×qty`);
+  /// bila qty > 1, baris kecil menunjukkan harga satuan agar tetap transparan.
+  static pw.Widget _externalPricelistCell({
+    required double unitPrice,
+    required int qtySafe,
+    required double linePricelistTotal,
+  }) {
+    if (qtySafe <= 1) {
+      return PdfHelpers.currencyTc(linePricelistTotal);
+    }
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(6),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+        mainAxisSize: pw.MainAxisSize.min,
+        children: [
+          PdfHelpers.buildCurrencyCell(linePricelistTotal),
         ],
       ),
     );

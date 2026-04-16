@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_layout_tokens.dart';
 import '../../../../core/utils/product_image_utils.dart';
 import '../../../../core/widgets/network_image_view.dart';
 
@@ -24,8 +25,7 @@ class OrderSummaryItemHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isAsset =
-        imageUrl.startsWith(ProductImageUtils.assetUriPrefix);
+    final isAsset = imageUrl.startsWith(ProductImageUtils.assetUriPrefix);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -74,14 +74,18 @@ class OrderSummaryItemHeader extends StatelessWidget {
                 ),
               ),
               if (skuLabel.isNotEmpty)
-                Text(
-                  'SKU: $skuLabel',
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: AppColors.textTertiary,
+                Padding(
+                  padding: const EdgeInsets.only(top: AppLayoutTokens.space4),
+                  child: Text(
+                    'SKU: $skuLabel',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      height: 1.3,
+                      color: AppColors.textTertiary,
+                    ),
                   ),
                 ),
-              const SizedBox(height: 4),
+              const SizedBox(height: AppLayoutTokens.space6),
               Text(
                 'Qty: $quantity',
                 style: const TextStyle(

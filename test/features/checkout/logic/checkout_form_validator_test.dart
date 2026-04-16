@@ -88,7 +88,7 @@ void main() {
       String shippingPhone = '',
       String shippingPhone2 = '',
       String shippingAddress = '',
-      bool isTakeAway = true,
+      bool anyLineNeedsFactoryDelivery = false,
       DateTime? orderDate,
       DateTime? requestDate,
       bool hasSelectedSpv = true,
@@ -120,7 +120,7 @@ void main() {
         indirectReceiverContactOptional: indirectReceiverContactOptional,
         indirectAlternateReceiverEmail: indirectAlternateReceiverEmail,
         indirectSkipPaymentValidation: indirectSkipPaymentValidation,
-        isTakeAway: isTakeAway,
+        anyLineNeedsFactoryDelivery: anyLineNeedsFactoryDelivery,
         orderDate: orderDate ?? OrderLetterDateUtils.today(),
         requestDate: requestDate,
         hasSelectedSpv: hasSelectedSpv,
@@ -237,9 +237,9 @@ void main() {
       expect(result.label, 'Informasi Penerima');
     });
 
-    test('returns delivery section when requestDate is null and not takeAway', () {
+    test('returns delivery section when requestDate is null and factory delivery needed', () {
       final result = validate(
-        isTakeAway: false,
+        anyLineNeedsFactoryDelivery: true,
         requestDate: null,
       );
       expect(result.key, deliveryKey);

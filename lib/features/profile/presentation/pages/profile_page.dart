@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/utils/telemetry_access.dart';
 import '../../../../core/enums/order_status.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../history/logic/order_history_provider.dart';
 import '../../logic/profile_provider.dart';
+import '../../../approval/data/utils/approval_wraps_nominal_sum.dart';
 import '../../../approval/logic/approval_inbox_provider.dart';
 import '../widgets/about_dialog_content.dart';
 import '../widgets/profile_header_card.dart';
@@ -51,21 +53,46 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
     final orderHistoryAsync = ref.watch(orderHistoryProvider);
     final inboxState = ref.watch(approvalInboxProvider);
+    // Riwayat: [orderHistoryProvider] sudah memuat data sesuai [dateFilterProvider]
+    // (null = default backend, biasanya bulan berjalan).
 
-    final now = DateTime.now();
-
-    // "Pesanan Bulan Ini" — selalu personal, filter ke bulan & tahun berjalan
-    final totalPesanan = orderHistoryAsync.when(
-      data: (orders) {
-        final count = orders.where((o) {
-          final date = DateTime.tryParse(o.orderDate) ?? DateTime(2000);
-          return date.month == now.month && date.year == now.year;
-        }).length;
-        return count.toString();
-      },
-      loading: () => '...',
-      error: (_, __) => '0',
-    );
+    // Kolom kiri: staff → agregat dari daftar riwayat yang sama dengan layar
+    // Riwayat Pesanan; SPV+ → tab Selesai Persetujuan (filter tanggal + lokasi).
+    late final String monthSuccessNominalCompact;
+    late final int completedOrdersThisMonth;
+    late final String completedOrdersCaption;
+    if (isApprover) {
+      final r = approverProfileLeftColumnFromWraps(
+        wraps: inboxState.filteredHistoryApprovals,
+        isLoading: inboxState.isLoading,
+      );
+      monthSuccessNominalCompact = r.$1;
+      completedOrdersThisMonth = r.$2;
+      completedOrdersCaption = 'SP disetujui';
+    } else {
+      final monthStats = orderHistoryAsync.when(
+        data: (orders) {
+          final approvedInFilterScope = orders
+              .where(
+                (o) => OrderStatusX.fromRaw(o.status) == OrderStatus.approved,
+              )
+              .toList();
+          final sum = approvedInFilterScope.fold<double>(
+            0,
+            (s, o) => s + o.totalAmount,
+          );
+          return (
+            AppFormatters.currencyIdrCompact(sum),
+            approvedInFilterScope.length,
+          );
+        },
+        loading: () => ('...', 0),
+        error: (_, __) => (AppFormatters.currencyIdrCompact(0), 0),
+      );
+      monthSuccessNominalCompact = monthStats.$1;
+      completedOrdersThisMonth = monthStats.$2;
+      completedOrdersCaption = 'Pesanan Selesai';
+    }
 
     // "Menunggu Approval" — 2 mode:
     // Atasan → antrean diskon bawahan yang belum disetujui
@@ -84,8 +111,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             error: (_, __) => '0',
           );
 
-    final pendingLabel =
-        isApprover ? 'Antrean Persetujuan' : 'Menunggu Approval';
+    final pendingSubtitle =
+        isApprover ? 'Antrean Persetujuan' : 'SP Menunggu Approval';
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -101,9 +128,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             const ProfileHeaderCard(),
             const SizedBox(height: 24),
             ProfileStatsCard(
-              totalPesanan: totalPesanan,
+              monthSuccessNominalCompact: monthSuccessNominalCompact,
+              completedOrdersCount: completedOrdersThisMonth,
+              completedOrdersCaption: completedOrdersCaption,
               totalPending: totalPending,
-              pendingLabel: pendingLabel,
+              pendingSubtitle: pendingSubtitle,
             ),
             const SizedBox(height: 24),
             const ProfileSectionLabel(label: 'Aktivitas'),

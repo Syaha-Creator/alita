@@ -1,4 +1,7 @@
-/// Calculates net selling price after cascading discounts.
+/// Menghitung **total baris** (bukan per unit) setelah diskon sales bertingkat.
+///
+/// Payload API `net_price` per unit diambil di [CheckoutOrderService] dengan
+/// membagi hasil ini oleh [qty] (setelah indirect store bila perlu).
 class CheckoutNetPriceCalculator {
   const CheckoutNetPriceCalculator._();
 

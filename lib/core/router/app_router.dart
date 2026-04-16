@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kDebugMode, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:upgrader/upgrader.dart';
@@ -14,6 +16,7 @@ import '../../features/auth/presentation/pages/auth_boot_page.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/pricelist/data/models/product.dart';
 import '../../features/pricelist/presentation/pages/product_list_page.dart';
+import '../../features/pricelist/presentation/pages/pricelist_custom_line_page.dart';
 import '../../features/pricelist/presentation/pages/product_detail_page.dart';
 import '../../features/pricelist/presentation/pages/product_detail_from_link_page.dart';
 import '../../features/favorites/presentation/pages/favorites_page.dart';
@@ -34,11 +37,66 @@ import '../../features/quotation/data/quotation_model.dart';
 import '../../features/quotation/presentation/pages/quotation_history_page.dart';
 import '../../features/indirect/presentation/pages/sales_hub_page.dart';
 
+/// Android: gesture / tombol sistem harus memakai [GoRouter.pop], bukan hanya
+/// [Navigator.maybePop], supaya tidak menutup activity saat masih ada route di stack
+/// GoRouter (umum terjadi dengan [ShellRoute] + [rootNavigatorKey]).
+bool get _useAndroidGoRouterBackScope =>
+    !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
 /// Returns [CupertinoPage] on iOS for native swipe-back,
 /// [MaterialPage] on Android for Material transitions.
 Page<T> _adaptivePage<T>({required Widget child, required String name}) {
-  if (isIOS) return CupertinoPage<T>(child: child, name: name);
-  return MaterialPage<T>(child: child, name: name);
+  final wrapped = _useAndroidGoRouterBackScope
+      ? _AndroidGoRouterBackScope(child: child)
+      : child;
+  if (isIOS) return CupertinoPage<T>(child: wrapped, name: name);
+  return MaterialPage<T>(child: wrapped, name: name);
+}
+
+/// Satu [PopScope] per halaman (via [_adaptivePage]): back sistem dialihkan ke GoRouter.
+/// Halaman yang punya [GoRouterPopScope] batin (checkout, approval) tetap menang lebih dulu.
+class _AndroidGoRouterBackScope extends StatelessWidget {
+  const _AndroidGoRouterBackScope({required this.child});
+
+  final Widget child;
+
+  static const _rootPaths = {
+    '/',
+    '/sales_hub',
+    '/login',
+    '/auth_boot',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) {
+        if (didPop) return;
+        final router = GoRouter.of(context);
+        if (router.canPop()) {
+          router.pop();
+          return;
+        }
+        final loc = router.state.matchedLocation;
+        if (_rootPaths.contains(loc)) {
+          SystemNavigator.pop();
+          return;
+        }
+        try {
+          final container = ProviderScope.containerOf(context);
+          final auth = container.read(authProvider);
+          final home = TelemetryAccess.canChooseSalesMode(auth.userId)
+              ? '/sales_hub'
+              : '/';
+          router.go(home);
+        } catch (_) {
+          router.go('/');
+        }
+      },
+      child: child,
+    );
+  }
 }
 
 /// [GoRouter] `extra` untuk `/order_detail`: [OrderDetailRouteArgs], [OrderHistory],
@@ -188,6 +246,28 @@ final routerProvider = Provider<GoRouter>((ref) {
             name: 'home',
             pageBuilder: (context, state) =>
                 _adaptivePage(child: const ProductListPage(), name: 'home'),
+          ),
+          GoRoute(
+            path: '/pricelist/custom_line',
+            name: 'pricelist-custom-line',
+            pageBuilder: (context, state) {
+              CartItem? editItem;
+              int? cartIndex;
+              final extra = state.extra;
+              if (extra is Map) {
+                final map = Map<String, dynamic>.from(extra);
+                editItem = map['editItem'] as CartItem?;
+                final raw = map['cartIndex'];
+                if (raw is int) cartIndex = raw;
+              }
+              return _adaptivePage(
+                child: PricelistCustomLinePage(
+                  editItem: editItem,
+                  cartIndex: cartIndex,
+                ),
+                name: 'pricelist-custom-line',
+              );
+            },
           ),
           GoRoute(
             path: '/product/:id',

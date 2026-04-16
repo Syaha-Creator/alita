@@ -7,6 +7,7 @@ import '../../../../core/utils/store_discount_calculator.dart';
 import '../../../../core/widgets/network_image_view.dart';
 import '../../../../core/widgets/price_block.dart';
 import '../../../../core/widgets/tap_scale.dart';
+import '../../data/models/pricelist_custom_line.dart';
 import '../../data/models/product.dart';
 import '../../logic/product_display_image_provider.dart';
 import '../../../favorites/logic/favorites_provider.dart';
@@ -41,7 +42,9 @@ class ProductCard extends ConsumerWidget {
         indirectPricing ? product.price : null;
     return Semantics(
       button: true,
-      label: 'Lihat detail ${product.name}',
+      label: product.isPricelistCustomPlaceholder
+          ? 'Tambah baris custom pricelist'
+          : 'Lihat detail ${product.name}',
       child: TapScale(
         child: GestureDetector(
           onTap: () {
@@ -95,49 +98,50 @@ class ProductCard extends ConsumerWidget {
                             ),
                           ),
                         ),
-                        Positioned(
-                          top: 4,
-                          right: 4,
-                          child: Semantics(
-                            button: true,
-                            label: isFavorite
-                                ? 'Hapus dari favorit'
-                                : 'Tambah ke favorit',
-                            child: GestureDetector(
-                              onTap: () {
-                                hapticSelection();
-                                ref
-                                    .read(favoritesProvider.notifier)
-                                    .toggleFavorite(product.id);
-                              },
-                              child: Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.9),
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color:
-                                          Colors.black.withValues(alpha: 0.1),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Icon(
-                                  isFavorite
-                                      ? Icons.favorite
-                                      : Icons.favorite_border,
-                                  size: 18,
-                                  color: isFavorite
-                                      ? AppColors.accent
-                                      : AppColors.textSecondary,
+                        if (!product.isPricelistCustomPlaceholder)
+                          Positioned(
+                            top: 4,
+                            right: 4,
+                            child: Semantics(
+                              button: true,
+                              label: isFavorite
+                                  ? 'Hapus dari favorit'
+                                  : 'Tambah ke favorit',
+                              child: GestureDetector(
+                                onTap: () {
+                                  hapticSelection();
+                                  ref
+                                      .read(favoritesProvider.notifier)
+                                      .toggleFavorite(product.id);
+                                },
+                                child: Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black
+                                            .withValues(alpha: 0.1),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Icon(
+                                    isFavorite
+                                        ? Icons.favorite
+                                        : Icons.favorite_border,
+                                    size: 18,
+                                    color: isFavorite
+                                        ? AppColors.accent
+                                        : AppColors.textSecondary,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
                       ],
                     ),
                   ),
@@ -165,7 +169,9 @@ class ProductCard extends ConsumerWidget {
 
                       // Category
                       Text(
-                        product.category,
+                        product.isPricelistCustomPlaceholder
+                            ? 'Tanpa SKU · brand dari filter'
+                            : product.category,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: AppColors.textTertiary,
                             ),
@@ -173,17 +179,28 @@ class ProductCard extends ConsumerWidget {
 
                       const SizedBox(height: 8),
 
-                      // Price — indirect: coret EUP, tampil setelah diskon toko
-                      PriceBlock(
-                        price: displayNet,
-                        originalPrice: displayOriginal ?? product.pricelist,
-                        formatPrice: _formatPrice,
-                        priceStyle:
-                            Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.primary,
-                                ),
-                      ),
+                      if (product.isPricelistCustomPlaceholder)
+                        Text(
+                          'Harga & EUP diisi di form',
+                          style:
+                              Theme.of(context).textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.accent,
+                                  ),
+                        )
+                      else
+                        PriceBlock(
+                          price: displayNet,
+                          originalPrice: displayOriginal ?? product.pricelist,
+                          formatPrice: _formatPrice,
+                          priceStyle: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                              ),
+                        ),
                     ],
                   ),
                 ),

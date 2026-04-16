@@ -102,7 +102,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   /// Tanggal SP (`order_date`): default hari ini; boleh mundur dalam bulan berjalan.
   DateTime _orderDate = OrderLetterDateUtils.today();
   DateTime? _requestDate;
-  bool _isTakeAway = false;
+
+  /// Per index baris checkout: `true` = bawa sendiri (take away).
+  List<bool> _lineTakeAway = [];
 
   // ── Payment (multi-payment) ─────────────────────────────────────
   bool _isLunas = true;
@@ -267,7 +269,16 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     if (rawDate != null) {
       _requestDate = DateTime.tryParse(rawDate);
     }
-    _isTakeAway = q.isTakeAway;
+    final qlen = q.items.length;
+    _lineTakeAway = q.lineTakeAway.length == qlen
+        ? List<bool>.from(q.lineTakeAway)
+        : List<bool>.filled(qlen, q.isTakeAway);
+    _shippingEmailCtrl.text = q.receiverEmail;
+    _noPoCtrl.text = q.indirectNoPo;
+    _takeAway.applyPersistedSnapshot(
+      checkedKeys: q.bonusTakeAwayCheckedKeys,
+      qtyByKey: q.bonusTakeAwayQtyByKey,
+    );
     if (q.postage.isNotEmpty) _postageCtrl.text = q.postage;
     if (q.scCode.isNotEmpty) _scCodeCtrl.text = q.scCode;
 
@@ -444,6 +455,47 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     super.dispose();
   }
 
+  bool _lineTakeAwayAt(int i) =>
+      i >= 0 && i < _lineTakeAway.length ? _lineTakeAway[i] : false;
+
+  /// Samakan panjang [_lineTakeAway] dengan jumlah baris checkout (isi baru = `false`, kelebihan dipotong).
+  ///
+  /// Tanpa `setState`: dipanggil di awal [build] dan sebelum validasi/submit/simpan draft supaya
+  /// `_headerAllLinesTakeAway`, `_anyLineNeedsFactoryDelivery`, dan payload tidak pernah membaca
+  /// mismatch satu frame seperti sebelumnya (post-frame sync).
+  void _syncLineTakeAwayToItemCount(int itemCount) {
+    if (itemCount < 0) return;
+    if (_lineTakeAway.length == itemCount) return;
+    if (_lineTakeAway.length < itemCount) {
+      _lineTakeAway = [
+        ..._lineTakeAway,
+        ...List.filled(itemCount - _lineTakeAway.length, false),
+      ];
+    } else {
+      _lineTakeAway = _lineTakeAway.sublist(0, itemCount);
+    }
+  }
+
+  bool _anyLineNeedsFactoryDelivery(List<CartItem> items) {
+    if (items.isEmpty) return false;
+    if (_lineTakeAway.length != items.length) return true;
+    return _lineTakeAway.any((v) => !v);
+  }
+
+  bool _headerAllLinesTakeAway(List<CartItem> items) {
+    if (items.isEmpty || _lineTakeAway.length != items.length) return false;
+    return _lineTakeAway.every((v) => v);
+  }
+
+  void _setLineTakeAway(int index, bool bawaSendiri) {
+    setState(() {
+      while (_lineTakeAway.length <= index) {
+        _lineTakeAway.add(false);
+      }
+      _lineTakeAway[index] = bawaSendiri;
+    });
+  }
+
   // ─────────────────────────── Build ───────────────────────────
 
   @override
@@ -451,6 +503,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     final buildSw = Stopwatch()..start();
     final List<CartItem> cartItems =
         _sessionLineItems ?? ref.watch(cartProvider);
+    _syncLineTakeAwayToItemCount(cartItems.length);
     final totalAmount = _effectiveTotal(ref);
     final totalBonusRows = cartItems.fold<int>(
       0,
@@ -699,9 +752,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                           onPickOrderDate: _pickOrderDate,
                           requestDate: _requestDate,
                           onPickRequestDate: _pickRequestDate,
-                          isTakeAway: _isTakeAway,
-                          onTakeAwayChanged: (v) =>
-                              setState(() => _isTakeAway = v),
+                          anyLineNeedsFactoryDelivery:
+                              _anyLineNeedsFactoryDelivery(cartItems),
                           postageCtrl: _postageCtrl,
                           notesController: _notesController,
                           scCodeCtrl: _scCodeCtrl,
@@ -769,6 +821,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                       currentTakeAwayQty: _currentTakeAwayQty,
                       onTakeAwayToggled: _toggleBonusTakeAway,
                       onTakeAwayQtyChanged: _setTakeAwayQty,
+                      lineTakeAway: _lineTakeAwayAt,
+                      onLineTakeAwayChanged: _setLineTakeAway,
                     ),
                   ),
 
@@ -1089,6 +1143,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
   Future<void> _handleSaveQuotation(
       BuildContext context, List<CartItem> cartItems) async {
+    _syncLineTakeAwayToItemCount(cartItems.length);
     final isIndirect = cartItems.any((e) => e.isIndirectSale);
     await QuotationSaveHandler.save(
       context: context,
@@ -1125,7 +1180,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       shippingRegionText: _shippingRegionCtrl.text.trim(),
       orderDate: _orderDate,
       requestDate: _requestDate,
-      isTakeAway: _isTakeAway,
+      lineTakeAway: List<bool>.generate(
+        cartItems.length,
+        (i) => _lineTakeAwayAt(i),
+      ),
+      receiverEmail: _shippingEmailCtrl.text.trim(),
+      indirectNoPo: _noPoCtrl.text.trim(),
+      bonusTakeAwayCheckedKeys: _takeAway.bonusCheckedKeysSnapshot,
+      bonusTakeAwayQtyByKey: _takeAway.bonusQtySnapshot,
       postage: _postageCtrl.text.trim(),
       scCode: _scCodeCtrl.text.trim(),
       grandTotal: _grandTotal,
@@ -1148,6 +1210,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     _showLoadingOverlay(context);
 
     final cartItems = _effectiveCartItems(ref);
+    _syncLineTakeAwayToItemCount(cartItems.length);
     final profile = ref.read(profileProvider).valueOrNull;
     final isIndirect = cartItems.any((e) => e.isIndirectSale);
 
@@ -1179,7 +1242,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           : _customerEmailCtrl.text,
       note: _notesController.text,
       salesCode: _scCodeCtrl.text,
-      isTakeAway: _isTakeAway,
+      headerAllLinesTakeAway: _headerAllLinesTakeAway(cartItems),
       useCustomerAddressDetailOnly: isIndirect,
       isIndirectOrder: isIndirect,
       indirectNoPoText: _noPoCtrl.text,
@@ -1246,7 +1309,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           contactsPayload: contactsPayload,
           paymentPayloads: paymentPayloads,
           receiptImages: receiptImages,
-          globalIsTakeAway: _isTakeAway,
+          lineIsTakeAway: _lineTakeAwayAt,
           isBonusTakeAwayChecked: _isBonusTakeAwayChecked,
           currentTakeAwayQty: _currentTakeAwayQty,
           selectedContactId: _selectedContactId,
@@ -1290,6 +1353,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   // ── Validation ────────────────────────────────────────────────
 
   bool _validateForm() {
+    _syncLineTakeAwayToItemCount(_effectiveCartItems(ref).length);
     final formValid = _formKey.currentState?.validate() ?? false;
 
     if (!formValid) {
@@ -1379,7 +1443,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       indirectStoreContactOptional: isIndirect,
       indirectReceiverContactOptional: isIndirect,
       indirectAlternateReceiverEmail: _shippingEmailCtrl.text,
-      isTakeAway: _isTakeAway,
+      anyLineNeedsFactoryDelivery:
+          _anyLineNeedsFactoryDelivery(_effectiveCartItems(ref)),
       orderDate: _orderDate,
       requestDate: _requestDate,
       hasSelectedSpv: checkoutState.selectedSpv != null,

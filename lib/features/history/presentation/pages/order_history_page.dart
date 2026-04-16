@@ -15,8 +15,11 @@ import '../../../../core/widgets/error_state_view.dart';
 import '../../../../core/widgets/order_list_card_frame.dart';
 import '../../../../core/widgets/status_chip.dart';
 import '../../data/models/order_history.dart';
+import '../../data/utils/order_history_list_summary.dart'
+    show OrderHistoryStatusTotals;
 import '../../logic/order_history_provider.dart';
 import '../widgets/order_history_skeleton.dart';
+import '../widgets/order_history_summary_banner.dart';
 
 class OrderHistoryPage extends ConsumerStatefulWidget {
   const OrderHistoryPage({super.key});
@@ -85,13 +88,16 @@ class _OrderHistoryPageState extends ConsumerState<OrderHistoryPage> {
           child: Divider(height: 1, color: AppColors.border),
         ),
       ),
-      body: _buildBody(historyAsync),
+      body: _buildBody(historyAsync, filterText: filterText),
     );
   }
 
   // ── Body (offline-aware error) ───────────────────────────────────
 
-  Widget _buildBody(AsyncValue<List<OrderHistory>> historyAsync) {
+  Widget _buildBody(
+    AsyncValue<List<OrderHistory>> historyAsync, {
+    required String filterText,
+  }) {
     return historyAsync.when(
       loading: () => const OrderHistorySkeleton(),
       error: (err, _) {
@@ -127,15 +133,33 @@ class _OrderHistoryPageState extends ConsumerState<OrderHistoryPage> {
             }
             ref.invalidate(orderHistoryProvider);
           },
-          child: ListView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
-            itemCount: orders.length,
-            itemBuilder: (context, index) => AnimatedListItem(
-              index: index,
-              child: RepaintBoundary(
-                child: _buildOrderCard(orders[index]),
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+                sliver: SliverToBoxAdapter(
+                  child: OrderHistorySummaryBanner(
+                    totals: OrderHistoryStatusTotals.fromOrders(orders),
+                    filterDescription: filterText,
+                  ),
+                ),
               ),
-            ),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) => AnimatedListItem(
+                      index: index,
+                      child: RepaintBoundary(
+                        child: _buildOrderCard(orders[index]),
+                      ),
+                    ),
+                    childCount: orders.length,
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },

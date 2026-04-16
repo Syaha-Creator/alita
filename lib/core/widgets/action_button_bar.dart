@@ -68,13 +68,22 @@ class ActionButtonBar extends StatelessWidget {
           elevation: 0,
         ),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.max,
           children: [
             if (primaryLeading != null) ...[
               primaryLeading!,
               const SizedBox(width: 8),
             ],
-            Text(primaryLabel, style: primaryLabelStyle),
+            Flexible(
+              child: Text(
+                primaryLabel,
+                style: primaryLabelStyle,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
       ),
@@ -94,13 +103,22 @@ class ActionButtonBar extends StatelessWidget {
                 ),
               ),
               child: Row(
-                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.max,
                 children: [
                   if (secondaryLeading case final leading?) ...[
                     leading,
                     const SizedBox(width: 8),
                   ],
-                  Text(secondaryLabel ?? '', style: secondaryLabelStyle),
+                  Flexible(
+                    child: Text(
+                      secondaryLabel ?? '',
+                      style: secondaryLabelStyle,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ],
               ),
             ),

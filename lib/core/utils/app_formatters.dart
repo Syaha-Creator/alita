@@ -21,10 +21,57 @@ class AppFormatters {
   static final DateFormat _idMonthYear = DateFormat('MMMM yyyy', 'id_ID');
   static final DateFormat _idDayMonth = DateFormat('dd MMM', 'id_ID');
   static final DateFormat _apiDate = DateFormat('yyyy-MM-dd');
-  static final DateFormat _idDateTime = DateFormat('dd MMM yyyy, HH:mm', 'id_ID');
+  static final DateFormat _idDateTime =
+      DateFormat('dd MMM yyyy, HH:mm', 'id_ID');
 
   static String currencyIdr(num value) => _idrCurrency.format(value);
-  static String currencyIdrNoSymbol(num value) => _idrNoSymbol.format(value).trim();
+  static String currencyIdrNoSymbol(num value) =>
+      _idrNoSymbol.format(value).trim();
+
+  /// Rupiah utuh; nilai **dibulatkan ke bawah** ke rupiah bulat sebelum format.
+  ///
+  /// Dipakai ringkasan agregat (banner total, breakdown) agar tampilan tidak
+  /// melebihi jumlah pasti saat dibanding daftar rinci / double sum.
+  static String currencyIdrFlooredWhole(num value) {
+    if (value < 0) return currencyIdr(value);
+    if (value <= 0) return currencyIdr(0);
+    return _idrCurrency.format(value.floor());
+  }
+
+  /// Satu digit desimal setelah pembagian skala, **selalu ke bawah** (per 0,1).
+  static String _idrCompactOneDecimalFloor(num scaled) {
+    final floored = (scaled * 10).floorToDouble() / 10.0;
+    return floored.toStringAsFixed(1).replaceAll('.', ',');
+  }
+
+  /// Rupiah ringkas untuk kartu kecil (profil, ringkasan): `Rp 45,2 Jt`,
+  /// `Rp 1,3 M`, `Rp 500 rb`. Semua tier memakai **pembulatan ke bawah**
+  /// (bilangan bulat: [floor]; satu desimal: floor per 0,1).
+  static String currencyIdrCompact(num value) {
+    if (value <= 0) return currencyIdr(0);
+    final v = value.toDouble();
+    if (v >= 1e12) {
+      final t = v / 1e12;
+      if (t >= 10) return 'Rp ${t.floor()} T';
+      return 'Rp ${_idrCompactOneDecimalFloor(t)} T';
+    }
+    if (v >= 1e9) {
+      final m = v / 1e9;
+      if (m >= 10) return 'Rp ${m.floor()} M';
+      return 'Rp ${_idrCompactOneDecimalFloor(m)} M';
+    }
+    if (v >= 1e6) {
+      final jt = v / 1e6;
+      if (jt >= 100) return 'Rp ${jt.floor()} Jt';
+      return 'Rp ${_idrCompactOneDecimalFloor(jt)} Jt';
+    }
+    if (v >= 1000) {
+      final rb = v / 1000;
+      if (rb >= 100) return 'Rp ${rb.floor()} rb';
+      return 'Rp ${_idrCompactOneDecimalFloor(rb)} rb';
+    }
+    return currencyIdrFlooredWhole(value);
+  }
 
   /// Format ISO-like date string to "dd MMM yyyy".
   /// Falls back to the original input when parsing fails.
@@ -120,7 +167,8 @@ class AppFormatters {
       return monthYearId(fallbackDate ?? DateTime.now());
     }
 
-    final endLabel = includeEndYear ? _idShortDate.format(end) : dayMonthId(end);
+    final endLabel =
+        includeEndYear ? _idShortDate.format(end) : dayMonthId(end);
     return '${dayMonthId(start)} - $endLabel';
   }
 }

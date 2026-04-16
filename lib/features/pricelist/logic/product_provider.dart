@@ -12,6 +12,7 @@ import '../../../core/utils/log.dart';
 import '../../../core/utils/network_error.dart';
 import '../../../core/utils/retry.dart';
 import '../data/models/product.dart';
+import 'pricelist_custom_line_builder.dart';
 import '../../../core/enums/sales_mode.dart';
 import '../../auth/logic/auth_provider.dart';
 import '../../indirect/logic/indirect_session_provider.dart';
@@ -509,7 +510,15 @@ final filteredProductsProvider = Provider<List<Product>>((ref) {
 
   final productsAsync = ref.watch(productListProvider);
   var products = productsAsync.valueOrNull?.products ?? [];
-  if (products.isEmpty) return [];
+
+  final customCard = PricelistCustomLineBuilder.buildGridPlaceholder(
+    brand: selectedBrand,
+    channel: selectedChannel,
+  );
+
+  if (products.isEmpty) {
+    return [customCard];
+  }
 
   // --- START LOGIKA GROUPING ---
   final Map<String, Product> groupedMap = {};
@@ -571,5 +580,5 @@ final filteredProductsProvider = Provider<List<Product>>((ref) {
       break;
   }
 
-  return filtered;
+  return [...filtered, customCard];
 });

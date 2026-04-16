@@ -41,4 +41,22 @@ class BonusTakeAwayState {
       _checkedSkus.add(k);
     }
   }
+
+  /// Untuk persist ke [QuotationModel] / JSON.
+  List<String> get bonusCheckedKeysSnapshot => _checkedSkus.toList();
+
+  Map<String, int> get bonusQtySnapshot => Map<String, int>.from(_qtys);
+
+  /// Pulihkan dari draft penawaran (kunci sama dengan [_key]).
+  void applyPersistedSnapshot({
+    List<String> checkedKeys = const [],
+    Map<String, int> qtyByKey = const {},
+  }) {
+    _checkedSkus
+      ..clear()
+      ..addAll(checkedKeys);
+    _qtys
+      ..clear()
+      ..addAll(qtyByKey);
+  }
 }

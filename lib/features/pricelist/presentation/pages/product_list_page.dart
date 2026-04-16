@@ -11,6 +11,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/empty_state_view.dart';
 import '../../../../core/widgets/animated_list_item.dart';
 import '../../../../core/widgets/floating_badge.dart';
+import '../../data/models/pricelist_custom_line.dart';
 import '../../data/models/product.dart';
 import '../../logic/master_data_provider.dart';
 import '../../logic/product_provider.dart';
@@ -312,7 +313,11 @@ class _ProductListPageState extends ConsumerState<ProductListPage> {
                       product: product,
                       indirectStoreDiscounts: cardStoreDiscounts,
                       onTap: () {
-                        context.push('/product/${product.id}', extra: product);
+                        if (product.isPricelistCustomPlaceholder) {
+                          context.push('/pricelist/custom_line');
+                        } else {
+                          context.push('/product/${product.id}', extra: product);
+                        }
                       },
                     ),
                   ),
