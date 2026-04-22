@@ -61,6 +61,8 @@ abstract final class QuotationSaveHandler {
     required Map<String, int> bonusTakeAwayQtyByKey,
     required String postage,
     required String scCode,
+    /// Lokasi showroom/pameran seperti di checkout (bukan default profil CWE).
+    required String workPlaceName,
     // Totals
     required double grandTotal,
     required double totalAkhir,
@@ -123,7 +125,9 @@ abstract final class QuotationSaveHandler {
       bonusTakeAwayQtyByKey: bonusTakeAwayQtyByKey,
       postage: postage,
       scCode: scCode,
-      workPlaceName: profile?.workPlaceName ?? '',
+      workPlaceName: workPlaceName.trim().isNotEmpty
+          ? workPlaceName.trim()
+          : (profile?.workPlaceName ?? ''),
       salesName: profile?.name ?? '',
       items: List.of(cartItems),
       subtotal: grandTotal,

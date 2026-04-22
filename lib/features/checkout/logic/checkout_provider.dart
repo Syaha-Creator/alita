@@ -127,6 +127,17 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     return state.selectedStore?.id;
   }
 
+  /// Label lokasi toko untuk penawaran/PDF — sama sumbernya dengan UI checkout
+  /// (absensi terbaru vs toko yang dipilih manual).
+  String get effectiveWorkPlaceName {
+    if (state.useAttendanceStore) {
+      return state.attendanceWorkPlaceName.trim();
+    }
+    final store = state.selectedStore;
+    if (store != null) return store.displayLabelOrFallback;
+    return '';
+  }
+
   // ── Approvers ─────────────────────────────────────────────────
 
   Future<void> fetchApprovers() async {

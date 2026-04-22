@@ -395,6 +395,7 @@ class _PricelistCustomLinePageState extends ConsumerState<PricelistCustomLinePag
       appliedDiscountFractions: _appliedDiscounts,
       indirectMeta: indirectMeta,
       bonusSnapshots: _bonusSnapshotsForCart(),
+      pricelistArea: ref.read(effectiveAreaProvider),
     );
 
     final idx = widget.cartIndex;

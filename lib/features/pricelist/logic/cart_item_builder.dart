@@ -51,6 +51,10 @@ class CartItemBuilder {
 
     // Bonus override (from "Tukar Bonus")
     List<Map<String, dynamic>>? customBonuses,
+
+    /// Snapshot area pricelist saat item ditambahkan (untuk `pricelist_area`
+    /// di `order_letter_details`).
+    String pricelistArea = '',
   }) {
     final hasKasur = _isComponentPresent(activeProduct.kasur);
     final savingAsSet = hasKasur ? !isKasurOnly : true;
@@ -222,6 +226,7 @@ class CartItemBuilder {
       indirectStorePhone: indirectMeta?.phone ?? '',
       indirectStoreDiscounts: indirectMeta?.storeDiscounts ?? const [],
       indirectStoreDiscountDisplay: indirectMeta?.discountDisplay ?? '',
+      pricelistArea: pricelistArea,
     );
   }
 

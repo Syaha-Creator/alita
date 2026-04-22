@@ -123,13 +123,18 @@ abstract final class PdfItemsTable {
         final discWidget = _buildDiscountCellInternal(
             discInternal, d, discounts,
             pricelist: lineEup, hideStoreDiscountTiers: hideStoreDiscountTiers);
+        final eupWidget = _buildEupCellInternal(
+          lineEup: lineEup,
+          detail: d,
+          allDiscounts: discounts,
+        );
         tableRows.add(pw.TableRow(children: [
           PdfHelpers.tc(brandCell, align: pw.TextAlign.center),
           PdfHelpers.tc(orderCell, align: pw.TextAlign.center),
           nameWidget,
           PdfHelpers.tc('$qty', align: pw.TextAlign.center),
           PdfHelpers.currencyTc(unitPrice),
-          PdfHelpers.currencyTc(lineEup),
+          eupWidget,
           discWidget,
           PdfHelpers.currencyTc(lineNet),
         ]));
@@ -290,8 +295,16 @@ abstract final class PdfItemsTable {
       itemDiscounts =
           itemDiscounts.where((d) => !_isStoreDiscountTier(d)).toList();
     }
-    itemDiscounts.sort((a, b) => PdfHelpers.intFrom(a['approver_level_id'])
-        .compareTo(PdfHelpers.intFrom(b['approver_level_id'])));
+    // Urutan tampilan persentase line-2 mengikuti urutan cascade:
+    //   diskon toko (standard) → lalu diskon input user (L1–L4).
+    // Dalam kelompok yang sama, tetap urut naik berdasarkan approver_level_id.
+    itemDiscounts.sort((a, b) {
+      final aStore = _isStoreDiscountTier(a) ? 0 : 1;
+      final bStore = _isStoreDiscountTier(b) ? 0 : 1;
+      if (aStore != bStore) return aStore.compareTo(bStore);
+      return PdfHelpers.intFrom(a['approver_level_id'])
+          .compareTo(PdfHelpers.intFrom(b['approver_level_id']));
+    });
 
     final pcts = <String>[];
     for (final d in itemDiscounts) {
@@ -320,6 +333,53 @@ abstract final class PdfItemsTable {
                 style:
                     const pw.TextStyle(fontSize: 6, color: PdfColors.grey700),
                 textAlign: pw.TextAlign.right),
+        ],
+      ),
+    );
+  }
+
+  /// PDF internal kolom HARGA EUP:
+  /// - Line 1: nominal [lineEup].
+  /// - Line 2 (opsional): persentase `discount_program` jika ada pada salah satu
+  ///   baris diskon untuk detail ini. Kalau tidak ada, kolom tetap satu baris.
+  static pw.Widget _buildEupCellInternal({
+    required double lineEup,
+    required Map<String, dynamic> detail,
+    required List<Map<String, dynamic>> allDiscounts,
+  }) {
+    final detailId =
+        PdfHelpers.intFrom(detail['order_letter_detail_id'] ?? detail['id']);
+    String? programText;
+    if (detailId > 0) {
+      for (final d in allDiscounts) {
+        final dId =
+            PdfHelpers.intFrom(d['order_letter_detail_id'] ?? d['detail_id']);
+        if (dId != detailId) continue;
+        final raw = d['discount_program']?.toString().trim() ?? '';
+        if (raw.isEmpty || raw == '-') continue;
+        programText = raw;
+        break;
+      }
+    }
+
+    if (programText == null) {
+      return PdfHelpers.currencyTc(lineEup);
+    }
+
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(6),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.end,
+        mainAxisSize: pw.MainAxisSize.min,
+        children: [
+          PdfHelpers.buildCurrencyCell(lineEup),
+          pw.SizedBox(height: 2),
+          pw.Text(
+            programText,
+            style:
+                const pw.TextStyle(fontSize: 6, color: PdfColors.grey700),
+            textAlign: pw.TextAlign.right,
+          ),
         ],
       ),
     );

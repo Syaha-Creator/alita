@@ -1115,6 +1115,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       customSorongNote: _customSorongCtrl.text.trim(),
       customBonuses: isBonusCustomized ? customBonuses : null,
       indirectMeta: indirectMeta,
+      pricelistArea: ref.read(effectiveAreaProvider),
     );
 
     final summaryForToast = CartItemBuilder.buildSummaryForToast(

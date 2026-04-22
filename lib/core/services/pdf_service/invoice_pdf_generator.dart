@@ -157,9 +157,11 @@ class InvoicePdfGenerator {
 
     if (!PdfAssetCache.isWarmedUp) await PdfAssetCache.warmUp();
     final logos = _buildLogos(channelStr);
-    final approvalsForPdf = isSoIndirectPdf
-        ? approvals.where((a) => !_isPdfStoreDiscountRow(a)).toList()
-        : approvals;
+    // Stempel diskon toko selalu disembunyikan dari blok PERSETUJUAN — persentase
+    // diskon toko masih tampil di kolom DISKON tabel item. Filter berlaku untuk
+    // SO, S0, maupun direct (tidak tergantung channel).
+    final approvalsForPdf =
+        approvals.where((a) => !_isPdfStoreDiscountRow(a)).toList();
     final watermark = await _buildWatermark(
         approvals, payments, PdfHelpers.dbl(letter['extended_amount']));
     final pw.ImageProvider? approveStamp =

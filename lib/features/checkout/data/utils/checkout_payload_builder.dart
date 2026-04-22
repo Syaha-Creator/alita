@@ -41,6 +41,8 @@ class CheckoutPayloadBuilder {
     /// Indirect: `no_po` di POST `/order_letters` — `null` jika [indirectNoPoText] kosong.
     bool isIndirectOrder = false,
     String indirectNoPoText = '',
+    /// Indirect: `address_number` toko untuk field `customer_master` di `/order_letters`.
+    int? indirectCustomerMaster,
   }) {
     final fullCustomerAddress = useCustomerAddressDetailOnly
         ? customerAddress.trim()
@@ -125,6 +127,9 @@ class CheckoutPayloadBuilder {
       'postage': finalPostage,
       'channel': channel,
       if (isIndirectOrder) 'no_po': noPoValue,
+      if (isIndirectOrder && indirectCustomerMaster != null &&
+          indirectCustomerMaster > 0)
+        'customer_master': indirectCustomerMaster,
     };
   }
 

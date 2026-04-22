@@ -60,9 +60,11 @@ class CheckoutApproverContent extends StatelessWidget {
                   color: AppColors.accent.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: const Text(
-                  'Diskon 3 terdeteksi',
-                  style: TextStyle(
+                child: Text(
+                  isIndirectCheckout
+                      ? 'Diskon / bonus terdeteksi'
+                      : 'Diskon 3 terdeteksi',
+                  style: const TextStyle(
                     fontSize: 10,
                     color: AppColors.accent,
                     fontWeight: FontWeight.bold,

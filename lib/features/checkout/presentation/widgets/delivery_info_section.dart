@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -232,10 +233,12 @@ class DeliveryInfoSection extends StatelessWidget {
         const SizedBox(height: 8),
         TextField(
           controller: scCodeCtrl,
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           textInputAction: TextInputAction.done,
           style: const TextStyle(fontSize: 14),
           decoration: CheckoutInputDecoration.form(
-            hintText: 'Masukkan SC Code (Opsional)',
+            hintText: 'Masukkan Kode SC (opsional)',
             hintStyle: const TextStyle(
               fontSize: 13,
               color: AppColors.textTertiary,

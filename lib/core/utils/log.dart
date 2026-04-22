@@ -47,6 +47,15 @@ class Log {
     }
   }
 
+  /// Informational log — console (and Crashlytics breadcrumb in release).
+  static void info(String message, {String? tag}) {
+    final prefix = tag != null ? '[$tag] ' : '';
+    debugPrint('[Log.info] $prefix$message');
+    if (!kDebugMode && _crashlyticsReady) {
+      FirebaseCrashlytics.instance.log('$prefix$message');
+    }
+  }
+
   /// Attach contextual key-value pairs that appear on the next crash report.
   /// Example: `Log.setContext('current_screen', 'ApprovalDetail');`
   static void setContext(String key, String value) {

@@ -185,6 +185,7 @@ class PricelistCustomLineBuilder {
     required List<double> appliedDiscountFractions,
     CartIndirectMeta? indirectMeta,
     List<CartBonusSnapshot> bonusSnapshots = const [],
+    String pricelistArea = '',
   }) {
     final d = _discountPercentsFromFractions(appliedDiscountFractions);
 
@@ -211,6 +212,7 @@ class PricelistCustomLineBuilder {
       indirectStorePhone: indirectMeta?.phone ?? '',
       indirectStoreDiscounts: indirectMeta?.storeDiscounts ?? const [],
       indirectStoreDiscountDisplay: indirectMeta?.discountDisplay ?? '',
+      pricelistArea: pricelistArea,
     );
   }
 }

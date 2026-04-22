@@ -39,8 +39,7 @@ class CheckoutOrderService {
 
   /// Returns `(work_place_id, work_place_name)` from the user's most
   /// recent attendance, or `null` if unavailable / WOH/WFH.
-  Future<(int, String)?> getLatestWorkPlace(
-      int userId, String token) async {
+  Future<(int, String)?> getLatestWorkPlace(int userId, String token) async {
     try {
       final response = await _api.get(
         CheckoutEndpoints.attendanceList,
@@ -377,6 +376,64 @@ class CheckoutOrderService {
     return double.parse((netLineTotal / qty).toStringAsFixed(2));
   }
 
+  /// Menghitung nominal (Rp) per-baris untuk setiap diskon toko (indirect).
+  ///
+  /// **Urutan cascade indirect** (sesuai `cart_item.effectiveUnitSellingPrice`):
+  ///   `customer → store1 → store2 → ... → d1 → d2 → d3 → d4`
+  ///
+  /// Jadi diskon toko di-apply ke `customer_price` langsung (tanpa prior sales
+  /// discounts), cascading antar sesama store:
+  ///   base_i = customerPerUnit × qty × Π_{k<i}(1 - storeDisc_k/100)
+  ///   nominal_i = base_i × (storeDisc_i / 100)
+  static List<double> _storeDiscountNominalLines({
+    required double customerPricePerUnit,
+    required int qty,
+    required List<double> storeDiscounts,
+  }) {
+    if (customerPricePerUnit <= 0 || qty <= 0 || storeDiscounts.isEmpty) {
+      return List<double>.filled(storeDiscounts.length, 0);
+    }
+    double base = customerPricePerUnit * qty;
+    final result = <double>[];
+    for (final sd in storeDiscounts) {
+      final sc = sd.clamp(0.0, 100.0);
+      if (sc <= 0) {
+        result.add(0);
+        continue;
+      }
+      final nominal = base * sc / 100;
+      result.add(double.parse(nominal.toStringAsFixed(2)));
+      base *= (1 - sc / 100);
+    }
+    return result;
+  }
+
+  /// Menghitung nominal (Rp) dari satu tingkat diskon setelah cascade prior discounts.
+  ///
+  /// Rumus: `customerPerUnit × qty × ∏(1 - priorDiscount_i/100) × (targetDiscount/100)`.
+  ///
+  /// **Priors untuk direct** (urutan cascade: customer → d1 → d2 → d3 → d4):
+  ///   d1: `[]`, d2: `[d1]`, d3: `[d1, d2]`, d4: `[d1, d2, d3]`
+  ///
+  /// **Priors untuk indirect** (urutan: customer → store... → d1..d4):
+  ///   d1: `[...stores]`, d2: `[...stores, d1]`, d3: `[...stores, d1, d2]`,
+  ///   d4: `[...stores, d1, d2, d3]`
+  static double _discountNominalLine({
+    required double customerPricePerUnit,
+    required int qty,
+    required double targetDiscount,
+    List<double> priorDiscounts = const [],
+  }) {
+    if (targetDiscount <= 0 || customerPricePerUnit <= 0 || qty <= 0) return 0;
+    double base = customerPricePerUnit * qty;
+    for (final d in priorDiscounts) {
+      final dc = d.clamp(0.0, 100.0);
+      if (dc > 0) base *= (1 - dc / 100);
+    }
+    final target = targetDiscount.clamp(0.0, 100.0);
+    return double.parse((base * target / 100).toStringAsFixed(2));
+  }
+
   /// Indirect: [customer_price] mengikuti direct (EUP + logika markup/original).
   /// Diskon toko diterapkan pada **net per unit setelah diskon sales** (bukan pada PL).
   static double _netLineAfterIndirectStoreDiscounts({
@@ -444,8 +501,7 @@ class CheckoutOrderService {
     final orderData = await fetchFullOrder(orderLetterId, token);
     if (orderData == null) return [];
 
-    final rawDetails =
-        orderData['order_letter_details'] as List? ?? [];
+    final rawDetails = orderData['order_letter_details'] as List? ?? [];
 
     final sorted = List<Map<String, dynamic>>.from(
       rawDetails.whereType<Map<String, dynamic>>(),
@@ -575,6 +631,8 @@ class CheckoutOrderService {
       final String brand = p.brand.isNotEmpty ? p.brand : 'Unknown Brand';
       final String ukuran = p.ukuran;
       final String itemDesc = p.name;
+      final String plType = p.channel.trim();
+      final String plArea = item.pricelistArea.trim();
 
       String appendSizeIfMissing(String baseName, String size) {
         final trimmedBase = baseName.trim();
@@ -611,7 +669,13 @@ class CheckoutOrderService {
         return lower.isNotEmpty && !lower.contains('tanpa');
       }
 
-      List<Map<String, dynamic>> buildDiscounts() {
+      List<Map<String, dynamic>> buildDiscounts({
+        double? discount1NominalLine,
+        double? discount2NominalLine,
+        double? discount3NominalLine,
+        double? discount4NominalLine,
+        List<double>? storeDiscountNominals,
+      }) {
         final base = CheckoutDiscountBuilder.build(
           userId: userId,
           creatorName: creatorName,
@@ -625,7 +689,11 @@ class CheckoutOrderService {
           discount2: item.discount2,
           discount3: item.discount3,
           discount4: item.discount4,
-          useAsmSecondApprover: item.isIndirectSale,
+          isIndirectOrder: item.isIndirectSale,
+          discount1NominalLine: discount1NominalLine,
+          discount2NominalLine: discount2NominalLine,
+          discount3NominalLine: discount3NominalLine,
+          discount4NominalLine: discount4NominalLine,
         );
         if (item.isIndirectSale &&
             item.indirectStoreDiscounts.isNotEmpty &&
@@ -635,6 +703,7 @@ class CheckoutOrderService {
             ...CheckoutDiscountBuilder.buildStoreDiscountRows(
               storeDiscounts: item.indirectStoreDiscounts,
               storeAlphaName: item.indirectStoreAlphaName,
+              storeDiscountNominals: storeDiscountNominals,
             ),
           ];
         }
@@ -642,7 +711,13 @@ class CheckoutOrderService {
       }
 
       /// Baris utama (bukan bonus): FOC → hanya voucher 100%; selain itu rantai diskon biasa.
-      List<Map<String, dynamic>> discountRowsForDetailLine() {
+      /// [customerPricePerUnit] dipakai untuk menghitung nominal diskon per komponen.
+      /// [componentProgramPrice] = plKomponen − eupKomponen (per-item, bukan total semua komponen).
+      List<Map<String, dynamic>> discountRowsForDetailLine({
+        double customerPricePerUnit = 0,
+        double componentProgramPrice = 0,
+      }) {
+        final List<Map<String, dynamic>> rows;
         if (item.isFocVoucherActive) {
           final spv = selectedSpv;
           if (spv == null) {
@@ -652,13 +727,81 @@ class CheckoutOrderService {
                   : 'Baris FOC membutuhkan SPV yang dipilih (validasi checkout harus memastikan ini).',
             );
           }
-          return CheckoutDiscountBuilder.buildFocVoucherRow(selectedSpv: spv);
+          rows = CheckoutDiscountBuilder.buildFocVoucherRow(selectedSpv: spv);
+        } else {
+          final d1 = item.discount1;
+          final d2 = item.discount2;
+          final d3 = item.discount3;
+          final d4 = item.discount4;
+          final cpu = customerPricePerUnit;
+          final qty = item.quantity;
+
+          // Nominal per level dihitung untuk direct & indirect (dipakai sebagai
+          // nilai `discount_price` di semua baris, dan `discount_extra_price`
+          // di baris Manager/Analyst).
+          //
+          // Urutan cascade:
+          //   Direct  : customer → d1 → d2 → d3 → d4
+          //   Indirect: customer → store1 → ... → storeN → d1 → d2 → d3 → d4
+          // Jadi untuk indirect, semua diskon toko jadi prior di kalkulasi d1..d4.
+          final storePriors = item.isIndirectSale
+              ? List<double>.unmodifiable(item.indirectStoreDiscounts)
+              : const <double>[];
+          final d1Nominal = _discountNominalLine(
+            customerPricePerUnit: cpu,
+            qty: qty,
+            targetDiscount: d1,
+            priorDiscounts: [...storePriors],
+          );
+          final d2Nominal = _discountNominalLine(
+            customerPricePerUnit: cpu,
+            qty: qty,
+            targetDiscount: d2,
+            priorDiscounts: [...storePriors, d1],
+          );
+          final d3Nominal = _discountNominalLine(
+            customerPricePerUnit: cpu,
+            qty: qty,
+            targetDiscount: d3,
+            priorDiscounts: [...storePriors, d1, d2],
+          );
+          final d4Nominal = _discountNominalLine(
+            customerPricePerUnit: cpu,
+            qty: qty,
+            targetDiscount: d4,
+            priorDiscounts: [...storePriors, d1, d2, d3],
+          );
+          final storeNominals = item.isIndirectSale
+              ? _storeDiscountNominalLines(
+                  customerPricePerUnit: cpu,
+                  qty: qty,
+                  storeDiscounts: item.indirectStoreDiscounts,
+                )
+              : null;
+
+          rows = buildDiscounts(
+            discount1NominalLine: d1Nominal > 0 ? d1Nominal : null,
+            discount2NominalLine: d2Nominal > 0 ? d2Nominal : null,
+            discount3NominalLine: d3Nominal > 0 ? d3Nominal : null,
+            discount4NominalLine: d4Nominal > 0 ? d4Nominal : null,
+            storeDiscountNominals: storeNominals,
+          );
         }
-        return buildDiscounts();
+
+        final program = p.program.trim();
+        final hasProgram = program.isNotEmpty && program != '-';
+        return rows
+            .map((row) => <String, dynamic>{
+                  ...row,
+                  if (hasProgram) 'discount_program': program,
+                  if (hasProgram && componentProgramPrice != 0)
+                    'discount_program_price': componentProgramPrice,
+                })
+            .toList();
       }
 
-      final isIndirectLine = item.isIndirectSale &&
-          item.indirectStoreDiscounts.isNotEmpty;
+      final isIndirectLine =
+          item.isIndirectSale && item.indirectStoreDiscounts.isNotEmpty;
 
       // ── Effective EUP per component ──
       // When the user edits the total price upward, the markup might be
@@ -747,10 +890,15 @@ class CheckoutOrderService {
           'qty': item.quantity,
           'item_type': 'Mattress',
           if (lineTakeAwayTag() != null) 'take_away': lineTakeAwayTag(),
+          if (plType.isNotEmpty) 'pricelist_type': plType,
+          if (plArea.isNotEmpty) 'pricelist_area': plArea,
         };
         pending.add(PendingDetail(
           payload: payload,
-          discounts: discountRowsForDetailLine(),
+          discounts: discountRowsForDetailLine(
+            customerPricePerUnit: kasurCustomerPerUnit,
+            componentProgramPrice: p.plKasur - p.eupKasur,
+          ),
           label: '${p.name} (Kasur)',
         ));
         componentPosted = true;
@@ -805,10 +953,17 @@ class CheckoutOrderService {
           'qty': item.quantity,
           'item_type': 'Divan',
           if (lineTakeAwayTag() != null) 'take_away': lineTakeAwayTag(),
+          if (plType.isNotEmpty) 'pricelist_type': plType,
+          if (plArea.isNotEmpty) 'pricelist_area': plArea,
         };
         pending.add(PendingDetail(
           payload: payload,
-          discounts: p.eupDivan > 0 ? discountRowsForDetailLine() : const [],
+          discounts: p.eupDivan > 0
+              ? discountRowsForDetailLine(
+                  customerPricePerUnit: divanCustomerPerUnit,
+                  componentProgramPrice: p.plDivan - p.eupDivan,
+                )
+              : const [],
           label: '${p.name} (Divan)',
         ));
         componentPosted = true;
@@ -863,10 +1018,17 @@ class CheckoutOrderService {
           'qty': item.quantity,
           'item_type': 'Headboard',
           if (lineTakeAwayTag() != null) 'take_away': lineTakeAwayTag(),
+          if (plType.isNotEmpty) 'pricelist_type': plType,
+          if (plArea.isNotEmpty) 'pricelist_area': plArea,
         };
         pending.add(PendingDetail(
           payload: payload,
-          discounts: p.eupHeadboard > 0 ? discountRowsForDetailLine() : const [],
+          discounts: p.eupHeadboard > 0
+              ? discountRowsForDetailLine(
+                  customerPricePerUnit: hbCustomerPerUnit,
+                  componentProgramPrice: p.plHeadboard - p.eupHeadboard,
+                )
+              : const [],
           label: '${p.name} (Headboard)',
         ));
         componentPosted = true;
@@ -921,10 +1083,17 @@ class CheckoutOrderService {
           'qty': item.quantity,
           'item_type': 'Sorong',
           if (lineTakeAwayTag() != null) 'take_away': lineTakeAwayTag(),
+          if (plType.isNotEmpty) 'pricelist_type': plType,
+          if (plArea.isNotEmpty) 'pricelist_area': plArea,
         };
         pending.add(PendingDetail(
           payload: payload,
-          discounts: p.eupSorong > 0 ? discountRowsForDetailLine() : const [],
+          discounts: p.eupSorong > 0
+              ? discountRowsForDetailLine(
+                  customerPricePerUnit: srCustomerPerUnit,
+                  componentProgramPrice: p.plSorong - p.eupSorong,
+                )
+              : const [],
           label: '${p.name} (Sorong)',
         ));
         componentPosted = true;
@@ -981,10 +1150,15 @@ class CheckoutOrderService {
           'qty': item.quantity,
           'item_type': 'Mattress',
           if (lineTakeAwayTag() != null) 'take_away': lineTakeAwayTag(),
+          if (plType.isNotEmpty) 'pricelist_type': plType,
+          if (plArea.isNotEmpty) 'pricelist_area': plArea,
         };
         pending.add(PendingDetail(
           payload: payload,
-          discounts: discountRowsForDetailLine(),
+          discounts: discountRowsForDetailLine(
+            customerPricePerUnit: fbCustomerPerUnit,
+            componentProgramPrice: unitPlPerUnit - p.price,
+          ),
           label: '${p.name} (Produk)',
         ));
       }
@@ -1034,6 +1208,8 @@ class CheckoutOrderService {
             'notes': segment.note,
             if (lineTakeAwayTag(segment.isTakeAway) != null)
               'take_away': lineTakeAwayTag(segment.isTakeAway),
+            if (plType.isNotEmpty) 'pricelist_type': plType,
+            if (plArea.isNotEmpty) 'pricelist_area': plArea,
           };
           pending.add(PendingDetail(
             payload: payload,

@@ -121,11 +121,13 @@ class QuotationPdfItemsBuilder {
 
       for (final bonus in item.bonusSnapshots) {
         final bonusPlPrice = _resolveBonusPlPrice(p, bonus.name);
+        // [CartBonusSnapshot.qty] = per unit utama (sama checkout: bonus.qty * qty baris).
+        final bonusEffQty = bonus.qty * item.quantity;
 
         tableRows.add(_buildItemRow(
           name: '${bonus.name} (Bonus)',
           indent: 18,
-          qty: bonus.qty,
+          qty: bonusEffQty,
           pricelist: bonusPlPrice,
           discount: bonusPlPrice,
           total: 0,

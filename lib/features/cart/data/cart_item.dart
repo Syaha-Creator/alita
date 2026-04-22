@@ -104,6 +104,9 @@ class CartItem with _$CartItem {
     /// Voucher FOC 100%: total baris di keranjang = 0; order letter memakai
     /// harga customer = pricelist & net = 0 + baris diskon bertanda FOC.
     @JsonKey(fromJson: _parseBoolDefaultFalse) @Default(false) bool isFocVoucher,
+    /// Snapshot area pricelist saat item ditambahkan ke keranjang (untuk field
+    /// `pricelist_area` di `order_letter_details`).
+    @Default('') String pricelistArea,
   }) = _CartItem;
 
   /// EUP per unit setelah diskon toko (indirect) lalu diskon sales (bertingkat).

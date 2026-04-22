@@ -8,6 +8,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
 
 import '../../../core/services/pdf_asset_cache.dart';
+import '../../../core/utils/log.dart';
 import '../data/quotation_model.dart';
 import 'quotation_pdf_cell_helpers.dart';
 import 'quotation_pdf_items_builder.dart';
@@ -37,6 +38,14 @@ class QuotationPdfGenerator {
     final dir = await getTemporaryDirectory();
     final file = File('${dir.path}/$fileName');
     await file.writeAsBytes(bytes);
+    final absolutePath = file.absolute.path;
+    Log.info(
+      'PDF penawaran ditulis ke disk:\n'
+      '  $absolutePath\n'
+      '  (Finder macOS: ⇧⌘G "Pergi ke Folder…" → tempel path file atau '
+      '"${dir.path}" untuk membuka folder tmp.)',
+      tag: 'QuotationPdf',
+    );
     await Share.shareXFiles(
       [XFile(file.path, name: fileName, mimeType: 'application/pdf')],
       sharePositionOrigin: sharePositionOrigin ?? Rect.zero,
@@ -101,8 +110,8 @@ class QuotationPdfGenerator {
     QuotationModel q,
   ) {
     final validBrandLogos = brandLogos.whereType<pw.ImageProvider>().toList();
-    final workPlace =
-        q.workPlaceName.isNotEmpty ? q.workPlaceName : 'SLEEP CENTER';
+    final workPlace = (q.workPlaceName.isNotEmpty ? q.workPlaceName : 'SLEEP CENTER')
+        .toUpperCase();
 
     return pw.Column(
       children: [

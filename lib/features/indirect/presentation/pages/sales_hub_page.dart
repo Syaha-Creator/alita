@@ -13,6 +13,7 @@ import '../../../cart/logic/cart_provider.dart';
 import '../../logic/indirect_session_provider.dart';
 import '../../logic/sales_mode_bootstrap.dart';
 import '../../logic/sales_mode_provider.dart';
+import '../../../pricelist/logic/product_provider.dart';
 
 /// Pintu masuk: pilih Direct vs Indirect sebelum katalog (hanya admin).
 class SalesHubPage extends ConsumerStatefulWidget {
@@ -24,6 +25,7 @@ class SalesHubPage extends ConsumerStatefulWidget {
 
 class _SalesHubPageState extends ConsumerState<SalesHubPage> {
   bool _redirectChecked = false;
+  bool _isProcessing = false;
 
   @override
   Widget build(BuildContext context) {
@@ -96,28 +98,16 @@ class _SalesHubPageState extends ConsumerState<SalesHubPage> {
                         subtitle: 'Sleep center / penjualan langsung',
                         icon: Icons.storefront_outlined,
                         color: AppColors.primary,
-                        onTap: () async {
-                          await ref.read(cartProvider.notifier).clearCart();
-                          ref.read(indirectSessionProvider.notifier).clear();
-                          await ref
-                              .read(salesModeProvider.notifier)
-                              .setMode(SalesMode.direct);
-                          if (context.mounted) context.go('/');
-                        },
+                        isLoading: _isProcessing,
+                        onTap: () => _selectMode(SalesMode.direct),
                       ),
                       _ModeCard(
                         title: 'Indirect',
                         subtitle: 'Toko assign + diskon toko',
                         icon: Icons.business_outlined,
                         color: AppColors.accent,
-                        onTap: () async {
-                          await ref.read(cartProvider.notifier).clearCart();
-                          ref.read(indirectSessionProvider.notifier).clear();
-                          await ref
-                              .read(salesModeProvider.notifier)
-                              .setMode(SalesMode.indirect);
-                          if (context.mounted) context.go('/');
-                        },
+                        isLoading: _isProcessing,
+                        onTap: () => _selectMode(SalesMode.indirect),
                       ),
                     ];
                     if (row) {
@@ -148,6 +138,23 @@ class _SalesHubPageState extends ConsumerState<SalesHubPage> {
     );
   }
 
+  Future<void> _selectMode(SalesMode mode) async {
+    if (_isProcessing) return;
+    setState(() => _isProcessing = true);
+    try {
+      await ref.read(cartProvider.notifier).clearCart();
+      ref.read(indirectSessionProvider.notifier).clear();
+      // Reset filter channel & brand agar tidak terbawa dari mode sebelumnya.
+      ref.read(selectedChannelProvider.notifier).state = null;
+      ref.read(selectedBrandProvider.notifier).state = null;
+      // state diupdate sync di dalam setMode; prefs tulis di background.
+      unawaited(ref.read(salesModeProvider.notifier).setMode(mode));
+      if (mounted) context.go('/');
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
   Future<void> _redirectNonAdmin(AuthState auth) async {
     await syncSalesModeForNonAdminUser(
       ref,
@@ -166,6 +173,7 @@ class _ModeCard extends StatelessWidget {
     required this.icon,
     required this.color,
     required this.onTap,
+    this.isLoading = false,
   });
 
   final String title;
@@ -173,6 +181,7 @@ class _ModeCard extends StatelessWidget {
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -183,19 +192,30 @@ class _ModeCard extends StatelessWidget {
         side: const BorderSide(color: AppColors.border),
       ),
       child: InkWell(
-        onTap: onTap,
+        onTap: isLoading ? null : onTap,
         borderRadius: BorderRadius.circular(AppLayoutTokens.radius16),
         child: Padding(
           padding: const EdgeInsets.all(AppLayoutTokens.space20),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 48, color: color),
+              if (isLoading)
+                SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 3,
+                    color: color,
+                  ),
+                )
+              else
+                Icon(icon, size: 48, color: color),
               const SizedBox(height: AppLayoutTokens.space12),
               Text(
                 title,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
+                      color: isLoading ? AppColors.textSecondary : null,
                     ),
               ),
               const SizedBox(height: AppLayoutTokens.space8),

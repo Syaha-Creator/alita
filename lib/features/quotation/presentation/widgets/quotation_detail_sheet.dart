@@ -392,9 +392,13 @@ class _ProductItemCard extends StatelessWidget {
                         style: TextStyle(
                             fontSize: 11, color: AppColors.textTertiary)),
                     Expanded(
-                      child: Text('${bonus.qty}x ${bonus.name}',
-                          style: const TextStyle(
-                              fontSize: 11, color: AppColors.textSecondary)),
+                      child: Text(
+                        '${bonus.qty * item.quantity}x ${bonus.name}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
                     ),
                     if (bonus.sku.isNotEmpty)
                       Text('SKU: ${bonus.sku}',

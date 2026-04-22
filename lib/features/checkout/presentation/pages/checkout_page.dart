@@ -280,7 +280,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       qtyByKey: q.bonusTakeAwayQtyByKey,
     );
     if (q.postage.isNotEmpty) _postageCtrl.text = q.postage;
-    if (q.scCode.isNotEmpty) _scCodeCtrl.text = q.scCode;
+    if (q.scCode.isNotEmpty) {
+      _scCodeCtrl.text = ThousandsSeparatorInputFormatter.digitsOnly(q.scCode);
+    }
 
     // ── Notes ──
     _notesController.text = q.notes;
@@ -295,7 +297,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     if (_scCodeCtrl.text.trim().isNotEmpty) return;
     final raw = ref.read(authProvider).addressNumber?.trim();
     if (raw == null || raw.isEmpty || raw.toLowerCase() == 'null') return;
-    setState(() => _scCodeCtrl.text = raw);
+    final digits = ThousandsSeparatorInputFormatter.digitsOnly(raw);
+    if (digits.isEmpty) return;
+    setState(() => _scCodeCtrl.text = digits);
   }
 
   /// Isi nama & alamat toko dari master `/all_stores` (jika nama toko cocok) dan
@@ -868,7 +872,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   // ─────────────────────────── Helpers ──────────────────────────
 
   bool _requiresManagerApproval(List<CartItem> cartItems) {
-    return cartItems.any((item) => item.discount3 > 0);
+    return cartItems.any((item) {
+      if (item.isIndirectSale) {
+        // Indirect: semua diskon yang diinput → Manager (RSM/GM).
+        return item.discount1 > 0 || item.discount2 > 0 || item.discount3 > 0;
+      }
+      // Direct: manager diperlukan saat ada discount3.
+      return item.discount3 > 0;
+    });
   }
 
   Future<void> _pickOrderDate() async {
@@ -1190,6 +1201,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       bonusTakeAwayQtyByKey: _takeAway.bonusQtySnapshot,
       postage: _postageCtrl.text.trim(),
       scCode: _scCodeCtrl.text.trim(),
+      workPlaceName:
+          ref.read(checkoutProvider.notifier).effectiveWorkPlaceName,
       grandTotal: _grandTotal,
       totalAkhir: _totalAkhir,
       notes: _notesController.text.trim(),
@@ -1246,6 +1259,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       useCustomerAddressDetailOnly: isIndirect,
       isIndirectOrder: isIndirect,
       indirectNoPoText: _noPoCtrl.text,
+      indirectCustomerMaster: isIndirect
+          ? cartItems
+              .where((e) => e.isIndirectSale)
+              .firstOrNull
+              ?.indirectStoreAddressNumber
+          : null,
     );
 
     final contactsPayload =
