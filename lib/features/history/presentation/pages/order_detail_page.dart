@@ -36,6 +36,7 @@ import '../../data/models/order_history.dart';
 import '../../logic/order_detail_provider.dart';
 import '../widgets/add_payment_bottom_sheet.dart';
 import '../widgets/approval_timeline_widget.dart';
+import '../widgets/edit_order_header_sheet.dart';
 import '../widgets/order_detail_void_bottom_bar.dart';
 import '../widgets/order_detail_skeleton.dart';
 import '../widgets/order_status_header.dart';
@@ -225,6 +226,12 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
     final showVoidBottomBar = widget.allowVoidFromApprovalContext &&
         OrderStatusX.fromRaw(currentOrder.status) == OrderStatus.approved;
 
+    // Tombol Edit: hanya pemilik SP, status bukan rejected.
+    final canEditHeader =
+        !isOffline &&
+        currentOrder.creator == userId.toString() &&
+        OrderStatusX.fromRaw(currentOrder.status) != OrderStatus.rejected;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -243,6 +250,23 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
         surfaceTintColor: Colors.transparent,
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
         actions: [
+          if (canEditHeader)
+            IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              tooltip: 'Edit Surat Pesanan',
+              onPressed: () {
+                EditOrderHeaderSheet.show(
+                  context,
+                  order: currentOrder,
+                  editorName: myName,
+                  onSuccess: () {
+                    ref
+                        .read(orderDetailProvider(widget.order.id).notifier)
+                        .refresh();
+                  },
+                );
+              },
+            ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             tooltip: 'Refresh',
