@@ -31,8 +31,10 @@ import '../../../../core/widgets/section_card.dart';
 import '../../../approval/logic/approval_decision_service.dart';
 import '../../../approval/logic/approval_inbox_provider.dart';
 import '../../../auth/logic/auth_provider.dart';
+import '../../../cart/logic/cart_provider.dart';
 import '../../../profile/logic/profile_provider.dart';
 import '../../data/models/order_history.dart';
+import '../../logic/edit_order_context_provider.dart';
 import '../../logic/order_detail_provider.dart';
 import '../widgets/add_payment_bottom_sheet.dart';
 import '../widgets/approval_timeline_widget.dart';
@@ -226,11 +228,13 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
     final showVoidBottomBar = widget.allowVoidFromApprovalContext &&
         OrderStatusX.fromRaw(currentOrder.status) == OrderStatus.approved;
 
-    // Tombol Edit: hanya pemilik SP, status bukan rejected.
+    // Tombol Edit header/items: hanya pemilik SP, status bukan rejected.
     final canEditHeader =
         !isOffline &&
         currentOrder.creator == userId.toString() &&
         OrderStatusX.fromRaw(currentOrder.status) != OrderStatus.rejected;
+    final canEditItems =
+        canEditHeader && currentOrder.details.isNotEmpty;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -250,10 +254,16 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
         surfaceTintColor: Colors.transparent,
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
         actions: [
+          if (canEditItems)
+            IconButton(
+              icon: const Icon(Icons.inventory_2_outlined),
+              tooltip: 'Edit Item Pesanan',
+              onPressed: () => _startEditItems(context, currentOrder),
+            ),
           if (canEditHeader)
             IconButton(
               icon: const Icon(Icons.edit_outlined),
-              tooltip: 'Edit Surat Pesanan',
+              tooltip: 'Edit Header Surat Pesanan',
               onPressed: () {
                 EditOrderHeaderSheet.show(
                   context,
@@ -644,6 +654,48 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
     }
     final screen = MediaQuery.of(context).size;
     return Rect.fromLTWH(0, 0, screen.width, screen.height / 2);
+  }
+
+  /// Memulai alur "Edit Items": kosongkan keranjang, set edit context,
+  /// navigasi ke halaman pemilihan produk sesuai channel order.
+  Future<void> _startEditItems(
+    BuildContext context,
+    OrderHistory order,
+  ) async {
+    // Simpan router dan channel sebelum await agar aman lintas async gap.
+    final isIndirect = (order.channel?.trim().toUpperCase() ?? '') == 'SO';
+    final router = GoRouter.of(context);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Edit Item Pesanan'),
+        content: const Text(
+          'Semua item akan dihapus dan kamu perlu memilih produk baru dari '
+          'pricelist.\n\nApproval akan di-reset setelah perubahan disimpan.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Lanjutkan'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    // Set edit context + kosongkan cart
+    ref.read(editOrderContextProvider.notifier).state = order;
+    await ref.read(cartProvider.notifier).clearCart();
+
+    if (!mounted) return;
+
+    // Navigasi ke halaman produk sesuai channel (SO = indirect, lainnya = direct)
+    unawaited(router.push(isIndirect ? '/sales_hub' : '/'));
   }
 
   static void _showPdfActionSheet(

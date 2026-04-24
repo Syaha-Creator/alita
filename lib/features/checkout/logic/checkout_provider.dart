@@ -17,6 +17,10 @@ import '../../pricelist/logic/item_lookup_provider.dart';
 import '../../history/logic/order_history_provider.dart';
 import '../../approval/logic/approval_decision_service.dart';
 import '../../approval/logic/approval_inbox_provider.dart';
+import '../../history/data/models/order_history.dart';
+import '../../history/data/services/edit_details_service.dart';
+import '../../history/logic/edit_order_context_provider.dart';
+import '../../history/logic/order_detail_provider.dart';
 import '../data/models/approver_model.dart';
 import '../data/models/store_model.dart';
 import '../data/services/approval_service.dart';
@@ -686,6 +690,183 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       );
     } catch (e, st) {
       Log.error(e, st, reason: 'Checkout: notify first approver');
+    }
+  }
+
+  // ── Edit Order Items ──────────────────────────────────────────
+
+  /// Submit "Edit Items": hapus detail lama → post detail baru → patch totals.
+  ///
+  /// Berbeda dengan [submitOrder]:
+  ///   - Skip create order_letter (gunakan [editOrder.id] yang sudah ada)
+  ///   - Skip post contacts & payments (sudah ada, tidak berubah)
+  ///   - Sebelum post detail baru, hapus semua detail + discount lama
+  ///   - Setelah selesai, patch extended_amount + harga_awal di order_letters
+  Future<void> submitEditOrder({
+    required OrderHistory editOrder,
+    required List<CartItem> cartItems,
+    required bool Function(int itemIndex) lineIsTakeAway,
+    required bool Function(int itemIndex, CartBonusSnapshot)
+        isBonusTakeAwayChecked,
+    required int Function(int itemIndex, CartBonusSnapshot) currentTakeAwayQty,
+  }) async {
+    state = state.copyWith(
+      isSubmitting: true,
+      submitError: null,
+      submitSuccess: false,
+      successNoSp: null,
+    );
+
+    final sw = Stopwatch()..start();
+    try {
+      final token = await StorageService.loadAccessToken();
+      final int userId = await StorageService.loadUserId();
+
+      final rawLookup = await _ref.read(itemLookupProvider.future);
+      final lookupByItemNum = <String, ItemLookup>{};
+      for (final list in rawLookup.values) {
+        for (final entry in list) {
+          if (entry.itemNum.isNotEmpty) lookupByItemNum[entry.itemNum] = entry;
+        }
+      }
+
+      final leaderData = await _orderService.fetchLeaderByUser(userId, token);
+      final profile = _ref.read(profileProvider).valueOrNull;
+
+      final pendingDetails = _orderService.buildPendingDetails(
+        cartItems: cartItems,
+        userId: userId,
+        leaderData: leaderData,
+        lookupByItemNum: lookupByItemNum,
+        selectedSpv: state.selectedSpv,
+        selectedManager: state.selectedManager,
+        lineIsTakeAway: lineIsTakeAway,
+        isBonusTakeAwayChecked: isBonusTakeAwayChecked,
+        currentTakeAwayQty: currentTakeAwayQty,
+        profileName: profile?.name ?? 'User',
+      );
+
+      final orderLetterId = editOrder.id;
+      final noSp = editOrder.noSp;
+
+      state = state.copyWith(retryOrderId: orderLetterId, retryNoSp: noSp);
+
+      // ── Step 0: Hapus detail + discount lama ──
+      final editService = EditDetailsService();
+      await editService.deleteAll(editOrder, token);
+
+      // ── Step 1: Post detail baru ──
+      final detailResult = await _orderService.postDetails(
+        pendingDetails,
+        orderLetterId,
+        token,
+        noSp: noSp,
+      );
+
+      // ── Step 2: Post discount baru ──
+      if (detailResult.succeeded.isNotEmpty) {
+        final needsFallback =
+            detailResult.succeeded.any((s) => s.detailId <= 0);
+        final fallbackIds = needsFallback
+            ? await _orderService.fetchDetailIds(orderLetterId, token)
+            : <int>[];
+
+        await _orderService.postDiscountsForDetails(
+          succeededDetails: detailResult.succeeded,
+          orderLetterId: orderLetterId,
+          token: token,
+          fallbackDetailIds: fallbackIds,
+        );
+      }
+
+      // ── Step 3: Patch totals (extended_amount, harga_awal) ──
+      double grandTotal = 0;
+      double hargaAwal = 0;
+      for (final s in detailResult.succeeded) {
+        final netPrice =
+            (s.pending.payload['net_price'] as num?)?.toDouble() ?? 0;
+        final custPrice =
+            (s.pending.payload['customer_price'] as num?)?.toDouble() ?? 0;
+        final qty = (s.pending.payload['qty'] as num?)?.toInt() ?? 1;
+        grandTotal += netPrice * qty;
+        hargaAwal += custPrice * qty;
+      }
+      final extendedAmount = grandTotal + editOrder.postage;
+
+      await editService.patchOrderTotals(
+        orderId: orderLetterId,
+        extendedAmount: extendedAmount,
+        hargaAwal: hargaAwal,
+        token: token,
+      );
+
+      // ── Bersihkan edit context ──
+      _ref.read(editOrderContextProvider.notifier).state = null;
+
+      // ── Clear cart & invalidate providers ──
+      await _ref.read(cartProvider.notifier).clearCart();
+      _ref.invalidate(orderHistoryProvider);
+      _ref.invalidate(orderDetailProvider(orderLetterId));
+      unawaited(_ref.read(approvalInboxProvider.notifier).fetchInbox());
+
+      sw.stop();
+      AppTelemetry.event(
+        'edit_items_success',
+        data: {
+          'duration_ms': sw.elapsedMilliseconds,
+          'order_id': orderLetterId,
+          'details': detailResult.succeeded.length,
+        },
+        tag: 'EditItems',
+      );
+
+      if (detailResult.failed.isEmpty) {
+        state = state.copyWith(
+          isSubmitting: false,
+          retryDetails: const [],
+          retryOrderId: null,
+          retryNoSp: '',
+          submitSuccess: true,
+          successNoSp: noSp,
+        );
+      } else {
+        state = state.copyWith(
+          isSubmitting: false,
+          retryDetails: detailResult.failed,
+          submitError:
+              'SP $noSp berhasil diperbarui, tetapi ${detailResult.failed.length} '
+              'item berikut gagal tersimpan:\n\n'
+              '${detailResult.failed.map((e) => '• ${e.label}').join('\n')}',
+        );
+      }
+    } on CheckoutStepException catch (e, st) {
+      sw.stop();
+      Log.error(e, st, reason: 'CheckoutNotifier.submitEditOrder');
+      AppTelemetry.error(
+        'edit_items_exception',
+        data: {'step': e.step, 'step_name': e.stepName},
+        tag: 'EditItems',
+      );
+      state = state.copyWith(
+        isSubmitting: false,
+        submitError: 'Gagal di ${e.stepName}.\n\n$e',
+      );
+    } catch (e, st) {
+      sw.stop();
+      if (isNetworkError(e)) {
+        Log.warning('submitEditOrder (network): $e', tag: 'EditItems');
+      } else {
+        Log.error(e, st, reason: 'CheckoutNotifier.submitEditOrder');
+      }
+      AppTelemetry.error(
+        'edit_items_exception',
+        data: {'error_type': e.runtimeType.toString()},
+        tag: 'EditItems',
+      );
+      state = state.copyWith(
+        isSubmitting: false,
+        submitError: 'Terjadi kesalahan saat menyimpan perubahan.\n\nDetail:\n$e',
+      );
     }
   }
 

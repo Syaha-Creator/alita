@@ -57,6 +57,8 @@ import '../../../quotation/data/quotation_model.dart';
 import '../../../quotation/logic/quotation_list_provider.dart';
 import '../../../pricelist/logic/product_provider.dart';
 import '../../../cart/logic/cart_item_price_refresh.dart';
+import '../../../history/data/models/order_history.dart';
+import '../../../history/logic/edit_order_context_provider.dart';
 // activeDraftProvider is exported from quotation_list_provider.dart
 
 /// B2B Checkout / Buat Surat Pesanan
@@ -542,7 +544,24 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       if (next.submitSuccess && next.successNoSp != null) {
         ref.read(checkoutProvider.notifier).clearSubmitResult();
 
-        // Mark the source quotation as converted (if any).
+        final editCtx = ref.read(editOrderContextProvider);
+        if (editCtx != null) {
+          // Edit mode: kembali ke order detail dengan data segar.
+          ref.read(editOrderContextProvider.notifier).state = null;
+          AppFeedback.show(
+            context,
+            message: 'Item pesanan ${next.successNoSp} berhasil diperbarui!',
+            type: AppFeedbackType.success,
+            floating: true,
+            duration: const Duration(seconds: 3),
+          );
+          if (context.mounted) {
+            context.go('/order_detail', extra: editCtx);
+          }
+          return;
+        }
+
+        // Normal mode: mark quotation converted + navigate to /success
         final sourceDraft =
             widget.restoredQuotation ?? ref.read(activeDraftProvider);
         if (sourceDraft != null) {
@@ -572,6 +591,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     }
 
     final isIndirectCheckout = cartItems.any((e) => e.isIndirectSale);
+    final editOrder = ref.watch(editOrderContextProvider);
+    final isEditMode = editOrder != null;
 
     final checkoutState = ref.watch(
       checkoutProvider.select(
@@ -599,7 +620,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     fallbackLocation: '/',
                   ),
                 ),
-          title: const Text('Buat Surat Pesanan'),
+          title: Text(isEditMode ? 'Edit Item Pesanan' : 'Buat Surat Pesanan'),
           elevation: 0,
           backgroundColor: AppColors.background,
           foregroundColor: AppColors.textPrimary,
@@ -830,9 +851,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     ),
                   ),
 
-                  if (!isIndirectCheckout) ...[
+                  if (!isIndirectCheckout && !isEditMode) ...[
                     const SizedBox(height: 16),
-                    // ── Card 5: Payment Info (tidak dipakai untuk indirect) ──
+                    // ── Card 5: Payment Info (tidak dipakai untuk indirect / edit mode) ──
                     _buildSectionCard(
                       key: _paymentSectionKey,
                       title: 'Informasi Pembayaran',
@@ -861,9 +882,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           onRetry: () => ref
               .read(checkoutProvider.notifier)
               .retryFailedDetails(selectedCartItems: widget.selectedCartItems),
-          onSubmit: () => _handleCreateOrder(context),
+          onSubmit: isEditMode
+              ? () => _handleEditOrder(context, editOrder)
+              : () => _handleCreateOrder(context),
           submitButtonEnabled:
               checkoutState.retryDetails.isEmpty && !checkoutState.isSubmitting,
+          submitLabel:
+              isEditMode ? 'Simpan Perubahan' : 'Buat Surat Pesanan',
         ),
       ),
     );
@@ -1337,6 +1362,30 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               : _shouldSaveCustomerContact,
           newCustomerContact: newCustomerContact,
           selectedCartItems: widget.selectedCartItems,
+        ));
+  }
+
+  Future<void> _handleEditOrder(
+    BuildContext context,
+    OrderHistory? editOrder,
+  ) async {
+    if (editOrder == null) return;
+    if (ifOfflineShowFeedback(context, isOffline: ref.read(isOfflineProvider))) {
+      return;
+    }
+    if (!_validateForm()) return;
+
+    _showLoadingOverlay(context);
+
+    final cartItems = _effectiveCartItems(ref);
+    _syncLineTakeAwayToItemCount(cartItems.length);
+
+    unawaited(ref.read(checkoutProvider.notifier).submitEditOrder(
+          editOrder: editOrder,
+          cartItems: cartItems,
+          lineIsTakeAway: _lineTakeAwayAt,
+          isBonusTakeAwayChecked: _isBonusTakeAwayChecked,
+          currentTakeAwayQty: _currentTakeAwayQty,
         ));
   }
 

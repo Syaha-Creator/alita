@@ -16,6 +16,7 @@ class CheckoutBottomBar extends ConsumerWidget {
   final VoidCallback onRetry;
   final VoidCallback onSubmit;
   final bool submitButtonEnabled;
+  final String submitLabel;
 
   const CheckoutBottomBar({
     super.key,
@@ -27,6 +28,7 @@ class CheckoutBottomBar extends ConsumerWidget {
     required this.onRetry,
     required this.onSubmit,
     this.submitButtonEnabled = true,
+    this.submitLabel = 'Buat Surat Pesanan',
   });
 
   @override
@@ -87,7 +89,7 @@ class CheckoutBottomBar extends ConsumerWidget {
                     elevation: 0,
                   ),
                   child: Text(
-                    'Buat Surat Pesanan',
+                    submitLabel,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           color: AppColors.surface,
                           fontWeight: FontWeight.w700,
