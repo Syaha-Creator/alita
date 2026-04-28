@@ -107,6 +107,10 @@ class CartItem with _$CartItem {
     /// Snapshot area pricelist saat item ditambahkan ke keranjang (untuk field
     /// `pricelist_area` di `order_letter_details`).
     @Default('') String pricelistArea,
+    /// True jika bonus item telah diubah dari bundle default produk (via "Tukar Bonus").
+    /// Ketika true, approval ASM (indirect) / SPV (direct) wajib dipilih meskipun
+    /// tidak ada diskon penjualan tambahan — untuk validasi checkout.
+    @JsonKey(fromJson: _parseBoolDefaultFalse) @Default(false) bool isBonusCustomized,
   }) = _CartItem;
 
   /// EUP per unit setelah diskon toko (indirect) lalu diskon sales (bertingkat).

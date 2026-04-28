@@ -265,6 +265,12 @@ mixin _$CartItem {
   /// `pricelist_area` di `order_letter_details`).
   String get pricelistArea => throw _privateConstructorUsedError;
 
+  /// True jika bonus item telah diubah dari bundle default produk (via "Tukar Bonus").
+  /// Ketika true, approval ASM (indirect) / SPV (direct) wajib dipilih meskipun
+  /// tidak ada diskon penjualan tambahan — untuk validasi checkout.
+  @JsonKey(fromJson: _parseBoolDefaultFalse)
+  bool get isBonusCustomized => throw _privateConstructorUsedError;
+
   /// Serializes this CartItem to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
@@ -310,7 +316,8 @@ abstract class $CartItemCopyWith<$Res> {
       @JsonKey(fromJson: _parseDoubleList) List<double> indirectStoreDiscounts,
       String indirectStoreDiscountDisplay,
       @JsonKey(fromJson: _parseBoolDefaultFalse) bool isFocVoucher,
-      String pricelistArea});
+      String pricelistArea,
+      @JsonKey(fromJson: _parseBoolDefaultFalse) bool isBonusCustomized});
 
   $ProductCopyWith<$Res> get product;
   $ProductCopyWith<$Res>? get masterProduct;
@@ -361,6 +368,7 @@ class _$CartItemCopyWithImpl<$Res, $Val extends CartItem>
     Object? indirectStoreDiscountDisplay = null,
     Object? isFocVoucher = null,
     Object? pricelistArea = null,
+    Object? isBonusCustomized = null,
   }) {
     return _then(_value.copyWith(
       product: null == product
@@ -483,6 +491,10 @@ class _$CartItemCopyWithImpl<$Res, $Val extends CartItem>
           ? _value.pricelistArea
           : pricelistArea // ignore: cast_nullable_to_non_nullable
               as String,
+      isBonusCustomized: null == isBonusCustomized
+          ? _value.isBonusCustomized
+          : isBonusCustomized // ignore: cast_nullable_to_non_nullable
+              as bool,
     ) as $Val);
   }
 
@@ -549,7 +561,8 @@ abstract class _$$CartItemImplCopyWith<$Res>
       @JsonKey(fromJson: _parseDoubleList) List<double> indirectStoreDiscounts,
       String indirectStoreDiscountDisplay,
       @JsonKey(fromJson: _parseBoolDefaultFalse) bool isFocVoucher,
-      String pricelistArea});
+      String pricelistArea,
+      @JsonKey(fromJson: _parseBoolDefaultFalse) bool isBonusCustomized});
 
   @override
   $ProductCopyWith<$Res> get product;
@@ -600,6 +613,7 @@ class __$$CartItemImplCopyWithImpl<$Res>
     Object? indirectStoreDiscountDisplay = null,
     Object? isFocVoucher = null,
     Object? pricelistArea = null,
+    Object? isBonusCustomized = null,
   }) {
     return _then(_$CartItemImpl(
       product: null == product
@@ -722,6 +736,10 @@ class __$$CartItemImplCopyWithImpl<$Res>
           ? _value.pricelistArea
           : pricelistArea // ignore: cast_nullable_to_non_nullable
               as String,
+      isBonusCustomized: null == isBonusCustomized
+          ? _value.isBonusCustomized
+          : isBonusCustomized // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }
@@ -761,7 +779,9 @@ class _$CartItemImpl extends _CartItem {
       final List<double> indirectStoreDiscounts = const <double>[],
       this.indirectStoreDiscountDisplay = '',
       @JsonKey(fromJson: _parseBoolDefaultFalse) this.isFocVoucher = false,
-      this.pricelistArea = ''})
+      this.pricelistArea = '',
+      @JsonKey(fromJson: _parseBoolDefaultFalse)
+      this.isBonusCustomized = false})
       : _bonusSnapshots = bonusSnapshots,
         _indirectStoreDiscounts = indirectStoreDiscounts,
         super._();
@@ -878,9 +898,16 @@ class _$CartItemImpl extends _CartItem {
   @JsonKey()
   final String pricelistArea;
 
+  /// True jika bonus item telah diubah dari bundle default produk (via "Tukar Bonus").
+  /// Ketika true, approval ASM (indirect) / SPV (direct) wajib dipilih meskipun
+  /// tidak ada diskon penjualan tambahan — untuk validasi checkout.
+  @override
+  @JsonKey(fromJson: _parseBoolDefaultFalse)
+  final bool isBonusCustomized;
+
   @override
   String toString() {
-    return 'CartItem(product: $product, masterProduct: $masterProduct, quantity: $quantity, kasurSku: $kasurSku, divanSku: $divanSku, sandaranSku: $sandaranSku, sorongSku: $sorongSku, divanKain: $divanKain, divanWarna: $divanWarna, sandaranKain: $sandaranKain, sandaranWarna: $sandaranWarna, sorongKain: $sorongKain, sorongWarna: $sorongWarna, originalEupKasur: $originalEupKasur, originalEupDivan: $originalEupDivan, originalEupHeadboard: $originalEupHeadboard, originalEupSorong: $originalEupSorong, discount1: $discount1, discount2: $discount2, discount3: $discount3, discount4: $discount4, bonusSnapshots: $bonusSnapshots, indirectStoreAddressNumber: $indirectStoreAddressNumber, indirectStoreAlphaName: $indirectStoreAlphaName, indirectStoreAddress: $indirectStoreAddress, indirectStorePhone: $indirectStorePhone, indirectStoreDiscounts: $indirectStoreDiscounts, indirectStoreDiscountDisplay: $indirectStoreDiscountDisplay, isFocVoucher: $isFocVoucher, pricelistArea: $pricelistArea)';
+    return 'CartItem(product: $product, masterProduct: $masterProduct, quantity: $quantity, kasurSku: $kasurSku, divanSku: $divanSku, sandaranSku: $sandaranSku, sorongSku: $sorongSku, divanKain: $divanKain, divanWarna: $divanWarna, sandaranKain: $sandaranKain, sandaranWarna: $sandaranWarna, sorongKain: $sorongKain, sorongWarna: $sorongWarna, originalEupKasur: $originalEupKasur, originalEupDivan: $originalEupDivan, originalEupHeadboard: $originalEupHeadboard, originalEupSorong: $originalEupSorong, discount1: $discount1, discount2: $discount2, discount3: $discount3, discount4: $discount4, bonusSnapshots: $bonusSnapshots, indirectStoreAddressNumber: $indirectStoreAddressNumber, indirectStoreAlphaName: $indirectStoreAlphaName, indirectStoreAddress: $indirectStoreAddress, indirectStorePhone: $indirectStorePhone, indirectStoreDiscounts: $indirectStoreDiscounts, indirectStoreDiscountDisplay: $indirectStoreDiscountDisplay, isFocVoucher: $isFocVoucher, pricelistArea: $pricelistArea, isBonusCustomized: $isBonusCustomized)';
   }
 
   @override
@@ -950,7 +977,9 @@ class _$CartItemImpl extends _CartItem {
             (identical(other.isFocVoucher, isFocVoucher) ||
                 other.isFocVoucher == isFocVoucher) &&
             (identical(other.pricelistArea, pricelistArea) ||
-                other.pricelistArea == pricelistArea));
+                other.pricelistArea == pricelistArea) &&
+            (identical(other.isBonusCustomized, isBonusCustomized) ||
+                other.isBonusCustomized == isBonusCustomized));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -986,7 +1015,8 @@ class _$CartItemImpl extends _CartItem {
         const DeepCollectionEquality().hash(_indirectStoreDiscounts),
         indirectStoreDiscountDisplay,
         isFocVoucher,
-        pricelistArea
+        pricelistArea,
+        isBonusCustomized
       ]);
 
   /// Create a copy of CartItem
@@ -1038,7 +1068,9 @@ abstract class _CartItem extends CartItem {
       final List<double> indirectStoreDiscounts,
       final String indirectStoreDiscountDisplay,
       @JsonKey(fromJson: _parseBoolDefaultFalse) final bool isFocVoucher,
-      final String pricelistArea}) = _$CartItemImpl;
+      final String pricelistArea,
+      @JsonKey(fromJson: _parseBoolDefaultFalse)
+      final bool isBonusCustomized}) = _$CartItemImpl;
   const _CartItem._() : super._();
 
   factory _CartItem.fromJson(Map<String, dynamic> json) =
@@ -1124,6 +1156,13 @@ abstract class _CartItem extends CartItem {
   /// `pricelist_area` di `order_letter_details`).
   @override
   String get pricelistArea;
+
+  /// True jika bonus item telah diubah dari bundle default produk (via "Tukar Bonus").
+  /// Ketika true, approval ASM (indirect) / SPV (direct) wajib dipilih meskipun
+  /// tidak ada diskon penjualan tambahan — untuk validasi checkout.
+  @override
+  @JsonKey(fromJson: _parseBoolDefaultFalse)
+  bool get isBonusCustomized;
 
   /// Create a copy of CartItem
   /// with the given fields replaced by the non-null parameter values.

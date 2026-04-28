@@ -23,7 +23,6 @@ import '../../../../core/widgets/section_card.dart';
 import '../../../cart/data/cart_indirect_meta.dart';
 import '../../../cart/data/cart_item.dart';
 import '../../../cart/logic/cart_provider.dart';
-import '../../../checkout/data/utils/checkout_net_price_calculator.dart';
 import '../../../indirect/logic/indirect_session_provider.dart';
 import '../../../indirect/logic/sales_mode_provider.dart';
 import '../../data/models/pricelist_custom_line.dart';
@@ -50,12 +49,18 @@ class PricelistCustomLinePage extends ConsumerStatefulWidget {
       _PricelistCustomLinePageState();
 }
 
-class _PricelistCustomLinePageState extends ConsumerState<PricelistCustomLinePage> {
+class _PricelistCustomLinePageState
+    extends ConsumerState<PricelistCustomLinePage> {
   late final TextEditingController _nameCtrl;
   late final TextEditingController _ukuranCtrl;
   late final TextEditingController _plCtrl;
   late final TextEditingController _eupCtrl;
   late final TextEditingController _targetTotalController;
+
+  // Diskon program berjenjang (indirect only, opsional): 2 tingkat persentase.
+  // Diterapkan SEBELUM diskon toko dalam cascade harga.
+  late final TextEditingController _prog1Ctrl;
+  late final TextEditingController _prog2Ctrl;
 
   final FocusNode _totalFocusNode = FocusNode();
 
@@ -96,14 +101,29 @@ class _PricelistCustomLinePageState extends ConsumerState<PricelistCustomLinePag
         PricelistCustomComponentType.headboard => p.plHeadboard,
         PricelistCustomComponentType.sorong => p.plSorong,
       };
-      final eu = switch (t ?? PricelistCustomComponentType.mattress) {
+      // eupKasur di snapshot menyimpan EUP SETELAH diskon program diterapkan.
+      // Untuk menampilkan EUP asli di field, kita reverse-cascade menggunakan
+      // string `p.program` yang menyimpan persentase diskon program.
+      final eupAfterProg = switch (t ?? PricelistCustomComponentType.mattress) {
         PricelistCustomComponentType.mattress => p.eupKasur,
         PricelistCustomComponentType.divan => p.eupDivan,
         PricelistCustomComponentType.headboard => p.eupHeadboard,
         PricelistCustomComponentType.sorong => p.eupSorong,
       };
+      final existingProgs = _parseProgramString(p.program);
+      final eupOriginal = _reverseProgCascade(eupAfterProg, existingProgs);
       _plCtrl = TextEditingController(text: _moneyText(pl));
-      _eupCtrl = TextEditingController(text: _moneyText(eu));
+      _eupCtrl = TextEditingController(text: _moneyText(eupOriginal));
+      _prog1Ctrl = TextEditingController(
+        text: existingProgs.isNotEmpty
+            ? _pctText(existingProgs[0])
+            : '',
+      );
+      _prog2Ctrl = TextEditingController(
+        text: existingProgs.length > 1
+            ? _pctText(existingProgs[1])
+            : '',
+      );
       _qty = edit.quantity;
       _appliedDiscounts = [
         edit.discount1 / 100,
@@ -133,6 +153,8 @@ class _PricelistCustomLinePageState extends ConsumerState<PricelistCustomLinePag
       _ukuranCtrl = TextEditingController();
       _plCtrl = TextEditingController();
       _eupCtrl = TextEditingController();
+      _prog1Ctrl = TextEditingController();
+      _prog2Ctrl = TextEditingController();
     }
     _targetTotalController = TextEditingController();
   }
@@ -143,6 +165,8 @@ class _PricelistCustomLinePageState extends ConsumerState<PricelistCustomLinePag
     _ukuranCtrl.dispose();
     _plCtrl.dispose();
     _eupCtrl.dispose();
+    _prog1Ctrl.dispose();
+    _prog2Ctrl.dispose();
     _targetTotalController.dispose();
     _totalFocusNode.dispose();
     super.dispose();
@@ -167,9 +191,60 @@ class _PricelistCustomLinePageState extends ConsumerState<PricelistCustomLinePag
     return double.tryParse(d) ?? 0;
   }
 
+  // ── Program discount helpers ──────────────────────────────────────────────
+
+  /// Parse string program dari Product (e.g. "10%+5%") → daftar persentase.
+  static List<double> _parseProgramString(String program) {
+    if (program.isEmpty || program == '-') return [];
+    return program
+        .split('+')
+        .map((s) => double.tryParse(
+              s.trim().replaceAll('%', '').replaceAll(',', '.'),
+            ) ??
+            0.0)
+        .where((v) => v > 0)
+        .toList();
+  }
+
+  /// Format persentase untuk TextField (tanpa trailing zero, e.g. "10", "5.5").
+  static String _pctText(double v) {
+    if (v <= 0) return '';
+    if (v == v.truncateToDouble()) return v.toInt().toString();
+    return v.toString().replaceAll('.', ',');
+  }
+
+  /// Reverse cascade: kembalikan EUP asli dari EUP-setelah-program.
+  static double _reverseProgCascade(double eupAfterProg, List<double> progs) {
+    if (progs.isEmpty) return eupAfterProg;
+    var factor = 1.0;
+    for (final p in progs) {
+      factor *= (1 - p / 100);
+    }
+    return factor > 0 ? eupAfterProg / factor : eupAfterProg;
+  }
+
+  /// Daftar persentase program diskon yang diisi user (non-zero).
+  List<double> _currentProgramDiscounts() {
+    double parse(TextEditingController c) =>
+        double.tryParse(c.text.trim().replaceAll(',', '.')) ?? 0.0;
+    final p1 = parse(_prog1Ctrl);
+    final p2 = parse(_prog2Ctrl);
+    return [if (p1 > 0) p1, if (p2 > 0) p2];
+  }
+
+  /// EUP asli (dari _eupCtrl) setelah diskon program diterapkan.
+  double _eupAfterProgram(double unitEup) {
+    final progs = _currentProgramDiscounts();
+    if (progs.isEmpty) return unitEup;
+    return StoreDiscountCalculator.cascade(unitEup, progs);
+  }
+
   Product _snapshotForDiscountModal(String channel, String brand) {
     final pl = _parseMoney(_plCtrl);
     final eu = _parseMoney(_eupCtrl);
+    // Modal memakai EUP-setelah-program sebagai basis sehingga limit diskon
+    // penjualan dihitung terhadap harga yang sudah dipotong program.
+    final eupForModal = _eupAfterProgram(eu > 0 ? eu : 1);
     return PricelistCustomLineBuilder.buildProductSnapshot(
       lineId: 'temp_discount_modal',
       productName: _nameCtrl.text.trim().isEmpty ? '—' : _nameCtrl.text.trim(),
@@ -178,49 +253,41 @@ class _PricelistCustomLinePageState extends ConsumerState<PricelistCustomLinePag
       channel: channel,
       type: _type,
       unitPricelist: pl > 0 ? pl : 1,
-      unitEup: eu > 0 ? eu : 1,
+      unitEup: eupForModal,
     );
   }
 
-  /// Dasar diskon tambahan / edit total: EUP per unit setelah diskon toko (indirect), sama logika detail produk.
+  /// Dasar diskon penjualan: EUP → diskon program → diskon toko (indirect).
+  ///
+  /// Urutan cascade:
+  ///   1. `unitEup` (EUP asli — input user)
+  ///   2. Diskon Program (indirect, bila ada)
+  ///   3. Diskon Toko (indirect, bila ada)
   double _plDiscountBaseTotal(
     double unitEup,
     List<double> storeDiscounts,
     bool indirect,
   ) {
     if (unitEup <= 0) return 0;
-    if (indirect && storeDiscounts.isNotEmpty) {
-      return StoreDiscountCalculator.cascade(unitEup, storeDiscounts);
+    var base = unitEup;
+    if (indirect) {
+      // Terapkan diskon program terlebih dahulu.
+      final progs = _currentProgramDiscounts();
+      if (progs.isNotEmpty) {
+        base = StoreDiscountCalculator.cascade(base, progs);
+      }
+      // Kemudian terapkan diskon toko.
+      if (storeDiscounts.isNotEmpty) {
+        base = StoreDiscountCalculator.cascade(base, storeDiscounts);
+      }
     }
-    return unitEup;
+    return base;
   }
 
   double _totalFinalPerUnit(double plBase) {
     if (plBase <= 0) return 0;
-    return ProductDetailUtils.calculateCascadingPrice(plBase, _appliedDiscounts);
-  }
-
-  double _previewNetSalesLine(double plBase) {
-    if (plBase <= 0 || _qty <= 0) return 0;
-    final d = _appliedDiscounts;
-    return CheckoutNetPriceCalculator.calculate(
-      customerPrice: plBase,
-      qty: _qty,
-      discount1: d.isNotEmpty ? d[0] * 100 : 0,
-      discount2: d.length > 1 ? d[1] * 100 : 0,
-      discount3: d.length > 2 ? d[2] * 100 : 0,
-      discount4: d.length > 3 ? d[3] * 100 : 0,
-    );
-  }
-
-  double _previewNetAfterStoreLine(
-    double lineSales,
-    List<double> storeDiscounts,
-  ) {
-    if (storeDiscounts.isEmpty) return lineSales;
-    if (_qty <= 0) return lineSales;
-    final perUnit = lineSales / _qty;
-    return StoreDiscountCalculator.cascade(perUnit, storeDiscounts) * _qty;
+    return ProductDetailUtils.calculateCascadingPrice(
+        plBase, _appliedDiscounts);
   }
 
   void _onTargetTotalChangedRaw(
@@ -264,8 +331,7 @@ class _PricelistCustomLinePageState extends ConsumerState<PricelistCustomLinePag
       _appliedDiscounts = [];
     });
     if (plBase > 0) {
-      _targetTotalController.text =
-          _totalCurrencyFormat.format(plBase).trim();
+      _targetTotalController.text = _totalCurrencyFormat.format(plBase).trim();
     } else {
       _targetTotalController.clear();
     }
@@ -277,7 +343,8 @@ class _PricelistCustomLinePageState extends ConsumerState<PricelistCustomLinePag
     if (brand == null || channel == null) {
       AppFeedback.show(
         context,
-        message: 'Channel atau brand tidak tersedia. Kembali ke beranda dan pilih filter.',
+        message:
+            'Channel atau brand tidak tersedia. Kembali ke beranda dan pilih filter.',
         type: AppFeedbackType.error,
         floating: true,
       );
@@ -378,6 +445,14 @@ class _PricelistCustomLinePageState extends ConsumerState<PricelistCustomLinePag
         ? widget.editItem!.product.id
         : PricelistCustomLineBuilder.newCartLineId();
 
+    // EUP yang disimpan ke snapshot adalah EUP SETELAH diskon program,
+    // agar cascade diskon toko + penjualan di checkout terhitung benar.
+    final eupForSnapshot = _eupAfterProgram(eu);
+    final progDiscounts = _currentProgramDiscounts();
+    final programLabel = progDiscounts.isNotEmpty
+        ? StoreDiscountCalculator.formatDisplay(progDiscounts)
+        : '-';
+
     final snapshot = PricelistCustomLineBuilder.buildProductSnapshot(
       lineId: lineId,
       productName: name,
@@ -386,7 +461,8 @@ class _PricelistCustomLinePageState extends ConsumerState<PricelistCustomLinePag
       channel: channel,
       type: _type,
       unitPricelist: pl,
-      unitEup: eu,
+      unitEup: eupForSnapshot,
+      program: programLabel,
     );
 
     var cartItem = PricelistCustomLineBuilder.buildCartItem(
@@ -396,6 +472,7 @@ class _PricelistCustomLinePageState extends ConsumerState<PricelistCustomLinePag
       indirectMeta: indirectMeta,
       bonusSnapshots: _bonusSnapshotsForCart(),
       pricelistArea: ref.read(effectiveAreaProvider),
+      isBonusCustomized: _bonusCustomized,
     );
 
     final idx = widget.cartIndex;
@@ -468,23 +545,23 @@ class _PricelistCustomLinePageState extends ConsumerState<PricelistCustomLinePag
     final channel = ref.watch(selectedChannelProvider);
     final salesMode = ref.watch(salesModeProvider);
     final indirectSession = ref.watch(indirectSessionProvider);
-    final storeDiscounts = salesMode == SalesMode.indirect && indirectSession.hasDiscounts
-        ? indirectSession.storeDiscounts
-        : const <double>[];
+    final storeDiscounts =
+        salesMode == SalesMode.indirect && indirectSession.hasDiscounts
+            ? indirectSession.storeDiscounts
+            : const <double>[];
 
     final unitEup =
         brand != null && channel != null ? _parseMoney(_eupCtrl) : 0.0;
     final useIndirectStoreNet =
         salesMode == SalesMode.indirect && storeDiscounts.isNotEmpty;
-    final plBase = _plDiscountBaseTotal(unitEup, storeDiscounts, useIndirectStoreNet);
+    final plBase =
+        _plDiscountBaseTotal(unitEup, storeDiscounts, useIndirectStoreNet);
 
     final modalSnap = brand != null && channel != null
         ? _snapshotForDiscountModal(channel, brand)
         : null;
 
-    if (modalSnap != null &&
-        !_totalFocusNode.hasFocus &&
-        plBase > 0) {
+    if (modalSnap != null && !_totalFocusNode.hasFocus && plBase > 0) {
       final display = targetTotalEup ?? _totalFinalPerUnit(plBase);
       final text = _totalCurrencyFormat.format(display).trim();
       if (_targetTotalController.text != text) {
@@ -495,18 +572,15 @@ class _PricelistCustomLinePageState extends ConsumerState<PricelistCustomLinePag
       }
     }
 
-    final previewNet = _previewNetSalesLine(plBase);
-    final previewAfterStore = storeDiscounts.isNotEmpty
-        ? _previewNetAfterStoreLine(previewNet, storeDiscounts)
-        : null;
-
     final bottomInset = MediaQuery.paddingOf(context).bottom;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(
-          widget.editItem != null ? 'Ubah baris custom' : 'Baris custom pricelist',
+          widget.editItem != null
+              ? 'Ubah baris custom'
+              : 'Baris custom pricelist',
         ),
         elevation: 0,
       ),
@@ -514,404 +588,623 @@ class _PricelistCustomLinePageState extends ConsumerState<PricelistCustomLinePag
         onTap: () => FocusScope.of(context).unfocus(),
         behavior: HitTestBehavior.translucent,
         child: ListView(
-        padding: EdgeInsets.fromLTRB(
-          AppLayoutTokens.space16,
-          AppLayoutTokens.space8,
-          AppLayoutTokens.space16,
-          AppLayoutTokens.space20 + bottomInset,
-        ),
-        children: [
-          if (brand == null || channel == null)
-            SectionCard(
-              title: 'Filter',
-              child: Text(
-                'Channel atau brand belum dipilih. Buka beranda dan lengkapi filter terlebih dahulu.',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-              ),
-            )
-          else ...[
-            SectionCard(
-              title: 'Konteks filter',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  LabelValueRow(
-                    label: 'Brand',
-                    value: brand,
-                    labelStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textTertiary,
-                        ),
-                    valueStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                  const SizedBox(height: AppLayoutTokens.space8),
-                  LabelValueRow(
-                    label: 'Channel',
-                    value: channel,
-                    labelStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textTertiary,
-                        ),
-                    valueStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppLayoutTokens.space16),
-            SectionCard(
-              title: 'Detail barang',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const FormFieldLabel('Nama produk'),
-                  const SizedBox(height: AppLayoutTokens.space8),
-                  TextField(
-                    controller: _nameCtrl,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: CheckoutInputDecoration.form(
-                      hintText: 'Contoh: Comforta Super Fit',
-                    ),
-                  ),
-                  const SizedBox(height: AppLayoutTokens.space16),
-                  const FormFieldLabel('Ukuran (desc 2)'),
-                  const SizedBox(height: AppLayoutTokens.space8),
-                  TextField(
-                    controller: _ukuranCtrl,
-                    decoration: CheckoutInputDecoration.form(
-                      hintText: 'Contoh: 160 × 200',
-                    ),
-                  ),
-                  const SizedBox(height: AppLayoutTokens.space16),
-                  const FormFieldLabel('Jenis baris (checkout)'),
-                  const SizedBox(height: AppLayoutTokens.space8),
-                  Wrap(
-                    spacing: AppLayoutTokens.space8,
-                    runSpacing: AppLayoutTokens.space8,
-                    children: PricelistCustomComponentType.values.map((t) {
-                      return AppChoiceChip(
-                        label: t.shortLabel,
-                        selected: _type == t,
-                        onSelected: (_) => setState(() {
-                          _type = t;
-                          targetTotalEup = null;
-                        }),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: AppLayoutTokens.space16),
-                  const FormFieldLabel('Harga pricelist (per unit)'),
-                  const SizedBox(height: AppLayoutTokens.space8),
-                  TextField(
-                    controller: _plCtrl,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [ThousandsSeparatorInputFormatter()],
-                    decoration: CheckoutInputDecoration.form(
-                      hintText: '0',
-                      prefixText: 'Rp ',
-                    ),
-                  ),
-                  const SizedBox(height: AppLayoutTokens.space16),
-                  const FormFieldLabel('EUP (per unit)'),
-                  const SizedBox(height: AppLayoutTokens.space8),
-                  TextField(
-                    controller: _eupCtrl,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [ThousandsSeparatorInputFormatter()],
-                    decoration: CheckoutInputDecoration.form(
-                      hintText: '0',
-                      prefixText: 'Rp ',
-                    ),
-                    onChanged: (_) => setState(() {
-                      targetTotalEup = null;
-                    }),
-                  ),
-                  const SizedBox(height: AppLayoutTokens.space16),
-                  const FormFieldLabel('Kuantitas'),
-                  const SizedBox(height: AppLayoutTokens.space8),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: QuantityStepper(
-                      quantity: _qty,
-                      onDecrement: () {
-                        if (_qty > 1) setState(() => _qty--);
-                      },
-                      onIncrement: () => setState(() => _qty++),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppLayoutTokens.space16),
-            SectionCard(
-              title: 'Diskon penjualan',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Diskon tambahan & total jual mengikuti halaman detail produk: '
-                    'atur persentase/nominal per tingkat, atau edit total akhir.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textTertiary,
-                          height: 1.35,
-                        ),
-                  ),
-                  const SizedBox(height: AppLayoutTokens.space12),
-                  Material(
-                    color: AppColors.accent.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(AppLayoutTokens.radius10),
-                    child: InkWell(
-                      onTap: plBase > 0 && modalSnap != null
-                          ? () => _openDiscountModal(channel, brand)
-                          : null,
-                      borderRadius:
-                          BorderRadius.circular(AppLayoutTokens.radius10),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppLayoutTokens.space12,
-                          vertical: AppLayoutTokens.space10,
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.local_offer,
-                              color: AppColors.accent,
-                              size: 22,
-                            ),
-                            const SizedBox(width: AppLayoutTokens.space12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Diskon tambahan',
-                                    style: Theme.of(context)
-                                        .textTheme.titleSmall
-                                        ?.copyWith(
-                                          fontWeight: FontWeight.w700,
-                                          color: AppColors.accent,
-                                        ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _appliedDiscounts.isEmpty
-                                        ? 'Belum ada diskon diterapkan'
-                                        : _appliedDiscounts
-                                            .where((d) => d > 0)
-                                            .map(
-                                              (d) => DiscountFormatter.percentLabel(
-                                                    d * 100,
-                                                  ),
-                                            )
-                                            .join(' + '),
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall
-                                        ?.copyWith(
-                                          color: AppColors.textSecondary,
-                                        ),
-                                  ),
-                                ],
+          padding: EdgeInsets.fromLTRB(
+            AppLayoutTokens.space16,
+            AppLayoutTokens.space8,
+            AppLayoutTokens.space16,
+            AppLayoutTokens.space20 + bottomInset,
+          ),
+          children: [
+            if (brand == null || channel == null)
+              SectionCard(
+                title: 'Filter',
+                child: Text(
+                  'Channel atau brand belum dipilih. Buka beranda dan lengkapi filter terlebih dahulu.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                ),
+              )
+            else ...[
+              SectionCard(
+                title: 'Konteks filter',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    LabelValueRow(
+                      label: 'Brand',
+                      value: brand,
+                      labelStyle:
+                          Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: AppColors.textTertiary,
                               ),
+                      valueStyle:
+                          Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                    ),
+                    const SizedBox(height: AppLayoutTokens.space8),
+                    LabelValueRow(
+                      label: 'Channel',
+                      value: channel,
+                      labelStyle:
+                          Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: AppColors.textTertiary,
+                              ),
+                      valueStyle:
+                          Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppLayoutTokens.space16),
+              SectionCard(
+                title: 'Detail barang',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const FormFieldLabel('Nama produk'),
+                    const SizedBox(height: AppLayoutTokens.space8),
+                    TextField(
+                      controller: _nameCtrl,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: CheckoutInputDecoration.form(
+                        hintText: 'Contoh: Comforta Super Fit',
+                      ),
+                    ),
+                    const SizedBox(height: AppLayoutTokens.space16),
+                    const FormFieldLabel('Ukuran (desc 2)'),
+                    const SizedBox(height: AppLayoutTokens.space8),
+                    TextField(
+                      controller: _ukuranCtrl,
+                      decoration: CheckoutInputDecoration.form(
+                        hintText: 'Contoh: 160 × 200',
+                      ),
+                    ),
+                    const SizedBox(height: AppLayoutTokens.space16),
+                    const FormFieldLabel('Jenis baris (checkout)'),
+                    const SizedBox(height: AppLayoutTokens.space8),
+                    Wrap(
+                      spacing: AppLayoutTokens.space8,
+                      runSpacing: AppLayoutTokens.space8,
+                      children: PricelistCustomComponentType.values.map((t) {
+                        return AppChoiceChip(
+                          label: t.shortLabel,
+                          selected: _type == t,
+                          onSelected: (_) => setState(() {
+                            _type = t;
+                            targetTotalEup = null;
+                          }),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: AppLayoutTokens.space16),
+                    const FormFieldLabel('Harga pricelist (per unit)'),
+                    const SizedBox(height: AppLayoutTokens.space8),
+                    TextField(
+                      controller: _plCtrl,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [ThousandsSeparatorInputFormatter()],
+                      decoration: CheckoutInputDecoration.form(
+                        hintText: '0',
+                        prefixText: 'Rp ',
+                      ),
+                    ),
+                    const SizedBox(height: AppLayoutTokens.space16),
+                    const FormFieldLabel('Harga Customer'),
+                    const SizedBox(height: AppLayoutTokens.space8),
+                    TextField(
+                      controller: _eupCtrl,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [ThousandsSeparatorInputFormatter()],
+                      decoration: CheckoutInputDecoration.form(
+                        hintText: '0',
+                        prefixText: 'Rp ',
+                      ),
+                      onChanged: (_) => setState(() {
+                        targetTotalEup = null;
+                      }),
+                    ),
+                    const SizedBox(height: AppLayoutTokens.space16),
+                    const FormFieldLabel('Kuantitas'),
+                    const SizedBox(height: AppLayoutTokens.space8),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: QuantityStepper(
+                        quantity: _qty,
+                        onDecrement: () {
+                          if (_qty > 1) setState(() => _qty--);
+                        },
+                        onIncrement: () => setState(() => _qty++),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // ── Rincian Harga (hanya indirect dengan store discounts) ──
+              // Berisi: input diskon program (opsional) + info diskon toko +
+              // cascade harga EUP → setelah prog → setelah toko.
+              if (useIndirectStoreNet) ...[
+                const SizedBox(height: AppLayoutTokens.space16),
+                SectionCard(
+                  title: 'Rincian Harga',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // ── Input Diskon Program ──────────────────────────
+                      const FormFieldLabel('Diskon Program (opsional)'),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Diterapkan sebelum diskon toko. Kosongkan jika tidak ada.',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppColors.textTertiary,
+                              height: 1.3,
                             ),
-                            const Icon(
-                              Icons.chevron_right,
-                              color: AppColors.accent,
+                      ),
+                      const SizedBox(height: AppLayoutTokens.space8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _prog1Ctrl,
+                              keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true,
+                              ),
+                              decoration: CheckoutInputDecoration.form(
+                                hintText: '0',
+                                labelText: 'Tingkat 1',
+                                suffixIcon: const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 10),
+                                  child: Text(
+                                    '%',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              onChanged: (_) => setState(() {
+                                targetTotalEup = null;
+                                _appliedDiscounts = [];
+                              }),
+                            ),
+                          ),
+                          const SizedBox(width: AppLayoutTokens.space8),
+                          Expanded(
+                            child: TextField(
+                              controller: _prog2Ctrl,
+                              keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true,
+                              ),
+                              decoration: CheckoutInputDecoration.form(
+                                hintText: '0',
+                                labelText: 'Tingkat 2',
+                                suffixIcon: const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 10),
+                                  child: Text(
+                                    '%',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              onChanged: (_) => setState(() {
+                                targetTotalEup = null;
+                                _appliedDiscounts = [];
+                              }),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppLayoutTokens.space16),
+                      // ── Info Diskon Toko ──────────────────────────────
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(AppLayoutTokens.space12),
+                        decoration: BoxDecoration(
+                          color: AppColors.accent.withValues(alpha: 0.08),
+                          borderRadius:
+                              BorderRadius.circular(AppLayoutTokens.radius10),
+                          border: Border.all(
+                            color: AppColors.accent.withValues(alpha: 0.28),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Diskon Toko',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelLarge
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary,
+                                  ),
+                            ),
+                            const SizedBox(height: AppLayoutTokens.space6),
+                            Text(
+                              StoreDiscountCalculator.formatDisplay(
+                                  storeDiscounts),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                    color: AppColors.accent,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                             ),
                           ],
                         ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: AppLayoutTokens.space16),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: AppLayoutTokens.space12,
-                      horizontal: AppLayoutTokens.space16,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.accent.withValues(alpha: 0.08),
-                      borderRadius:
-                          BorderRadius.circular(AppLayoutTokens.radius10),
-                      border: Border.all(
-                        color: AppColors.accent.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Text(
-                          'Total akhir',
-                          style:
-                              Theme.of(context).textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                        ),
-                        const SizedBox(width: AppLayoutTokens.space12),
-                        const Text(
-                          'Rp ',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                        Expanded(
-                          child: TextField(
-                            controller: _targetTotalController,
-                            focusNode: _totalFocusNode,
-                            keyboardType: TextInputType.number,
-                            enabled: plBase > 0 && modalSnap != null,
-                            inputFormatters: [
-                              ThousandsSeparatorInputFormatter(
-                                format: (v) =>
-                                    _totalCurrencyFormat.format(v).trim(),
-                              ),
+                      // ── Cascade harga EUP → prog → store ─────────────
+                      if (unitEup > 0) ...[
+                        const SizedBox(height: AppLayoutTokens.space12),
+                        Builder(builder: (context) {
+                          final progs = _currentProgramDiscounts();
+                          final eupAfterProg = _eupAfterProgram(unitEup);
+                          final hasProgram = progs.isNotEmpty;
+                          final productLabel = _nameCtrl.text.trim().isEmpty
+                              ? 'Produk'
+                              : _nameCtrl.text.trim();
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Jika ada program: tampilkan EUP asli → setelah prog
+                              if (hasProgram) ...[
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        productLabel,
+                                        style: const TextStyle(
+                                          color: AppColors.textSecondary,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ),
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
+                                      children: [
+                                        Text(
+                                          AppFormatters.currencyIdr(unitEup),
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            color: AppColors.textTertiary,
+                                            decoration:
+                                                TextDecoration.lineThrough,
+                                          ),
+                                        ),
+                                        Text(
+                                          '${StoreDiscountCalculator.formatDisplay(progs)}  →  ${AppFormatters.currencyIdr(eupAfterProg)}',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: AppColors.textSecondary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                // Baris final: setelah prog + toko
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    const Text(
+                                      'Setelah prog+toko:  ',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: AppColors.textTertiary,
+                                      ),
+                                    ),
+                                    Text(
+                                      AppFormatters.currencyIdr(plBase / _qty),
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ] else ...[
+                                // Tanpa program: tampilan asli (EUP coret → setelah toko)
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        productLabel,
+                                        style: const TextStyle(
+                                          color: AppColors.textSecondary,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ),
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
+                                      children: [
+                                        Text(
+                                          AppFormatters.currencyIdr(unitEup),
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            color: AppColors.textTertiary,
+                                            decoration:
+                                                TextDecoration.lineThrough,
+                                          ),
+                                        ),
+                                        Text(
+                                          AppFormatters.currencyIdr(
+                                              plBase / _qty),
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ],
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.accent,
-                            ),
-                            decoration: const InputDecoration(
-                              isDense: true,
-                              border: InputBorder.none,
-                              contentPadding: EdgeInsets.zero,
-                              hintText: '0',
-                              hintStyle: TextStyle(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            onChanged: (s) {
-                              if (modalSnap != null) {
-                                _onTargetTotalChangedRaw(s, modalSnap, plBase);
-                              }
-                            },
-                          ),
-                        ),
-                        if (targetTotalEup != null)
-                          Tooltip(
-                            message: 'Hapus semua diskon tambahan',
-                            child: GestureDetector(
-                              onTap: plBase > 0
-                                  ? () => _resetDiscounts(plBase)
-                                  : null,
-                              child: const Icon(
-                                Icons.refresh,
-                                size: 18,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppLayoutTokens.space16),
-            SectionCard(
-              title: 'Bonus spesial',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Tambah bonus dari daftar aksesori (sama seperti di halaman detail produk). '
-                    'Bonus ikut ke keranjang & checkout.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textTertiary,
-                          height: 1.35,
-                        ),
-                  ),
-                  const SizedBox(height: AppLayoutTokens.space12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _customBonuses.isEmpty
-                              ? 'Belum ada bonus'
-                              : '${_customBonuses.length} bonus dipilih',
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                        ),
-                      ),
-                      TextButton.icon(
-                        onPressed: () {
-                          showBonusEditorModal(
-                            context,
-                            defaultBonuses: const [],
-                            isBonusCustomized: _bonusCustomized,
-                            customBonuses: _customBonuses,
-                            onSave: (next) {
-                              setState(() {
-                                _customBonuses =
-                                    List<Map<String, dynamic>>.from(next);
-                                _bonusCustomized = _customBonuses.isNotEmpty;
-                              });
-                            },
                           );
-                        },
-                        icon: const Icon(Icons.card_giftcard_outlined, size: 20),
-                        label: const Text('Atur bonus'),
-                      ),
+                        }),
+                      ],
                     ],
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppLayoutTokens.space16),
-            SectionCard(
-              title: 'Perkiraan harga',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  LabelValueRow(
-                    label: 'Net (diskon sales)',
-                    value: AppFormatters.currencyIdr(previewNet),
-                    labelStyle: Theme.of(context).textTheme.bodySmall,
-                    valueStyle: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
+                ),
+              ],
+              const SizedBox(height: AppLayoutTokens.space16),
+              SectionCard(
+                title: 'Diskon penjualan',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Diskon tambahan & total jual mengikuti halaman detail produk: '
+                      'atur persentase/nominal per tingkat, atau edit total akhir.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.textTertiary,
+                            height: 1.35,
+                          ),
+                    ),
+                    const SizedBox(height: AppLayoutTokens.space12),
+                    Material(
+                      color: AppColors.accent.withValues(alpha: 0.05),
+                      borderRadius:
+                          BorderRadius.circular(AppLayoutTokens.radius10),
+                      child: InkWell(
+                        onTap: plBase > 0 && modalSnap != null
+                            ? () => _openDiscountModal(channel, brand)
+                            : null,
+                        borderRadius:
+                            BorderRadius.circular(AppLayoutTokens.radius10),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppLayoutTokens.space12,
+                            vertical: AppLayoutTokens.space10,
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.local_offer,
+                                color: AppColors.accent,
+                                size: 22,
+                              ),
+                              const SizedBox(width: AppLayoutTokens.space12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Diskon tambahan',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleSmall
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.accent,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      _appliedDiscounts.isEmpty
+                                          ? 'Belum ada diskon diterapkan'
+                                          : _appliedDiscounts
+                                              .where((d) => d > 0)
+                                              .map(
+                                                (d) => DiscountFormatter
+                                                    .percentLabel(
+                                                  d * 100,
+                                                ),
+                                              )
+                                              .join(' + '),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color: AppColors.textSecondary,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(
+                                Icons.chevron_right,
+                                color: AppColors.accent,
+                              ),
+                            ],
+                          ),
                         ),
-                  ),
-                  if (previewAfterStore != null) ...[
-                    const SizedBox(height: AppLayoutTokens.space8),
-                    LabelValueRow(
-                      label: 'Setelah diskon toko',
-                      value: AppFormatters.currencyIdr(previewAfterStore),
-                      labelStyle: Theme.of(context).textTheme.bodySmall,
-                      valueStyle:
-                          Theme.of(context).textTheme.titleSmall?.copyWith(
+                      ),
+                    ),
+                    const SizedBox(height: AppLayoutTokens.space16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppLayoutTokens.space12,
+                        horizontal: AppLayoutTokens.space16,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.accent.withValues(alpha: 0.08),
+                        borderRadius:
+                            BorderRadius.circular(AppLayoutTokens.radius10),
+                        border: Border.all(
+                          color: AppColors.accent.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Text(
+                            'Total akhir',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                          const SizedBox(width: AppLayoutTokens.space12),
+                          const Text(
+                            'Rp ',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          Expanded(
+                            child: TextField(
+                              controller: _targetTotalController,
+                              focusNode: _totalFocusNode,
+                              keyboardType: TextInputType.number,
+                              enabled: plBase > 0 && modalSnap != null,
+                              inputFormatters: [
+                                ThousandsSeparatorInputFormatter(
+                                  format: (v) =>
+                                      _totalCurrencyFormat.format(v).trim(),
+                                ),
+                              ],
+                              style: const TextStyle(
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.accent,
                               ),
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.zero,
+                                hintText: '0',
+                                hintStyle: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              onChanged: (s) {
+                                if (modalSnap != null) {
+                                  _onTargetTotalChangedRaw(
+                                      s, modalSnap, plBase);
+                                }
+                              },
+                            ),
+                          ),
+                          if (targetTotalEup != null)
+                            Tooltip(
+                              message: 'Hapus semua diskon tambahan',
+                              child: GestureDetector(
+                                onTap: plBase > 0
+                                    ? () => _resetDiscounts(plBase)
+                                    : null,
+                                child: const Icon(
+                                  Icons.refresh,
+                                  size: 18,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                   ],
-                  const SizedBox(height: AppLayoutTokens.space8),
-                  Text(
-                    'Nilai akhir di checkout mengikuti pembulatan server.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textTertiary,
-                          fontSize: 11,
-                        ),
-                  ),
-                ],
+                ),
               ),
+              const SizedBox(height: AppLayoutTokens.space16),
+              SectionCard(
+                title: 'Bonus spesial',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Tambah bonus dari daftar aksesori (sama seperti di halaman detail produk). '
+                      'Bonus ikut ke keranjang & checkout.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.textTertiary,
+                            height: 1.35,
+                          ),
+                    ),
+                    const SizedBox(height: AppLayoutTokens.space12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _customBonuses.isEmpty
+                                ? 'Belum ada bonus'
+                                : '${_customBonuses.length} bonus dipilih',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: () {
+                            showBonusEditorModal(
+                              context,
+                              defaultBonuses: const [],
+                              isBonusCustomized: _bonusCustomized,
+                              customBonuses: _customBonuses,
+                              onSave: (next) {
+                                setState(() {
+                                  _customBonuses =
+                                      List<Map<String, dynamic>>.from(next);
+                                  _bonusCustomized = _customBonuses.isNotEmpty;
+                                });
+                              },
+                            );
+                          },
+                          icon: const Icon(Icons.card_giftcard_outlined,
+                              size: 20),
+                          label: const Text('Atur bonus'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: AppLayoutTokens.space20),
+            ActionButtonBar(
+              primaryLabel: widget.editItem != null
+                  ? 'Simpan perubahan'
+                  : 'Tambah ke keranjang',
+              onPrimaryPressed:
+                  (brand == null || channel == null) ? null : () => _submit(),
+              secondaryLabel: 'Batal',
+              onSecondaryPressed: () => context.pop(),
             ),
           ],
-          const SizedBox(height: AppLayoutTokens.space20),
-          ActionButtonBar(
-            primaryLabel:
-                widget.editItem != null ? 'Simpan perubahan' : 'Tambah ke keranjang',
-            onPrimaryPressed:
-                (brand == null || channel == null) ? null : () => _submit(),
-            secondaryLabel: 'Batal',
-            onSecondaryPressed: () => context.pop(),
-          ),
-        ],
         ),
       ),
     );

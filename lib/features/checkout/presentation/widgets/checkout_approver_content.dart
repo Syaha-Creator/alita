@@ -16,6 +16,15 @@ class CheckoutApproverContent extends StatelessWidget {
   final bool requiresManager;
   /// Sales indirect: label dropdown tingkat pertama = ASM, bukan SPV.
   final bool isIndirectCheckout;
+  /// True jika ASM/SPV diperlukan untuk pesanan ini.
+  ///
+  /// Indirect: true ketika ada Diskon Tambahan (disc1/2/3 > 0) ATAU bonus diubah.
+  /// Direct: selalu true.
+  /// Ketika false, seluruh section ASM disembunyikan.
+  final bool requiresSpv;
+  /// True jika ada item yang bonusnya diubah dari bundle default — akan menampilkan
+  /// badge peringatan di bawah dropdown ASM/SPV.
+  final bool hasBonusCustomizedItem;
   final ValueChanged<Approver?> onSpvChanged;
   final ValueChanged<Approver?> onManagerChanged;
 
@@ -26,6 +35,8 @@ class CheckoutApproverContent extends StatelessWidget {
     required this.selectedManager,
     required this.requiresManager,
     this.isIndirectCheckout = false,
+    this.requiresSpv = true,
+    this.hasBonusCustomizedItem = false,
     required this.onSpvChanged,
     required this.onManagerChanged,
   });
@@ -35,16 +46,49 @@ class CheckoutApproverContent extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SearchableDropdownField<Approver>(
-          label: isIndirectCheckout
-              ? 'Area Sales Manager (ASM)'
-              : 'Supervisor (SPV)',
-          hint: isIndirectCheckout ? 'Pilih ASM' : 'Pilih SPV',
-          selectedValue: selectedSpv,
-          items: approvers,
-          itemAsString: (a) => a.displayLabel,
-          onChanged: onSpvChanged,
-        ),
+        if (requiresSpv) ...[
+          SearchableDropdownField<Approver>(
+            label: isIndirectCheckout
+                ? 'Area Sales Manager (ASM)'
+                : 'Supervisor (SPV)',
+            hint: isIndirectCheckout ? 'Pilih ASM' : 'Pilih SPV',
+            selectedValue: selectedSpv,
+            items: approvers,
+            itemAsString: (a) => a.displayLabel,
+            onChanged: onSpvChanged,
+          ),
+        ],
+        if (hasBonusCustomizedItem) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.orange.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: Colors.orange.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.card_giftcard_outlined,
+                    size: 14, color: Colors.orange.shade700),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Ada bonus yang diubah dari bundle default — '
+                    '${isIndirectCheckout ? 'ASM' : 'SPV'} wajib menyetujui.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.orange.shade800,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
         if (requiresManager) ...[
           const SizedBox(height: 16),
           Row(

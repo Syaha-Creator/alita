@@ -38,11 +38,19 @@ class CheckoutPayloadBuilder {
     /// Indirect: alamat toko cukup dari [customerAddress] (tanpa suffix EMSIFA).
     bool useCustomerAddressDetailOnly = false,
 
-    /// Indirect: `no_po` di POST `/order_letters` — `null` jika [indirectNoPoText] kosong.
     bool isIndirectOrder = false,
+    /// No. PO: untuk indirect = no. PO toko, untuk direct = no. PO leasing.
+    /// `null` jika kosong (tidak dikirim ke backend).
     String indirectNoPoText = '',
     /// Indirect: `address_number` toko untuk field `customer_master` di `/order_letters`.
     int? indirectCustomerMaster,
+
+    /// Jika true, kirim `status: 'Approved'` langsung saat membuat order letter.
+    ///
+    /// Dipakai untuk indirect order tanpa Diskon Tambahan dan tanpa perubahan bonus —
+    /// tidak ada row approval yang pending, sehingga backend tidak akan otomatis
+    /// meng-update status ke Approved tanpa trigger dari approval flow.
+    bool autoApprove = false,
   }) {
     final fullCustomerAddress = useCustomerAddressDetailOnly
         ? customerAddress.trim()
@@ -101,9 +109,10 @@ class CheckoutPayloadBuilder {
     final discountPercentage =
         hargaAwal > 0 ? ((hargaAwal - grandTotal) / hargaAwal) * 100 : 0.0;
 
+    // `no_po` dikirim untuk indirect (no. PO toko) maupun direct (no. PO leasing).
+    // Null bila kosong agar tidak menimpa nilai existing di backend.
     final noPoTrimmed = indirectNoPoText.trim();
-    final noPoValue =
-        isIndirectOrder ? (noPoTrimmed.isEmpty ? null : noPoTrimmed) : null;
+    final noPoValue = noPoTrimmed.isEmpty ? null : noPoTrimmed;
 
     return {
       'order_date': AppFormatters.apiDate(orderDate),
@@ -120,13 +129,15 @@ class CheckoutPayloadBuilder {
       'harga_awal': hargaAwal,
       'discount': discountPercentage,
       'note': note.trim(),
-      'status': OrderStatus.pending.apiValue,
+      'status': autoApprove
+          ? OrderStatus.approved.apiValue
+          : OrderStatus.pending.apiValue,
       'sales_code': salesCode.trim().isEmpty ? null : salesCode.trim(),
       'work_place_id': workPlaceId ?? 0,
       'take_away': headerAllLinesTakeAway ? 'TAKE AWAY' : null,
       'postage': finalPostage,
       'channel': channel,
-      if (isIndirectOrder) 'no_po': noPoValue,
+      if (noPoValue != null) 'no_po': noPoValue,
       if (isIndirectOrder && indirectCustomerMaster != null &&
           indirectCustomerMaster > 0)
         'customer_master': indirectCustomerMaster,

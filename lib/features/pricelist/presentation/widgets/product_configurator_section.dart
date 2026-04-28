@@ -360,7 +360,7 @@ class ProductConfiguratorSection extends StatelessWidget {
 
   Widget _buildTipePembelianRow(BuildContext context) {
     final satuanLabel =
-        anchorType == AnchorType.divan ? 'Divan Saja' : 'MattressOnly';
+        anchorType == AnchorType.divan ? 'Divan Saja' : 'Mattress Only';
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(

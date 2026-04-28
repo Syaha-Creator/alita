@@ -220,6 +220,7 @@ class CartItemBuilder {
       discount3: discPct3,
       discount4: discPct4,
       bonusSnapshots: bonusSnapshots,
+      isBonusCustomized: customBonuses != null && customBonuses.isNotEmpty,
       indirectStoreAddressNumber: indirectMeta?.addressNumber,
       indirectStoreAlphaName: indirectMeta?.alphaName ?? '',
       indirectStoreAddress: indirectMeta?.address ?? '',

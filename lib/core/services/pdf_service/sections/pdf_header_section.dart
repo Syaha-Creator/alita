@@ -206,6 +206,8 @@ abstract final class PdfHeaderSection {
         pemesanPhones.isNotEmpty && penerimaPhones.isNotEmpty;
     final rightRows = <pw.TableRow>[
       _infoRow('No. SP.', order['no_sp']?.toString() ?? '-'),
+      // No. PO: tampil jika ada (untuk leasing di direct, atau no. PO toko di indirect)
+      if (noPoText != '-') _infoRow('No. PO', noPoText),
       if (tglKirim != null) _infoRow('Tgl Kirim', tglKirim),
       if (hasPemisahTelepon) ...[
         _infoRow('Telepon pemesan', pemesanPhones),

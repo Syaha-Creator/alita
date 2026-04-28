@@ -174,10 +174,10 @@ class _EditOrderHeaderSheetState extends State<EditOrderHeaderSheet> {
         shipToName: _shipToNameCtrl.text,
         addressShipTo: _addressShipToCtrl.text,
         requestDate: AppFormatters.apiDate(_requestDate!),
-        noPo: _noPoCtrl.text.trim().isEmpty ? null : _noPoCtrl.text.trim(),
-        salesCode: _salesCodeCtrl.text.trim().isEmpty
-            ? null
-            : _salesCodeCtrl.text.trim(),
+        // Empty/null akan dikonversi service jadi `null` di payload — supaya
+        // user bisa menghapus PO / SC yang sebelumnya sudah ada.
+        noPo: _noPoCtrl.text,
+        salesCode: _salesCodeCtrl.text,
         note: _noteCtrl.text,
       );
 

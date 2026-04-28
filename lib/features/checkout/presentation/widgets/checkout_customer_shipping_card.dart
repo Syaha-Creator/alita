@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../data/models/store_model.dart';
 import 'customer_info_section.dart';
 import 'shipping_info_section.dart';
 
@@ -55,6 +56,15 @@ class CheckoutCustomerShippingCard extends StatelessWidget {
     required this.shippingAddressCtrl,
     required this.shippingRegionCtrl,
     required this.onPickShippingRegion,
+    this.isReceiverBranchMode = true,
+    this.onToggleReceiverBranchMode,
+    this.availableStores = const [],
+    this.selectedReceiverStore,
+    this.onReceiverStorePicked,
+    this.onPickReceiverContact,
+    this.isFromReceiverContactBook = false,
+    this.onRefreshStores,
+    this.isRefreshingStores = false,
   });
 
   final String customerSectionTitle;
@@ -103,6 +113,17 @@ class CheckoutCustomerShippingCard extends StatelessWidget {
   final TextEditingController shippingAddressCtrl;
   final TextEditingController shippingRegionCtrl;
   final VoidCallback onPickShippingRegion;
+
+  /// Indirect receiver mode toggle (cabang/gudang vs customer baru).
+  final bool isReceiverBranchMode;
+  final ValueChanged<bool>? onToggleReceiverBranchMode;
+  final List<StoreModel> availableStores;
+  final StoreModel? selectedReceiverStore;
+  final ValueChanged<StoreModel>? onReceiverStorePicked;
+  final VoidCallback? onPickReceiverContact;
+  final bool isFromReceiverContactBook;
+  final VoidCallback? onRefreshStores;
+  final bool isRefreshingStores;
 
   @override
   Widget build(BuildContext context) {
@@ -171,6 +192,15 @@ class CheckoutCustomerShippingCard extends StatelessWidget {
             shippingAddressCtrl: shippingAddressCtrl,
             shippingRegionCtrl: shippingRegionCtrl,
             onPickShippingRegion: onPickShippingRegion,
+            isReceiverBranchMode: isReceiverBranchMode,
+            onToggleReceiverBranchMode: onToggleReceiverBranchMode,
+            availableStores: availableStores,
+            selectedReceiverStore: selectedReceiverStore,
+            onReceiverStorePicked: onReceiverStorePicked,
+            onPickReceiverContact: onPickReceiverContact,
+            isFromReceiverContactBook: isFromReceiverContactBook,
+            onRefreshStores: onRefreshStores,
+            isRefreshingStores: isRefreshingStores,
           ),
         ],
       ),

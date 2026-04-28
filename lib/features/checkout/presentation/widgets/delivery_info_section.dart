@@ -36,6 +36,9 @@ class DeliveryInfoSection extends StatelessWidget {
 
     /// Indirect: tampilkan field No. PO (opsional) untuk `order_letters.no_po`.
     this.showIndirectNoPo = false,
+
+    /// Direct: tampilkan field No. PO untuk keperluan leasing.
+    this.showDirectNoPo = false,
     this.noPoCtrl,
   });
 
@@ -58,6 +61,7 @@ class DeliveryInfoSection extends StatelessWidget {
   final VoidCallback? onPickStore;
 
   final bool showIndirectNoPo;
+  final bool showDirectNoPo;
   final TextEditingController? noPoCtrl;
 
   static final _dateFmt = DateFormat('EEEE, d MMMM yyyy', 'id_ID');
@@ -68,7 +72,7 @@ class DeliveryInfoSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // 0. Lokasi Toko
-        const FormFieldLabel('Lokasi Toko'),
+        const FormFieldLabel('Lokasi Input SP'),
         const SizedBox(height: 8),
         _StoreLocationBlock(
           isLoading: isLoadingWorkPlace,
@@ -80,15 +84,27 @@ class DeliveryInfoSection extends StatelessWidget {
         ),
         const SizedBox(height: 16),
 
-        if (showIndirectNoPo && noPoCtrl != null) ...[
+        if ((showIndirectNoPo || showDirectNoPo) && noPoCtrl != null) ...[
           const FormFieldLabel('No. PO'),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
+          if (showDirectNoPo)
+            const Text(
+              'Untuk keperluan leasing — kosongkan jika tidak ada.',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.textTertiary,
+                height: 1.3,
+              ),
+            ),
+          if (showDirectNoPo) const SizedBox(height: 6),
           TextField(
             controller: noPoCtrl,
             textInputAction: TextInputAction.next,
             style: const TextStyle(fontSize: 14),
             decoration: CheckoutInputDecoration.form(
-              hintText: 'Opsional — nomor PO toko / pelanggan',
+              hintText: showDirectNoPo
+                  ? 'Opsional — No. PO leasing'
+                  : 'Opsional — nomor PO toko / pelanggan',
               hintStyle: const TextStyle(
                 fontSize: 13,
                 color: AppColors.textTertiary,

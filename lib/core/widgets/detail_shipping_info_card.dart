@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../utils/app_formatters.dart';
 import 'detail_contact_info_line.dart';
 import 'detail_contact_phone_row.dart';
 import 'detail_section_label.dart';
@@ -75,7 +76,7 @@ class DetailShippingInfoCard extends StatelessWidget {
                     children: [
                       if (hasName)
                         Text(
-                          name,
+                          AppFormatters.titleCase(name),
                           style: const TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 14,

@@ -85,6 +85,9 @@ class PricelistCustomLineBuilder {
     required PricelistCustomComponentType type,
     required double unitPricelist,
     required double unitEup,
+    // Label program diskon (e.g. "10%+5%"). Hanya untuk API `discount_program`.
+    // `unitEup` yang diteruskan sudah merupakan EUP SETELAH diskon program.
+    String? program,
   }) {
     final trimmedName = productName.trim();
     final trimmedSize = ukuran.trim();
@@ -145,7 +148,7 @@ class PricelistCustomLineBuilder {
           '[Custom · ${type.shortLabel}] $trimmedName · $trimmedSize · $brand',
       channel: channel,
       brand: brand,
-      program: '-',
+      program: (program != null && program.isNotEmpty) ? program : '-',
       kasur: kasur,
       ukuran: trimmedSize,
       divan: divan,
@@ -186,6 +189,7 @@ class PricelistCustomLineBuilder {
     CartIndirectMeta? indirectMeta,
     List<CartBonusSnapshot> bonusSnapshots = const [],
     String pricelistArea = '',
+    bool isBonusCustomized = false,
   }) {
     final d = _discountPercentsFromFractions(appliedDiscountFractions);
 
@@ -206,6 +210,7 @@ class PricelistCustomLineBuilder {
       discount3: d[2],
       discount4: d[3],
       bonusSnapshots: bonusSnapshots,
+      isBonusCustomized: isBonusCustomized,
       indirectStoreAddressNumber: indirectMeta?.addressNumber,
       indirectStoreAlphaName: indirectMeta?.alphaName ?? '',
       indirectStoreAddress: indirectMeta?.address ?? '',

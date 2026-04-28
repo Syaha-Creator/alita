@@ -38,6 +38,8 @@ class EditOrderHeaderService {
     String? salesCode,
     String? note,
   }) {
+    final cleanNoPo = noPo?.trim();
+    final cleanSalesCode = salesCode?.trim();
     return {
       'customer_name': customerName.trim(),
       'phone': phone.trim(),
@@ -46,9 +48,10 @@ class EditOrderHeaderService {
       'ship_to_name': shipToName.trim(),
       'address_ship_to': addressShipTo.trim(),
       'request_date': requestDate.trim(),
-      if (noPo != null && noPo.trim().isNotEmpty) 'no_po': noPo.trim(),
-      if (salesCode != null && salesCode.trim().isNotEmpty)
-        'sales_code': salesCode.trim(),
+      'no_po': (cleanNoPo == null || cleanNoPo.isEmpty) ? null : cleanNoPo,
+      'sales_code': (cleanSalesCode == null || cleanSalesCode.isEmpty)
+          ? null
+          : cleanSalesCode,
       'note': note?.trim() ?? '',
       'status': 'Pending',
     };
@@ -65,8 +68,10 @@ class EditOrderHeaderService {
     for (final detail in order.details) {
       for (final disc in detail.discounts) {
         if (disc.id <= 0) continue;
-        // Skip baris User/SC (level 1) — auto-approved, tidak perlu reset.
-        if (disc.approverLevel.toLowerCase() == 'user') continue;
+        final level = disc.approverLevel.toLowerCase();
+        // Skip User/SC (L1) dan Diskon Toko — keduanya auto-approved.
+        if (level == 'user') continue;
+        if (level.startsWith('diskon toko')) continue;
         ids.add(disc.id);
       }
     }

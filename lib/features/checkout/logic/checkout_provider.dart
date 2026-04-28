@@ -709,6 +709,11 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     required bool Function(int itemIndex, CartBonusSnapshot)
         isBonusTakeAwayChecked,
     required int Function(int itemIndex, CartBonusSnapshot) currentTakeAwayQty,
+
+    /// Opsional — bukti pembayaran tambahan untuk menutup selisih (shortage).
+    /// Index [i] di [shortagePaymentPayloads] berpasangan dengan [shortageReceiptImages[i]].
+    List<Map<String, dynamic>> shortagePaymentPayloads = const [],
+    List<File?> shortageReceiptImages = const [],
   }) async {
     state = state.copyWith(
       isSubmitting: true,
@@ -799,6 +804,24 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         hargaAwal: hargaAwal,
         token: token,
       );
+
+      // ── Step 4: Post payment baru (untuk menutup selisih kekurangan) ──
+      if (shortagePaymentPayloads.isNotEmpty) {
+        for (int i = 0; i < shortagePaymentPayloads.length; i++) {
+          await _orderService.postPayment(
+            paymentPayload: shortagePaymentPayloads[i],
+            orderLetterId: orderLetterId,
+            receiptImage: i < shortageReceiptImages.length
+                ? shortageReceiptImages[i]
+                : null,
+            token: token,
+          );
+        }
+        Log.info(
+          'EditItems: ${shortagePaymentPayloads.length} shortage payment(s) posted',
+          tag: 'CheckoutNotifier',
+        );
+      }
 
       // ── Bersihkan edit context ──
       _ref.read(editOrderContextProvider.notifier).state = null;

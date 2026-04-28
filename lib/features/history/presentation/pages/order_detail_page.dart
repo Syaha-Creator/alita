@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/platform_utils.dart';
@@ -254,28 +255,21 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
         surfaceTintColor: Colors.transparent,
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
         actions: [
-          if (canEditItems)
-            IconButton(
-              icon: const Icon(Icons.inventory_2_outlined),
-              tooltip: 'Edit Item Pesanan',
-              onPressed: () => _startEditItems(context, currentOrder),
-            ),
-          if (canEditHeader)
+          // Single entry point untuk semua "Edit": tap → adaptive sheet
+          // (iOS action sheet / Android modal bottom sheet) berisi opsi
+          // "Edit Informasi Pesanan" + "Edit Item Pesanan" sesuai permission.
+          // Bila hanya satu permission yang aktif, langsung jalankan tanpa sheet.
+          if (canEditHeader || canEditItems)
             IconButton(
               icon: const Icon(Icons.edit_outlined),
-              tooltip: 'Edit Header Surat Pesanan',
-              onPressed: () {
-                EditOrderHeaderSheet.show(
-                  context,
-                  order: currentOrder,
-                  editorName: myName,
-                  onSuccess: () {
-                    ref
-                        .read(orderDetailProvider(widget.order.id).notifier)
-                        .refresh();
-                  },
-                );
-              },
+              tooltip: 'Edit Pesanan',
+              onPressed: () => _onEditTapped(
+                context,
+                order: currentOrder,
+                canEditHeader: canEditHeader,
+                canEditItems: canEditItems,
+                editorName: myName,
+              ),
             ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
@@ -656,19 +650,167 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
     return Rect.fromLTWH(0, 0, screen.width, screen.height / 2);
   }
 
+  /// Entry point tunggal untuk tombol Edit di appbar.
+  ///
+  /// - Bila kedua permission aktif → tampilkan adaptive sheet (iOS:
+  ///   [CupertinoActionSheet], Android: [showModalBottomSheet]).
+  /// - Bila hanya satu permission yang aktif → jalankan langsung tanpa sheet
+  ///   agar tidak menambah tap yang tidak perlu.
+  Future<void> _onEditTapped(
+    BuildContext context, {
+    required OrderHistory order,
+    required bool canEditHeader,
+    required bool canEditItems,
+    required String editorName,
+  }) async {
+    hapticTap();
+
+    void runEditHeader() {
+      EditOrderHeaderSheet.show(
+        context,
+        order: order,
+        editorName: editorName,
+        onSuccess: () {
+          ref.read(orderDetailProvider(widget.order.id).notifier).refresh();
+        },
+      );
+    }
+
+    Future<void> runEditItems() => _startEditItems(context, order);
+
+    // Hanya satu opsi yang aktif → langsung jalankan, skip sheet.
+    if (canEditHeader && !canEditItems) {
+      runEditHeader();
+      return;
+    }
+    if (canEditItems && !canEditHeader) {
+      await runEditItems();
+      return;
+    }
+
+    // Dua opsi aktif → tampilkan adaptive sheet.
+    final choice = await _showEditOptionsSheet(context);
+    if (choice == _EditChoice.header) {
+      runEditHeader();
+    } else if (choice == _EditChoice.items) {
+      await runEditItems();
+    }
+  }
+
+  /// Tampilkan adaptive sheet pilihan edit. Mengembalikan [_EditChoice]
+  /// atau `null` jika user membatalkan.
+  Future<_EditChoice?> _showEditOptionsSheet(BuildContext context) {
+    if (isIOS) {
+      return showCupertinoModalPopup<_EditChoice>(
+        context: context,
+        builder: (ctx) => CupertinoActionSheet(
+          title: const Text('Edit Pesanan'),
+          message: const Text(
+            'Pilih bagian yang ingin diubah. Approval akan disesuaikan otomatis.',
+          ),
+          actions: [
+            CupertinoActionSheetAction(
+              onPressed: () =>
+                  Navigator.of(ctx).pop(_EditChoice.header),
+              child: const Text('Edit Informasi Pesanan'),
+            ),
+            CupertinoActionSheetAction(
+              onPressed: () =>
+                  Navigator.of(ctx).pop(_EditChoice.items),
+              child: const Text('Edit Item Pesanan'),
+            ),
+          ],
+          cancelButton: CupertinoActionSheetAction(
+            isDefaultAction: true,
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Batal'),
+          ),
+        ),
+      );
+    }
+
+    return showModalBottomSheet<_EditChoice>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(0, 12, 0, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 0, 20, 4),
+                child: Text(
+                  'Edit Pesanan',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: Text(
+                  'Pilih bagian yang ingin diubah.',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+              _EditOptionTile(
+                icon: Icons.assignment_outlined,
+                title: 'Edit Informasi Pesanan',
+                subtitle:
+                    'Pelanggan, alamat, pengiriman, catatan, dan diskon header',
+                onTap: () =>
+                    Navigator.of(ctx).pop(_EditChoice.header),
+              ),
+              _EditOptionTile(
+                icon: Icons.inventory_2_outlined,
+                title: 'Edit Item Pesanan',
+                subtitle:
+                    'Tambah, ubah, atau hapus produk dan diskon per item',
+                onTap: () =>
+                    Navigator.of(ctx).pop(_EditChoice.items),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Memulai alur "Edit Items": kosongkan keranjang, set edit context,
   /// navigasi ke halaman pemilihan produk sesuai channel order.
   Future<void> _startEditItems(
     BuildContext context,
     OrderHistory order,
   ) async {
-    // Simpan router dan channel sebelum await agar aman lintas async gap.
     final isIndirect = (order.channel?.trim().toUpperCase() ?? '') == 'SO';
     final router = GoRouter.of(context);
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      useRootNavigator: true,
+      barrierDismissible: false,
+      builder: (dialogCtx) => AlertDialog(
         title: const Text('Edit Item Pesanan'),
         content: const Text(
           'Semua item akan dihapus dan kamu perlu memilih produk baru dari '
@@ -676,11 +818,11 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
+            onPressed: () => Navigator.of(dialogCtx).pop(false),
             child: const Text('Batal'),
           ),
           FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
+            onPressed: () => Navigator.of(dialogCtx).pop(true),
             child: const Text('Lanjutkan'),
           ),
         ],
@@ -688,14 +830,15 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
     );
     if (confirmed != true || !mounted) return;
 
-    // Set edit context + kosongkan cart
+    // Set edit context + kosongkan cart sebelum navigasi.
     ref.read(editOrderContextProvider.notifier).state = order;
     await ref.read(cartProvider.notifier).clearCart();
 
     if (!mounted) return;
 
-    // Navigasi ke halaman produk sesuai channel (SO = indirect, lainnya = direct)
-    unawaited(router.push(isIndirect ? '/sales_hub' : '/'));
+    // Gunakan `go()` agar stack rapi: user kembali ke home/sales_hub sebagai root,
+    // lalu setelah Simpan Perubahan akan di-redirect ke /order_detail.
+    router.go(isIndirect ? '/sales_hub' : '/');
   }
 
   static void _showPdfActionSheet(
@@ -905,6 +1048,82 @@ class _ErrorBody extends StatelessWidget {
             TextButton(
               onPressed: onGoHome,
               child: const Text('Kembali ke Riwayat'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Hasil pilihan dari adaptive edit sheet di [OrderDetailPage].
+enum _EditChoice { header, items }
+
+/// Tile satu opsi di Android modal bottom sheet "Edit Pesanan".
+class _EditOptionTile extends StatelessWidget {
+  const _EditOptionTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        hapticTap();
+        onTap();
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.accent.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: AppColors.accent, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: 22,
+              color: AppColors.textTertiary,
             ),
           ],
         ),

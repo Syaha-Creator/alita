@@ -78,6 +78,9 @@ _$CartItemImpl _$$CartItemImplFromJson(Map<String, dynamic> json) =>
           ? false
           : _parseBoolDefaultFalse(json['isFocVoucher']),
       pricelistArea: json['pricelistArea'] as String? ?? '',
+      isBonusCustomized: json['isBonusCustomized'] == null
+          ? false
+          : _parseBoolDefaultFalse(json['isBonusCustomized']),
     );
 
 Map<String, dynamic> _$$CartItemImplToJson(_$CartItemImpl instance) =>
@@ -112,4 +115,5 @@ Map<String, dynamic> _$$CartItemImplToJson(_$CartItemImpl instance) =>
       'indirectStoreDiscountDisplay': instance.indirectStoreDiscountDisplay,
       'isFocVoucher': instance.isFocVoucher,
       'pricelistArea': instance.pricelistArea,
+      'isBonusCustomized': instance.isBonusCustomized,
     };
