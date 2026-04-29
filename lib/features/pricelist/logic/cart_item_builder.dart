@@ -52,6 +52,9 @@ class CartItemBuilder {
     // Bonus override (from "Tukar Bonus")
     List<Map<String, dynamic>>? customBonuses,
 
+    /// True jika ukuran dipilih via chip "Custom" (bukan dari list baku).
+    bool isCustomSize = false,
+
     /// Snapshot area pricelist saat item ditambahkan (untuk `pricelist_area`
     /// di `order_letter_details`).
     String pricelistArea = '',
@@ -221,6 +224,7 @@ class CartItemBuilder {
       discount4: discPct4,
       bonusSnapshots: bonusSnapshots,
       isBonusCustomized: customBonuses != null && customBonuses.isNotEmpty,
+      isCustomSize: isCustomSize,
       indirectStoreAddressNumber: indirectMeta?.addressNumber,
       indirectStoreAlphaName: indirectMeta?.alphaName ?? '',
       indirectStoreAddress: indirectMeta?.address ?? '',

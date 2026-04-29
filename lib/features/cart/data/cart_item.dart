@@ -108,9 +108,12 @@ class CartItem with _$CartItem {
     /// `pricelist_area` di `order_letter_details`).
     @Default('') String pricelistArea,
     /// True jika bonus item telah diubah dari bundle default produk (via "Tukar Bonus").
-    /// Ketika true, approval ASM (indirect) / SPV (direct) wajib dipilih meskipun
-    /// tidak ada diskon penjualan tambahan — untuk validasi checkout.
+    /// Ketika true, approval RSM wajib dipilih meskipun tidak ada diskon penjualan
+    /// tambahan — untuk validasi checkout.
     @JsonKey(fromJson: _parseBoolDefaultFalse) @Default(false) bool isBonusCustomized,
+    /// True jika ukuran item dipilih sebagai "Custom" (bukan dari list ukuran baku).
+    /// Untuk indirect, wajib pilih ASM approval di checkout.
+    @JsonKey(fromJson: _parseBoolDefaultFalse) @Default(false) bool isCustomSize,
   }) = _CartItem;
 
   /// EUP per unit setelah diskon toko (indirect) lalu diskon sales (bertingkat).

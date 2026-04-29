@@ -29,11 +29,16 @@ class ApprovalPaymentsCard extends StatelessWidget {
       final bank = p['payment_bank']?.toString() ?? '-';
       final amount = double.tryParse(p['payment_amount']?.toString() ?? '0') ?? 0;
       final imageUrl = p['image']?.toString() ?? '';
+      final verifiedRaw = p['verified'];
+      final isVerified = verifiedRaw == true ||
+          verifiedRaw == 1 ||
+          verifiedRaw?.toString().toLowerCase() == 'true';
       return DetailPaymentItemRow(
         method: method,
         bank: bank,
         amountText: _fmt(amount),
         receiptImageUrl: imageUrl,
+        verified: isVerified,
         onTapReceipt:
             imageUrl.isNotEmpty ? () => _showImageDialog(context, imageUrl) : null,
       );

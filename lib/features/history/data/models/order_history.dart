@@ -14,6 +14,14 @@ double _parseDouble(dynamic value) {
   return double.tryParse(value.toString()) ?? 0.0;
 }
 
+bool _parseBoolDefaultFalse(dynamic value) {
+  if (value == null) return false;
+  if (value is bool) return value;
+  if (value is num) return value != 0;
+  final s = value.toString().toLowerCase();
+  return s == 'true' || s == '1';
+}
+
 List<Map<String, dynamic>> _orderLetterContactsFromJson(dynamic json) {
   if (json is! List) return [];
   return json
@@ -366,6 +374,8 @@ class OrderPayment with _$OrderPayment {
     required String image,
     @Default('') String paymentDate,
     @Default('') String createdAt,
+    /// True jika pembayaran sudah diverifikasi (field `verified` dari API).
+    @JsonKey(fromJson: _parseBoolDefaultFalse) @Default(false) bool verified,
   }) = _OrderPayment;
 
   factory OrderPayment.fromJson(Map<String, dynamic> json) =>
@@ -379,6 +389,7 @@ class OrderPayment with _$OrderPayment {
       image: json['image']?.toString() ?? '',
       paymentDate: json['payment_date']?.toString() ?? '',
       createdAt: json['created_at']?.toString() ?? '',
+      verified: _parseBoolDefaultFalse(json['verified']),
     );
   }
 }

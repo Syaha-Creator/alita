@@ -401,8 +401,7 @@ abstract final class ProductVariantResolver {
     // Computed from the FULL available lists (not filtered by isKasurOnly)
     // so the "Beli Set" toggle is visible even when isKasurOnly = true.
     // Only show the toggle when there are real set components (non-"Tanpa").
-    bool hasNonTanpa(List<String> items, String tanpaKeyword) =>
-        items.any((v) {
+    bool hasNonTanpa(List<String> items, String tanpaKeyword) => items.any((v) {
           final l = v.trim().toLowerCase();
           return l.isNotEmpty && !l.contains(tanpaKeyword);
         });

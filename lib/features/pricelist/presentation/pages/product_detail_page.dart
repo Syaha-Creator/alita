@@ -97,11 +97,13 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
   bool _isDivanCustom = false;
   bool _isHeadboardCustom = false;
   bool _isSorongCustom = false;
+  bool _isSizeCustom = false;
 
   final TextEditingController _customKasurCtrl = TextEditingController();
   final TextEditingController _customDivanCtrl = TextEditingController();
   final TextEditingController _customHbCtrl = TextEditingController();
   final TextEditingController _customSorongCtrl = TextEditingController();
+  final TextEditingController _customSizeCtrl = TextEditingController();
 
   double _lastBottomPriceAnalyst = 0;
   /// Dasar diskon tambahan / edit total: EUP ter-anchor, setelah diskon toko (indirect).
@@ -276,6 +278,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     _customDivanCtrl.dispose();
     _customHbCtrl.dispose();
     _customSorongCtrl.dispose();
+    _customSizeCtrl.dispose();
     super.dispose();
   }
 
@@ -372,6 +375,12 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       if (r.isDivanCustom) _isDivanCustom = true;
       if (r.isHeadboardCustom) _isHeadboardCustom = true;
       if (r.isSorongCustom) _isSorongCustom = true;
+      if (r.isCustomSize) {
+        _isSizeCustom = true;
+        if (r.customSizeNote.isNotEmpty) {
+          _customSizeCtrl.text = r.customSizeNote;
+        }
+      }
       if (r.customKasurNote.isNotEmpty) {
         _customKasurCtrl.text = r.customKasurNote;
       }
@@ -452,7 +461,9 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     );
 
     final activeProduct = v.activeProduct;
-    final effectiveSize = v.effectiveSize;
+    final effectiveSize = _isSizeCustom && _customSizeCtrl.text.trim().isNotEmpty
+        ? _customSizeCtrl.text.trim()
+        : v.effectiveSize;
     final effectiveDivan = v.effectiveDivan;
     final effectiveHeadboard = v.effectiveHeadboard;
     final effectiveSorong = v.effectiveSorong;
@@ -785,8 +796,16 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
               _isSorongCustom = true;
               selectedSorongLookup = null;
             }),
+            isSizeCustom: _isSizeCustom,
+            customSizeCtrl: _customSizeCtrl,
+            onSizeCustomTap: () => setState(() {
+              _isSizeCustom = true;
+              selectedSize = null;
+            }),
             onSizeSelected: (v) => setState(() {
             selectedSize = v;
+            _isSizeCustom = false;
+            _customSizeCtrl.clear();
             isBonusCustomized = false;
             customBonuses.clear();
             _isKasurCustom = false;
@@ -917,20 +936,21 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
 
         sectionGap,
 
-        // -- Section 4: Installment Simulation --
-        Container(
-          decoration: sectionDecoration,
-          padding: sectionPadding,
-          child: InstallmentSimulationSection(
-            effectiveTotal: effectiveTotal,
-            selectedTenor: selectedInstallmentTenor,
-            tenorOptions: installmentOptions,
-            onTenorChanged: (tenor) =>
-                setState(() => selectedInstallmentTenor = tenor),
+        // -- Section 4: Installment Simulation (direct only) --
+        if (salesMode != SalesMode.indirect) ...[
+          Container(
+            decoration: sectionDecoration,
+            padding: sectionPadding,
+            child: InstallmentSimulationSection(
+              effectiveTotal: effectiveTotal,
+              selectedTenor: selectedInstallmentTenor,
+              tenorOptions: installmentOptions,
+              onTenorChanged: (tenor) =>
+                  setState(() => selectedInstallmentTenor = tenor),
+            ),
           ),
-        ),
-
-        sectionGap,
+          sectionGap,
+        ],
 
         // -- Section 5: Specifications --
         Container(
@@ -1114,6 +1134,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       effectiveSorongLookup: effectiveSorongLookup,
       customSorongNote: _customSorongCtrl.text.trim(),
       customBonuses: isBonusCustomized ? customBonuses : null,
+      isCustomSize: _isSizeCustom,
       indirectMeta: indirectMeta,
       pricelistArea: ref.read(effectiveAreaProvider),
     );

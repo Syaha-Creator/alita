@@ -952,6 +952,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                                 cartItems.any((e) => e.isIndirectSale),
                             hasBonusCustomizedItem:
                                 _hasBonusCustomizedItem(cartItems),
+                            hasCustomSizeItem:
+                                cartItems.any((e) => e.isCustomSize),
+                            isCustomerBaru: cartItems.any(
+                                    (e) => e.isIndirectSale) &&
+                                !_isShippingSameAsCustomer &&
+                                !_isReceiverBranchMode,
                             onSpvChanged: (v) => ref
                                 .read(checkoutProvider.notifier)
                                 .selectSpv(v),
@@ -1094,28 +1100,35 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   bool _requiresManagerApproval(List<CartItem> cartItems) {
     return cartItems.any((item) {
       if (item.isIndirectSale) {
-        // Indirect: semua diskon yang diinput → Manager (RSM/GM).
-        return item.discount1 > 0 || item.discount2 > 0 || item.discount3 > 0;
+        // Indirect: diskon tambahan ATAU bonus diubah dari bundle default → RSM wajib.
+        return item.discount1 > 0 ||
+            item.discount2 > 0 ||
+            item.discount3 > 0 ||
+            item.isBonusCustomized;
       }
-      // Direct: manager diperlukan saat ada discount3.
-      return item.discount3 > 0;
+      // Direct: manager diperlukan saat ada discount3 atau bonus diubah.
+      return item.discount3 > 0 || item.isBonusCustomized;
     });
   }
 
   /// True jika cart memerlukan pemilihan ASM (indirect) / SPV (direct).
   ///
-  /// Indirect: ASM wajib ketika ada Diskon Tambahan (disc1/2/3 > 0) ATAU
-  /// ada item yang bonusnya diubah dari bundle default.
+  /// Indirect: ASM wajib ketika ada Diskon Tambahan (disc1/2/3 > 0), atau
+  /// ada item dengan ukuran custom, atau pengiriman ke "Customer Baru".
   /// Direct: SPV selalu wajib (untuk setiap order).
   bool _requiresSpvApproval(List<CartItem> cartItems) {
     final isIndirect = cartItems.any((e) => e.isIndirectSale);
     if (isIndirect) {
+      // Kirim ke customer baru (bukan branch/gudang & bukan alamat toko) → ASM wajib.
+      final isCustomerBaru =
+          !_isShippingSameAsCustomer && !_isReceiverBranchMode;
+      if (isCustomerBaru) return true;
       return cartItems.any(
         (item) =>
             item.discount1 > 0 ||
             item.discount2 > 0 ||
             item.discount3 > 0 ||
-            item.isBonusCustomized,
+            item.isCustomSize,
       );
     }
     // Direct: SPV selalu diperlukan.

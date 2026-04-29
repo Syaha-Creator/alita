@@ -7,6 +7,7 @@ import '../../../../core/services/api_client.dart';
 import '../../../../core/services/api_session_expired.dart';
 import '../../../../core/utils/app_telemetry.dart';
 import '../../../../core/utils/log.dart';
+import '../../../checkout/data/models/approver_model.dart';
 import '../models/order_history.dart';
 
 /// Service untuk edit header [order_letters] dan reset approval discount
@@ -210,6 +211,43 @@ class EditOrderHeaderService {
         'sp_number': order.noSp,
         'reason': e.toString(),
       });
+    }
+  }
+
+  // ── POST ASM discount rows (Customer Baru) ───────────────────────
+
+  /// Buat baris `order_letter_discounts` level ASM untuk setiap detail
+  /// pada order yang dialihkan ke Customer Baru (tidak ada ASM sebelumnya).
+  Future<void> postAsmDiscountRows({
+    required OrderHistory order,
+    required Approver asm,
+    String? token,
+  }) async {
+    for (final detail in order.details) {
+      if (detail.id <= 0) continue;
+      final payload = {
+        'order_letter_id': order.id,
+        'order_letter_detail_id': detail.id,
+        'discount': '0',
+        'approver': asm.id,
+        'approver_name': asm.fullName,
+        'approver_level_id': 2,
+        'approver_level': 'ASM',
+        'approver_work_tittle': asm.jobLevelName,
+        'approved': null,
+        'approved_at': null,
+      };
+      final res = await _api.post(
+        '/order_letter_discounts',
+        token: token,
+        body: payload,
+        timeout: _timeout,
+      );
+      _assertOk(res.statusCode, 'POST ASM discount detail ${detail.id}', res.body);
+      Log.info(
+        'EditHeader: ASM discount row created for detail ${detail.id}',
+        tag: 'EditOrderHeader',
+      );
     }
   }
 

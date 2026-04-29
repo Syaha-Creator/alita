@@ -7,6 +7,7 @@ class DetailPaymentItemRow extends StatelessWidget {
   final String bank;
   final String amountText;
   final String receiptImageUrl;
+  final bool verified;
   final VoidCallback? onTapReceipt;
 
   const DetailPaymentItemRow({
@@ -15,6 +16,7 @@ class DetailPaymentItemRow extends StatelessWidget {
     required this.bank,
     required this.amountText,
     required this.receiptImageUrl,
+    this.verified = false,
     this.onTapReceipt,
   });
 
@@ -37,7 +39,11 @@ class DetailPaymentItemRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(
+          color: verified
+              ? AppColors.success.withValues(alpha: 0.35)
+              : AppColors.border,
+        ),
       ),
       child: Column(
         children: [
@@ -82,6 +88,25 @@ class DetailPaymentItemRow extends StatelessWidget {
                         color: AppColors.textSecondary,
                       ),
                     ),
+                    if (verified) ...[
+                      const SizedBox(height: 4),
+                      const Row(
+                        children: [
+                          Icon(Icons.verified_rounded,
+                              size: 12, color: AppColors.success),
+                          SizedBox(width: 3),
+                          Text(
+                            'Terverifikasi',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.success,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),

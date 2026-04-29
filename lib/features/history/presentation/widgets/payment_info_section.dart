@@ -67,6 +67,7 @@ class PaymentInfoSection extends StatelessWidget {
           bank: payment.bank,
           amountText: currencyFormatter(payment.amount),
           receiptImageUrl: payment.image,
+          verified: payment.verified,
           onTapReceipt: payment.image.isNotEmpty
               ? () => onTapReceipt(payment.image)
               : null,

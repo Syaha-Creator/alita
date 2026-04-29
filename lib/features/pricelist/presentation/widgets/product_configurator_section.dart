@@ -51,6 +51,11 @@ class ProductConfiguratorSection extends StatelessWidget {
   final VoidCallback onHeadboardCustomTap;
   final VoidCallback onSorongCustomTap;
 
+  // Custom size state
+  final bool isSizeCustom;
+  final TextEditingController customSizeCtrl;
+  final VoidCallback onSizeCustomTap;
+
   // Callbacks
   final ValueChanged<String> onSizeSelected;
   final ValueChanged<String> onDivanSelected;
@@ -99,6 +104,9 @@ class ProductConfiguratorSection extends StatelessWidget {
     required this.onDivanCustomTap,
     required this.onHeadboardCustomTap,
     required this.onSorongCustomTap,
+    required this.isSizeCustom,
+    required this.customSizeCtrl,
+    required this.onSizeCustomTap,
     required this.onSizeSelected,
     required this.onDivanSelected,
     required this.onHeadboardSelected,
@@ -127,13 +135,7 @@ class ProductConfiguratorSection extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         if (hasSetOptions) _buildTipePembelianRow(context),
-        _buildHorizontalOptions(
-          context,
-          'Ukuran',
-          availableSizes,
-          effectiveSize,
-          onSizeSelected,
-        ),
+        _buildSizeOptions(context),
         if (anchorType == AnchorType.kasur)
           _buildColorOptions(
             context,
@@ -382,6 +384,104 @@ class ProductConfiguratorSection extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSizeOptions(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 0),
+          child: Text(
+            'Ukuran',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 0),
+          child: Row(
+            children: [
+              ...availableSizes.map((option) {
+                final isSelected = !isSizeCustom && option == effectiveSize;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 10),
+                  child: AppChoiceChip(
+                    label: option,
+                    selected: isSelected,
+                    onSelected: (value) {
+                      if (value) onSizeSelected(option);
+                    },
+                    showCheckmark: true,
+                    borderRadius: 12,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                  ),
+                );
+              }),
+              Padding(
+                padding: const EdgeInsets.only(right: 10),
+                child: AppChoiceChip(
+                  label: 'Custom',
+                  selected: isSizeCustom,
+                  onSelected: (_) => onSizeCustomTap(),
+                  showCheckmark: true,
+                  borderRadius: 12,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (isSizeCustom) ...[
+          const SizedBox(height: 8),
+          TextField(
+            controller: customSizeCtrl,
+            onChanged: (_) => onCustomTextChanged(),
+            decoration: InputDecoration(
+              hintText: 'Tulis ukuran custom, misal: 120x200…',
+              hintStyle: const TextStyle(
+                color: AppColors.textTertiary,
+                fontSize: 13,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 10,
+              ),
+              filled: true,
+              fillColor: AppColors.surfaceLight,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: AppColors.border),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: AppColors.border),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(
+                  color: AppColors.accent,
+                  width: 1.5,
+                ),
+              ),
+            ),
+            style: const TextStyle(fontSize: 13),
+          ),
+        ],
+        const SizedBox(height: 16),
+      ],
     );
   }
 

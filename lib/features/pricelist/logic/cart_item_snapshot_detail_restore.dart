@@ -17,6 +17,8 @@ class CartItemSnapshotRestoreResult {
     required this.customDivanNote,
     required this.customHeadboardNote,
     required this.customSorongNote,
+    required this.isCustomSize,
+    required this.customSizeNote,
   });
 
   final ItemLookup? kasurLookup;
@@ -28,6 +30,9 @@ class CartItemSnapshotRestoreResult {
   final bool isDivanCustom;
   final bool isHeadboardCustom;
   final bool isSorongCustom;
+
+  final bool isCustomSize;
+  final String customSizeNote;
 
   final String customKasurNote;
   final String customDivanNote;
@@ -147,6 +152,8 @@ abstract final class CartItemSnapshotDetailRestore {
       isDivanCustom: isDivanCustom,
       isHeadboardCustom: isHbCustom,
       isSorongCustom: isSorongCustom,
+      isCustomSize: item.isCustomSize,
+      customSizeNote: item.isCustomSize ? p.ukuran : '',
       customKasurNote: kasurNote,
       customDivanNote: item.divanWarna.isNotEmpty
           ? item.divanWarna

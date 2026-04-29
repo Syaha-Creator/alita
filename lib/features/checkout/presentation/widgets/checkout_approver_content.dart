@@ -14,17 +14,26 @@ class CheckoutApproverContent extends StatelessWidget {
   final Approver? selectedSpv;
   final Approver? selectedManager;
   final bool requiresManager;
+
   /// Sales indirect: label dropdown tingkat pertama = ASM, bukan SPV.
   final bool isIndirectCheckout;
+
   /// True jika ASM/SPV diperlukan untuk pesanan ini.
   ///
   /// Indirect: true ketika ada Diskon Tambahan (disc1/2/3 > 0) ATAU bonus diubah.
   /// Direct: selalu true.
   /// Ketika false, seluruh section ASM disembunyikan.
   final bool requiresSpv;
+
   /// True jika ada item yang bonusnya diubah dari bundle default — akan menampilkan
-  /// badge peringatan di bawah dropdown ASM/SPV.
+  /// badge peringatan (RSM diperlukan).
   final bool hasBonusCustomizedItem;
+
+  /// True jika ada item dengan ukuran custom — ASM diperlukan (indirect).
+  final bool hasCustomSizeItem;
+
+  /// True jika indirect dan receiver mode adalah "Customer Baru" (bukan cabang/gudang).
+  final bool isCustomerBaru;
   final ValueChanged<Approver?> onSpvChanged;
   final ValueChanged<Approver?> onManagerChanged;
 
@@ -37,6 +46,8 @@ class CheckoutApproverContent extends StatelessWidget {
     this.isIndirectCheckout = false,
     this.requiresSpv = true,
     this.hasBonusCustomizedItem = false,
+    this.hasCustomSizeItem = false,
+    this.isCustomerBaru = false,
     required this.onSpvChanged,
     required this.onManagerChanged,
   });
@@ -76,11 +87,70 @@ class CheckoutApproverContent extends StatelessWidget {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    'Ada bonus yang diubah dari bundle default — '
-                    '${isIndirectCheckout ? 'ASM' : 'SPV'} wajib menyetujui.',
+                    'Ada bonus yang diubah dari bundle default — RSM wajib menyetujui.',
                     style: TextStyle(
                       fontSize: 11,
                       color: Colors.orange.shade800,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        if (hasCustomSizeItem && isIndirectCheckout) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.purple.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: Colors.purple.withValues(alpha: 0.25),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.straighten_outlined,
+                    size: 14, color: Colors.purple.shade700),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Ada item dengan ukuran custom — ASM wajib menyetujui.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.purple.shade800,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        if (isCustomerBaru) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.accent.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: AppColors.accent.withValues(alpha: 0.25),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.person_outline,
+                    size: 14, color: AppColors.accent),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Pengiriman ke customer baru — ASM wajib menyetujui.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.accent.withValues(alpha: 0.85),
                       height: 1.4,
                     ),
                   ),

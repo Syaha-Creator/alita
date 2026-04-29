@@ -614,8 +614,10 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                         ),
                         const SizedBox(height: 12),
                         ApprovalTimelineWidget(order: currentOrder),
-                        if (currentOrder.payments.isNotEmpty ||
-                            remainingPayment > 0) ...[
+                        if ((currentOrder.payments.isNotEmpty ||
+                                remainingPayment > 0) &&
+                            (currentOrder.channel?.trim().toUpperCase() !=
+                                'SO')) ...[
                           const SizedBox(height: 12),
                           PaymentInfoSection(
                             order: currentOrder,

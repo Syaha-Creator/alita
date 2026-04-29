@@ -24,6 +24,10 @@ class CheckoutDiscountBuilder {
     ///   Level 3 RSM   = semua diskon non-zero via discount_extra (d1, d2, d3).
     bool isIndirectOrder = false,
 
+    /// True jika ada item yang bonusnya diubah dari bundle default.
+    /// RSM approval tetap dibutuhkan meski semua diskon = 0.
+    bool isBonusCustomized = false,
+
     /// Nominal (Rp) per discount level — diisi per komponen oleh checkout_order_service.
     /// Dipakai untuk:
     /// - `discount_price` di setiap baris yang punya persentase non-zero.
@@ -66,6 +70,7 @@ class CheckoutDiscountBuilder {
 
       // Level 3 — RSM/GM (Manager): satu baris per diskon non-zero,
       // masing-masing pakai discount_extra + discount_extra_price (pola sama dengan Analyst).
+      // Jika bonus diubah tapi tidak ada diskon, tetap buat satu baris RSM dengan discount=0.
       if (selectedManager != null) {
         Map<String, dynamic> managerRow(double pct, double? nominal) => {
               'discount': pct.toString(),
@@ -82,6 +87,9 @@ class CheckoutDiscountBuilder {
                 'discount_extra_price': nominal,
             };
 
+        final hasAnyDiscount =
+            discount1 > 0 || discount2 > 0 || discount3 > 0;
+
         if (discount1 > 0) {
           discounts.add(managerRow(discount1, discount1NominalLine));
         }
@@ -90,6 +98,10 @@ class CheckoutDiscountBuilder {
         }
         if (discount3 > 0) {
           discounts.add(managerRow(discount3, discount3NominalLine));
+        }
+        // Bonus customized tanpa diskon → RSM approval dengan discount=0.
+        if (!hasAnyDiscount && isBonusCustomized) {
+          discounts.add(managerRow(0, null));
         }
       }
     } else {
@@ -129,7 +141,8 @@ class CheckoutDiscountBuilder {
       }
 
       // Level 3 — RSM / Manager (kondisional)
-      if (discount3 > 0 && selectedManager != null) {
+      // Muncul saat discount3 > 0, atau bonus diubah dari bundle default.
+      if (selectedManager != null && (discount3 > 0 || isBonusCustomized)) {
         discounts.add({
           'discount': discount3.toString(),
           'approver': selectedManager.id,
@@ -139,7 +152,9 @@ class CheckoutDiscountBuilder {
           'approver_work_tittle': selectedManager.jobLevelName,
           'approved': null,
           'approved_at': null,
-          if (discount3NominalLine != null && discount3NominalLine > 0)
+          if (discount3 > 0 &&
+              discount3NominalLine != null &&
+              discount3NominalLine > 0)
             'discount_price': discount3NominalLine,
         });
       }

@@ -150,6 +150,9 @@ _$OrderPaymentImpl _$$OrderPaymentImplFromJson(Map<String, dynamic> json) =>
       image: json['image'] as String,
       paymentDate: json['paymentDate'] as String? ?? '',
       createdAt: json['createdAt'] as String? ?? '',
+      verified: json['verified'] == null
+          ? false
+          : _parseBoolDefaultFalse(json['verified']),
     );
 
 Map<String, dynamic> _$$OrderPaymentImplToJson(_$OrderPaymentImpl instance) =>
@@ -160,4 +163,5 @@ Map<String, dynamic> _$$OrderPaymentImplToJson(_$OrderPaymentImpl instance) =>
       'image': instance.image,
       'paymentDate': instance.paymentDate,
       'createdAt': instance.createdAt,
+      'verified': instance.verified,
     };

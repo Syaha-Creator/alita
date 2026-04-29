@@ -74,6 +74,10 @@ class _PricelistCustomLinePageState
   bool _bonusCustomized = false;
   List<Map<String, dynamic>> _customBonuses = [];
 
+  // Toggle aktif/nonaktif diskon program & diskon toko (indirect only).
+  bool _useProgramDiscount = true;
+  bool _useStoreDiscount = true;
+
   static final NumberFormat _totalCurrencyFormat = NumberFormat.currency(
     locale: 'id_ID',
     symbol: '',
@@ -224,7 +228,9 @@ class _PricelistCustomLinePageState
   }
 
   /// Daftar persentase program diskon yang diisi user (non-zero).
+  /// Mengembalikan list kosong jika toggle diskon program dimatikan.
   List<double> _currentProgramDiscounts() {
+    if (!_useProgramDiscount) return [];
     double parse(TextEditingController c) =>
         double.tryParse(c.text.trim().replaceAll(',', '.')) ?? 0.0;
     final p1 = parse(_prog1Ctrl);
@@ -239,12 +245,14 @@ class _PricelistCustomLinePageState
     return StoreDiscountCalculator.cascade(unitEup, progs);
   }
 
-  Product _snapshotForDiscountModal(String channel, String brand) {
+  Product _snapshotForDiscountModal(
+    String channel,
+    String brand, {
+    required double effectiveBasePrice,
+  }) {
     final pl = _parseMoney(_plCtrl);
-    final eu = _parseMoney(_eupCtrl);
-    // Modal memakai EUP-setelah-program sebagai basis sehingga limit diskon
-    // penjualan dihitung terhadap harga yang sudah dipotong program.
-    final eupForModal = _eupAfterProgram(eu > 0 ? eu : 1);
+    // Modal memakai harga efektif (setelah program) sebagai basis limit diskon.
+    final eupForModal = _eupAfterProgram(effectiveBasePrice > 0 ? effectiveBasePrice : 1);
     return PricelistCustomLineBuilder.buildProductSnapshot(
       lineId: 'temp_discount_modal',
       productName: _nameCtrl.text.trim().isEmpty ? '—' : _nameCtrl.text.trim(),
@@ -271,13 +279,13 @@ class _PricelistCustomLinePageState
     if (unitEup <= 0) return 0;
     var base = unitEup;
     if (indirect) {
-      // Terapkan diskon program terlebih dahulu.
+      // Terapkan diskon program terlebih dahulu (jika aktif).
       final progs = _currentProgramDiscounts();
       if (progs.isNotEmpty) {
         base = StoreDiscountCalculator.cascade(base, progs);
       }
-      // Kemudian terapkan diskon toko.
-      if (storeDiscounts.isNotEmpty) {
+      // Kemudian terapkan diskon toko (jika aktif).
+      if (_useStoreDiscount && storeDiscounts.isNotEmpty) {
         base = StoreDiscountCalculator.cascade(base, storeDiscounts);
       }
     }
@@ -507,23 +515,25 @@ class _PricelistCustomLinePageState
   }
 
   void _openDiscountModal(String channel, String brand) {
-    final eu = _parseMoney(_eupCtrl);
-    if (eu <= 0) {
+    final indirect = ref.read(salesModeProvider) == SalesMode.indirect;
+    // Basis selalu dari harga pricelist.
+    final basePrice = _parseMoney(_plCtrl);
+    if (basePrice <= 0) {
       AppFeedback.show(
         context,
-        message: 'Isi EUP terlebih dahulu untuk dasar perhitungan diskon.',
+        message: 'Isi harga pricelist terlebih dahulu untuk dasar perhitungan diskon.',
         type: AppFeedbackType.warning,
         floating: true,
       );
       return;
     }
-    final snap = _snapshotForDiscountModal(channel, brand);
+    final snap = _snapshotForDiscountModal(channel, brand,
+        effectiveBasePrice: basePrice);
     final session = ref.read(indirectSessionProvider);
-    final indirect = ref.read(salesModeProvider) == SalesMode.indirect;
     final storeDiscounts = indirect && session.hasDiscounts
         ? session.storeDiscounts
         : const <double>[];
-    final plBase = _plDiscountBaseTotal(eu, storeDiscounts, indirect);
+    final plBase = _plDiscountBaseTotal(basePrice, storeDiscounts, indirect);
 
     showDiscountModalGlobal(
       context,
@@ -550,15 +560,21 @@ class _PricelistCustomLinePageState
             ? indirectSession.storeDiscounts
             : const <double>[];
 
+    final isIndirectMode = salesMode == SalesMode.indirect;
+    // Basis kalkulasi selalu dari harga pricelist (_plCtrl).
+    // EUP diturunkan otomatis dari pricelist via cascade diskon.
     final unitEup =
-        brand != null && channel != null ? _parseMoney(_eupCtrl) : 0.0;
-    final useIndirectStoreNet =
-        salesMode == SalesMode.indirect && storeDiscounts.isNotEmpty;
+        brand != null && channel != null ? _parseMoney(_plCtrl) : 0.0;
+    // Section "Rincian Harga" muncul di semua mode (direct & indirect).
+    // Diskon Toko hanya tersedia di indirect dengan store discounts.
+    final useIndirectStoreNet = isIndirectMode && storeDiscounts.isNotEmpty;
+    final showPriceBreakdown = brand != null && channel != null;
     final plBase =
         _plDiscountBaseTotal(unitEup, storeDiscounts, useIndirectStoreNet);
 
     final modalSnap = brand != null && channel != null
-        ? _snapshotForDiscountModal(channel, brand)
+        ? _snapshotForDiscountModal(channel, brand,
+            effectiveBasePrice: unitEup)
         : null;
 
     if (modalSnap != null && !_totalFocusNode.hasFocus && plBase > 0) {
@@ -693,21 +709,6 @@ class _PricelistCustomLinePageState
                       ),
                     ),
                     const SizedBox(height: AppLayoutTokens.space16),
-                    const FormFieldLabel('Harga Customer'),
-                    const SizedBox(height: AppLayoutTokens.space8),
-                    TextField(
-                      controller: _eupCtrl,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [ThousandsSeparatorInputFormatter()],
-                      decoration: CheckoutInputDecoration.form(
-                        hintText: '0',
-                        prefixText: 'Rp ',
-                      ),
-                      onChanged: (_) => setState(() {
-                        targetTotalEup = null;
-                      }),
-                    ),
-                    const SizedBox(height: AppLayoutTokens.space16),
                     const FormFieldLabel('Kuantitas'),
                     const SizedBox(height: AppLayoutTokens.space8),
                     Align(
@@ -723,114 +724,152 @@ class _PricelistCustomLinePageState
                   ],
                 ),
               ),
-              // ── Rincian Harga (hanya indirect dengan store discounts) ──
-              // Berisi: input diskon program (opsional) + info diskon toko +
-              // cascade harga EUP → setelah prog → setelah toko.
-              if (useIndirectStoreNet) ...[
+              // ── Rincian Harga (direct & indirect) ────────────────────
+              // Diskon Program: tersedia di semua mode.
+              // Diskon Toko: hanya indirect dengan store discounts.
+              if (showPriceBreakdown) ...[
                 const SizedBox(height: AppLayoutTokens.space16),
                 SectionCard(
                   title: 'Rincian Harga',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // ── Input Diskon Program ──────────────────────────
-                      const FormFieldLabel('Diskon Program (opsional)'),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Diterapkan sebelum diskon toko. Kosongkan jika tidak ada.',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.textTertiary,
-                              height: 1.3,
-                            ),
-                      ),
-                      const SizedBox(height: AppLayoutTokens.space8),
+                      // ── Toggle + Input Diskon Program ─────────────────
                       Row(
                         children: [
                           Expanded(
-                            child: TextField(
-                              controller: _prog1Ctrl,
-                              keyboardType: const TextInputType.numberWithOptions(
-                                decimal: true,
-                              ),
-                              decoration: CheckoutInputDecoration.form(
-                                hintText: '0',
-                                labelText: 'Tingkat 1',
-                                suffixIcon: const Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 10),
-                                  child: Text(
-                                    '%',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              onChanged: (_) => setState(() {
-                                targetTotalEup = null;
-                                _appliedDiscounts = [];
-                              }),
-                            ),
-                          ),
-                          const SizedBox(width: AppLayoutTokens.space8),
-                          Expanded(
-                            child: TextField(
-                              controller: _prog2Ctrl,
-                              keyboardType: const TextInputType.numberWithOptions(
-                                decimal: true,
-                              ),
-                              decoration: CheckoutInputDecoration.form(
-                                hintText: '0',
-                                labelText: 'Tingkat 2',
-                                suffixIcon: const Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 10),
-                                  child: Text(
-                                    '%',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              onChanged: (_) => setState(() {
-                                targetTotalEup = null;
-                                _appliedDiscounts = [];
-                              }),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: AppLayoutTokens.space16),
-                      // ── Info Diskon Toko ──────────────────────────────
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(AppLayoutTokens.space12),
-                        decoration: BoxDecoration(
-                          color: AppColors.accent.withValues(alpha: 0.08),
-                          borderRadius:
-                              BorderRadius.circular(AppLayoutTokens.radius10),
-                          border: Border.all(
-                            color: AppColors.accent.withValues(alpha: 0.28),
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Diskon Toko',
+                            child: Text(
+                              'Diskon Program',
                               style: Theme.of(context)
                                   .textTheme
                                   .labelLarge
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textPrimary,
-                                  ),
+                                  ?.copyWith(fontWeight: FontWeight.w600),
                             ),
-                            const SizedBox(height: AppLayoutTokens.space6),
-                            Text(
+                          ),
+                          Switch.adaptive(
+                            value: _useProgramDiscount,
+                            onChanged: (v) => setState(() {
+                              _useProgramDiscount = v;
+                              targetTotalEup = null;
+                              _appliedDiscounts = [];
+                            }),
+                          ),
+                        ],
+                      ),
+                      if (_useProgramDiscount) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'Diterapkan sebelum diskon toko.',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: AppColors.textTertiary,
+                                    height: 1.3,
+                                  ),
+                        ),
+                        const SizedBox(height: AppLayoutTokens.space8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _prog1Ctrl,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                  decimal: true,
+                                ),
+                                decoration: CheckoutInputDecoration.form(
+                                  hintText: '0',
+                                  labelText: 'Tingkat 1',
+                                  suffixIcon: const Padding(
+                                    padding:
+                                        EdgeInsets.symmetric(horizontal: 10),
+                                    child: Text(
+                                      '%',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                onChanged: (_) => setState(() {
+                                  targetTotalEup = null;
+                                  _appliedDiscounts = [];
+                                }),
+                              ),
+                            ),
+                            const SizedBox(width: AppLayoutTokens.space8),
+                            Expanded(
+                              child: TextField(
+                                controller: _prog2Ctrl,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                  decimal: true,
+                                ),
+                                decoration: CheckoutInputDecoration.form(
+                                  hintText: '0',
+                                  labelText: 'Tingkat 2',
+                                  suffixIcon: const Padding(
+                                    padding:
+                                        EdgeInsets.symmetric(horizontal: 10),
+                                    child: Text(
+                                      '%',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                onChanged: (_) => setState(() {
+                                  targetTotalEup = null;
+                                  _appliedDiscounts = [];
+                                }),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      // ── Toggle + Info Diskon Toko (indirect only) ────
+                      if (useIndirectStoreNet) ...[
+                        const SizedBox(height: AppLayoutTokens.space16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Diskon Toko',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelLarge
+                                    ?.copyWith(fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            Switch.adaptive(
+                              value: _useStoreDiscount,
+                              onChanged: (v) => setState(() {
+                                _useStoreDiscount = v;
+                                targetTotalEup = null;
+                                _appliedDiscounts = [];
+                              }),
+                            ),
+                          ],
+                        ),
+                        if (_useStoreDiscount) ...[
+                          const SizedBox(height: AppLayoutTokens.space6),
+                          Container(
+                            width: double.infinity,
+                            padding:
+                                const EdgeInsets.all(AppLayoutTokens.space12),
+                            decoration: BoxDecoration(
+                              color: AppColors.accent.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(
+                                  AppLayoutTokens.radius10),
+                              border: Border.all(
+                                color: AppColors.accent.withValues(alpha: 0.28),
+                              ),
+                            ),
+                            child: Text(
                               StoreDiscountCalculator.formatDisplay(
                                   storeDiscounts),
                               style: Theme.of(context)
@@ -841,9 +880,9 @@ class _PricelistCustomLinePageState
                                     fontWeight: FontWeight.w700,
                                   ),
                             ),
-                          ],
-                        ),
-                      ),
+                          ),
+                        ],
+                      ],
                       // ── Cascade harga EUP → prog → store ─────────────
                       if (unitEup > 0) ...[
                         const SizedBox(height: AppLayoutTokens.space12),

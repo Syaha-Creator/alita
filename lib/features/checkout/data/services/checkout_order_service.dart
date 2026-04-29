@@ -690,6 +690,7 @@ class CheckoutOrderService {
           discount3: item.discount3,
           discount4: item.discount4,
           isIndirectOrder: item.isIndirectSale,
+          isBonusCustomized: item.isBonusCustomized,
           discount1NominalLine: discount1NominalLine,
           discount2NominalLine: discount2NominalLine,
           discount3NominalLine: discount3NominalLine,

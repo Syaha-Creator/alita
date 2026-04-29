@@ -1569,6 +1569,10 @@ mixin _$OrderPayment {
   String get paymentDate => throw _privateConstructorUsedError;
   String get createdAt => throw _privateConstructorUsedError;
 
+  /// True jika pembayaran sudah diverifikasi (field `verified` dari API).
+  @JsonKey(fromJson: _parseBoolDefaultFalse)
+  bool get verified => throw _privateConstructorUsedError;
+
   /// Serializes this OrderPayment to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
@@ -1591,7 +1595,8 @@ abstract class $OrderPaymentCopyWith<$Res> {
       @JsonKey(fromJson: _parseDouble) double amount,
       String image,
       String paymentDate,
-      String createdAt});
+      String createdAt,
+      @JsonKey(fromJson: _parseBoolDefaultFalse) bool verified});
 }
 
 /// @nodoc
@@ -1615,6 +1620,7 @@ class _$OrderPaymentCopyWithImpl<$Res, $Val extends OrderPayment>
     Object? image = null,
     Object? paymentDate = null,
     Object? createdAt = null,
+    Object? verified = null,
   }) {
     return _then(_value.copyWith(
       method: null == method
@@ -1641,6 +1647,10 @@ class _$OrderPaymentCopyWithImpl<$Res, $Val extends OrderPayment>
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
               as String,
+      verified: null == verified
+          ? _value.verified
+          : verified // ignore: cast_nullable_to_non_nullable
+              as bool,
     ) as $Val);
   }
 }
@@ -1659,7 +1669,8 @@ abstract class _$$OrderPaymentImplCopyWith<$Res>
       @JsonKey(fromJson: _parseDouble) double amount,
       String image,
       String paymentDate,
-      String createdAt});
+      String createdAt,
+      @JsonKey(fromJson: _parseBoolDefaultFalse) bool verified});
 }
 
 /// @nodoc
@@ -1681,6 +1692,7 @@ class __$$OrderPaymentImplCopyWithImpl<$Res>
     Object? image = null,
     Object? paymentDate = null,
     Object? createdAt = null,
+    Object? verified = null,
   }) {
     return _then(_$OrderPaymentImpl(
       method: null == method
@@ -1707,6 +1719,10 @@ class __$$OrderPaymentImplCopyWithImpl<$Res>
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
               as String,
+      verified: null == verified
+          ? _value.verified
+          : verified // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }
@@ -1720,7 +1736,8 @@ class _$OrderPaymentImpl implements _OrderPayment {
       @JsonKey(fromJson: _parseDouble) required this.amount,
       required this.image,
       this.paymentDate = '',
-      this.createdAt = ''});
+      this.createdAt = '',
+      @JsonKey(fromJson: _parseBoolDefaultFalse) this.verified = false});
 
   factory _$OrderPaymentImpl.fromJson(Map<String, dynamic> json) =>
       _$$OrderPaymentImplFromJson(json);
@@ -1741,9 +1758,14 @@ class _$OrderPaymentImpl implements _OrderPayment {
   @JsonKey()
   final String createdAt;
 
+  /// True jika pembayaran sudah diverifikasi (field `verified` dari API).
+  @override
+  @JsonKey(fromJson: _parseBoolDefaultFalse)
+  final bool verified;
+
   @override
   String toString() {
-    return 'OrderPayment(method: $method, bank: $bank, amount: $amount, image: $image, paymentDate: $paymentDate, createdAt: $createdAt)';
+    return 'OrderPayment(method: $method, bank: $bank, amount: $amount, image: $image, paymentDate: $paymentDate, createdAt: $createdAt, verified: $verified)';
   }
 
   @override
@@ -1758,13 +1780,15 @@ class _$OrderPaymentImpl implements _OrderPayment {
             (identical(other.paymentDate, paymentDate) ||
                 other.paymentDate == paymentDate) &&
             (identical(other.createdAt, createdAt) ||
-                other.createdAt == createdAt));
+                other.createdAt == createdAt) &&
+            (identical(other.verified, verified) ||
+                other.verified == verified));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(
-      runtimeType, method, bank, amount, image, paymentDate, createdAt);
+  int get hashCode => Object.hash(runtimeType, method, bank, amount, image,
+      paymentDate, createdAt, verified);
 
   /// Create a copy of OrderPayment
   /// with the given fields replaced by the non-null parameter values.
@@ -1784,12 +1808,14 @@ class _$OrderPaymentImpl implements _OrderPayment {
 
 abstract class _OrderPayment implements OrderPayment {
   const factory _OrderPayment(
-      {required final String method,
-      required final String bank,
-      @JsonKey(fromJson: _parseDouble) required final double amount,
-      required final String image,
-      final String paymentDate,
-      final String createdAt}) = _$OrderPaymentImpl;
+          {required final String method,
+          required final String bank,
+          @JsonKey(fromJson: _parseDouble) required final double amount,
+          required final String image,
+          final String paymentDate,
+          final String createdAt,
+          @JsonKey(fromJson: _parseBoolDefaultFalse) final bool verified}) =
+      _$OrderPaymentImpl;
 
   factory _OrderPayment.fromJson(Map<String, dynamic> json) =
       _$OrderPaymentImpl.fromJson;
@@ -1807,6 +1833,11 @@ abstract class _OrderPayment implements OrderPayment {
   String get paymentDate;
   @override
   String get createdAt;
+
+  /// True jika pembayaran sudah diverifikasi (field `verified` dari API).
+  @override
+  @JsonKey(fromJson: _parseBoolDefaultFalse)
+  bool get verified;
 
   /// Create a copy of OrderPayment
   /// with the given fields replaced by the non-null parameter values.
