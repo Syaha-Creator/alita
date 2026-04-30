@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:alitapricelist/core/services/storage_service.dart';
 import 'package:alitapricelist/features/pricelist/data/models/product.dart';
+import 'package:alitapricelist/features/pricelist/data/models/pricelist_custom_line.dart';
 import 'package:alitapricelist/features/pricelist/logic/master_data_provider.dart';
 import 'package:alitapricelist/features/pricelist/logic/product_provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -245,7 +246,12 @@ CLIENT_SECRET_IOS=test-sec
       );
       addTearDown(c.dispose);
       await c.read(productListProvider.future);
-      final out = c.read(filteredProductsProvider);
+      // filteredProductsProvider always appends the custom-line placeholder at
+      // the end; exclude it so assertions target only real catalog products.
+      final out = c
+          .read(filteredProductsProvider)
+          .where((p) => p.id != kPricelistCustomPlaceholderProductId)
+          .toList();
       expect(out, hasLength(1));
       expect(out.single.description.toLowerCase(), contains('foam'));
     });
@@ -258,7 +264,10 @@ CLIENT_SECRET_IOS=test-sec
       addTearDown(c.dispose);
       await c.read(productListProvider.future);
       c.read(sortOptionProvider.notifier).state = SortOption.priceLowToHigh;
-      final out = c.read(filteredProductsProvider);
+      final out = c
+          .read(filteredProductsProvider)
+          .where((p) => p.id != kPricelistCustomPlaceholderProductId)
+          .toList();
       expect(out, hasLength(2));
       expect(out.first.price, lessThan(out.last.price));
     });
@@ -270,7 +279,10 @@ CLIENT_SECRET_IOS=test-sec
       ]);
       addTearDown(c.dispose);
       await c.read(productListProvider.future);
-      final out = c.read(filteredProductsProvider);
+      final out = c
+          .read(filteredProductsProvider)
+          .where((p) => p.id != kPricelistCustomPlaceholderProductId)
+          .toList();
       expect(out, hasLength(1));
       expect(out.single.price, 400);
     });
@@ -286,7 +298,10 @@ CLIENT_SECRET_IOS=test-sec
       ]);
       addTearDown(c.dispose);
       await c.read(productListProvider.future);
-      final out = c.read(filteredProductsProvider);
+      final out = c
+          .read(filteredProductsProvider)
+          .where((p) => p.id != kPricelistCustomPlaceholderProductId)
+          .toList();
       expect(out.single.name.toLowerCase(), contains('divan deluxe'));
     });
 

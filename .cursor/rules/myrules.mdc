@@ -19,10 +19,29 @@ You are a Senior Flutter Engineer & UI/UX Designer specializing in "Pinterest-st
 
 # CODING STANDARDS (STRICT)
 1. **Feature-First Architecture:** Organize by feature (e.g., lib/features/pricelist/...), NOT by layer.
-2. **Immutability:** Use `freezed` for data classes.
+2. **Immutability:** Use `freezed` for ALL data classes AND notifier state classes (e.g., `CheckoutState`, `AuthState`). No hand-written `copyWith` or mutable state classes.
 3. **Widgets:** Break down large widgets into smaller, private files in a `widgets/` subfolder.
 4. **Imports:** Use relative imports for files within the same feature, absolute imports for core/shared.
 5. **Safety:** NEVER leave broken imports. Always check for null safety.
+6. **File Size Limits (HARD LIMITS):**
+   - Presentation file (`page`, `widget`, `sheet`): **max 400 lines**
+   - Logic file (`provider`, `notifier`): **max 400 lines**
+   - Service/repository file: **max 500 lines**
+   - Generated files (`*.freezed.dart`, `*.g.dart`): **exempt**
+   - If a file approaches the limit, extract immediately — do not wait until it's over.
+7. **Typed Route Arguments (MANDATORY):**
+   - NEVER pass `extra` as `Map<String, dynamic>`. Always create a typed args class (e.g., `OrderDetailRouteArgs`).
+   - NEVER cast `state.extra as Map<String, dynamic>` in the router. Type-safe only.
+8. **Error handling (MANDATORY):**
+   - NEVER write `catch (_)` or `catch (e)` without at minimum `Log.warning(...)` inside the catch block.
+   - Empty catch blocks are treated as a defect.
+
+# STATE MANAGEMENT RULES
+1. **AsyncNotifierProvider is the default** for any state that involves async operations (API calls, file I/O, persistence).
+2. **StateNotifier is acceptable only** for purely synchronous state (e.g., a simple `List<String>` selection set) with no async loading phase.
+3. **FutureProvider is acceptable** for read-only, non-mutating async data (fetch once, no user-triggered mutations).
+4. **ALL notifier state classes MUST use `@freezed`** — no manual `copyWith`, no plain mutable class.
+5. **`StateProvider`** is only for ephemeral UI-flag state (e.g., a sort toggle, a tab index). Not for domain state.
 
 # REUSABLE WIDGET POLICY (MANDATORY — STRICTLY ENFORCED)
 1. **No repeated declarations:** If a UI pattern appears in 2+ places, extract it into a reusable widget. Avoid re-declaring identical `Container`, `TextField`, `ListTile`, and `BottomSheet` structures.
@@ -37,13 +56,14 @@ You are a Senior Flutter Engineer & UI/UX Designer specializing in "Pinterest-st
    - Creating a duplicate of an existing core widget is treated as a defect.
 5. **Naming convention:** Use clear intent names (`PriceBlock`, `QuantityStepper`, `FilterPill`, `SheetHeader`) and keep constructor parameters explicit.
 6. **Consistency:** ALL widgets must consume `AppColors` and `AppLayoutTokens`. Never hardcode `Color(0xFF...)`, `EdgeInsets.all(16)` when `AppLayoutTokens.cardPadding` exists, or `BoxShadow(...)` when `AppLayoutTokens.cardShadowSoft` exists.
-7. **Mandatory reusable sweep (before EVERY final answer):**
+7. **`Colors.transparent` policy:** `Colors.transparent` is ONLY allowed in two specific cases: (1) `showModalBottomSheet(backgroundColor: Colors.transparent)` for rounded sheet chrome, and (2) Material/InkWell ripple container color. For all other uses, create or use an `AppColors` token. Do NOT use `Colors.transparent` as `surfaceTintColor` — prefer `Colors.transparent` → `AppColors.surface` or remove the override.
+8. **Mandatory reusable sweep (before EVERY final answer):**
    - Scan all files you touched in this response.
    - For EACH inline pattern, check: does a core widget already handle this?
    - Apply reusable widgets to ALL matching spots — not just one example.
    - This step is NOT optional. Skipping it is a rule violation.
-8. **No repeat reminder needed from user:** User expects full propagation by default. Do not wait to be asked.
-9. **If a reusable is intentionally not applied:** explicitly document why (feature-specific behavior, incompatible UX, or risk of behavior change).
+9. **No repeat reminder needed from user:** User expects full propagation by default. Do not wait to be asked.
+10. **If a reusable is intentionally not applied:** explicitly document why (feature-specific behavior, incompatible UX, or risk of behavior change).
 
 # REUSABLE NON-WIDGET POLICY (MANDATORY — STRICTLY ENFORCED)
 1. **No repeated logic declarations:** If non-UI logic appears in 2+ places, extract it to shared modules.
@@ -53,11 +73,11 @@ You are a Senior Flutter Engineer & UI/UX Designer specializing in "Pinterest-st
    - Use `lib/core/services/` for side-effectful integrations (API/storage/platform).
    - Use `lib/core/enums/` for shared domain states (status/type/category).
 4. **Specific enforcement:**
-   - Use `AppFormatters` for ALL currency/date formatting — never inline `NumberFormat` or `DateFormat`.
+   - Use `AppFormatters` for ALL currency/date formatting — never inline `NumberFormat` or `DateFormat`. If a format method is missing, ADD it to `AppFormatters` first.
    - Use `AppFeedback.show()` for ALL user toasts — never call `ScaffoldMessenger` directly.
-   - Use `Log.error()` / `Log.warning()` for ALL error logging — never use bare `debugPrint` for errors.
-   - Use `AppColors.*` for ALL colors — never hardcode `Color(0xFF...)` or `Colors.grey`.
-   - Use `AppLayoutTokens.*` for spacing/radius/shadow — never hardcode magic numbers for padding.
+   - Use `Log.error()` / `Log.warning()` / `Log.info()` for ALL logging — never use bare `debugPrint` or `print()` anywhere including services and background isolates.
+   - Use `AppColors.*` for ALL Flutter UI colors — never hardcode `Color(0xFF...)`, `Colors.grey`, `Colors.white`, `Colors.black`, or any `Colors.*` material constant. **Exception:** `PdfColors.*` from `package:pdf` is allowed exclusively inside `lib/features/quotation/logic/` and `lib/core/services/pdf_service/` — PDF rendering uses a separate color system.
+   - Use `AppLayoutTokens.*` for spacing/radius/shadow — never hardcode magic numbers for padding, border radius, or shadow offset. If a needed token is missing, ADD it to `AppLayoutTokens` first.
    - Use `retry()` for transient-failure-prone API calls.
    - Use `ifOfflineShowFeedback()` before network operations that need offline guard.
 5. **Keep behavior stable:** Extraction must preserve existing UX and output format; no implicit behavior change.
@@ -124,10 +144,10 @@ Before writing ANY new widget, utility, style, or layout, you MUST check this in
 ## Utils (`lib/core/utils/`)
 | Utility | Purpose | USE WHEN |
 |---------|---------|----------|
-| `AppFormatters` | `currencyIdr()`, `dateTimeId()`, `currencyIdrNoSymbol()` | Any currency/date formatting |
+| `AppFormatters` | `currencyIdr()`, `currencyIdrNoSymbol()`, `dateTimeId()`, `shortDateId()`, `apiDate()`, `titleCase()` | Any currency/date formatting — add new methods here if missing |
 | `AppFeedback` | `show()` toast/snackbar with type (success/error/warning/info) | Any user feedback |
 | `ThousandsSeparatorInputFormatter` | TextInputFormatter for currency fields | Any money input |
-| `Log` | `Log.error()`, `Log.warning()` with Crashlytics | Any error/warning logging |
+| `Log` | `Log.error()`, `Log.warning()`, `Log.info()` with Crashlytics | Any logging — replaces all debugPrint/print |
 | `retry()` | Exponential backoff retry wrapper | Any API call that can fail transiently |
 | `ifOfflineShowFeedback()` | Check offline + show warning | Before any network operation |
 | `ContactActions` | `callPhone()`, `openWhatsAppChat()` | Phone/WA actions |
@@ -142,8 +162,8 @@ Before writing ANY new widget, utility, style, or layout, you MUST check this in
 ## Theme (`lib/core/theme/`)
 | Token | Purpose | USE WHEN |
 |-------|---------|----------|
-| `AppColors.*` | All app colors (primary, accent, surface, textPrimary, etc.) | ANY color — never hardcode `Color(0xFF...)` |
-| `AppLayoutTokens.*` | Spacing (`space4`–`space20`), radius (`radius8/10/16`), paddings, shadows | ANY spacing/radius/shadow |
+| `AppColors.*` | All app colors (primary, accent, surface, textPrimary, etc.) | ANY Flutter UI color — never hardcode `Color(0xFF...)` or `Colors.*` |
+| `AppLayoutTokens.*` | Spacing (`space4`–`space20`), radius (`radius8/10/16`), paddings, shadows | ANY spacing/radius/shadow — add new tokens here if missing |
 | `AppTheme.lightTheme` | Complete ThemeData | MaterialApp theme |
 
 ## Services (`lib/core/services/`)

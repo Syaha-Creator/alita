@@ -245,6 +245,12 @@ class _ProductListPageState extends ConsumerState<ProductListPage> {
             ? indirectSession.storeDiscounts
             : null;
 
+    // Indirect: toko dipilih tapi diskon belum ada → blokir interaksi
+    final isDiscountMissing = salesMode == SalesMode.indirect &&
+        indirectSession.hasStore &&
+        !indirectSession.isLoadingDiscounts &&
+        !indirectSession.hasDiscounts;
+
     return RefreshIndicator.adaptive(
       color: AppColors.accent,
       onRefresh: () async => ref.invalidate(productListProvider),
@@ -309,16 +315,23 @@ class _ProductListPageState extends ConsumerState<ProductListPage> {
                 return AnimatedListItem(
                   index: index,
                   child: RepaintBoundary(
-                    child: ProductCard(
-                      product: product,
-                      indirectStoreDiscounts: cardStoreDiscounts,
-                      onTap: () {
-                        if (product.isPricelistCustomPlaceholder) {
-                          context.push('/pricelist/custom_line');
-                        } else {
-                          context.push('/product/${product.id}', extra: product);
-                        }
-                      },
+                    child: IgnorePointer(
+                      ignoring: isDiscountMissing,
+                      child: Opacity(
+                        opacity: isDiscountMissing ? 0.4 : 1.0,
+                        child: ProductCard(
+                          product: product,
+                          indirectStoreDiscounts: cardStoreDiscounts,
+                          onTap: () {
+                            if (product.isPricelistCustomPlaceholder) {
+                              context.push('/pricelist/custom_line');
+                            } else {
+                              context.push(
+                                  '/product/${product.id}', extra: product);
+                            }
+                          },
+                        ),
+                      ),
                     ),
                   ),
                 );

@@ -109,6 +109,11 @@ abstract final class PdfItemsTable {
       final primaryForCell = subtitle == null && mainTextDisplay.isNotEmpty
           ? mainTextDisplay
           : displayName;
+
+      // Tampilkan item_number sebagai caption kecil HANYA jika ada (item custom).
+      final itemNumberRaw = d['item_number']?.toString().trim() ?? '';
+      final itemNumberCaption = itemNumberRaw.isNotEmpty ? itemNumberRaw : null;
+
       final nameWidget = _buildNameCell(
         primaryForCell,
         isBold: isLeadItem,
@@ -116,6 +121,7 @@ abstract final class PdfItemsTable {
         mainText: subtitle != null
             ? (mainLineForTwoRows.isNotEmpty ? mainLineForTwoRows : displayName)
             : null,
+        itemNumber: itemNumberCaption,
       );
 
       if (isInternal) {
@@ -235,40 +241,59 @@ abstract final class PdfItemsTable {
     return line;
   }
 
-  static pw.Widget _buildNameCell(String name,
-      {required bool isBold, String? subtitle, String? mainText}) {
+  static pw.Widget _buildNameCell(
+    String name, {
+    required bool isBold,
+    String? subtitle,
+    String? mainText,
+    String? itemNumber,
+  }) {
     const padding = pw.EdgeInsets.all(6);
-    if (subtitle != null &&
+
+    final nameStyle = pw.TextStyle(
+      fontSize: 8,
+      fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal,
+    );
+    const captionStyle = pw.TextStyle(fontSize: 6.5, color: PdfColors.grey700);
+    final itemNumStyle = pw.TextStyle(
+      fontSize: 6.5,
+      color: PdfColors.grey600,
+      fontStyle: pw.FontStyle.italic,
+    );
+
+    // Susun baris: mainText (+ subtitle opsional) + item_number caption.
+    final hasTwoLineTitle = subtitle != null &&
         subtitle.isNotEmpty &&
         mainText != null &&
-        mainText.isNotEmpty) {
-      return pw.Padding(
-        padding: padding,
-        child: pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          mainAxisSize: pw.MainAxisSize.min,
-          children: [
-            pw.Text(mainText,
-                style: pw.TextStyle(
-                    fontSize: 8,
-                    fontWeight:
-                        isBold ? pw.FontWeight.bold : pw.FontWeight.normal)),
-            pw.SizedBox(height: 1),
-            pw.Text(subtitle,
-                style: pw.TextStyle(
-                    fontSize: 6.5,
-                    color: PdfColors.grey700,
-                    fontStyle: pw.FontStyle.italic)),
-          ],
-        ),
-      );
+        mainText.isNotEmpty;
+
+    final children = <pw.Widget>[];
+
+    if (hasTwoLineTitle) {
+      children.add(pw.Text(mainText, style: nameStyle));
+      children.add(pw.SizedBox(height: 1));
+      children.add(pw.Text(subtitle, style: captionStyle));
+    } else {
+      children.add(pw.Text(name, style: nameStyle));
     }
+
+    if (itemNumber != null && itemNumber.isNotEmpty) {
+      children.add(pw.SizedBox(height: 2));
+      children.add(pw.Text('No. Item: $itemNumber', style: itemNumStyle));
+    }
+
+    if (children.length == 1) {
+      // Optimasi: tidak perlu Column untuk satu anak.
+      return pw.Padding(padding: padding, child: children.first);
+    }
+
     return pw.Padding(
       padding: padding,
-      child: pw.Text(name,
-          style: pw.TextStyle(
-              fontSize: 8,
-              fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal)),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        mainAxisSize: pw.MainAxisSize.min,
+        children: children,
+      ),
     );
   }
 

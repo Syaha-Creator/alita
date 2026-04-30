@@ -732,8 +732,8 @@ void main() {
           '/order_letter_approvals',
           queryParams: {
             'user_id': '9',
-            'start_date': AppFormatters.apiDate(start),
-            'end_date': AppFormatters.apiDate(end),
+            'date_from': AppFormatters.apiDate(start),
+            'date_to': AppFormatters.apiDate(end),
           },
           token: null,
           timeout: _apiTimeout,

@@ -835,6 +835,12 @@ mixin _$OrderDetail {
   List<OrderDiscount> get discounts => throw _privateConstructorUsedError;
   bool get isTakeAway => throw _privateConstructorUsedError;
 
+  /// SKU / item code dari field `item_number` API.
+  String get itemNumber => throw _privateConstructorUsedError;
+
+  /// Channel / tipe pricelist dari field `pricelist_type` API.
+  String get pricelistType => throw _privateConstructorUsedError;
+
   /// Serializes this OrderDetail to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
@@ -865,7 +871,9 @@ abstract class $OrderDetailCopyWith<$Res> {
       @JsonKey(fromJson: _parseDouble) double unitPrice,
       @JsonKey(fromJson: _parseDouble) double extendedPrice,
       List<OrderDiscount> discounts,
-      bool isTakeAway});
+      bool isTakeAway,
+      String itemNumber,
+      String pricelistType});
 }
 
 /// @nodoc
@@ -897,6 +905,8 @@ class _$OrderDetailCopyWithImpl<$Res, $Val extends OrderDetail>
     Object? extendedPrice = null,
     Object? discounts = null,
     Object? isTakeAway = null,
+    Object? itemNumber = null,
+    Object? pricelistType = null,
   }) {
     return _then(_value.copyWith(
       id: null == id
@@ -955,6 +965,14 @@ class _$OrderDetailCopyWithImpl<$Res, $Val extends OrderDetail>
           ? _value.isTakeAway
           : isTakeAway // ignore: cast_nullable_to_non_nullable
               as bool,
+      itemNumber: null == itemNumber
+          ? _value.itemNumber
+          : itemNumber // ignore: cast_nullable_to_non_nullable
+              as String,
+      pricelistType: null == pricelistType
+          ? _value.pricelistType
+          : pricelistType // ignore: cast_nullable_to_non_nullable
+              as String,
     ) as $Val);
   }
 }
@@ -981,7 +999,9 @@ abstract class _$$OrderDetailImplCopyWith<$Res>
       @JsonKey(fromJson: _parseDouble) double unitPrice,
       @JsonKey(fromJson: _parseDouble) double extendedPrice,
       List<OrderDiscount> discounts,
-      bool isTakeAway});
+      bool isTakeAway,
+      String itemNumber,
+      String pricelistType});
 }
 
 /// @nodoc
@@ -1011,6 +1031,8 @@ class __$$OrderDetailImplCopyWithImpl<$Res>
     Object? extendedPrice = null,
     Object? discounts = null,
     Object? isTakeAway = null,
+    Object? itemNumber = null,
+    Object? pricelistType = null,
   }) {
     return _then(_$OrderDetailImpl(
       id: null == id
@@ -1069,6 +1091,14 @@ class __$$OrderDetailImplCopyWithImpl<$Res>
           ? _value.isTakeAway
           : isTakeAway // ignore: cast_nullable_to_non_nullable
               as bool,
+      itemNumber: null == itemNumber
+          ? _value.itemNumber
+          : itemNumber // ignore: cast_nullable_to_non_nullable
+              as String,
+      pricelistType: null == pricelistType
+          ? _value.pricelistType
+          : pricelistType // ignore: cast_nullable_to_non_nullable
+              as String,
     ));
   }
 }
@@ -1090,7 +1120,9 @@ class _$OrderDetailImpl implements _OrderDetail {
       @JsonKey(fromJson: _parseDouble) required this.unitPrice,
       @JsonKey(fromJson: _parseDouble) this.extendedPrice = 0,
       final List<OrderDiscount> discounts = const <OrderDiscount>[],
-      this.isTakeAway = false})
+      this.isTakeAway = false,
+      this.itemNumber = '',
+      this.pricelistType = ''})
       : _discounts = discounts;
 
   factory _$OrderDetailImpl.fromJson(Map<String, dynamic> json) =>
@@ -1139,9 +1171,19 @@ class _$OrderDetailImpl implements _OrderDetail {
   @JsonKey()
   final bool isTakeAway;
 
+  /// SKU / item code dari field `item_number` API.
+  @override
+  @JsonKey()
+  final String itemNumber;
+
+  /// Channel / tipe pricelist dari field `pricelist_type` API.
+  @override
+  @JsonKey()
+  final String pricelistType;
+
   @override
   String toString() {
-    return 'OrderDetail(id: $id, noSp: $noSp, itemDescription: $itemDescription, desc1: $desc1, desc2: $desc2, itemType: $itemType, qty: $qty, customerPrice: $customerPrice, netPrice: $netPrice, brand: $brand, unitPrice: $unitPrice, extendedPrice: $extendedPrice, discounts: $discounts, isTakeAway: $isTakeAway)';
+    return 'OrderDetail(id: $id, noSp: $noSp, itemDescription: $itemDescription, desc1: $desc1, desc2: $desc2, itemType: $itemType, qty: $qty, customerPrice: $customerPrice, netPrice: $netPrice, brand: $brand, unitPrice: $unitPrice, extendedPrice: $extendedPrice, discounts: $discounts, isTakeAway: $isTakeAway, itemNumber: $itemNumber, pricelistType: $pricelistType)';
   }
 
   @override
@@ -1170,7 +1212,11 @@ class _$OrderDetailImpl implements _OrderDetail {
             const DeepCollectionEquality()
                 .equals(other._discounts, _discounts) &&
             (identical(other.isTakeAway, isTakeAway) ||
-                other.isTakeAway == isTakeAway));
+                other.isTakeAway == isTakeAway) &&
+            (identical(other.itemNumber, itemNumber) ||
+                other.itemNumber == itemNumber) &&
+            (identical(other.pricelistType, pricelistType) ||
+                other.pricelistType == pricelistType));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1190,7 +1236,9 @@ class _$OrderDetailImpl implements _OrderDetail {
       unitPrice,
       extendedPrice,
       const DeepCollectionEquality().hash(_discounts),
-      isTakeAway);
+      isTakeAway,
+      itemNumber,
+      pricelistType);
 
   /// Create a copy of OrderDetail
   /// with the given fields replaced by the non-null parameter values.
@@ -1223,7 +1271,9 @@ abstract class _OrderDetail implements OrderDetail {
       @JsonKey(fromJson: _parseDouble) required final double unitPrice,
       @JsonKey(fromJson: _parseDouble) final double extendedPrice,
       final List<OrderDiscount> discounts,
-      final bool isTakeAway}) = _$OrderDetailImpl;
+      final bool isTakeAway,
+      final String itemNumber,
+      final String pricelistType}) = _$OrderDetailImpl;
 
   factory _OrderDetail.fromJson(Map<String, dynamic> json) =
       _$OrderDetailImpl.fromJson;
@@ -1261,6 +1311,14 @@ abstract class _OrderDetail implements OrderDetail {
   @override
   bool get isTakeAway;
 
+  /// SKU / item code dari field `item_number` API.
+  @override
+  String get itemNumber;
+
+  /// Channel / tipe pricelist dari field `pricelist_type` API.
+  @override
+  String get pricelistType;
+
   /// Create a copy of OrderDetail
   /// with the given fields replaced by the non-null parameter values.
   @override
@@ -1285,6 +1343,9 @@ mixin _$OrderDiscount {
   String get approvedStatus => throw _privateConstructorUsedError;
   String? get approvedAt => throw _privateConstructorUsedError;
 
+  /// Program discount label dari field `discount_program` API (e.g. "10%+5%").
+  String get discountProgram => throw _privateConstructorUsedError;
+
   /// Serializes this OrderDiscount to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
@@ -1308,7 +1369,8 @@ abstract class $OrderDiscountCopyWith<$Res> {
       String approverLevel,
       String? approverId,
       String approvedStatus,
-      String? approvedAt});
+      String? approvedAt,
+      String discountProgram});
 }
 
 /// @nodoc
@@ -1333,6 +1395,7 @@ class _$OrderDiscountCopyWithImpl<$Res, $Val extends OrderDiscount>
     Object? approverId = freezed,
     Object? approvedStatus = null,
     Object? approvedAt = freezed,
+    Object? discountProgram = null,
   }) {
     return _then(_value.copyWith(
       id: null == id
@@ -1363,6 +1426,10 @@ class _$OrderDiscountCopyWithImpl<$Res, $Val extends OrderDiscount>
           ? _value.approvedAt
           : approvedAt // ignore: cast_nullable_to_non_nullable
               as String?,
+      discountProgram: null == discountProgram
+          ? _value.discountProgram
+          : discountProgram // ignore: cast_nullable_to_non_nullable
+              as String,
     ) as $Val);
   }
 }
@@ -1382,7 +1449,8 @@ abstract class _$$OrderDiscountImplCopyWith<$Res>
       String approverLevel,
       String? approverId,
       String approvedStatus,
-      String? approvedAt});
+      String? approvedAt,
+      String discountProgram});
 }
 
 /// @nodoc
@@ -1405,6 +1473,7 @@ class __$$OrderDiscountImplCopyWithImpl<$Res>
     Object? approverId = freezed,
     Object? approvedStatus = null,
     Object? approvedAt = freezed,
+    Object? discountProgram = null,
   }) {
     return _then(_$OrderDiscountImpl(
       id: null == id
@@ -1435,6 +1504,10 @@ class __$$OrderDiscountImplCopyWithImpl<$Res>
           ? _value.approvedAt
           : approvedAt // ignore: cast_nullable_to_non_nullable
               as String?,
+      discountProgram: null == discountProgram
+          ? _value.discountProgram
+          : discountProgram // ignore: cast_nullable_to_non_nullable
+              as String,
     ));
   }
 }
@@ -1449,7 +1522,8 @@ class _$OrderDiscountImpl implements _OrderDiscount {
       required this.approverLevel,
       this.approverId,
       required this.approvedStatus,
-      this.approvedAt});
+      this.approvedAt,
+      this.discountProgram = ''});
 
   factory _$OrderDiscountImpl.fromJson(Map<String, dynamic> json) =>
       _$$OrderDiscountImplFromJson(json);
@@ -1471,9 +1545,14 @@ class _$OrderDiscountImpl implements _OrderDiscount {
   @override
   final String? approvedAt;
 
+  /// Program discount label dari field `discount_program` API (e.g. "10%+5%").
+  @override
+  @JsonKey()
+  final String discountProgram;
+
   @override
   String toString() {
-    return 'OrderDiscount(id: $id, discountVal: $discountVal, approverName: $approverName, approverLevel: $approverLevel, approverId: $approverId, approvedStatus: $approvedStatus, approvedAt: $approvedAt)';
+    return 'OrderDiscount(id: $id, discountVal: $discountVal, approverName: $approverName, approverLevel: $approverLevel, approverId: $approverId, approvedStatus: $approvedStatus, approvedAt: $approvedAt, discountProgram: $discountProgram)';
   }
 
   @override
@@ -1493,13 +1572,15 @@ class _$OrderDiscountImpl implements _OrderDiscount {
             (identical(other.approvedStatus, approvedStatus) ||
                 other.approvedStatus == approvedStatus) &&
             (identical(other.approvedAt, approvedAt) ||
-                other.approvedAt == approvedAt));
+                other.approvedAt == approvedAt) &&
+            (identical(other.discountProgram, discountProgram) ||
+                other.discountProgram == discountProgram));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, id, discountVal, approverName,
-      approverLevel, approverId, approvedStatus, approvedAt);
+      approverLevel, approverId, approvedStatus, approvedAt, discountProgram);
 
   /// Create a copy of OrderDiscount
   /// with the given fields replaced by the non-null parameter values.
@@ -1525,7 +1606,8 @@ abstract class _OrderDiscount implements OrderDiscount {
       required final String approverLevel,
       final String? approverId,
       required final String approvedStatus,
-      final String? approvedAt}) = _$OrderDiscountImpl;
+      final String? approvedAt,
+      final String discountProgram}) = _$OrderDiscountImpl;
 
   factory _OrderDiscount.fromJson(Map<String, dynamic> json) =
       _$OrderDiscountImpl.fromJson;
@@ -1546,6 +1628,10 @@ abstract class _OrderDiscount implements OrderDiscount {
   String get approvedStatus;
   @override
   String? get approvedAt;
+
+  /// Program discount label dari field `discount_program` API (e.g. "10%+5%").
+  @override
+  String get discountProgram;
 
   /// Create a copy of OrderDiscount
   /// with the given fields replaced by the non-null parameter values.

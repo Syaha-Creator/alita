@@ -36,6 +36,7 @@ import '../../../cart/logic/cart_provider.dart';
 import '../../../profile/logic/profile_provider.dart';
 import '../../data/models/order_history.dart';
 import '../../logic/edit_order_context_provider.dart';
+import '../../logic/order_detail_cart_preloader.dart';
 import '../../logic/order_detail_provider.dart';
 import '../widgets/add_payment_bottom_sheet.dart';
 import '../widgets/approval_timeline_widget.dart';
@@ -815,8 +816,9 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
       builder: (dialogCtx) => AlertDialog(
         title: const Text('Edit Item Pesanan'),
         content: const Text(
-          'Semua item akan dihapus dan kamu perlu memilih produk baru dari '
-          'pricelist.\n\nApproval akan di-reset setelah perubahan disimpan.',
+          'Item pesanan sebelumnya akan di-load ke keranjang sebagai titik '
+          'awal.\n\nKamu bisa menambah, mengubah, atau menghapus item sebelum '
+          'menyimpan.\n\nApproval akan di-reset setelah perubahan disimpan.',
         ),
         actions: [
           TextButton(
@@ -832,9 +834,17 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
     );
     if (confirmed != true || !mounted) return;
 
-    // Set edit context + kosongkan cart sebelum navigasi.
+    // Pre-load item lama ke cart sebagai titik awal edit.
+    final preloadedItems = OrderDetailCartPreloader.convert(order);
+
+    // Set edit context, lalu isi cart dengan item lama (atau kosongkan jika
+    // preload gagal/kosong).
     ref.read(editOrderContextProvider.notifier).state = order;
-    await ref.read(cartProvider.notifier).clearCart();
+    if (preloadedItems.isNotEmpty) {
+      await ref.read(cartProvider.notifier).replaceCartItems(preloadedItems);
+    } else {
+      await ref.read(cartProvider.notifier).clearCart();
+    }
 
     if (!mounted) return;
 

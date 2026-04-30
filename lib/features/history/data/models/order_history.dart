@@ -293,6 +293,10 @@ class OrderDetail with _$OrderDetail {
     @JsonKey(fromJson: _parseDouble) @Default(0) double extendedPrice,
     @Default(<OrderDiscount>[]) List<OrderDiscount> discounts,
     @Default(false) bool isTakeAway,
+    /// SKU / item code dari field `item_number` API.
+    @Default('') String itemNumber,
+    /// Channel / tipe pricelist dari field `pricelist_type` API.
+    @Default('') String pricelistType,
   }) = _OrderDetail;
 
   factory OrderDetail.fromJson(Map<String, dynamic> json) =>
@@ -321,6 +325,8 @@ class OrderDetail with _$OrderDetail {
       itemDescription: json['item_description']?.toString() ?? '',
       desc1: json['desc_1']?.toString() ?? '',
       desc2: json['desc_2']?.toString() ?? '',
+      itemNumber: json['item_number']?.toString() ?? '',
+      pricelistType: json['pricelist_type']?.toString() ?? '',
       itemType: json['item_type']?.toString() ?? '',
       qty: q,
       customerPrice: _parseDouble(json['customer_price']),
@@ -346,6 +352,8 @@ class OrderDiscount with _$OrderDiscount {
     String? approverId,
     required String approvedStatus,
     String? approvedAt,
+    /// Program discount label dari field `discount_program` API (e.g. "10%+5%").
+    @Default('') String discountProgram,
   }) = _OrderDiscount;
 
   factory OrderDiscount.fromJson(Map<String, dynamic> json) =>
@@ -361,6 +369,7 @@ class OrderDiscount with _$OrderDiscount {
       approvedStatus:
           json['approved']?.toString() ?? OrderStatus.pending.apiValue,
       approvedAt: json['approved_at']?.toString(),
+      discountProgram: json['discount_program']?.toString() ?? '',
     );
   }
 }

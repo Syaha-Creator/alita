@@ -100,6 +100,8 @@ _$OrderDetailImpl _$$OrderDetailImplFromJson(Map<String, dynamic> json) =>
               .toList() ??
           const <OrderDiscount>[],
       isTakeAway: json['isTakeAway'] as bool? ?? false,
+      itemNumber: json['itemNumber'] as String? ?? '',
+      pricelistType: json['pricelistType'] as String? ?? '',
     );
 
 Map<String, dynamic> _$$OrderDetailImplToJson(_$OrderDetailImpl instance) =>
@@ -118,6 +120,8 @@ Map<String, dynamic> _$$OrderDetailImplToJson(_$OrderDetailImpl instance) =>
       'extendedPrice': instance.extendedPrice,
       'discounts': instance.discounts,
       'isTakeAway': instance.isTakeAway,
+      'itemNumber': instance.itemNumber,
+      'pricelistType': instance.pricelistType,
     };
 
 _$OrderDiscountImpl _$$OrderDiscountImplFromJson(Map<String, dynamic> json) =>
@@ -129,6 +133,7 @@ _$OrderDiscountImpl _$$OrderDiscountImplFromJson(Map<String, dynamic> json) =>
       approverId: json['approverId'] as String?,
       approvedStatus: json['approvedStatus'] as String,
       approvedAt: json['approvedAt'] as String?,
+      discountProgram: json['discountProgram'] as String? ?? '',
     );
 
 Map<String, dynamic> _$$OrderDiscountImplToJson(_$OrderDiscountImpl instance) =>
@@ -140,6 +145,7 @@ Map<String, dynamic> _$$OrderDiscountImplToJson(_$OrderDiscountImpl instance) =>
       'approverId': instance.approverId,
       'approvedStatus': instance.approvedStatus,
       'approvedAt': instance.approvedAt,
+      'discountProgram': instance.discountProgram,
     };
 
 _$OrderPaymentImpl _$$OrderPaymentImplFromJson(Map<String, dynamic> json) =>

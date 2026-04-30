@@ -9,6 +9,7 @@ import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/utils/log.dart';
 import '../../../../core/utils/area_utils.dart';
 import '../../../../core/utils/store_display_utils.dart';
+import '../../../../core/utils/whatsapp_helper.dart';
 import '../../../../core/widgets/filter_pill.dart';
 import '../../../../core/widgets/selection_bottom_sheet.dart';
 import '../../../auth/logic/auth_provider.dart';
@@ -17,6 +18,9 @@ import '../../../indirect/logic/indirect_session_provider.dart';
 import '../../../indirect/logic/sales_mode_provider.dart';
 import '../../logic/indirect_catalog_filter_utils.dart';
 import '../../logic/product_provider.dart';
+
+const _afaWaPhone = '+6285221611636';
+const _afaContactName = 'Pak Adi (AFA)';
 
 /// Format area name for display (Title Case, no uppercase).
 String _toTitleCase(String text) {
@@ -263,6 +267,16 @@ class FilterHeaderWidget extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Banner: toko dipilih tapi tidak ada diskon toko → minta bantuan AFA
+          if (isIndirect &&
+              hasIndirectStore &&
+              !session.isLoadingDiscounts &&
+              !session.hasDiscounts) ...[
+            _NoStoreDiscountBanner(
+              storeName: session.selectedStore!.alphaName,
+            ),
+            const SizedBox(height: AppLayoutTokens.space8),
+          ],
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -286,6 +300,7 @@ class FilterHeaderWidget extends ConsumerWidget {
                   ),
                   const SizedBox(width: AppLayoutTokens.space8),
                 ],
+
                 if (isIndirect) ...[
                   FilterPill(
                     icon: Icons.store_mall_directory_outlined,
@@ -390,6 +405,89 @@ class FilterHeaderWidget extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Banner: tidak ada diskon toko untuk toko yang dipilih
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _NoStoreDiscountBanner extends StatelessWidget {
+  const _NoStoreDiscountBanner({required this.storeName});
+
+  final String storeName;
+
+  void _openWaChat(BuildContext context) {
+    final displayName = storeName.trim().isEmpty ? 'toko yang dipilih' : storeName.trim();
+    final message =
+        'Halo $_afaContactName, mohon bantu inputkan diskon toko untuk $displayName. '
+        'Terima kasih.';
+    unawaited(
+      WhatsAppHelper.openChat(phone: _afaWaPhone, message: message).then((opened) {
+        if (!opened && context.mounted) {
+          AppFeedback.show(
+            context,
+            message: 'WhatsApp tidak dapat dibuka. Pastikan WhatsApp terinstal.',
+            type: AppFeedbackType.error,
+            floating: true,
+          );
+        }
+      }),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: AppColors.warning.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.discount_outlined,
+              size: 18,
+              color: AppColors.warning,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Diskon toko tidak ditemukan untuk toko ini.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                  height: 1.3,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () => _openWaChat(context),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.chat_outlined,
+                    size: 16,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Hubungi AFA',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Refactoring Rules (God-Class Splitting)
 
-When refactoring large files (>300 lines), follow these absolute rules:
+When refactoring large files (>300 lines for presentation, >500 lines for services), follow these absolute rules:
 
 ## ZERO CHANGE GUARANTEE
 1. **Zero functional change** — all logic, computation, validation, and data flow must remain 100% identical.
@@ -14,11 +14,21 @@ When refactoring large files (>300 lines), follow these absolute rules:
 3. **Zero data loss** — all fields that are POSTed, all API parameters, all payloads must remain complete.
 4. **Only reorganize** — move code blocks from 1 large file into smaller files, pass data via constructor/parameters.
 
+## FILE SIZE TARGETS (post-refactor)
+| File type | Target | Hard max |
+|-----------|--------|----------|
+| Page (`_page.dart`) | ≤300 lines | 400 lines |
+| Widget / Sheet (`_widget.dart`, `_sheet.dart`, `_section.dart`) | ≤250 lines | 350 lines |
+| Provider / Notifier (`_provider.dart`) | ≤300 lines | 400 lines |
+| Service / Repository (`_service.dart`, `_repository.dart`) | ≤350 lines | 500 lines |
+| Generated (`*.freezed.dart`, `*.g.dart`) | exempt | exempt |
+
 ## EXTRACTION STRATEGIES (Ordered by Safety)
 1. **Pure computation → utility class** — stateless logic that takes inputs and returns outputs (e.g. variant resolution, price calculation, validation rules). Safest extraction.
 2. **Widget builder methods → separate StatelessWidget / ConsumerWidget** — pass all data via constructor, callbacks via VoidCallback/ValueChanged. No implicit state access.
 3. **Private inner widgets → own file** — classes like `_FooBanner` that are already separate widgets, just in the same file.
 4. **Validation logic → validator class** — static methods that check form state and return results.
+5. **Section group → named section widget** — a visual "block" (e.g. shipping section, payment section) becomes its own `*Section` or `*Card` widget in `presentation/widgets/`.
 
 ## WHAT NOT TO DO
 - Never change the order of operations or conditional logic.
@@ -26,9 +36,38 @@ When refactoring large files (>300 lines), follow these absolute rules:
 - Never introduce new state management patterns (e.g. don't convert setState to Riverpod during refactor).
 - Never "improve" or "optimize" logic during extraction — refactor is ONLY about file organization.
 - Never break existing imports in other files that depend on the refactored file.
+- Never change `StateNotifier` to `AsyncNotifier` during a refactor pass — that is a separate migration task.
+
+## MANDATORY: CHECK CORE INVENTORY BEFORE CREATING NEW WIDGETS
+Before creating a new widget during extraction, check if a core widget already handles the pattern:
+- Use `SheetScaffold` for any modal bottom sheet chrome — do not create a new handle/title wrapper.
+- Use `SectionCard` for any surface+shadow card block — do not create a new `Container` with decoration.
+- Use `DetailSurfaceCard`, `DetailInfoRow`, `DetailSectionLabel` for detail page sections.
+- Use `LabelValueRow` for any label-left / value-right row.
+- Use `AppSearchField` for any search input — do not create a custom `TextField` for search.
+- Use `ActionButtonBar` for any primary/secondary CTA footer row.
+- If the pattern exists in core, use it and pass parameters — do not duplicate.
+
+## MANDATORY: APPLY TOKENS DURING EXTRACTION
+When moving code to a new file, apply these cleanups as part of the move (they do not change behavior):
+- Replace any `EdgeInsets.all(N)` / `SizedBox(height: N)` with `AppLayoutTokens.space*` equivalents.
+- Replace any `BorderRadius.circular(N)` with `AppLayoutTokens.radius*` equivalents.
+- Replace any `Colors.white` / `Colors.black.withValues(...)` / `Colors.grey` with `AppColors.*` equivalents.
+- Replace any `BoxShadow(...)` manual definition with `AppLayoutTokens.cardShadowSoft` where applicable.
+- These token substitutions are considered part of "moving code cleanly" and do NOT violate the zero-change guarantee.
+
+## NAMING CONVENTIONS FOR EXTRACTED FILES
+- Section of a page → `{feature}_{section_name}_section.dart` (e.g. `checkout_shipping_section.dart`)
+- Card block → `{feature}_{block_name}_card.dart` (e.g. `order_payment_card.dart`)
+- Inner widget of a sheet → `{sheet_name}_{part}_row.dart` or `{sheet_name}_{part}_tile.dart`
+- Extracted validator → `{feature}_form_validator.dart`
+- Extracted builder/helper → `{feature}_{purpose}_builder.dart` or `{feature}_{purpose}_utils.dart`
+- All new files go into `presentation/widgets/` for UI, `logic/` for providers/validators, `data/utils/` for data helpers.
 
 ## VERIFICATION CHECKLIST
 1. Run `ReadLints` on all modified and new files — zero new errors.
-2. Count lines before and after to confirm reduction.
-3. Verify all imports resolve — no broken references.
-4. If a method used `ref.watch`/`ref.read`, the extracted widget must be `ConsumerWidget` or receive providers as parameters.
+2. Run `dart analyze` on the feature folder — zero new warnings.
+3. Count lines before and after to confirm reduction toward target.
+4. Verify all imports resolve — no broken references.
+5. If a method used `ref.watch`/`ref.read`, the extracted widget must be `ConsumerWidget` or receive providers as parameters.
+6. Verify the extracted widget appears visually identical in the running app (or describe how to verify).

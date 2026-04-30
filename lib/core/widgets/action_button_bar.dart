@@ -69,7 +69,7 @@ class ActionButtonBar extends StatelessWidget {
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.max,
+          mainAxisSize: MainAxisSize.min,
           children: [
             if (primaryLeading != null) ...[
               primaryLeading!,
@@ -104,7 +104,7 @@ class ActionButtonBar extends StatelessWidget {
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.max,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   if (secondaryLeading case final leading?) ...[
                     leading,

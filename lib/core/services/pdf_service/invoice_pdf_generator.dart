@@ -370,6 +370,7 @@ class InvoicePdfGenerator {
         'take_away': d.isTakeAway,
         'id': d.id,
         'order_letter_detail_id': d.id,
+        if (d.itemNumber.trim().isNotEmpty) 'item_number': d.itemNumber.trim(),
       };
     }).toList();
 

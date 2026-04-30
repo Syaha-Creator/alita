@@ -73,7 +73,7 @@ class EditDetailsService {
     await deleteAllDetails(order, token);
   }
 
-  // ── Step 3: Patch totals di order_letters ──────────────────────
+  // ── Step 3: Patch totals + reset status di order_letters ───────
 
   Future<void> patchOrderTotals({
     required int orderId,
@@ -92,13 +92,16 @@ class EditDetailsService {
         'extended_amount': extendedAmount,
         'harga_awal': hargaAwal,
         'discount': discount,
+        // Reset status ke Pending agar approval baru bisa diproses.
+        'status': 'Pending',
       },
       timeout: _timeout,
     );
     _assertOk(res.statusCode, 'PATCH totals order $orderId', res.body);
     Log.info(
       'EditDetails: totals order $orderId updated '
-      '(extended=$extendedAmount hargaAwal=$hargaAwal disc=${discount.toStringAsFixed(2)}%)',
+      '(extended=$extendedAmount hargaAwal=$hargaAwal '
+      'disc=${discount.toStringAsFixed(2)}% status→Pending)',
       tag: 'EditDetailsService',
     );
   }

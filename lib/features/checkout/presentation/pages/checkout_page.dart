@@ -624,9 +624,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       return const CheckoutEmptyState();
     }
 
-    final isIndirectCheckout = cartItems.any((e) => e.isIndirectSale);
     final editOrder = ref.watch(editOrderContextProvider);
     final isEditMode = editOrder != null;
+
+    // Edit mode: jika order asli adalah SO (indirect) tapi item belum memiliki
+    // indirectStoreAddressNumber yang valid, tetap anggap indirect.
+    final isIndirectCheckout = cartItems.any((e) => e.isIndirectSale) ||
+        (isEditMode &&
+            (editOrder.channel?.trim().toUpperCase() ?? '') == 'SO');
 
     // Edit mode: begitu daftar approver selesai fetch, prefill SPV/Manager dari
     // order yang sedang di-edit supaya user tidak perlu memilih ulang.

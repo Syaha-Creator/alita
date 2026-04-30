@@ -107,6 +107,15 @@ class ProductItemsList extends StatelessWidget {
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
+                                    if (item.itemNumber.trim().isNotEmpty)
+                                      Text(
+                                        'No. Item: ${item.itemNumber.trim()}',
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          color: AppColors.textTertiary,
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                      ),
                                   ],
                                 ),
                               ),

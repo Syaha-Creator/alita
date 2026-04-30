@@ -346,8 +346,16 @@ class _PricelistCustomLinePageState
   }
 
   Future<void> _submit() async {
-    final brand = ref.read(selectedBrandProvider);
-    final channel = ref.read(selectedChannelProvider);
+    // For preloaded edit items, fall back to the product's own brand/channel.
+    final editProduct = widget.editItem?.product;
+    final brand = ref.read(selectedBrandProvider) ??
+        (editProduct?.brand.trim().isNotEmpty == true
+            ? editProduct!.brand.trim()
+            : null);
+    final channel = ref.read(selectedChannelProvider) ??
+        (editProduct?.channel.trim().isNotEmpty == true
+            ? editProduct!.channel.trim()
+            : null);
     if (brand == null || channel == null) {
       AppFeedback.show(
         context,
@@ -362,7 +370,6 @@ class _PricelistCustomLinePageState
     final name = _nameCtrl.text.trim();
     final ukuran = _ukuranCtrl.text.trim();
     final pl = _parseMoney(_plCtrl);
-    final eu = _parseMoney(_eupCtrl);
 
     if (name.isEmpty) {
       AppFeedback.show(
@@ -386,15 +393,6 @@ class _PricelistCustomLinePageState
       AppFeedback.show(
         context,
         message: 'Harga pricelist harus lebih dari 0.',
-        type: AppFeedbackType.error,
-        floating: true,
-      );
-      return;
-    }
-    if (eu <= 0) {
-      AppFeedback.show(
-        context,
-        message: 'EUP harus lebih dari 0.',
         type: AppFeedbackType.error,
         floating: true,
       );
@@ -453,9 +451,10 @@ class _PricelistCustomLinePageState
         ? widget.editItem!.product.id
         : PricelistCustomLineBuilder.newCartLineId();
 
-    // EUP yang disimpan ke snapshot adalah EUP SETELAH diskon program,
-    // agar cascade diskon toko + penjualan di checkout terhitung benar.
-    final eupForSnapshot = _eupAfterProgram(eu);
+    // EUP yang disimpan ke snapshot adalah harga pricelist SETELAH diskon program
+    // diterapkan. Harga Customer tidak lagi di-input manual — EUP selalu diturunkan
+    // dari harga pricelist via cascade diskon program.
+    final eupForSnapshot = _eupAfterProgram(pl);
     final progDiscounts = _currentProgramDiscounts();
     final programLabel = progDiscounts.isNotEmpty
         ? StoreDiscountCalculator.formatDisplay(progDiscounts)
@@ -551,8 +550,17 @@ class _PricelistCustomLinePageState
 
   @override
   Widget build(BuildContext context) {
-    final brand = ref.watch(selectedBrandProvider);
-    final channel = ref.watch(selectedChannelProvider);
+    // For preloaded edit items, fall back to the product's own brand/channel
+    // if the global filter providers are not set (user came from order history).
+    final editProduct = widget.editItem?.product;
+    final brand = ref.watch(selectedBrandProvider) ??
+        (editProduct?.brand.trim().isNotEmpty == true
+            ? editProduct!.brand.trim()
+            : null);
+    final channel = ref.watch(selectedChannelProvider) ??
+        (editProduct?.channel.trim().isNotEmpty == true
+            ? editProduct!.channel.trim()
+            : null);
     final salesMode = ref.watch(salesModeProvider);
     final indirectSession = ref.watch(indirectSessionProvider);
     final storeDiscounts =
