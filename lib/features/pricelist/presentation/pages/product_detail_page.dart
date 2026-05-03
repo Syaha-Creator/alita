@@ -244,12 +244,58 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                 _lastMaxLimits,
               );
             });
-            AppFeedback.show(
-              context,
-              message: 'Harga disesuaikan ke nilai minimum',
-              type: AppFeedbackType.warning,
-              floating: true,
+            Future.delayed(const Duration(milliseconds: 350), () {
+              if (mounted) {
+                AppFeedback.show(
+                  context,
+                  message: 'Harga disesuaikan ke nilai minimum',
+                  type: AppFeedbackType.warning,
+                  floating: true,
+                );
+              }
+            });
+          }
+          return;
+        }
+
+        // Guard: target yang diinput tidak boleh lebih rendah dari harga
+        // minimum yang bisa dicapai dengan diskon maksimum yang tersedia.
+        // Jika lebih rendah, cascade diskon akan tetap menggunakan EUP asli
+        // di checkout_order_service → net_price > extended_amount (inkonsisten).
+        if (_lastPlDiscountBaseTotal > 0 && _lastMaxLimits.isNotEmpty) {
+          final cappedDiscs = _computeDiscountsFromTargetTotal(
+            v,
+            _lastPlDiscountBaseTotal,
+            _lastMaxLimits,
+          );
+          if (cappedDiscs.isNotEmpty) {
+            final minAchievable = ProductDetailUtils.calculateCascadingPrice(
+              _lastPlDiscountBaseTotal,
+              cappedDiscs,
             );
+            if (v < minAchievable - 0.5) {
+              if (mounted) {
+                setState(() {
+                  targetTotalEup = minAchievable;
+                  _targetTotalController.text =
+                      _totalCurrencyFormat.format(minAchievable).trim();
+                  appliedDiscounts = cappedDiscs;
+                });
+                // Delay agar keyboard selesai turun sebelum toast muncul,
+                // mencegah toast tertutup keyboard saat transisi.
+                Future.delayed(const Duration(milliseconds: 350), () {
+                  if (mounted) {
+                    AppFeedback.show(
+                      context,
+                      message:
+                          'Harga minimum dengan diskon saat ini adalah ${_totalCurrencyFormat.format(minAchievable)}',
+                      type: AppFeedbackType.warning,
+                      floating: true,
+                    );
+                  }
+                });
+              }
+            }
           }
         }
       }
@@ -891,7 +937,22 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
             onTargetTotalChanged: (newTarget, newDiscounts) {
               setState(() {
                 if (newTarget != null) {
-                  targetTotalEup = newTarget;
+                  // Clamp targetTotalEup to the actual minimum achievable
+                  // with the computed discounts, so that extended_amount never
+                  // falls below the net_price the checkout service will compute.
+                  double effectiveTarget = newTarget;
+                  if (newDiscounts.isNotEmpty &&
+                      _lastPlDiscountBaseTotal > 0) {
+                    final minAchievable =
+                        ProductDetailUtils.calculateCascadingPrice(
+                      _lastPlDiscountBaseTotal,
+                      newDiscounts,
+                    );
+                    if (newTarget < minAchievable - 0.5) {
+                      effectiveTarget = minAchievable;
+                    }
+                  }
+                  targetTotalEup = effectiveTarget;
                   appliedDiscounts = newDiscounts;
                 } else {
                   targetTotalEup = null;
