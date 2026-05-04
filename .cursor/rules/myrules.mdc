@@ -7,9 +7,10 @@ You are a Senior Flutter Engineer & UI/UX Designer specializing in "Pinterest-st
 
 # TECH STACK
 - Flutter (Latest Stable)
-- State Management: Riverpod (AsyncNotifierProvider preferred)
+- State Management: Riverpod 2.x — `flutter_riverpod: ^2.6.1` — **manual constructors, NO code-gen (@riverpod annotation NOT used in this project)**
 - Navigation: GoRouter
-- Styling: Google Fonts (Poppins/Inter), Masonry Grid (flutter_staggered_grid_view)
+- Styling: Google Fonts (Inter), Masonry Grid (flutter_staggered_grid_view)
+- Testing: flutter_test + mocktail
 
 # UI/UX GUIDELINES (ALITA PRICELIST)
 - **Aesthetic:** Minimalist, "Airy", White/Light Grey backgrounds, High-quality image emphasis.
@@ -34,14 +35,63 @@ You are a Senior Flutter Engineer & UI/UX Designer specializing in "Pinterest-st
    - NEVER cast `state.extra as Map<String, dynamic>` in the router. Type-safe only.
 8. **Error handling (MANDATORY):**
    - NEVER write `catch (_)` or `catch (e)` without at minimum `Log.warning(...)` inside the catch block.
+   - Prefer typed exceptions: `on DioException catch (e, s)` over generic `catch (e)`. Use generic catch only as last resort, always with `Log.error(e, s)`.
    - Empty catch blocks are treated as a defect.
+9. **`const` constructors (MANDATORY):**
+   - Always use `const` constructors and `const` widget instantiation wherever no runtime-changing props exist.
+   - A widget tree that can be fully `const` must be `const` — this prevents unnecessary rebuilds.
+10. **Controller disposal (MANDATORY):**
+    - Always `dispose()` TextEditingController, ScrollController, AnimationController, and FocusNode — either in `State.dispose()` (for StatefulWidget) or via `ref.onDispose()` for Riverpod-owned resources.
+11. **AsyncValue rendering (MANDATORY):**
+    - Render all async Riverpod state via `AsyncStateView` widget or `AsyncValue.when()`.
+    - NEVER manually check `.isLoading` / `.hasError` / `.hasValue` — use the structured API.
+
+# NAMING CONVENTIONS (MANDATORY)
+## Files
+| Type | Pattern | Example |
+|------|---------|---------|
+| Page | `<feature>_page.dart` | `product_detail_page.dart` |
+| Sheet | `<feature>_sheet.dart` | `filter_sheet.dart` |
+| Section widget | `<feature>_<section>_section.dart` | `checkout_shipping_section.dart` |
+| Provider + Notifier + State | `<feature>_provider.dart` (all co-located) | `checkout_provider.dart` |
+| Service | `<feature>_service.dart` | `checkout_order_service.dart` |
+| Repository | `<feature>_repository.dart` | `product_repository.dart` |
+| Typed route args | `<feature>_route_args.dart` | `order_detail_route_args.dart` |
+
+## Classes & Variables
+| Type | Pattern | Example |
+|------|---------|---------|
+| Notifier class | `<Feature>Notifier` | `CheckoutNotifier` |
+| State class | `<Feature>State` (@freezed) | `CheckoutState` |
+| Typed route args | `<Feature>RouteArgs` | `OrderDetailRouteArgs` |
+| AsyncNotifierProvider | `final <feature>Provider = AsyncNotifierProvider<XNotifier, XState>(XNotifier.new);` | `final checkoutProvider = AsyncNotifierProvider<CheckoutNotifier, CheckoutState>(CheckoutNotifier.new);` |
+| FutureProvider | `final <feature>Provider = FutureProvider.autoDispose<T>((ref) => ...);` | `final productsProvider` |
+| StateProvider (UI flags only) | `final <flag>Provider = StateProvider<T>((ref) => defaultValue);` | `final sortAscendingProvider` |
 
 # STATE MANAGEMENT RULES
 1. **AsyncNotifierProvider is the default** for any state that involves async operations (API calls, file I/O, persistence).
-2. **StateNotifier is acceptable only** for purely synchronous state (e.g., a simple `List<String>` selection set) with no async loading phase.
+2. **Notifier is the standard** for purely synchronous state (e.g., a selection set, a local toggle list). **`StateNotifier` is deprecated in Riverpod 2 — NEVER use `StateNotifier` or `StateNotifierProvider` in new code.** Existing `StateNotifier` usage must be migrated in a dedicated task, not during unrelated refactors.
 3. **FutureProvider is acceptable** for read-only, non-mutating async data (fetch once, no user-triggered mutations).
 4. **ALL notifier state classes MUST use `@freezed`** — no manual `copyWith`, no plain mutable class.
 5. **`StateProvider`** is only for ephemeral UI-flag state (e.g., a sort toggle, a tab index). Not for domain state.
+6. **`ref.watch` vs `ref.read` (MANDATORY):**
+   - `ref.watch()` — ONLY inside `build()`, `Provider` body, or another `watch` callback. Used to rebuild on state change.
+   - `ref.read()` — ONLY inside callbacks, event handlers, and notifier methods. NEVER inside `build()`.
+   - `ref.listen()` — for side-effects triggered by state change (navigation, toast) from within `build()`.
+   - Violating this causes either stale data or infinite rebuild loops.
+7. **NEVER pass `BuildContext` into a Riverpod notifier or provider method.** For navigation from a notifier, use a callback parameter or a dedicated NavigationService. For user feedback, use `AppFeedback` (which does not require context injection).
+8. **NEVER use `FutureBuilder` or `StreamBuilder`.** Use `ConsumerWidget` + `FutureProvider` / `StreamProvider` instead. These Flutter primitives bypass Riverpod's caching, error handling, and testability.
+
+# CODE GENERATION (MANDATORY)
+This project uses `build_runner` for `@freezed` and `@JsonSerializable` **only**. Riverpod code-gen (`@riverpod`) is NOT used.
+
+After creating or modifying ANY `@freezed` or `@JsonSerializable` class, run:
+```bash
+dart run build_runner build --delete-conflicting-outputs
+```
+- NEVER commit a file that imports a `.freezed.dart` or `.g.dart` that has not been regenerated after the last model change.
+- If the generated file conflicts, always use `--delete-conflicting-outputs`.
+- Generated files (`*.freezed.dart`, `*.g.dart`) are NEVER edited manually.
 
 # REUSABLE WIDGET POLICY (MANDATORY — STRICTLY ENFORCED)
 1. **No repeated declarations:** If a UI pattern appears in 2+ places, extract it into a reusable widget. Avoid re-declaring identical `Container`, `TextField`, `ListTile`, and `BottomSheet` structures.
@@ -56,7 +106,7 @@ You are a Senior Flutter Engineer & UI/UX Designer specializing in "Pinterest-st
    - Creating a duplicate of an existing core widget is treated as a defect.
 5. **Naming convention:** Use clear intent names (`PriceBlock`, `QuantityStepper`, `FilterPill`, `SheetHeader`) and keep constructor parameters explicit.
 6. **Consistency:** ALL widgets must consume `AppColors` and `AppLayoutTokens`. Never hardcode `Color(0xFF...)`, `EdgeInsets.all(16)` when `AppLayoutTokens.cardPadding` exists, or `BoxShadow(...)` when `AppLayoutTokens.cardShadowSoft` exists.
-7. **`Colors.transparent` policy:** `Colors.transparent` is ONLY allowed in two specific cases: (1) `showModalBottomSheet(backgroundColor: Colors.transparent)` for rounded sheet chrome, and (2) Material/InkWell ripple container color. For all other uses, create or use an `AppColors` token. Do NOT use `Colors.transparent` as `surfaceTintColor` — prefer `Colors.transparent` → `AppColors.surface` or remove the override.
+7. **`Colors.transparent` policy:** `Colors.transparent` is ONLY allowed in two specific cases: (1) `showModalBottomSheet(backgroundColor: Colors.transparent)` for rounded sheet chrome, and (2) Material/InkWell ripple container color. For all other uses, create or use an `AppColors` token. Do NOT use `Colors.transparent` as `surfaceTintColor` — prefer `AppColors.surface` or remove the override.
 8. **Mandatory reusable sweep (before EVERY final answer):**
    - Scan all files you touched in this response.
    - For EACH inline pattern, check: does a core widget already handle this?
@@ -64,6 +114,7 @@ You are a Senior Flutter Engineer & UI/UX Designer specializing in "Pinterest-st
    - This step is NOT optional. Skipping it is a rule violation.
 9. **No repeat reminder needed from user:** User expects full propagation by default. Do not wait to be asked.
 10. **If a reusable is intentionally not applied:** explicitly document why (feature-specific behavior, incompatible UX, or risk of behavior change).
+11. **Core Inventory maintenance (MANDATORY):** When adding any new widget to `lib/core/widgets/` or any new util to `lib/core/utils/`, immediately update the CORE INVENTORY table in this rules file to reflect the addition. An undocumented core widget is as good as invisible to future agent calls.
 
 # REUSABLE NON-WIDGET POLICY (MANDATORY — STRICTLY ENFORCED)
 1. **No repeated logic declarations:** If non-UI logic appears in 2+ places, extract it to shared modules.
@@ -170,10 +221,17 @@ Before writing ANY new widget, utility, style, or layout, you MUST check this in
 | Service | Purpose | USE WHEN |
 |---------|---------|----------|
 | `ApiClient` | HTTP client with auth injection + error logging | Any API call |
-| `StorageService` | SharedPreferences wrapper (cart, auth, favorites, master data) | Any local persistence |
+| `StorageService` | SharedPreferences + FlutterSecureStorage wrapper (cart, auth, favorites, master data) | Any local persistence |
 | `ConnectivityService` | `isOfflineProvider`, `connectivityProvider` | Any network check |
 | `PdfAssetCache` | Pre-loaded PDF fonts & logos | PDF generation |
 | `NotificationHandlerService` | FCM foreground/tap/background handlers | Push notification handling |
+
+## Shared Providers (`lib/core/` — check before creating new providers)
+| Provider | Type | USE WHEN |
+|----------|------|----------|
+| `isOfflineProvider` | `StreamProvider<bool>` | Check connectivity state reactively |
+| `connectivityProvider` | `StreamProvider<ConnectivityResult>` | Full connectivity result |
+| `authProvider` | `AsyncNotifierProvider` | Authentication state (login, token, user) |
 
 ## Config (`lib/core/config/`)
 | Config | Purpose |
@@ -198,9 +256,76 @@ Tanpa export manual: script load API_BASE_URL, CLIENT_ID, CLIENT_SECRET, COMFORT
 
 # BEHAVIORAL RULES (ANTI-BREAKAGE)
 1. **Context First:** Before editing a file, analyze its dependencies. Do not delete existing functionality unless explicitly asked.
-2. **Incremental Changes:** If I ask for a UI change, only touch the `presentation` layer. Do not break the `logic` or `data` layers.
+2. **Incremental Changes:** If asked for a UI change, only touch the `presentation` layer. Do not break the `logic` or `data` layers.
 3. **No Hallucinations:** Do not invent packages that are not in `pubspec.yaml` unless you ask permission to add them.
 4. **Commentary:** Briefly explain *why* you changed a specific block of code.
+5. **No StatefulWidget for async data:** NEVER use `StatefulWidget` + `setState` to manage async data fetching. Always use `ConsumerWidget` + Riverpod provider.
+6. **No StatelessWidget when Riverpod is needed:** If a widget needs to read/watch any provider, it must extend `ConsumerWidget` or `ConsumerStatefulWidget` — never `StatelessWidget` with a `ProviderScope.containerOf` hack.
+
+# NAVIGATION RULES — GoRouter (MANDATORY)
+## context.go() vs context.push() vs context.replace() vs context.pop()
+| Method | Behaviour | USE WHEN |
+|--------|-----------|----------|
+| `context.go(path)` | Replace the **entire** navigation stack | Login → Home, Splash → Main, logout back to login |
+| `context.push(path)` | Add a new route **on top** of the stack | Product detail from list, order detail from history |
+| `context.replace(path)` | Replace **current** route only, keep history intact | Checkout step 1 → step 2 (back should not return to step 1) |
+| `context.pop()` | Remove top route from stack | Back from sheet, back from detail page |
+| `context.canPop()` | Check if pop is safe before calling pop | Before calling pop inside a flow |
+
+## Strict Rules
+1. **NEVER navigate from inside a Riverpod notifier or service.** Notifiers have no access to context. Use a callback parameter passed from the widget, or a dedicated `NavigationService` that holds a `GlobalKey<NavigatorState>`.
+2. **NEVER use `Navigator.of(context).push()`** or any raw Navigator API. GoRouter only — `context.go()` / `context.push()` / `context.replace()`.
+3. **Typed route arguments** — always use typed `RouteArgs` class in `extra`. Never `Map<String, dynamic>`. See CODING STANDARDS item 7.
+4. **Deep links and named routes** — define route names as static constants in `AppRoutes` class. Never hardcode path strings in widgets.
+
+# TESTING POLICY
+## When to Write Tests
+| Scenario | Required? |
+|----------|-----------|
+| New `AsyncNotifier` / `Notifier` with business logic | Yes — unit test the notifier |
+| Bug fix in logic layer | Yes — add regression test |
+| New UI widget in `lib/core/widgets/` | Encouraged — widget test |
+| Pure refactor (no logic change) | No |
+| Simple presentation-only page | No |
+
+## Framework & Tools
+- **Runner:** `flutter test`
+- **Mock framework:** `mocktail` (already in dev_dependencies) — NOT mockito
+- **Widget testing:** `flutter_test` — `tester.pumpWidget()`, `tester.tap()`, `tester.pump()`
+
+## File & Folder Convention
+```
+test/
+  features/
+    <feature>/
+      logic/   <notifier>_test.dart
+      data/    <service>_test.dart
+      presentation/   <widget>_test.dart
+  core/
+    utils/   <util>_test.dart
+    widgets/ <widget>_test.dart
+```
+
+## Test Structure Pattern
+```dart
+void main() {
+  late ProviderContainer container;
+
+  setUp(() {
+    container = ProviderContainer(overrides: [
+      // override dependencies with mocktail fakes
+    ]);
+  });
+
+  tearDown(() => container.dispose());
+
+  test('description of expected behavior', () async {
+    // arrange
+    // act
+    // assert
+  });
+}
+```
 
 # GIT COMMITS (MANDATORY)
 - Jangan tambahkan footer `Made-with: Cursor`, Co-authored-by Cursor, atau merek editor/tooling di pesan commit.
@@ -208,4 +333,4 @@ Tanpa export manual: script load API_BASE_URL, CLIENT_ID, CLIENT_SECRET, COMFORT
 # COMMANDS
 - /fix: Fix the bug but keep the logic structure.
 - /ui: Improve the UI to match the "Pinterest" aesthetic.
-- /refactor: Break this file into smaller widgets without changing behavior.
+- /refactor: Break this file into smaller widgets without changing behavior. Follow refactor-rules.mdc.
