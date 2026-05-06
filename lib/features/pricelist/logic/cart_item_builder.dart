@@ -58,6 +58,14 @@ class CartItemBuilder {
     /// Snapshot area pricelist saat item ditambahkan (untuk `pricelist_area`
     /// di `order_letter_details`).
     String pricelistArea = '',
+
+    // ── Program Bulanan (indirect only) ──────────────────────────────────────
+    /// Tipe diskon program bulanan: '' | 'percent' | 'nominal'.
+    String programBulananType = '',
+    /// Nilai yang diinput user:
+    /// - Jika 'percent': angka 0–100 (mis. 5 = 5%).
+    /// - Jika 'nominal': nilai Rp.
+    double programBulananValue = 0.0,
   }) {
     final hasKasur = _isComponentPresent(activeProduct.kasur);
     final savingAsSet = hasKasur ? !isKasurOnly : true;
@@ -232,6 +240,11 @@ class CartItemBuilder {
       indirectStoreDiscounts: indirectMeta?.storeDiscounts ?? const [],
       indirectStoreDiscountDisplay: indirectMeta?.discountDisplay ?? '',
       pricelistArea: pricelistArea,
+      programBulananType: programBulananType,
+      programBulananDiscount:
+          programBulananType == 'percent' ? programBulananValue : 0.0,
+      programBulananNominal:
+          programBulananType == 'nominal' ? programBulananValue : 0.0,
     );
   }
 

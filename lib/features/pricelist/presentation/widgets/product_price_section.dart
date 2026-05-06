@@ -8,6 +8,7 @@ import '../../../../core/utils/number_input_formatter.dart';
 import '../../../../core/widgets/price_block.dart';
 import '../../data/models/product.dart';
 import 'bonus_editor_modal.dart';
+import 'program_bulanan_card.dart';
 
 /// Displays the complete price section: breakdown per component, discount tile,
 /// editable total field, installment simulation, and bonus list.
@@ -53,6 +54,22 @@ class ProductPriceSection extends StatelessWidget {
   /// Penjelasan singkat kode cabang dari API (`catcode_27`), opsional.
   final String? indirectBranchCatcodeHint;
 
+  /// True jika halaman ini dalam mode indirect (untuk menampilkan Program Bulanan).
+  final bool isIndirectMode;
+
+  /// Tipe diskon program bulanan: '' | 'percent' | 'nominal'.
+  final String programBulananType;
+
+  /// Nilai diskon program bulanan (% atau Rp tergantung [programBulananType]).
+  final double programBulananValue;
+
+  /// Callback saat user mengubah program bulanan.
+  final void Function(String type, double value) onProgramBulananChanged;
+
+  /// Harga tampilan sudah memperhitungkan program bulanan.
+  /// Sama dengan [effectiveTotal] saat program bulanan tidak aktif.
+  final double displayTotal;
+
   const ProductPriceSection({
     super.key,
     required this.activeProduct,
@@ -80,12 +97,18 @@ class ProductPriceSection extends StatelessWidget {
     required this.onBonusesSaved,
     this.indirectStoreDiscountSummary,
     this.indirectBranchCatcodeHint,
+    this.isIndirectMode = false,
+    this.programBulananType = '',
+    this.programBulananValue = 0.0,
+    required this.onProgramBulananChanged,
+    required this.displayTotal,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (targetTotalEup == null && !totalFocusNode.hasFocus) {
-      final s = totalCurrencyFormat.format(totalFinalPrice).trim();
+    // Saat tidak fokus, sync controller ke displayTotal (sudah termasuk PB bila aktif).
+    if (!totalFocusNode.hasFocus) {
+      final s = totalCurrencyFormat.format(displayTotal).trim();
       if (targetTotalController.text != s) {
         targetTotalController.text = s;
       }
@@ -134,32 +157,17 @@ class ProductPriceSection extends StatelessWidget {
           ),
         ],
         const SizedBox(height: 12),
-        if (finalKasurPrice > 0)
-          _buildBreakdownRow(
-            '${activeProduct.kasur} ${activeProduct.ukuran}'.trim(),
-            activeProduct.plKasur,
-            finalKasurPrice,
-          ),
-        if (finalDivanPrice > 0)
-          _buildBreakdownRow(
-            activeProduct.divan,
-            activeProduct.plDivan,
-            finalDivanPrice,
-          ),
-        if (finalHeadboardPrice > 0)
-          _buildBreakdownRow(
-            activeProduct.headboard,
-            activeProduct.plHeadboard,
-            finalHeadboardPrice,
-          ),
-        if (finalSorongPrice > 0)
-          _buildBreakdownRow(
-            activeProduct.sorong,
-            activeProduct.plSorong,
-            finalSorongPrice,
-          ),
+        _buildBundleRow(context),
         const SizedBox(height: 16),
         _buildDiscountTile(),
+        if (isIndirectMode) ...[
+          const SizedBox(height: AppLayoutTokens.space10),
+          ProgramBulananCard(
+            type: programBulananType,
+            value: programBulananValue,
+            onChanged: onProgramBulananChanged,
+          ),
+        ],
         const SizedBox(height: 16),
         _buildEditableTotalField(context),
         const SizedBox(height: 20),
@@ -170,39 +178,45 @@ class ProductPriceSection extends StatelessWidget {
     );
   }
 
-  Widget _buildBreakdownRow(String title, double pricelist, double eup) {
-    if (title.toLowerCase().contains('tanpa')) return const SizedBox.shrink();
+  /// Satu baris bundle menampilkan total set (anchor cerdas).
+  /// PL total = sum semua komponen; EUP = totalFinalPrice (anchor-based).
+  Widget _buildBundleRow(BuildContext context) {
+    final plTotal = activeProduct.plKasur +
+        activeProduct.plDivan +
+        activeProduct.plHeadboard +
+        activeProduct.plSorong;
+    final bundleLabel =
+        '${activeProduct.name} ${activeProduct.ukuran}'.trim();
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: AppLayoutTokens.space8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Flexible(
             child: Text(
-              title,
-              style:
-                  const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              bundleLabel,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
             ),
           ),
-          Column(
+          const SizedBox(width: AppLayoutTokens.space8),
+          PriceBlock(
+            price: totalFinalPrice,
+            originalPrice: plTotal > totalFinalPrice ? plTotal : null,
+            formatPrice: AppFormatters.currencyIdr,
+            priceStyle: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+            originalPriceStyle: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textTertiary,
+              decoration: TextDecoration.lineThrough,
+            ),
             crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              PriceBlock(
-                price: eup,
-                originalPrice: pricelist > eup ? pricelist : null,
-                formatPrice: AppFormatters.currencyIdr,
-                priceStyle: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                ),
-                originalPriceStyle: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textTertiary,
-                  decoration: TextDecoration.lineThrough,
-                ),
-                crossAxisAlignment: CrossAxisAlignment.end,
-              ),
-            ],
           ),
         ],
       ),

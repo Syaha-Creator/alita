@@ -274,6 +274,7 @@ class FilterHeaderWidget extends ConsumerWidget {
               !session.hasDiscounts) ...[
             _NoStoreDiscountBanner(
               storeName: session.selectedStore!.alphaName,
+              storeAddressNumber: session.selectedStore!.addressNumber,
             ),
             const SizedBox(height: AppLayoutTokens.space8),
           ],
@@ -415,14 +416,19 @@ class FilterHeaderWidget extends ConsumerWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _NoStoreDiscountBanner extends StatelessWidget {
-  const _NoStoreDiscountBanner({required this.storeName});
+  const _NoStoreDiscountBanner({
+    required this.storeName,
+    required this.storeAddressNumber,
+  });
 
   final String storeName;
+  final int storeAddressNumber;
 
   void _openWaChat(BuildContext context) {
     final displayName = storeName.trim().isEmpty ? 'toko yang dipilih' : storeName.trim();
     final message =
-        'Halo $_afaContactName, mohon bantu inputkan diskon toko untuk $displayName. '
+        'Halo $_afaContactName, mohon bantu inputkan diskon toko untuk '
+        '*$displayName* (Kode: *$storeAddressNumber*). '
         'Terima kasih.';
     unawaited(
       WhatsAppHelper.openChat(phone: _afaWaPhone, message: message).then((opened) {

@@ -274,7 +274,18 @@ mixin _$CartItem {
   /// True jika ukuran item dipilih sebagai "Custom" (bukan dari list ukuran baku).
   /// Untuk indirect, wajib pilih ASM approval di checkout.
   @JsonKey(fromJson: _parseBoolDefaultFalse)
-  bool get isCustomSize => throw _privateConstructorUsedError;
+  bool get isCustomSize =>
+      throw _privateConstructorUsedError; // ── Program Bulanan (indirect only) ──────────────────────────────────────
+  /// Tipe diskon program bulanan: '' = tidak diisi, 'percent' = %, 'nominal' = Rp.
+  String get programBulananType => throw _privateConstructorUsedError;
+
+  /// Nilai persentase program bulanan (0–100). Hanya relevan jika [programBulananType] == 'percent'.
+  @JsonKey(fromJson: _parseDouble)
+  double get programBulananDiscount => throw _privateConstructorUsedError;
+
+  /// Nilai nominal program bulanan dalam Rp. Hanya relevan jika [programBulananType] == 'nominal'.
+  @JsonKey(fromJson: _parseDouble)
+  double get programBulananNominal => throw _privateConstructorUsedError;
 
   /// Serializes this CartItem to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -323,7 +334,10 @@ abstract class $CartItemCopyWith<$Res> {
       @JsonKey(fromJson: _parseBoolDefaultFalse) bool isFocVoucher,
       String pricelistArea,
       @JsonKey(fromJson: _parseBoolDefaultFalse) bool isBonusCustomized,
-      @JsonKey(fromJson: _parseBoolDefaultFalse) bool isCustomSize});
+      @JsonKey(fromJson: _parseBoolDefaultFalse) bool isCustomSize,
+      String programBulananType,
+      @JsonKey(fromJson: _parseDouble) double programBulananDiscount,
+      @JsonKey(fromJson: _parseDouble) double programBulananNominal});
 
   $ProductCopyWith<$Res> get product;
   $ProductCopyWith<$Res>? get masterProduct;
@@ -376,6 +390,9 @@ class _$CartItemCopyWithImpl<$Res, $Val extends CartItem>
     Object? pricelistArea = null,
     Object? isBonusCustomized = null,
     Object? isCustomSize = null,
+    Object? programBulananType = null,
+    Object? programBulananDiscount = null,
+    Object? programBulananNominal = null,
   }) {
     return _then(_value.copyWith(
       product: null == product
@@ -506,6 +523,18 @@ class _$CartItemCopyWithImpl<$Res, $Val extends CartItem>
           ? _value.isCustomSize
           : isCustomSize // ignore: cast_nullable_to_non_nullable
               as bool,
+      programBulananType: null == programBulananType
+          ? _value.programBulananType
+          : programBulananType // ignore: cast_nullable_to_non_nullable
+              as String,
+      programBulananDiscount: null == programBulananDiscount
+          ? _value.programBulananDiscount
+          : programBulananDiscount // ignore: cast_nullable_to_non_nullable
+              as double,
+      programBulananNominal: null == programBulananNominal
+          ? _value.programBulananNominal
+          : programBulananNominal // ignore: cast_nullable_to_non_nullable
+              as double,
     ) as $Val);
   }
 
@@ -574,7 +603,10 @@ abstract class _$$CartItemImplCopyWith<$Res>
       @JsonKey(fromJson: _parseBoolDefaultFalse) bool isFocVoucher,
       String pricelistArea,
       @JsonKey(fromJson: _parseBoolDefaultFalse) bool isBonusCustomized,
-      @JsonKey(fromJson: _parseBoolDefaultFalse) bool isCustomSize});
+      @JsonKey(fromJson: _parseBoolDefaultFalse) bool isCustomSize,
+      String programBulananType,
+      @JsonKey(fromJson: _parseDouble) double programBulananDiscount,
+      @JsonKey(fromJson: _parseDouble) double programBulananNominal});
 
   @override
   $ProductCopyWith<$Res> get product;
@@ -627,6 +659,9 @@ class __$$CartItemImplCopyWithImpl<$Res>
     Object? pricelistArea = null,
     Object? isBonusCustomized = null,
     Object? isCustomSize = null,
+    Object? programBulananType = null,
+    Object? programBulananDiscount = null,
+    Object? programBulananNominal = null,
   }) {
     return _then(_$CartItemImpl(
       product: null == product
@@ -757,6 +792,18 @@ class __$$CartItemImplCopyWithImpl<$Res>
           ? _value.isCustomSize
           : isCustomSize // ignore: cast_nullable_to_non_nullable
               as bool,
+      programBulananType: null == programBulananType
+          ? _value.programBulananType
+          : programBulananType // ignore: cast_nullable_to_non_nullable
+              as String,
+      programBulananDiscount: null == programBulananDiscount
+          ? _value.programBulananDiscount
+          : programBulananDiscount // ignore: cast_nullable_to_non_nullable
+              as double,
+      programBulananNominal: null == programBulananNominal
+          ? _value.programBulananNominal
+          : programBulananNominal // ignore: cast_nullable_to_non_nullable
+              as double,
     ));
   }
 }
@@ -798,7 +845,10 @@ class _$CartItemImpl extends _CartItem {
       @JsonKey(fromJson: _parseBoolDefaultFalse) this.isFocVoucher = false,
       this.pricelistArea = '',
       @JsonKey(fromJson: _parseBoolDefaultFalse) this.isBonusCustomized = false,
-      @JsonKey(fromJson: _parseBoolDefaultFalse) this.isCustomSize = false})
+      @JsonKey(fromJson: _parseBoolDefaultFalse) this.isCustomSize = false,
+      this.programBulananType = '',
+      @JsonKey(fromJson: _parseDouble) this.programBulananDiscount = 0.0,
+      @JsonKey(fromJson: _parseDouble) this.programBulananNominal = 0.0})
       : _bonusSnapshots = bonusSnapshots,
         _indirectStoreDiscounts = indirectStoreDiscounts,
         super._();
@@ -927,10 +977,25 @@ class _$CartItemImpl extends _CartItem {
   @override
   @JsonKey(fromJson: _parseBoolDefaultFalse)
   final bool isCustomSize;
+// ── Program Bulanan (indirect only) ──────────────────────────────────────
+  /// Tipe diskon program bulanan: '' = tidak diisi, 'percent' = %, 'nominal' = Rp.
+  @override
+  @JsonKey()
+  final String programBulananType;
+
+  /// Nilai persentase program bulanan (0–100). Hanya relevan jika [programBulananType] == 'percent'.
+  @override
+  @JsonKey(fromJson: _parseDouble)
+  final double programBulananDiscount;
+
+  /// Nilai nominal program bulanan dalam Rp. Hanya relevan jika [programBulananType] == 'nominal'.
+  @override
+  @JsonKey(fromJson: _parseDouble)
+  final double programBulananNominal;
 
   @override
   String toString() {
-    return 'CartItem(product: $product, masterProduct: $masterProduct, quantity: $quantity, kasurSku: $kasurSku, divanSku: $divanSku, sandaranSku: $sandaranSku, sorongSku: $sorongSku, divanKain: $divanKain, divanWarna: $divanWarna, sandaranKain: $sandaranKain, sandaranWarna: $sandaranWarna, sorongKain: $sorongKain, sorongWarna: $sorongWarna, originalEupKasur: $originalEupKasur, originalEupDivan: $originalEupDivan, originalEupHeadboard: $originalEupHeadboard, originalEupSorong: $originalEupSorong, discount1: $discount1, discount2: $discount2, discount3: $discount3, discount4: $discount4, bonusSnapshots: $bonusSnapshots, indirectStoreAddressNumber: $indirectStoreAddressNumber, indirectStoreAlphaName: $indirectStoreAlphaName, indirectStoreAddress: $indirectStoreAddress, indirectStorePhone: $indirectStorePhone, indirectStoreDiscounts: $indirectStoreDiscounts, indirectStoreDiscountDisplay: $indirectStoreDiscountDisplay, isFocVoucher: $isFocVoucher, pricelistArea: $pricelistArea, isBonusCustomized: $isBonusCustomized, isCustomSize: $isCustomSize)';
+    return 'CartItem(product: $product, masterProduct: $masterProduct, quantity: $quantity, kasurSku: $kasurSku, divanSku: $divanSku, sandaranSku: $sandaranSku, sorongSku: $sorongSku, divanKain: $divanKain, divanWarna: $divanWarna, sandaranKain: $sandaranKain, sandaranWarna: $sandaranWarna, sorongKain: $sorongKain, sorongWarna: $sorongWarna, originalEupKasur: $originalEupKasur, originalEupDivan: $originalEupDivan, originalEupHeadboard: $originalEupHeadboard, originalEupSorong: $originalEupSorong, discount1: $discount1, discount2: $discount2, discount3: $discount3, discount4: $discount4, bonusSnapshots: $bonusSnapshots, indirectStoreAddressNumber: $indirectStoreAddressNumber, indirectStoreAlphaName: $indirectStoreAlphaName, indirectStoreAddress: $indirectStoreAddress, indirectStorePhone: $indirectStorePhone, indirectStoreDiscounts: $indirectStoreDiscounts, indirectStoreDiscountDisplay: $indirectStoreDiscountDisplay, isFocVoucher: $isFocVoucher, pricelistArea: $pricelistArea, isBonusCustomized: $isBonusCustomized, isCustomSize: $isCustomSize, programBulananType: $programBulananType, programBulananDiscount: $programBulananDiscount, programBulananNominal: $programBulananNominal)';
   }
 
   @override
@@ -981,8 +1046,7 @@ class _$CartItemImpl extends _CartItem {
                 other.discount4 == discount4) &&
             const DeepCollectionEquality()
                 .equals(other._bonusSnapshots, _bonusSnapshots) &&
-            (identical(other.indirectStoreAddressNumber,
-                    indirectStoreAddressNumber) ||
+            (identical(other.indirectStoreAddressNumber, indirectStoreAddressNumber) ||
                 other.indirectStoreAddressNumber ==
                     indirectStoreAddressNumber) &&
             (identical(other.indirectStoreAlphaName, indirectStoreAlphaName) ||
@@ -1004,7 +1068,13 @@ class _$CartItemImpl extends _CartItem {
             (identical(other.isBonusCustomized, isBonusCustomized) ||
                 other.isBonusCustomized == isBonusCustomized) &&
             (identical(other.isCustomSize, isCustomSize) ||
-                other.isCustomSize == isCustomSize));
+                other.isCustomSize == isCustomSize) &&
+            (identical(other.programBulananType, programBulananType) ||
+                other.programBulananType == programBulananType) &&
+            (identical(other.programBulananDiscount, programBulananDiscount) ||
+                other.programBulananDiscount == programBulananDiscount) &&
+            (identical(other.programBulananNominal, programBulananNominal) ||
+                other.programBulananNominal == programBulananNominal));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1042,7 +1112,10 @@ class _$CartItemImpl extends _CartItem {
         isFocVoucher,
         pricelistArea,
         isBonusCustomized,
-        isCustomSize
+        isCustomSize,
+        programBulananType,
+        programBulananDiscount,
+        programBulananNominal
       ]);
 
   /// Create a copy of CartItem
@@ -1096,8 +1169,11 @@ abstract class _CartItem extends CartItem {
       @JsonKey(fromJson: _parseBoolDefaultFalse) final bool isFocVoucher,
       final String pricelistArea,
       @JsonKey(fromJson: _parseBoolDefaultFalse) final bool isBonusCustomized,
-      @JsonKey(fromJson: _parseBoolDefaultFalse)
-      final bool isCustomSize}) = _$CartItemImpl;
+      @JsonKey(fromJson: _parseBoolDefaultFalse) final bool isCustomSize,
+      final String programBulananType,
+      @JsonKey(fromJson: _parseDouble) final double programBulananDiscount,
+      @JsonKey(fromJson: _parseDouble)
+      final double programBulananNominal}) = _$CartItemImpl;
   const _CartItem._() : super._();
 
   factory _CartItem.fromJson(Map<String, dynamic> json) =
@@ -1195,7 +1271,21 @@ abstract class _CartItem extends CartItem {
   /// Untuk indirect, wajib pilih ASM approval di checkout.
   @override
   @JsonKey(fromJson: _parseBoolDefaultFalse)
-  bool get isCustomSize;
+  bool
+      get isCustomSize; // ── Program Bulanan (indirect only) ──────────────────────────────────────
+  /// Tipe diskon program bulanan: '' = tidak diisi, 'percent' = %, 'nominal' = Rp.
+  @override
+  String get programBulananType;
+
+  /// Nilai persentase program bulanan (0–100). Hanya relevan jika [programBulananType] == 'percent'.
+  @override
+  @JsonKey(fromJson: _parseDouble)
+  double get programBulananDiscount;
+
+  /// Nilai nominal program bulanan dalam Rp. Hanya relevan jika [programBulananType] == 'nominal'.
+  @override
+  @JsonKey(fromJson: _parseDouble)
+  double get programBulananNominal;
 
   /// Create a copy of CartItem
   /// with the given fields replaced by the non-null parameter values.

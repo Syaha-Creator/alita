@@ -69,6 +69,13 @@ class CartItem with _$CartItem {
   /// Voucher FOC 100% hanya untuk indirect; di direct flag disembunyikan & diabaikan.
   bool get isFocVoucherActive => isIndirectSale && isFocVoucher;
 
+  /// True jika program bulanan diisi dengan nilai valid.
+  bool get hasProgramBulanan =>
+      programBulananType.isNotEmpty &&
+      (programBulananType == 'percent'
+          ? programBulananDiscount > 0
+          : programBulananNominal > 0);
+
   const factory CartItem({
     required Product product,
     Product? masterProduct,
@@ -114,6 +121,14 @@ class CartItem with _$CartItem {
     /// True jika ukuran item dipilih sebagai "Custom" (bukan dari list ukuran baku).
     /// Untuk indirect, wajib pilih ASM approval di checkout.
     @JsonKey(fromJson: _parseBoolDefaultFalse) @Default(false) bool isCustomSize,
+
+    // ── Program Bulanan (indirect only) ──────────────────────────────────────
+    /// Tipe diskon program bulanan: '' = tidak diisi, 'percent' = %, 'nominal' = Rp.
+    @Default('') String programBulananType,
+    /// Nilai persentase program bulanan (0–100). Hanya relevan jika [programBulananType] == 'percent'.
+    @JsonKey(fromJson: _parseDouble) @Default(0.0) double programBulananDiscount,
+    /// Nilai nominal program bulanan dalam Rp. Hanya relevan jika [programBulananType] == 'nominal'.
+    @JsonKey(fromJson: _parseDouble) @Default(0.0) double programBulananNominal,
   }) = _CartItem;
 
   /// EUP per unit setelah diskon toko (indirect) lalu diskon sales (bertingkat).

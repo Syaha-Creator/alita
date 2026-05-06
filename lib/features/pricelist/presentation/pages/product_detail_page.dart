@@ -99,6 +99,21 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
   bool _isSorongCustom = false;
   bool _isSizeCustom = false;
 
+  // ── Program Bulanan (indirect only) ──────────────────────────────────────
+  String _programBulananType = '';
+  double _programBulananValue = 0.0;
+
+  /// Hitung harga setelah diskon program bulanan diterapkan di atas [base].
+  double _applyProgramBulanan(double base) {
+    if (_programBulananType == 'percent' && _programBulananValue > 0) {
+      return (base * (1 - _programBulananValue / 100))
+          .clamp(0, double.infinity);
+    } else if (_programBulananType == 'nominal' && _programBulananValue > 0) {
+      return (base - _programBulananValue).clamp(0, double.infinity);
+    }
+    return base;
+  }
+
   final TextEditingController _customKasurCtrl = TextEditingController();
   final TextEditingController _customDivanCtrl = TextEditingController();
   final TextEditingController _customHbCtrl = TextEditingController();
@@ -186,6 +201,14 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       }
       targetTotalEup = p.price;
       _targetTotalController.text = _totalCurrencyFormat.format(p.price).trim();
+
+      // Restore program bulanan jika ada.
+      if (editItem.hasProgramBulanan) {
+        _programBulananType = editItem.programBulananType;
+        _programBulananValue = editItem.programBulananType == 'percent'
+            ? editItem.programBulananDiscount
+            : editItem.programBulananNominal;
+      }
 
       // Restore bonus state from the cart snapshot so the user sees
       // the same bonuses they configured, not the product defaults.
@@ -553,6 +576,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
         finalSorongPrice;
 
     final effectiveTotal = targetTotalEup ?? totalFinalPrice;
+    final displayTotal = _applyProgramBulanan(effectiveTotal);
     _lastBottomPriceAnalyst = activeProduct.bottomPriceAnalyst;
     _lastPlDiscountBaseTotal = useIndirectStoreNet
         ? StoreDiscountCalculator.cascade(
@@ -666,6 +690,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
               v.effectiveDivanLookup,
               v.effectiveHeadboardLookup,
               v.effectiveSorongLookup,
+              displayTotal: displayTotal,
             ),
           ],
         ),
@@ -992,6 +1017,16 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                   },
             indirectStoreDiscountSummary: indirectDiscountSummary,
             indirectBranchCatcodeHint: indirectCatcodeHint,
+            isIndirectMode: salesMode == SalesMode.indirect,
+            programBulananType: _programBulananType,
+            programBulananValue: _programBulananValue,
+            onProgramBulananChanged: (type, value) {
+              setState(() {
+                _programBulananType = type;
+                _programBulananValue = value;
+              });
+            },
+            displayTotal: _applyProgramBulanan(effectiveTotal),
           ),
         ),
 
@@ -1046,8 +1081,9 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     ItemLookup? effectiveKasurLookup,
     ItemLookup? effectiveDivanLookup,
     ItemLookup? effectiveHeadboardLookup,
-    ItemLookup? effectiveSorongLookup,
-  ) {
+    ItemLookup? effectiveSorongLookup, {
+    double? displayTotal,
+  }) {
     final isFavorite = ref.watch(isFavoriteProvider(widget.product.id));
 
     return ProductDetailBottomBar(
@@ -1080,7 +1116,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
         effectiveSorongLookup: effectiveSorongLookup,
       ),
       isEditMode: _isEditMode,
-      priceLabel: AppFormatters.currencyIdr(totalFinalPrice),
+      priceLabel: AppFormatters.currencyIdr(displayTotal ?? totalFinalPrice),
     );
   }
 
@@ -1198,6 +1234,8 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       isCustomSize: _isSizeCustom,
       indirectMeta: indirectMeta,
       pricelistArea: ref.read(effectiveAreaProvider),
+      programBulananType: _programBulananType,
+      programBulananValue: _programBulananValue,
     );
 
     final summaryForToast = CartItemBuilder.buildSummaryForToast(

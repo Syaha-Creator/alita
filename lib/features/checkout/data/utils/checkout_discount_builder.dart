@@ -203,6 +203,40 @@ class CheckoutDiscountBuilder {
     ];
   }
 
+  /// Program Bulanan (indirect): `approver_level_id` = 80, selalu auto-approved
+  /// karena sudah disetujui di awal bulan tanpa perlu approval ASM/RSM.
+  ///
+  /// Mengembalikan `null` jika [item] tidak punya program bulanan aktif.
+  static Map<String, dynamic>? buildProgramBulananRow({
+    required int userId,
+    required String creatorName,
+    required String creatorTitle,
+    required String programBulananType,
+    required double programBulananDiscount,
+    required double programBulananNominal,
+  }) {
+    if (programBulananType.isEmpty) return null;
+    final isPercent = programBulananType == 'percent';
+    if (isPercent && programBulananDiscount <= 0) return null;
+    if (!isPercent && programBulananNominal <= 0) return null;
+
+    final now = DateTime.now().toIso8601String();
+    return {
+      'discount': isPercent ? programBulananDiscount.toString() : '0',
+      'approver': userId,
+      'approver_name': creatorName,
+      'approver_level_id': 80,
+      'approver_level': 'Program Bulanan',
+      'approver_work_tittle': creatorTitle,
+      'approved': true,
+      'approved_at': now,
+      if (!isPercent && programBulananNominal > 0)
+        'discount_price': programBulananNominal,
+      if (isPercent && programBulananDiscount > 0)
+        'program_discount': programBulananDiscount.toString(),
+    };
+  }
+
   /// Diskon toko (indirect): `approver_level_id` mulai 5 agar tidak bentrok 1–4.
   ///
   /// Tambahan kolom:

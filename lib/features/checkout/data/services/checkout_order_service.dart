@@ -696,19 +696,32 @@ class CheckoutOrderService {
           discount3NominalLine: discount3NominalLine,
           discount4NominalLine: discount4NominalLine,
         );
+        final rows = <Map<String, dynamic>>[...base];
+
         if (item.isIndirectSale &&
             item.indirectStoreDiscounts.isNotEmpty &&
             item.indirectStoreAlphaName.isNotEmpty) {
-          return [
-            ...base,
-            ...CheckoutDiscountBuilder.buildStoreDiscountRows(
-              storeDiscounts: item.indirectStoreDiscounts,
-              storeAlphaName: item.indirectStoreAlphaName,
-              storeDiscountNominals: storeDiscountNominals,
-            ),
-          ];
+          rows.addAll(CheckoutDiscountBuilder.buildStoreDiscountRows(
+            storeDiscounts: item.indirectStoreDiscounts,
+            storeAlphaName: item.indirectStoreAlphaName,
+            storeDiscountNominals: storeDiscountNominals,
+          ));
         }
-        return base;
+
+        // Program Bulanan: level 80, auto-approved, hanya indirect.
+        if (item.isIndirectSale && item.hasProgramBulanan) {
+          final pbRow = CheckoutDiscountBuilder.buildProgramBulananRow(
+            userId: userId,
+            creatorName: creatorName,
+            creatorTitle: creatorTitle,
+            programBulananType: item.programBulananType,
+            programBulananDiscount: item.programBulananDiscount,
+            programBulananNominal: item.programBulananNominal,
+          );
+          if (pbRow != null) rows.add(pbRow);
+        }
+
+        return rows;
       }
 
       /// Baris utama (bukan bonus): FOC → hanya voucher 100%; selain itu rantai diskon biasa.

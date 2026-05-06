@@ -84,6 +84,13 @@ _$CartItemImpl _$$CartItemImplFromJson(Map<String, dynamic> json) =>
       isCustomSize: json['isCustomSize'] == null
           ? false
           : _parseBoolDefaultFalse(json['isCustomSize']),
+      programBulananType: json['programBulananType'] as String? ?? '',
+      programBulananDiscount: json['programBulananDiscount'] == null
+          ? 0.0
+          : _parseDouble(json['programBulananDiscount']),
+      programBulananNominal: json['programBulananNominal'] == null
+          ? 0.0
+          : _parseDouble(json['programBulananNominal']),
     );
 
 Map<String, dynamic> _$$CartItemImplToJson(_$CartItemImpl instance) =>
@@ -120,4 +127,7 @@ Map<String, dynamic> _$$CartItemImplToJson(_$CartItemImpl instance) =>
       'pricelistArea': instance.pricelistArea,
       'isBonusCustomized': instance.isBonusCustomized,
       'isCustomSize': instance.isCustomSize,
+      'programBulananType': instance.programBulananType,
+      'programBulananDiscount': instance.programBulananDiscount,
+      'programBulananNominal': instance.programBulananNominal,
     };
