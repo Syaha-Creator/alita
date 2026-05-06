@@ -32,6 +32,10 @@ class CheckoutApproverContent extends StatelessWidget {
   /// True jika ada item dengan ukuran custom — ASM diperlukan (indirect).
   final bool hasCustomSizeItem;
 
+  /// True jika ada item dengan FOC voucher aktif — ASM wajib menyetujui karena
+  /// harga item menjadi 0 (gratis).
+  final bool hasFocVoucherItem;
+
   /// True jika indirect dan receiver mode adalah "Customer Baru" (bukan cabang/gudang).
   final bool isCustomerBaru;
   final ValueChanged<Approver?> onSpvChanged;
@@ -47,6 +51,7 @@ class CheckoutApproverContent extends StatelessWidget {
     this.requiresSpv = true,
     this.hasBonusCustomizedItem = false,
     this.hasCustomSizeItem = false,
+    this.hasFocVoucherItem = false,
     this.isCustomerBaru = false,
     required this.onSpvChanged,
     required this.onManagerChanged,
@@ -121,6 +126,36 @@ class CheckoutApproverContent extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 11,
                       color: Colors.purple.shade800,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        if (hasFocVoucherItem) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.success.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: AppColors.success.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.card_giftcard_outlined,
+                    size: 14, color: AppColors.success),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Ada item FOC (gratis) — ASM wajib menyetujui.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.success.withValues(alpha: 0.9),
                       height: 1.4,
                     ),
                   ),

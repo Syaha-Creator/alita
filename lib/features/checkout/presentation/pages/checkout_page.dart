@@ -959,6 +959,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                                 _hasBonusCustomizedItem(cartItems),
                             hasCustomSizeItem:
                                 cartItems.any((e) => e.isCustomSize),
+                            hasFocVoucherItem: _hasFocVoucherItem(cartItems),
                             isCustomerBaru: cartItems.any(
                                     (e) => e.isIndirectSale) &&
                                 !_isShippingSameAsCustomer &&
@@ -1128,6 +1129,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       final isCustomerBaru =
           !_isShippingSameAsCustomer && !_isReceiverBranchMode;
       if (isCustomerBaru) return true;
+      // FOC voucher aktif → harga jadi 0, ASM wajib menyetujui.
+      if (cartItems.any((item) => item.isFocVoucherActive)) return true;
       return cartItems.any(
         (item) =>
             item.discount1 > 0 ||
@@ -1139,6 +1142,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     // Direct: SPV selalu diperlukan.
     return true;
   }
+
+  bool _hasFocVoucherItem(List<CartItem> cartItems) =>
+      cartItems.any((item) => item.isFocVoucherActive);
 
   /// True jika ada item di cart yang bonusnya diubah dari bundle default produk.
   /// Dipakai untuk menampilkan badge peringatan di approval section.
