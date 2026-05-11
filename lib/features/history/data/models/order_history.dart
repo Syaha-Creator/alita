@@ -224,6 +224,7 @@ extension OrderHistoryX on OrderHistory {
                       'discount': x.discountVal,
                       'approver_name': x.approverName,
                       'approver_level': x.approverLevel,
+                      'approver_level_id': x.approverLevelId,
                       'approver_id': x.approverId,
                       'approved': x.approvedStatus,
                       'approved_at': x.approvedAt,
@@ -311,7 +312,10 @@ class OrderDetail with _$OrderDetail {
     final discList = (json['order_letter_discount'] as List? ?? const [])
         .cast<Map<String, dynamic>>();
     final parsedDiscounts = discList.map(OrderDiscount.fromApiJson).toList()
-      ..sort((a, b) => a.id.compareTo(b.id));
+      ..sort((a, b) {
+        final levelCmp = a.approverLevelId.compareTo(b.approverLevelId);
+        return levelCmp != 0 ? levelCmp : a.id.compareTo(b.id);
+      });
 
     final up = _parseDouble(json['unit_price']);
     final q = (json['qty'] as num?)?.toInt() ?? 1;
@@ -348,6 +352,10 @@ class OrderDiscount with _$OrderDiscount {
     required String approverName,
     required String approverLevel,
 
+    /// Numeric level used for ordering the approval chain (1=User, 2=SPV/ASM,
+    /// 3=RSM, 4=Analyst, 5+=Store, 80=Program Bulanan, 90=FOC).
+    @Default(0) int approverLevelId,
+
     /// From API `approver_id`; used to detect "giliran Anda" on order detail.
     String? approverId,
     required String approvedStatus,
@@ -365,6 +373,7 @@ class OrderDiscount with _$OrderDiscount {
       discountVal: json['discount']?.toString() ?? '0',
       approverName: json['approver_name']?.toString() ?? '-',
       approverLevel: json['approver_level']?.toString() ?? '-',
+      approverLevelId: (json['approver_level_id'] as num?)?.toInt() ?? 0,
       approverId: json['approver_id']?.toString(),
       approvedStatus:
           json['approved']?.toString() ?? OrderStatus.pending.apiValue,

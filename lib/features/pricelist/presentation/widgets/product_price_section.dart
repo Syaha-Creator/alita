@@ -185,8 +185,7 @@ class ProductPriceSection extends StatelessWidget {
         activeProduct.plDivan +
         activeProduct.plHeadboard +
         activeProduct.plSorong;
-    final bundleLabel =
-        '${activeProduct.name} ${activeProduct.ukuran}'.trim();
+    final bundleLabel = activeProduct.name.trim();
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppLayoutTokens.space8),

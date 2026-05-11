@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/services/storage_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/utils/telemetry_access.dart';
@@ -29,27 +30,45 @@ class ProfilePage extends ConsumerStatefulWidget {
 }
 
 class _ProfilePageState extends ConsumerState<ProfilePage> {
+  /// Last known work title from storage — avoids flicker while profileProvider
+  /// is loading (shows correct approver menu immediately on next session).
+  String _cachedWorkTitle = '';
+
   @override
   void initState() {
     super.initState();
+    _loadCachedWorkTitle();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(approvalInboxProvider.notifier).fetchInbox();
     });
+  }
+
+  Future<void> _loadCachedWorkTitle() async {
+    final cached = await StorageService.loadWorkTitle();
+    if (mounted && cached.isNotEmpty) {
+      setState(() => _cachedWorkTitle = cached);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
     final canOpenTelemetry = TelemetryAccess.canAccess(auth.userId);
-    final profile = ref.watch(profileProvider).valueOrNull;
-    final workTitle = profile?.workTitle.toLowerCase() ?? '';
+    final profileAsync = ref.watch(profileProvider);
+    final profile = profileAsync.valueOrNull;
+    final workTitle =
+        (profile?.workTitle.isNotEmpty == true ? profile!.workTitle : _cachedWorkTitle)
+            .toLowerCase();
     final isApprover = workTitle.contains('manager') ||
         workTitle.contains('supervisor') ||
         workTitle.contains('spv') ||
         workTitle.contains('rsm') ||
         workTitle.contains('analyst') ||
         workTitle.contains('head') ||
-        workTitle.contains('director');
+        workTitle.contains('director') ||
+        workTitle.contains('gm') ||
+        workTitle.contains('chief') ||
+        workTitle.contains('kepala');
 
     final orderHistoryAsync = ref.watch(orderHistoryProvider);
     final inboxState = ref.watch(approvalInboxProvider);

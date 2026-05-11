@@ -58,8 +58,33 @@ class PricelistCustomLineBuilder {
     );
   }
 
+  /// Prefix untuk category field di Product snapshot custom.
+  static const _customCategoryPrefix = 'custom_type:';
+
+  /// Kembalikan string category yang meng-encode jenis baris custom.
+  static String categoryForType(PricelistCustomComponentType type) =>
+      '$_customCategoryPrefix${type.name}';
+
   /// Inferensi tipe dari snapshot produk custom (untuk mode edit).
+  ///
+  /// Prioritas:
+  /// 1. Category field (format `custom_type:<enum.name>`) — dipakai untuk semua
+  ///    tipe termasuk yang baru (protector/aksesori/sprei/lainnya).
+  /// 2. Fallback: deteksi dari struktur kasur/divan/headboard/sorong
+  ///    (kompatibilitas mundur untuk snapshot lama).
   static PricelistCustomComponentType? componentTypeFromProduct(Product p) {
+    // 1. Decode dari category field
+    if (p.category.startsWith(_customCategoryPrefix)) {
+      final name = p.category.substring(_customCategoryPrefix.length);
+      try {
+        return PricelistCustomComponentType.values
+            .firstWhere((e) => e.name == name);
+      } catch (_) {
+        // name tidak dikenali — lanjut ke fallback
+      }
+    }
+
+    // 2. Fallback: deteksi dari struktur product (snapshot lama)
     bool present(String s) {
       final v = s.trim().toLowerCase();
       return v.isNotEmpty && !v.startsWith('tanpa');
@@ -133,6 +158,13 @@ class PricelistCustomLineBuilder {
       isSet = true;
       plS = unitPricelist;
       euS = unitEup;
+    } else {
+      // Tipe non-bundle (protector/aksesori/sprei/lainnya) — simpan di kasur,
+      // isSet=false supaya tidak muncul sebagai bundle component di UI.
+      kasur = trimmedName;
+      isSet = false;
+      plK = unitPricelist;
+      euK = unitEup;
     }
 
     final totalPl = plK + plD + plH + plS;
@@ -143,7 +175,9 @@ class PricelistCustomLineBuilder {
       name: trimmedName,
       price: totalEup,
       imageUrl: '',
-      category: 'Custom pricelist',
+      // category di-encode sebagai 'custom_type:<enum.name>' agar tipe bisa
+      // dibaca kembali saat edit tanpa bergantung pada struktur product field.
+      category: categoryForType(type),
       description:
           '[Custom · ${type.shortLabel}] $trimmedName · $trimmedSize · $brand',
       channel: channel,

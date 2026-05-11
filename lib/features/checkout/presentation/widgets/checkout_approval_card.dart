@@ -3,9 +3,10 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/section_card.dart';
 
 /// Kartu "Persetujuan Surat Pesanan": loading, error+retry, atau [child] (dropdown SPV/ASM + Manager).
-class CheckoutApprovalCard extends StatelessWidget {
+class CheckoutApprovalCard extends StatefulWidget {
   final bool isLoading;
   final bool hasError;
+
   /// Judul error; jika null dipakai fallback generik.
   final String? errorTitle;
   final String? errorMessage;
@@ -23,6 +24,32 @@ class CheckoutApprovalCard extends StatelessWidget {
   });
 
   @override
+  State<CheckoutApprovalCard> createState() => _CheckoutApprovalCardState();
+}
+
+class _CheckoutApprovalCardState extends State<CheckoutApprovalCard> {
+  bool _isRetrying = false;
+
+  @override
+  void didUpdateWidget(CheckoutApprovalCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Parent started loading → reset local retrying flag.
+    if (widget.isLoading && !oldWidget.isLoading) {
+      _isRetrying = false;
+    }
+    // Error cleared → reset too (in case parent resolved without loading phase).
+    if (!widget.hasError && oldWidget.hasError) {
+      _isRetrying = false;
+    }
+  }
+
+  void _handleRetry() {
+    if (_isRetrying || widget.isLoading) return;
+    setState(() => _isRetrying = true);
+    widget.onRetry();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return SectionCard(
       title: 'Persetujuan Surat Pesanan',
@@ -36,7 +63,7 @@ class CheckoutApprovalCard extends StatelessWidget {
   }
 
   Widget _buildContent() {
-    if (isLoading) {
+    if (widget.isLoading || _isRetrying) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 16),
         child: Center(
@@ -44,7 +71,7 @@ class CheckoutApprovalCard extends StatelessWidget {
         ),
       );
     }
-    if (hasError) {
+    if (widget.hasError) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Column(
@@ -60,7 +87,7 @@ class CheckoutApprovalCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    errorTitle ?? 'Gagal memuat daftar approver.',
+                    widget.errorTitle ?? 'Gagal memuat daftar approver.',
                     style: const TextStyle(
                       color: AppColors.error,
                       fontSize: 13,
@@ -70,7 +97,7 @@ class CheckoutApprovalCard extends StatelessWidget {
                 ),
               ],
             ),
-            if (errorMessage case final err? when err.isNotEmpty) ...[
+            if (widget.errorMessage case final err? when err.isNotEmpty) ...[
               const SizedBox(height: 4),
               Text(
                 err,
@@ -84,7 +111,7 @@ class CheckoutApprovalCard extends StatelessWidget {
             ],
             const SizedBox(height: 12),
             OutlinedButton.icon(
-              onPressed: onRetry,
+              onPressed: _handleRetry,
               icon: const Icon(Icons.refresh, size: 16),
               label: const Text('Coba Lagi'),
               style: OutlinedButton.styleFrom(
@@ -97,6 +124,6 @@ class CheckoutApprovalCard extends StatelessWidget {
         ),
       );
     }
-    return child;
+    return widget.child;
   }
 }

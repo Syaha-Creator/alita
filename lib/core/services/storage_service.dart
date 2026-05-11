@@ -26,6 +26,7 @@ class StorageService {
   static const String _userNameKey = 'user_name';
   static const String _userImageUrlKey = 'user_image_url';
   static const String _userAddressNumberKey = 'user_address_number';
+  static const String _userWorkTitleKey = 'user_work_title';
   static const String _areasCacheKey = 'master_areas_cache';
   static const String _channelsCacheKey = 'master_channels_cache';
   static const String _brandsCacheKey = 'master_brands_cache';
@@ -188,6 +189,19 @@ class StorageService {
     return v;
   }
 
+  /// Persists the user's job title so the approver check is available
+  /// immediately on the next session without waiting for the profile API.
+  static Future<void> saveWorkTitle(String workTitle) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_userWorkTitleKey, workTitle);
+  }
+
+  /// Returns the last saved work title, or empty string if never saved.
+  static Future<String> loadWorkTitle() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_userWorkTitleKey) ?? '';
+  }
+
   static Future<bool> loadIsLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_isLoggedInKey) ?? false;
@@ -234,6 +248,7 @@ class StorageService {
     await prefs.remove(_userNameKey);
     await prefs.remove(_userImageUrlKey);
     await prefs.remove(_userAddressNumberKey);
+    await prefs.remove(_userWorkTitleKey);
     await _deleteSecure(_accessTokenKey);
   }
 

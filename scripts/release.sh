@@ -111,7 +111,12 @@ clean_and_get() {
 if [[ "$1" == "--deploy" ]]; then
   CURRENT=$(get_version)
   echo "Deploying version.json (minimum_version=$CURRENT) ke Firebase..."
-  firebase deploy --only hosting
+  FIREBASE_CMD="${HOME}/bin/firebase"
+  if ! command -v firebase &>/dev/null && [[ ! -x "$FIREBASE_CMD" ]]; then
+    echo "Error: firebase CLI tidak ditemukan. Install via: curl -sL https://firebase.tools | bash"
+    exit 1
+  fi
+  "${FIREBASE_CMD:-firebase}" deploy --only hosting
   echo ""
   echo "✓ Live: https://alita-pricelist-12d76.web.app/version.json"
   echo "  User iOS lama akan dapat notifikasi update ke $CURRENT."

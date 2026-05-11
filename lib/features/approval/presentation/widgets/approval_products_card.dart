@@ -183,8 +183,23 @@ class ApprovalProductsCard extends StatelessWidget {
   // ── Discount helpers ──
 
   Widget _buildDiscountBlock(List<dynamic> discounts) {
+    final sorted = List<dynamic>.from(discounts)
+      ..sort((a, b) {
+        final aMap = a as Map<String, dynamic>;
+        final bMap = b as Map<String, dynamic>;
+        final aLevel =
+            (aMap['approver_level_id'] as num?)?.toInt() ?? 999;
+        final bLevel =
+            (bMap['approver_level_id'] as num?)?.toInt() ?? 999;
+        if (aLevel != bLevel) return aLevel.compareTo(bLevel);
+        final aId =
+            (aMap['order_letter_discount_id'] as num?)?.toInt() ?? 0;
+        final bId =
+            (bMap['order_letter_discount_id'] as num?)?.toInt() ?? 0;
+        return aId.compareTo(bId);
+      });
     return DetailDiscountBlock(
-      rows: discounts.map((disc) => _buildDiscountRow(disc)).toList(),
+      rows: sorted.map((disc) => _buildDiscountRow(disc)).toList(),
     );
   }
 

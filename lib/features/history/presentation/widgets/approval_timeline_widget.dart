@@ -113,8 +113,9 @@ class ApprovalTimelineWidget extends StatelessWidget {
     final map = <String, _ApprovalEntry>{};
     for (final detail in order.details) {
       for (final discount in detail.discounts) {
-        final key = '${discount.approverLevel}|${discount.approverName}';
+        final key = '${discount.approverLevelId}|${discount.approverName}';
         map[key] = _ApprovalEntry(
+          levelId: discount.approverLevelId,
           level: discount.approverLevel,
           name: discount.approverName,
           status: discount.approvedStatus,
@@ -122,18 +123,21 @@ class ApprovalTimelineWidget extends StatelessWidget {
         );
       }
     }
-    return map.values.toList();
+    return map.values.toList()
+      ..sort((a, b) => a.levelId.compareTo(b.levelId));
   }
 }
 
 class _ApprovalEntry {
   const _ApprovalEntry({
+    required this.levelId,
     required this.level,
     required this.name,
     required this.status,
     this.approvedAt,
   });
 
+  final int levelId;
   final String level;
   final String name;
   final String status;

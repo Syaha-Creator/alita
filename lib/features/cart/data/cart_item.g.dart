@@ -91,6 +91,9 @@ _$CartItemImpl _$$CartItemImplFromJson(Map<String, dynamic> json) =>
       programBulananNominal: json['programBulananNominal'] == null
           ? 0.0
           : _parseDouble(json['programBulananNominal']),
+      isZeroPrice: json['isZeroPrice'] == null
+          ? false
+          : _parseBoolDefaultFalse(json['isZeroPrice']),
     );
 
 Map<String, dynamic> _$$CartItemImplToJson(_$CartItemImpl instance) =>
@@ -130,4 +133,5 @@ Map<String, dynamic> _$$CartItemImplToJson(_$CartItemImpl instance) =>
       'programBulananType': instance.programBulananType,
       'programBulananDiscount': instance.programBulananDiscount,
       'programBulananNominal': instance.programBulananNominal,
+      'isZeroPrice': instance.isZeroPrice,
     };

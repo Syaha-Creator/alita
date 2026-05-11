@@ -125,8 +125,17 @@ class _ProductListPageState extends ConsumerState<ProductListPage> {
 
   /// Common sliver headers used in every state
   List<Widget> _buildStickyHeaders(BuildContext context) {
+    // Deteksi apakah banner "tidak ada diskon toko" sedang tampil agar
+    // tinggi sticky filter header bisa disesuaikan.
+    final isIndirect = ref.watch(salesModeProvider) == SalesMode.indirect;
+    final session = ref.watch(indirectSessionProvider);
+    final showBanner = isIndirect &&
+        session.hasStore &&
+        !session.isLoadingDiscounts &&
+        !session.hasDiscounts;
+
     return [
-      // Search Bar + Sort Button
+      // Search Bar + Sort Button — selalu pinned
       SliverPersistentHeader(
         pinned: true,
         delegate: _SearchBarDelegate(
@@ -136,8 +145,11 @@ class _ProductListPageState extends ConsumerState<ProductListPage> {
           ),
         ),
       ),
-      // Area + Channel + Brand (indirect: pill pertama = pilih toko, menggantikan Area)
-      const SliverToBoxAdapter(child: FilterHeaderWidget()),
+      // Area + Channel + Brand — juga pinned tepat di bawah search bar
+      SliverPersistentHeader(
+        pinned: true,
+        delegate: _FilterHeaderDelegate(showBanner: showBanner),
+      ),
     ];
   }
 
@@ -368,7 +380,8 @@ class _ProductListPageState extends ConsumerState<ProductListPage> {
 
 // ─────────────────── Sliver delegates ───────────────────
 
-/// Delegate for sticky search bar
+/// Delegate for sticky search bar.
+/// Height 68px: margin-top 12 + bar 56 = 68 (flush, tanpa bottom gap berlebih).
 class _SearchBarDelegate extends SliverPersistentHeaderDelegate {
   final Widget child;
   _SearchBarDelegate({required this.child});
@@ -383,12 +396,51 @@ class _SearchBarDelegate extends SliverPersistentHeaderDelegate {
   }
 
   @override
-  double get maxExtent => 72;
+  double get maxExtent => 68;
   @override
-  double get minExtent => 72;
+  double get minExtent => 68;
   @override
   bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) =>
       false;
+}
+
+/// Delegate for sticky filter header (filter pills + optional "no store discount" banner).
+///
+/// Height tanpa banner: 63px (actual measured 61px + 2px buffer).
+/// Height dengan banner: 133px (63 + gap 8 + banner ~62).
+class _FilterHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final bool showBanner;
+
+  const _FilterHeaderDelegate({required this.showBanner});
+
+  static const double _heightNoBanner = 63.0;
+  static const double _heightWithBanner = 133.0;
+
+  @override
+  double get maxExtent => showBanner ? _heightWithBanner : _heightNoBanner;
+  @override
+  double get minExtent => showBanner ? _heightWithBanner : _heightNoBanner;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    // FilterHeaderWidget menggunakan Column(mainAxisSize: MainAxisSize.min)
+    // sehingga tingginya < maxExtent — menyebabkan paintExtent < layoutExtent.
+    // Wrap dalam Container(alignment) agar Container mengisi penuh extent
+    // (background fills) dan FilterHeaderWidget diposisikan di topLeft.
+    return Container(
+      color: AppColors.background,
+      alignment: Alignment.topLeft,
+      child: const FilterHeaderWidget(),
+    );
+  }
+
+  @override
+  bool shouldRebuild(_FilterHeaderDelegate old) =>
+      old.showBanner != showBanner;
 }
 
 /// Sort button widget — shows accent dot when sort is active

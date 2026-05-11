@@ -9,6 +9,8 @@ import '../../../../core/utils/store_discount_calculator.dart';
 import '../../../../core/utils/log.dart';
 import '../../../cart/data/cart_item.dart';
 import '../../../pricelist/data/models/item_lookup.dart';
+import '../../../pricelist/data/models/pricelist_custom_line.dart';
+import '../../../pricelist/logic/pricelist_custom_line_builder.dart';
 import '../models/approver_model.dart';
 import '../models/checkout_models.dart';
 import '../utils/bonus_price_resolver.dart';
@@ -886,6 +888,10 @@ class CheckoutOrderService {
         if (item.isFocVoucherActive) {
           kasurCustomerPerUnit = p.plKasur;
           kasurNetLine = 0;
+        } else if (item.isZeroPrice) {
+          // customer_price = EUP (setelah prog. discount) sebagai referensi harga asli.
+          kasurCustomerPerUnit = p.eupKasur > 0 ? p.eupKasur : p.plKasur;
+          kasurNetLine = 0;
         }
         final payload = {
           'item_number':
@@ -902,7 +908,11 @@ class CheckoutOrderService {
           'customer_price': kasurCustomerPerUnit,
           'net_price': _apiNetPricePerUnit(kasurNetLine, item.quantity),
           'qty': item.quantity,
-          'item_type': 'Mattress',
+          'item_type': p.isPricelistCustomCartLine
+              ? (PricelistCustomLineBuilder.componentTypeFromProduct(p)
+                      ?.apiItemType ??
+                  'Mattress')
+              : 'Mattress',
           if (lineTakeAwayTag() != null) 'take_away': lineTakeAwayTag(),
           if (plType.isNotEmpty) 'pricelist_type': plType,
           if (plArea.isNotEmpty) 'pricelist_area': plArea,
@@ -913,7 +923,8 @@ class CheckoutOrderService {
             customerPricePerUnit: kasurCustomerPerUnit,
             componentProgramPrice: p.plKasur - p.eupKasur,
           ),
-          label: '${p.name} (Kasur)',
+          label:
+              '${p.name} (${p.isPricelistCustomCartLine ? (PricelistCustomLineBuilder.componentTypeFromProduct(p)?.shortLabel ?? 'Kasur') : 'Kasur'})',
         ));
         componentPosted = true;
       }
@@ -946,6 +957,9 @@ class CheckoutOrderService {
         );
         if (item.isFocVoucherActive) {
           divanCustomerPerUnit = p.plDivan;
+          divanNetLine = 0;
+        } else if (item.isZeroPrice) {
+          divanCustomerPerUnit = p.eupDivan > 0 ? p.eupDivan : p.plDivan;
           divanNetLine = 0;
         }
         final payload = {
@@ -1012,6 +1026,9 @@ class CheckoutOrderService {
         if (item.isFocVoucherActive) {
           hbCustomerPerUnit = p.plHeadboard;
           hbNetLine = 0;
+        } else if (item.isZeroPrice) {
+          hbCustomerPerUnit = p.eupHeadboard > 0 ? p.eupHeadboard : p.plHeadboard;
+          hbNetLine = 0;
         }
         final payload = {
           'item_number':
@@ -1076,6 +1093,9 @@ class CheckoutOrderService {
         );
         if (item.isFocVoucherActive) {
           srCustomerPerUnit = p.plSorong;
+          srNetLine = 0;
+        } else if (item.isZeroPrice) {
+          srCustomerPerUnit = p.eupSorong > 0 ? p.eupSorong : p.plSorong;
           srNetLine = 0;
         }
         final payload = {
@@ -1142,6 +1162,11 @@ class CheckoutOrderService {
         );
         if (item.isFocVoucherActive) {
           fbCustomerPerUnit = unitPlPerUnit;
+          fbNetLine = 0;
+        } else if (item.isZeroPrice) {
+          // Fallback path: gunakan eupKasur sebagai customer_price referensi harga EUP.
+          final eupRef = p.eupKasur > 0 ? p.eupKasur : unitPlPerUnit;
+          fbCustomerPerUnit = eupRef;
           fbNetLine = 0;
         }
         final fallbackSku = item.kasurSku.isNotEmpty

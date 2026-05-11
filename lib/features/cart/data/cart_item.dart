@@ -129,12 +129,18 @@ class CartItem with _$CartItem {
     @JsonKey(fromJson: _parseDouble) @Default(0.0) double programBulananDiscount,
     /// Nilai nominal program bulanan dalam Rp. Hanya relevan jika [programBulananType] == 'nominal'.
     @JsonKey(fromJson: _parseDouble) @Default(0.0) double programBulananNominal,
+
+    // ── Harga 0 (custom pricelist) ────────────────────────────────────────────
+    /// Bila true, item ini dihitung dengan net_price = 0 tanpa diskon tambahan.
+    /// Dipakai untuk item komponen yang harganya ditanggung oleh item lain dalam
+    /// satu bundle / paket toko (bukan FOC, bukan Bonus).
+    @JsonKey(fromJson: _parseBoolDefaultFalse) @Default(false) bool isZeroPrice,
   }) = _CartItem;
 
   /// EUP per unit setelah diskon toko (indirect) lalu diskon sales (bertingkat).
   /// Untuk baris pricelist custom, dipakai sebagai harga tampilan & subtotal keranjang.
   double get effectiveUnitSellingPrice {
-    if (isFocVoucherActive) return 0;
+    if (isFocVoucherActive || isZeroPrice) return 0;
     final p = product;
     final unitEup = p.eupKasur +
         p.eupDivan +
@@ -157,7 +163,7 @@ class CartItem with _$CartItem {
   }
 
   double get totalPrice {
-    if (isFocVoucherActive) return 0.0;
+    if (isFocVoucherActive || isZeroPrice) return 0.0;
     if (product.isPricelistCustomCartLine) {
       return quantity * effectiveUnitSellingPrice;
     }

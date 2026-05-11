@@ -13,11 +13,8 @@ import '../../../../core/utils/discount_formatter.dart';
 import '../../../../core/utils/number_input_formatter.dart';
 import '../../../../core/utils/store_display_utils.dart';
 import '../../../../core/utils/store_discount_calculator.dart';
-import '../../../../core/widgets/action_button_bar.dart';
-import '../../../../core/widgets/app_choice_chip.dart';
 import '../../../../core/widgets/checkout_input_decoration.dart';
 import '../../../../core/widgets/form_field_label.dart';
-import '../../../../core/widgets/label_value_row.dart';
 import '../../../../core/widgets/quantity_stepper.dart';
 import '../../../../core/widgets/section_card.dart';
 import '../../../cart/data/cart_indirect_meta.dart';
@@ -32,6 +29,7 @@ import '../../logic/product_detail_utils.dart';
 import '../../logic/product_provider.dart';
 import '../widgets/bonus_editor_modal.dart';
 import '../widgets/discount_modal.dart';
+import '../widgets/program_bulanan_card.dart';
 
 /// Form tambah / ubah satu baris pricelist tanpa SKU (brand dari filter aktif).
 class PricelistCustomLinePage extends ConsumerStatefulWidget {
@@ -78,6 +76,15 @@ class _PricelistCustomLinePageState
   bool _useProgramDiscount = true;
   bool _useStoreDiscount = true;
 
+  // Program Bulanan (indirect only) — diskon pra-negosiasi bulanan.
+  String _programBulananType = '';
+  double _programBulananValue = 0.0;
+
+  // Harga 0: item ini net_price=0 tanpa diskon tambahan.
+  bool _isZeroPrice = false;
+
+  bool _isSubmitting = false;
+
   static final NumberFormat _totalCurrencyFormat = NumberFormat.currency(
     locale: 'id_ID',
     symbol: '',
@@ -99,20 +106,23 @@ class _PricelistCustomLinePageState
       _ukuranCtrl = TextEditingController(text: p.ukuran.trim());
       final t = PricelistCustomLineBuilder.componentTypeFromProduct(p);
       if (t != null) _type = t;
-      final pl = switch (t ?? PricelistCustomComponentType.mattress) {
-        PricelistCustomComponentType.mattress => p.plKasur,
+      final resolvedType = t ?? PricelistCustomComponentType.mattress;
+      final pl = switch (resolvedType) {
         PricelistCustomComponentType.divan => p.plDivan,
         PricelistCustomComponentType.headboard => p.plHeadboard,
         PricelistCustomComponentType.sorong => p.plSorong,
+        // mattress + semua tipe non-bundle tersimpan di kasur field
+        _ => p.plKasur,
       };
       // eupKasur di snapshot menyimpan EUP SETELAH diskon program diterapkan.
       // Untuk menampilkan EUP asli di field, kita reverse-cascade menggunakan
       // string `p.program` yang menyimpan persentase diskon program.
-      final eupAfterProg = switch (t ?? PricelistCustomComponentType.mattress) {
-        PricelistCustomComponentType.mattress => p.eupKasur,
+      final eupAfterProg = switch (resolvedType) {
         PricelistCustomComponentType.divan => p.eupDivan,
         PricelistCustomComponentType.headboard => p.eupHeadboard,
         PricelistCustomComponentType.sorong => p.eupSorong,
+        // mattress + semua tipe non-bundle tersimpan di kasur field
+        _ => p.eupKasur,
       };
       final existingProgs = _parseProgramString(p.program);
       final eupOriginal = _reverseProgCascade(eupAfterProg, existingProgs);
@@ -152,6 +162,15 @@ class _PricelistCustomLinePageState
             )
             .toList();
       }
+      // Restore Program Bulanan jika cart item punya nilai yang valid.
+      if (edit.hasProgramBulanan) {
+        _programBulananType = edit.programBulananType;
+        _programBulananValue = edit.programBulananType == 'percent'
+            ? edit.programBulananDiscount
+            : edit.programBulananNominal;
+      }
+      // Restore flag harga 0.
+      _isZeroPrice = edit.isZeroPrice;
     } else {
       _nameCtrl = TextEditingController();
       _ukuranCtrl = TextEditingController();
@@ -227,6 +246,16 @@ class _PricelistCustomLinePageState
     return factor > 0 ? eupAfterProg / factor : eupAfterProg;
   }
 
+  /// Hitung harga setelah diskon Program Bulanan diterapkan di atas [base].
+  double _applyProgramBulanan(double base) {
+    if (_programBulananType == 'percent' && _programBulananValue > 0) {
+      return (base * (1 - _programBulananValue / 100)).clamp(0, double.infinity);
+    } else if (_programBulananType == 'nominal' && _programBulananValue > 0) {
+      return (base - _programBulananValue).clamp(0, double.infinity);
+    }
+    return base;
+  }
+
   /// Daftar persentase program diskon yang diisi user (non-zero).
   /// Mengembalikan list kosong jika toggle diskon program dimatikan.
   List<double> _currentProgramDiscounts() {
@@ -265,12 +294,12 @@ class _PricelistCustomLinePageState
     );
   }
 
-  /// Dasar diskon penjualan: EUP → diskon program → diskon toko (indirect).
+  /// Dasar diskon penjualan: EUP → diskon program → diskon toko (indirect only).
   ///
   /// Urutan cascade:
   ///   1. `unitEup` (EUP asli — input user)
-  ///   2. Diskon Program (indirect, bila ada)
-  ///   3. Diskon Toko (indirect, bila ada)
+  ///   2. Diskon Program (SEMUA mode — user-entered cascade %)
+  ///   3. Diskon Toko (indirect ONLY — dari master toko)
   double _plDiscountBaseTotal(
     double unitEup,
     List<double> storeDiscounts,
@@ -278,16 +307,16 @@ class _PricelistCustomLinePageState
   ) {
     if (unitEup <= 0) return 0;
     var base = unitEup;
-    if (indirect) {
-      // Terapkan diskon program terlebih dahulu (jika aktif).
+    // Diskon Program berlaku di semua mode (direct & indirect).
+    if (_useProgramDiscount) {
       final progs = _currentProgramDiscounts();
       if (progs.isNotEmpty) {
         base = StoreDiscountCalculator.cascade(base, progs);
       }
-      // Kemudian terapkan diskon toko (jika aktif).
-      if (_useStoreDiscount && storeDiscounts.isNotEmpty) {
-        base = StoreDiscountCalculator.cascade(base, storeDiscounts);
-      }
+    }
+    // Diskon Toko hanya untuk indirect.
+    if (indirect && _useStoreDiscount && storeDiscounts.isNotEmpty) {
+      base = StoreDiscountCalculator.cascade(base, storeDiscounts);
     }
     return base;
   }
@@ -346,6 +375,16 @@ class _PricelistCustomLinePageState
   }
 
   Future<void> _submit() async {
+    if (_isSubmitting) return;
+    setState(() => _isSubmitting = true);
+    try {
+      await _doSubmit();
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  Future<void> _doSubmit() async {
     // For preloaded edit items, fall back to the product's own brand/channel.
     final editProduct = widget.editItem?.product;
     final brand = ref.read(selectedBrandProvider) ??
@@ -432,6 +471,11 @@ class _PricelistCustomLinePageState
         return;
       }
       final store = session.selectedStore!;
+      // Saat toggle Diskon Toko dimatikan, jangan sertakan diskon toko di
+      // indirectMeta — cart item akan tersimpan tanpa diskon toko.
+      final effectiveStoreDiscounts = _useStoreDiscount
+          ? List<double>.from(session.storeDiscounts)
+          : const <double>[];
       indirectMeta = CartIndirectMeta(
         addressNumber: store.addressNumber,
         alphaName: StoreDisplayUtils.assignedStoreRowLabel(
@@ -440,10 +484,10 @@ class _PricelistCustomLinePageState
         ),
         address: store.address,
         phone: '',
-        storeDiscounts: List<double>.from(session.storeDiscounts),
-        discountDisplay: session.storeDiscounts.isNotEmpty
+        storeDiscounts: effectiveStoreDiscounts,
+        discountDisplay: _useStoreDiscount && session.storeDiscounts.isNotEmpty
             ? StoreDiscountCalculator.formatDisplay(session.storeDiscounts)
-            : session.discountDisplay,
+            : '',
       );
     }
 
@@ -472,15 +516,34 @@ class _PricelistCustomLinePageState
       program: programLabel,
     );
 
+    // Bila harga 0 aktif: hapus semua diskon tambahan — net_price = 0 tanpa approval.
+    final effectiveDiscounts = _isZeroPrice ? <double>[] : _appliedDiscounts;
+
     var cartItem = PricelistCustomLineBuilder.buildCartItem(
       productSnapshot: snapshot,
       quantity: _qty,
-      appliedDiscountFractions: _appliedDiscounts,
+      appliedDiscountFractions: effectiveDiscounts,
       indirectMeta: indirectMeta,
       bonusSnapshots: _bonusSnapshotsForCart(),
       pricelistArea: ref.read(effectiveAreaProvider),
       isBonusCustomized: _bonusCustomized,
     );
+
+    // Tandai item harga 0 (net_price = 0 di checkout service).
+    if (_isZeroPrice) {
+      cartItem = cartItem.copyWith(isZeroPrice: true);
+    }
+
+    // Sisipkan Program Bulanan ke cart item (hanya indirect, hanya jika diisi).
+    if (_programBulananType.isNotEmpty && _programBulananValue > 0) {
+      cartItem = cartItem.copyWith(
+        programBulananType: _programBulananType,
+        programBulananDiscount:
+            _programBulananType == 'percent' ? _programBulananValue : 0.0,
+        programBulananNominal:
+            _programBulananType == 'nominal' ? _programBulananValue : 0.0,
+      );
+    }
 
     final idx = widget.cartIndex;
     if (widget.editItem != null && idx != null) {
@@ -596,138 +659,420 @@ class _PricelistCustomLinePageState
       }
     }
 
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final isSubmitEnabled = brand != null && channel != null && !_isSubmitting;
+    final isEditMode = widget.editItem != null;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(
-          widget.editItem != null
-              ? 'Ubah baris custom'
-              : 'Baris custom pricelist',
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              isEditMode ? 'Edit Item Manual' : 'Item Manual',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+            Text(
+              isIndirectMode ? 'Mode Indirect' : 'Mode Direct',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: isIndirectMode
+                    ? AppColors.accent.withValues(alpha: 0.85)
+                    : AppColors.textTertiary,
+              ),
+            ),
+          ],
         ),
         elevation: 0,
+      ),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          border: const Border(
+            top: BorderSide(color: AppColors.divider, width: 1),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.textPrimary.withValues(alpha: 0.06),
+              blurRadius: 16,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppLayoutTokens.space16,
+              vertical: AppLayoutTokens.space12,
+            ),
+            child: Row(
+              children: [
+                SizedBox(
+                  height: 52,
+                  child: OutlinedButton(
+                    onPressed:
+                        _isSubmitting ? null : () => context.pop(),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.textSecondary,
+                      side: const BorderSide(color: AppColors.border),
+                      shape: RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(AppLayoutTokens.radius10),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                    ),
+                    child: const Text(
+                      'Batal',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppLayoutTokens.space12),
+                Expanded(
+                  child: SizedBox(
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: isSubmitEnabled ? _submit : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        foregroundColor: AppColors.onPrimary,
+                        disabledBackgroundColor:
+                            AppColors.accent.withValues(alpha: 0.4),
+                        disabledForegroundColor:
+                            AppColors.onPrimary.withValues(alpha: 0.7),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                              AppLayoutTokens.radius10),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 200),
+                        child: _isSubmitting
+                            ? const SizedBox(
+                                key: ValueKey('loading'),
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator.adaptive(
+                                  strokeWidth: 2.5,
+                                  valueColor: AlwaysStoppedAnimation(
+                                      AppColors.onPrimary),
+                                ),
+                              )
+                            : Row(
+                                key: const ValueKey('label'),
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    isEditMode
+                                        ? Icons.check_circle_outline_rounded
+                                        : Icons.shopping_cart_outlined,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    isEditMode
+                                        ? 'Simpan Perubahan'
+                                        : 'Tambah ke Keranjang',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
         behavior: HitTestBehavior.translucent,
         child: ListView(
-          padding: EdgeInsets.fromLTRB(
+          padding: const EdgeInsets.fromLTRB(
             AppLayoutTokens.space16,
             AppLayoutTokens.space8,
             AppLayoutTokens.space16,
-            AppLayoutTokens.space20 + bottomInset,
+            AppLayoutTokens.space16,
           ),
           children: [
             if (brand == null || channel == null)
-              SectionCard(
-                title: 'Filter',
-                child: Text(
-                  'Channel atau brand belum dipilih. Buka beranda dan lengkapi filter terlebih dahulu.',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textSecondary,
+              Container(
+                padding: const EdgeInsets.all(AppLayoutTokens.space16),
+                decoration: BoxDecoration(
+                  color: AppColors.warningLight,
+                  borderRadius: BorderRadius.circular(AppLayoutTokens.radius10),
+                  border: Border.all(color: AppColors.warningBorder),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline,
+                        size: 18, color: AppColors.warning),
+                    const SizedBox(width: AppLayoutTokens.space8),
+                    Expanded(
+                      child: Text(
+                        'Brand atau channel belum dipilih — kembali ke beranda dan lengkapi filter.',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppColors.warning,
+                              height: 1.4,
+                            ),
                       ),
+                    ),
+                  ],
                 ),
               )
             else ...[
-              SectionCard(
-                title: 'Konteks filter',
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+              // ── Context strip: Brand • Channel • Mode ────────────────
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppLayoutTokens.space12,
+                  vertical: AppLayoutTokens.space10,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(AppLayoutTokens.radius10),
+                  border: Border.all(color: AppColors.divider),
+                ),
+                child: Row(
                   children: [
-                    LabelValueRow(
-                      label: 'Brand',
-                      value: brand,
-                      labelStyle:
-                          Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppColors.textTertiary,
-                              ),
-                      valueStyle:
-                          Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
+                    const Icon(Icons.style_outlined,
+                        size: 15, color: AppColors.textTertiary),
+                    const SizedBox(width: AppLayoutTokens.space6),
+                    Text(
+                      brand,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
                     ),
-                    const SizedBox(height: AppLayoutTokens.space8),
-                    LabelValueRow(
-                      label: 'Channel',
-                      value: channel,
-                      labelStyle:
-                          Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppColors.textTertiary,
-                              ),
-                      valueStyle:
-                          Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
+                    Container(
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: AppLayoutTokens.space8),
+                      width: 1,
+                      height: 14,
+                      color: AppColors.divider,
+                    ),
+                    const Icon(Icons.storefront_outlined,
+                        size: 15, color: AppColors.textTertiary),
+                    const SizedBox(width: AppLayoutTokens.space6),
+                    Expanded(
+                      child: Text(
+                        channel,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: AppLayoutTokens.space8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: isIndirectMode
+                            ? AppColors.accent.withValues(alpha: 0.1)
+                            : AppColors.textTertiary.withValues(alpha: 0.12),
+                        borderRadius:
+                            BorderRadius.circular(AppLayoutTokens.radius8),
+                      ),
+                      child: Text(
+                        isIndirectMode ? 'Indirect' : 'Direct',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: isIndirectMode
+                              ? AppColors.accent
+                              : AppColors.textSecondary,
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
+              // Indirect: tampilkan nama toko assign jika ada
+              if (isIndirectMode && indirectSession.hasStore) ...[
+                const SizedBox(height: AppLayoutTokens.space6),
+                Row(
+                  children: [
+                    const SizedBox(width: 4),
+                    const Icon(Icons.location_on_outlined,
+                        size: 13, color: AppColors.textTertiary),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        indirectSession.selectedStore!.alphaName,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textTertiary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: AppLayoutTokens.space16),
               SectionCard(
-                title: 'Detail barang',
+                title: 'Detail Barang',
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const FormFieldLabel('Nama produk'),
-                    const SizedBox(height: AppLayoutTokens.space8),
-                    TextField(
-                      controller: _nameCtrl,
-                      textCapitalization: TextCapitalization.words,
-                      decoration: CheckoutInputDecoration.form(
-                        hintText: 'Contoh: Comforta Super Fit',
-                      ),
+                    // ── Nama + Ukuran ────────────────────────────────────
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const FormFieldLabel('Nama Produk'),
+                              const SizedBox(height: AppLayoutTokens.space6),
+                              TextField(
+                                controller: _nameCtrl,
+                                textCapitalization: TextCapitalization.words,
+                                decoration: CheckoutInputDecoration.form(
+                                  hintText: 'mis. Comforta Super Fit',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: AppLayoutTokens.space10),
+                        Expanded(
+                          flex: 2,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const FormFieldLabel('Ukuran'),
+                              const SizedBox(height: AppLayoutTokens.space6),
+                              TextField(
+                                controller: _ukuranCtrl,
+                                decoration: CheckoutInputDecoration.form(
+                                  hintText: 'mis. 160×200',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: AppLayoutTokens.space16),
-                    const FormFieldLabel('Ukuran (desc 2)'),
-                    const SizedBox(height: AppLayoutTokens.space8),
-                    TextField(
-                      controller: _ukuranCtrl,
-                      decoration: CheckoutInputDecoration.form(
-                        hintText: 'Contoh: 160 × 200',
-                      ),
-                    ),
-                    const SizedBox(height: AppLayoutTokens.space16),
-                    const FormFieldLabel('Jenis baris (checkout)'),
-                    const SizedBox(height: AppLayoutTokens.space8),
-                    Wrap(
-                      spacing: AppLayoutTokens.space8,
-                      runSpacing: AppLayoutTokens.space8,
-                      children: PricelistCustomComponentType.values.map((t) {
-                        return AppChoiceChip(
-                          label: t.shortLabel,
-                          selected: _type == t,
-                          onSelected: (_) => setState(() {
-                            _type = t;
-                            targetTotalEup = null;
-                          }),
+                    // ── Jenis Produk ─────────────────────────────────────
+                    const FormFieldLabel('Jenis Produk'),
+                    const SizedBox(height: AppLayoutTokens.space10),
+                    // Grid 2 kolom — 4 baris rapi
+                    ...() {
+                      final types = PricelistCustomComponentType.values;
+                      final rows = <Widget>[];
+                      for (var i = 0; i < types.length; i += 2) {
+                        rows.add(
+                          Row(
+                            children: [
+                              Expanded(
+                                  child: _TypeTile(
+                                type: types[i],
+                                selected: _type == types[i],
+                                onTap: () => setState(() {
+                                  _type = types[i];
+                                  targetTotalEup = null;
+                                }),
+                              )),
+                              const SizedBox(width: AppLayoutTokens.space8),
+                              if (i + 1 < types.length)
+                                Expanded(
+                                    child: _TypeTile(
+                                  type: types[i + 1],
+                                  selected: _type == types[i + 1],
+                                  onTap: () => setState(() {
+                                    _type = types[i + 1];
+                                    targetTotalEup = null;
+                                  }),
+                                ))
+                              else
+                                const Expanded(child: SizedBox()),
+                            ],
+                          ),
                         );
-                      }).toList(),
-                    ),
+                        if (i + 2 < types.length) {
+                          rows.add(
+                              const SizedBox(height: AppLayoutTokens.space8));
+                        }
+                      }
+                      return rows;
+                    }(),
                     const SizedBox(height: AppLayoutTokens.space16),
-                    const FormFieldLabel('Harga pricelist (per unit)'),
-                    const SizedBox(height: AppLayoutTokens.space8),
-                    TextField(
-                      controller: _plCtrl,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [ThousandsSeparatorInputFormatter()],
-                      decoration: CheckoutInputDecoration.form(
-                        hintText: '0',
-                        prefixText: 'Rp ',
-                      ),
-                    ),
-                    const SizedBox(height: AppLayoutTokens.space16),
-                    const FormFieldLabel('Kuantitas'),
-                    const SizedBox(height: AppLayoutTokens.space8),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: QuantityStepper(
-                        quantity: _qty,
-                        onDecrement: () {
-                          if (_qty > 1) setState(() => _qty--);
-                        },
-                        onIncrement: () => setState(() => _qty++),
-                      ),
+                    // ── Harga Pricelist + Kuantitas (2 kolom) ────────────
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const FormFieldLabel('Harga Pricelist'),
+                                  const SizedBox(
+                                      width: AppLayoutTokens.space6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.surfaceLight,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Text(
+                                      'per unit',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.textTertiary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: AppLayoutTokens.space6),
+                              TextField(
+                                controller: _plCtrl,
+                                keyboardType: TextInputType.number,
+                                inputFormatters: [
+                                  ThousandsSeparatorInputFormatter()
+                                ],
+                                decoration: CheckoutInputDecoration.form(
+                                  hintText: '0',
+                                  prefixText: 'Rp ',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: AppLayoutTokens.space16),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const FormFieldLabel('Qty'),
+                            const SizedBox(height: AppLayoutTokens.space6),
+                            QuantityStepper(
+                              quantity: _qty,
+                              onDecrement: () {
+                                if (_qty > 1) setState(() => _qty--);
+                              },
+                              onIncrement: () => setState(() => _qty++),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -742,39 +1087,23 @@ class _PricelistCustomLinePageState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // ── Toggle + Input Diskon Program ─────────────────
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              'Diskon Program',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelLarge
-                                  ?.copyWith(fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                          Switch.adaptive(
-                            value: _useProgramDiscount,
-                            onChanged: (v) => setState(() {
-                              _useProgramDiscount = v;
-                              targetTotalEup = null;
-                              _appliedDiscounts = [];
-                            }),
-                          ),
-                        ],
+                      // ── Toggle: Diskon Program ────────────────────────
+                      _ToggleRow(
+                        icon: Icons.percent_rounded,
+                        iconColor: AppColors.success,
+                        title: 'Diskon Program',
+                        subtitle: isIndirectMode
+                            ? 'Cascade sebelum diskon toko'
+                            : 'Diskon bertingkat dari pricelist',
+                        value: _useProgramDiscount,
+                        onChanged: (v) => setState(() {
+                          _useProgramDiscount = v;
+                          targetTotalEup = null;
+                          _appliedDiscounts = [];
+                        }),
                       ),
                       if (_useProgramDiscount) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          'Diterapkan sebelum diskon toko.',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppColors.textTertiary,
-                                    height: 1.3,
-                                  ),
-                        ),
-                        const SizedBox(height: AppLayoutTokens.space8),
+                        const SizedBox(height: AppLayoutTokens.space10),
                         Row(
                           children: [
                             Expanded(
@@ -782,22 +1111,18 @@ class _PricelistCustomLinePageState
                                 controller: _prog1Ctrl,
                                 keyboardType:
                                     const TextInputType.numberWithOptions(
-                                  decimal: true,
-                                ),
+                                        decimal: true),
                                 decoration: CheckoutInputDecoration.form(
                                   hintText: '0',
                                   labelText: 'Tingkat 1',
                                   suffixIcon: const Padding(
                                     padding:
                                         EdgeInsets.symmetric(horizontal: 10),
-                                    child: Text(
-                                      '%',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.textSecondary,
-                                      ),
-                                    ),
+                                    child: Text('%',
+                                        style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.textSecondary)),
                                   ),
                                 ),
                                 onChanged: (_) => setState(() {
@@ -812,22 +1137,18 @@ class _PricelistCustomLinePageState
                                 controller: _prog2Ctrl,
                                 keyboardType:
                                     const TextInputType.numberWithOptions(
-                                  decimal: true,
-                                ),
+                                        decimal: true),
                                 decoration: CheckoutInputDecoration.form(
                                   hintText: '0',
                                   labelText: 'Tingkat 2',
                                   suffixIcon: const Padding(
                                     padding:
                                         EdgeInsets.symmetric(horizontal: 10),
-                                    child: Text(
-                                      '%',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.textSecondary,
-                                      ),
-                                    ),
+                                    child: Text('%',
+                                        style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.textSecondary)),
                                   ),
                                 ),
                                 onChanged: (_) => setState(() {
@@ -839,68 +1160,65 @@ class _PricelistCustomLinePageState
                           ],
                         ),
                       ],
-                      // ── Toggle + Info Diskon Toko (indirect only) ────
+                      // ── Toggle: Diskon Toko (indirect only) ──────────
                       if (useIndirectStoreNet) ...[
-                        const SizedBox(height: AppLayoutTokens.space16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                'Diskon Toko',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .labelLarge
-                                    ?.copyWith(fontWeight: FontWeight.w600),
-                              ),
-                            ),
-                            Switch.adaptive(
-                              value: _useStoreDiscount,
-                              onChanged: (v) => setState(() {
-                                _useStoreDiscount = v;
-                                targetTotalEup = null;
-                                _appliedDiscounts = [];
-                              }),
-                            ),
-                          ],
+                        const Padding(
+                          padding: EdgeInsets.symmetric(
+                              vertical: AppLayoutTokens.space12),
+                          child: Divider(height: 1, color: AppColors.divider),
                         ),
-                        if (_useStoreDiscount) ...[
-                          const SizedBox(height: AppLayoutTokens.space6),
-                          Container(
-                            width: double.infinity,
-                            padding:
-                                const EdgeInsets.all(AppLayoutTokens.space12),
-                            decoration: BoxDecoration(
-                              color: AppColors.accent.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(
-                                  AppLayoutTokens.radius10),
-                              border: Border.all(
-                                color: AppColors.accent.withValues(alpha: 0.28),
-                              ),
-                            ),
-                            child: Text(
-                              StoreDiscountCalculator.formatDisplay(
-                                  storeDiscounts),
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.copyWith(
-                                    color: AppColors.accent,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                            ),
-                          ),
-                        ],
+                        _ToggleRow(
+                          icon: Icons.storefront_outlined,
+                          iconColor: AppColors.accent,
+                          title: 'Diskon Toko',
+                          subtitle: storeDiscounts.isNotEmpty
+                              ? StoreDiscountCalculator.formatDisplay(
+                                  storeDiscounts)
+                              : 'Tidak ada diskon toko',
+                          value: _useStoreDiscount,
+                          onChanged: (v) => setState(() {
+                            _useStoreDiscount = v;
+                            targetTotalEup = null;
+                            _appliedDiscounts = [];
+                          }),
+                        ),
                       ],
-                      // ── Cascade harga EUP → prog → store ─────────────
+                      // ── Program Bulanan (indirect only) ──────────────
+                      if (isIndirectMode) ...[
+                        const Padding(
+                          padding: EdgeInsets.symmetric(
+                              vertical: AppLayoutTokens.space12),
+                          child: Divider(height: 1, color: AppColors.divider),
+                        ),
+                        ProgramBulananCard(
+                          type: _programBulananType,
+                          value: _programBulananValue,
+                          onChanged: (type, value) => setState(() {
+                            _programBulananType = type;
+                            _programBulananValue = value;
+                          }),
+                        ),
+                      ],
+                      // ── Cascade harga EUP → prog → store → PB ────────
                       if (unitEup > 0) ...[
                         const SizedBox(height: AppLayoutTokens.space12),
                         Builder(builder: (context) {
                           final progs = _currentProgramDiscounts();
                           final eupAfterProg = _eupAfterProgram(unitEup);
                           final hasProgram = progs.isNotEmpty;
+                          final hasPB = _programBulananType.isNotEmpty &&
+                              _programBulananValue > 0;
+                          final priceAfterPB =
+                              hasPB ? _applyProgramBulanan(plBase) : plBase;
                           final productLabel = _nameCtrl.text.trim().isEmpty
                               ? 'Produk'
                               : _nameCtrl.text.trim();
+                          // Label "setelah..." sesuai mode:
+                          // - indirect + ada toko → "Setelah prog+toko"
+                          // - lainnya (direct atau indirect tanpa toko) → "Setelah diskon prog."
+                          final afterLabel = (isIndirectMode && useIndirectStoreNet)
+                              ? 'Setelah prog+toko:  '
+                              : 'Setelah diskon prog.:  ';
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -944,29 +1262,38 @@ class _PricelistCustomLinePageState
                                   ],
                                 ),
                                 const SizedBox(height: 6),
-                                // Baris final: setelah prog + toko
+                                // Baris setelah prog + toko (label sesuai mode)
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.end,
                                   children: [
-                                    const Text(
-                                      'Setelah prog+toko:  ',
-                                      style: TextStyle(
+                                    Text(
+                                      afterLabel,
+                                      style: const TextStyle(
                                         fontSize: 11,
                                         color: AppColors.textTertiary,
                                       ),
                                     ),
                                     Text(
                                       AppFormatters.currencyIdr(plBase / _qty),
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w800,
-                                        color: AppColors.textPrimary,
+                                      style: TextStyle(
+                                        fontSize: hasPB ? 12 : 14,
+                                        fontWeight: hasPB
+                                            ? FontWeight.w500
+                                            : FontWeight.w800,
+                                        color: hasPB
+                                            ? AppColors.textTertiary
+                                            : AppColors.textPrimary,
+                                        decoration: hasPB
+                                            ? TextDecoration.lineThrough
+                                            : null,
                                       ),
                                     ),
                                   ],
                                 ),
                               ] else ...[
-                                // Tanpa program: tampilan asli (EUP coret → setelah toko)
+                                // Tanpa program discount.
+                                // Strikethrough EUP hanya ditampilkan jika ada store
+                                // discount yang benar-benar mengubah harga (indirect).
                                 Row(
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
@@ -984,24 +1311,57 @@ class _PricelistCustomLinePageState
                                       crossAxisAlignment:
                                           CrossAxisAlignment.end,
                                       children: [
-                                        Text(
-                                          AppFormatters.currencyIdr(unitEup),
-                                          style: const TextStyle(
-                                            fontSize: 11,
-                                            color: AppColors.textTertiary,
-                                            decoration:
-                                                TextDecoration.lineThrough,
+                                        // EUP coret hanya muncul bila ada diskon toko
+                                        if (useIndirectStoreNet)
+                                          Text(
+                                            AppFormatters.currencyIdr(unitEup),
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              color: AppColors.textTertiary,
+                                              decoration:
+                                                  TextDecoration.lineThrough,
+                                            ),
                                           ),
-                                        ),
                                         Text(
                                           AppFormatters.currencyIdr(
                                               plBase / _qty),
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 13,
                                             fontWeight: FontWeight.bold,
+                                            decoration: hasPB
+                                                ? TextDecoration.lineThrough
+                                                : null,
+                                            color: hasPB
+                                                ? AppColors.textTertiary
+                                                : AppColors.textPrimary,
                                           ),
                                         ),
                                       ],
+                                    ),
+                                  ],
+                                ),
+                              ],
+                              // Baris Program Bulanan: harga setelah PB (bila aktif)
+                              if (hasPB) ...[
+                                const SizedBox(height: 6),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    const Text(
+                                      'Setelah prog. bulanan:  ',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: AppColors.textTertiary,
+                                      ),
+                                    ),
+                                    Text(
+                                      AppFormatters.currencyIdr(
+                                          priceAfterPB / _qty),
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppColors.textPrimary,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -1016,244 +1376,529 @@ class _PricelistCustomLinePageState
               ],
               const SizedBox(height: AppLayoutTokens.space16),
               SectionCard(
-                title: 'Diskon penjualan',
+                title: 'Harga Jual',
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      'Diskon tambahan & total jual mengikuti halaman detail produk: '
-                      'atur persentase/nominal per tingkat, atau edit total akhir.',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.textTertiary,
-                            height: 1.35,
-                          ),
+                    // ── Toggle Harga 0 / Gratis ───────────────────────
+                    _ToggleRow(
+                      icon: Icons.money_off_csred_rounded,
+                      iconColor: AppColors.warning,
+                      title: 'Harga item ini: 0 (Gratis)',
+                      subtitle: _isZeroPrice
+                          ? 'Net price = 0 — tidak butuh diskon tambahan'
+                          : 'Aktifkan jika harga ditanggung item lain',
+                      value: _isZeroPrice,
+                      onChanged: (v) => setState(() {
+                        _isZeroPrice = v;
+                        if (v) {
+                          // Reset diskon tambahan & target total saat aktifkan
+                          _appliedDiscounts = [];
+                          targetTotalEup = null;
+                          _targetTotalController.clear();
+                        }
+                      }),
                     ),
-                    const SizedBox(height: AppLayoutTokens.space12),
-                    Material(
-                      color: AppColors.accent.withValues(alpha: 0.05),
-                      borderRadius:
-                          BorderRadius.circular(AppLayoutTokens.radius10),
-                      child: InkWell(
-                        onTap: plBase > 0 && modalSnap != null
-                            ? () => _openDiscountModal(channel, brand)
-                            : null,
+                    // ── Divider ───────────────────────────────────────
+                    const Padding(
+                      padding: EdgeInsets.symmetric(
+                          vertical: AppLayoutTokens.space12),
+                      child: Divider(height: 1, color: AppColors.divider),
+                    ),
+                    // ── Tombol Diskon Tambahan (hidden bila harga 0) ──
+                    if (!_isZeroPrice) ...[
+                      Material(
+                        color: _appliedDiscounts.isNotEmpty
+                            ? AppColors.accent.withValues(alpha: 0.07)
+                            : AppColors.surfaceLight,
                         borderRadius:
                             BorderRadius.circular(AppLayoutTokens.radius10),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppLayoutTokens.space12,
-                            vertical: AppLayoutTokens.space10,
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.local_offer,
-                                color: AppColors.accent,
-                                size: 22,
-                              ),
-                              const SizedBox(width: AppLayoutTokens.space12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Diskon tambahan',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleSmall
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.w700,
-                                            color: AppColors.accent,
-                                          ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      _appliedDiscounts.isEmpty
-                                          ? 'Belum ada diskon diterapkan'
-                                          : _appliedDiscounts
-                                              .where((d) => d > 0)
-                                              .map(
-                                                (d) => DiscountFormatter
-                                                    .percentLabel(
-                                                  d * 100,
-                                                ),
-                                              )
-                                              .join(' + '),
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(
-                                            color: AppColors.textSecondary,
-                                          ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const Icon(
-                                Icons.chevron_right,
-                                color: AppColors.accent,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: AppLayoutTokens.space16),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: AppLayoutTokens.space12,
-                        horizontal: AppLayoutTokens.space16,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.accent.withValues(alpha: 0.08),
-                        borderRadius:
-                            BorderRadius.circular(AppLayoutTokens.radius10),
-                        border: Border.all(
-                          color: AppColors.accent.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Text(
-                            'Total akhir',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleSmall
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                          ),
-                          const SizedBox(width: AppLayoutTokens.space12),
-                          const Text(
-                            'Rp ',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary,
+                        child: InkWell(
+                          onTap: plBase > 0 && modalSnap != null
+                              ? () => _openDiscountModal(channel, brand)
+                              : null,
+                          borderRadius:
+                              BorderRadius.circular(AppLayoutTokens.radius10),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppLayoutTokens.space12,
+                              vertical: AppLayoutTokens.space12,
                             ),
-                          ),
-                          Expanded(
-                            child: TextField(
-                              controller: _targetTotalController,
-                              focusNode: _totalFocusNode,
-                              keyboardType: TextInputType.number,
-                              enabled: plBase > 0 && modalSnap != null,
-                              inputFormatters: [
-                                ThousandsSeparatorInputFormatter(
-                                  format: (v) =>
-                                      _totalCurrencyFormat.format(v).trim(),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.accent
+                                        .withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(
+                                        AppLayoutTokens.radius8),
+                                  ),
+                                  child: const Icon(
+                                    Icons.local_offer_outlined,
+                                    color: AppColors.accent,
+                                    size: 18,
+                                  ),
+                                ),
+                                const SizedBox(width: AppLayoutTokens.space12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Diskon Tambahan',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 14,
+                                          color: AppColors.textPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        _appliedDiscounts.isEmpty
+                                            ? 'Ketuk untuk tambah diskon'
+                                            : _appliedDiscounts
+                                                .where((d) => d > 0)
+                                                .map((d) =>
+                                                    DiscountFormatter
+                                                        .percentLabel(d * 100))
+                                                .join(' + '),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: _appliedDiscounts.isNotEmpty
+                                              ? AppColors.accent
+                                              : AppColors.textTertiary,
+                                          fontWeight:
+                                              _appliedDiscounts.isNotEmpty
+                                                  ? FontWeight.w600
+                                                  : FontWeight.normal,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Icon(
+                                  Icons.chevron_right,
+                                  color: plBase > 0
+                                      ? AppColors.accent
+                                      : AppColors.textTertiary,
                                 ),
                               ],
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.accent,
-                              ),
-                              decoration: const InputDecoration(
-                                isDense: true,
-                                border: InputBorder.none,
-                                contentPadding: EdgeInsets.zero,
-                                hintText: '0',
-                                hintStyle: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              onChanged: (s) {
-                                if (modalSnap != null) {
-                                  _onTargetTotalChangedRaw(
-                                      s, modalSnap, plBase);
-                                }
-                              },
                             ),
                           ),
-                          if (targetTotalEup != null)
-                            Tooltip(
-                              message: 'Hapus semua diskon tambahan',
-                              child: GestureDetector(
+                        ),
+                      ),
+                      const SizedBox(height: AppLayoutTokens.space12),
+                    ],
+                    // ── Total akhir ───────────────────────────────────
+                    // Mode harga 0: tampilkan badge locked "Rp 0"
+                    // Mode normal: field editable
+                    if (_isZeroPrice)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: AppLayoutTokens.space14,
+                          horizontal: AppLayoutTokens.space16,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.warning.withValues(alpha: 0.06),
+                          borderRadius:
+                              BorderRadius.circular(AppLayoutTokens.radius10),
+                          border: Border.all(
+                            color: AppColors.warning.withValues(alpha: 0.4),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.lock_outline_rounded,
+                              size: 16,
+                              color: AppColors.warning,
+                            ),
+                            const SizedBox(width: AppLayoutTokens.space8),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Total akhir',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.textTertiary,
+                                    ),
+                                  ),
+                                  SizedBox(height: 2),
+                                  Text(
+                                    'Rp 0',
+                                    style: TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.warning,
+                                      letterSpacing: -0.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppColors.warning.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text(
+                                'Terkunci',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.warning,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: AppLayoutTokens.space14,
+                          horizontal: AppLayoutTokens.space16,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.04),
+                          borderRadius:
+                              BorderRadius.circular(AppLayoutTokens.radius10),
+                          border: Border.all(
+                            color: _totalFocusNode.hasFocus
+                                ? AppColors.accent
+                                : AppColors.divider,
+                          ),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            const Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Total akhir',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.textTertiary,
+                                  ),
+                                ),
+                                SizedBox(height: 2),
+                                Text(
+                                  'Rp',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(width: AppLayoutTokens.space10),
+                            Expanded(
+                              child: TextField(
+                                controller: _targetTotalController,
+                                focusNode: _totalFocusNode,
+                                keyboardType: TextInputType.number,
+                                enabled: plBase > 0 && modalSnap != null,
+                                inputFormatters: [
+                                  ThousandsSeparatorInputFormatter(
+                                    format: (v) =>
+                                        _totalCurrencyFormat.format(v).trim(),
+                                  ),
+                                ],
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.accent,
+                                  letterSpacing: -0.5,
+                                ),
+                                decoration: const InputDecoration(
+                                  isDense: true,
+                                  border: InputBorder.none,
+                                  contentPadding: EdgeInsets.zero,
+                                  hintText: '0',
+                                  hintStyle: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.textTertiary,
+                                  ),
+                                ),
+                                onChanged: (s) {
+                                  if (modalSnap != null) {
+                                    _onTargetTotalChangedRaw(
+                                        s, modalSnap, plBase);
+                                  }
+                                },
+                              ),
+                            ),
+                            if (targetTotalEup != null) ...[
+                              const SizedBox(width: AppLayoutTokens.space8),
+                              GestureDetector(
                                 onTap: plBase > 0
                                     ? () => _resetDiscounts(plBase)
                                     : null,
-                                child: const Icon(
-                                  Icons.refresh,
-                                  size: 18,
-                                  color: AppColors.textSecondary,
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.divider,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Icon(
+                                    Icons.refresh_rounded,
+                                    size: 16,
+                                    color: AppColors.textSecondary,
+                                  ),
                                 ),
                               ),
-                            ),
-                        ],
+                            ],
+                          ],
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
               const SizedBox(height: AppLayoutTokens.space16),
               SectionCard(
-                title: 'Bonus spesial',
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      'Tambah bonus dari daftar aksesori (sama seperti di halaman detail produk). '
-                      'Bonus ikut ke keranjang & checkout.',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.textTertiary,
-                            height: 1.35,
+                title: 'Bonus',
+                child: Material(
+                  color: _customBonuses.isNotEmpty
+                      ? AppColors.success.withValues(alpha: 0.05)
+                      : AppColors.surfaceLight,
+                  borderRadius:
+                      BorderRadius.circular(AppLayoutTokens.radius10),
+                  child: InkWell(
+                    onTap: () {
+                      showBonusEditorModal(
+                        context,
+                        defaultBonuses: const [],
+                        isBonusCustomized: _bonusCustomized,
+                        customBonuses: _customBonuses,
+                        onSave: (next) {
+                          setState(() {
+                            _customBonuses =
+                                List<Map<String, dynamic>>.from(next);
+                            _bonusCustomized = _customBonuses.isNotEmpty;
+                          });
+                        },
+                      );
+                    },
+                    borderRadius:
+                        BorderRadius.circular(AppLayoutTokens.radius10),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppLayoutTokens.space12,
+                        vertical: AppLayoutTokens.space12,
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppColors.success.withValues(alpha: 0.1),
+                              borderRadius:
+                                  BorderRadius.circular(AppLayoutTokens.radius8),
+                            ),
+                            child: const Icon(
+                              Icons.card_giftcard_outlined,
+                              color: AppColors.success,
+                              size: 18,
+                            ),
                           ),
-                    ),
-                    const SizedBox(height: AppLayoutTokens.space12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            _customBonuses.isEmpty
-                                ? 'Belum ada bonus'
-                                : '${_customBonuses.length} bonus dipilih',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w600,
+                          const SizedBox(width: AppLayoutTokens.space12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Bonus Spesial',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14,
+                                    color: AppColors.textPrimary,
+                                  ),
                                 ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  _customBonuses.isEmpty
+                                      ? 'Belum ada bonus — ketuk untuk tambahkan'
+                                      : '${_customBonuses.length} bonus dipilih',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: _customBonuses.isNotEmpty
+                                        ? AppColors.success
+                                        : AppColors.textTertiary,
+                                    fontWeight: _customBonuses.isNotEmpty
+                                        ? FontWeight.w600
+                                        : FontWeight.normal,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        TextButton.icon(
-                          onPressed: () {
-                            showBonusEditorModal(
-                              context,
-                              defaultBonuses: const [],
-                              isBonusCustomized: _bonusCustomized,
-                              customBonuses: _customBonuses,
-                              onSave: (next) {
-                                setState(() {
-                                  _customBonuses =
-                                      List<Map<String, dynamic>>.from(next);
-                                  _bonusCustomized = _customBonuses.isNotEmpty;
-                                });
-                              },
-                            );
-                          },
-                          icon: const Icon(Icons.card_giftcard_outlined,
-                              size: 20),
-                          label: const Text('Atur bonus'),
-                        ),
-                      ],
+                          const Icon(Icons.chevron_right,
+                              color: AppColors.textTertiary),
+                        ],
+                      ),
                     ),
-                  ],
+                  ),
                 ),
               ),
             ],
-            const SizedBox(height: AppLayoutTokens.space20),
-            ActionButtonBar(
-              primaryLabel: widget.editItem != null
-                  ? 'Simpan perubahan'
-                  : 'Tambah ke keranjang',
-              onPrimaryPressed:
-                  (brand == null || channel == null) ? null : () => _submit(),
-              secondaryLabel: 'Batal',
-              onSecondaryPressed: () => context.pop(),
-            ),
+            const SizedBox(height: AppLayoutTokens.space16),
           ],
         ),
       ),
+    );
+  }
+}
+
+// ── Private helpers ──────────────────────────────────────────────────────────
+
+class _TypeTile extends StatelessWidget {
+  const _TypeTile({
+    required this.type,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final PricelistCustomComponentType type;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppLayoutTokens.space12,
+          vertical: AppLayoutTokens.space10,
+        ),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.accent
+              : AppColors.surface,
+          borderRadius: BorderRadius.circular(AppLayoutTokens.radius10),
+          border: Border.all(
+            color: selected
+                ? AppColors.accent
+                : AppColors.divider,
+            width: selected ? 1.5 : 1,
+          ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: AppColors.accent.withValues(alpha: 0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  )
+                ]
+              : null,
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: selected
+                    ? AppColors.surface.withValues(alpha: 0.2)
+                    : AppColors.surfaceLight,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Icon(
+                type.icon,
+                size: 14,
+                color: selected ? AppColors.surface : AppColors.accent,
+              ),
+            ),
+            const SizedBox(width: AppLayoutTokens.space8),
+            Expanded(
+              child: Text(
+                type.shortLabel,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: selected
+                      ? AppColors.surface
+                      : AppColors.textPrimary,
+                ),
+              ),
+            ),
+            if (selected)
+              const Icon(Icons.check_circle,
+                  size: 15, color: AppColors.surface),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ToggleRow extends StatelessWidget {
+  const _ToggleRow({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(7),
+          decoration: BoxDecoration(
+            color: iconColor.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(AppLayoutTokens.radius8),
+          ),
+          child: Icon(icon, size: 16, color: iconColor),
+        ),
+        const SizedBox(width: AppLayoutTokens.space10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              if (subtitle.isNotEmpty)
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textTertiary,
+                    height: 1.3,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        Switch.adaptive(value: value, onChanged: onChanged),
+      ],
     );
   }
 }

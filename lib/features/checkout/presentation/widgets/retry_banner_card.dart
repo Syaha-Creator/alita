@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 
 /// Banner shown when some detail rows failed and can be retried.
-class RetryBannerCard extends StatelessWidget {
+class RetryBannerCard extends StatefulWidget {
   final String retryNoSp;
   final int failedCount;
   final List<String> failedLabels;
@@ -15,6 +15,22 @@ class RetryBannerCard extends StatelessWidget {
     required this.failedLabels,
     required this.onRetry,
   });
+
+  @override
+  State<RetryBannerCard> createState() => _RetryBannerCardState();
+}
+
+class _RetryBannerCardState extends State<RetryBannerCard> {
+  bool _isRetrying = false;
+
+  void _handleRetry() {
+    if (_isRetrying) return;
+    setState(() => _isRetrying = true);
+    widget.onRetry();
+    Future.delayed(const Duration(seconds: 8), () {
+      if (mounted) setState(() => _isRetrying = false);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +54,7 @@ class RetryBannerCard extends StatelessWidget {
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  'SP $retryNoSp — $failedCount item gagal dikirim',
+                  'SP ${widget.retryNoSp} — ${widget.failedCount} item gagal dikirim',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     color: AppColors.warning,
@@ -50,7 +66,7 @@ class RetryBannerCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            failedLabels.map((e) => '• $e').join('\n'),
+            widget.failedLabels.map((e) => '• $e').join('\n'),
             style: const TextStyle(
               fontSize: 12,
               color: AppColors.warning,
@@ -59,21 +75,47 @@ class RetryBannerCard extends StatelessWidget {
           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: onRetry,
+            height: 42,
+            child: ElevatedButton(
+              onPressed: _isRetrying ? null : _handleRetry,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.warning,
                 foregroundColor: AppColors.onPrimary,
+                disabledBackgroundColor:
+                    AppColors.warning.withValues(alpha: 0.6),
+                disabledForegroundColor:
+                    AppColors.onPrimary.withValues(alpha: 0.8),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(vertical: 10),
               ),
-              icon: const Icon(Icons.refresh, size: 18),
-              label: const Text(
-                'Coba Lagi Kirim Barang Gagal',
-                style: TextStyle(fontWeight: FontWeight.bold),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: _isRetrying
+                    ? const SizedBox(
+                        key: ValueKey('loading'),
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator.adaptive(
+                          strokeWidth: 2,
+                          valueColor:
+                              AlwaysStoppedAnimation(AppColors.onPrimary),
+                        ),
+                      )
+                    : const Row(
+                        key: ValueKey('label'),
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.refresh, size: 18),
+                          SizedBox(width: 8),
+                          Text(
+                            'Coba Lagi Kirim Barang Gagal',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
               ),
             ),
           ),

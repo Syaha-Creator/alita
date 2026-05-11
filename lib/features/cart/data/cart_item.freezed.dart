@@ -285,7 +285,13 @@ mixin _$CartItem {
 
   /// Nilai nominal program bulanan dalam Rp. Hanya relevan jika [programBulananType] == 'nominal'.
   @JsonKey(fromJson: _parseDouble)
-  double get programBulananNominal => throw _privateConstructorUsedError;
+  double get programBulananNominal =>
+      throw _privateConstructorUsedError; // ── Harga 0 (custom pricelist) ────────────────────────────────────────────
+  /// Bila true, item ini dihitung dengan net_price = 0 tanpa diskon tambahan.
+  /// Dipakai untuk item komponen yang harganya ditanggung oleh item lain dalam
+  /// satu bundle / paket toko (bukan FOC, bukan Bonus).
+  @JsonKey(fromJson: _parseBoolDefaultFalse)
+  bool get isZeroPrice => throw _privateConstructorUsedError;
 
   /// Serializes this CartItem to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -337,7 +343,8 @@ abstract class $CartItemCopyWith<$Res> {
       @JsonKey(fromJson: _parseBoolDefaultFalse) bool isCustomSize,
       String programBulananType,
       @JsonKey(fromJson: _parseDouble) double programBulananDiscount,
-      @JsonKey(fromJson: _parseDouble) double programBulananNominal});
+      @JsonKey(fromJson: _parseDouble) double programBulananNominal,
+      @JsonKey(fromJson: _parseBoolDefaultFalse) bool isZeroPrice});
 
   $ProductCopyWith<$Res> get product;
   $ProductCopyWith<$Res>? get masterProduct;
@@ -393,6 +400,7 @@ class _$CartItemCopyWithImpl<$Res, $Val extends CartItem>
     Object? programBulananType = null,
     Object? programBulananDiscount = null,
     Object? programBulananNominal = null,
+    Object? isZeroPrice = null,
   }) {
     return _then(_value.copyWith(
       product: null == product
@@ -535,6 +543,10 @@ class _$CartItemCopyWithImpl<$Res, $Val extends CartItem>
           ? _value.programBulananNominal
           : programBulananNominal // ignore: cast_nullable_to_non_nullable
               as double,
+      isZeroPrice: null == isZeroPrice
+          ? _value.isZeroPrice
+          : isZeroPrice // ignore: cast_nullable_to_non_nullable
+              as bool,
     ) as $Val);
   }
 
@@ -606,7 +618,8 @@ abstract class _$$CartItemImplCopyWith<$Res>
       @JsonKey(fromJson: _parseBoolDefaultFalse) bool isCustomSize,
       String programBulananType,
       @JsonKey(fromJson: _parseDouble) double programBulananDiscount,
-      @JsonKey(fromJson: _parseDouble) double programBulananNominal});
+      @JsonKey(fromJson: _parseDouble) double programBulananNominal,
+      @JsonKey(fromJson: _parseBoolDefaultFalse) bool isZeroPrice});
 
   @override
   $ProductCopyWith<$Res> get product;
@@ -662,6 +675,7 @@ class __$$CartItemImplCopyWithImpl<$Res>
     Object? programBulananType = null,
     Object? programBulananDiscount = null,
     Object? programBulananNominal = null,
+    Object? isZeroPrice = null,
   }) {
     return _then(_$CartItemImpl(
       product: null == product
@@ -804,6 +818,10 @@ class __$$CartItemImplCopyWithImpl<$Res>
           ? _value.programBulananNominal
           : programBulananNominal // ignore: cast_nullable_to_non_nullable
               as double,
+      isZeroPrice: null == isZeroPrice
+          ? _value.isZeroPrice
+          : isZeroPrice // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }
@@ -848,7 +866,8 @@ class _$CartItemImpl extends _CartItem {
       @JsonKey(fromJson: _parseBoolDefaultFalse) this.isCustomSize = false,
       this.programBulananType = '',
       @JsonKey(fromJson: _parseDouble) this.programBulananDiscount = 0.0,
-      @JsonKey(fromJson: _parseDouble) this.programBulananNominal = 0.0})
+      @JsonKey(fromJson: _parseDouble) this.programBulananNominal = 0.0,
+      @JsonKey(fromJson: _parseBoolDefaultFalse) this.isZeroPrice = false})
       : _bonusSnapshots = bonusSnapshots,
         _indirectStoreDiscounts = indirectStoreDiscounts,
         super._();
@@ -992,10 +1011,17 @@ class _$CartItemImpl extends _CartItem {
   @override
   @JsonKey(fromJson: _parseDouble)
   final double programBulananNominal;
+// ── Harga 0 (custom pricelist) ────────────────────────────────────────────
+  /// Bila true, item ini dihitung dengan net_price = 0 tanpa diskon tambahan.
+  /// Dipakai untuk item komponen yang harganya ditanggung oleh item lain dalam
+  /// satu bundle / paket toko (bukan FOC, bukan Bonus).
+  @override
+  @JsonKey(fromJson: _parseBoolDefaultFalse)
+  final bool isZeroPrice;
 
   @override
   String toString() {
-    return 'CartItem(product: $product, masterProduct: $masterProduct, quantity: $quantity, kasurSku: $kasurSku, divanSku: $divanSku, sandaranSku: $sandaranSku, sorongSku: $sorongSku, divanKain: $divanKain, divanWarna: $divanWarna, sandaranKain: $sandaranKain, sandaranWarna: $sandaranWarna, sorongKain: $sorongKain, sorongWarna: $sorongWarna, originalEupKasur: $originalEupKasur, originalEupDivan: $originalEupDivan, originalEupHeadboard: $originalEupHeadboard, originalEupSorong: $originalEupSorong, discount1: $discount1, discount2: $discount2, discount3: $discount3, discount4: $discount4, bonusSnapshots: $bonusSnapshots, indirectStoreAddressNumber: $indirectStoreAddressNumber, indirectStoreAlphaName: $indirectStoreAlphaName, indirectStoreAddress: $indirectStoreAddress, indirectStorePhone: $indirectStorePhone, indirectStoreDiscounts: $indirectStoreDiscounts, indirectStoreDiscountDisplay: $indirectStoreDiscountDisplay, isFocVoucher: $isFocVoucher, pricelistArea: $pricelistArea, isBonusCustomized: $isBonusCustomized, isCustomSize: $isCustomSize, programBulananType: $programBulananType, programBulananDiscount: $programBulananDiscount, programBulananNominal: $programBulananNominal)';
+    return 'CartItem(product: $product, masterProduct: $masterProduct, quantity: $quantity, kasurSku: $kasurSku, divanSku: $divanSku, sandaranSku: $sandaranSku, sorongSku: $sorongSku, divanKain: $divanKain, divanWarna: $divanWarna, sandaranKain: $sandaranKain, sandaranWarna: $sandaranWarna, sorongKain: $sorongKain, sorongWarna: $sorongWarna, originalEupKasur: $originalEupKasur, originalEupDivan: $originalEupDivan, originalEupHeadboard: $originalEupHeadboard, originalEupSorong: $originalEupSorong, discount1: $discount1, discount2: $discount2, discount3: $discount3, discount4: $discount4, bonusSnapshots: $bonusSnapshots, indirectStoreAddressNumber: $indirectStoreAddressNumber, indirectStoreAlphaName: $indirectStoreAlphaName, indirectStoreAddress: $indirectStoreAddress, indirectStorePhone: $indirectStorePhone, indirectStoreDiscounts: $indirectStoreDiscounts, indirectStoreDiscountDisplay: $indirectStoreDiscountDisplay, isFocVoucher: $isFocVoucher, pricelistArea: $pricelistArea, isBonusCustomized: $isBonusCustomized, isCustomSize: $isCustomSize, programBulananType: $programBulananType, programBulananDiscount: $programBulananDiscount, programBulananNominal: $programBulananNominal, isZeroPrice: $isZeroPrice)';
   }
 
   @override
@@ -1074,7 +1100,9 @@ class _$CartItemImpl extends _CartItem {
             (identical(other.programBulananDiscount, programBulananDiscount) ||
                 other.programBulananDiscount == programBulananDiscount) &&
             (identical(other.programBulananNominal, programBulananNominal) ||
-                other.programBulananNominal == programBulananNominal));
+                other.programBulananNominal == programBulananNominal) &&
+            (identical(other.isZeroPrice, isZeroPrice) ||
+                other.isZeroPrice == isZeroPrice));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1115,7 +1143,8 @@ class _$CartItemImpl extends _CartItem {
         isCustomSize,
         programBulananType,
         programBulananDiscount,
-        programBulananNominal
+        programBulananNominal,
+        isZeroPrice
       ]);
 
   /// Create a copy of CartItem
@@ -1172,8 +1201,9 @@ abstract class _CartItem extends CartItem {
       @JsonKey(fromJson: _parseBoolDefaultFalse) final bool isCustomSize,
       final String programBulananType,
       @JsonKey(fromJson: _parseDouble) final double programBulananDiscount,
-      @JsonKey(fromJson: _parseDouble)
-      final double programBulananNominal}) = _$CartItemImpl;
+      @JsonKey(fromJson: _parseDouble) final double programBulananNominal,
+      @JsonKey(fromJson: _parseBoolDefaultFalse)
+      final bool isZeroPrice}) = _$CartItemImpl;
   const _CartItem._() : super._();
 
   factory _CartItem.fromJson(Map<String, dynamic> json) =
@@ -1285,7 +1315,14 @@ abstract class _CartItem extends CartItem {
   /// Nilai nominal program bulanan dalam Rp. Hanya relevan jika [programBulananType] == 'nominal'.
   @override
   @JsonKey(fromJson: _parseDouble)
-  double get programBulananNominal;
+  double
+      get programBulananNominal; // ── Harga 0 (custom pricelist) ────────────────────────────────────────────
+  /// Bila true, item ini dihitung dengan net_price = 0 tanpa diskon tambahan.
+  /// Dipakai untuk item komponen yang harganya ditanggung oleh item lain dalam
+  /// satu bundle / paket toko (bukan FOC, bukan Bonus).
+  @override
+  @JsonKey(fromJson: _parseBoolDefaultFalse)
+  bool get isZeroPrice;
 
   /// Create a copy of CartItem
   /// with the given fields replaced by the non-null parameter values.

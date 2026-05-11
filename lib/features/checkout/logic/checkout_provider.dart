@@ -19,7 +19,6 @@ import '../../approval/logic/approval_decision_service.dart';
 import '../../approval/logic/approval_inbox_provider.dart';
 import '../../history/data/models/order_history.dart';
 import '../../history/data/services/edit_details_service.dart';
-import '../../history/logic/edit_order_context_provider.dart';
 import '../../history/logic/order_detail_provider.dart';
 import '../data/models/approver_model.dart';
 import '../data/models/store_model.dart';
@@ -823,8 +822,8 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         );
       }
 
-      // ── Bersihkan edit context ──
-      _ref.read(editOrderContextProvider.notifier).state = null;
+      // editOrderContextProvider dibersihkan oleh CheckoutPage listener
+      // setelah membaca editCtx untuk menentukan feedback & navigasi.
 
       // ── Clear cart & invalidate providers ──
       await _ref.read(cartProvider.notifier).clearCart();

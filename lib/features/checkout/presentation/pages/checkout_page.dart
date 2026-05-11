@@ -391,15 +391,23 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   void _updatePaymentAmountUI() {
     if (_payments.isEmpty) return;
     if (!_isMultiPayment && _isLunas) {
-      // Edit mode + shortage: target amount = sisa tagihan (total - dibayar).
       final editOrder = ref.read(editOrderContextProvider);
-      double target = _totalAkhir;
       if (editOrder != null) {
+        // Edit mode:
+        // - Ada kekurangan → prefill dengan sisa tagihan.
+        // - Lunas/overpaid → kosongkan field (pembayaran opsional).
         final s = _computeEditSelisih(editOrder);
-        if (s.isShortage) target = s.sisaTagihan;
+        if (s.isShortage) {
+          _payments.first.amountCtrl.text =
+              AppFormatters.currencyIdrNoSymbol(s.sisaTagihan);
+        } else {
+          _payments.first.amountCtrl.clear();
+        }
+      } else {
+        // Non-edit: prefill dengan total akhir seperti biasa.
+        _payments.first.amountCtrl.text =
+            AppFormatters.currencyIdrNoSymbol(_totalAkhir);
       }
-      _payments.first.amountCtrl.text =
-          AppFormatters.currencyIdrNoSymbol(target);
     }
   }
 
@@ -584,7 +592,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           ref.read(editOrderContextProvider.notifier).state = null;
           AppFeedback.show(
             context,
-            message: 'Item pesanan ${next.successNoSp} berhasil diperbarui!',
+            message:
+                'Perubahan item pesanan SP ${next.successNoSp} berhasil diperbarui!',
             type: AppFeedbackType.success,
             floating: true,
             duration: const Duration(seconds: 3),
@@ -1007,9 +1016,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   ),
 
                   // ── Card 5: Payment Info ──────────────────────────
-                  // Direct non-edit: selalu tampil.
-                  // Direct edit + shortage: tampil sebagai "Pembayaran Kekurangan".
-                  // Indirect atau edit tanpa shortage: disembunyikan.
+                  // Direct non-edit       : selalu tampil.
+                  // Direct edit + shortage: tampil ("Tambah Pembayaran").
+                  // Direct edit + lunas   : disembunyikan (tidak perlu bayar lagi).
+                  // Direct edit + overpaid: disembunyikan (info kelebihan ada di Ringkasan).
+                  // Indirect              : selalu disembunyikan.
                   if (!isIndirectCheckout &&
                       (!isEditMode ||
                           _computeEditSelisih(editOrder).isShortage)) ...[
