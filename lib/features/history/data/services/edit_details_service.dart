@@ -80,6 +80,7 @@ class EditDetailsService {
     required double extendedAmount,
     required double hargaAwal,
     required String token,
+    String status = 'Pending',
   }) async {
     final discount = hargaAwal > 0
         ? ((hargaAwal - extendedAmount) / hargaAwal) * 100
@@ -92,8 +93,7 @@ class EditDetailsService {
         'extended_amount': extendedAmount,
         'harga_awal': hargaAwal,
         'discount': discount,
-        // Reset status ke Pending agar approval baru bisa diproses.
-        'status': 'Pending',
+        'status': status,
       },
       timeout: _timeout,
     );
@@ -101,7 +101,7 @@ class EditDetailsService {
     Log.info(
       'EditDetails: totals order $orderId updated '
       '(extended=$extendedAmount hargaAwal=$hargaAwal '
-      'disc=${discount.toStringAsFixed(2)}% status→Pending)',
+      'disc=${discount.toStringAsFixed(2)}% status→$status)',
       tag: 'EditDetailsService',
     );
   }

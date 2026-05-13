@@ -797,11 +797,19 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       }
       final extendedAmount = grandTotal + editOrder.postage;
 
+      // Jika semua discount rows sudah auto-approved (tidak ada yang null),
+      // tidak ada chain approval yang perlu ditunggu — set status langsung Approved.
+      final hasAnyPendingApproval = pendingDetails.any(
+        (pd) => pd.discounts.any((d) => d['approved'] == null),
+      );
+      final orderStatus = hasAnyPendingApproval ? 'Pending' : 'Approved';
+
       await editService.patchOrderTotals(
         orderId: orderLetterId,
         extendedAmount: extendedAmount,
         hargaAwal: hargaAwal,
         token: token,
+        status: orderStatus,
       );
 
       // ── Step 4: Post payment baru (untuk menutup selisih kekurangan) ──

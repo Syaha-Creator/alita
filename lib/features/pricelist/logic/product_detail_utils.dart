@@ -18,6 +18,7 @@ abstract final class ProductDetailUtils {
     double base = baseTotalEup;
     for (final limit in maxLimits) {
       final d = (1 - targetTotal / base).clamp(0.0, limit);
+      if (d < 1e-9) break;
       result.add(d);
       base = base * (1 - d);
     }
