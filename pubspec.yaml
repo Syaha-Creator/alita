@@ -3,7 +3,7 @@ description: "Alita Price List"
 
 publish_to: 'none'
 
-version: 1.7.73+101
+version: 1.7.74+102
 environment:
   sdk: ^3.6.1
 
