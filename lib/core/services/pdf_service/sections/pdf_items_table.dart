@@ -96,31 +96,15 @@ abstract final class PdfItemsTable {
       final brandCell = isLeadItem ? brand : '';
       final orderCell = isLeadItem ? '${bundleOrderCounter++}' : '';
 
+      // Baris 1: item_description (fallback ke desc_1 jika kosong).
+      // Baris 2: item_number sebagai caption kecil.
       final displayName = takeAway ? '$name (BAWA PULANG)' : name;
-      final mainTextDisplay =
-          _line1Desc1Desc2(d, isBonus: isBonus, takeAway: takeAway);
-      final subtitleRaw = d['item_description']?.toString() ?? '';
-      final trimmedSub = subtitleRaw.trim();
-      final subtitle =
-          trimmedSub.isNotEmpty && trimmedSub != '-' ? subtitleRaw : null;
-      final mainLineForTwoRows = mainTextDisplay.isNotEmpty
-          ? mainTextDisplay
-          : (d['desc_1']?.toString().trim() ?? '');
-      final primaryForCell = subtitle == null && mainTextDisplay.isNotEmpty
-          ? mainTextDisplay
-          : displayName;
-
-      // Tampilkan item_number sebagai caption kecil HANYA jika ada (item custom).
       final itemNumberRaw = d['item_number']?.toString().trim() ?? '';
       final itemNumberCaption = itemNumberRaw.isNotEmpty ? itemNumberRaw : null;
 
       final nameWidget = _buildNameCell(
-        primaryForCell,
+        displayName,
         isBold: isLeadItem,
-        subtitle: subtitle,
-        mainText: subtitle != null
-            ? (mainLineForTwoRows.isNotEmpty ? mainLineForTwoRows : displayName)
-            : null,
         itemNumber: itemNumberCaption,
       );
 
@@ -220,32 +204,10 @@ abstract final class PdfItemsTable {
     return [itemsTable, shippingTable];
   }
 
-  /// Baris 1 kolom NAMA BARANG (PDF internal): [desc_1] + opsional [desc_2] untuk
-  /// barang utama; bonus hanya [desc_1]. [takeAway] ditambahkan di akhir bila perlu.
-  static String _line1Desc1Desc2(
-    Map<String, dynamic> d, {
-    required bool isBonus,
-    required bool takeAway,
-  }) {
-    final desc1 = d['desc_1']?.toString().trim() ?? '';
-    var line = desc1;
-    if (!isBonus) {
-      final desc2 = d['desc_2']?.toString().trim() ?? '';
-      if (desc2.isNotEmpty && desc2 != '-') {
-        line = desc1.isEmpty ? desc2 : '$desc1 · $desc2';
-      }
-    }
-    if (takeAway && line.isNotEmpty) {
-      line = '$line (BAWA PULANG)';
-    }
-    return line;
-  }
 
   static pw.Widget _buildNameCell(
     String name, {
     required bool isBold,
-    String? subtitle,
-    String? mainText,
     String? itemNumber,
   }) {
     const padding = pw.EdgeInsets.all(6);
@@ -254,32 +216,19 @@ abstract final class PdfItemsTable {
       fontSize: 8,
       fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal,
     );
-    const captionStyle = pw.TextStyle(fontSize: 6.5, color: PdfColors.grey700);
     final itemNumStyle = pw.TextStyle(
       fontSize: 6.5,
       color: PdfColors.grey600,
       fontStyle: pw.FontStyle.italic,
     );
 
-    // Susun baris: mainText (+ subtitle opsional) + item_number caption.
-    final hasTwoLineTitle = subtitle != null &&
-        subtitle.isNotEmpty &&
-        mainText != null &&
-        mainText.isNotEmpty;
-
-    final children = <pw.Widget>[];
-
-    if (hasTwoLineTitle) {
-      children.add(pw.Text(mainText, style: nameStyle));
-      children.add(pw.SizedBox(height: 1));
-      children.add(pw.Text(subtitle, style: captionStyle));
-    } else {
-      children.add(pw.Text(name, style: nameStyle));
-    }
+    final children = <pw.Widget>[
+      pw.Text(name, style: nameStyle),
+    ];
 
     if (itemNumber != null && itemNumber.isNotEmpty) {
       children.add(pw.SizedBox(height: 2));
-      children.add(pw.Text('No. Item: $itemNumber', style: itemNumStyle));
+      children.add(pw.Text(itemNumber, style: itemNumStyle));
     }
 
     if (children.length == 1) {
