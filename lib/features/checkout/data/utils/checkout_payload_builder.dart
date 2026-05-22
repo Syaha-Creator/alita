@@ -51,6 +51,11 @@ class CheckoutPayloadBuilder {
     /// tidak ada row approval yang pending, sehingga backend tidak akan otomatis
     /// meng-update status ke Approved tanpa trigger dari approval flow.
     bool autoApprove = false,
+
+    /// `address_number` milik user (bukan toko). Digunakan bersama divisions
+    /// untuk menentukan channel: indirect division + punya address_number → SO;
+    /// direct/indirect division + tidak punya address_number → S1.
+    String? userAddressNumber,
   }) {
     final fullCustomerAddress = useCustomerAddressDetailOnly
         ? customerAddress.trim()
@@ -64,15 +69,22 @@ class CheckoutPayloadBuilder {
             ThousandsSeparatorInputFormatter.digitsOnly(postageText)) ??
         0.0;
 
-    // Channel: S1 (divisionId=25) > S0 (divisionId=24) > MM (default)
+    // Channel ditentukan berdasarkan division DAN kepemilikan address_number user:
+    //   MM  → division id 26 (tidak berubah).
+    //   S1  → division id 25 (direct) atau 24 (indirect), tapi user TIDAK punya address_number.
+    //   SO  → division id 24 (indirect) DAN user punya address_number.
     String channel = '';
     final hasMM = divisions.any((d) => d['id'] == 26);
-    final hasS1 = divisions.any((d) => d['id'] == 25);
-    final hasS0 = divisions.any((d) => d['id'] == 24);
-    if (hasS1) {
-      channel = 'S1';
-    } else if (hasS0) {
+    final hasS1Division = divisions.any((d) => d['id'] == 25);
+    final hasIndirectDivision = divisions.any((d) => d['id'] == 24);
+    final trimmedAddr = userAddressNumber?.trim() ?? '';
+    final userHasAddressNumber =
+        trimmedAddr.isNotEmpty && trimmedAddr.toLowerCase() != 'null';
+
+    if (hasIndirectDivision && userHasAddressNumber) {
       channel = 'SO';
+    } else if (hasS1Division || hasIndirectDivision) {
+      channel = 'S1';
     } else if (hasMM) {
       channel = 'MM';
     } else {

@@ -1621,6 +1621,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               ?.indirectStoreAddressNumber
           : null,
       autoApprove: autoApprove,
+      userAddressNumber: ref.read(authProvider).addressNumber,
     );
 
     final contactsPayload =
