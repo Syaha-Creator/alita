@@ -30,6 +30,13 @@ class IndirectCatalogFilterUtils {
     'sp': ['sleep spa'],
   };
 
+  /// Brand tambahan yang selalu ikut ditampilkan bersama catcode tertentu.
+  /// Contoh: toko TH (Therapedic) juga menjual Sleep Spa → keduanya muncul di filter brand.
+  static const Map<String, List<String>> _catcodeCompanions = {
+    'th': ['sleep spa'],
+    'cf': ['isleep'],
+  };
+
   /// Channel names that contain "toko" (case-insensitive). Exact `Toko` sorts first.
   static List<String> filterTokoChannels(Iterable<String> all) {
     final list = all
@@ -100,7 +107,8 @@ class IndirectCatalogFilterUtils {
 
     final maxScore = scored.isEmpty ? 0 : scored.first.value;
     if (maxScore >= _minStrongScore) {
-      return _uniqueBrandNames(scored.map((e) => e.key).toList());
+      final primaryRows = scored.map((e) => e.key).toList();
+      return _mergeWithCompanions(primaryRows, inChannel, code);
     }
 
     final hinted = _rowsMatchingCatcodeHints(inChannel, code);
@@ -112,16 +120,48 @@ class IndirectCatalogFilterUtils {
         final nb = (b['brand'] ?? '').toString().toLowerCase();
         return na.compareTo(nb);
       });
-      return _uniqueBrandNames(hinted);
+      return _mergeWithCompanions(hinted, inChannel, code);
     }
 
     if (scored.isNotEmpty) {
-      return _uniqueBrandNames(scored.map((e) => e.key).toList());
+      return _mergeWithCompanions(scored.map((e) => e.key).toList(), inChannel, code);
     }
 
     // Catcode toko terisi tapi channel ini tidak punya brand yang selaras — jangan
     // fallback ke semua brand channel (menyesatkan, mis. Comforta untuk toko SA).
     return [];
+  }
+
+  /// Brand rows dari [inChannel] yang cocok dengan companion list untuk [codeNorm].
+  /// Dipakai untuk menyertakan brand partner (mis. Sleep Spa ikut muncul di toko TH).
+  static List<Map<String, dynamic>> _companionRows(
+    List<Map<String, dynamic>> inChannel,
+    String codeNorm,
+  ) {
+    final companions = _catcodeCompanions[codeNorm];
+    if (companions == null || companions.isEmpty) return [];
+    return inChannel.where((b) {
+      final name = _normToken(b['brand']?.toString() ?? '');
+      if (name.isEmpty) return false;
+      return companions.any((c) => name.contains(_normToken(c)));
+    }).toList();
+  }
+
+  /// Gabungkan primary rows + companion rows dengan urutan tetap:
+  /// primary brand (sesuai catcode toko) SELALU di depan, companion di belakang.
+  /// Masing-masing grup di-sort alfabetis internal, tapi tidak dicampur.
+  static List<String> _mergeWithCompanions(
+    List<Map<String, dynamic>> primaryRows,
+    List<Map<String, dynamic>> inChannel,
+    String codeNorm,
+  ) {
+    final companions = _companionRows(inChannel, codeNorm);
+    final primaryNames = _uniqueBrandNames(primaryRows);
+    if (companions.isEmpty) return primaryNames;
+    final companionNames = _uniqueBrandNames(companions)
+        .where((n) => !primaryNames.contains(n))
+        .toList();
+    return [...primaryNames, ...companionNames];
   }
 
   static List<Map<String, dynamic>> _rowsMatchingCatcodeHints(

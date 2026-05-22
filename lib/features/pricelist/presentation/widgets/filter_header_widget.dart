@@ -87,6 +87,8 @@ Future<void> _openIndirectStorePickerAsync(
           title: 'Pilih toko',
           items: stores,
           selectedItem: session.selectedStore,
+          searchHint: 'Cari nama toko...',
+          maxHeightFactor: 0.75,
           labelBuilder: (s) => StoreDisplayUtils.assignedStoreRowLabel(
             alphaName: s.alphaName,
             catcode27: s.catcode27,

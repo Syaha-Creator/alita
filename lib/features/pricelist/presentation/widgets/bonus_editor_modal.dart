@@ -165,12 +165,10 @@ void showBonusEditorModal(
   required List<Map<String, dynamic>> customBonuses,
   required void Function(List<Map<String, dynamic>> newBonuses) onSave,
 }) {
+  // max_qty tidak dibatasi di custom pricelist — null berarti bebas.
   List<Map<String, dynamic>> tempBonuses =
       (isBonusCustomized ? customBonuses : defaultBonuses)
-          .map(
-            (e) => Map<String, dynamic>.from(e)
-              ..putIfAbsent('max_qty', () => ((e['qty'] as int?) ?? 1) * 2),
-          )
+          .map((e) => Map<String, dynamic>.from(e)..remove('max_qty'))
           .toList();
   String searchQuery = '';
 
@@ -246,10 +244,7 @@ void showBonusEditorModal(
                           }),
                           onIncrement: () => setModalState(() {
                             final qty = (b['qty'] as int?) ?? 1;
-                            final maxQty = (b['max_qty'] as int?) ?? 1;
-                            if (qty < maxQty) {
-                              tempBonuses[index]['qty'] = qty + 1;
-                            }
+                            tempBonuses[index]['qty'] = qty + 1;
                           }),
                         );
                       },
@@ -313,7 +308,6 @@ void showBonusEditorModal(
                             tempBonuses.add({
                               'name': accDisplayName,
                               'qty': 1,
-                              'max_qty': 2,
                               'pl': acc.pricelist,
                               'is_custom': true,
                               'item_num': acc.itemNum,
@@ -640,7 +634,7 @@ class _BonusRowCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final pl = (bonus['pl'] as num?)?.toDouble();
     final qty = (bonus['qty'] as int?) ?? 1;
-    final maxQty = (bonus['max_qty'] as int?) ?? 1;
+    final maxQty = bonus['max_qty'] as int?; // null = no limit
 
     return Container(
       margin: EdgeInsets.zero,
@@ -726,7 +720,7 @@ class _BonusRowCard extends StatelessWidget {
                       horizontal: AppLayoutTokens.space6,
                     ),
                     child: Text(
-                      '$qty / $maxQty',
+                      maxQty != null ? '$qty / $maxQty' : '$qty',
                       style: Theme.of(context).textTheme.labelLarge?.copyWith(
                             fontWeight: FontWeight.w700,
                             fontFeatures: const [FontFeature.tabularFigures()],
@@ -738,11 +732,11 @@ class _BonusRowCard extends StatelessWidget {
                     icon: Icon(
                       Icons.add_rounded,
                       size: 18,
-                      color: qty >= maxQty
+                      color: (maxQty != null && qty >= maxQty)
                           ? AppColors.textTertiary
                           : AppColors.accent,
                     ),
-                    onPressed: qty >= maxQty ? null : onIncrement,
+                    onPressed: (maxQty != null && qty >= maxQty) ? null : onIncrement,
                     padding: EdgeInsets.zero,
                     visualDensity: VisualDensity.compact,
                     constraints: const BoxConstraints(
