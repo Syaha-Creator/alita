@@ -116,7 +116,7 @@ if [[ "$1" == "--deploy" ]]; then
     echo "Error: firebase CLI tidak ditemukan. Install via: curl -sL https://firebase.tools | bash"
     exit 1
   fi
-  "${FIREBASE_CMD:-firebase}" deploy --only hosting
+  "${FIREBASE_CMD:-firebase}" deploy --only hosting --project alita-massindo
   echo ""
   echo "✓ Live: https://alita-pricelist-12d76.web.app/version.json"
   echo "  User iOS lama akan dapat notifikasi update ke $CURRENT."

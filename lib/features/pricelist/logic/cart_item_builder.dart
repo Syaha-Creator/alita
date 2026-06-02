@@ -188,6 +188,18 @@ class CartItemBuilder {
       divan: savingAsSet ? effectiveDivan : 'Tanpa Divan',
       headboard: savingAsSet ? effectiveHeadboard : 'Tanpa Headboard',
       sorong: savingAsSet ? effectiveSorong : 'Tanpa Sorong',
+      // Saat custom size, simpan ukuran yang diinput user (bukan catalog size),
+      // agar cart display, restore, dan payload ke database konsisten.
+      ukuran: isCustomSize ? effectiveSize : activeProduct.ukuran,
+      // Ganti catalog ukuran di nama produk dengan custom size agar cart,
+      // order history, dan order details hanya menampilkan satu ukuran yang benar.
+      name: isCustomSize &&
+              effectiveSize.isNotEmpty &&
+              activeProduct.ukuran.isNotEmpty &&
+              activeProduct.name.contains(activeProduct.ukuran)
+          ? activeProduct.name
+              .replaceFirst(activeProduct.ukuran, effectiveSize)
+          : activeProduct.name,
     );
 
     // ── Bonus snapshots ──

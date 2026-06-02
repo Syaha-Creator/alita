@@ -871,7 +871,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
             customSizeCtrl: _customSizeCtrl,
             onSizeCustomTap: () => setState(() {
               _isSizeCustom = true;
-              selectedSize = null;
+              // selectedSize intentionally kept so resolver stays on last-selected size price
             }),
             onSizeSelected: (v) => setState(() {
             selectedSize = v;

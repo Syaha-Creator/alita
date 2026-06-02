@@ -1,1 +1,48 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"alita-massindo","appId":"1:463156297277:android:b20b2c62db3cedb15bb454","fileOutput":"android/app/google-services.json"}},"ios":{"default":{"projectId":"alita-massindo","appId":"1:463156297277:ios:7633356bad67d8295bb454","uploadDebugSymbols":true,"fileOutput":"ios/Runner/GoogleService-Info.plist"}},"dart":{"lib/firebase_options.dart":{"projectId":"alita-massindo","configurations":{"android":"1:463156297277:android:b20b2c62db3cedb15bb454","ios":"1:463156297277:ios:7633356bad67d8295bb454"}}}}}}
+{
+  "hosting": {
+    "public": "hosting",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "headers": [
+      {
+        "source": "/.well-known/apple-app-site-association",
+        "headers": [{ "key": "Content-Type", "value": "application/json" }]
+      },
+      {
+        "source": "/.well-known/assetlinks.json",
+        "headers": [{ "key": "Content-Type", "value": "application/json" }]
+      }
+    ]
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "alita-massindo",
+          "appId": "1:463156297277:android:b20b2c62db3cedb15bb454",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "alita-massindo",
+          "appId": "1:463156297277:ios:7633356bad67d8295bb454",
+          "uploadDebugSymbols": true,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "alita-massindo",
+          "configurations": {
+            "android": "1:463156297277:android:b20b2c62db3cedb15bb454",
+            "ios": "1:463156297277:ios:7633356bad67d8295bb454"
+          }
+        }
+      }
+    }
+  }
+}
