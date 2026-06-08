@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 
-/// Banner shown when some detail rows failed and can be retried.
+/// Banner shown when some detail rows or discounts failed and can be retried.
+///
+/// Set [isDiscountRetry] = true when all details are already in the DB
+/// but their discounts (step 5) failed — changes label text accordingly.
 class RetryBannerCard extends StatefulWidget {
   final String retryNoSp;
   final int failedCount;
   final List<String> failedLabels;
   final VoidCallback onRetry;
+  final bool isDiscountRetry;
 
   const RetryBannerCard({
     super.key,
@@ -14,6 +18,7 @@ class RetryBannerCard extends StatefulWidget {
     required this.failedCount,
     required this.failedLabels,
     required this.onRetry,
+    this.isDiscountRetry = false,
   });
 
   @override
@@ -54,7 +59,9 @@ class _RetryBannerCardState extends State<RetryBannerCard> {
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  'SP ${widget.retryNoSp} — ${widget.failedCount} item gagal dikirim',
+                  widget.isDiscountRetry
+                      ? 'SP ${widget.retryNoSp} — ${widget.failedCount} item gagal catat diskon'
+                      : 'SP ${widget.retryNoSp} — ${widget.failedCount} item gagal dikirim',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     color: AppColors.warning,
@@ -104,15 +111,18 @@ class _RetryBannerCardState extends State<RetryBannerCard> {
                               AlwaysStoppedAnimation(AppColors.onPrimary),
                         ),
                       )
-                    : const Row(
-                        key: ValueKey('label'),
+                    : Row(
+                        key: const ValueKey('label'),
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.refresh, size: 18),
-                          SizedBox(width: 8),
+                          const Icon(Icons.refresh, size: 18),
+                          const SizedBox(width: 8),
                           Text(
-                            'Coba Lagi Kirim Barang Gagal',
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                            widget.isDiscountRetry
+                                ? 'Coba Lagi Kirim Diskon'
+                                : 'Coba Lagi Kirim Barang Gagal',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),

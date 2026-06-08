@@ -13,6 +13,9 @@ class CheckoutBottomBar extends ConsumerWidget {
   final String retryNoSp;
   final int failedCount;
   final List<String> failedLabels;
+  /// True ketika detail sudah ada di DB tetapi diskon (step 5) yang gagal.
+  /// Mengubah teks banner & tombol retry.
+  final bool isDiscountRetry;
   final VoidCallback onRetry;
   final VoidCallback onSubmit;
   final bool submitButtonEnabled;
@@ -25,6 +28,7 @@ class CheckoutBottomBar extends ConsumerWidget {
     required this.retryNoSp,
     required this.failedCount,
     required this.failedLabels,
+    this.isDiscountRetry = false,
     required this.onRetry,
     required this.onSubmit,
     this.submitButtonEnabled = true,
@@ -70,6 +74,7 @@ class CheckoutBottomBar extends ConsumerWidget {
                   retryNoSp: retryNoSp,
                   failedCount: failedCount,
                   failedLabels: failedLabels,
+                  isDiscountRetry: isDiscountRetry,
                   onRetry: onRetry,
                 ),
               ],

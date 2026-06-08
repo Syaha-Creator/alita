@@ -576,7 +576,22 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
         finalSorongPrice;
 
     final effectiveTotal = targetTotalEup ?? totalFinalPrice;
-    final displayTotal = _applyProgramBulanan(effectiveTotal);
+
+    // Total EUP setelah diskon toko, sebelum diskon tambahan sales.
+    // Ini menjadi base untuk program bulanan agar urutan perhitungannya:
+    //   EUP → diskon toko → program bulanan → diskon tambahan → displayTotal
+    // (bukan: EUP → diskon toko → diskon tambahan → program bulanan)
+    final totalEupAfterStore = eupAfterStoreDiscount(anchoredKasurEup) +
+        eupAfterStoreDiscount(anchoredDivanEup) +
+        eupAfterStoreDiscount(activeProduct.eupHeadboard) +
+        eupAfterStoreDiscount(activeProduct.eupSorong);
+
+    final displayTotal = targetTotalEup != null
+        ? _applyProgramBulanan(targetTotalEup!)
+        : _calculateCascadingPrice(
+            _applyProgramBulanan(totalEupAfterStore),
+            appliedDiscounts,
+          );
     _lastBottomPriceAnalyst = activeProduct.bottomPriceAnalyst;
     _lastPlDiscountBaseTotal = useIndirectStoreNet
         ? StoreDiscountCalculator.cascade(
@@ -654,6 +669,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                   effectiveHeadboard: effectiveHeadboard,
                   effectiveSorong: effectiveSorong,
                   effectiveTotal: effectiveTotal,
+                  displayTotal: displayTotal,
                   totalFinalPrice: totalFinalPrice,
                   finalKasurPrice: finalKasurPrice,
                   finalDivanPrice: finalDivanPrice,
@@ -714,6 +730,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     required String effectiveHeadboard,
     required String effectiveSorong,
     required double effectiveTotal,
+    required double displayTotal,
     required double totalFinalPrice,
     required double finalKasurPrice,
     required double finalDivanPrice,
@@ -1026,7 +1043,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                 _programBulananValue = value;
               });
             },
-            displayTotal: _applyProgramBulanan(effectiveTotal),
+            displayTotal: displayTotal,
           ),
         ),
 
@@ -1105,6 +1122,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
         effectiveHeadboard: effectiveHeadboard,
         effectiveSorong: effectiveSorong,
         totalFinalPrice: totalFinalPrice,
+        cartDisplayPrice: displayTotal,
         finalKasurPrice: finalKasurPrice,
         finalDivanPrice: finalDivanPrice,
         finalHeadboardPrice: finalHeadboardPrice,
@@ -1138,6 +1156,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     required ItemLookup? effectiveDivanLookup,
     required ItemLookup? effectiveHeadboardLookup,
     required ItemLookup? effectiveSorongLookup,
+    double? cartDisplayPrice,
   }) {
     // ── Validation ──
 
@@ -1236,6 +1255,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       pricelistArea: ref.read(effectiveAreaProvider),
       programBulananType: _programBulananType,
       programBulananValue: _programBulananValue,
+      cartDisplayPrice: cartDisplayPrice,
     );
 
     final summaryForToast = CartItemBuilder.buildSummaryForToast(

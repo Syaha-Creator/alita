@@ -71,7 +71,7 @@ class HelpContactFooter extends StatelessWidget {
                     label: 'WhatsApp',
                     isPrimary: true,
                     onTap: () => ContactActions.openWhatsAppChat(
-                      '6281774105440',
+                      '628131745856',
                       message:
                           'Halo, saya butuh bantuan terkait aplikasi Alita Pricelist.',
                     ),

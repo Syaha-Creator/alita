@@ -66,6 +66,12 @@ class CartItemBuilder {
     /// - Jika 'percent': angka 0–100 (mis. 5 = 5%).
     /// - Jika 'nominal': nilai Rp.
     double programBulananValue = 0.0,
+
+    /// Harga tampilan setelah program bulanan diterapkan (untuk `product.price`
+    /// di snapshot cart). Terpisah dari [totalFinalPrice] yang tetap dipakai
+    /// untuk menghitung rounding diff ke `eupKasur/etc` (basis `net_price` API).
+    /// Jika null, fallback ke [totalFinalPrice].
+    double? cartDisplayPrice,
   }) {
     final hasKasur = _isComponentPresent(activeProduct.kasur);
     final savingAsSet = hasKasur ? !isKasurOnly : true;
@@ -176,7 +182,7 @@ class CartItemBuilder {
     // ── Configured product snapshot ──
 
     final configuredProduct = activeProduct.copyWith(
-      price: totalFinalPrice,
+      price: cartDisplayPrice ?? totalFinalPrice,
       eupKasur: adjKasur,
       eupDivan: adjDivan,
       eupHeadboard: adjHeadboard,

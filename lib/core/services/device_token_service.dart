@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 
+import '../config/app_config.dart';
 import '../utils/log.dart';
 import 'api_client.dart';
 
@@ -129,7 +130,11 @@ class DeviceTokenService {
     final res = await _api.post(
       '/device_tokens',
       token: accessToken,
-      body: {'user_id': int.parse(userId), 'token': fcmToken},
+      body: {
+        'user_id': int.parse(userId),
+        'token': fcmToken,
+        'app_name': AppConfig.appName,
+      },
     );
 
     if (res.statusCode == 200 || res.statusCode == 201) return true;

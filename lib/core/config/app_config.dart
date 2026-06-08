@@ -26,6 +26,10 @@ class AppConfig {
     return dotenv.env[key] ?? defaultValue;
   }
 
+  // ── App identity ────────────────────────────────────────────────
+
+  static const String appName = 'Alita Pricelist';
+
   // ── Alita (Ruby) API ────────────────────────────────────────────
 
   static String get apiBaseUrl => _fromEnv('API_BASE_URL');

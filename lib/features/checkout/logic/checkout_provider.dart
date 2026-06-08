@@ -62,6 +62,12 @@ class CheckoutState with _$CheckoutState {
     int? retryOrderId,
     @Default('') String retryNoSp,
     @Default([]) List<PendingDetail> retryDetails,
+    // Langkah pipeline yang sudah berhasil di-commit ke server.
+    // Mencegah duplikasi POST saat user mencoba ulang setelah kegagalan sebagian.
+    @Default([]) List<int> retryCompletedSteps,
+    // Detail yang detail-POST-nya berhasil tetapi discount-POST-nya (step 5) gagal.
+    // Digunakan untuk retry diskon saja tanpa membuat ulang detail di DB.
+    @Default([]) List<SucceededDetail> retryDiscountDetails,
 
     // Result
     @Default(false) bool submitSuccess,
@@ -348,109 +354,173 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         tag: 'CheckoutFlow',
       );
 
-      // ── STEP 1: Create Order Letter Header ──
-      final step1 = Stopwatch()..start();
-      final orderResult =
-          await _orderService.createOrderLetter(headerPayload, token);
-      step1.stop();
-      AppTelemetry.event(
-        'checkout_step1_header_ok',
-        data: {'duration_ms': step1.elapsedMilliseconds},
-        tag: 'CheckoutFlow',
-      );
-      final orderLetterId = orderResult.orderLetterId;
-      final noSp = orderResult.noSp;
+      // ── Resume Check: Jika run sebelumnya sudah membuat order_letters, pakai yang sama ──
+      // Mencegah duplikasi order_letters saat user mengirim ulang setelah kegagalan step 2–5.
+      final existingOrderId = state.retryOrderId;
+      final isResumingOrder = existingOrderId != null;
+      final completedSteps = Set<int>.from(state.retryCompletedSteps);
 
-      state = state.copyWith(
-        retryOrderId: orderLetterId,
-        retryNoSp: noSp,
-      );
+      int orderLetterId;
+      String noSp;
 
-      // Auto-save customer contact
-      final shouldPersist = selectedContactId != null ||
-          (selectedContactId == null && shouldSaveCustomerContact);
-      if (shouldPersist && newCustomerContact != null) {
-        final name = (newCustomerContact['name'] as String?) ?? '';
-        final phone = (newCustomerContact['phone'] as String?) ?? '';
-        final email = (newCustomerContact['email'] as String?) ?? '';
-        if (name.isNotEmpty || phone.isNotEmpty || email.isNotEmpty) {
-          try {
-            await LocalContactService.saveContact(newCustomerContact);
-          } catch (e, st) {
-            Log.error(e, st, reason: 'Checkout: save local contact');
+      if (isResumingOrder) {
+        orderLetterId = existingOrderId;
+        noSp = state.retryNoSp;
+        Log.info(
+          'Melanjutkan SP $noSp (order_letters #$existingOrderId) — '
+          'pembuatan SP baru dilewati',
+          tag: 'CheckoutFlow',
+        );
+      } else {
+        // ── STEP 1: Create Order Letter Header ──
+        final step1 = Stopwatch()..start();
+        final orderResult =
+            await _orderService.createOrderLetter(headerPayload, token);
+        step1.stop();
+        AppTelemetry.event(
+          'checkout_step1_header_ok',
+          data: {'duration_ms': step1.elapsedMilliseconds},
+          tag: 'CheckoutFlow',
+        );
+        orderLetterId = orderResult.orderLetterId;
+        noSp = orderResult.noSp;
+        completedSteps.add(1);
+        state = state.copyWith(
+          retryOrderId: orderLetterId,
+          retryNoSp: noSp,
+          retryCompletedSteps: completedSteps.toList(),
+        );
+
+        // Auto-save customer contact (hanya untuk order baru, bukan saat retry)
+        final shouldPersist = selectedContactId != null ||
+            (selectedContactId == null && shouldSaveCustomerContact);
+        if (shouldPersist && newCustomerContact != null) {
+          final name = (newCustomerContact['name'] as String?) ?? '';
+          final phone = (newCustomerContact['phone'] as String?) ?? '';
+          final email = (newCustomerContact['email'] as String?) ?? '';
+          if (name.isNotEmpty || phone.isNotEmpty || email.isNotEmpty) {
+            try {
+              await LocalContactService.saveContact(newCustomerContact);
+            } catch (e, st) {
+              Log.error(e, st, reason: 'Checkout: save local contact');
+            }
           }
         }
       }
 
       // ── STEP 2: Post Contacts ──
-      final step2 = Stopwatch()..start();
-      await _orderService.postContacts(contactsPayload, orderLetterId, token);
-      step2.stop();
-      AppTelemetry.event(
-        'checkout_step2_contacts_ok',
-        data: {
-          'duration_ms': step2.elapsedMilliseconds,
-          'contacts': contactsPayload.length,
-        },
-        tag: 'CheckoutFlow',
-      );
-
-      // ── STEP 3: Post Payments ──
-      final step3 = Stopwatch()..start();
-      for (int i = 0; i < paymentPayloads.length; i++) {
-        await _orderService.postPayment(
-          paymentPayload: paymentPayloads[i],
-          orderLetterId: orderLetterId,
-          receiptImage: i < receiptImages.length ? receiptImages[i] : null,
-          token: token,
+      // Dilewati jika sudah berhasil di run sebelumnya (mencegah duplikasi kontak).
+      if (!completedSteps.contains(2)) {
+        final step2 = Stopwatch()..start();
+        await _orderService.postContacts(contactsPayload, orderLetterId, token);
+        step2.stop();
+        completedSteps.add(2);
+        state = state.copyWith(retryCompletedSteps: completedSteps.toList());
+        AppTelemetry.event(
+          'checkout_step2_contacts_ok',
+          data: {
+            'duration_ms': step2.elapsedMilliseconds,
+            'contacts': contactsPayload.length,
+          },
+          tag: 'CheckoutFlow',
         );
       }
-      step3.stop();
-      AppTelemetry.event(
-        'checkout_step3_payments_ok',
-        data: {
-          'duration_ms': step3.elapsedMilliseconds,
-          'payments': paymentPayloads.length,
-        },
-        tag: 'CheckoutFlow',
-      );
+
+      // ── STEP 3: Post Payments ──
+      // Dilewati jika sudah berhasil di run sebelumnya (mencegah duplikasi pembayaran).
+      if (!completedSteps.contains(3)) {
+        final step3 = Stopwatch()..start();
+        for (int i = 0; i < paymentPayloads.length; i++) {
+          await _orderService.postPayment(
+            paymentPayload: paymentPayloads[i],
+            orderLetterId: orderLetterId,
+            receiptImage: i < receiptImages.length ? receiptImages[i] : null,
+            token: token,
+          );
+        }
+        step3.stop();
+        completedSteps.add(3);
+        state = state.copyWith(retryCompletedSteps: completedSteps.toList());
+        AppTelemetry.event(
+          'checkout_step3_payments_ok',
+          data: {
+            'duration_ms': step3.elapsedMilliseconds,
+            'payments': paymentPayloads.length,
+          },
+          tag: 'CheckoutFlow',
+        );
+      }
 
       // ── STEP 4: Post Details ──
-      final step4 = Stopwatch()..start();
-      final detailResult = await _orderService.postDetails(
-        pendingDetails,
-        orderLetterId,
-        token,
-        noSp: noSp,
-      );
-      step4.stop();
-      AppTelemetry.event(
-        'checkout_step4_details_done',
-        data: {
-          'duration_ms': step4.elapsedMilliseconds,
-          'succeeded': detailResult.succeeded.length,
-          'failed': detailResult.failed.length,
-        },
-        tag: 'CheckoutFlow',
-      );
+      // Kasus khusus: jika step 4 sudah selesai (semua detail ada di DB) tetapi
+      // step 5 (diskon) sebelumnya gagal, lewati re-POST detail dan gunakan
+      // retryDiscountDetails yang tersimpan untuk retry diskon saja.
+      List<SucceededDetail> succeededForDiscounts;
+      List<PendingDetail> failedDetails;
+
+      if (completedSteps.contains(4) && state.retryDiscountDetails.isNotEmpty) {
+        Log.info(
+          'SP $noSp: step 4 sudah selesai — retry diskon untuk '
+          '${state.retryDiscountDetails.length} detail',
+          tag: 'CheckoutFlow',
+        );
+        succeededForDiscounts = state.retryDiscountDetails;
+        failedDetails = const [];
+        state = state.copyWith(retryDiscountDetails: const []);
+      } else {
+        final step4 = Stopwatch()..start();
+        final detailResult = await _orderService.postDetails(
+          pendingDetails,
+          orderLetterId,
+          token,
+          noSp: noSp,
+        );
+        step4.stop();
+        AppTelemetry.event(
+          'checkout_step4_details_done',
+          data: {
+            'duration_ms': step4.elapsedMilliseconds,
+            'succeeded': detailResult.succeeded.length,
+            'failed': detailResult.failed.length,
+          },
+          tag: 'CheckoutFlow',
+        );
+        succeededForDiscounts = detailResult.succeeded;
+        failedDetails = detailResult.failed;
+        if (failedDetails.isEmpty) {
+          completedSteps.add(4);
+          state = state.copyWith(retryCompletedSteps: completedSteps.toList());
+        }
+      }
 
       // ── STEP 5: Post Discounts ──
-      if (detailResult.succeeded.isNotEmpty) {
+      if (succeededForDiscounts.isNotEmpty) {
+        // Simpan succeeded details ke state SEBELUM mencoba post diskon.
+        // Jika step 5 melempar exception, retryDiscountDetails tetap tersimpan
+        // sehingga user dapat retry diskon saja tanpa membuat ulang detail/SP.
+        state = state.copyWith(retryDiscountDetails: succeededForDiscounts);
+
         final step5 = Stopwatch()..start();
-        // If any detail didn't return an ID from POST, fetch as fallback
         final needsFallback =
-            detailResult.succeeded.any((s) => s.detailId <= 0);
+            succeededForDiscounts.any((s) => s.detailId <= 0);
         final fallbackIds = needsFallback
             ? await _orderService.fetchDetailIds(orderLetterId, token)
             : <int>[];
 
         await _orderService.postDiscountsForDetails(
-          succeededDetails: detailResult.succeeded,
+          succeededDetails: succeededForDiscounts,
           orderLetterId: orderLetterId,
           token: token,
           fallbackDetailIds: fallbackIds,
         );
         step5.stop();
+
+        // Diskon berhasil — bersihkan data retry diskon
+        completedSteps.add(5);
+        state = state.copyWith(
+          retryCompletedSteps: completedSteps.toList(),
+          retryDiscountDetails: const [],
+        );
         AppTelemetry.event(
           'checkout_step5_discounts_done',
           data: {
@@ -462,8 +532,8 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       }
 
       // ── Result ──
-      if (detailResult.failed.isEmpty) {
-        // All succeeded — clear cart items that were checked out.
+      if (failedDetails.isEmpty) {
+        // Semua berhasil — bersihkan cart dan seluruh state retry
         if (selectedCartItems != null && selectedCartItems.isNotEmpty) {
           await _ref.read(cartProvider.notifier).removeItemsByIds(
                 selectedCartItems.map(cartItemKey).toSet(),
@@ -477,8 +547,10 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         state = state.copyWith(
           isSubmitting: false,
           retryDetails: const [],
+          retryDiscountDetails: const [],
           retryOrderId: null,
           retryNoSp: '',
+          retryCompletedSteps: const [],
           submitSuccess: true,
           successNoSp: noSp,
         );
@@ -506,11 +578,11 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       } else {
         state = state.copyWith(
           isSubmitting: false,
-          retryDetails: detailResult.failed,
+          retryDetails: failedDetails,
           submitError:
-              'SP $noSp berhasil dibuat, tetapi ${detailResult.failed.length} '
+              'SP $noSp berhasil dibuat, tetapi ${failedDetails.length} '
               'item berikut gagal tersimpan:\n\n'
-              '${detailResult.failed.map((e) => '• ${e.label}').join('\n')}\n\n'
+              '${failedDetails.map((e) => '• ${e.label}').join('\n')}\n\n'
               'Tekan tombol "Coba Lagi Kirim Barang Gagal" yang muncul di '
               'halaman ini untuk mengirim ulang tanpa membuat SP baru.',
         );
@@ -519,7 +591,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
           'checkout_submit_partial_failure',
           data: {
             'duration_ms': totalSw.elapsedMilliseconds,
-            'failed_details': detailResult.failed.length,
+            'failed_details': failedDetails.length,
           },
           tag: 'CheckoutFlow',
         );
@@ -538,11 +610,19 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         },
         tag: 'CheckoutFlow',
       );
+      // Jika step 5 (diskon) yang gagal, retryDiscountDetails sudah tersimpan
+      // di state (diset sebelum postDiscountsForDetails dipanggil), sehingga
+      // banner "Coba Lagi Kirim Diskon" akan muncul secara otomatis.
+      final hasDiscountRetry = state.retryDiscountDetails.isNotEmpty;
       state = state.copyWith(
         isSubmitting: false,
-        submitError: 'Gagal di ${e.stepName}.\n'
-            'Jika internet tidak stabil, mohon cek riwayat pesanan '
-            'sebelum mencoba lagi.\n\n$e',
+        submitError: hasDiscountRetry
+            ? 'SP ${state.retryNoSp} berhasil dibuat, tetapi diskon gagal dicatat.\n\n'
+                'Tekan tombol "Coba Lagi Kirim Diskon" yang muncul di bawah '
+                'untuk mengirim ulang tanpa membuat SP baru.'
+            : 'Gagal di ${e.stepName}.\n'
+                'Jika internet tidak stabil, mohon cek riwayat pesanan '
+                'sebelum mencoba lagi.\n\n$e',
       );
     } catch (e, st) {
       if (isNetworkError(e)) {
@@ -574,7 +654,11 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     required List<CartItem>? selectedCartItems,
   }) async {
     final orderId = state.retryOrderId;
-    if (orderId == null || state.retryDetails.isEmpty) return;
+    if (orderId == null) return;
+
+    final hasDetailRetry = state.retryDetails.isNotEmpty;
+    final hasDiscountRetry = state.retryDiscountDetails.isNotEmpty;
+    if (!hasDetailRetry && !hasDiscountRetry) return;
 
     state = state.copyWith(
       isSubmitting: true,
@@ -586,29 +670,50 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     try {
       final String token = await StorageService.loadAccessToken();
 
-      final detailResult = await _orderService.postDetails(
-        state.retryDetails,
-        orderId,
-        token,
-        noSp: state.retryNoSp,
-      );
+      List<SucceededDetail> succeededForDiscounts;
+      List<PendingDetail> stillFailed;
 
-      if (detailResult.succeeded.isNotEmpty) {
+      if (hasDetailRetry) {
+        // Re-post detail yang sebelumnya gagal
+        final detailResult = await _orderService.postDetails(
+          state.retryDetails,
+          orderId,
+          token,
+          noSp: state.retryNoSp,
+        );
+        // Gabungkan dengan detail yang butuh retry diskon dari run sebelumnya
+        succeededForDiscounts = [
+          ...detailResult.succeeded,
+          ...state.retryDiscountDetails,
+        ];
+        stillFailed = detailResult.failed;
+      } else {
+        // Retry diskon saja — detail sudah tercatat di server
+        succeededForDiscounts = state.retryDiscountDetails;
+        stillFailed = const [];
+      }
+
+      if (succeededForDiscounts.isNotEmpty) {
+        // Simpan sebelum mencoba post diskon agar tersedia jika gagal lagi
+        state = state.copyWith(retryDiscountDetails: succeededForDiscounts);
+
         final needsFallback =
-            detailResult.succeeded.any((s) => s.detailId <= 0);
+            succeededForDiscounts.any((s) => s.detailId <= 0);
         final fallbackIds = needsFallback
             ? await _orderService.fetchDetailIds(orderId, token)
             : <int>[];
 
         await _orderService.postDiscountsForDetails(
-          succeededDetails: detailResult.succeeded,
+          succeededDetails: succeededForDiscounts,
           orderLetterId: orderId,
           token: token,
           fallbackDetailIds: fallbackIds,
         );
+        // Diskon berhasil
       }
 
-      if (detailResult.failed.isEmpty) {
+      if (stillFailed.isEmpty) {
+        // Semua berhasil — bersihkan cart dan seluruh state retry
         if (selectedCartItems != null && selectedCartItems.isNotEmpty) {
           await _ref.read(cartProvider.notifier).removeItemsByIds(
                 selectedCartItems.map(cartItemKey).toSet(),
@@ -620,8 +725,10 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         state = state.copyWith(
           isSubmitting: false,
           retryDetails: const [],
+          retryDiscountDetails: const [],
           retryOrderId: null,
           retryNoSp: '',
+          retryCompletedSteps: const [],
           submitSuccess: true,
           successNoSp: state.retryNoSp,
         );
@@ -634,20 +741,41 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       } else {
         state = state.copyWith(
           isSubmitting: false,
-          retryDetails: detailResult.failed,
+          retryDetails: stillFailed,
+          retryDiscountDetails: const [],
           submitError:
-              '${detailResult.failed.length} item masih gagal. Coba lagi nanti.',
+              '${stillFailed.length} item masih gagal. Coba lagi nanti.',
         );
         sw.stop();
         AppTelemetry.error(
           'checkout_retry_partial_failure',
           data: {
             'duration_ms': sw.elapsedMilliseconds,
-            'failed_details': detailResult.failed.length,
+            'failed_details': stillFailed.length,
           },
           tag: 'CheckoutFlow',
         );
       }
+    } on CheckoutStepException catch (e, st) {
+      Log.error(e, st, reason: 'CheckoutNotifier.retryFailedDetails');
+      sw.stop();
+      AppTelemetry.error(
+        'checkout_retry_exception',
+        data: {
+          'duration_ms': sw.elapsedMilliseconds,
+          'step': e.step,
+          'error_type': e.runtimeType.toString(),
+        },
+        tag: 'CheckoutFlow',
+      );
+      // retryDiscountDetails sudah diupdate sebelum postDiscountsForDetails
+      // sehingga banner retry diskon tetap tampil setelah exception ini.
+      state = state.copyWith(
+        isSubmitting: false,
+        submitError: 'Gagal di ${e.stepName}.\n'
+            'Jika internet tidak stabil, mohon cek riwayat pesanan '
+            'sebelum mencoba lagi.\n\n$e',
+      );
     } catch (e, st) {
       Log.error(e, st, reason: 'CheckoutNotifier.retryFailedDetails');
       sw.stop();

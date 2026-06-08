@@ -677,6 +677,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       checkoutProvider.select(
         (s) => (
           retryDetails: s.retryDetails,
+          retryDiscountDetails: s.retryDiscountDetails,
           retryNoSp: s.retryNoSp,
           isSubmitting: s.isSubmitting
         ),
@@ -1048,18 +1049,28 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         ),
         bottomNavigationBar: CheckoutBottomBar(
           totalFormatted: _priceFmt(_totalAkhir),
-          showRetryBanner: checkoutState.retryDetails.isNotEmpty,
+          showRetryBanner: checkoutState.retryDetails.isNotEmpty ||
+              checkoutState.retryDiscountDetails.isNotEmpty,
           retryNoSp: checkoutState.retryNoSp,
-          failedCount: checkoutState.retryDetails.length,
-          failedLabels: checkoutState.retryDetails.map((e) => e.label).toList(),
+          failedCount: checkoutState.retryDetails.isNotEmpty
+              ? checkoutState.retryDetails.length
+              : checkoutState.retryDiscountDetails.length,
+          failedLabels: checkoutState.retryDetails.isNotEmpty
+              ? checkoutState.retryDetails.map((e) => e.label).toList()
+              : checkoutState.retryDiscountDetails
+                  .map((e) => e.pending.label)
+                  .toList(),
+          isDiscountRetry: checkoutState.retryDetails.isEmpty &&
+              checkoutState.retryDiscountDetails.isNotEmpty,
           onRetry: () => ref
               .read(checkoutProvider.notifier)
               .retryFailedDetails(selectedCartItems: widget.selectedCartItems),
           onSubmit: isEditMode
               ? () => _handleEditOrder(context, editOrder)
               : () => _handleCreateOrder(context),
-          submitButtonEnabled:
-              checkoutState.retryDetails.isEmpty && !checkoutState.isSubmitting,
+          submitButtonEnabled: checkoutState.retryDetails.isEmpty &&
+              checkoutState.retryDiscountDetails.isEmpty &&
+              !checkoutState.isSubmitting,
           submitLabel: isEditMode ? 'Simpan Perubahan' : 'Buat Surat Pesanan',
         ),
       ),
@@ -1752,12 +1763,17 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
   void _showSubmitErrorDialog(String message) {
     if (!mounted) return;
-    final hasRetryDetails = ref.read(checkoutProvider).retryDetails.isNotEmpty;
+    final checkoutState = ref.read(checkoutProvider);
+    final hasRetryDetails = checkoutState.retryDetails.isNotEmpty;
+    final hasDiscountRetry = checkoutState.retryDiscountDetails.isNotEmpty;
+    final hasAnyRetry = hasRetryDetails || hasDiscountRetry;
     final isWorkplaceError = message.contains('Tempat kerja tidak terdeteksi');
 
     final String title;
     if (hasRetryDetails) {
       title = 'Sebagian Barang Gagal';
+    } else if (hasDiscountRetry) {
+      title = 'Diskon Gagal Dicatat';
     } else if (isWorkplaceError) {
       title = 'Check-In Diperlukan';
     } else {
@@ -1770,7 +1786,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       content: message,
       actions: [
         AdaptiveAction(
-          label: hasRetryDetails ? 'Mengerti' : 'Tutup',
+          label: hasAnyRetry ? 'Mengerti' : 'Tutup',
           isDefault: true,
           popResult: true,
         ),
