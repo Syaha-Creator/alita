@@ -495,10 +495,16 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
 
       // ── STEP 5: Post Discounts ──
       if (succeededForDiscounts.isNotEmpty) {
-        // Simpan succeeded details ke state SEBELUM mencoba post diskon.
-        // Jika step 5 melempar exception, retryDiscountDetails tetap tersimpan
-        // sehingga user dapat retry diskon saja tanpa membuat ulang detail/SP.
-        state = state.copyWith(retryDiscountDetails: succeededForDiscounts);
+        // Simpan KEDUA sisi ke state SEBELUM mencoba post diskon:
+        //   • retryDiscountDetails = detail yang berhasil → untuk retry diskon saja
+        //   • retryDetails         = detail yang gagal    → untuk retry detail (jika ada)
+        // Jika step 5 melempar exception, kedua field tetap tersimpan sehingga:
+        //   - Banner retry muncul dengan konteks yang tepat
+        //   - Retry berikutnya tidak me-POST ulang detail yang sudah ada di DB
+        state = state.copyWith(
+          retryDiscountDetails: succeededForDiscounts,
+          retryDetails: failedDetails,
+        );
 
         final step5 = Stopwatch()..start();
         final needsFallback =
@@ -687,6 +693,12 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
           ...state.retryDiscountDetails,
         ];
         stillFailed = detailResult.failed;
+
+        // PENTING: Update retryDetails ke stillFailed SEBELUM mencoba post diskon.
+        // Jika discount POST gagal (exception), retry berikutnya TIDAK akan
+        // me-POST ulang item yang baru saja berhasil ditambahkan ke DB.
+        // Tanpa ini, item-item tersebut akan diposting ganda pada retry berikutnya.
+        state = state.copyWith(retryDetails: stillFailed);
       } else {
         // Retry diskon saja — detail sudah tercatat di server
         succeededForDiscounts = state.retryDiscountDetails;
