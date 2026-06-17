@@ -226,8 +226,18 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
     final remainingPayment =
         (currentOrder.totalAmount - totalPaid).clamp(0.0, double.infinity);
 
-    final showVoidBottomBar = widget.allowVoidFromApprovalContext &&
-        OrderStatusX.fromRaw(currentOrder.status) == OrderStatus.approved;
+    final currentStatus = OrderStatusX.fromRaw(currentOrder.status);
+    final isSoChannel =
+        (currentOrder.channel?.trim().toUpperCase() ?? '') == 'SO';
+    final isCreator = currentOrder.creator == userId.toString();
+    // Approver (dari konteks inbox persetujuan) bisa void order Approved.
+    final showVoidBottomBar = !isOffline &&
+        ((widget.allowVoidFromApprovalContext &&
+                currentStatus == OrderStatus.approved) ||
+            // Creator order SO bisa void miliknya sendiri selama belum Rejected.
+            (isSoChannel &&
+                isCreator &&
+                currentStatus != OrderStatus.rejected));
 
     // Tombol Edit header/items: hanya pemilik SP, status bukan rejected.
     final canEditHeader =

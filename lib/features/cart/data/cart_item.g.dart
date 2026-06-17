@@ -12,6 +12,7 @@ _$CartBonusSnapshotImpl _$$CartBonusSnapshotImplFromJson(
       name: json['name'] as String? ?? '',
       qty: json['qty'] == null ? 0 : _parseInt(json['qty']),
       sku: json['sku'] as String? ?? '',
+      plPrice: json['plPrice'] == null ? 0.0 : _parseDouble(json['plPrice']),
     );
 
 Map<String, dynamic> _$$CartBonusSnapshotImplToJson(
@@ -20,6 +21,7 @@ Map<String, dynamic> _$$CartBonusSnapshotImplToJson(
       'name': instance.name,
       'qty': instance.qty,
       'sku': instance.sku,
+      'plPrice': instance.plPrice,
     };
 
 _$CartItemImpl _$$CartItemImplFromJson(Map<String, dynamic> json) =>
@@ -84,6 +86,9 @@ _$CartItemImpl _$$CartItemImplFromJson(Map<String, dynamic> json) =>
       isCustomSize: json['isCustomSize'] == null
           ? false
           : _parseBoolDefaultFalse(json['isCustomSize']),
+      isNewCustomerStore: json['isNewCustomerStore'] == null
+          ? false
+          : _parseBoolDefaultFalse(json['isNewCustomerStore']),
       programBulananType: json['programBulananType'] as String? ?? '',
       programBulananDiscount: json['programBulananDiscount'] == null
           ? 0.0
@@ -130,6 +135,7 @@ Map<String, dynamic> _$$CartItemImplToJson(_$CartItemImpl instance) =>
       'pricelistArea': instance.pricelistArea,
       'isBonusCustomized': instance.isBonusCustomized,
       'isCustomSize': instance.isCustomSize,
+      'isNewCustomerStore': instance.isNewCustomerStore,
       'programBulananType': instance.programBulananType,
       'programBulananDiscount': instance.programBulananDiscount,
       'programBulananNominal': instance.programBulananNominal,

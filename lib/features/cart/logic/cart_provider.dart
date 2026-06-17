@@ -18,8 +18,10 @@ String cartItemKey(CartItem item) {
 /// Cart state notifier with persistent storage
 class CartNotifier extends StateNotifier<List<CartItem>> {
   CartNotifier() : super([]) {
-    _loadCart();
+    _loadCartFuture = _loadCart();
   }
+
+  late final Future<void> _loadCartFuture;
 
   /// Load cart from storage on init
   Future<void> _loadCart() async {
@@ -62,6 +64,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
   /// existing ones so that stale data (e.g. bonus qty changed on the server)
   /// is refreshed automatically.
   Future<void> addItem(CartItem cartItem) async {
+    await _loadCartFuture;
     final existingIndex = state.indexWhere(
       (item) => _isSameLine(item, cartItem),
     );
@@ -85,6 +88,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
 
   /// Remove a specific cart line by its index.
   Future<void> removeItemAt(int index) async {
+    await _loadCartFuture;
     if (index < 0 || index >= state.length) return;
     state = [
       ...state.sublist(0, index),
@@ -95,12 +99,14 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
 
   /// Remove all lines that share the given product ID (legacy helper).
   Future<void> removeItem(String productId) async {
+    await _loadCartFuture;
     state = state.where((item) => item.product.id != productId).toList();
     await _saveCart();
   }
 
   /// Decrement quantity of the cart line at [index], removing it if qty hits 0.
   Future<void> decrementItem(int index) async {
+    await _loadCartFuture;
     if (index < 0 || index >= state.length) return;
     final current = state[index];
 
@@ -126,6 +132,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
     CartItem cartItem, {
     bool preserveQuantity = true,
   }) async {
+    await _loadCartFuture;
     if (index < 0 || index >= state.length) return;
     final preserved = state[index].quantity;
     final qty = preserveQuantity ? preserved : cartItem.quantity;
@@ -139,6 +146,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
 
   /// Voucher FOC 100% pada satu baris keranjang (tidak mengubah snapshot produk).
   Future<void> setItemFocVoucher(int index, bool value) async {
+    await _loadCartFuture;
     if (index < 0 || index >= state.length) return;
     final current = state[index];
     if (!current.isIndirectSale && value) return;
@@ -153,6 +161,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
 
   /// Increment quantity of the cart line at [index].
   Future<void> incrementItem(int index) async {
+    await _loadCartFuture;
     if (index < 0 || index >= state.length) return;
     final current = state[index];
     state = [
@@ -165,12 +174,14 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
 
   /// Clear all items from cart
   Future<void> clearCart() async {
+    await _loadCartFuture;
     state = [];
     await _saveCart();
   }
 
   /// Replace entire cart (e.g. after server price refresh).
   Future<void> replaceCartItems(List<CartItem> next) async {
+    await _loadCartFuture;
     state = List<CartItem>.from(next);
     await _saveCart();
   }
@@ -178,6 +189,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
   /// Remove only cart lines whose [cartItemKey] is in [ids].
   /// Used after selective checkout so unchecked items stay in cart.
   Future<void> removeItemsByIds(Set<String> ids) async {
+    await _loadCartFuture;
     if (ids.isEmpty) return;
     state = state.where((item) => !ids.contains(cartItemKey(item))).toList();
     await _saveCart();
@@ -198,6 +210,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
   /// Call when entering checkout to ensure bonus quantities reflect the
   /// server-side values (which may have changed since the item was added).
   Future<void> refreshBonusSnapshots(List<Product> allProducts) async {
+    await _loadCartFuture;
     if (state.isEmpty || allProducts.isEmpty) return;
 
     final productById = <dynamic, Product>{};
@@ -224,21 +237,21 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
   }
 
   static List<CartBonusSnapshot> _buildBonusSnapshotsFromProduct(Product p) {
-    final slots = <(String?, int?)>[
-      (p.bonus1, p.qtyBonus1),
-      (p.bonus2, p.qtyBonus2),
-      (p.bonus3, p.qtyBonus3),
-      (p.bonus4, p.qtyBonus4),
-      (p.bonus5, p.qtyBonus5),
-      (p.bonus6, p.qtyBonus6),
-      (p.bonus7, p.qtyBonus7),
-      (p.bonus8, p.qtyBonus8),
+    final slots = <(String?, int?, double?)>[
+      (p.bonus1, p.qtyBonus1, p.plBonus1),
+      (p.bonus2, p.qtyBonus2, p.plBonus2),
+      (p.bonus3, p.qtyBonus3, p.plBonus3),
+      (p.bonus4, p.qtyBonus4, p.plBonus4),
+      (p.bonus5, p.qtyBonus5, p.plBonus5),
+      (p.bonus6, p.qtyBonus6, p.plBonus6),
+      (p.bonus7, p.qtyBonus7, p.plBonus7),
+      (p.bonus8, p.qtyBonus8, p.plBonus8),
     ];
 
     return [
-      for (final (name, qty) in slots)
+      for (final (name, qty, pl) in slots)
         if (name != null && name.isNotEmpty)
-          CartBonusSnapshot(name: name, qty: qty ?? 1),
+          CartBonusSnapshot(name: name, qty: qty ?? 1, plPrice: pl ?? 0.0),
     ];
   }
 

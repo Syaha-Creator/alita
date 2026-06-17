@@ -20,6 +20,7 @@ import '../../../../core/widgets/section_card.dart';
 import '../../../cart/data/cart_indirect_meta.dart';
 import '../../../cart/data/cart_item.dart';
 import '../../../cart/logic/cart_provider.dart';
+import '../../../indirect/data/models/assigned_store.dart';
 import '../../../indirect/logic/indirect_session_provider.dart';
 import '../../../indirect/logic/sales_mode_provider.dart';
 import '../../data/models/pricelist_custom_line.dart';
@@ -202,7 +203,8 @@ class _PricelistCustomLinePageState
           if (name.isEmpty) return null;
           final qty = (b['qty'] as num?)?.toInt() ?? 1;
           final sku = b['item_num']?.toString().trim() ?? '';
-          return CartBonusSnapshot(name: name, qty: qty, sku: sku);
+          final plPrice = (b['pl'] as num?)?.toDouble() ?? 0.0;
+          return CartBonusSnapshot(name: name, qty: qty, sku: sku, plPrice: plPrice);
         })
         .whereType<CartBonusSnapshot>()
         .toList();
@@ -488,6 +490,7 @@ class _PricelistCustomLinePageState
         discountDisplay: _useStoreDiscount && session.storeDiscounts.isNotEmpty
             ? StoreDiscountCalculator.formatDisplay(session.storeDiscounts)
             : '',
+        isNewCustomer: store.isNewCustomer,
       );
     }
 

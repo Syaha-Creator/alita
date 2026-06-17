@@ -329,7 +329,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       unawaited(FcmTokenService.cancelRefreshListener());
       unawaited(_revokeSession(token));
       unawaited(
-          DeviceTokenService.deleteToken(userId: uid, accessToken: token));
+          DeviceTokenService.deleteToken());
     }
   }
 

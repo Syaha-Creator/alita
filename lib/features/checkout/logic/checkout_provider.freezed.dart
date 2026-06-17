@@ -36,12 +36,9 @@ mixin _$CheckoutState {
   String? get submitError => throw _privateConstructorUsedError; // Retry
   int? get retryOrderId => throw _privateConstructorUsedError;
   String get retryNoSp => throw _privateConstructorUsedError;
-  List<PendingDetail> get retryDetails =>
-      throw _privateConstructorUsedError; // Langkah pipeline yang sudah berhasil di-commit ke server.
-// Mencegah duplikasi POST saat user mencoba ulang setelah kegagalan sebagian.
-  List<int> get retryCompletedSteps =>
-      throw _privateConstructorUsedError; // Detail yang detail-POST-nya berhasil tetapi discount-POST-nya (step 5) gagal.
-// Digunakan untuk retry diskon saja tanpa membuat ulang detail di DB.
+  List<PendingDetail> get retryDetails => throw _privateConstructorUsedError;
+  List<int> get retryCompletedSteps => throw _privateConstructorUsedError;
+  int get retryPaymentStartIndex => throw _privateConstructorUsedError;
   List<SucceededDetail> get retryDiscountDetails =>
       throw _privateConstructorUsedError; // Result
   bool get submitSuccess => throw _privateConstructorUsedError;
@@ -78,6 +75,7 @@ abstract class $CheckoutStateCopyWith<$Res> {
       String retryNoSp,
       List<PendingDetail> retryDetails,
       List<int> retryCompletedSteps,
+      int retryPaymentStartIndex,
       List<SucceededDetail> retryDiscountDetails,
       bool submitSuccess,
       String? successNoSp});
@@ -117,6 +115,7 @@ class _$CheckoutStateCopyWithImpl<$Res, $Val extends CheckoutState>
     Object? retryNoSp = null,
     Object? retryDetails = null,
     Object? retryCompletedSteps = null,
+    Object? retryPaymentStartIndex = null,
     Object? retryDiscountDetails = null,
     Object? submitSuccess = null,
     Object? successNoSp = freezed,
@@ -190,6 +189,10 @@ class _$CheckoutStateCopyWithImpl<$Res, $Val extends CheckoutState>
           ? _value.retryCompletedSteps
           : retryCompletedSteps // ignore: cast_nullable_to_non_nullable
               as List<int>,
+      retryPaymentStartIndex: null == retryPaymentStartIndex
+          ? _value.retryPaymentStartIndex
+          : retryPaymentStartIndex // ignore: cast_nullable_to_non_nullable
+              as int,
       retryDiscountDetails: null == retryDiscountDetails
           ? _value.retryDiscountDetails
           : retryDiscountDetails // ignore: cast_nullable_to_non_nullable
@@ -246,6 +249,7 @@ abstract class _$$CheckoutStateImplCopyWith<$Res>
       String retryNoSp,
       List<PendingDetail> retryDetails,
       List<int> retryCompletedSteps,
+      int retryPaymentStartIndex,
       List<SucceededDetail> retryDiscountDetails,
       bool submitSuccess,
       String? successNoSp});
@@ -284,6 +288,7 @@ class __$$CheckoutStateImplCopyWithImpl<$Res>
     Object? retryNoSp = null,
     Object? retryDetails = null,
     Object? retryCompletedSteps = null,
+    Object? retryPaymentStartIndex = null,
     Object? retryDiscountDetails = null,
     Object? submitSuccess = null,
     Object? successNoSp = freezed,
@@ -357,6 +362,10 @@ class __$$CheckoutStateImplCopyWithImpl<$Res>
           ? _value._retryCompletedSteps
           : retryCompletedSteps // ignore: cast_nullable_to_non_nullable
               as List<int>,
+      retryPaymentStartIndex: null == retryPaymentStartIndex
+          ? _value.retryPaymentStartIndex
+          : retryPaymentStartIndex // ignore: cast_nullable_to_non_nullable
+              as int,
       retryDiscountDetails: null == retryDiscountDetails
           ? _value._retryDiscountDetails
           : retryDiscountDetails // ignore: cast_nullable_to_non_nullable
@@ -396,6 +405,7 @@ class _$CheckoutStateImpl
       this.retryNoSp = '',
       final List<PendingDetail> retryDetails = const [],
       final List<int> retryCompletedSteps = const [],
+      this.retryPaymentStartIndex = 0,
       final List<SucceededDetail> retryDiscountDetails = const [],
       this.submitSuccess = false,
       this.successNoSp})
@@ -463,11 +473,7 @@ class _$CheckoutStateImpl
     return EqualUnmodifiableListView(_retryDetails);
   }
 
-// Langkah pipeline yang sudah berhasil di-commit ke server.
-// Mencegah duplikasi POST saat user mencoba ulang setelah kegagalan sebagian.
   final List<int> _retryCompletedSteps;
-// Langkah pipeline yang sudah berhasil di-commit ke server.
-// Mencegah duplikasi POST saat user mencoba ulang setelah kegagalan sebagian.
   @override
   @JsonKey()
   List<int> get retryCompletedSteps {
@@ -477,11 +483,10 @@ class _$CheckoutStateImpl
     return EqualUnmodifiableListView(_retryCompletedSteps);
   }
 
-// Detail yang detail-POST-nya berhasil tetapi discount-POST-nya (step 5) gagal.
-// Digunakan untuk retry diskon saja tanpa membuat ulang detail di DB.
+  @override
+  @JsonKey()
+  final int retryPaymentStartIndex;
   final List<SucceededDetail> _retryDiscountDetails;
-// Detail yang detail-POST-nya berhasil tetapi discount-POST-nya (step 5) gagal.
-// Digunakan untuk retry diskon saja tanpa membuat ulang detail di DB.
   @override
   @JsonKey()
   List<SucceededDetail> get retryDiscountDetails {
@@ -500,7 +505,7 @@ class _$CheckoutStateImpl
 
   @override
   String toString({DiagnosticLevel minLevel = DiagnosticLevel.info}) {
-    return 'CheckoutState(isLoadingWorkPlace: $isLoadingWorkPlace, attendanceWorkPlaceId: $attendanceWorkPlaceId, attendanceWorkPlaceName: $attendanceWorkPlaceName, useAttendanceStore: $useAttendanceStore, selectedStore: $selectedStore, approvers: $approvers, isLoadingApprovers: $isLoadingApprovers, approversError: $approversError, approversErrorTitle: $approversErrorTitle, selectedSpv: $selectedSpv, selectedManager: $selectedManager, isSubmitting: $isSubmitting, submitError: $submitError, retryOrderId: $retryOrderId, retryNoSp: $retryNoSp, retryDetails: $retryDetails, retryCompletedSteps: $retryCompletedSteps, retryDiscountDetails: $retryDiscountDetails, submitSuccess: $submitSuccess, successNoSp: $successNoSp)';
+    return 'CheckoutState(isLoadingWorkPlace: $isLoadingWorkPlace, attendanceWorkPlaceId: $attendanceWorkPlaceId, attendanceWorkPlaceName: $attendanceWorkPlaceName, useAttendanceStore: $useAttendanceStore, selectedStore: $selectedStore, approvers: $approvers, isLoadingApprovers: $isLoadingApprovers, approversError: $approversError, approversErrorTitle: $approversErrorTitle, selectedSpv: $selectedSpv, selectedManager: $selectedManager, isSubmitting: $isSubmitting, submitError: $submitError, retryOrderId: $retryOrderId, retryNoSp: $retryNoSp, retryDetails: $retryDetails, retryCompletedSteps: $retryCompletedSteps, retryPaymentStartIndex: $retryPaymentStartIndex, retryDiscountDetails: $retryDiscountDetails, submitSuccess: $submitSuccess, successNoSp: $successNoSp)';
   }
 
   @override
@@ -526,6 +531,8 @@ class _$CheckoutStateImpl
       ..add(DiagnosticsProperty('retryNoSp', retryNoSp))
       ..add(DiagnosticsProperty('retryDetails', retryDetails))
       ..add(DiagnosticsProperty('retryCompletedSteps', retryCompletedSteps))
+      ..add(
+          DiagnosticsProperty('retryPaymentStartIndex', retryPaymentStartIndex))
       ..add(DiagnosticsProperty('retryDiscountDetails', retryDiscountDetails))
       ..add(DiagnosticsProperty('submitSuccess', submitSuccess))
       ..add(DiagnosticsProperty('successNoSp', successNoSp));
@@ -571,6 +578,8 @@ class _$CheckoutStateImpl
                 .equals(other._retryDetails, _retryDetails) &&
             const DeepCollectionEquality()
                 .equals(other._retryCompletedSteps, _retryCompletedSteps) &&
+            (identical(other.retryPaymentStartIndex, retryPaymentStartIndex) ||
+                other.retryPaymentStartIndex == retryPaymentStartIndex) &&
             const DeepCollectionEquality()
                 .equals(other._retryDiscountDetails, _retryDiscountDetails) &&
             (identical(other.submitSuccess, submitSuccess) ||
@@ -599,6 +608,7 @@ class _$CheckoutStateImpl
         retryNoSp,
         const DeepCollectionEquality().hash(_retryDetails),
         const DeepCollectionEquality().hash(_retryCompletedSteps),
+        retryPaymentStartIndex,
         const DeepCollectionEquality().hash(_retryDiscountDetails),
         submitSuccess,
         successNoSp
@@ -632,6 +642,7 @@ abstract class _CheckoutState implements CheckoutState {
       final String retryNoSp,
       final List<PendingDetail> retryDetails,
       final List<int> retryCompletedSteps,
+      final int retryPaymentStartIndex,
       final List<SucceededDetail> retryDiscountDetails,
       final bool submitSuccess,
       final String? successNoSp}) = _$CheckoutStateImpl;
@@ -670,13 +681,11 @@ abstract class _CheckoutState implements CheckoutState {
   @override
   String get retryNoSp;
   @override
-  List<PendingDetail>
-      get retryDetails; // Langkah pipeline yang sudah berhasil di-commit ke server.
-// Mencegah duplikasi POST saat user mencoba ulang setelah kegagalan sebagian.
+  List<PendingDetail> get retryDetails;
   @override
-  List<int>
-      get retryCompletedSteps; // Detail yang detail-POST-nya berhasil tetapi discount-POST-nya (step 5) gagal.
-// Digunakan untuk retry diskon saja tanpa membuat ulang detail di DB.
+  List<int> get retryCompletedSteps;
+  @override
+  int get retryPaymentStartIndex;
   @override
   List<SucceededDetail> get retryDiscountDetails; // Result
   @override

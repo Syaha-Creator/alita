@@ -257,6 +257,7 @@ class CartItemBuilder {
       indirectStorePhone: indirectMeta?.phone ?? '',
       indirectStoreDiscounts: indirectMeta?.storeDiscounts ?? const [],
       indirectStoreDiscountDisplay: indirectMeta?.discountDisplay ?? '',
+      isNewCustomerStore: indirectMeta?.isNewCustomer ?? false,
       pricelistArea: pricelistArea,
       programBulananType: programBulananType,
       programBulananDiscount:
@@ -336,9 +337,14 @@ class CartItemBuilder {
       final name = b['name'].toString().trim();
       final qty = (b['qty'] as num?)?.toInt() ?? 1;
       final directItemNum = b['item_num']?.toString().trim() ?? '';
+      final plPrice = (b['pl'] as num?)?.toDouble() ?? 0.0;
       final lu = lookupFor(name);
       return CartBonusSnapshot(
-          name: name, qty: qty, sku: lu?.itemNum ?? directItemNum);
+        name: name,
+        qty: qty,
+        sku: lu?.itemNum ?? directItemNum,
+        plPrice: plPrice,
+      );
     }).toList();
   }
 
@@ -358,25 +364,30 @@ class CartItemBuilder {
           : (groupedLookups[key] ?? []).firstOrNull;
     }
 
-    final slots = <(String?, int?)>[
-      (product.bonus1, product.qtyBonus1),
-      (product.bonus2, product.qtyBonus2),
-      (product.bonus3, product.qtyBonus3),
-      (product.bonus4, product.qtyBonus4),
-      (product.bonus5, product.qtyBonus5),
-      (product.bonus6, product.qtyBonus6),
-      (product.bonus7, product.qtyBonus7),
-      (product.bonus8, product.qtyBonus8),
+    final slots = <(String?, int?, double?)>[
+      (product.bonus1, product.qtyBonus1, product.plBonus1),
+      (product.bonus2, product.qtyBonus2, product.plBonus2),
+      (product.bonus3, product.qtyBonus3, product.plBonus3),
+      (product.bonus4, product.qtyBonus4, product.plBonus4),
+      (product.bonus5, product.qtyBonus5, product.plBonus5),
+      (product.bonus6, product.qtyBonus6, product.plBonus6),
+      (product.bonus7, product.qtyBonus7, product.plBonus7),
+      (product.bonus8, product.qtyBonus8, product.plBonus8),
     ];
-    final rawBonuses = <(String, int)>[
-      for (final (name, qty) in slots)
-        if (name != null && name.isNotEmpty) (name, qty ?? 1),
+    final rawBonuses = <(String, int, double)>[
+      for (final (name, qty, pl) in slots)
+        if (name != null && name.isNotEmpty) (name, qty ?? 1, pl ?? 0.0),
     ];
 
     return rawBonuses.map((b) {
-      final (name, qty) = b;
+      final (name, qty, plPrice) = b;
       final lu = lookupFor(name);
-      return CartBonusSnapshot(name: name, qty: qty, sku: lu?.itemNum ?? '');
+      return CartBonusSnapshot(
+        name: name,
+        qty: qty,
+        sku: lu?.itemNum ?? '',
+        plPrice: plPrice,
+      );
     }).toList();
   }
 }

@@ -47,9 +47,11 @@ class ApprovalCardItem extends StatelessWidget {
 
     final int itemCount = details.length;
     final String firstItemName = itemCount > 0
-        ? (details[0]['desc_1'] as String? ??
-            details[0]['item_description'] as String? ??
-            'Item')
+        ? (() {
+            final d = details[0] as Map<String, dynamic>;
+            final desc = (d['item_description'] as String? ?? '').trim();
+            return desc.isNotEmpty ? desc : (d['desc_1'] as String? ?? 'Item');
+          })()
         : 'Detail tidak tersedia';
 
     return Semantics(

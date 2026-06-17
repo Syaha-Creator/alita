@@ -22,21 +22,21 @@ abstract final class CartItemPriceRefresh {
   CartItemPriceRefresh._();
 
   static List<CartBonusSnapshot> _bonusSnapshotsFromProduct(Product p) {
-    final slots = <(String?, int?)>[
-      (p.bonus1, p.qtyBonus1),
-      (p.bonus2, p.qtyBonus2),
-      (p.bonus3, p.qtyBonus3),
-      (p.bonus4, p.qtyBonus4),
-      (p.bonus5, p.qtyBonus5),
-      (p.bonus6, p.qtyBonus6),
-      (p.bonus7, p.qtyBonus7),
-      (p.bonus8, p.qtyBonus8),
+    final slots = <(String?, int?, double?)>[
+      (p.bonus1, p.qtyBonus1, p.plBonus1),
+      (p.bonus2, p.qtyBonus2, p.plBonus2),
+      (p.bonus3, p.qtyBonus3, p.plBonus3),
+      (p.bonus4, p.qtyBonus4, p.plBonus4),
+      (p.bonus5, p.qtyBonus5, p.plBonus5),
+      (p.bonus6, p.qtyBonus6, p.plBonus6),
+      (p.bonus7, p.qtyBonus7, p.plBonus7),
+      (p.bonus8, p.qtyBonus8, p.plBonus8),
     ];
 
     return [
-      for (final (name, qty) in slots)
+      for (final (name, qty, pl) in slots)
         if (name != null && name.isNotEmpty)
-          CartBonusSnapshot(name: name, qty: qty ?? 1),
+          CartBonusSnapshot(name: name, qty: qty ?? 1, plPrice: pl ?? 0.0),
     ];
   }
 

@@ -22,3 +22,12 @@ class AssignedStore with _$AssignedStore {
   factory AssignedStore.fromJson(Map<String, dynamic> json) =>
       _$AssignedStoreFromJson(json);
 }
+
+extension AssignedStoreX on AssignedStore {
+  /// True jika toko ini ditandai sebagai customer baru oleh API (search_type == 'new_customer').
+  /// Order indirect ke customer baru wajib mendapat persetujuan ASM meskipun tanpa diskon tambahan.
+  bool get isNewCustomer {
+    final t = searchType?.trim().toLowerCase() ?? '';
+    return t == 'new_customer' || t == 'new';
+  }
+}

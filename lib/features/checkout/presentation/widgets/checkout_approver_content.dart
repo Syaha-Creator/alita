@@ -36,7 +36,9 @@ class CheckoutApproverContent extends StatelessWidget {
   /// harga item menjadi 0 (gratis).
   final bool hasFocVoucherItem;
 
-  /// True jika indirect dan receiver mode adalah "Customer Baru" (bukan cabang/gudang).
+  /// True jika indirect dan:
+  ///   - receiver mode adalah "Customer Baru" (bukan cabang/gudang), ATAU
+  ///   - toko ditandai sebagai customer baru oleh API (search_type).
   final bool isCustomerBaru;
   final ValueChanged<Approver?> onSpvChanged;
   final ValueChanged<Approver?> onManagerChanged;
@@ -182,7 +184,7 @@ class CheckoutApproverContent extends StatelessWidget {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    'Pengiriman ke customer baru — ASM wajib menyetujui.',
+                    'Customer baru — ASM wajib menyetujui.',
                     style: TextStyle(
                       fontSize: 11,
                       color: AppColors.accent.withValues(alpha: 0.85),

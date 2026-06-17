@@ -526,7 +526,8 @@ class CheckoutOrderService {
   ///
   /// If any detailId is 0 (extraction failed), uses [fallbackDetailIds]
   /// matched by positional index as a last resort.
-  Future<void> postDiscountsForDetails({
+  /// Returns details with at least one failed discount row; does not throw.
+  Future<List<SucceededDetail>> postDiscountsForDetails({
     required List<SucceededDetail> succeededDetails,
     required int orderLetterId,
     required String token,
@@ -534,7 +535,8 @@ class CheckoutOrderService {
   }) async {
     int totalDiscounts = 0;
     int succeededCount = 0;
-    int failedCount = 0;
+
+    final failedDetailsList = <SucceededDetail>[];
 
     for (int i = 0; i < succeededDetails.length; i++) {
       final item = succeededDetails[i];
@@ -552,10 +554,11 @@ class CheckoutOrderService {
           '"${item.pending.label}" — detailId=0',
           tag: 'CheckoutOrderService',
         );
-        failedCount += item.pending.discounts.length;
+        failedDetailsList.add(item);
         continue;
       }
 
+      bool detailHadFailure = false;
       for (final disc in item.pending.discounts) {
         totalDiscounts++;
         final levelId = disc['approver_level_id'] as int? ?? 0;
@@ -574,7 +577,7 @@ class CheckoutOrderService {
         if (response.statusCode == 200 || response.statusCode == 201) {
           succeededCount++;
         } else {
-          failedCount++;
+          detailHadFailure = true;
           Log.warning(
             'Discount POST failed: level=$levelId detailId=$detailId '
             'status=${response.statusCode} body=${response.body}',
@@ -582,18 +585,20 @@ class CheckoutOrderService {
           );
         }
       }
+
+      if (detailHadFailure) failedDetailsList.add(item);
     }
 
+    final failedCount = totalDiscounts - succeededCount;
     if (failedCount > 0) {
-      throw CheckoutStepException(
-        step: 5,
-        stepName: 'Post Diskon',
-        endpoint: CheckoutEndpoints.orderLetterDiscounts,
-        statusCode: 0,
-        message: '$failedCount dari $totalDiscounts diskon gagal diupload. '
-            'Berhasil: $succeededCount.',
+      Log.warning(
+        'postDiscountsForDetails: $failedCount dari $totalDiscounts diskon gagal. '
+        '${failedDetailsList.length} detail akan di-retry.',
+        tag: 'CheckoutOrderService',
       );
     }
+
+    return failedDetailsList;
   }
 
   // ── Build pending details from cart ───────────────────────────
@@ -1207,7 +1212,8 @@ class CheckoutOrderService {
       // unit_price / customer_price = PL bonus per unit; qty = segmen split.
       for (final bonus in item.bonusSnapshots) {
         final bonusEffQty = bonus.qty * item.quantity;
-        final bonusPlPrice = BonusPriceResolver.resolvePlPrice(p, bonus.name);
+        final resolvedPl = BonusPriceResolver.resolvePlPrice(p, bonus.name);
+        final bonusPlPrice = resolvedPl > 0 ? resolvedPl : bonus.plPrice;
 
         final int configuredTakeAway = lineIsTakeAway(itemIndex)
             ? bonusEffQty

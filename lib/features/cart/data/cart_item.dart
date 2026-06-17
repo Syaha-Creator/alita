@@ -49,6 +49,9 @@ class CartBonusSnapshot with _$CartBonusSnapshot {
     @Default('') String name,
     @JsonKey(fromJson: _parseInt) @Default(0) int qty,
     @Default('') String sku,
+    /// Pricelist harga aksesori/bonus (dari pl_accessories atau plBonus1..8).
+    /// Digunakan sebagai fallback di checkout jika BonusPriceResolver tidak menemukan.
+    @JsonKey(fromJson: _parseDouble) @Default(0.0) double plPrice,
   }) = _CartBonusSnapshot;
 
   factory CartBonusSnapshot.fromJson(Map<String, dynamic> json) =>
@@ -121,6 +124,9 @@ class CartItem with _$CartItem {
     /// True jika ukuran item dipilih sebagai "Custom" (bukan dari list ukuran baku).
     /// Untuk indirect, wajib pilih ASM approval di checkout.
     @JsonKey(fromJson: _parseBoolDefaultFalse) @Default(false) bool isCustomSize,
+    /// True jika toko tujuan indirect ditandai sebagai customer baru oleh API (search_type).
+    /// Order ke customer baru wajib mendapat persetujuan ASM meskipun tanpa diskon tambahan.
+    @JsonKey(fromJson: _parseBoolDefaultFalse) @Default(false) bool isNewCustomerStore,
 
     // ── Program Bulanan (indirect only) ──────────────────────────────────────
     /// Tipe diskon program bulanan: '' = tidak diisi, 'percent' = %, 'nominal' = Rp.

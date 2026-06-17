@@ -7,6 +7,7 @@ class CartIndirectMeta {
     required this.phone,
     required this.storeDiscounts,
     required this.discountDisplay,
+    this.isNewCustomer = false,
   });
 
   final int addressNumber;
@@ -15,4 +16,7 @@ class CartIndirectMeta {
   final String phone;
   final List<double> storeDiscounts;
   final String discountDisplay;
+  /// True jika toko ditandai sebagai customer baru oleh API (search_type).
+  /// Order indirect ke customer baru wajib mendapat persetujuan ASM.
+  final bool isNewCustomer;
 }

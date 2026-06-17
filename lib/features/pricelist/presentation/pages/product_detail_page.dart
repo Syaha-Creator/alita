@@ -25,6 +25,7 @@ import '../../logic/selection_sync_result.dart';
 import '../../../cart/data/cart_indirect_meta.dart';
 import '../../../cart/data/cart_item.dart';
 import '../../../cart/logic/cart_provider.dart';
+import '../../../indirect/data/models/assigned_store.dart';
 import '../../../indirect/logic/indirect_session_provider.dart';
 import '../../../indirect/logic/sales_mode_provider.dart';
 import '../../../favorites/logic/favorites_provider.dart';
@@ -199,16 +200,22 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
         selectedHeadboard = p.headboard.isNotEmpty ? p.headboard : null;
         selectedSorong = p.sorong.isNotEmpty ? p.sorong : null;
       }
-      targetTotalEup = p.price;
-      _targetTotalController.text = _totalCurrencyFormat.format(p.price).trim();
-
-      // Restore program bulanan jika ada.
       if (editItem.hasProgramBulanan) {
         _programBulananType = editItem.programBulananType;
         _programBulananValue = editItem.programBulananType == 'percent'
             ? editItem.programBulananDiscount
             : editItem.programBulananNominal;
       }
+
+      if (editItem.hasProgramBulanan && _programBulananValue > 0) {
+        targetTotalEup = _programBulananType == 'percent'
+            ? p.price / (1 - _programBulananValue / 100)
+            : p.price + _programBulananValue;
+      } else {
+        targetTotalEup = p.price;
+      }
+      _targetTotalController.text =
+          _totalCurrencyFormat.format(targetTotalEup!).trim();
 
       // Restore bonus state from the cart snapshot so the user sees
       // the same bonuses they configured, not the product defaults.
@@ -1217,6 +1224,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
         discountDisplay: session.storeDiscounts.isNotEmpty
             ? StoreDiscountCalculator.formatDisplay(session.storeDiscounts)
             : session.discountDisplay,
+        isNewCustomer: store.isNewCustomer,
       );
     }
 
@@ -1250,7 +1258,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       effectiveSorongLookup: effectiveSorongLookup,
       customSorongNote: _customSorongCtrl.text.trim(),
       customBonuses: isBonusCustomized ? customBonuses : null,
-      isCustomSize: _isSizeCustom,
+      isCustomSize: _isSizeCustom && _customSizeCtrl.text.trim().isNotEmpty,
       indirectMeta: indirectMeta,
       pricelistArea: ref.read(effectiveAreaProvider),
       programBulananType: _programBulananType,
@@ -1267,7 +1275,20 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
 
     final cartIndex = widget.cartIndex;
     if (_isEditMode && cartIndex != null) {
-      final prevFoc = ref.read(cartProvider)[cartIndex].isFocVoucher;
+      final cart = ref.read(cartProvider);
+      if (cartIndex < 0 || cartIndex >= cart.length) {
+        if (context.mounted) {
+          AppFeedback.show(
+            context,
+            message: 'Item tidak ditemukan di keranjang. Menambahkan sebagai item baru.',
+            type: AppFeedbackType.warning,
+          );
+          ref.read(cartProvider.notifier).addItem(snapshotItem);
+          if (context.mounted) Navigator.of(context).pop();
+        }
+        return;
+      }
+      final prevFoc = cart[cartIndex].isFocVoucher;
       ref.read(cartProvider.notifier).updateCartItem(
             cartIndex,
             snapshotItem.copyWith(isFocVoucher: prevFoc),

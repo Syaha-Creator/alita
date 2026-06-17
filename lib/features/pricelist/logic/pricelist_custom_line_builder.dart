@@ -251,6 +251,7 @@ class PricelistCustomLineBuilder {
       indirectStorePhone: indirectMeta?.phone ?? '',
       indirectStoreDiscounts: indirectMeta?.storeDiscounts ?? const [],
       indirectStoreDiscountDisplay: indirectMeta?.discountDisplay ?? '',
+      isNewCustomerStore: indirectMeta?.isNewCustomer ?? false,
       pricelistArea: pricelistArea,
     );
   }

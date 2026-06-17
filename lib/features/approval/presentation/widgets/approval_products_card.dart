@@ -57,12 +57,10 @@ class ApprovalProductsCard extends StatelessWidget {
             final idx = entry.key;
             final detail = entry.value as Map<String, dynamic>;
 
-            final name = detail['desc_1'] as String? ??
-                detail['item_description'] as String? ??
-                '-';
-            final brand = detail['desc_2'] as String? ??
-                detail['sub_brand'] as String? ??
-                '';
+            final rawDesc = (detail['item_description'] as String? ?? '').trim();
+            final name = rawDesc.isNotEmpty
+                ? rawDesc
+                : (detail['desc_1'] as String? ?? '-');
             final qty = detail['qty']?.toString() ?? '-';
             final netPrice =
                 double.tryParse(detail['net_price']?.toString() ?? '0') ?? 0;
@@ -102,15 +100,6 @@ class ApprovalProductsCard extends StatelessWidget {
                                       color: AppColors.textPrimary,
                                     ),
                                   ),
-                                  if (brand.isNotEmpty)
-                                    Text(
-                                      brand,
-                                      style: const TextStyle(
-                                        fontSize: 10,
-                                        color: AppColors.textTertiary,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
                                 ],
                               ),
                             ),

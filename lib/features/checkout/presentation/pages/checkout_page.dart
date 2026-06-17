@@ -972,8 +972,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                             hasFocVoucherItem: _hasFocVoucherItem(cartItems),
                             isCustomerBaru: cartItems.any(
                                     (e) => e.isIndirectSale) &&
-                                !_isShippingSameAsCustomer &&
-                                !_isReceiverBranchMode,
+                                (!_isShippingSameAsCustomer &&
+                                        !_isReceiverBranchMode ||
+                                    cartItems.any(
+                                        (e) => e.isNewCustomerStore)),
                             onSpvChanged: (v) => ref
                                 .read(checkoutProvider.notifier)
                                 .selectSpv(v),
@@ -1151,6 +1153,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       final isCustomerBaru =
           !_isShippingSameAsCustomer && !_isReceiverBranchMode;
       if (isCustomerBaru) return true;
+      // Toko dengan flag customer baru dari API (search_type) → ASM wajib.
+      if (cartItems.any((item) => item.isNewCustomerStore)) return true;
       // FOC voucher aktif → harga jadi 0, ASM wajib menyetujui.
       if (cartItems.any((item) => item.isFocVoucherActive)) return true;
       return cartItems.any(
@@ -1705,6 +1709,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               : _shouldSaveCustomerContact,
           newCustomerContact: newCustomerContact,
           selectedCartItems: widget.selectedCartItems,
+          requiresApproval: !autoApprove,
         ));
   }
 
