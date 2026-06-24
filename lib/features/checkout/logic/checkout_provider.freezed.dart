@@ -38,6 +38,7 @@ mixin _$CheckoutState {
   String get retryNoSp => throw _privateConstructorUsedError;
   List<PendingDetail> get retryDetails => throw _privateConstructorUsedError;
   List<int> get retryCompletedSteps => throw _privateConstructorUsedError;
+  int get retryContactStartIndex => throw _privateConstructorUsedError;
   int get retryPaymentStartIndex => throw _privateConstructorUsedError;
   List<SucceededDetail> get retryDiscountDetails =>
       throw _privateConstructorUsedError; // Result
@@ -75,6 +76,7 @@ abstract class $CheckoutStateCopyWith<$Res> {
       String retryNoSp,
       List<PendingDetail> retryDetails,
       List<int> retryCompletedSteps,
+      int retryContactStartIndex,
       int retryPaymentStartIndex,
       List<SucceededDetail> retryDiscountDetails,
       bool submitSuccess,
@@ -115,6 +117,7 @@ class _$CheckoutStateCopyWithImpl<$Res, $Val extends CheckoutState>
     Object? retryNoSp = null,
     Object? retryDetails = null,
     Object? retryCompletedSteps = null,
+    Object? retryContactStartIndex = null,
     Object? retryPaymentStartIndex = null,
     Object? retryDiscountDetails = null,
     Object? submitSuccess = null,
@@ -189,6 +192,10 @@ class _$CheckoutStateCopyWithImpl<$Res, $Val extends CheckoutState>
           ? _value.retryCompletedSteps
           : retryCompletedSteps // ignore: cast_nullable_to_non_nullable
               as List<int>,
+      retryContactStartIndex: null == retryContactStartIndex
+          ? _value.retryContactStartIndex
+          : retryContactStartIndex // ignore: cast_nullable_to_non_nullable
+              as int,
       retryPaymentStartIndex: null == retryPaymentStartIndex
           ? _value.retryPaymentStartIndex
           : retryPaymentStartIndex // ignore: cast_nullable_to_non_nullable
@@ -249,6 +256,7 @@ abstract class _$$CheckoutStateImplCopyWith<$Res>
       String retryNoSp,
       List<PendingDetail> retryDetails,
       List<int> retryCompletedSteps,
+      int retryContactStartIndex,
       int retryPaymentStartIndex,
       List<SucceededDetail> retryDiscountDetails,
       bool submitSuccess,
@@ -288,6 +296,7 @@ class __$$CheckoutStateImplCopyWithImpl<$Res>
     Object? retryNoSp = null,
     Object? retryDetails = null,
     Object? retryCompletedSteps = null,
+    Object? retryContactStartIndex = null,
     Object? retryPaymentStartIndex = null,
     Object? retryDiscountDetails = null,
     Object? submitSuccess = null,
@@ -362,6 +371,10 @@ class __$$CheckoutStateImplCopyWithImpl<$Res>
           ? _value._retryCompletedSteps
           : retryCompletedSteps // ignore: cast_nullable_to_non_nullable
               as List<int>,
+      retryContactStartIndex: null == retryContactStartIndex
+          ? _value.retryContactStartIndex
+          : retryContactStartIndex // ignore: cast_nullable_to_non_nullable
+              as int,
       retryPaymentStartIndex: null == retryPaymentStartIndex
           ? _value.retryPaymentStartIndex
           : retryPaymentStartIndex // ignore: cast_nullable_to_non_nullable
@@ -405,6 +418,7 @@ class _$CheckoutStateImpl
       this.retryNoSp = '',
       final List<PendingDetail> retryDetails = const [],
       final List<int> retryCompletedSteps = const [],
+      this.retryContactStartIndex = 0,
       this.retryPaymentStartIndex = 0,
       final List<SucceededDetail> retryDiscountDetails = const [],
       this.submitSuccess = false,
@@ -485,6 +499,9 @@ class _$CheckoutStateImpl
 
   @override
   @JsonKey()
+  final int retryContactStartIndex;
+  @override
+  @JsonKey()
   final int retryPaymentStartIndex;
   final List<SucceededDetail> _retryDiscountDetails;
   @override
@@ -505,7 +522,7 @@ class _$CheckoutStateImpl
 
   @override
   String toString({DiagnosticLevel minLevel = DiagnosticLevel.info}) {
-    return 'CheckoutState(isLoadingWorkPlace: $isLoadingWorkPlace, attendanceWorkPlaceId: $attendanceWorkPlaceId, attendanceWorkPlaceName: $attendanceWorkPlaceName, useAttendanceStore: $useAttendanceStore, selectedStore: $selectedStore, approvers: $approvers, isLoadingApprovers: $isLoadingApprovers, approversError: $approversError, approversErrorTitle: $approversErrorTitle, selectedSpv: $selectedSpv, selectedManager: $selectedManager, isSubmitting: $isSubmitting, submitError: $submitError, retryOrderId: $retryOrderId, retryNoSp: $retryNoSp, retryDetails: $retryDetails, retryCompletedSteps: $retryCompletedSteps, retryPaymentStartIndex: $retryPaymentStartIndex, retryDiscountDetails: $retryDiscountDetails, submitSuccess: $submitSuccess, successNoSp: $successNoSp)';
+    return 'CheckoutState(isLoadingWorkPlace: $isLoadingWorkPlace, attendanceWorkPlaceId: $attendanceWorkPlaceId, attendanceWorkPlaceName: $attendanceWorkPlaceName, useAttendanceStore: $useAttendanceStore, selectedStore: $selectedStore, approvers: $approvers, isLoadingApprovers: $isLoadingApprovers, approversError: $approversError, approversErrorTitle: $approversErrorTitle, selectedSpv: $selectedSpv, selectedManager: $selectedManager, isSubmitting: $isSubmitting, submitError: $submitError, retryOrderId: $retryOrderId, retryNoSp: $retryNoSp, retryDetails: $retryDetails, retryCompletedSteps: $retryCompletedSteps, retryContactStartIndex: $retryContactStartIndex, retryPaymentStartIndex: $retryPaymentStartIndex, retryDiscountDetails: $retryDiscountDetails, submitSuccess: $submitSuccess, successNoSp: $successNoSp)';
   }
 
   @override
@@ -531,6 +548,8 @@ class _$CheckoutStateImpl
       ..add(DiagnosticsProperty('retryNoSp', retryNoSp))
       ..add(DiagnosticsProperty('retryDetails', retryDetails))
       ..add(DiagnosticsProperty('retryCompletedSteps', retryCompletedSteps))
+      ..add(
+          DiagnosticsProperty('retryContactStartIndex', retryContactStartIndex))
       ..add(
           DiagnosticsProperty('retryPaymentStartIndex', retryPaymentStartIndex))
       ..add(DiagnosticsProperty('retryDiscountDetails', retryDiscountDetails))
@@ -578,6 +597,8 @@ class _$CheckoutStateImpl
                 .equals(other._retryDetails, _retryDetails) &&
             const DeepCollectionEquality()
                 .equals(other._retryCompletedSteps, _retryCompletedSteps) &&
+            (identical(other.retryContactStartIndex, retryContactStartIndex) ||
+                other.retryContactStartIndex == retryContactStartIndex) &&
             (identical(other.retryPaymentStartIndex, retryPaymentStartIndex) ||
                 other.retryPaymentStartIndex == retryPaymentStartIndex) &&
             const DeepCollectionEquality()
@@ -608,6 +629,7 @@ class _$CheckoutStateImpl
         retryNoSp,
         const DeepCollectionEquality().hash(_retryDetails),
         const DeepCollectionEquality().hash(_retryCompletedSteps),
+        retryContactStartIndex,
         retryPaymentStartIndex,
         const DeepCollectionEquality().hash(_retryDiscountDetails),
         submitSuccess,
@@ -642,6 +664,7 @@ abstract class _CheckoutState implements CheckoutState {
       final String retryNoSp,
       final List<PendingDetail> retryDetails,
       final List<int> retryCompletedSteps,
+      final int retryContactStartIndex,
       final int retryPaymentStartIndex,
       final List<SucceededDetail> retryDiscountDetails,
       final bool submitSuccess,
@@ -684,6 +707,8 @@ abstract class _CheckoutState implements CheckoutState {
   List<PendingDetail> get retryDetails;
   @override
   List<int> get retryCompletedSteps;
+  @override
+  int get retryContactStartIndex;
   @override
   int get retryPaymentStartIndex;
   @override

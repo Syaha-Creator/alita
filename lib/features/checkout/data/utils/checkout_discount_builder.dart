@@ -249,6 +249,9 @@ class CheckoutDiscountBuilder {
     required List<double> storeDiscounts,
     required String storeAlphaName,
     List<double>? storeDiscountNominals,
+    /// Kode diskon toko (`disc_name` dari API), dikirim sebagai `code_standart`
+    /// agar backend bisa mengidentifikasi jenis diskon toko (e.g. "DISSFDO").
+    String? codeStandart,
   }) {
     const startLevel = 5;
     final now = DateTime.now().toIso8601String();
@@ -273,6 +276,8 @@ class CheckoutDiscountBuilder {
         if (nominal > 0) 'discount_price': nominal,
         'standard_discount': d.toString(),
         if (nominal > 0) 'standart_discount_price': nominal,
+        if (codeStandart != null && codeStandart.isNotEmpty)
+          'code_standart': codeStandart,
       });
       slot++;
     }

@@ -63,6 +63,7 @@ class CheckoutState with _$CheckoutState {
     @Default('') String retryNoSp,
     @Default([]) List<PendingDetail> retryDetails,
     @Default([]) List<int> retryCompletedSteps,
+    @Default(0) int retryContactStartIndex,
     @Default(0) int retryPaymentStartIndex,
     @Default([]) List<SucceededDetail> retryDiscountDetails,
 
@@ -415,15 +416,28 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       // Dilewati jika sudah berhasil di run sebelumnya (mencegah duplikasi kontak).
       if (!completedSteps.contains(2)) {
         final step2 = Stopwatch()..start();
-        await _orderService.postContacts(contactsPayload, orderLetterId, token);
+        final contactStartIdx = state.retryContactStartIndex;
+        await _orderService.postContacts(
+          contactsPayload,
+          orderLetterId,
+          token,
+          startIndex: contactStartIdx,
+          onContactPosted: (idx) {
+            state = state.copyWith(retryContactStartIndex: idx + 1);
+          },
+        );
         step2.stop();
         completedSteps.add(2);
-        state = state.copyWith(retryCompletedSteps: completedSteps.toList());
+        state = state.copyWith(
+          retryCompletedSteps: completedSteps.toList(),
+          retryContactStartIndex: 0, // Reset untuk use berikutnya
+        );
         AppTelemetry.event(
           'checkout_step2_contacts_ok',
           data: {
             'duration_ms': step2.elapsedMilliseconds,
             'contacts': contactsPayload.length,
+            'contacts_skipped': contactStartIdx,
           },
           tag: 'CheckoutFlow',
         );
@@ -565,6 +579,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
           retryOrderId: null,
           retryNoSp: '',
           retryCompletedSteps: const [],
+          retryContactStartIndex: 0,
           retryPaymentStartIndex: 0,
           submitSuccess: true,
           successNoSp: noSp,
@@ -771,6 +786,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
           retryOrderId: null,
           retryNoSp: '',
           retryCompletedSteps: const [],
+          retryContactStartIndex: 0,
           retryPaymentStartIndex: 0,
           submitSuccess: true,
           successNoSp: state.retryNoSp,
@@ -1048,6 +1064,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
           retryDetails: const [],
           retryOrderId: null,
           retryNoSp: '',
+          retryContactStartIndex: 0,
           retryPaymentStartIndex: 0,
           submitSuccess: true,
           successNoSp: noSp,

@@ -295,6 +295,10 @@ mixin _$CartItem {
   List<double> get indirectStoreDiscounts => throw _privateConstructorUsedError;
   String get indirectStoreDiscountDisplay => throw _privateConstructorUsedError;
 
+  /// Kode diskon toko dari API (`disc_name`), dikirim sebagai `code_standart`
+  /// di baris `order_letter_discounts` indirect. Hanya relevan jika [isIndirectSale].
+  String get indirectStoreDiscountCode => throw _privateConstructorUsedError;
+
   /// Voucher FOC 100%: total baris di keranjang = 0; order letter memakai
   /// harga customer = pricelist & net = 0 + baris diskon bertanda FOC.
   @JsonKey(fromJson: _parseBoolDefaultFalse)
@@ -381,6 +385,7 @@ abstract class $CartItemCopyWith<$Res> {
       String indirectStorePhone,
       @JsonKey(fromJson: _parseDoubleList) List<double> indirectStoreDiscounts,
       String indirectStoreDiscountDisplay,
+      String indirectStoreDiscountCode,
       @JsonKey(fromJson: _parseBoolDefaultFalse) bool isFocVoucher,
       String pricelistArea,
       @JsonKey(fromJson: _parseBoolDefaultFalse) bool isBonusCustomized,
@@ -438,6 +443,7 @@ class _$CartItemCopyWithImpl<$Res, $Val extends CartItem>
     Object? indirectStorePhone = null,
     Object? indirectStoreDiscounts = null,
     Object? indirectStoreDiscountDisplay = null,
+    Object? indirectStoreDiscountCode = null,
     Object? isFocVoucher = null,
     Object? pricelistArea = null,
     Object? isBonusCustomized = null,
@@ -561,6 +567,10 @@ class _$CartItemCopyWithImpl<$Res, $Val extends CartItem>
           ? _value.indirectStoreDiscountDisplay
           : indirectStoreDiscountDisplay // ignore: cast_nullable_to_non_nullable
               as String,
+      indirectStoreDiscountCode: null == indirectStoreDiscountCode
+          ? _value.indirectStoreDiscountCode
+          : indirectStoreDiscountCode // ignore: cast_nullable_to_non_nullable
+              as String,
       isFocVoucher: null == isFocVoucher
           ? _value.isFocVoucher
           : isFocVoucher // ignore: cast_nullable_to_non_nullable
@@ -662,6 +672,7 @@ abstract class _$$CartItemImplCopyWith<$Res>
       String indirectStorePhone,
       @JsonKey(fromJson: _parseDoubleList) List<double> indirectStoreDiscounts,
       String indirectStoreDiscountDisplay,
+      String indirectStoreDiscountCode,
       @JsonKey(fromJson: _parseBoolDefaultFalse) bool isFocVoucher,
       String pricelistArea,
       @JsonKey(fromJson: _parseBoolDefaultFalse) bool isBonusCustomized,
@@ -719,6 +730,7 @@ class __$$CartItemImplCopyWithImpl<$Res>
     Object? indirectStorePhone = null,
     Object? indirectStoreDiscounts = null,
     Object? indirectStoreDiscountDisplay = null,
+    Object? indirectStoreDiscountCode = null,
     Object? isFocVoucher = null,
     Object? pricelistArea = null,
     Object? isBonusCustomized = null,
@@ -842,6 +854,10 @@ class __$$CartItemImplCopyWithImpl<$Res>
           ? _value.indirectStoreDiscountDisplay
           : indirectStoreDiscountDisplay // ignore: cast_nullable_to_non_nullable
               as String,
+      indirectStoreDiscountCode: null == indirectStoreDiscountCode
+          ? _value.indirectStoreDiscountCode
+          : indirectStoreDiscountCode // ignore: cast_nullable_to_non_nullable
+              as String,
       isFocVoucher: null == isFocVoucher
           ? _value.isFocVoucher
           : isFocVoucher // ignore: cast_nullable_to_non_nullable
@@ -916,6 +932,7 @@ class _$CartItemImpl extends _CartItem {
       @JsonKey(fromJson: _parseDoubleList)
       final List<double> indirectStoreDiscounts = const <double>[],
       this.indirectStoreDiscountDisplay = '',
+      this.indirectStoreDiscountCode = '',
       @JsonKey(fromJson: _parseBoolDefaultFalse) this.isFocVoucher = false,
       this.pricelistArea = '',
       @JsonKey(fromJson: _parseBoolDefaultFalse) this.isBonusCustomized = false,
@@ -1030,6 +1047,12 @@ class _$CartItemImpl extends _CartItem {
   @JsonKey()
   final String indirectStoreDiscountDisplay;
 
+  /// Kode diskon toko dari API (`disc_name`), dikirim sebagai `code_standart`
+  /// di baris `order_letter_discounts` indirect. Hanya relevan jika [isIndirectSale].
+  @override
+  @JsonKey()
+  final String indirectStoreDiscountCode;
+
   /// Voucher FOC 100%: total baris di keranjang = 0; order letter memakai
   /// harga customer = pricelist & net = 0 + baris diskon bertanda FOC.
   @override
@@ -1085,7 +1108,7 @@ class _$CartItemImpl extends _CartItem {
 
   @override
   String toString() {
-    return 'CartItem(product: $product, masterProduct: $masterProduct, quantity: $quantity, kasurSku: $kasurSku, divanSku: $divanSku, sandaranSku: $sandaranSku, sorongSku: $sorongSku, divanKain: $divanKain, divanWarna: $divanWarna, sandaranKain: $sandaranKain, sandaranWarna: $sandaranWarna, sorongKain: $sorongKain, sorongWarna: $sorongWarna, originalEupKasur: $originalEupKasur, originalEupDivan: $originalEupDivan, originalEupHeadboard: $originalEupHeadboard, originalEupSorong: $originalEupSorong, discount1: $discount1, discount2: $discount2, discount3: $discount3, discount4: $discount4, bonusSnapshots: $bonusSnapshots, indirectStoreAddressNumber: $indirectStoreAddressNumber, indirectStoreAlphaName: $indirectStoreAlphaName, indirectStoreAddress: $indirectStoreAddress, indirectStorePhone: $indirectStorePhone, indirectStoreDiscounts: $indirectStoreDiscounts, indirectStoreDiscountDisplay: $indirectStoreDiscountDisplay, isFocVoucher: $isFocVoucher, pricelistArea: $pricelistArea, isBonusCustomized: $isBonusCustomized, isCustomSize: $isCustomSize, isNewCustomerStore: $isNewCustomerStore, programBulananType: $programBulananType, programBulananDiscount: $programBulananDiscount, programBulananNominal: $programBulananNominal, isZeroPrice: $isZeroPrice)';
+    return 'CartItem(product: $product, masterProduct: $masterProduct, quantity: $quantity, kasurSku: $kasurSku, divanSku: $divanSku, sandaranSku: $sandaranSku, sorongSku: $sorongSku, divanKain: $divanKain, divanWarna: $divanWarna, sandaranKain: $sandaranKain, sandaranWarna: $sandaranWarna, sorongKain: $sorongKain, sorongWarna: $sorongWarna, originalEupKasur: $originalEupKasur, originalEupDivan: $originalEupDivan, originalEupHeadboard: $originalEupHeadboard, originalEupSorong: $originalEupSorong, discount1: $discount1, discount2: $discount2, discount3: $discount3, discount4: $discount4, bonusSnapshots: $bonusSnapshots, indirectStoreAddressNumber: $indirectStoreAddressNumber, indirectStoreAlphaName: $indirectStoreAlphaName, indirectStoreAddress: $indirectStoreAddress, indirectStorePhone: $indirectStorePhone, indirectStoreDiscounts: $indirectStoreDiscounts, indirectStoreDiscountDisplay: $indirectStoreDiscountDisplay, indirectStoreDiscountCode: $indirectStoreDiscountCode, isFocVoucher: $isFocVoucher, pricelistArea: $pricelistArea, isBonusCustomized: $isBonusCustomized, isCustomSize: $isCustomSize, isNewCustomerStore: $isNewCustomerStore, programBulananType: $programBulananType, programBulananDiscount: $programBulananDiscount, programBulananNominal: $programBulananNominal, isZeroPrice: $isZeroPrice)';
   }
 
   @override
@@ -1150,6 +1173,8 @@ class _$CartItemImpl extends _CartItem {
             (identical(other.indirectStoreDiscountDisplay, indirectStoreDiscountDisplay) ||
                 other.indirectStoreDiscountDisplay ==
                     indirectStoreDiscountDisplay) &&
+            (identical(other.indirectStoreDiscountCode, indirectStoreDiscountCode) ||
+                other.indirectStoreDiscountCode == indirectStoreDiscountCode) &&
             (identical(other.isFocVoucher, isFocVoucher) ||
                 other.isFocVoucher == isFocVoucher) &&
             (identical(other.pricelistArea, pricelistArea) ||
@@ -1202,6 +1227,7 @@ class _$CartItemImpl extends _CartItem {
         indirectStorePhone,
         const DeepCollectionEquality().hash(_indirectStoreDiscounts),
         indirectStoreDiscountDisplay,
+        indirectStoreDiscountCode,
         isFocVoucher,
         pricelistArea,
         isBonusCustomized,
@@ -1261,6 +1287,7 @@ abstract class _CartItem extends CartItem {
       @JsonKey(fromJson: _parseDoubleList)
       final List<double> indirectStoreDiscounts,
       final String indirectStoreDiscountDisplay,
+      final String indirectStoreDiscountCode,
       @JsonKey(fromJson: _parseBoolDefaultFalse) final bool isFocVoucher,
       final String pricelistArea,
       @JsonKey(fromJson: _parseBoolDefaultFalse) final bool isBonusCustomized,
@@ -1345,6 +1372,11 @@ abstract class _CartItem extends CartItem {
   List<double> get indirectStoreDiscounts;
   @override
   String get indirectStoreDiscountDisplay;
+
+  /// Kode diskon toko dari API (`disc_name`), dikirim sebagai `code_standart`
+  /// di baris `order_letter_discounts` indirect. Hanya relevan jika [isIndirectSale].
+  @override
+  String get indirectStoreDiscountCode;
 
   /// Voucher FOC 100%: total baris di keranjang = 0; order letter memakai
   /// harga customer = pricelist & net = 0 + baris diskon bertanda FOC.

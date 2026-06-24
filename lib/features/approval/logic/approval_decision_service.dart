@@ -161,8 +161,11 @@ class ApprovalDecisionService {
           (detail as Map<String, dynamic>)['order_letter_discount']
                   as List<dynamic>? ??
               [];
-      final discountMaps =
-          discounts.map((d) => d as Map<String, dynamic>).toList();
+      final discountMaps = discounts
+          .map((d) => d as Map<String, dynamic>)
+          .toList()
+        ..sort((a, b) => parseLevel(a['approver_level_id'])
+            .compareTo(parseLevel(b['approver_level_id'])));
 
       // Track discount IDs that will be approved in this batch,
       // so cascading same-user levels (e.g. SPV + RSM = 1 person)

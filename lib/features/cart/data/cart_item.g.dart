@@ -76,6 +76,8 @@ _$CartItemImpl _$$CartItemImplFromJson(Map<String, dynamic> json) =>
           : _parseDoubleList(json['indirectStoreDiscounts']),
       indirectStoreDiscountDisplay:
           json['indirectStoreDiscountDisplay'] as String? ?? '',
+      indirectStoreDiscountCode:
+          json['indirectStoreDiscountCode'] as String? ?? '',
       isFocVoucher: json['isFocVoucher'] == null
           ? false
           : _parseBoolDefaultFalse(json['isFocVoucher']),
@@ -131,6 +133,7 @@ Map<String, dynamic> _$$CartItemImplToJson(_$CartItemImpl instance) =>
       'indirectStorePhone': instance.indirectStorePhone,
       'indirectStoreDiscounts': instance.indirectStoreDiscounts,
       'indirectStoreDiscountDisplay': instance.indirectStoreDiscountDisplay,
+      'indirectStoreDiscountCode': instance.indirectStoreDiscountCode,
       'isFocVoucher': instance.isFocVoucher,
       'pricelistArea': instance.pricelistArea,
       'isBonusCustomized': instance.isBonusCustomized,

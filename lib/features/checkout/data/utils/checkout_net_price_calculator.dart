@@ -30,6 +30,8 @@ class CheckoutNetPriceCalculator {
     if (d4 > 0) net *= (1 - d4 / 100);
 
     final rounded = double.parse(net.toStringAsFixed(2));
-    return rounded > 0 ? rounded : customerPrice * qty;
+    // Jika diskon ekstrem menghasilkan net ≤ 0, kembalikan 0 (bukan harga penuh).
+    // Jalur FOC/zero-price ditangani via isFocVoucherActive/isZeroPrice di CartItem.
+    return rounded > 0 ? rounded : 0.0;
   }
 }

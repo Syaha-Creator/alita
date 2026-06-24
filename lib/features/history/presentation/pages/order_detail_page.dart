@@ -239,13 +239,15 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                 isCreator &&
                 currentStatus != OrderStatus.rejected));
 
-    // Tombol Edit header/items: hanya pemilik SP, status bukan rejected.
-    final canEditHeader =
-        !isOffline &&
+    // Kondisi dasar: pemilik SP, tidak offline, status bukan rejected.
+    final canEditBase = !isOffline &&
         currentOrder.creator == userId.toString() &&
         OrderStatusX.fromRaw(currentOrder.status) != OrderStatus.rejected;
-    final canEditItems =
-        canEditHeader && currentOrder.details.isNotEmpty;
+    // Edit informasi (header): hanya untuk direct — indirect (SO) tidak bisa
+    // ubah header karena data pelanggan/toko sudah terkunci di sesi indirect.
+    final canEditHeader = canEditBase && !isSoChannel;
+    // Edit barang: berlaku untuk semua channel.
+    final canEditItems = canEditBase && currentOrder.details.isNotEmpty;
 
     return Scaffold(
       backgroundColor: AppColors.background,

@@ -184,7 +184,7 @@ class CheckoutApproverContent extends StatelessWidget {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    'Customer baru — ASM wajib menyetujui.',
+                    'Customer baru — ASM & RSM wajib menyetujui.',
                     style: TextStyle(
                       fontSize: 11,
                       color: AppColors.accent.withValues(alpha: 0.85),
@@ -213,7 +213,9 @@ class CheckoutApproverContent extends StatelessWidget {
                 ),
                 child: Text(
                   isIndirectCheckout
-                      ? 'Diskon / bonus terdeteksi'
+                      ? (isCustomerBaru
+                          ? 'Customer baru terdeteksi'
+                          : 'Diskon / bonus terdeteksi')
                       : 'Diskon 3 terdeteksi',
                   style: const TextStyle(
                     fontSize: 10,

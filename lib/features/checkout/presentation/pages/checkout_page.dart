@@ -1130,11 +1130,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   bool _requiresManagerApproval(List<CartItem> cartItems) {
     return cartItems.any((item) {
       if (item.isIndirectSale) {
-        // Indirect: diskon tambahan ATAU bonus diubah dari bundle default → RSM wajib.
+        // Indirect: diskon tambahan ATAU bonus diubah ATAU customer baru → RSM wajib.
+        // discount4 (Analyst) juga memicu RSM agar autoApprove tidak bocor.
         return item.discount1 > 0 ||
             item.discount2 > 0 ||
             item.discount3 > 0 ||
-            item.isBonusCustomized;
+            item.discount4 > 0 ||
+            item.isBonusCustomized ||
+            item.isNewCustomerStore;
       }
       // Direct: manager diperlukan saat ada discount3 atau bonus diubah.
       return item.discount3 > 0 || item.isBonusCustomized;

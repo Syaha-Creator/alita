@@ -38,6 +38,7 @@ class EditOrderHeaderService {
     String? noPo,
     String? salesCode,
     String? note,
+    double postage = 0,
   }) {
     final cleanNoPo = noPo?.trim();
     final cleanSalesCode = salesCode?.trim();
@@ -54,6 +55,7 @@ class EditOrderHeaderService {
           ? null
           : cleanSalesCode,
       'note': note?.trim() ?? '',
+      'postage': postage,
       'status': 'Pending',
     };
   }

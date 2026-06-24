@@ -199,7 +199,9 @@ class InvoicePdfGenerator {
               hideStoreDiscountTiers: false),
           pw.SizedBox(height: 8),
           PdfTotalsSection.buildNotesAndTotals(letter, payments,
-              repaymentDate: tglPelunasan, isSoIndirectPdf: isSoIndirectPdf),
+              repaymentDate: tglPelunasan,
+              isSoIndirectPdf: isSoIndirectPdf,
+              details: details),
           pw.SizedBox(height: 10),
           if (isInternal && approvalsForPdf.isNotEmpty) ...[
             PdfApprovalSignature.buildApprovalTable(approvalsForPdf,

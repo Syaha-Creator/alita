@@ -257,6 +257,7 @@ class CartItemBuilder {
       indirectStorePhone: indirectMeta?.phone ?? '',
       indirectStoreDiscounts: indirectMeta?.storeDiscounts ?? const [],
       indirectStoreDiscountDisplay: indirectMeta?.discountDisplay ?? '',
+      indirectStoreDiscountCode: indirectMeta?.discountCode ?? '',
       isNewCustomerStore: indirectMeta?.isNewCustomer ?? false,
       pricelistArea: pricelistArea,
       programBulananType: programBulananType,

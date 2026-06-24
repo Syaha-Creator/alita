@@ -241,8 +241,11 @@ class QuotationPdfGenerator {
 
   static pw.Widget _buildNotesAndTotals(QuotationModel q) {
     final grandTotal = q.totalPrice;
-    final subtotal = (grandTotal / 1.11).roundToDouble();
-    final ppn = grandTotal - subtotal;
+    // DPP = Dasar Pengenaan Pajak (grandTotal sudah inklusif PPN 11%).
+    final dpp = (grandTotal / 1.11).roundToDouble();
+    final ppn = grandTotal - dpp;
+    // q.subtotal = Σ CartItem.totalPrice (jumlah harga item, dapat diverifikasi).
+    final itemsSubtotal = q.subtotal.roundToDouble();
 
     return pw.Table(
       columnWidths: const {
@@ -270,7 +273,10 @@ class QuotationPdfGenerator {
             ),
             pw.Column(
               children: [
-                QuotationPdfCellHelpers.totalCurrencyRow('Subtotal', subtotal),
+                if (itemsSubtotal > 0)
+                  QuotationPdfCellHelpers.totalCurrencyRow(
+                      'Subtotal', itemsSubtotal),
+                QuotationPdfCellHelpers.totalCurrencyRow('DPP', dpp),
                 QuotationPdfCellHelpers.totalCurrencyRow('PPN 11%', ppn),
                 if (q.discount > 0)
                   QuotationPdfCellHelpers.totalCurrencyRow(

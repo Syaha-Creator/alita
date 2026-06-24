@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/log.dart';
 import '../../../core/utils/store_discount_calculator.dart';
 import '../../auth/logic/auth_provider.dart';
 import '../../../core/enums/sales_mode.dart';
@@ -43,23 +44,29 @@ class IndirectSessionNotifier extends StateNotifier<IndirectSessionState> {
     }
 
     try {
-      final discounts = await _discountService.fetchDiscounts(
+      final result = await _discountService.fetchDiscounts(
         token: token,
         addressNumber: store.addressNumber,
       );
-      final display = StoreDiscountCalculator.formatDisplay(discounts);
+      final display = StoreDiscountCalculator.formatDisplay(result.discounts);
       state = IndirectSessionState(
         selectedStore: store,
-        storeDiscounts: discounts,
+        storeDiscounts: result.discounts,
         isLoadingDiscounts: false,
         discountDisplay: display,
+        discountCode: result.discountCode,
       );
-    } catch (_) {
+    } catch (e, _) {
+      Log.warning(
+        'IndirectSession: gagal fetch diskon toko — $e',
+        tag: 'Indirect',
+      );
       state = IndirectSessionState(
         selectedStore: store,
         storeDiscounts: const [],
         isLoadingDiscounts: false,
         discountDisplay: '',
+        discountCode: '',
       );
     }
   }

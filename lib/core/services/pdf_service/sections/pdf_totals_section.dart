@@ -10,11 +10,22 @@ abstract final class PdfTotalsSection {
     List<Map<String, dynamic>> payments, {
     required String repaymentDate,
     bool isSoIndirectPdf = false,
+    /// Detail baris item — dipakai untuk menghitung Subtotal yang bisa diverifikasi
+    /// oleh user dengan menjumlahkan kolom HARGA TOTAL di tabel item.
+    List<Map<String, dynamic>> details = const [],
   }) {
     final note = (order['note']?.toString() ?? '').trim();
     final grandTotal = PdfHelpers.dbl(order['extended_amount']).roundToDouble();
-    final subtotal = (grandTotal / 1.11).roundToDouble();
-    final ppn = grandTotal - subtotal;
+    // DPP = Dasar Pengenaan Pajak (grandTotal sudah inklusif PPN 11%).
+    final dpp = (grandTotal / 1.11).roundToDouble();
+    final ppn = grandTotal - dpp;
+    // Subtotal = jumlah harga baris item (net_price × qty), dapat diverifikasi
+    // dari kolom HARGA TOTAL di tabel item di atas.
+    final itemsSubtotal = details.fold<double>(0.0, (sum, d) {
+      final qty = PdfHelpers.intFrom(d['qty']);
+      final net = PdfHelpers.dbl(d['net_price'] ?? d['customer_price']);
+      return sum + net * (qty > 0 ? qty : 1);
+    }).roundToDouble();
     final totalPaid = payments.fold<double>(
         0, (s, p) => s + PdfHelpers.dbl(p['payment_amount']));
     final remaining = grandTotal - totalPaid;
@@ -73,7 +84,9 @@ abstract final class PdfTotalsSection {
             ),
             pw.Column(
               children: [
-                _totalCurrencyRow('Subtotal', subtotal),
+                if (itemsSubtotal > 0)
+                  _totalCurrencyRow('Subtotal', itemsSubtotal),
+                _totalCurrencyRow('DPP', dpp),
                 _totalCurrencyRow('PPN 11%', ppn),
                 _totalCurrencyRow('Total', grandTotal, isBold: true),
                 if (!isSoIndirectPdf) ...[

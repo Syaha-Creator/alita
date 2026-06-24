@@ -111,6 +111,9 @@ class CartItem with _$CartItem {
     @Default(<double>[])
     List<double> indirectStoreDiscounts,
     @Default('') String indirectStoreDiscountDisplay,
+    /// Kode diskon toko dari API (`disc_name`), dikirim sebagai `code_standart`
+    /// di baris `order_letter_discounts` indirect. Hanya relevan jika [isIndirectSale].
+    @Default('') String indirectStoreDiscountCode,
     /// Voucher FOC 100%: total baris di keranjang = 0; order letter memakai
     /// harga customer = pricelist & net = 0 + baris diskon bertanda FOC.
     @JsonKey(fromJson: _parseBoolDefaultFalse) @Default(false) bool isFocVoucher,

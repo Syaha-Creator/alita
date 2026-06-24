@@ -148,11 +148,17 @@ class CheckoutOrderService {
   Future<void> postContacts(
     List<Map<String, dynamic>> contacts,
     int orderLetterId,
-    String token,
-  ) async {
+    String token, {
+    /// Index kontak pertama yang belum berhasil dikirim (untuk retry agar tidak
+    /// duplikasi kontak yang sudah berhasil di attempt sebelumnya).
+    int startIndex = 0,
+    /// Dipanggil setelah tiap kontak berhasil, dengan index-nya — dipakai
+    /// provider untuk update retryContactStartIndex secara incremental.
+    void Function(int idx)? onContactPosted,
+  }) async {
     const endpoint = '/order_letter_contacts';
-    for (int i = 0; i < contacts.length; i++) {
-      final contact = contacts[i];
+    for (int i = startIndex; i < contacts.length; i++) {
+      final contact = Map<String, dynamic>.from(contacts[i]);
       contact['order_letter_id'] = orderLetterId;
       final response = await _api.post(
         CheckoutEndpoints.orderLetterContacts,
@@ -170,6 +176,7 @@ class CheckoutOrderService {
           payloadKeys: contact.keys.toList(),
         );
       }
+      onContactPosted?.call(i);
     }
   }
 
@@ -712,6 +719,9 @@ class CheckoutOrderService {
             storeDiscounts: item.indirectStoreDiscounts,
             storeAlphaName: item.indirectStoreAlphaName,
             storeDiscountNominals: storeDiscountNominals,
+            codeStandart: item.indirectStoreDiscountCode.isNotEmpty
+                ? item.indirectStoreDiscountCode
+                : null,
           ));
         }
 

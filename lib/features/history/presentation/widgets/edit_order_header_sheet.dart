@@ -10,6 +10,7 @@ import '../../../../core/services/storage_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/utils/app_formatters.dart';
+import '../../../../core/utils/number_input_formatter.dart';
 import '../../../../core/utils/platform_utils.dart';
 import '../../../../core/widgets/loading_overlay.dart';
 import '../../../../core/widgets/segmented_toggle.dart';
@@ -81,6 +82,7 @@ class _EditOrderHeaderSheetState extends ConsumerState<EditOrderHeaderSheet> {
   late final TextEditingController _noPoCtrl;
   late final TextEditingController _salesCodeCtrl;
   late final TextEditingController _noteCtrl;
+  late final TextEditingController _postageCtrl;
 
   DateTime? _requestDate;
   bool _isSubmitting = false;
@@ -113,6 +115,9 @@ class _EditOrderHeaderSheetState extends ConsumerState<EditOrderHeaderSheet> {
     _noPoCtrl = TextEditingController(text: o.noPo ?? '');
     _salesCodeCtrl = TextEditingController(text: o.salesCode);
     _noteCtrl = TextEditingController(text: o.note == '-' ? '' : o.note);
+    _postageCtrl = TextEditingController(
+      text: o.postage > 0 ? o.postage.toInt().toString() : '',
+    );
     // Coba parse requestDate; fallback ke hari ini jika tidak valid atau "-".
     _requestDate = (o.requestDate.isEmpty || o.requestDate == '-')
         ? DateTime.now()
@@ -136,6 +141,7 @@ class _EditOrderHeaderSheetState extends ConsumerState<EditOrderHeaderSheet> {
     _noPoCtrl.dispose();
     _salesCodeCtrl.dispose();
     _noteCtrl.dispose();
+    _postageCtrl.dispose();
     _storeSearchCtrl.dispose();
     super.dispose();
   }
@@ -223,6 +229,9 @@ class _EditOrderHeaderSheetState extends ConsumerState<EditOrderHeaderSheet> {
 
     try {
       final token = await StorageService.loadAccessToken();
+      final postageRaw =
+          _postageCtrl.text.replaceAll(RegExp(r'[^0-9]'), '').trim();
+      final postage = postageRaw.isEmpty ? 0.0 : double.parse(postageRaw);
       final payload = EditOrderHeaderService.buildHeaderPayload(
         customerName: _customerNameCtrl.text,
         phone: _phoneCtrl.text,
@@ -236,6 +245,7 @@ class _EditOrderHeaderSheetState extends ConsumerState<EditOrderHeaderSheet> {
         noPo: _noPoCtrl.text,
         salesCode: _salesCodeCtrl.text,
         note: _noteCtrl.text,
+        postage: postage,
       );
 
       await _service.editAndReset(
@@ -406,12 +416,14 @@ class _EditOrderHeaderSheetState extends ConsumerState<EditOrderHeaderSheet> {
                             controller: _phoneCtrl,
                             prefixIcon: Icons.phone_outlined,
                             keyboard: TextInputType.phone,
+                            required: false,
                           ),
                           _buildField(
                             label: 'Email',
                             controller: _emailCtrl,
                             prefixIcon: Icons.email_outlined,
                             keyboard: TextInputType.emailAddress,
+                            required: false,
                           ),
                           _buildField(
                             label: 'Alamat Pelanggan',
@@ -560,6 +572,7 @@ class _EditOrderHeaderSheetState extends ConsumerState<EditOrderHeaderSheet> {
                               ),
                             ],
                           ),
+                          _buildPostageField(),
                         ],
                       ),
                       const SizedBox(height: 12),
@@ -1005,6 +1018,48 @@ class _EditOrderHeaderSheetState extends ConsumerState<EditOrderHeaderSheet> {
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildPostageField() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: TextFormField(
+        controller: _postageCtrl,
+        keyboardType: TextInputType.number,
+        inputFormatters: [ThousandsSeparatorInputFormatter()],
+        decoration: InputDecoration(
+          labelText: 'Ongkos Kirim (opsional)',
+          labelStyle:
+              const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+          prefixIcon: const Icon(Icons.local_shipping_outlined,
+              size: 17, color: AppColors.textTertiary),
+          prefixIconConstraints:
+              const BoxConstraints(minWidth: 40, minHeight: 0),
+          prefixText: 'Rp ',
+          prefixStyle:
+              const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+          hintText: '0',
+          filled: true,
+          fillColor: AppColors.background,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: AppColors.border),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: AppColors.border),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: AppColors.accent, width: 1.5),
+          ),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          isDense: true,
+        ),
+        style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
       ),
     );
   }

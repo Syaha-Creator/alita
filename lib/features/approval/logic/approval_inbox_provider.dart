@@ -231,7 +231,7 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
     return true;
   }
 
-  static const _locationTimeout = Duration(seconds: 15);
+  static const _locationTimeout = Duration(seconds: 30);
   static const _geocodeTimeout = Duration(seconds: 10);
 
   /// Mendapatkan posisi GPS saat ini untuk geotagging approval.
@@ -257,12 +257,15 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
         return null;
       }
 
+      // LocationAccuracy.medium pakai network/WiFi positioning — jauh lebih cepat
+      // (~1–3s) dibanding .high yang menunggu GPS hardware cold-fix (bisa 30–60s).
+      // Akurasi ~100m sudah cukup untuk geotagging approval.
       return await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
+          accuracy: LocationAccuracy.medium,
           timeLimit: _locationTimeout,
         ),
-      ).timeout(_locationTimeout);
+      );
     } on TimeoutException {
       Log.warning('Location request timed out', tag: 'Approval');
       return null;

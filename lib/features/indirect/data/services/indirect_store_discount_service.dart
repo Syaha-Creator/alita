@@ -11,7 +11,10 @@ class IndirectStoreDiscountService {
   final ApiClient _api;
 
   /// Coba `addressNumber.0` lalu `addressNumber` agar cocok dengan backend.
-  Future<List<double>> fetchDiscounts({
+  ///
+  /// Mengembalikan tuple `discounts` (persentase tiap level) dan `discountCode`
+  /// (`disc_name` dari API, dipakai sebagai `code_standart` di order_letter_discounts).
+  Future<({List<double> discounts, String discountCode})> fetchDiscounts({
     required String token,
     required int addressNumber,
   }) async {
@@ -42,10 +45,15 @@ class IndirectStoreDiscountService {
         if (val != null && val > 0) discounts.add(val);
       }
 
-      if (discounts.isNotEmpty) return discounts;
+      final discountCode = (first['disc_name'] as String? ?? '').trim();
+
+      // Return jika ada persentase diskon ATAU disc_name — keduanya berguna.
+      if (discounts.isNotEmpty || discountCode.isNotEmpty) {
+        return (discounts: discounts, discountCode: discountCode);
+      }
     }
 
-    return [];
+    return (discounts: const <double>[], discountCode: '');
   }
 
   double? _toDouble(dynamic value) {

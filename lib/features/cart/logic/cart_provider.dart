@@ -5,14 +5,16 @@ import '../../../core/utils/log.dart';
 import '../../pricelist/data/models/product.dart';
 import '../data/cart_item.dart';
 
-/// Stable key for a cart line (same product + same component SKUs = same key).
+/// Stable key for a cart line — must match _isSameLine exactly.
 /// Used for selection and for removeItemsByIds.
 String cartItemKey(CartItem item) {
   final indirect = item.isIndirectSale
       ? '|i${item.indirectStoreAddressNumber}'
       : '|d';
   final foc = item.isFocVoucherActive ? '|foc' : '';
-  return '${item.product.id}|${item.kasurSku}|${item.divanSku}|${item.sandaranSku}|${item.sorongSku}$indirect$foc';
+  final bonus =
+      item.bonusSnapshots.map((b) => '${b.name}:${b.qty}').join(',');
+  return '${item.product.id}|${item.kasurSku}|${item.divanSku}|${item.sandaranSku}|${item.sorongSku}$indirect$foc|$bonus';
 }
 
 /// Cart state notifier with persistent storage
@@ -46,7 +48,8 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
   }
 
   /// Returns true if [a] and [b] represent the same cart line:
-  /// same Product ID AND the same full set of component SKUs.
+  /// same Product ID, component SKUs, store, FOC flag, AND bonus list.
+  /// Items with the same product but different bonuses become separate lines.
   static bool _isSameLine(CartItem a, CartItem b) =>
       a.product.id == b.product.id &&
       a.kasurSku == b.kasurSku &&
@@ -54,7 +57,8 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
       a.sandaranSku == b.sandaranSku &&
       a.sorongSku == b.sorongSku &&
       a.indirectStoreAddressNumber == b.indirectStoreAddressNumber &&
-      a.isFocVoucherActive == b.isFocVoucherActive;
+      a.isFocVoucherActive == b.isFocVoucherActive &&
+      _bonusListEquals(a.bonusSnapshots, b.bonusSnapshots);
 
   /// Add a fully-snapshotted CartItem to the cart.
   /// Items are merged only when Product ID AND all component SKUs match.
