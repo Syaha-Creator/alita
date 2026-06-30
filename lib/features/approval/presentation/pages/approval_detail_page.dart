@@ -46,10 +46,21 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
   /// Pesan loading (mis. "Mendeteksi lokasi..." saat ambil GPS + reverse geocode).
   String? _loadingMessage;
 
+  /// Prefetch lokasi saat halaman dibuka agar saat user klik approve/reject
+  /// lokasi sudah siap — menghindari jeda tunggu GPS setelah konfirmasi.
+  Future<ApprovalLocation?>? _locationFuture;
+
   @override
   void initState() {
     super.initState();
     _loadUserId();
+    // Mulai ambil lokasi di background segera saat halaman terbuka.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _locationFuture =
+            ref.read(approvalInboxProvider.notifier).getCurrentAddressForApproval();
+      }
+    });
   }
 
   Future<void> _loadUserId() async {
@@ -129,13 +140,19 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
     final inboxNotifier = ref.read(approvalInboxProvider.notifier);
     final profileFuture = ref.read(profileProvider.future);
 
+    // Jika prefetch belum selesai, tunggu. Jika sudah selesai, hasilnya instan.
+    // Setelah digunakan, reset agar approval berikutnya re-fetch posisi terbaru.
+    final pendingLocation = _locationFuture ??
+        inboxNotifier.getCurrentAddressForApproval();
+    _locationFuture = null;
+
     setState(() {
       _isLoading = true;
       _loadingMessage = 'Mendeteksi lokasi...';
     });
 
     try {
-      final location = await inboxNotifier.getCurrentAddressForApproval();
+      final location = await pendingLocation;
       if (location == null || !mounted) {
         sw.stop();
         AppTelemetry.error('approval_location_failed', data: {

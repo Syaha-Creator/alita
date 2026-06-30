@@ -231,22 +231,23 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
     return true;
   }
 
-  static const _locationTimeout = Duration(seconds: 30);
-  static const _geocodeTimeout = Duration(seconds: 10);
+  static const _locationTimeout = Duration(seconds: 20);
+  static const _geocodeTimeout = Duration(seconds: 8);
 
   /// Mendapatkan posisi GPS saat ini untuk geotagging approval.
   /// Mengembalikan null jika layanan lokasi mati, izin ditolak, atau timeout.
   Future<Position?> _getCurrentLocation() async {
     try {
+      // Platform call berikut seharusnya instan; timeout 5s sebagai safety net.
       final enabled = await Geolocator.isLocationServiceEnabled()
-          .timeout(_locationTimeout);
+          .timeout(const Duration(seconds: 5));
       if (!enabled) {
         Log.warning('Location service disabled', tag: 'Approval');
         return null;
       }
 
       var permission = await Geolocator.checkPermission()
-          .timeout(_locationTimeout);
+          .timeout(const Duration(seconds: 5));
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission()
             .timeout(const Duration(seconds: 30));

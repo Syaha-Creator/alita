@@ -105,5 +105,5 @@ class _NoOpApprovalInboxNotifier extends ApprovalInboxNotifier {
   _NoOpApprovalInboxNotifier(super.ref);
 
   @override
-  Future<void> fetchInbox() async {}
+  Future<void> fetchInbox({bool force = false}) async {}
 }
