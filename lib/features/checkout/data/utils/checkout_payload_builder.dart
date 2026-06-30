@@ -45,6 +45,11 @@ class CheckoutPayloadBuilder {
     /// Indirect: `address_number` toko untuk field `customer_master` di `/order_letters`.
     int? indirectCustomerMaster,
 
+    /// Indirect: `address_number` toko untuk field `ship_to_code`.
+    /// Diisi hanya saat pengiriman ke toko yang sama (bukan cabang/gudang,
+    /// bukan customer baru) — nilainya sama dengan [indirectCustomerMaster].
+    int? indirectShipToCode,
+
     /// Jika true, kirim `status: 'Approved'` langsung saat membuat order letter.
     ///
     /// Dipakai untuk indirect order tanpa Diskon Tambahan dan tanpa perubahan bonus —
@@ -153,6 +158,9 @@ class CheckoutPayloadBuilder {
       if (isIndirectOrder && indirectCustomerMaster != null &&
           indirectCustomerMaster > 0)
         'customer_master': indirectCustomerMaster,
+      if (isIndirectOrder && indirectShipToCode != null &&
+          indirectShipToCode > 0)
+        'ship_to_code': indirectShipToCode,
     };
   }
 

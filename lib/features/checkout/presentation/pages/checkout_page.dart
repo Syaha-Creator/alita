@@ -1645,6 +1645,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               .firstOrNull
               ?.indirectStoreAddressNumber
           : null,
+      // ship_to_code = customer_master saat pengiriman ke toko yang sama
+      // (bukan Cabang/Gudang, bukan Customer Baru).
+      indirectShipToCode: isIndirect && _isShippingSameAsCustomer
+          ? cartItems
+              .where((e) => e.isIndirectSale)
+              .firstOrNull
+              ?.indirectStoreAddressNumber
+          : null,
       autoApprove: autoApprove,
       userAddressNumber: ref.read(authProvider).addressNumber,
     );
