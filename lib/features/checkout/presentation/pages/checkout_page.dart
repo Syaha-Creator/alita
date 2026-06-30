@@ -1147,7 +1147,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   /// True jika cart memerlukan pemilihan ASM (indirect) / SPV (direct).
   ///
   /// Indirect: ASM wajib ketika ada Diskon Tambahan (disc1/2/3 > 0), atau
-  /// ada item dengan ukuran custom, atau pengiriman ke "Customer Baru".
+  /// ada item dengan ukuran custom, atau pengiriman ke "Customer Baru",
+  /// atau area pricelist adalah Medan (tidak ada auto-approve di Medan).
   /// Direct: SPV selalu wajib (untuk setiap order).
   bool _requiresSpvApproval(List<CartItem> cartItems) {
     final isIndirect = cartItems.any((e) => e.isIndirectSale);
@@ -1160,6 +1161,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       if (cartItems.any((item) => item.isNewCustomerStore)) return true;
       // FOC voucher aktif → harga jadi 0, ASM wajib menyetujui.
       if (cartItems.any((item) => item.isFocVoucherActive)) return true;
+      // Area Medan: tidak ada auto-approve, ASM selalu wajib.
+      if (cartItems.any(
+        (item) => item.pricelistArea.trim().toLowerCase() == 'medan',
+      )) {
+        return true;
+      }
       return cartItems.any(
         (item) =>
             item.discount1 > 0 ||
