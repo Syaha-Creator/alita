@@ -238,7 +238,7 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
         }
       }
 
-      unawaited(inboxNotifier.fetchInbox());
+      unawaited(inboxNotifier.fetchInbox(force: true));
       if (!mounted) return;
 
       sw.stop();

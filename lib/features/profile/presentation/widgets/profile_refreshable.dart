@@ -43,7 +43,7 @@ class ProfileRefreshable extends ConsumerWidget {
     }
     ref.invalidate(profileProvider);
     ref.invalidate(orderHistoryProvider);
-    unawaited(ref.read(approvalInboxProvider.notifier).fetchInbox());
+    unawaited(ref.read(approvalInboxProvider.notifier).fetchInbox(force: true));
     try {
       await ref.read(profileProvider.future);
     } catch (_) {

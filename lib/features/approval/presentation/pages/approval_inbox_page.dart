@@ -176,7 +176,7 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
       message: isOffline
           ? 'Periksa koneksi internet Anda dan coba lagi.'
           : error.replaceFirst('Exception: ', ''),
-      onRetry: () => ref.read(approvalInboxProvider.notifier).fetchInbox(),
+      onRetry: () => ref.read(approvalInboxProvider.notifier).fetchInbox(force: true),
       iconColor: isOffline ? AppColors.warning : AppColors.error,
       buttonColor: AppColors.accent,
       buttonTextColor: AppColors.onPrimary,
@@ -340,7 +340,7 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
       }
       return;
     }
-    await ref.read(approvalInboxProvider.notifier).fetchInbox();
+    await ref.read(approvalInboxProvider.notifier).fetchInbox(force: true);
   }
 
   Widget _buildListView(

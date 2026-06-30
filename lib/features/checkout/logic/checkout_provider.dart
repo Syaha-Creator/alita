@@ -570,7 +570,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
           await _ref.read(cartProvider.notifier).clearCart();
         }
         _ref.invalidate(orderHistoryProvider);
-        unawaited(_ref.read(approvalInboxProvider.notifier).fetchInbox());
+        unawaited(_ref.read(approvalInboxProvider.notifier).fetchInbox(force: true));
 
         state = state.copyWith(
           isSubmitting: false,
@@ -777,7 +777,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         }
 
         _ref.invalidate(orderHistoryProvider);
-        unawaited(_ref.read(approvalInboxProvider.notifier).fetchInbox());
+        unawaited(_ref.read(approvalInboxProvider.notifier).fetchInbox(force: true));
 
         state = state.copyWith(
           isSubmitting: false,
@@ -1045,7 +1045,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       await _ref.read(cartProvider.notifier).clearCart();
       _ref.invalidate(orderHistoryProvider);
       _ref.invalidate(orderDetailProvider(orderLetterId));
-      unawaited(_ref.read(approvalInboxProvider.notifier).fetchInbox());
+      unawaited(_ref.read(approvalInboxProvider.notifier).fetchInbox(force: true));
 
       sw.stop();
       AppTelemetry.event(

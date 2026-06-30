@@ -154,7 +154,7 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
           senderName: profile?.name ?? 'Approver',
         ),
       );
-      unawaited(ref.read(approvalInboxProvider.notifier).fetchInbox());
+      unawaited(ref.read(approvalInboxProvider.notifier).fetchInbox(force: true));
       await ref.read(orderDetailProvider(widget.order.id).notifier).refresh();
       if (!context.mounted) return;
       LoadingOverlay.dismiss(context);

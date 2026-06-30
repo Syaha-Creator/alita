@@ -190,7 +190,7 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
   /// Update filter rentang tanggal lalu re-fetch.
   void updateDateFilter(DateTime start, DateTime end) {
     state = state.copyWith(startDate: start, endDate: end);
-    fetchInbox();
+    fetchInbox(force: true);
   }
 
   /// Hapus filter tanggal lalu re-fetch.
@@ -200,7 +200,7 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
       historyApprovals: state.historyApprovals,
       historyWorkPlaceFilter: state.historyWorkPlaceFilter,
     );
-    fetchInbox();
+    fetchInbox(force: true);
   }
 
   /// Filter tab Selesai per lokasi/toko (`work_place_name`). `null` = semua.
@@ -415,7 +415,10 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
     );
   }
 
-  Future<void> fetchInbox() async {
+  /// [force] = true: selalu jalankan meskipun sedang loading (untuk user action
+  /// seperti filter tanggal / pull-to-refresh / refresh pasca approve).
+  Future<void> fetchInbox({bool force = false}) async {
+    if (state.isLoading && !force) return;
     state = state.copyWith(isLoading: true, error: null);
     final sw = Stopwatch()..start();
 
