@@ -306,7 +306,17 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
   }
 
   static const _locationTimeout = Duration(seconds: 20);
-  static const _geocodeTimeout = Duration(seconds: 8);
+  static const _geocodeTimeout = Duration(seconds: 3);
+
+  /// Batas tunggu fix GPS/network segar sebelum kita mulai balapan dengan
+  /// posisi cache OS (`getLastKnownPosition`, biasanya instan). Sinyal lemah
+  /// di gudang/toko sering membuat fix segar lambat — daripada approver
+  /// menunggu penuh [_locationTimeout], kita ambil yang lebih dulu siap.
+  static const _lastKnownRaceDelay = Duration(seconds: 6);
+
+  /// Posisi cache dianggap terlalu basi untuk geotagging approval jika lebih
+  /// tua dari ini — pada kasus itu kita tetap tunggu fix segar.
+  static const _lastKnownMaxAge = Duration(minutes: 15);
 
   /// Mendapatkan posisi GPS saat ini untuk geotagging approval.
   /// Mengembalikan null jika layanan lokasi mati, izin ditolak, atau timeout.
@@ -335,11 +345,51 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
       // LocationAccuracy.medium pakai network/WiFi positioning — jauh lebih cepat
       // (~1–3s) dibanding .high yang menunggu GPS hardware cold-fix (bisa 30–60s).
       // Akurasi ~100m sudah cukup untuk geotagging approval.
-      return await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium,
-          timeLimit: _locationTimeout,
-        ),
+      //
+      // Balapan dengan cache OS: kalau fix segar belum siap dalam
+      // [_lastKnownRaceDelay], coba posisi terakhir yang di-cache OS
+      // (near-instant) sebagai fallback — asal tidak terlalu basi. Fix segar
+      // tetap dibiarkan berjalan sampai [_locationTimeout] sebagai jaring
+      // pengaman kalau cache tidak tersedia.
+      final completer = Completer<Position?>();
+
+      unawaited(
+        Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.medium,
+            timeLimit: _locationTimeout,
+          ),
+        ).then((pos) {
+          if (!completer.isCompleted) completer.complete(pos);
+        }).catchError((e) {
+          Log.warning('Fresh location fix gagal/timeout: $e', tag: 'Approval');
+        }),
+      );
+
+      unawaited(
+        Future.delayed(_lastKnownRaceDelay, () async {
+          if (completer.isCompleted) return;
+          try {
+            final last = await Geolocator.getLastKnownPosition();
+            if (last == null || completer.isCompleted) return;
+            final age = DateTime.now().difference(last.timestamp);
+            if (age > _lastKnownMaxAge) {
+              Log.info(
+                'Cache lokasi terlalu basi (${age.inMinutes}m) — tunggu fix segar',
+                tag: 'Approval',
+              );
+              return;
+            }
+            completer.complete(last);
+          } catch (e) {
+            Log.warning('getLastKnownPosition gagal: $e', tag: 'Approval');
+          }
+        }),
+      );
+
+      return await completer.future.timeout(
+        _locationTimeout,
+        onTimeout: () => null,
       );
     } on TimeoutException {
       Log.warning('Location request timed out', tag: 'Approval');
