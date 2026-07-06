@@ -20,7 +20,8 @@ class CheckoutApproverContent extends StatelessWidget {
 
   /// True jika ASM/SPV diperlukan untuk pesanan ini.
   ///
-  /// Indirect: true ketika ada Diskon Tambahan (disc1/2/3 > 0) ATAU bonus diubah.
+    /// Indirect: true untuk customer baru, FOC, Medan, ukuran custom.
+    /// **Diskon tambahan (d1–d3) hanya memicu RSM**, bukan ASM.
   /// Direct: selalu true.
   /// Ketika false, seluruh section ASM disembunyikan.
   final bool requiresSpv;

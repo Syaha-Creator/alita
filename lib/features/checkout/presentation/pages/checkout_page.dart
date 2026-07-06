@@ -32,6 +32,7 @@ import '../../data/models/store_model.dart';
 import '../../data/utils/indirect_store_match.dart';
 import '../../data/services/local_contact_service.dart';
 import '../../data/utils/checkout_payload_builder.dart';
+import '../../data/utils/indirect_approval_rules.dart';
 import '../../logic/bonus_takeaway_state.dart';
 import '../../logic/checkout_form_validator.dart';
 import '../../logic/checkout_provider.dart';
@@ -1136,56 +1137,40 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   }
 
   bool _requiresManagerApproval(List<CartItem> cartItems) {
-    // Aturan Klaus: workplace 1937/6015 + SPV 4147/1019 → RSM wajib.
     if (ref.read(checkoutProvider.notifier).isKlausRuleActive) return true;
-    return cartItems.any((item) {
-      if (item.isIndirectSale) {
-        // Indirect: diskon tambahan ATAU bonus diubah ATAU customer baru → RSM wajib.
-        // discount4 (Analyst) juga memicu RSM agar autoApprove tidak bocor.
-        return item.discount1 > 0 ||
-            item.discount2 > 0 ||
-            item.discount3 > 0 ||
-            item.discount4 > 0 ||
-            item.isBonusCustomized ||
-            item.isNewCustomerStore;
-      }
-      // Direct: manager diperlukan saat ada discount3 atau bonus diubah.
-      return item.discount3 > 0 || item.isBonusCustomized;
-    });
+    if (cartItems.any((e) => e.isIndirectSale)) {
+      return IndirectApprovalRules.requiresRsm(
+        cartItems: cartItems,
+        isKlausRuleActive: false,
+      );
+    }
+    return cartItems.any(
+      (item) => item.discount3 > 0 || item.isBonusCustomized,
+    );
   }
 
   /// True jika cart memerlukan pemilihan ASM (indirect) / SPV (direct).
   ///
-  /// Indirect: ASM wajib ketika ada Diskon Tambahan (disc1/2/3 > 0), atau
-  /// ada item dengan ukuran custom, atau pengiriman ke "Customer Baru",
-  /// atau area pricelist adalah Medan (tidak ada auto-approve di Medan).
-  /// Direct: SPV selalu wajib (untuk setiap order).
+  /// Indirect — ASM wajib untuk: Customer Baru, toko new_customer, FOC,
+  /// area Medan, ukuran custom. **Diskon tambahan (d1–d3) hanya ke RSM.**
+  /// Direct: SPV selalu wajib.
   bool _requiresSpvApproval(List<CartItem> cartItems) {
     final isIndirect = cartItems.any((e) => e.isIndirectSale);
     if (isIndirect) {
-      // Kirim ke customer baru (bukan branch/gudang & bukan alamat toko) → ASM wajib.
       final isCustomerBaru =
           !_isShippingSameAsCustomer && !_isReceiverBranchMode;
-      if (isCustomerBaru) return true;
-      // Toko dengan flag customer baru dari API (search_type) → ASM wajib.
-      if (cartItems.any((item) => item.isNewCustomerStore)) return true;
-      // FOC voucher aktif → harga jadi 0, ASM wajib menyetujui.
-      if (cartItems.any((item) => item.isFocVoucherActive)) return true;
-      // Area Medan: tidak ada auto-approve, ASM selalu wajib.
-      if (cartItems.any(
-        (item) => item.pricelistArea.trim().toLowerCase() == 'medan',
-      )) {
-        return true;
-      }
-      return cartItems.any(
-        (item) =>
-            item.discount1 > 0 ||
-            item.discount2 > 0 ||
-            item.discount3 > 0 ||
-            item.isCustomSize,
+      return IndirectApprovalRules.requiresAsm(
+        isCustomerBaruShipping: isCustomerBaru,
+        hasNewCustomerStoreItem:
+            IndirectApprovalRules.cartHasNewCustomerStore(cartItems),
+        hasFocVoucherItem:
+            IndirectApprovalRules.cartHasFocVoucher(cartItems),
+        hasMedanPricelistItem:
+            IndirectApprovalRules.cartHasMedanArea(cartItems),
+        hasCustomSizeItem:
+            IndirectApprovalRules.cartHasCustomSize(cartItems),
       );
     }
-    // Direct: SPV selalu diperlukan.
     return true;
   }
 
@@ -1758,11 +1743,16 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
     final cartItems = _effectiveCartItems(ref);
     _syncLineTakeAwayToItemCount(cartItems.length);
+    final isIndirect = cartItems.any((e) => e.isIndirectSale);
+
+    // Mirror create: indirect tanpa trigger approval → autoApprove.
+    final autoApprove = isIndirect &&
+        !_requiresSpvApproval(cartItems) &&
+        !_requiresManagerApproval(cartItems);
 
     // Kumpulkan payload pembayaran kekurangan (hanya direct + shortage).
     final shortagePayloads = <Map<String, dynamic>>[];
     final shortageReceipts = <File?>[];
-    final isIndirect = cartItems.any((e) => e.isIndirectSale);
     if (!isIndirect) {
       final s = _computeEditSelisih(editOrder);
       if (s.isShortage) {
@@ -1793,6 +1783,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           currentTakeAwayQty: _currentTakeAwayQty,
           shortagePaymentPayloads: shortagePayloads,
           shortageReceiptImages: shortageReceipts,
+          requiresApproval: !autoApprove,
         ));
   }
 

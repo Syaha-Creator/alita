@@ -9,13 +9,11 @@ import '../../../../core/utils/app_telemetry.dart';
 import '../../../../core/utils/log.dart';
 import '../models/order_history.dart';
 
-/// Service untuk edit header [order_letters] dan reset approval discount
-/// (kecuali User/SC level 1) kembali ke pending.
+/// Service untuk edit header [order_letters].
 ///
-/// Alur:
-///   1. PUT /order_letters/{id}       — update field header + status → pending
-///   2. PUT /order_letter_discounts/{id}  — reset tiap baris L2+ (satu per satu)
-///   3. Kirim notifikasi ke approver berikutnya (SPV / ASM)
+/// **Direct:** update header + reset approval discount (L2+) + notifikasi.
+/// **Indirect (SO):** update header saja — status tetap Approved, tidak reset
+/// baris approval, tidak kirim notifikasi re-edit.
 class EditOrderHeaderService {
   EditOrderHeaderService({ApiClient? client})
       : _api = client ?? ApiClient.instance;
@@ -23,6 +21,10 @@ class EditOrderHeaderService {
   final ApiClient _api;
 
   static const _timeout = Duration(seconds: 20);
+
+  /// Order indirect (channel SO) — edit header tidak menyentuh approval chain.
+  static bool isIndirectOrder(OrderHistory order) =>
+      (order.channel?.trim().toUpperCase() ?? '') == 'SO';
 
   // ── Payload builder ──────────────────────────────────────────────
 
@@ -38,6 +40,7 @@ class EditOrderHeaderService {
     String? salesCode,
     String? note,
     double postage = 0,
+    String status = 'Pending',
   }) {
     final cleanNoPo = noPo?.trim();
     final cleanSalesCode = salesCode?.trim();
@@ -55,7 +58,7 @@ class EditOrderHeaderService {
           : cleanSalesCode,
       'note': note?.trim() ?? '',
       'postage': postage,
-      'status': 'Pending',
+      'status': status,
     };
   }
 
@@ -218,16 +221,20 @@ class EditOrderHeaderService {
   // ── Orchestrator ─────────────────────────────────────────────────
 
   /// Jalankan semua step berurutan.
+  ///
+  /// [resetApprovals] false untuk indirect (SO): hanya PATCH header.
   Future<void> editAndReset({
     required OrderHistory order,
     required Map<String, dynamic> headerPayload,
     String? token,
+    bool resetApprovals = true,
   }) async {
     await patchHeader(
       orderLetterId: order.id,
       payload: headerPayload,
       token: token,
     );
+    if (!resetApprovals) return;
     final ids = collectDiscountIds(order);
     if (ids.isNotEmpty) {
       await resetNonUserDiscounts(discountIds: ids, token: token);

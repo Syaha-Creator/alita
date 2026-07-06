@@ -21,9 +21,8 @@ import 'edit_order_header_sections.dart';
 /// untuk order direct maupun indirect (SO) — harga/diskon per item tidak
 /// tersentuh sama sekali oleh sheet ini.
 ///
-/// Setelah submit berhasil, **semua baris approval direset ke pending** dan
-/// status SP kembali ke `pending`. [onSuccess] dipanggil agar halaman
-/// pemanggil melakukan refresh.
+/// **Direct:** reset semua baris approval L2+ ke pending + notifikasi approver.
+/// **Indirect (SO):** header saja — status tetap Approved, tidak reset approval.
 class EditOrderHeaderSheet extends ConsumerStatefulWidget {
   const EditOrderHeaderSheet({
     super.key,
@@ -147,7 +146,8 @@ class _EditOrderHeaderSheetState extends ConsumerState<EditOrderHeaderSheet> {
       );
       return;
     }
-    final hasApprovals =
+    final isIndirect = EditOrderHeaderService.isIndirectOrder(widget.order);
+    final hasApprovals = !isIndirect &&
         EditOrderHeaderService.collectDiscountIds(widget.order).isNotEmpty;
 
     if (hasApprovals) {
@@ -189,23 +189,27 @@ class _EditOrderHeaderSheetState extends ConsumerState<EditOrderHeaderSheet> {
         salesCode: _salesCodeCtrl.text,
         note: _noteCtrl.text,
         postage: postage,
+        status: isIndirect ? 'Approved' : 'Pending',
       );
 
       await _service.editAndReset(
         order: widget.order,
         headerPayload: payload,
         token: token,
+        resetApprovals: !isIndirect,
       );
 
-      // Notifikasi ke approver pertama (SPV/ASM) — fire-and-forget,
-      // tidak boleh block UI atau gagalkan proses utama.
-      unawaited(
-        EditOrderHeaderService.triggerReEditNotification(
-          order: widget.order,
-          token: token,
-          editorName: widget.editorName,
-        ),
-      );
+      if (!isIndirect) {
+        // Notifikasi ke approver pertama (SPV/ASM) — fire-and-forget,
+        // tidak boleh block UI atau gagalkan proses utama.
+        unawaited(
+          EditOrderHeaderService.triggerReEditNotification(
+            order: widget.order,
+            token: token,
+            editorName: widget.editorName,
+          ),
+        );
+      }
 
       if (!mounted) return;
       LoadingOverlay.dismiss(context);
@@ -245,7 +249,8 @@ class _EditOrderHeaderSheetState extends ConsumerState<EditOrderHeaderSheet> {
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
     final bottom = MediaQuery.of(context).viewInsets.bottom;
-    final hasApprovals =
+    final isIndirect = EditOrderHeaderService.isIndirectOrder(widget.order);
+    final hasApprovals = !isIndirect &&
         EditOrderHeaderService.collectDiscountIds(widget.order).isNotEmpty;
 
     return ConstrainedBox(

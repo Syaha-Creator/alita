@@ -335,6 +335,7 @@ class InvoicePdfGenerator {
 
     final detailMaps = order.details.map((d) {
       for (final disc in d.discounts) {
+        final programLabel = disc.discountProgram.trim();
         allDiscounts.add({
           'order_letter_detail_id': d.id,
           'detail_id': d.id,
@@ -344,6 +345,8 @@ class InvoicePdfGenerator {
           'approved': disc.approvedStatus,
           'approved_at': disc.approvedAt,
           'approver_level_id': disc.id,
+          if (programLabel.isNotEmpty && programLabel != '-')
+            'discount_program': programLabel,
         });
 
         final key = disc.approverLevel;

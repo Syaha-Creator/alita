@@ -1086,6 +1086,10 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     /// Index [i] di [shortagePaymentPayloads] berpasangan dengan [shortageReceiptImages[i]].
     List<Map<String, dynamic>> shortagePaymentPayloads = const [],
     List<File?> shortageReceiptImages = const [],
+
+    /// Indirect auto-approve: false → null-kan selectedSpv/selectedManager
+    /// agar tidak membuat baris approval pending (mirror [submitOrder]).
+    bool requiresApproval = true,
   }) async {
     if (state.isSubmitting) return;
     state = state.copyWith(
@@ -1116,8 +1120,8 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         userId: userId,
         leaderData: leaderData,
         lookupByItemNum: lookupByItemNum,
-        selectedSpv: state.selectedSpv,
-        selectedManager: state.selectedManager,
+        selectedSpv: requiresApproval ? state.selectedSpv : null,
+        selectedManager: requiresApproval ? state.selectedManager : null,
         lineIsTakeAway: lineIsTakeAway,
         isBonusTakeAwayChecked: isBonusTakeAwayChecked,
         currentTakeAwayQty: currentTakeAwayQty,
