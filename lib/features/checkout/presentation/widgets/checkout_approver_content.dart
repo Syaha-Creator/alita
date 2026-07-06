@@ -40,6 +40,11 @@ class CheckoutApproverContent extends StatelessWidget {
   ///   - receiver mode adalah "Customer Baru" (bukan cabang/gudang), ATAU
   ///   - toko ditandai sebagai customer baru oleh API (search_type).
   final bool isCustomerBaru;
+
+  /// True saat aturan Klaus aktif: workplace 1937/6015 + SPV 4147/1019.
+  /// Pak Klaus (5247) auto-assign sebagai RSM — ditampilkan di badge info.
+  final bool isKlausManagerAutoAssigned;
+
   final ValueChanged<Approver?> onSpvChanged;
   final ValueChanged<Approver?> onManagerChanged;
 
@@ -55,6 +60,7 @@ class CheckoutApproverContent extends StatelessWidget {
     this.hasCustomSizeItem = false,
     this.hasFocVoucherItem = false,
     this.isCustomerBaru = false,
+    this.isKlausManagerAutoAssigned = false,
     required this.onSpvChanged,
     required this.onManagerChanged,
   });
@@ -212,11 +218,13 @@ class CheckoutApproverContent extends StatelessWidget {
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
-                  isIndirectCheckout
-                      ? (isCustomerBaru
-                          ? 'Customer baru terdeteksi'
-                          : 'Diskon / bonus terdeteksi')
-                      : 'Diskon 3 terdeteksi',
+                  isKlausManagerAutoAssigned
+                      ? 'Auto RSM — Lokasi khusus'
+                      : isIndirectCheckout
+                          ? (isCustomerBaru
+                              ? 'Customer baru terdeteksi'
+                              : 'Diskon / bonus terdeteksi')
+                          : 'Diskon 3 terdeteksi',
                   style: const TextStyle(
                     fontSize: 10,
                     color: AppColors.accent,
@@ -226,6 +234,36 @@ class CheckoutApproverContent extends StatelessWidget {
               ),
             ],
           ),
+          if (isKlausManagerAutoAssigned) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.indigo.withValues(alpha: 0.07),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Colors.indigo.withValues(alpha: 0.25),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.person_pin_outlined,
+                      size: 14, color: Colors.indigo.shade600),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Lokasi toko ini memerlukan persetujuan RSM Klaus secara otomatis.',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.indigo.shade700,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           SearchableDropdownField<Approver>(
             label: 'Manager',

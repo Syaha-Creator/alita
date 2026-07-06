@@ -85,9 +85,14 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
   final Ref _ref;
   late final CheckoutOrderService _orderService;
 
+  bool _fetchWorkPlaceInFlight = false;
+  bool _fetchApproversInFlight = false;
+
   // ── Workplace / Store ───────────────────────────────────────────
 
   Future<void> fetchAttendanceWorkPlace() async {
+    if (_fetchWorkPlaceInFlight) return;
+    _fetchWorkPlaceInFlight = true;
     state = state.copyWith(isLoadingWorkPlace: true);
     try {
       final userId = await StorageService.loadUserId();
@@ -111,6 +116,8 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         isLoadingWorkPlace: false,
         useAttendanceStore: false,
       );
+    } finally {
+      _fetchWorkPlaceInFlight = false;
     }
   }
 
@@ -148,6 +155,8 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
   // ── Approvers ─────────────────────────────────────────────────
 
   Future<void> fetchApprovers() async {
+    if (_fetchApproversInFlight) return;
+    _fetchApproversInFlight = true;
     state = state.copyWith(
       isLoadingApprovers: true,
       approversError: null,
@@ -221,6 +230,8 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         approversErrorTitle: title,
         approversError: detail,
       );
+    } finally {
+      _fetchApproversInFlight = false;
     }
   }
 
@@ -244,8 +255,49 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     return ('Gagal memuat daftar approver', stripped);
   }
 
+  // ── Aturan Klaus (auto-assign RSM) ────────────────────────────
+  // Jika work_place_id 1937/6015 DAN SPV yang dipilih 4147/1019,
+  // Pak Klaus (5247) otomatis menjadi RSM (Manager) di approval chain.
+  static const int _klausUserId = 5247;
+  static const Set<int> _klausWorkPlaceIds = {1937, 6015};
+  static const Set<int> _klausSpvIds = {4147, 1019};
+
+  /// True saat aturan Klaus aktif: workplace 1937/6015 + SPV 4147/1019.
+  bool get isKlausRuleActive {
+    final wpId = effectiveWorkPlaceId ?? 0;
+    final spvId = state.selectedSpv?.id ?? 0;
+    return _klausWorkPlaceIds.contains(wpId) && _klausSpvIds.contains(spvId);
+  }
+
+  /// Bangun Approver untuk Pak Klaus — cari dari list approvers yang sudah
+  /// di-fetch; jika tidak ada (beda area/company), gunakan data minimal
+  /// karena server mengenali Klaus berdasarkan ID.
+  Approver get _klausApprover {
+    return state.approvers.where((a) => a.id == _klausUserId).firstOrNull ??
+        const Approver(
+          id: _klausUserId,
+          userName: 'pak_klaus',
+          fullName: 'Klaus',
+          jobLevelName: 'RSM',
+        );
+  }
+
   void selectSpv(Approver? approver) {
-    state = state.copyWith(selectedSpv: approver);
+    final wpId = effectiveWorkPlaceId ?? 0;
+    final klausTriggered = approver != null &&
+        _klausSpvIds.contains(approver.id) &&
+        _klausWorkPlaceIds.contains(wpId);
+
+    Approver? newManager = state.selectedManager;
+    if (klausTriggered) {
+      // Auto-assign Klaus sebagai RSM.
+      newManager = _klausApprover;
+    } else if (state.selectedManager?.id == _klausUserId) {
+      // SPV berganti ke non-trigger → hapus Klaus yang sebelumnya auto-set.
+      newManager = null;
+    }
+
+    state = state.copyWith(selectedSpv: approver, selectedManager: newManager);
   }
 
   void selectManager(Approver? approver) {
@@ -300,10 +352,15 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       successNoSp: null,
     );
 
+    // Deklarasikan di luar try agar catch block bisa akses untuk reconciliation.
+    var token = '';
+    var orderLetterId = 0;
+    var completedSteps = Set<int>.from(state.retryCompletedSteps);
+
     try {
       final prepSw = Stopwatch()..start();
       final int userId = await StorageService.loadUserId();
-      final String token = await StorageService.loadAccessToken();
+      token = await StorageService.loadAccessToken();
 
       final int? workPlaceId = effectiveWorkPlaceId;
 
@@ -362,9 +419,9 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       // Mencegah duplikasi order_letters saat user mengirim ulang setelah kegagalan step 2–5.
       final existingOrderId = state.retryOrderId;
       final isResumingOrder = existingOrderId != null;
-      final completedSteps = Set<int>.from(state.retryCompletedSteps);
+      // completedSteps sudah diinisialisasi di luar try block (untuk akses di catch).
+      completedSteps = Set<int>.from(state.retryCompletedSteps);
 
-      int orderLetterId;
       String noSp;
 
       if (isResumingOrder) {
@@ -660,6 +717,20 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         },
         tag: 'CheckoutFlow',
       );
+      // Rekonsiliasi kontak & payment: cegah double-post jika server memproses
+      // tapi client timeout sebelum menerima respons.
+      await _reconcileContactIndex(
+        orderLetterId: orderLetterId,
+        token: token,
+        completedSteps: completedSteps,
+        totalContacts: contactsPayload.length,
+      );
+      await _reconcilePaymentIndex(
+        orderLetterId: orderLetterId,
+        token: token,
+        completedSteps: completedSteps,
+        totalPayments: paymentPayloads.length,
+      );
       state = state.copyWith(
         isSubmitting: false,
         submitError: 'Gagal di ${e.stepName}.\n'
@@ -682,11 +753,111 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         },
         tag: 'CheckoutFlow',
       );
+      await _reconcileContactIndex(
+        orderLetterId: orderLetterId,
+        token: token,
+        completedSteps: completedSteps,
+        totalContacts: contactsPayload.length,
+      );
+      await _reconcilePaymentIndex(
+        orderLetterId: orderLetterId,
+        token: token,
+        completedSteps: completedSteps,
+        totalPayments: paymentPayloads.length,
+      );
       state = state.copyWith(
         isSubmitting: false,
         submitError: 'Terjadi kesalahan. Jika internet tidak stabil, mohon cek '
             'riwayat pesanan sebelum mencoba lagi.\n\nDetail:\n$e',
       );
+    }
+  }
+
+  /// Rekonsiliasi retryContactStartIndex setelah error di step 2.
+  /// Fetch kontak yang sudah ada di server agar retry tidak re-POST yang sama.
+  Future<void> _reconcileContactIndex({
+    required int orderLetterId,
+    required String token,
+    required Set<int> completedSteps,
+    required int totalContacts,
+  }) async {
+    if (completedSteps.contains(2) || orderLetterId <= 0 || totalContacts <= 0) {
+      return;
+    }
+    try {
+      final existingCount = await _orderService.fetchExistingContactCount(
+        orderLetterId,
+        token,
+      );
+      if (existingCount <= 0) return;
+
+      Log.info(
+        'Contact reconciliation: $existingCount/$totalContacts sudah ada di server',
+        tag: 'CheckoutFlow',
+      );
+
+      if (existingCount >= totalContacts) {
+        final updated = {...completedSteps, 2};
+        state = state.copyWith(
+          retryCompletedSteps: updated.toList(),
+          retryContactStartIndex: 0,
+        );
+      } else {
+        state = state.copyWith(retryContactStartIndex: existingCount);
+      }
+    } catch (e, st) {
+      Log.warning(
+        'Contact reconciliation gagal (non-critical): $e',
+        tag: 'CheckoutFlow',
+      );
+      Log.error(e, st, reason: '_reconcileContactIndex');
+    }
+  }
+
+  /// Rekonsiliasi retryPaymentStartIndex setelah error di step 3.
+  ///
+  /// Jika server sempat menyimpan payment sebelum timeout (network), client
+  /// tidak tahu. Method ini fetch jumlah payment yang sudah ada di DB dan
+  /// update [state.retryPaymentStartIndex] agar retry tidak re-POST yang sama.
+  Future<void> _reconcilePaymentIndex({
+    required int orderLetterId,
+    required String token,
+    required Set<int> completedSteps,
+    required int totalPayments,
+  }) async {
+    // Hanya perlu rekonsiliasi jika step 3 belum selesai dan ada payment.
+    if (completedSteps.contains(3) || orderLetterId <= 0 || totalPayments <= 0) {
+      return;
+    }
+    try {
+      final existingCount = await _orderService.fetchExistingPaymentCount(
+        orderLetterId,
+        token,
+      );
+      if (existingCount <= 0) return;
+
+      Log.info(
+        'Payment reconciliation: $existingCount/$totalPayments sudah ada di server',
+        tag: 'CheckoutFlow',
+      );
+
+      if (existingCount >= totalPayments) {
+        // Semua payment sudah ada → tandai step 3 selesai agar tidak di-skip.
+        final updated = {...completedSteps, 3};
+        state = state.copyWith(
+          retryCompletedSteps: updated.toList(),
+          retryPaymentStartIndex: 0,
+        );
+      } else {
+        // Sebagian payment sudah ada → lanjutkan dari index berikutnya.
+        state = state.copyWith(retryPaymentStartIndex: existingCount);
+      }
+    } catch (e, st) {
+      Log.warning(
+        'Payment reconciliation gagal (non-critical): $e',
+        tag: 'CheckoutFlow',
+      );
+      Log.error(e, st, reason: '_reconcilePaymentIndex');
     }
   }
 
@@ -916,6 +1087,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     List<Map<String, dynamic>> shortagePaymentPayloads = const [],
     List<File?> shortageReceiptImages = const [],
   }) async {
+    if (state.isSubmitting) return;
     state = state.copyWith(
       isSubmitting: true,
       submitError: null,

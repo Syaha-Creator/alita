@@ -23,11 +23,19 @@ class IndirectSessionNotifier extends StateNotifier<IndirectSessionState> {
   final Ref _ref;
   final IndirectStoreDiscountService _discountService;
 
+  // Track alamat toko yang sedang di-fetch. Jika user ganti toko sebelum
+  // response tiba, hasilnya diabaikan (stale cancellation pattern).
+  int? _pendingFetchAddressNumber;
+
   Future<void> selectStore(AssignedStore? store) async {
     if (store == null) {
+      _pendingFetchAddressNumber = null;
       state = const IndirectSessionState();
       return;
     }
+
+    // Tandai fetch ini milik toko yang baru dipilih.
+    _pendingFetchAddressNumber = store.addressNumber;
 
     state = IndirectSessionState(
       selectedStore: store,
@@ -36,6 +44,7 @@ class IndirectSessionNotifier extends StateNotifier<IndirectSessionState> {
 
     final token = _ref.read(authProvider).accessToken;
     if (token.isEmpty) {
+      if (_pendingFetchAddressNumber != store.addressNumber) return;
       state = IndirectSessionState(
         selectedStore: store,
         isLoadingDiscounts: false,
@@ -48,6 +57,10 @@ class IndirectSessionNotifier extends StateNotifier<IndirectSessionState> {
         token: token,
         addressNumber: store.addressNumber,
       );
+
+      // Abaikan hasil jika user sudah memilih toko lain.
+      if (_pendingFetchAddressNumber != store.addressNumber) return;
+
       final display = StoreDiscountCalculator.formatDisplay(result.discounts);
       state = IndirectSessionState(
         selectedStore: store,
@@ -56,11 +69,13 @@ class IndirectSessionNotifier extends StateNotifier<IndirectSessionState> {
         discountDisplay: display,
         discountCode: result.discountCode,
       );
-    } catch (e, _) {
+    } catch (e, st) {
       Log.warning(
         'IndirectSession: gagal fetch diskon toko — $e',
         tag: 'Indirect',
       );
+      Log.error(e, st, reason: 'IndirectSessionNotifier.selectStore');
+      if (_pendingFetchAddressNumber != store.addressNumber) return;
       state = IndirectSessionState(
         selectedStore: store,
         storeDiscounts: const [],

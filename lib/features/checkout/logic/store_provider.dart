@@ -14,16 +14,24 @@ final _storeRepositoryProvider = Provider<StoreRepository>((ref) {
 /// - [ref.invalidate(storeListProvider)] hanya membangun ulang notifier; tanpa
 ///   [refreshFromNetwork] tetap bisa memakai cache yang sama.
 class StoreListNotifier extends AsyncNotifier<List<StoreModel>> {
+  bool _refreshInFlight = false;
+
   @override
   Future<List<StoreModel>> build() async {
     return ref.read(_storeRepositoryProvider).getAllStores();
   }
 
   Future<void> refreshFromNetwork() async {
+    if (_refreshInFlight) return;
+    _refreshInFlight = true;
     state = const AsyncLoading<List<StoreModel>>();
-    state = await AsyncValue.guard(
-      () => ref.read(_storeRepositoryProvider).getAllStores(forceRefresh: true),
-    );
+    try {
+      state = await AsyncValue.guard(
+        () => ref.read(_storeRepositoryProvider).getAllStores(forceRefresh: true),
+      );
+    } finally {
+      _refreshInFlight = false;
+    }
   }
 }
 

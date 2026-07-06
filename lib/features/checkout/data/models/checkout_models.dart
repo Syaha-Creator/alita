@@ -36,7 +36,22 @@ class SucceededDetail {
   final PendingDetail pending;
   final int detailId;
 
-  const SucceededDetail({required this.pending, required this.detailId});
+  /// `approver_level_id` dari baris diskon yang sudah berhasil di-POST.
+  /// Dipakai saat retry step 5 agar tidak re-POST baris yang sudah ada di server.
+  final Set<int> postedDiscountLevelIds;
+
+  const SucceededDetail({
+    required this.pending,
+    required this.detailId,
+    this.postedDiscountLevelIds = const {},
+  });
+
+  /// Salin dengan `postedDiscountLevelIds` baru.
+  SucceededDetail withPostedLevelIds(Set<int> ids) => SucceededDetail(
+        pending: pending,
+        detailId: detailId,
+        postedDiscountLevelIds: ids,
+      );
 }
 
 /// Result from createOrderLetter.

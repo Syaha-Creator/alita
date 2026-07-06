@@ -132,6 +132,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   bool _shouldSaveReceiverContact = true;
   bool _isCloudLookupLoading = false;
   bool _isFromContactBook = false;
+
+  /// Guard sinkron untuk mencegah double-tap pada tombol "Buat Surat Pesanan".
+  /// Diset true sebelum submitOrder dipanggil, dikosongkan saat overlay tutup.
+  bool _submitInFlight = false;
   String? _selectedContactId;
 
   /// Edit mode: pastikan prefill approver dari OrderHistory hanya jalan sekali
@@ -579,6 +583,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       if (!context.mounted) return;
       // Dismiss loading overlay when submission completes
       if (prev?.isSubmitting == true && !next.isSubmitting) {
+        _submitInFlight = false;
         if (Navigator.of(context, rootNavigator: true).canPop()) {
           Navigator.of(context, rootNavigator: true).pop();
         }
@@ -976,6 +981,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                                         !_isReceiverBranchMode ||
                                     cartItems.any(
                                         (e) => e.isNewCustomerStore)),
+                            isKlausManagerAutoAssigned: ref
+                                .read(checkoutProvider.notifier)
+                                .isKlausRuleActive,
                             onSpvChanged: (v) => ref
                                 .read(checkoutProvider.notifier)
                                 .selectSpv(v),
@@ -1128,6 +1136,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   }
 
   bool _requiresManagerApproval(List<CartItem> cartItems) {
+    // Aturan Klaus: workplace 1937/6015 + SPV 4147/1019 → RSM wajib.
+    if (ref.read(checkoutProvider.notifier).isKlausRuleActive) return true;
     return cartItems.any((item) {
       if (item.isIndirectSale) {
         // Indirect: diskon tambahan ATAU bonus diubah ATAU customer baru → RSM wajib.
@@ -1586,6 +1596,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   // ── Submit ────────────────────────────────────────────────────
 
   Future<void> _handleCreateOrder(BuildContext context) async {
+    if (_submitInFlight) return;
     if (ifOfflineShowFeedback(
       context,
       isOffline: ref.read(isOfflineProvider),
@@ -1593,6 +1604,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       return;
     }
     if (!_validateForm()) return;
+    _submitInFlight = true;
 
     _showLoadingOverlay(context);
 
