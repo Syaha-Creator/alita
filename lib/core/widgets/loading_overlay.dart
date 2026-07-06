@@ -12,10 +12,18 @@ class LoadingOverlay extends StatelessWidget {
   final String title;
   final String? subtitle;
 
+  /// Label tombol opsional (mis. "Lanjutkan tanpa lokasi presisi") untuk
+  /// operasi panjang yang punya jalan pintas manual. `null` = tidak ada
+  /// tombol (perilaku default, tidak berubah untuk caller lain).
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
   const LoadingOverlay({
     super.key,
     required this.title,
     this.subtitle,
+    this.actionLabel,
+    this.onAction,
   });
 
   // ── Dialog API ───────────────────────────────────────────────
@@ -95,6 +103,26 @@ class LoadingOverlay extends StatelessWidget {
                     fontSize: 12,
                     color: AppColors.textTertiary,
                     decoration: TextDecoration.none,
+                  ),
+                ),
+              ],
+              if (actionLabel case final label?
+                  when onAction != null) ...[
+                const SizedBox(height: 14),
+                TextButton(
+                  onPressed: onAction,
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.accent,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                  ),
+                  child: Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      decoration: TextDecoration.none,
+                    ),
                   ),
                 ),
               ],

@@ -137,10 +137,16 @@ class ApprovalLocation {
   final double latitude;
   final double longitude;
 
+  /// True jika posisi berasal dari cache OS yang diambil paksa (tombol
+  /// "Lanjutkan tanpa lokasi presisi") tanpa filter kesegaran — dipakai agar
+  /// [address] ditandai sebagai perkiraan, bukan fix GPS langsung.
+  final bool isApproximate;
+
   const ApprovalLocation({
     required this.address,
     required this.latitude,
     required this.longitude,
+    this.isApproximate = false,
   });
 }
 
@@ -400,13 +406,16 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
     }
   }
 
-  /// Reverse geocoding: koordinat → alamat lengkap. Mengembalikan null jika
-  /// GPS/izin gagal; jika koordinat ada tapi geocode gagal, alamat = fallback.
-  Future<ApprovalLocation?> _getCurrentAddress() async {
-    final position = await _getCurrentLocation();
-    if (position == null) return null;
-
-    String address = 'Lokasi tidak terdeteksi';
+  /// Reverse geocoding: koordinat → alamat lengkap. [isApproximate] ditandai
+  /// pada hasil jika [position] berasal dari cache OS yang diambil paksa
+  /// (bukan fix GPS langsung) — lihat [getFallbackLocationForApproval].
+  Future<ApprovalLocation> _resolveAddress(
+    Position position, {
+    required bool isApproximate,
+  }) async {
+    final coordFallback =
+        'Koordinat ${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}';
+    String address = coordFallback;
     try {
       try {
         await setLocaleIdentifier('id_ID');
@@ -417,17 +426,9 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
         position.longitude,
       ).timeout(_geocodeTimeout);
       if (placemarks.isNotEmpty) {
-        final place = placemarks.first;
-        final formatted = formatPlacemarkAddressForApproval(place);
-        if (formatted.isNotEmpty) {
-          address = formatted;
-        } else {
-          address =
-              'Koordinat ${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}';
-        }
-      } else {
-        address =
-            'Koordinat ${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}';
+        final formatted =
+            formatPlacemarkAddressForApproval(placemarks.first);
+        if (formatted.isNotEmpty) address = formatted;
       }
     } on TimeoutException {
       Log.warning('Geocoding timed out', tag: 'Approval');
@@ -435,22 +436,40 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
       Log.warning('ApprovalInbox.geocode: $e', tag: 'Approval');
     }
 
-    if (address == 'Lokasi tidak terdeteksi') {
-      address =
-          'Koordinat ${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}';
-    }
+    if (isApproximate) address = '(Lokasi perkiraan) $address';
 
     return ApprovalLocation(
       address: address,
       latitude: position.latitude,
       longitude: position.longitude,
+      isApproximate: isApproximate,
     );
   }
 
   /// API untuk UI: ambil alamat + koordinat sebelum proses approval.
   /// Jika null (GPS/izin gagal), UI wajib tampilkan peringatan dan jangan lanjutkan.
-  Future<ApprovalLocation?> getCurrentAddressForApproval() =>
-      _getCurrentAddress();
+  Future<ApprovalLocation?> getCurrentAddressForApproval() async {
+    final position = await _getCurrentLocation();
+    if (position == null) return null;
+    return _resolveAddress(position, isApproximate: false);
+  }
+
+  /// Fallback manual (tombol "Lanjutkan tanpa lokasi presisi"): ambil posisi
+  /// terakhir dari cache OS **tanpa filter kesegaran**, untuk kasus sinyal
+  /// sangat lemah di mana fix segar tidak kunjung selesai. Hasilnya ditandai
+  /// [ApprovalLocation.isApproximate] agar tetap transparan untuk audit.
+  /// Mengembalikan null jika cache OS benar-benar tidak tersedia (mis. GPS
+  /// belum pernah dipakai di perangkat ini).
+  Future<ApprovalLocation?> getFallbackLocationForApproval() async {
+    try {
+      final last = await Geolocator.getLastKnownPosition();
+      if (last == null) return null;
+      return _resolveAddress(last, isApproximate: true);
+    } catch (e) {
+      Log.warning('getFallbackLocationForApproval gagal: $e', tag: 'Approval');
+      return null;
+    }
+  }
 
   /// Legacy: hanya koordinat (untuk kompatibilitas).
   Future<Position?> getCurrentLocationForApproval() => _getCurrentLocation();

@@ -50,6 +50,14 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
   /// lokasi sudah siap — menghindari jeda tunggu GPS setelah konfirmasi.
   Future<ApprovalLocation?>? _locationFuture;
 
+  /// Muncul setelah [_locationSkipButtonDelay] jika deteksi lokasi masih
+  /// berjalan — jalan pintas manual untuk sinyal sangat lemah.
+  bool _showLocationSkipAction = false;
+  Timer? _locationSkipTimer;
+  VoidCallback? _onLocationSkipRequested;
+
+  static const _locationSkipButtonDelay = Duration(seconds: 8);
+
   @override
   void initState() {
     super.initState();
@@ -61,6 +69,12 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
             ref.read(approvalInboxProvider.notifier).getCurrentAddressForApproval();
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _locationSkipTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadUserId() async {
@@ -146,13 +160,40 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
         inboxNotifier.getCurrentAddressForApproval();
     _locationFuture = null;
 
+    // Jalan pintas manual: kalau deteksi lokasi masih berjalan setelah
+    // [_locationSkipButtonDelay], tampilkan tombol untuk lanjut dengan
+    // posisi cache OS (ditandai approximate) alih-alih menunggu penuh.
+    var locationSettled = false;
+    final skipCompleter = Completer<ApprovalLocation?>();
+    _locationSkipTimer = Timer(_locationSkipButtonDelay, () {
+      if (!locationSettled && mounted) {
+        setState(() => _showLocationSkipAction = true);
+      }
+    });
+    _onLocationSkipRequested = () async {
+      if (skipCompleter.isCompleted) return;
+      AppTelemetry.event('approval_location_skip_tapped', data: {
+        'action': action,
+      });
+      final fallback = await inboxNotifier.getFallbackLocationForApproval();
+      if (!skipCompleter.isCompleted) skipCompleter.complete(fallback);
+    };
+
     setState(() {
       _isLoading = true;
       _loadingMessage = 'Mendeteksi lokasi...';
+      _showLocationSkipAction = false;
     });
 
     try {
-      final location = await pendingLocation;
+      final location = await Future.any<ApprovalLocation?>(
+        [pendingLocation, skipCompleter.future],
+      );
+      locationSettled = true;
+      _locationSkipTimer?.cancel();
+      _onLocationSkipRequested = null;
+      if (mounted) setState(() => _showLocationSkipAction = false);
+
       if (location == null || !mounted) {
         sw.stop();
         AppTelemetry.error('approval_location_failed', data: {
@@ -330,10 +371,14 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
         floating: true,
       );
     } finally {
+      locationSettled = true;
+      _locationSkipTimer?.cancel();
+      _onLocationSkipRequested = null;
       if (mounted) {
         setState(() {
           _isLoading = false;
           _loadingMessage = null;
+          _showLocationSkipAction = false;
         });
       }
     }
@@ -527,6 +572,12 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
                 subtitle: _loadingMessage != null
                     ? 'Mengambil koordinat dan alamat'
                     : 'Harap tunggu sebentar',
+                actionLabel: _showLocationSkipAction
+                    ? 'Lanjutkan tanpa lokasi presisi'
+                    : null,
+                onAction: _showLocationSkipAction
+                    ? _onLocationSkipRequested
+                    : null,
               ),
             ),
           ),
