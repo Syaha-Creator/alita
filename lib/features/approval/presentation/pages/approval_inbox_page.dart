@@ -6,6 +6,7 @@ import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/widgets/animated_list_item.dart';
 import '../../../../core/theme/app_layout_tokens.dart';
+import '../../../../core/widgets/app_search_field.dart';
 import '../../../../core/widgets/date_range_filter_action.dart';
 import '../../../../core/widgets/empty_state_view.dart';
 import '../../../../core/widgets/error_state_view.dart';
@@ -26,12 +27,20 @@ class ApprovalInboxPage extends ConsumerStatefulWidget {
 }
 
 class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
+  final _searchCtrl = TextEditingController();
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(approvalInboxProvider.notifier).fetchInbox();
     });
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
   }
 
   @override
@@ -151,13 +160,48 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
               ? const ApprovalInboxSkeleton()
               : state.error != null
                   ? _buildErrorView(state.error ?? 'Terjadi kesalahan')
-                  : TabBarView(
+                  : Column(
                       children: [
-                        _KeepAliveTab(
-                          child: _buildPendingTab(state),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+                          child: AppSearchField(
+                            controller: _searchCtrl,
+                            hintText: 'Cari No SP atau nama customer…',
+                            filled: true,
+                            fillColor: AppColors.surfaceLight,
+                            hintStyle: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textTertiary,
+                            ),
+                            textStyle: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textPrimary,
+                            ),
+                            prefixIconSize: 20,
+                            prefixIconColor: AppColors.textTertiary,
+                            clearIconColor: AppColors.textTertiary,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            autocorrect: false,
+                            enableSuggestions: false,
+                            onChanged: (q) => ref
+                                .read(approvalInboxProvider.notifier)
+                                .setSearchQuery(q),
+                          ),
                         ),
-                        _KeepAliveTab(
-                          child: _buildHistoryTabWithWorkPlaceFilter(state),
+                        Expanded(
+                          child: TabBarView(
+                            children: [
+                              _KeepAliveTab(
+                                child: _buildPendingTab(state),
+                              ),
+                              _KeepAliveTab(
+                                child: _buildHistoryTabWithWorkPlaceFilter(state),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -190,20 +234,31 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
   Widget _buildEmptyState(
     bool isPending, {
     bool emptyDueToWorkPlaceFilter = false,
+    bool emptyDueToSearch = false,
   }) {
+    final String title;
+    final String subtitle;
+    if (emptyDueToSearch) {
+      title = 'Tidak ditemukan';
+      subtitle = 'Tidak ada SP yang cocok dengan pencarian Anda.';
+    } else if (emptyDueToWorkPlaceFilter) {
+      title = 'Tidak ada untuk lokasi ini';
+      subtitle = 'Ubah filter lokasi / toko atau pilih Semua lokasi.';
+    } else {
+      title = isPending ? 'Semua sudah disetujui!' : 'Belum ada riwayat.';
+      subtitle = isPending
+          ? 'Tidak ada antrean persetujuan saat ini.'
+          : 'Belum ada riwayat persetujuan diskon.';
+    }
     return EmptyStateView(
-      icon: isPending
-          ? Icons.check_circle_outline_rounded
-          : Icons.receipt_long_outlined,
-      iconSize: 72,
-      title: emptyDueToWorkPlaceFilter
-          ? 'Tidak ada untuk lokasi ini'
-          : (isPending ? 'Semua sudah disetujui!' : 'Belum ada riwayat.'),
-      subtitle: emptyDueToWorkPlaceFilter
-          ? 'Ubah filter lokasi / toko atau pilih Semua lokasi.'
+      icon: emptyDueToSearch
+          ? Icons.search_off_rounded
           : (isPending
-              ? 'Tidak ada antrean persetujuan saat ini.'
-              : 'Belum ada riwayat persetujuan diskon.'),
+              ? Icons.check_circle_outline_rounded
+              : Icons.receipt_long_outlined),
+      iconSize: 72,
+      title: title,
+      subtitle: subtitle,
       titleStyle: const TextStyle(
         fontSize: 16,
         fontWeight: FontWeight.w600,
@@ -217,15 +272,23 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
   // ── Tab Menunggu: total nominal (mengikuti filter tanggal API) ───
 
   Widget _buildPendingTab(ApprovalInboxState state) {
-    final orders = state.pendingApprovals;
+    final orders = state.filteredPendingApprovals;
     final sum = sumNominalFromApprovedSpOrderWrapsOnly(orders);
+    final isSearchEmpty = orders.isEmpty &&
+        state.pendingApprovals.isNotEmpty &&
+        state.searchQuery.isNotEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Antrean = belum selesai; total “Approved” biasanya 0 — tampil jika ada.
         if (orders.isNotEmpty && sum > 0) _buildListTotalBanner(sum),
-        Expanded(child: _buildListView(orders, true)),
+        Expanded(
+          child: _buildListView(
+            orders,
+            true,
+            emptyDueToSearch: isSearchEmpty,
+          ),
+        ),
       ],
     );
   }
@@ -263,13 +326,20 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
     final filtered = state.filteredHistoryApprovals;
     final sum = sumNominalFromApprovedSpOrderWrapsOnly(filtered);
 
+    final isSearchEmpty = filtered.isEmpty &&
+        state.historyApprovals.isNotEmpty &&
+        state.searchQuery.isNotEmpty;
+    final isWorkPlaceFilterEmpty = filtered.isEmpty &&
+        !isSearchEmpty &&
+        state.historyApprovals.isNotEmpty &&
+        state.historyWorkPlaceFilter != null;
+
     final list = Expanded(
       child: _buildListView(
         filtered,
         false,
-        emptyDueToWorkPlaceFilter: filtered.isEmpty &&
-            state.historyApprovals.isNotEmpty &&
-            state.historyWorkPlaceFilter != null,
+        emptyDueToWorkPlaceFilter: isWorkPlaceFilterEmpty,
+        emptyDueToSearch: isSearchEmpty,
       ),
     );
 
@@ -347,6 +417,7 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
     List<dynamic> orders,
     bool isPending, {
     bool emptyDueToWorkPlaceFilter = false,
+    bool emptyDueToSearch = false,
   }) {
     if (orders.isEmpty) {
       return RefreshIndicator.adaptive(
@@ -359,6 +430,7 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
             _buildEmptyState(
               isPending,
               emptyDueToWorkPlaceFilter: emptyDueToWorkPlaceFilter,
+              emptyDueToSearch: emptyDueToSearch,
             ),
           ],
         ),

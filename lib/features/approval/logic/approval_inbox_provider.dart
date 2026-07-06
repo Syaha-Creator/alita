@@ -101,6 +101,36 @@ List<dynamic> approvalHistoryFilteredByWorkPlace(
       .toList();
 }
 
+/// Filter list approval (pending atau history) berdasarkan query teks.
+/// Cocokkan terhadap: no_sp, customer_name, work_place, dan nama item pertama.
+List<dynamic> approvalFilteredByQuery(List<dynamic> items, String query) {
+  if (query.isEmpty) return items;
+  final q = query.toLowerCase().trim();
+  return items.where((wrap) {
+    if (wrap is! Map) return false;
+    final order = (wrap['order_letter'] as Map<String, dynamic>? ?? {});
+    final noSp = (order['no_sp'] as String? ?? '').toLowerCase();
+    final customer = (order['customer_name'] as String? ?? '').toLowerCase();
+    final workPlace = approvalOrderWrapWorkPlace(wrap).toLowerCase();
+    // Nama item pertama dari detail
+    final details = wrap['order_letter_details'] as List<dynamic>? ?? [];
+    String itemName = '';
+    if (details.isNotEmpty) {
+      final first = details.first;
+      if (first is Map) {
+        itemName = ((first['item_description'] as String?) ??
+                (first['desc_1'] as String?) ??
+                '')
+            .toLowerCase();
+      }
+    }
+    return noSp.contains(q) ||
+        customer.contains(q) ||
+        workPlace.contains(q) ||
+        itemName.contains(q);
+  }).toList();
+}
+
 // ── Geotagging: alamat + koordinat untuk payload approval ───────
 class ApprovalLocation {
   final String address;
@@ -126,6 +156,9 @@ class ApprovalInboxState {
   /// Filter tab **Selesai** menurut `work_place_name` (null = semua lokasi).
   final String? historyWorkPlaceFilter;
 
+  /// Query pencarian teks bebas (no SP atau nama customer).
+  final String searchQuery;
+
   const ApprovalInboxState({
     this.isLoading = true,
     this.error,
@@ -134,6 +167,7 @@ class ApprovalInboxState {
     this.startDate,
     this.endDate,
     this.historyWorkPlaceFilter,
+    this.searchQuery = '',
   });
 
   ApprovalInboxState copyWith({
@@ -145,6 +179,7 @@ class ApprovalInboxState {
     DateTime? endDate,
     bool updateHistoryWorkPlaceFilter = false,
     String? historyWorkPlaceFilter,
+    String? searchQuery,
   }) {
     return ApprovalInboxState(
       isLoading: isLoading ?? this.isLoading,
@@ -156,6 +191,7 @@ class ApprovalInboxState {
       historyWorkPlaceFilter: updateHistoryWorkPlaceFilter
           ? historyWorkPlaceFilter
           : this.historyWorkPlaceFilter,
+      searchQuery: searchQuery ?? this.searchQuery,
     );
   }
 
@@ -163,18 +199,29 @@ class ApprovalInboxState {
   List<String> get historyWorkPlaceOptions =>
       approvalHistoryWorkPlaceOptions(historyApprovals);
 
-  /// Riwayat setelah filter lokasi (hanya pengaruh tab Selesai).
-  List<dynamic> get filteredHistoryApprovals =>
-      approvalHistoryFilteredByWorkPlace(
-        historyApprovals,
-        historyWorkPlaceFilter,
-      );
+  /// Pending setelah filter pencarian.
+  List<dynamic> get filteredPendingApprovals =>
+      approvalFilteredByQuery(pendingApprovals, searchQuery);
+
+  /// Riwayat setelah filter lokasi + pencarian.
+  List<dynamic> get filteredHistoryApprovals {
+    final byWorkPlace = approvalHistoryFilteredByWorkPlace(
+      historyApprovals,
+      historyWorkPlaceFilter,
+    );
+    return approvalFilteredByQuery(byWorkPlace, searchQuery);
+  }
 }
 
 // ── Notifier ──────────────────────────────────────────────────
 class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
   final Ref ref;
   final ApiClient _api;
+
+  /// Guard sinkron untuk mencegah fetch paralel.
+  /// Dipakai sebagai pengganti state.isLoading agar tidak bentrok dengan
+  /// nilai default isLoading=true yang di-set sebelum fetch pertama jalan.
+  bool _fetchInFlight = false;
 
   ApprovalInboxNotifier(
     this.ref, {
@@ -185,6 +232,11 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
     if (!skipInitialFetch) {
       fetchInbox();
     }
+  }
+
+  /// Update query pencarian no SP / nama customer (client-side, tanpa re-fetch).
+  void setSearchQuery(String query) {
+    state = state.copyWith(searchQuery: query.trim());
   }
 
   /// Update filter rentang tanggal lalu re-fetch.
@@ -215,17 +267,39 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
   static OrderStatus _normalizeApprovedStatus(dynamic value) =>
       OrderStatusX.fromDynamic(value);
 
-  /// Index-based prior approval check: all discounts BEFORE [myIndex]
-  /// in the list must be approved. This is more reliable than
-  /// [approver_level_id] which may be null/missing from the API.
+  /// Level-based prior approval check: semua diskon dengan [approver_level_id]
+  /// lebih kecil dari level user di [myIndex] harus sudah Approved.
+  ///
+  /// Menggunakan approver_level_id (bukan array index) agar konsisten dengan
+  /// urutan tampilan di UI dan tidak bergantung pada urutan array dari API.
   static bool _arePriorApprovedByIndex(
     List<Map<String, dynamic>> discounts,
     int myIndex,
   ) {
-    for (int i = 0; i < myIndex; i++) {
-      if (_normalizeApprovedStatus(discounts[i]['approved']) !=
-          OrderStatus.approved) {
-        return false;
+    final myLevel =
+        (discounts[myIndex]['approver_level_id'] as num?)?.toInt() ?? 0;
+
+    // Jika level tidak tersedia, fallback ke index-based (backward compat).
+    if (myLevel <= 0) {
+      for (int i = 0; i < myIndex; i++) {
+        if (_normalizeApprovedStatus(discounts[i]['approved']) !=
+            OrderStatus.approved) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    // Cek semua diskon yang levelnya lebih rendah dari level user ini.
+    for (int i = 0; i < discounts.length; i++) {
+      if (i == myIndex) continue;
+      final otherLevel =
+          (discounts[i]['approver_level_id'] as num?)?.toInt() ?? 0;
+      if (otherLevel > 0 && otherLevel < myLevel) {
+        if (_normalizeApprovedStatus(discounts[i]['approved']) !=
+            OrderStatus.approved) {
+          return false;
+        }
       }
     }
     return true;
@@ -416,10 +490,11 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
     );
   }
 
-  /// [force] = true: selalu jalankan meskipun sedang loading (untuk user action
-  /// seperti filter tanggal / pull-to-refresh / refresh pasca approve).
+  /// [force] = true: batalkan fetch yang sedang berjalan dan mulai yang baru
+  /// (untuk pull-to-refresh, filter tanggal, dan refresh pasca approve).
   Future<void> fetchInbox({bool force = false}) async {
-    if (state.isLoading && !force) return;
+    if (_fetchInFlight && !force) return;
+    _fetchInFlight = true;
     state = state.copyWith(isLoading: true, error: null);
     final sw = Stopwatch()..start();
 
@@ -604,6 +679,8 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
         'duration_ms': sw.elapsedMilliseconds,
       });
       state = state.copyWith(isLoading: false, error: e.toString());
+    } finally {
+      _fetchInFlight = false;
     }
   }
 }
