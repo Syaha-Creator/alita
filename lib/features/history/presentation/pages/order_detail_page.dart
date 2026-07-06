@@ -243,9 +243,10 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
     final canEditBase = !isOffline &&
         currentOrder.creator == userId.toString() &&
         OrderStatusX.fromRaw(currentOrder.status) != OrderStatus.rejected;
-    // Edit informasi (header): hanya untuk direct — indirect (SO) tidak bisa
-    // ubah header karena data pelanggan/toko sudah terkunci di sesi indirect.
-    final canEditHeader = canEditBase && !isSoChannel;
+    // Edit informasi (header): berlaku untuk semua channel. Hanya field
+    // header (nama, kontak, alamat, tanggal kirim, PO, ongkir, dll) yang
+    // diubah — data harga/diskon per item tidak tersentuh sama sekali.
+    final canEditHeader = canEditBase;
     // Edit barang: berlaku untuk semua channel.
     final canEditItems = canEditBase && currentOrder.details.isNotEmpty;
 
