@@ -386,6 +386,103 @@ void main() {
     });
   });
 
+  // ── buildProgramBulananRow ────────────────────────────────────────────────
+  group('CheckoutDiscountBuilder.buildProgramBulananRow', () {
+    test('returns null when programBulananType is empty', () {
+      final row = CheckoutDiscountBuilder.buildProgramBulananRow(
+        userId: _userId,
+        creatorName: _creatorName,
+        creatorTitle: _creatorTitle,
+        programBulananType: '',
+        programBulananDiscount: 0,
+        programBulananNominal: 0,
+      );
+      expect(row, isNull);
+    });
+
+    test('returns null for percent type when discount <= 0', () {
+      final row = CheckoutDiscountBuilder.buildProgramBulananRow(
+        userId: _userId,
+        creatorName: _creatorName,
+        creatorTitle: _creatorTitle,
+        programBulananType: 'percent',
+        programBulananDiscount: 0,
+        programBulananNominal: 0,
+      );
+      expect(row, isNull);
+    });
+
+    test('returns null for nominal type when nominal <= 0', () {
+      final row = CheckoutDiscountBuilder.buildProgramBulananRow(
+        userId: _userId,
+        creatorName: _creatorName,
+        creatorTitle: _creatorTitle,
+        programBulananType: 'nominal',
+        programBulananDiscount: 0,
+        programBulananNominal: 0,
+      );
+      expect(row, isNull);
+    });
+
+    test('approver_level_id = 80, auto-approved', () {
+      final row = CheckoutDiscountBuilder.buildProgramBulananRow(
+        userId: _userId,
+        creatorName: _creatorName,
+        creatorTitle: _creatorTitle,
+        programBulananType: 'nominal',
+        programBulananDiscount: 0,
+        programBulananNominal: 50_000,
+      )!;
+      expect(row['approver_level_id'], 80);
+      expect(row['approver_level'], 'Program Bulanan');
+      expect(row['approved'], true);
+      expect(row['approved_at'], isNotNull);
+    });
+
+    test('nominal type: discount = "0", discountPriceRp becomes discount_price', () {
+      final row = CheckoutDiscountBuilder.buildProgramBulananRow(
+        userId: _userId,
+        creatorName: _creatorName,
+        creatorTitle: _creatorTitle,
+        programBulananType: 'nominal',
+        programBulananDiscount: 0,
+        programBulananNominal: 50_000,
+        discountPriceRp: 50_000,
+      )!;
+      expect(row['discount'], '0');
+      expect(row['discount_price'], 50_000.0);
+      expect(row.containsKey('program_discount'), isFalse);
+    });
+
+    test('percent type: discount = percentage, discountPriceRp becomes '
+        'discount_price (estimated Rp, not just raw nominal field)', () {
+      final row = CheckoutDiscountBuilder.buildProgramBulananRow(
+        userId: _userId,
+        creatorName: _creatorName,
+        creatorTitle: _creatorTitle,
+        programBulananType: 'percent',
+        programBulananDiscount: 10,
+        programBulananNominal: 0,
+        discountPriceRp: 135_000,
+      )!;
+      expect(row['discount'], '10.0');
+      expect(row['discount_price'], 135_000.0);
+      expect(row['program_discount'], '10.0');
+    });
+
+    test('discount_price NOT present when discountPriceRp = 0', () {
+      final row = CheckoutDiscountBuilder.buildProgramBulananRow(
+        userId: _userId,
+        creatorName: _creatorName,
+        creatorTitle: _creatorTitle,
+        programBulananType: 'nominal',
+        programBulananDiscount: 0,
+        programBulananNominal: 50_000,
+      )!;
+      expect(row.containsKey('discount_price'), isFalse);
+    });
+  });
+
   // ── buildStoreDiscountRows ────────────────────────────────────────────────
   group('CheckoutDiscountBuilder.buildStoreDiscountRows', () {
     test('zero discounts are skipped', () {

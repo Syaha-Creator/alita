@@ -79,6 +79,11 @@ CartItem _item({
   String sorongSku = '',
   double discount1 = 0,
   String pricelistArea = '',
+  int? indirectStoreAddressNumber,
+  List<double> indirectStoreDiscounts = const [],
+  String programBulananType = '',
+  double programBulananDiscount = 0,
+  double programBulananNominal = 0,
 }) =>
     CartItem(
       product: product,
@@ -89,6 +94,11 @@ CartItem _item({
       sorongSku: sorongSku,
       discount1: discount1,
       pricelistArea: pricelistArea,
+      indirectStoreAddressNumber: indirectStoreAddressNumber,
+      indirectStoreDiscounts: indirectStoreDiscounts,
+      programBulananType: programBulananType,
+      programBulananDiscount: programBulananDiscount,
+      programBulananNominal: programBulananNominal,
     );
 
 // ─── Service factory ─────────────────────────────────────────────────────────
@@ -416,6 +426,147 @@ void main() {
           reason: '${d.label} missing Level 1 discount',
         );
       }
+    });
+  });
+
+  // ── Program Bulanan (indirect only) ─────────────────────────────────────
+  //
+  // Regression tests for two bugs fixed together:
+  // 1. Duplication: the level-80 audit row used to be attached to EVERY
+  //    component of a SET product, multiplying the recorded discount.
+  // 2. net_price ignored the reduction entirely (only the audit row existed,
+  //    the actual uploaded price never reflected the discount).
+  group('program bulanan (indirect)', () {
+    test('nominal type reduces net_price on a kasur-only item', () {
+      final product = _product(
+        price: 900_000,
+        plKasur: 1_000_000,
+        eupKasur: 900_000,
+      );
+      final details = _build(items: [
+        _item(
+          product: product,
+          indirectStoreAddressNumber: 100,
+          programBulananType: 'nominal',
+          programBulananNominal: 50_000,
+        ),
+      ]);
+      expect(details, hasLength(1));
+      expect(details.first.payload['net_price'], 850_000.0);
+    });
+
+    test('nominal type: audit row appears exactly once for a SET product '
+        '(no duplication across kasur + divan)', () {
+      final product = _product(
+        price: 1_350_000, // eupKasur + eupDivan, no markup
+        isSet: true,
+        divan: 'Divan Kayu',
+        plKasur: 1_000_000,
+        eupKasur: 900_000,
+        plDivan: 500_000,
+        eupDivan: 450_000,
+      );
+      final details = _build(items: [
+        _item(
+          product: product,
+          divanSku: 'DV001',
+          indirectStoreAddressNumber: 100,
+          programBulananType: 'nominal',
+          programBulananNominal: 50_000,
+        ),
+      ]);
+      expect(details, hasLength(2));
+
+      final pbRows = details
+          .expand((d) => d.discounts)
+          .where((r) => r['approver_level_id'] == 80)
+          .toList();
+      expect(pbRows, hasLength(1), reason: 'level-80 row must not repeat');
+      expect(pbRows.first['discount_price'], 50_000.0);
+
+      // Nominal reduction fully absorbed by the anchor (kasur) component;
+      // divan's net_price is untouched by program bulanan.
+      final kasur = details.firstWhere((d) => d.payload['item_type'] == 'Mattress');
+      final divan = details.firstWhere((d) => d.payload['item_type'] == 'Divan');
+      expect(kasur.payload['net_price'], 850_000.0);
+      expect(divan.payload['net_price'], 450_000.0);
+      expect(
+        divan.discounts.where((r) => r['approver_level_id'] == 80),
+        isEmpty,
+        reason: 'audit row must live on the anchor (kasur) only',
+      );
+    });
+
+    test('percent type reduces net_price proportionally on every component '
+        'of a SET, with a single audit row', () {
+      final product = _product(
+        price: 1_350_000,
+        isSet: true,
+        divan: 'Divan Kayu',
+        plKasur: 1_000_000,
+        eupKasur: 900_000,
+        plDivan: 500_000,
+        eupDivan: 450_000,
+      );
+      final details = _build(items: [
+        _item(
+          product: product,
+          divanSku: 'DV001',
+          indirectStoreAddressNumber: 100,
+          programBulananType: 'percent',
+          programBulananDiscount: 10,
+        ),
+      ]);
+
+      final pbRows = details
+          .expand((d) => d.discounts)
+          .where((r) => r['approver_level_id'] == 80)
+          .toList();
+      expect(pbRows, hasLength(1));
+      expect(pbRows.first['discount'], '10.0');
+
+      final kasur = details.firstWhere((d) => d.payload['item_type'] == 'Mattress');
+      final divan = details.firstWhere((d) => d.payload['item_type'] == 'Divan');
+      expect(kasur.payload['net_price'], 810_000.0); // 900_000 * 0.9
+      expect(divan.payload['net_price'], 405_000.0); // 450_000 * 0.9
+    });
+
+    test('no level-80 row and no net_price reduction when program bulanan '
+        'is not set', () {
+      final product = _product(
+        price: 900_000,
+        plKasur: 1_000_000,
+        eupKasur: 900_000,
+      );
+      final details = _build(items: [
+        _item(product: product, indirectStoreAddressNumber: 100),
+      ]);
+      expect(
+        details.first.discounts.where((r) => r['approver_level_id'] == 80),
+        isEmpty,
+      );
+      expect(details.first.payload['net_price'], 900_000.0);
+    });
+
+    test('program bulanan ignored for direct (non-indirect) sales', () {
+      final product = _product(
+        price: 900_000,
+        plKasur: 1_000_000,
+        eupKasur: 900_000,
+      );
+      final details = _build(items: [
+        _item(
+          product: product,
+          // No indirectStoreAddressNumber => isIndirectSale = false.
+          programBulananType: 'nominal',
+          programBulananNominal: 50_000,
+        ),
+      ]);
+      expect(
+        details.first.discounts.where((r) => r['approver_level_id'] == 80),
+        isEmpty,
+      );
+      expect(details.first.payload['net_price'], 900_000.0);
     });
   });
 

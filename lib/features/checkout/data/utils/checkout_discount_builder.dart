@@ -214,6 +214,11 @@ class CheckoutDiscountBuilder {
     required String programBulananType,
     required double programBulananDiscount,
     required double programBulananNominal,
+    /// Nominal Rp riil yang benar-benar dipotong dari `net_price` (dihitung
+    /// oleh caller — eksak untuk tipe nominal, estimasi basis EUP untuk tipe
+    /// persen). Dipakai sebagai `discount_price` agar approver melihat nilai
+    /// Rupiah baik untuk tipe percent maupun nominal, bukan hanya nominal.
+    double discountPriceRp = 0,
   }) {
     if (programBulananType.isEmpty) return null;
     final isPercent = programBulananType == 'percent';
@@ -230,8 +235,7 @@ class CheckoutDiscountBuilder {
       'approver_work_tittle': creatorTitle,
       'approved': true,
       'approved_at': now,
-      if (!isPercent && programBulananNominal > 0)
-        'discount_price': programBulananNominal,
+      if (discountPriceRp > 0) 'discount_price': discountPriceRp,
       if (isPercent && programBulananDiscount > 0)
         'program_discount': programBulananDiscount.toString(),
     };

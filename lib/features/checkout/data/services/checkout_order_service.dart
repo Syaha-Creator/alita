@@ -280,26 +280,43 @@ class CheckoutOrderService {
         ..['order_letter_id'] = orderLetterId
         ..['no_sp'] = noSp;
 
-      final response = await _api.post(
-        CheckoutEndpoints.orderLetterDetails,
-        token: token,
-        body: detailPayload,
-        timeout: _checkoutTimeout,
-      );
+      try {
+        final response = await _api.post(
+          CheckoutEndpoints.orderLetterDetails,
+          token: token,
+          body: detailPayload,
+          timeout: _checkoutTimeout,
+        );
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final detailId = _extractDetailId(response.body);
-        if (detailId > 0) {
-          succeeded.add(SucceededDetail(pending: pending, detailId: detailId));
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          final detailId = _extractDetailId(response.body);
+          if (detailId > 0) {
+            succeeded.add(SucceededDetail(pending: pending, detailId: detailId));
+          } else {
+            succeeded.add(SucceededDetail(pending: pending, detailId: 0));
+          }
         } else {
-          succeeded.add(SucceededDetail(pending: pending, detailId: 0));
+          Log.warning(
+            'Detail POST failed: ${pending.label} status=${response.statusCode}',
+            tag: 'CheckoutOrderService',
+          );
+          failed.add(pending);
         }
-      } else {
+      } catch (e, st) {
+        // Network/timeout exception: anggap item ini gagal agar retryDetails
+        // tetap terisi dan submit button tetap disabled, mencegah re-POST semua
+        // detail ulang dari awal saat user tap submit kembali.
         Log.warning(
-          'Detail POST failed: ${pending.label} status=${response.statusCode}',
+          'Detail POST exception: ${pending.label} — $e',
           tag: 'CheckoutOrderService',
         );
+        Log.error(e, st, reason: 'CheckoutOrderService.postDetails item $i');
         failed.add(pending);
+        // Item setelah ini juga belum dipost — masukkan semua ke failed.
+        for (int j = i + 1; j < pendingDetails.length; j++) {
+          failed.add(pendingDetails[j]);
+        }
+        break;
       }
     }
 
@@ -499,6 +516,53 @@ class CheckoutOrderService {
     return body['result'] as Map<String, dynamic>?;
   }
 
+  /// Hitung jumlah `order_letter_contacts` yang sudah ada di server.
+  /// Dipakai setelah error di step 2 untuk menghindari duplikasi kontak.
+  Future<int> fetchExistingContactCount(
+    int orderLetterId,
+    String token,
+  ) async {
+    try {
+      final orderData = await fetchFullOrder(orderLetterId, token);
+      if (orderData == null) return 0;
+      final contacts =
+          orderData['order_letter_contacts'] as List<dynamic>? ?? [];
+      return contacts.length;
+    } catch (e, st) {
+      Log.warning(
+        'fetchExistingContactCount gagal: $e',
+        tag: 'CheckoutOrderService',
+      );
+      Log.error(e, st, reason: 'fetchExistingContactCount');
+      return 0;
+    }
+  }
+
+  /// Hitung jumlah `order_letter_payments` yang sudah ada di server.
+  /// Dipakai setelah error di step 3 untuk menghindari double-payment:
+  /// jika server sempat menyimpan payment sebelum timeout, count-nya > 0
+  /// sehingga retry tahu harus mulai dari index berapa.
+  /// Mengembalikan 0 jika fetch gagal (safe fallback — retry tetap bisa jalan).
+  Future<int> fetchExistingPaymentCount(
+    int orderLetterId,
+    String token,
+  ) async {
+    try {
+      final orderData = await fetchFullOrder(orderLetterId, token);
+      if (orderData == null) return 0;
+      final payments =
+          orderData['order_letter_payments'] as List<dynamic>? ?? [];
+      return payments.length;
+    } catch (e, st) {
+      Log.warning(
+        'fetchExistingPaymentCount gagal: $e',
+        tag: 'CheckoutOrderService',
+      );
+      Log.error(e, st, reason: 'fetchExistingPaymentCount');
+      return 0;
+    }
+  }
+
   /// Fetches all detail IDs for an order. Used as fallback when the
   /// individual POST responses didn't include the detail ID.
   ///
@@ -566,34 +630,59 @@ class CheckoutOrderService {
       }
 
       bool detailHadFailure = false;
+      // Kumulatif level_id yang berhasil di-POST untuk detail ini (termasuk dari
+      // percobaan sebelumnya yang tersimpan di postedDiscountLevelIds).
+      final succeededLevelIds = <int>{...item.postedDiscountLevelIds};
+
       for (final disc in item.pending.discounts) {
-        totalDiscounts++;
         final levelId = disc['approver_level_id'] as int? ?? 0;
+
+        // Skip baris yang sudah ada di server dari percobaan sebelumnya.
+        if (levelId > 0 && succeededLevelIds.contains(levelId)) {
+          succeededCount++;
+          totalDiscounts++;
+          continue;
+        }
+
+        totalDiscounts++;
         final discPayload = Map<String, dynamic>.from(disc)
           ..['order_letter_id'] = orderLetterId
           ..['order_letter_detail_id'] = detailId;
         discPayload.removeWhere((_, v) => v == null);
 
-        final response = await _api.post(
-          CheckoutEndpoints.orderLetterDiscounts,
-          token: token,
-          body: discPayload,
-          timeout: _checkoutTimeout,
-        );
+        try {
+          final response = await _api.post(
+            CheckoutEndpoints.orderLetterDiscounts,
+            token: token,
+            body: discPayload,
+            timeout: _checkoutTimeout,
+          );
 
-        if (response.statusCode == 200 || response.statusCode == 201) {
-          succeededCount++;
-        } else {
+          if (response.statusCode == 200 || response.statusCode == 201) {
+            succeededCount++;
+            if (levelId > 0) succeededLevelIds.add(levelId);
+          } else {
+            detailHadFailure = true;
+            Log.warning(
+              'Discount POST failed: level=$levelId detailId=$detailId '
+              'status=${response.statusCode} body=${response.body}',
+              tag: 'CheckoutOrderService',
+            );
+          }
+        } catch (e, st) {
           detailHadFailure = true;
           Log.warning(
-            'Discount POST failed: level=$levelId detailId=$detailId '
-            'status=${response.statusCode} body=${response.body}',
+            'Discount POST exception: level=$levelId detailId=$detailId — $e',
             tag: 'CheckoutOrderService',
           );
+          Log.error(e, st, reason: 'CheckoutOrderService.postDiscountsForDetails');
         }
       }
 
-      if (detailHadFailure) failedDetailsList.add(item);
+      if (detailHadFailure) {
+        // Simpan level_id yang sudah berhasil agar retry berikutnya bisa skip.
+        failedDetailsList.add(item.withPostedLevelIds(succeededLevelIds));
+      }
     }
 
     final failedCount = totalDiscounts - succeededCount;
@@ -683,6 +772,63 @@ class CheckoutOrderService {
         return lower.isNotEmpty && !lower.contains('tanpa');
       }
 
+      // ── Program Bulanan (indirect only): setup sekali per item ──
+      // Baris audit (approver_level_id 80) hanya ditempel ke SATU komponen
+      // "anchor" (prioritas sama dengan markupDiff di bawah: kasur > divan >
+      // headboard > sorong > fallback Produk) agar tidak terduplikasi ke
+      // setiap baris detail pada produk SET. Potongan net_price riil tetap
+      // diterapkan ke semua komponen relevan: proporsional untuk tipe
+      // persen (matematis setara dengan memotong di agregat), atau nilai
+      // penuh hanya ke komponen anchor untuk tipe nominal.
+      final bool kcPresentForPb = hasComponent(p.kasur);
+      final bool dvPresentForPb = p.isSet && hasComponent(p.divan);
+      final bool hbPresentForPb = p.isSet && hasComponent(p.headboard);
+      final bool srPresentForPb = p.isSet && hasComponent(p.sorong);
+      final double presentEupSumForPb = (kcPresentForPb ? p.eupKasur : 0) +
+          (dvPresentForPb ? p.eupDivan : 0) +
+          (hbPresentForPb ? p.eupHeadboard : 0) +
+          (srPresentForPb ? p.eupSorong : 0);
+      final bool pbActive = item.isIndirectSale && item.hasProgramBulanan;
+      final bool pbIsPercent = item.programBulananType == 'percent';
+      final double pbPercent = item.programBulananDiscount;
+      final double pbNominal = item.programBulananNominal;
+      final bool pbAnchorIsKasur = pbActive && kcPresentForPb;
+      final bool pbAnchorIsDivan = pbActive && !kcPresentForPb && dvPresentForPb;
+      final bool pbAnchorIsHeadboard = pbActive &&
+          !kcPresentForPb &&
+          !dvPresentForPb &&
+          hbPresentForPb;
+      final bool pbAnchorIsSorong = pbActive &&
+          !kcPresentForPb &&
+          !dvPresentForPb &&
+          !hbPresentForPb &&
+          srPresentForPb;
+      final bool pbAnchorIsFallback = pbActive &&
+          !kcPresentForPb &&
+          !dvPresentForPb &&
+          !hbPresentForPb &&
+          !srPresentForPb;
+      // Estimasi Rp untuk audit (`discount_price`): nominal type pakai nilai
+      // input langsung (eksak); percent type diestimasi dari basis EUP × qty
+      // (sebelum diskon) karena basis pasti per-komponen belum tersedia di sini.
+      final double pbDiscountPriceRp = !pbActive
+          ? 0
+          : pbIsPercent
+              ? presentEupSumForPb * item.quantity * (pbPercent / 100)
+              : pbNominal;
+
+      /// Menerapkan potongan Program Bulanan ke net line SATU komponen.
+      /// [isAnchor] menandai komponen yang boleh menyerap potongan nominal
+      /// PENUH — mencegah nominal terpotong berkali-kali di tiap baris SET.
+      double applyProgramBulananToNetLine(double netLine, bool isAnchor) {
+        if (!pbActive || netLine <= 0) return netLine;
+        if (pbIsPercent) {
+          return (netLine * (1 - pbPercent / 100)).clamp(0, double.infinity);
+        }
+        if (!isAnchor) return netLine;
+        return (netLine - pbNominal).clamp(0, double.infinity);
+      }
+
       List<Map<String, dynamic>> buildDiscounts({
         double? discount1NominalLine,
         double? discount2NominalLine,
@@ -725,19 +871,6 @@ class CheckoutOrderService {
           ));
         }
 
-        // Program Bulanan: level 80, auto-approved, hanya indirect.
-        if (item.isIndirectSale && item.hasProgramBulanan) {
-          final pbRow = CheckoutDiscountBuilder.buildProgramBulananRow(
-            userId: userId,
-            creatorName: creatorName,
-            creatorTitle: creatorTitle,
-            programBulananType: item.programBulananType,
-            programBulananDiscount: item.programBulananDiscount,
-            programBulananNominal: item.programBulananNominal,
-          );
-          if (pbRow != null) rows.add(pbRow);
-        }
-
         return rows;
       }
 
@@ -747,6 +880,7 @@ class CheckoutOrderService {
       List<Map<String, dynamic>> discountRowsForDetailLine({
         double customerPricePerUnit = 0,
         double componentProgramPrice = 0,
+        bool isProgramBulananAnchor = false,
       }) {
         final List<Map<String, dynamic>> rows;
         if (item.isFocVoucherActive) {
@@ -817,6 +951,23 @@ class CheckoutOrderService {
             discount4NominalLine: d4Nominal > 0 ? d4Nominal : null,
             storeDiscountNominals: storeNominals,
           );
+        }
+
+        // Program Bulanan: level 80, auto-approved, hanya indirect. Hanya
+        // ditempel ke komponen anchor (lihat setup di atas) agar baris
+        // audit ini tidak terduplikasi ke setiap komponen produk SET.
+        // Tidak berlaku untuk baris FOC (net_price sudah 0).
+        if (!item.isFocVoucherActive && isProgramBulananAnchor && pbActive) {
+          final pbRow = CheckoutDiscountBuilder.buildProgramBulananRow(
+            userId: userId,
+            creatorName: creatorName,
+            creatorTitle: creatorTitle,
+            programBulananType: item.programBulananType,
+            programBulananDiscount: item.programBulananDiscount,
+            programBulananNominal: item.programBulananNominal,
+            discountPriceRp: pbDiscountPriceRp,
+          );
+          if (pbRow != null) rows.add(pbRow);
         }
 
         final program = p.program.trim();
@@ -900,6 +1051,7 @@ class CheckoutOrderService {
           storeDiscounts: item.indirectStoreDiscounts,
           netLineAfterSalesDiscounts: kasurPrices.netPriceLineTotal,
         );
+        kasurNetLine = applyProgramBulananToNetLine(kasurNetLine, pbAnchorIsKasur);
         if (item.isFocVoucherActive) {
           kasurCustomerPerUnit = p.plKasur;
           kasurNetLine = 0;
@@ -937,6 +1089,7 @@ class CheckoutOrderService {
           discounts: discountRowsForDetailLine(
             customerPricePerUnit: kasurCustomerPerUnit,
             componentProgramPrice: p.plKasur - p.eupKasur,
+            isProgramBulananAnchor: pbAnchorIsKasur,
           ),
           label:
               '${p.name} (${p.isPricelistCustomCartLine ? (PricelistCustomLineBuilder.componentTypeFromProduct(p)?.shortLabel ?? 'Kasur') : 'Kasur'})',
@@ -970,6 +1123,7 @@ class CheckoutOrderService {
           storeDiscounts: item.indirectStoreDiscounts,
           netLineAfterSalesDiscounts: divanPrices.netPriceLineTotal,
         );
+        divanNetLine = applyProgramBulananToNetLine(divanNetLine, pbAnchorIsDivan);
         if (item.isFocVoucherActive) {
           divanCustomerPerUnit = p.plDivan;
           divanNetLine = 0;
@@ -1005,6 +1159,7 @@ class CheckoutOrderService {
               ? discountRowsForDetailLine(
                   customerPricePerUnit: divanCustomerPerUnit,
                   componentProgramPrice: p.plDivan - p.eupDivan,
+                  isProgramBulananAnchor: pbAnchorIsDivan,
                 )
               : const [],
           label: '${p.name} (Divan)',
@@ -1038,6 +1193,7 @@ class CheckoutOrderService {
           storeDiscounts: item.indirectStoreDiscounts,
           netLineAfterSalesDiscounts: headboardPrices.netPriceLineTotal,
         );
+        hbNetLine = applyProgramBulananToNetLine(hbNetLine, pbAnchorIsHeadboard);
         if (item.isFocVoucherActive) {
           hbCustomerPerUnit = p.plHeadboard;
           hbNetLine = 0;
@@ -1073,6 +1229,7 @@ class CheckoutOrderService {
               ? discountRowsForDetailLine(
                   customerPricePerUnit: hbCustomerPerUnit,
                   componentProgramPrice: p.plHeadboard - p.eupHeadboard,
+                  isProgramBulananAnchor: pbAnchorIsHeadboard,
                 )
               : const [],
           label: '${p.name} (Headboard)',
@@ -1106,6 +1263,7 @@ class CheckoutOrderService {
           storeDiscounts: item.indirectStoreDiscounts,
           netLineAfterSalesDiscounts: sorongPrices.netPriceLineTotal,
         );
+        srNetLine = applyProgramBulananToNetLine(srNetLine, pbAnchorIsSorong);
         if (item.isFocVoucherActive) {
           srCustomerPerUnit = p.plSorong;
           srNetLine = 0;
@@ -1141,6 +1299,7 @@ class CheckoutOrderService {
               ? discountRowsForDetailLine(
                   customerPricePerUnit: srCustomerPerUnit,
                   componentProgramPrice: p.plSorong - p.eupSorong,
+                  isProgramBulananAnchor: pbAnchorIsSorong,
                 )
               : const [],
           label: '${p.name} (Sorong)',
@@ -1175,6 +1334,7 @@ class CheckoutOrderService {
           storeDiscounts: item.indirectStoreDiscounts,
           netLineAfterSalesDiscounts: prices.netPriceLineTotal,
         );
+        fbNetLine = applyProgramBulananToNetLine(fbNetLine, pbAnchorIsFallback);
         if (item.isFocVoucherActive) {
           fbCustomerPerUnit = unitPlPerUnit;
           fbNetLine = 0;
@@ -1212,6 +1372,7 @@ class CheckoutOrderService {
           discounts: discountRowsForDetailLine(
             customerPricePerUnit: fbCustomerPerUnit,
             componentProgramPrice: unitPlPerUnit - p.price,
+            isProgramBulananAnchor: pbAnchorIsFallback,
           ),
           label: '${p.name} (Produk)',
         ));
