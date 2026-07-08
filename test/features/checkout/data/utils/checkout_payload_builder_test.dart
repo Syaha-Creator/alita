@@ -459,6 +459,39 @@ void main() {
         expect(p.containsKey('customer_master'), isFalse);
       });
     });
+
+    group('customer_type conditional field (indirect)', () {
+      CartItem _indirectCart({String customerType = 'new_customer'}) {
+        return _cartItem(product: _product()).copyWith(
+          indirectStoreAddressNumber: 1001,
+          indirectCustomerType: customerType,
+        );
+      }
+
+      test('customer_type included from cart indirectCustomerType', () {
+        final p = _defaultHeader(
+          isIndirectOrder: true,
+          cartItems: [_indirectCart(customerType: 'new_customer')],
+        );
+        expect(p['customer_type'], 'new_customer');
+      });
+
+      test('customer_type NOT included when indirectCustomerType empty', () {
+        final p = _defaultHeader(
+          isIndirectOrder: true,
+          cartItems: [_indirectCart(customerType: '')],
+        );
+        expect(p.containsKey('customer_type'), isFalse);
+      });
+
+      test('customer_type NOT included for direct order', () {
+        final p = _defaultHeader(
+          isIndirectOrder: false,
+          cartItems: [_indirectCart(customerType: 'existing')],
+        );
+        expect(p.containsKey('customer_type'), isFalse);
+      });
+    });
   });
 
   // ── buildNewCustomerContactPayload ────────────────────────────────────────

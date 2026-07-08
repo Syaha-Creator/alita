@@ -131,6 +131,10 @@ class CheckoutPayloadBuilder {
     final noPoTrimmed = indirectNoPoText.trim();
     final noPoValue = noPoTrimmed.isEmpty ? null : noPoTrimmed;
 
+    final customerType = isIndirectOrder
+        ? resolveIndirectCustomerType(cartItems)
+        : null;
+
     return {
       'order_date': AppFormatters.apiDate(orderDate),
       'request_date':
@@ -161,7 +165,18 @@ class CheckoutPayloadBuilder {
       if (isIndirectOrder && indirectShipToCode != null &&
           indirectShipToCode > 0)
         'ship_to_code': indirectShipToCode,
+      if (customerType != null) 'customer_type': customerType,
     };
+  }
+
+  /// Ambil `search_type` toko dari baris indirect pertama di keranjang.
+  static String? resolveIndirectCustomerType(List<CartItem> cartItems) {
+    for (final item in cartItems) {
+      if (!item.isIndirectSale) continue;
+      final raw = item.indirectCustomerType.trim();
+      if (raw.isNotEmpty) return raw;
+    }
+    return null;
   }
 
   static Map<String, dynamic> buildNewCustomerContactPayload({

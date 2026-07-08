@@ -8,6 +8,7 @@ class CartIndirectMeta {
     required this.storeDiscounts,
     required this.discountDisplay,
     this.isNewCustomer = false,
+    this.searchType = '',
     this.discountCode = '',
   });
 
@@ -20,6 +21,9 @@ class CartIndirectMeta {
   /// True jika toko ditandai sebagai customer baru oleh API (search_type).
   /// Order indirect ke customer baru wajib mendapat persetujuan ASM.
   final bool isNewCustomer;
+  /// Nilai asli `search_type` dari API `address_number_by_sales_code`
+  /// (mis. `new_customer`, `existing`) — dikirim sebagai `customer_type` di order_letters.
+  final String searchType;
   /// Kode diskon toko dari API (`disc_name`), dipakai sebagai `code_standart`
   /// di baris `order_letter_discounts` indirect.
   final String discountCode;

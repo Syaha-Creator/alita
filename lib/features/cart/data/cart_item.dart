@@ -130,6 +130,8 @@ class CartItem with _$CartItem {
     /// True jika toko tujuan indirect ditandai sebagai customer baru oleh API (search_type).
     /// Order ke customer baru wajib mendapat persetujuan ASM meskipun tanpa diskon tambahan.
     @JsonKey(fromJson: _parseBoolDefaultFalse) @Default(false) bool isNewCustomerStore,
+    /// Nilai asli `search_type` toko assign — dikirim sebagai `customer_type` di order_letters.
+    @Default('') String indirectCustomerType,
 
     // ── Program Bulanan (indirect only) ──────────────────────────────────────
     /// Tipe diskon program bulanan: '' = tidak diisi, 'percent' = %, 'nominal' = Rp.

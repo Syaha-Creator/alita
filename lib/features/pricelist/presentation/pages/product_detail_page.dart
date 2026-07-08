@@ -1225,6 +1225,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
             ? StoreDiscountCalculator.formatDisplay(session.storeDiscounts)
             : session.discountDisplay,
         isNewCustomer: store.isNewCustomer,
+        searchType: store.searchType?.trim() ?? '',
         discountCode: session.discountCode,
       );
     }

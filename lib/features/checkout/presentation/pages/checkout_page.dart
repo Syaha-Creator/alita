@@ -29,7 +29,6 @@ import '../../../profile/logic/profile_provider.dart';
 import '../../data/models/payment_entry.dart';
 import '../../data/models/region_result.dart';
 import '../../data/models/store_model.dart';
-import '../../data/utils/indirect_store_match.dart';
 import '../../data/services/local_contact_service.dart';
 import '../../data/utils/checkout_payload_builder.dart';
 import '../../data/utils/indirect_approval_rules.dart';
@@ -60,6 +59,7 @@ import '../../../pricelist/logic/product_provider.dart';
 import '../../../cart/logic/cart_item_price_refresh.dart';
 import '../../../history/data/models/order_history.dart';
 import '../../../history/logic/edit_order_context_provider.dart';
+import '../../../indirect/logic/indirect_session_provider.dart';
 import '../../data/models/approver_model.dart';
 // activeDraftProvider is exported from quotation_list_provider.dart
 
@@ -210,7 +210,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       notifier.fetchAttendanceWorkPlace();
       AppAnalyticsService.logBeginCheckout(value: _effectiveTotal(ref));
       _prefillIndirectSalesCodeFromAuthIfEmpty();
-      unawaited(_prefillIndirectCheckoutAsync());
+      _prefillIndirectCheckoutFromAssignedStore();
       _prefillEditOrderPostageIfNeeded();
     });
     _updatePaymentAmountUI();
@@ -336,42 +336,36 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     setState(() => _scCodeCtrl.text = digits);
   }
 
-  /// Isi nama & alamat toko dari master `/all_stores` (jika nama toko cocok) dan
-  /// fallback ke snapshot keranjang indirect. Email tidak diisi otomatis (boleh kosong).
-  Future<void> _prefillIndirectCheckoutAsync() async {
+  /// Isi nama & alamat toko dari [indirectSessionProvider.selectedStore]
+  /// (`alpha_name` + `address` dari API `address_number_by_sales_code`).
+  /// Fallback: snapshot keranjang indirect. `/all_stores` tidak dipakai di sini
+  /// (master cabang/gudang saja).
+  void _prefillIndirectCheckoutFromAssignedStore() {
     if (!mounted || widget.restoredQuotation != null) return;
     final items = _effectiveCartItems(ref);
     final indirect = items.where((e) => e.isIndirectSale).toList();
     if (indirect.isEmpty) return;
 
     final first = indirect.first;
+    final sessionStore = ref.read(indirectSessionProvider).selectedStore;
 
-    List<StoreModel> stores = const [];
-    try {
-      stores = await ref.read(storeListProvider.future);
-    } catch (e, st) {
-      Log.error(e, st, reason: 'Checkout: storeList indirect prefill');
-    }
-
-    if (!mounted) return;
-
-    final wp = stores.isEmpty
-        ? null
-        : matchWorkPlaceForIndirectCartLine(stores, first);
+    final nameFromSession = sessionStore?.alphaName.trim() ?? '';
+    final addrFromSession = sessionStore?.address.trim() ?? '';
+    final nameFromCart = first.indirectStoreAlphaName.trim();
+    final addrFromCart = first.indirectStoreAddress.trim();
 
     var setShippingSame = false;
     setState(() {
       if (_customerNameCtrl.text.trim().isEmpty) {
-        if (wp != null && wp.name.trim().isNotEmpty) {
-          _customerNameCtrl.text = wp.displayNameTitleCase;
-        } else if (first.indirectStoreAlphaName.isNotEmpty) {
-          _customerNameCtrl.text = first.indirectStoreAlphaName;
+        final name =
+            nameFromSession.isNotEmpty ? nameFromSession : nameFromCart;
+        if (name.isNotEmpty) {
+          _customerNameCtrl.text = name;
         }
       }
       if (_customerAddressCtrl.text.trim().isEmpty) {
-        final addr = (wp != null && wp.address.trim().isNotEmpty)
-            ? wp.address.trim()
-            : first.indirectStoreAddress.trim();
+        final addr =
+            addrFromSession.isNotEmpty ? addrFromSession : addrFromCart;
         if (addr.isNotEmpty) {
           _customerAddressCtrl.text = addr;
           setShippingSame = true;
@@ -380,7 +374,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       if (setShippingSame) _isShippingSameAsCustomer = true;
     });
 
-    if (mounted) _prefillIndirectSalesCodeFromAuthIfEmpty();
+    _prefillIndirectSalesCodeFromAuthIfEmpty();
   }
 
   double get _minimumDp => _grandTotal * 0.3;

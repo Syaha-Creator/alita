@@ -1,4 +1,5 @@
 import '../../cart/data/cart_item.dart';
+import '../../indirect/data/models/assigned_store.dart';
 import '../../pricelist/data/models/pricelist_custom_line.dart';
 import '../../pricelist/data/models/product.dart';
 import '../data/models/order_history.dart';
@@ -82,6 +83,7 @@ abstract final class OrderDetailCartPreloader {
         orderId: order.id,
         index: i,
         isIndirect: isIndirect,
+        customerType: order.customerType,
       );
       if (item != null) result.add(item);
     }
@@ -97,6 +99,7 @@ abstract final class OrderDetailCartPreloader {
     required int orderId,
     required int index,
     required bool isIndirect,
+    String customerType = '',
   }) {
     if (d.qty <= 0) return null;
 
@@ -227,6 +230,9 @@ abstract final class OrderDetailCartPreloader {
       indirectStoreDiscounts: storeDiscounts,
       indirectStoreDiscountDisplay: '',
       pricelistArea: '',
+      isNewCustomerStore:
+          isIndirect && AssignedStoreX.isNewCustomerSearchType(customerType),
+      indirectCustomerType: isIndirect ? customerType.trim() : '',
     );
   }
 

@@ -91,6 +91,7 @@ _$CartItemImpl _$$CartItemImplFromJson(Map<String, dynamic> json) =>
       isNewCustomerStore: json['isNewCustomerStore'] == null
           ? false
           : _parseBoolDefaultFalse(json['isNewCustomerStore']),
+      indirectCustomerType: json['indirectCustomerType'] as String? ?? '',
       programBulananType: json['programBulananType'] as String? ?? '',
       programBulananDiscount: json['programBulananDiscount'] == null
           ? 0.0
@@ -139,6 +140,7 @@ Map<String, dynamic> _$$CartItemImplToJson(_$CartItemImpl instance) =>
       'isBonusCustomized': instance.isBonusCustomized,
       'isCustomSize': instance.isCustomSize,
       'isNewCustomerStore': instance.isNewCustomerStore,
+      'indirectCustomerType': instance.indirectCustomerType,
       'programBulananType': instance.programBulananType,
       'programBulananDiscount': instance.programBulananDiscount,
       'programBulananNominal': instance.programBulananNominal,

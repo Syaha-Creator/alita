@@ -24,10 +24,13 @@ class AssignedStore with _$AssignedStore {
 }
 
 extension AssignedStoreX on AssignedStore {
-  /// True jika toko ini ditandai sebagai customer baru oleh API (search_type == 'new_customer').
-  /// Order indirect ke customer baru wajib mendapat persetujuan ASM meskipun tanpa diskon tambahan.
-  bool get isNewCustomer {
+  /// True jika [searchType] menandai customer baru (`new_customer` / `new`).
+  static bool isNewCustomerSearchType(String? searchType) {
     final t = searchType?.trim().toLowerCase() ?? '';
     return t == 'new_customer' || t == 'new';
   }
+
+  /// True jika toko ini ditandai sebagai customer baru oleh API (search_type == 'new_customer').
+  /// Order indirect ke customer baru wajib mendapat persetujuan ASM meskipun tanpa diskon tambahan.
+  bool get isNewCustomer => isNewCustomerSearchType(searchType);
 }

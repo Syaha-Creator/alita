@@ -259,6 +259,7 @@ class CartItemBuilder {
       indirectStoreDiscountDisplay: indirectMeta?.discountDisplay ?? '',
       indirectStoreDiscountCode: indirectMeta?.discountCode ?? '',
       isNewCustomerStore: indirectMeta?.isNewCustomer ?? false,
+      indirectCustomerType: indirectMeta?.searchType ?? '',
       pricelistArea: pricelistArea,
       programBulananType: programBulananType,
       programBulananDiscount:

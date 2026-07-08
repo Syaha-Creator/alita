@@ -491,6 +491,7 @@ class _PricelistCustomLinePageState
             ? StoreDiscountCalculator.formatDisplay(session.storeDiscounts)
             : '',
         isNewCustomer: store.isNewCustomer,
+        searchType: store.searchType?.trim() ?? '',
         discountCode: session.discountCode,
       );
     }
