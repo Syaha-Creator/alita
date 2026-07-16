@@ -495,32 +495,18 @@ final productListProvider = FutureProvider<ProductListLoadResult>((ref) async {
   }
 });
 
-/// Filtered AND sorted products.
-/// API already returns products filtered by Area + Channel + Brand.
-/// We apply: Variant Grouping (1 card per model, lowest price) → Search → Sort.
-final filteredProductsProvider = Provider<List<Product>>((ref) {
-  final selectedChannel = ref.watch(selectedChannelProvider);
-  final selectedBrand = ref.watch(selectedBrandProvider);
-  if (selectedChannel == null || selectedBrand == null) return [];
+/// Groups raw catalog rows into one card per model (lowest positive price).
+///
+/// Pure helper so grouping can be unit-tested and reused without Riverpod.
+@visibleForTesting
+List<Product> groupProductsByVariantModel(List<Product> products) {
+  if (products.isEmpty) return const [];
 
-  final productsAsync = ref.watch(productListProvider);
-  var products = productsAsync.valueOrNull?.products ?? [];
-
-  final customCard = PricelistCustomLineBuilder.buildGridPlaceholder(
-    brand: selectedBrand,
-    channel: selectedChannel,
-  );
-
-  if (products.isEmpty) {
-    return [customCard];
-  }
-
-  // --- START LOGIKA GROUPING ---
-  final Map<String, Product> groupedMap = {};
+  final groupedMap = <String, Product>{};
 
   for (final p in products) {
-    // 1. Smart Naming: Hindari nama "Tanpa Kasur"
-    String groupName = p.kasur.trim();
+    // Smart naming: avoid "Tanpa Kasur" as the card title.
+    var groupName = p.kasur.trim();
 
     if (groupName.toLowerCase() == 'tanpa kasur' || groupName.isEmpty) {
       if (p.divan.toLowerCase() != 'tanpa divan' && p.divan.trim().isNotEmpty) {
@@ -532,40 +518,70 @@ final filteredProductsProvider = Provider<List<Product>>((ref) {
           p.sorong.trim().isNotEmpty) {
         groupName = p.sorong.trim();
       } else {
-        groupName = p.name; // Fallback ke nama asli jika semua gagal
+        groupName = p.name;
       }
     }
 
-    // 2. Simpan ke Map & Cari Harga Termurah
-    if (!groupedMap.containsKey(groupName)) {
+    final existing = groupedMap[groupName];
+    if (existing == null) {
       groupedMap[groupName] = p.copyWith(name: groupName);
-    } else {
-      final existingProduct = groupedMap[groupName];
-      if (existingProduct != null &&
-          p.price > 0 &&
-          p.price < existingProduct.price) {
-        groupedMap[groupName] = p.copyWith(name: groupName);
-      }
+    } else if (p.price > 0 && p.price < existing.price) {
+      groupedMap[groupName] = p.copyWith(name: groupName);
     }
   }
 
-  // 3. Timpa list products dengan hasil grouping
-  products = groupedMap.values.toList();
-  // --- END LOGIKA GROUPING ---
+  return groupedMap.values.toList();
+}
+
+/// Variant-grouped catalog for the current Area×Channel×Brand load.
+///
+/// Depends only on [productListProvider] (+ filter completeness). Search/sort
+/// must NOT invalidate this — regrouping the full catalog on every keystroke
+/// was the main pricelist jank source.
+final groupedProductsProvider = Provider<List<Product>>((ref) {
+  final selectedChannel = ref.watch(selectedChannelProvider);
+  final selectedBrand = ref.watch(selectedBrandProvider);
+  if (selectedChannel == null || selectedBrand == null) return const [];
+
+  final products =
+      ref.watch(productListProvider).valueOrNull?.products ?? const [];
+  if (products.isEmpty) return const [];
+
+  return groupProductsByVariantModel(products);
+});
+
+/// Filtered AND sorted products (cheap path).
+///
+/// API already returns products filtered by Area + Channel + Brand.
+/// Pipeline: [groupedProductsProvider] → Search → Sort → custom placeholder.
+final filteredProductsProvider = Provider<List<Product>>((ref) {
+  final selectedChannel = ref.watch(selectedChannelProvider);
+  final selectedBrand = ref.watch(selectedBrandProvider);
+  if (selectedChannel == null || selectedBrand == null) return const [];
+
+  final customCard = PricelistCustomLineBuilder.buildGridPlaceholder(
+    brand: selectedBrand,
+    channel: selectedChannel,
+  );
+
+  final products = ref.watch(groupedProductsProvider);
+  if (products.isEmpty) {
+    return [customCard];
+  }
 
   final searchQuery = ref.watch(searchQueryProvider).toLowerCase();
   final sortOption = ref.watch(sortOptionProvider);
 
-  // Step 1: Search (on grouped list)
   final filtered = searchQuery.isEmpty
       ? List<Product>.from(products)
       : products
-          .where((product) =>
-              product.name.toLowerCase().contains(searchQuery) ||
-              product.description.toLowerCase().contains(searchQuery))
+          .where(
+            (product) =>
+                product.name.toLowerCase().contains(searchQuery) ||
+                product.description.toLowerCase().contains(searchQuery),
+          )
           .toList();
 
-  // Step 2: Sort
   switch (sortOption) {
     case SortOption.priceLowToHigh:
       filtered.sort((a, b) => a.price.compareTo(b.price));

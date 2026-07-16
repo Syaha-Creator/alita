@@ -1,8 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_search_field.dart';
 import '../../logic/product_provider.dart';
+
+/// Debounce before writing [searchQueryProvider] (avoids filter/sort churn).
+const _searchDebounce = Duration(milliseconds: 250);
 
 /// Pinterest-style floating search bar
 class SearchBarWidget extends ConsumerStatefulWidget {
@@ -14,6 +19,7 @@ class SearchBarWidget extends ConsumerStatefulWidget {
 
 class _SearchBarWidgetState extends ConsumerState<SearchBarWidget> {
   final TextEditingController _controller = TextEditingController();
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -26,8 +32,22 @@ class _SearchBarWidgetState extends ConsumerState<SearchBarWidget> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _controller.dispose();
     super.dispose();
+  }
+
+  void _onQueryChanged(String value) {
+    _debounce?.cancel();
+    // Clear immediately so the grid resets without waiting.
+    if (value.isEmpty) {
+      ref.read(searchQueryProvider.notifier).state = '';
+      return;
+    }
+    _debounce = Timer(_searchDebounce, () {
+      if (!mounted) return;
+      ref.read(searchQueryProvider.notifier).state = value;
+    });
   }
 
   @override
@@ -49,9 +69,7 @@ class _SearchBarWidgetState extends ConsumerState<SearchBarWidget> {
       ),
       child: AppSearchField(
         controller: _controller,
-        onChanged: (value) {
-          ref.read(searchQueryProvider.notifier).state = value;
-        },
+        onChanged: _onQueryChanged,
         hintText: 'Search products...',
         textStyle: Theme.of(
           context,

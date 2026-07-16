@@ -50,16 +50,19 @@ final favoritesProvider =
   return FavoritesNotifier();
 });
 
-/// Check if specific product is favorite
+/// Check if specific product is favorite.
+///
+/// Uses [select] so toggling one heart only rebuilds cards whose bool changed,
+/// not the entire masonry grid.
 final isFavoriteProvider = Provider.family<bool, String>((ref, productId) {
-  final favorites = ref.watch(favoritesProvider);
-  return favorites.contains(productId);
+  return ref.watch(
+    favoritesProvider.select((ids) => ids.contains(productId)),
+  );
 });
 
 /// Total favorites count provider
 final favoritesCountProvider = Provider<int>((ref) {
-  final favorites = ref.watch(favoritesProvider);
-  return favorites.length;
+  return ref.watch(favoritesProvider.select((ids) => ids.length));
 });
 
 /// Favorite products provider - returns only favorited products

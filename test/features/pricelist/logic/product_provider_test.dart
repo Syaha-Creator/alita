@@ -188,6 +188,31 @@ CLIENT_SECRET_IOS=test-sec
     });
   });
 
+  group('groupProductsByVariantModel', () {
+    test('picks lowest positive price per model name', () {
+      final out = groupProductsByVariantModel([
+        _sampleProduct(id: '1', kasur: 'Same', price: 900),
+        _sampleProduct(id: '2', kasur: 'Same', price: 400),
+        _sampleProduct(id: '3', kasur: 'Same', price: 0),
+      ]);
+      expect(out, hasLength(1));
+      expect(out.single.price, 400);
+      expect(out.single.name, 'Same');
+    });
+
+    test('uses divan when kasur is Tanpa Kasur', () {
+      final out = groupProductsByVariantModel([
+        _sampleProduct(
+          id: '1',
+          kasur: 'Tanpa Kasur',
+          divan: 'Divan Deluxe',
+          price: 300,
+        ),
+      ]);
+      expect(out.single.name, 'Divan Deluxe');
+    });
+  });
+
   group('filteredProductsProvider', () {
     ProviderContainer buildContainer(List<Product> products) {
       return ProviderContainer(
@@ -254,6 +279,27 @@ CLIENT_SECRET_IOS=test-sec
           .toList();
       expect(out, hasLength(1));
       expect(out.single.description.toLowerCase(), contains('foam'));
+    });
+
+    test('search does not invalidate grouped catalog cache', () async {
+      final c = buildContainer([
+        _sampleProduct(id: '1', kasur: 'Alpha', price: 100),
+        _sampleProduct(id: '2', kasur: 'Beta', price: 200),
+      ]);
+      addTearDown(c.dispose);
+      await c.read(productListProvider.future);
+
+      final groupedBefore = c.read(groupedProductsProvider);
+      c.read(searchQueryProvider.notifier).state = 'alp';
+      final groupedAfter = c.read(groupedProductsProvider);
+
+      expect(identical(groupedBefore, groupedAfter), isTrue);
+      final filtered = c
+          .read(filteredProductsProvider)
+          .where((p) => p.id != kPricelistCustomPlaceholderProductId)
+          .toList();
+      expect(filtered, hasLength(1));
+      expect(filtered.single.name, 'Alpha');
     });
 
     test('sort price low to high', () async {
