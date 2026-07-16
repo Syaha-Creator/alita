@@ -104,6 +104,11 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
   String _programBulananType = '';
   double _programBulananValue = 0.0;
 
+  // ── Diskon toko editable per item (indirect only) ───────────────────────
+  bool _useStoreDiscount = true;
+  List<double> _effectiveStoreDiscounts = const [];
+  int? _storeDiscountBoundAddressNumber;
+
   /// Hitung harga setelah diskon program bulanan diterapkan di atas [base].
   double _applyProgramBulanan(double base) {
     if (_programBulananType == 'percent' && _programBulananValue > 0) {
@@ -205,6 +210,13 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
         _programBulananValue = editItem.programBulananType == 'percent'
             ? editItem.programBulananDiscount
             : editItem.programBulananNominal;
+      }
+
+      if (editItem.isIndirectSale) {
+        _effectiveStoreDiscounts =
+            List<double>.from(editItem.indirectStoreDiscounts);
+        _useStoreDiscount = editItem.indirectStoreDiscounts.isNotEmpty;
+        _storeDiscountBoundAddressNumber = editItem.indirectStoreAddressNumber;
       }
 
       if (editItem.hasProgramBulanan && _programBulananValue > 0) {
@@ -426,6 +438,36 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
   double _calculateCascadingPrice(double basePrice, List<double> discounts) =>
       ProductDetailUtils.calculateCascadingPrice(basePrice, discounts);
 
+  void _resetSalesDiscountsAfterStoreDiscountChange() {
+    targetTotalEup = null;
+    appliedDiscounts = [];
+    _targetTotalController.clear();
+  }
+
+  void _syncStoreDiscountsFromSession({
+    required int? storeAddressNumber,
+    required List<double> sessionDiscounts,
+    required bool isLoadingDiscounts,
+  }) {
+    if (storeAddressNumber == null || storeAddressNumber <= 0) return;
+    if (isLoadingDiscounts) return;
+    if (_storeDiscountBoundAddressNumber == storeAddressNumber) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_storeDiscountBoundAddressNumber == storeAddressNumber) return;
+      setState(() {
+        _storeDiscountBoundAddressNumber = storeAddressNumber;
+        _effectiveStoreDiscounts = List<double>.from(sessionDiscounts);
+        _useStoreDiscount = sessionDiscounts.isNotEmpty;
+        _resetSalesDiscountsAfterStoreDiscountChange();
+      });
+    });
+  }
+
+  List<double> _activeStoreDiscounts() =>
+      _useStoreDiscount ? _effectiveStoreDiscounts : const [];
+
   void _applyCartItemSnapshotRestore() {
     if (!mounted ||
         _didApplyCartSnapshotRestore ||
@@ -504,16 +546,24 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       itemLookupProvider.select((v) => v.valueOrNull ?? _emptyGroupedLookups),
     );
 
-    final indirectStoreDiscounts = ref.watch(
-      indirectSessionProvider.select((s) => s.storeDiscounts),
-    );
-    final useIndirectStoreNet = ref.watch(salesModeProvider) ==
-            SalesMode.indirect &&
-        indirectStoreDiscounts.isNotEmpty;
+    final salesMode = ref.watch(salesModeProvider);
+    final indirectSession = ref.watch(indirectSessionProvider);
+    final sessionStoreDiscounts = indirectSession.storeDiscounts;
+    if (salesMode == SalesMode.indirect && indirectSession.hasStore) {
+      _syncStoreDiscountsFromSession(
+        storeAddressNumber: indirectSession.selectedStore?.addressNumber,
+        sessionDiscounts: sessionStoreDiscounts,
+        isLoadingDiscounts: indirectSession.isLoadingDiscounts,
+      );
+    }
+
+    final activeStoreDiscounts = _activeStoreDiscounts();
+    final useIndirectStoreNet = salesMode == SalesMode.indirect &&
+        activeStoreDiscounts.isNotEmpty;
 
     double eupAfterStoreDiscount(double rawEup) {
       if (!useIndirectStoreNet || rawEup <= 0) return rawEup;
-      return StoreDiscountCalculator.cascade(rawEup, indirectStoreDiscounts);
+      return StoreDiscountCalculator.cascade(rawEup, activeStoreDiscounts);
     }
 
     final v = ProductVariantResolver.resolve(
@@ -603,7 +653,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     _lastPlDiscountBaseTotal = useIndirectStoreNet
         ? StoreDiscountCalculator.cascade(
             v.baseTotalEup,
-            indirectStoreDiscounts,
+            activeStoreDiscounts,
           )
         : v.baseTotalEup;
     _lastMaxLimits = v.maxLimits;
@@ -757,17 +807,10 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
   }) {
     final salesMode = ref.watch(salesModeProvider);
     final indirectSession = ref.watch(indirectSessionProvider);
-    final indirectDiscountSummary =
-        salesMode == SalesMode.indirect &&
-                indirectSession.hasStore &&
-                indirectSession.hasDiscounts
-            ? StoreDiscountCalculator.formatDisplay(
-                indirectSession.storeDiscounts,
-              )
-            : null;
+    final showIndirectStoreDiscount =
+        salesMode == SalesMode.indirect && indirectSession.hasStore;
     final indirectCatcodeHint =
-        salesMode == SalesMode.indirect &&
-                indirectSession.hasStore &&
+        showIndirectStoreDiscount &&
                 (indirectSession.selectedStore?.catcode27?.trim().isNotEmpty ??
                     false)
             ? indirectSession.selectedStore!.catcode27!.trim()
@@ -1039,7 +1082,23 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                 isBonusCustomized = true;
                     });
                   },
-            indirectStoreDiscountSummary: indirectDiscountSummary,
+            showIndirectStoreDiscount: showIndirectStoreDiscount,
+            indirectStoreDiscountLoading: indirectSession.isLoadingDiscounts,
+            useStoreDiscount: _useStoreDiscount,
+            storeDiscounts: _effectiveStoreDiscounts,
+            defaultStoreDiscounts: indirectSession.storeDiscounts,
+            onUseStoreDiscountChanged: (enabled) {
+              setState(() {
+                _useStoreDiscount = enabled;
+                _resetSalesDiscountsAfterStoreDiscountChange();
+              });
+            },
+            onStoreDiscountsChanged: (discounts) {
+              setState(() {
+                _effectiveStoreDiscounts = List<double>.from(discounts);
+                _resetSalesDiscountsAfterStoreDiscountChange();
+              });
+            },
             indirectBranchCatcodeHint: indirectCatcodeHint,
             isIndirectMode: salesMode == SalesMode.indirect,
             programBulananType: _programBulananType,
@@ -1212,6 +1271,9 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
         return;
       }
       final store = session.selectedStore!;
+      final effectiveStoreDiscounts = _useStoreDiscount
+          ? List<double>.from(_effectiveStoreDiscounts)
+          : const <double>[];
       indirectMeta = CartIndirectMeta(
         addressNumber: store.addressNumber,
         alphaName: StoreDisplayUtils.assignedStoreRowLabel(
@@ -1220,10 +1282,10 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
         ),
         address: store.address,
         phone: '',
-        storeDiscounts: List<double>.from(session.storeDiscounts),
-        discountDisplay: session.storeDiscounts.isNotEmpty
-            ? StoreDiscountCalculator.formatDisplay(session.storeDiscounts)
-            : session.discountDisplay,
+        storeDiscounts: effectiveStoreDiscounts,
+        discountDisplay: _useStoreDiscount && effectiveStoreDiscounts.isNotEmpty
+            ? StoreDiscountCalculator.formatDisplay(effectiveStoreDiscounts)
+            : '',
         isNewCustomer: store.isNewCustomer,
         searchType: store.searchType?.trim() ?? '',
         discountCode: session.discountCode,

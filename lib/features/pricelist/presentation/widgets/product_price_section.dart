@@ -8,6 +8,8 @@ import '../../../../core/utils/number_input_formatter.dart';
 import '../../../../core/widgets/price_block.dart';
 import '../../data/models/product.dart';
 import 'bonus_editor_modal.dart';
+import 'indirect_store_discount_section.dart';
+import 'indirect_store_discount_sheet.dart';
 import 'program_bulanan_card.dart';
 
 /// Displays the complete price section: breakdown per component, discount tile,
@@ -48,8 +50,14 @@ class ProductPriceSection extends StatelessWidget {
   final List<Map<String, dynamic>> defaultBonuses;
   final void Function(List<Map<String, dynamic>> newBonuses) onBonusesSaved;
 
-  /// Mode indirect: ringkasan diskon toko dari API (hanya di halaman detail).
-  final String? indirectStoreDiscountSummary;
+  /// Mode indirect: diskon toko editable per item.
+  final bool showIndirectStoreDiscount;
+  final bool indirectStoreDiscountLoading;
+  final bool useStoreDiscount;
+  final List<double> storeDiscounts;
+  final List<double> defaultStoreDiscounts;
+  final ValueChanged<bool>? onUseStoreDiscountChanged;
+  final ValueChanged<List<double>>? onStoreDiscountsChanged;
 
   /// Penjelasan singkat kode cabang dari API (`catcode_27`), opsional.
   final String? indirectBranchCatcodeHint;
@@ -95,7 +103,13 @@ class ProductPriceSection extends StatelessWidget {
     required this.customBonuses,
     required this.defaultBonuses,
     required this.onBonusesSaved,
-    this.indirectStoreDiscountSummary,
+    this.showIndirectStoreDiscount = false,
+    this.indirectStoreDiscountLoading = false,
+    this.useStoreDiscount = true,
+    this.storeDiscounts = const [],
+    this.defaultStoreDiscounts = const [],
+    this.onUseStoreDiscountChanged,
+    this.onStoreDiscountsChanged,
     this.indirectBranchCatcodeHint,
     this.isIndirectMode = false,
     this.programBulananType = '',
@@ -121,38 +135,28 @@ class ProductPriceSection extends StatelessWidget {
           'Rincian Harga',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
-        if (indirectStoreDiscountSummary != null &&
-            indirectStoreDiscountSummary!.trim().isNotEmpty) ...[
+        if (showIndirectStoreDiscount &&
+            onUseStoreDiscountChanged != null &&
+            onStoreDiscountsChanged != null) ...[
           const SizedBox(height: AppLayoutTokens.space12),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(AppLayoutTokens.space12),
-            decoration: BoxDecoration(
-              color: AppColors.accent.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(AppLayoutTokens.radius10),
-              border: Border.all(
-                color: AppColors.accent.withValues(alpha: 0.28),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Diskon Toko',
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                      ),
-                ),
-                const SizedBox(height: AppLayoutTokens.space6),
-                Text(
-                  indirectStoreDiscountSummary!.trim(),
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.accent,
-                        fontWeight: FontWeight.w700,
-                      ),
-                ),
-              ],
+          IndirectStoreDiscountSection(
+            isLoading: indirectStoreDiscountLoading,
+            useStoreDiscount: useStoreDiscount,
+            discounts: useStoreDiscount ? storeDiscounts : const [],
+            catcodeHint: indirectBranchCatcodeHint,
+            onUseStoreDiscountChanged: onUseStoreDiscountChanged!,
+            onEditTap: () => showIndirectStoreDiscountSheet(
+              context,
+              currentDiscounts: useStoreDiscount ? storeDiscounts : const [],
+              defaultDiscounts: defaultStoreDiscounts,
+              onApply: (discounts) {
+                if (discounts.isEmpty) {
+                  onUseStoreDiscountChanged!(false);
+                } else {
+                  onUseStoreDiscountChanged!(true);
+                }
+                onStoreDiscountsChanged!(discounts);
+              },
             ),
           ),
         ],
