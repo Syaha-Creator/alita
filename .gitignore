@@ -22,9 +22,14 @@ ehthumbs.db
 *.swo
 .*.swp
 
-# Aturan editor bersama (hanya subfolder rules yang di-track)
+# Aturan/skills editor bersama (rules + project skills di-track)
 .cursor/*
 !.cursor/rules/
+!.cursor/skills/
+!.cursor/skills/**
+
+# skills CLI tree (opsional); Cursor memakai .cursor/skills/
+.agents/
 
 # ─── Flutter / Dart / Pub ────────────────────────────────────
 **/doc/api/
