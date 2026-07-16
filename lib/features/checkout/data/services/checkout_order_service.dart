@@ -808,25 +808,28 @@ class CheckoutOrderService {
           !dvPresentForPb &&
           !hbPresentForPb &&
           !srPresentForPb;
-      // Estimasi Rp untuk audit (`discount_price`): nominal type pakai nilai
-      // input langsung (eksak); percent type diestimasi dari basis EUP × qty
-      // (sebelum diskon) karena basis pasti per-komponen belum tersedia di sini.
+      // Estimasi Rp untuk audit (`discount_price`):
+      // - persen: estimasi dari basis EUP × qty × %
+      // - nominal: nilai input **per unit** × qty (potongan line total)
+      final int pbQty = item.quantity < 1 ? 1 : item.quantity;
+      final double pbNominalLineTotal = pbNominal * pbQty;
       final double pbDiscountPriceRp = !pbActive
           ? 0
           : pbIsPercent
-              ? presentEupSumForPb * item.quantity * (pbPercent / 100)
-              : pbNominal;
+              ? presentEupSumForPb * pbQty * (pbPercent / 100)
+              : pbNominalLineTotal;
 
       /// Menerapkan potongan Program Bulanan ke net line SATU komponen.
       /// [isAnchor] menandai komponen yang boleh menyerap potongan nominal
-      /// PENUH — mencegah nominal terpotong berkali-kali di tiap baris SET.
+      /// PENUH (line total = nominal/unit × qty) — mencegah nominal terpotong
+      /// berkali-kali di tiap baris SET.
       double applyProgramBulananToNetLine(double netLine, bool isAnchor) {
         if (!pbActive || netLine <= 0) return netLine;
         if (pbIsPercent) {
           return (netLine * (1 - pbPercent / 100)).clamp(0, double.infinity);
         }
         if (!isAnchor) return netLine;
-        return (netLine - pbNominal).clamp(0, double.infinity);
+        return (netLine - pbNominalLineTotal).clamp(0, double.infinity);
       }
 
       List<Map<String, dynamic>> buildDiscounts({

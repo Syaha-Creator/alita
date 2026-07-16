@@ -455,6 +455,33 @@ void main() {
       expect(details.first.payload['net_price'], 850_000.0);
     });
 
+    test('nominal type scales with quantity (per-unit × qty on line total)', () {
+      final product = _product(
+        price: 900_000,
+        plKasur: 1_000_000,
+        eupKasur: 900_000,
+      );
+      final details = _build(items: [
+        _item(
+          product: product,
+          quantity: 4,
+          indirectStoreAddressNumber: 100,
+          programBulananType: 'nominal',
+          programBulananNominal: 100_000,
+        ),
+      ]);
+      expect(details, hasLength(1));
+      // Line: 900_000×4 − 100_000×4 = 3_200_000 → per-unit net_price 800_000
+      expect(details.first.payload['net_price'], 800_000.0);
+      expect(details.first.payload['qty'], 4);
+
+      final pbRows = details.first.discounts
+          .where((r) => r['approver_level_id'] == 80)
+          .toList();
+      expect(pbRows, hasLength(1));
+      expect(pbRows.first['discount_price'], 400_000.0);
+    });
+
     test('nominal type: audit row appears exactly once for a SET product '
         '(no duplication across kasur + divan)', () {
       final product = _product(
