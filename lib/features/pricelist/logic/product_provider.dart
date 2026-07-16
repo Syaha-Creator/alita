@@ -81,19 +81,14 @@ final areasProvider = Provider<List<String>>((ref) {
   }
 });
 
-/// Effective area for API/query: "Harga Nasional" rule.
-/// If selected brand is "Spring Air" or "Therapedic" (case-insensitive), use "Nasional".
-/// Otherwise use the user-selected area.
+/// Effective area for API/query — always the user-selected / default area.
+///
+/// Previously Spring Air / Therapedic / Sleep Spa forced `"Nasional"` (Harga
+/// Nasional). That rule is retired: pricing follows the selected area for all
+/// brands. Keep this provider as the single read point for query area so
+/// callers stay stable if area rules change again.
 final effectiveAreaProvider = Provider<String>((ref) {
-  final selectedArea = ref.watch(selectedAreaProvider);
-  final selectedBrand = ref.watch(selectedBrandProvider) ?? '';
-  final brandLower = selectedBrand.toLowerCase();
-  if (brandLower.contains('spring air') ||
-      brandLower.contains('therapedic') ||
-      brandLower.contains('sleep spa')) {
-    return 'Nasional';
-  }
-  return selectedArea;
+  return ref.watch(selectedAreaProvider);
 });
 
 /// Channel selection (nullable — user must pick one)

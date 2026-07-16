@@ -319,7 +319,7 @@ CLIENT_SECRET_IOS=test-sec
   });
 
   group('effectiveAreaProvider', () {
-    test('Spring Air brand forces Nasional', () {
+    test('follows selected area for Spring Air (no Nasional force)', () {
       final c = ProviderContainer(
         overrides: [
           selectedAreaProvider.overrideWith((ref) => 'Jakarta'),
@@ -327,10 +327,10 @@ CLIENT_SECRET_IOS=test-sec
         ],
       );
       addTearDown(c.dispose);
-      expect(c.read(effectiveAreaProvider), 'Nasional');
+      expect(c.read(effectiveAreaProvider), 'Jakarta');
     });
 
-    test('Therapedic brand forces Nasional', () {
+    test('follows selected area for Therapedic (no Nasional force)', () {
       final c = ProviderContainer(
         overrides: [
           selectedAreaProvider.overrideWith((ref) => 'Bandung'),
@@ -338,10 +338,10 @@ CLIENT_SECRET_IOS=test-sec
         ],
       );
       addTearDown(c.dispose);
-      expect(c.read(effectiveAreaProvider), 'Nasional');
+      expect(c.read(effectiveAreaProvider), 'Bandung');
     });
 
-    test('Sleep Spa brand forces Nasional', () {
+    test('follows selected area for Sleep Spa (no Nasional force)', () {
       final c = ProviderContainer(
         overrides: [
           selectedAreaProvider.overrideWith((ref) => 'Surabaya'),
@@ -349,7 +349,7 @@ CLIENT_SECRET_IOS=test-sec
         ],
       );
       addTearDown(c.dispose);
-      expect(c.read(effectiveAreaProvider), 'Nasional');
+      expect(c.read(effectiveAreaProvider), 'Surabaya');
     });
   });
 

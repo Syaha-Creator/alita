@@ -32,10 +32,15 @@ void main() {
       expect(AreaUtils.mapUserAreaToSystemArea('Bogor'), 'Jabodetabek');
       expect(AreaUtils.mapUserAreaToSystemArea('Bekasi'), 'Jabodetabek');
     });
+
+    test('maps Papua variants to Jabodetabek', () {
+      expect(AreaUtils.mapUserAreaToSystemArea('Papua'), 'Jabodetabek');
+      expect(AreaUtils.mapUserAreaToSystemArea('Papua Barat'), 'Jabodetabek');
+    });
   });
 
   group('AreaUtils.resolveDefaultArea', () {
-    const areas = ['Jabodetabek', 'Palembang', 'Bandung', 'Surabaya', 'Nasional'];
+    const areas = ['Jabodetabek', 'Palembang', 'Bandung', 'Surabaya'];
 
     test('returns exact match preserving casing', () {
       expect(AreaUtils.resolveDefaultArea('jabodetabek', areas), 'Jabodetabek');
@@ -45,26 +50,21 @@ void main() {
       expect(AreaUtils.resolveDefaultArea('Sumatra Selatan', areas), 'Palembang');
     });
 
-    test('falls back to Nasional when no match', () {
-      expect(AreaUtils.resolveDefaultArea('Unknown', areas), 'Nasional');
+    test('falls back to Jabodetabek when no match', () {
+      expect(AreaUtils.resolveDefaultArea('Unknown', areas), 'Jabodetabek');
     });
 
-    test('falls back to Jabodetabek when Nasional not in list', () {
-      final noNasional = ['Jabodetabek', 'Palembang', 'Bandung'];
-      expect(AreaUtils.resolveDefaultArea('Unknown', noNasional), 'Jabodetabek');
-    });
-
-    test('falls back to first item when neither Nasional nor Jabodetabek in list', () {
+    test('falls back to first item when Jabodetabek not in list', () {
       final minimal = ['Bandung', 'Surabaya'];
       expect(AreaUtils.resolveDefaultArea('Unknown', minimal), 'Bandung');
     });
 
-    test('returns Nasional for empty user area', () {
-      expect(AreaUtils.resolveDefaultArea('', areas), 'Nasional');
+    test('returns Jabodetabek for empty user area', () {
+      expect(AreaUtils.resolveDefaultArea('', areas), 'Jabodetabek');
     });
 
     test('handles empty available list', () {
-      expect(AreaUtils.resolveDefaultArea('Jakarta', []), 'Nasional');
+      expect(AreaUtils.resolveDefaultArea('Jakarta', []), 'Jabodetabek');
     });
   });
 }

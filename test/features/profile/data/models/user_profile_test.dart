@@ -27,7 +27,7 @@ void main() {
       expect(profile.email, '-');
       expect(profile.workTitle, 'Staff');
       expect(profile.workPlaceName, '-');
-      expect(profile.areaName, 'Nasional');
+      expect(profile.areaName, '-');
       expect(profile.companyId, 0);
       expect(profile.areaId, 0);
       expect(profile.divisions, isEmpty);

@@ -54,8 +54,9 @@ class AreaUtils {
     'sulawesi tenggara': 'Kendari',
     'maluku': 'Ambon',
     'maluku utara': 'Ternate',
-    'papua': 'Nasional',
-    'papua barat': 'Nasional',
+    // Papua: no dedicated pl_areas entry once Nasional is removed → Jabodetabek.
+    'papua': 'Jabodetabek',
+    'papua barat': 'Jabodetabek',
     'gorontalo': 'Gorontalo',
     'kotamobagu': 'Kotamobagu',
   };
@@ -74,7 +75,7 @@ class AreaUtils {
   /// 1. If [userArea] exactly matches (case-insensitive) an item in [availableAreas], return that item (preserves casing).
   /// 2. Otherwise map [userArea] via [mapUserAreaToSystemArea] and check if mapped value exists in [availableAreas].
   /// 3. Fuzzy: userArea contained in area name or vice versa.
-  /// 4. Fallback: "Nasional" if in list, else "Jabodetabek" if in list, else first item.
+  /// 4. Fallback: "Jabodetabek" if in list, else first item.
   static String resolveDefaultArea(String userArea, List<String> availableAreas) {
     if (userArea.trim().isEmpty) {
       return _pickFallback(availableAreas);
@@ -108,12 +109,9 @@ class AreaUtils {
   }
 
   static String _pickFallback(List<String> available) {
-    if (available.isEmpty) return 'Nasional';
+    if (available.isEmpty) return 'Jabodetabek';
 
     final lower = available.map((a) => a.toLowerCase()).toList();
-    if (lower.contains('nasional')) {
-      return available[lower.indexOf('nasional')];
-    }
     if (lower.contains('jabodetabek')) {
       return available[lower.indexOf('jabodetabek')];
     }

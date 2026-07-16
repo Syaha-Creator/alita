@@ -43,7 +43,7 @@ class UserProfile {
       email: user['email']?.toString() ?? '-',
       workTitle: json['work_title']?.toString() ?? 'Staff',
       workPlaceName: workPlace['name']?.toString() ?? '-',
-      areaName: area['name']?.toString() ?? 'Nasional',
+      areaName: area['name']?.toString() ?? '-',
       imageUrl: '',
       companyId: (company['id'] as num?)?.toInt() ?? 0,   // company.id = 2, bukan work_place.id = 6
       areaId: (area['id'] as num?)?.toInt() ?? 0,
