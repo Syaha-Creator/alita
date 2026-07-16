@@ -233,6 +233,7 @@ extension OrderHistoryX on OrderHistory {
                       'approver_id': x.approverId,
                       'approved': x.approvedStatus,
                       'approved_at': x.approvedAt,
+                      if (x.discountPrice > 0) 'discount_price': x.discountPrice,
                     },
                   )
                   .toList(),
@@ -367,6 +368,10 @@ class OrderDiscount with _$OrderDiscount {
     String? approvedAt,
     /// Program discount label dari field `discount_program` API (e.g. "10%+5%").
     @Default('') String discountProgram,
+
+    /// Nominal Rp potongan (dari `discount_price` API). Dipakai Program Bulanan
+    /// tipe nominal & audit PDF internal.
+    @JsonKey(fromJson: _parseDouble) @Default(0.0) double discountPrice,
   }) = _OrderDiscount;
 
   factory OrderDiscount.fromJson(Map<String, dynamic> json) =>
@@ -384,6 +389,7 @@ class OrderDiscount with _$OrderDiscount {
           json['approved']?.toString() ?? OrderStatus.pending.apiValue,
       approvedAt: json['approved_at']?.toString(),
       discountProgram: json['discount_program']?.toString() ?? '',
+      discountPrice: _parseDouble(json['discount_price']),
     );
   }
 }

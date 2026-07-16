@@ -137,6 +137,9 @@ _$OrderDiscountImpl _$$OrderDiscountImplFromJson(Map<String, dynamic> json) =>
       approvedStatus: json['approvedStatus'] as String,
       approvedAt: json['approvedAt'] as String?,
       discountProgram: json['discountProgram'] as String? ?? '',
+      discountPrice: json['discountPrice'] == null
+          ? 0.0
+          : _parseDouble(json['discountPrice']),
     );
 
 Map<String, dynamic> _$$OrderDiscountImplToJson(_$OrderDiscountImpl instance) =>
@@ -150,6 +153,7 @@ Map<String, dynamic> _$$OrderDiscountImplToJson(_$OrderDiscountImpl instance) =>
       'approvedStatus': instance.approvedStatus,
       'approvedAt': instance.approvedAt,
       'discountProgram': instance.discountProgram,
+      'discountPrice': instance.discountPrice,
     };
 
 _$OrderPaymentImpl _$$OrderPaymentImplFromJson(Map<String, dynamic> json) =>

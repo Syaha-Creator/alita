@@ -140,8 +140,7 @@ class InvoicePdfGenerator {
     final payments = PdfHelpers.toListMap(orderData['order_letter_payments']);
     final approvals = PdfHelpers.toListMap(
         orderData['order_letter_approvals'] ?? orderData['approval_data']);
-    final discounts = PdfHelpers.toListMap(
-        orderData['order_letter_discounts'] ?? orderData['discount_data']);
+    final discounts = PdfHelpers.resolveDiscountRows(orderData, details);
     final grandTotal = PdfHelpers.dbl(letter['extended_amount']);
     final tglPelunasan = _extractRepaymentDate(orderData, payments, grandTotal);
     final channelStr = letter['channel']?.toString();
@@ -344,7 +343,8 @@ class InvoicePdfGenerator {
           'approver_level': disc.approverLevel,
           'approved': disc.approvedStatus,
           'approved_at': disc.approvedAt,
-          'approver_level_id': disc.id,
+          'approver_level_id': disc.approverLevelId,
+          if (disc.discountPrice > 0) 'discount_price': disc.discountPrice,
           if (programLabel.isNotEmpty && programLabel != '-')
             'discount_program': programLabel,
         });

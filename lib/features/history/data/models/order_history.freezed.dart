@@ -1379,6 +1379,11 @@ mixin _$OrderDiscount {
   /// Program discount label dari field `discount_program` API (e.g. "10%+5%").
   String get discountProgram => throw _privateConstructorUsedError;
 
+  /// Nominal Rp potongan (dari `discount_price` API). Dipakai Program Bulanan
+  /// tipe nominal & audit PDF internal.
+  @JsonKey(fromJson: _parseDouble)
+  double get discountPrice => throw _privateConstructorUsedError;
+
   /// Serializes this OrderDiscount to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
@@ -1404,7 +1409,8 @@ abstract class $OrderDiscountCopyWith<$Res> {
       String? approverId,
       String approvedStatus,
       String? approvedAt,
-      String discountProgram});
+      String discountProgram,
+      @JsonKey(fromJson: _parseDouble) double discountPrice});
 }
 
 /// @nodoc
@@ -1431,6 +1437,7 @@ class _$OrderDiscountCopyWithImpl<$Res, $Val extends OrderDiscount>
     Object? approvedStatus = null,
     Object? approvedAt = freezed,
     Object? discountProgram = null,
+    Object? discountPrice = null,
   }) {
     return _then(_value.copyWith(
       id: null == id
@@ -1469,6 +1476,10 @@ class _$OrderDiscountCopyWithImpl<$Res, $Val extends OrderDiscount>
           ? _value.discountProgram
           : discountProgram // ignore: cast_nullable_to_non_nullable
               as String,
+      discountPrice: null == discountPrice
+          ? _value.discountPrice
+          : discountPrice // ignore: cast_nullable_to_non_nullable
+              as double,
     ) as $Val);
   }
 }
@@ -1490,7 +1501,8 @@ abstract class _$$OrderDiscountImplCopyWith<$Res>
       String? approverId,
       String approvedStatus,
       String? approvedAt,
-      String discountProgram});
+      String discountProgram,
+      @JsonKey(fromJson: _parseDouble) double discountPrice});
 }
 
 /// @nodoc
@@ -1515,6 +1527,7 @@ class __$$OrderDiscountImplCopyWithImpl<$Res>
     Object? approvedStatus = null,
     Object? approvedAt = freezed,
     Object? discountProgram = null,
+    Object? discountPrice = null,
   }) {
     return _then(_$OrderDiscountImpl(
       id: null == id
@@ -1553,6 +1566,10 @@ class __$$OrderDiscountImplCopyWithImpl<$Res>
           ? _value.discountProgram
           : discountProgram // ignore: cast_nullable_to_non_nullable
               as String,
+      discountPrice: null == discountPrice
+          ? _value.discountPrice
+          : discountPrice // ignore: cast_nullable_to_non_nullable
+              as double,
     ));
   }
 }
@@ -1569,7 +1586,8 @@ class _$OrderDiscountImpl implements _OrderDiscount {
       this.approverId,
       required this.approvedStatus,
       this.approvedAt,
-      this.discountProgram = ''});
+      this.discountProgram = '',
+      @JsonKey(fromJson: _parseDouble) this.discountPrice = 0.0});
 
   factory _$OrderDiscountImpl.fromJson(Map<String, dynamic> json) =>
       _$$OrderDiscountImplFromJson(json);
@@ -1602,9 +1620,15 @@ class _$OrderDiscountImpl implements _OrderDiscount {
   @JsonKey()
   final String discountProgram;
 
+  /// Nominal Rp potongan (dari `discount_price` API). Dipakai Program Bulanan
+  /// tipe nominal & audit PDF internal.
+  @override
+  @JsonKey(fromJson: _parseDouble)
+  final double discountPrice;
+
   @override
   String toString() {
-    return 'OrderDiscount(id: $id, discountVal: $discountVal, approverName: $approverName, approverLevel: $approverLevel, approverLevelId: $approverLevelId, approverId: $approverId, approvedStatus: $approvedStatus, approvedAt: $approvedAt, discountProgram: $discountProgram)';
+    return 'OrderDiscount(id: $id, discountVal: $discountVal, approverName: $approverName, approverLevel: $approverLevel, approverLevelId: $approverLevelId, approverId: $approverId, approvedStatus: $approvedStatus, approvedAt: $approvedAt, discountProgram: $discountProgram, discountPrice: $discountPrice)';
   }
 
   @override
@@ -1628,7 +1652,9 @@ class _$OrderDiscountImpl implements _OrderDiscount {
             (identical(other.approvedAt, approvedAt) ||
                 other.approvedAt == approvedAt) &&
             (identical(other.discountProgram, discountProgram) ||
-                other.discountProgram == discountProgram));
+                other.discountProgram == discountProgram) &&
+            (identical(other.discountPrice, discountPrice) ||
+                other.discountPrice == discountPrice));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1643,7 +1669,8 @@ class _$OrderDiscountImpl implements _OrderDiscount {
       approverId,
       approvedStatus,
       approvedAt,
-      discountProgram);
+      discountProgram,
+      discountPrice);
 
   /// Create a copy of OrderDiscount
   /// with the given fields replaced by the non-null parameter values.
@@ -1663,15 +1690,17 @@ class _$OrderDiscountImpl implements _OrderDiscount {
 
 abstract class _OrderDiscount implements OrderDiscount {
   const factory _OrderDiscount(
-      {required final int id,
-      required final String discountVal,
-      required final String approverName,
-      required final String approverLevel,
-      final int approverLevelId,
-      final String? approverId,
-      required final String approvedStatus,
-      final String? approvedAt,
-      final String discountProgram}) = _$OrderDiscountImpl;
+          {required final int id,
+          required final String discountVal,
+          required final String approverName,
+          required final String approverLevel,
+          final int approverLevelId,
+          final String? approverId,
+          required final String approvedStatus,
+          final String? approvedAt,
+          final String discountProgram,
+          @JsonKey(fromJson: _parseDouble) final double discountPrice}) =
+      _$OrderDiscountImpl;
 
   factory _OrderDiscount.fromJson(Map<String, dynamic> json) =
       _$OrderDiscountImpl.fromJson;
@@ -1701,6 +1730,12 @@ abstract class _OrderDiscount implements OrderDiscount {
   /// Program discount label dari field `discount_program` API (e.g. "10%+5%").
   @override
   String get discountProgram;
+
+  /// Nominal Rp potongan (dari `discount_price` API). Dipakai Program Bulanan
+  /// tipe nominal & audit PDF internal.
+  @override
+  @JsonKey(fromJson: _parseDouble)
+  double get discountPrice;
 
   /// Create a copy of OrderDiscount
   /// with the given fields replaced by the non-null parameter values.

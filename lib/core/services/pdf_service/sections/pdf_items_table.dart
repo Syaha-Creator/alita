@@ -251,6 +251,20 @@ abstract final class PdfItemsTable {
     return level.startsWith('diskon toko');
   }
 
+  static bool _isProgramBulananTier(Map<String, dynamic> d) {
+    final levelId = PdfHelpers.intFrom(d['approver_level_id']);
+    if (levelId == 80) return true;
+    final level = d['approver_level']?.toString().toLowerCase() ?? '';
+    return level.contains('program bulanan');
+  }
+
+  static String _formatDiscountPercent(double pct) {
+    if (pct <= 0) return '';
+    return pct % 1 == 0
+        ? '${pct.toInt()}%'
+        : '${pct.toStringAsFixed(2).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '')}%';
+  }
+
   static pw.Widget _buildDiscountCellInternal(
     double totalDiscount,
     Map<String, dynamic> detail,
@@ -280,16 +294,25 @@ abstract final class PdfItemsTable {
           .compareTo(PdfHelpers.intFrom(b['approver_level_id']));
     });
 
-    final pcts = <String>[];
+    final breakdownParts = <String>[];
     for (final d in itemDiscounts) {
-      final pct = PdfHelpers.dbl(d['discount']);
-      if (pct > 0) {
-        pcts.add(pct % 1 == 0
-            ? '${pct.toInt()}%'
-            : '${pct.toStringAsFixed(2).replaceAll(RegExp(r'0+\$'), '').replaceAll(RegExp(r'\.\$'), '')}%');
+      if (_isProgramBulananTier(d)) {
+        final price = PdfHelpers.dbl(d['discount_price']);
+        if (price > 0) {
+          breakdownParts.add('PB Rp ${PdfHelpers.cur(price)}');
+        } else {
+          final pctText = _formatDiscountPercent(PdfHelpers.dbl(d['discount']));
+          if (pctText.isNotEmpty) {
+            breakdownParts.add('PB $pctText');
+          }
+        }
+        continue;
       }
+      final pctText = _formatDiscountPercent(PdfHelpers.dbl(d['discount']));
+      if (pctText.isNotEmpty) breakdownParts.add(pctText);
     }
-    String? pctText = pcts.isNotEmpty ? pcts.join(' + ') : null;
+    String? pctText =
+        breakdownParts.isNotEmpty ? breakdownParts.join(' + ') : null;
     if (pctText == null && pricelist > 0 && totalDiscount > 0) {
       final p = (totalDiscount / pricelist) * 100;
       pctText = p % 1 == 0 ? '${p.toInt()}%' : '${p.toStringAsFixed(1)}%';

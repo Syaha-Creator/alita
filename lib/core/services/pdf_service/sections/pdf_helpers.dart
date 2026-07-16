@@ -37,6 +37,33 @@ abstract final class PdfHelpers {
     return [];
   }
 
+  /// Kumpulkan baris diskon untuk PDF: root `order_letter_discounts` atau
+  /// fallback flatten dari `order_letter_details[].order_letter_discount`.
+  static List<Map<String, dynamic>> resolveDiscountRows(
+    Map<String, dynamic> orderData,
+    List<Map<String, dynamic>> details,
+  ) {
+    final root = toListMap(
+      orderData['order_letter_discounts'] ?? orderData['discount_data'],
+    );
+    if (root.isNotEmpty) return root;
+
+    final flat = <Map<String, dynamic>>[];
+    for (final d in details) {
+      final detailId = intFrom(d['order_letter_detail_id'] ?? d['id']);
+      for (final disc in toListMap(d['order_letter_discount'])) {
+        flat.add({
+          ...disc,
+          if (detailId > 0 && !disc.containsKey('order_letter_detail_id'))
+            'order_letter_detail_id': detailId,
+          if (detailId > 0 && !disc.containsKey('detail_id'))
+            'detail_id': detailId,
+        });
+      }
+    }
+    return flat;
+  }
+
   /// [ship] true = penerima; null/false = pemesan (kompatibel data lama).
   static bool _contactShipTrue(dynamic shipVal) {
     if (shipVal == null) return false;
