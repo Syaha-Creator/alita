@@ -5,6 +5,10 @@ import '../../cart/data/cart_item.dart';
 /// Extracted from [CheckoutPage] to reduce state field sprawl.
 /// All methods are pure state mutations — the caller is responsible for
 /// triggering UI rebuild (e.g. `setState`).
+///
+/// [maxQty] must be the **effective** ceiling shown in UI
+/// (`bonus.qty * cartItem.quantity`). Clamping only to `bonus.qty` made the
+/// "+" stepper look enabled while the stored value never increased.
 class BonusTakeAwayState {
   final Set<String> _checkedSkus = <String>{};
   final Map<String, int> _qtys = {};
@@ -15,25 +19,44 @@ class BonusTakeAwayState {
   bool isChecked(int itemIndex, CartBonusSnapshot bonus) =>
       _checkedSkus.contains(_key(itemIndex, bonus));
 
-  int currentQty(int itemIndex, CartBonusSnapshot bonus) {
+  int currentQty(
+    int itemIndex,
+    CartBonusSnapshot bonus, {
+    required int maxQty,
+  }) {
+    final ceiling = maxQty < 0 ? 0 : maxQty;
     final raw = _qtys[_key(itemIndex, bonus)] ?? 0;
-    return raw.clamp(0, bonus.qty);
+    return raw.clamp(0, ceiling);
   }
 
-  void toggle(int itemIndex, CartBonusSnapshot bonus, bool checked) {
+  void toggle(
+    int itemIndex,
+    CartBonusSnapshot bonus,
+    bool checked, {
+    required int maxQty,
+  }) {
     final k = _key(itemIndex, bonus);
+    final ceiling = maxQty < 0 ? 0 : maxQty;
     if (checked) {
       _checkedSkus.add(k);
-      _qtys[k] = (_qtys[k] ?? 0).clamp(1, bonus.qty);
+      final existing = _qtys[k] ?? 0;
+      // Saat dicentang, mulai dari 1 (atau pertahankan qty lama) sampai ceiling.
+      _qtys[k] = (existing <= 0 ? 1 : existing).clamp(1, ceiling);
     } else {
       _checkedSkus.remove(k);
       _qtys[k] = 0;
     }
   }
 
-  void setQty(int itemIndex, CartBonusSnapshot bonus, int value) {
+  void setQty(
+    int itemIndex,
+    CartBonusSnapshot bonus,
+    int value, {
+    required int maxQty,
+  }) {
     final k = _key(itemIndex, bonus);
-    final clamped = value.clamp(0, bonus.qty);
+    final ceiling = maxQty < 0 ? 0 : maxQty;
+    final clamped = value.clamp(0, ceiling);
     _qtys[k] = clamped;
     if (clamped <= 0) {
       _checkedSkus.remove(k);

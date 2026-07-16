@@ -2566,19 +2566,46 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
   // ── TakeAway helpers (delegated to BonusTakeAwayState) ─────
 
+  int _bonusTakeAwayMaxQty(int itemIndex, CartBonusSnapshot bonus) {
+    final items = _effectiveCartItems(ref);
+    if (itemIndex < 0 || itemIndex >= items.length) {
+      return bonus.qty;
+    }
+    final itemQty = items[itemIndex].quantity;
+    return bonus.qty * (itemQty < 1 ? 1 : itemQty);
+  }
+
   bool _isBonusTakeAwayChecked(int itemIndex, CartBonusSnapshot bonus) =>
       _takeAway.isChecked(itemIndex, bonus);
 
   int _currentTakeAwayQty(int itemIndex, CartBonusSnapshot bonus) =>
-      _takeAway.currentQty(itemIndex, bonus);
+      _takeAway.currentQty(
+        itemIndex,
+        bonus,
+        maxQty: _bonusTakeAwayMaxQty(itemIndex, bonus),
+      );
 
   void _toggleBonusTakeAway(
       int itemIndex, CartBonusSnapshot bonus, bool checked) {
-    setState(() => _takeAway.toggle(itemIndex, bonus, checked));
+    setState(
+      () => _takeAway.toggle(
+        itemIndex,
+        bonus,
+        checked,
+        maxQty: _bonusTakeAwayMaxQty(itemIndex, bonus),
+      ),
+    );
   }
 
   void _setTakeAwayQty(int itemIndex, CartBonusSnapshot bonus, int value) {
-    setState(() => _takeAway.setQty(itemIndex, bonus, value));
+    setState(
+      () => _takeAway.setQty(
+        itemIndex,
+        bonus,
+        value,
+        maxQty: _bonusTakeAwayMaxQty(itemIndex, bonus),
+      ),
+    );
   }
 }
 
