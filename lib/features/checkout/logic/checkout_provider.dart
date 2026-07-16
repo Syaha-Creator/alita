@@ -472,6 +472,15 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       // ── STEP 2: Post Contacts ──
       // Dilewati jika sudah berhasil di run sebelumnya (mencegah duplikasi kontak).
       if (!completedSteps.contains(2)) {
+        await _reconcileContactIndex(
+          orderLetterId: orderLetterId,
+          token: token,
+          completedSteps: completedSteps,
+          totalContacts: contactsPayload.length,
+        );
+        completedSteps = Set<int>.from(state.retryCompletedSteps);
+      }
+      if (!completedSteps.contains(2)) {
         final step2 = Stopwatch()..start();
         final contactStartIdx = state.retryContactStartIndex;
         await _orderService.postContacts(
@@ -502,33 +511,34 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
 
       // ── STEP 3: Post Payments ──
       // Dilewati jika sudah berhasil di run sebelumnya (mencegah duplikasi pembayaran).
-      if (!completedSteps.contains(3)) {
-        final step3 = Stopwatch()..start();
-        final payStartIdx = state.retryPaymentStartIndex;
-        for (int i = payStartIdx; i < paymentPayloads.length; i++) {
-          await _orderService.postPayment(
-            paymentPayload: paymentPayloads[i],
-            orderLetterId: orderLetterId,
-            receiptImage: i < receiptImages.length ? receiptImages[i] : null,
-            token: token,
-          );
-          state = state.copyWith(retryPaymentStartIndex: i + 1);
+      if (!completedSteps.contains(3) && paymentPayloads.isNotEmpty) {
+        final payStartIdx = await _postPaymentPayloadsSafely(
+          orderLetterId: orderLetterId,
+          token: token,
+          paymentPayloads: paymentPayloads,
+          receiptImages: receiptImages,
+          completedSteps: completedSteps,
+        );
+        completedSteps = Set<int>.from(state.retryCompletedSteps);
+        if (!completedSteps.contains(3)) {
+          completedSteps.add(3);
         }
-        step3.stop();
-        completedSteps.add(3);
         state = state.copyWith(
           retryCompletedSteps: completedSteps.toList(),
-          retryPaymentStartIndex: 0, // Reset untuk use berikutnya
+          retryPaymentStartIndex: 0,
         );
         AppTelemetry.event(
           'checkout_step3_payments_ok',
           data: {
-            'duration_ms': step3.elapsedMilliseconds,
             'payments': paymentPayloads.length,
             'payments_skipped': payStartIdx,
           },
           tag: 'CheckoutFlow',
         );
+      } else if (paymentPayloads.isEmpty && !completedSteps.contains(3)) {
+        // Tidak ada pembayaran di checkout (mis. indirect) — tandai step selesai.
+        completedSteps.add(3);
+        state = state.copyWith(retryCompletedSteps: completedSteps.toList());
       }
 
       // ── STEP 4: Post Details ──
@@ -771,6 +781,77 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
             'riwayat pesanan sebelum mencoba lagi.\n\nDetail:\n$e',
       );
     }
+  }
+
+  /// Post payment payloads dengan rekonsiliasi server sebelum & per-index.
+  ///
+  /// Mencegah double `order_letter_payments` saat:
+  /// - server sempat menyimpan sebelum client timeout,
+  /// - user retry submit setelah error step berikutnya,
+  /// - GET order belum sinkron saat rekonsiliasi pertama.
+  ///
+  /// Mengembalikan index awal yang dilewati (untuk telemetry).
+  Future<int> _postPaymentPayloadsSafely({
+    required int orderLetterId,
+    required String token,
+    required List<Map<String, dynamic>> paymentPayloads,
+    required List<File?> receiptImages,
+    required Set<int> completedSteps,
+  }) async {
+    await _reconcilePaymentIndex(
+      orderLetterId: orderLetterId,
+      token: token,
+      completedSteps: completedSteps,
+      totalPayments: paymentPayloads.length,
+    );
+    if (state.retryCompletedSteps.contains(3)) {
+      return state.retryPaymentStartIndex;
+    }
+
+    final payStartIdx = state.retryPaymentStartIndex;
+    final step3 = Stopwatch()..start();
+
+    for (var i = payStartIdx; i < paymentPayloads.length; i++) {
+      final existingCount = await _orderService.fetchExistingPaymentCount(
+        orderLetterId,
+        token,
+      );
+      if (existingCount >= paymentPayloads.length) {
+        Log.info(
+          'Payment skip: server sudah punya $existingCount/${paymentPayloads.length}',
+          tag: 'CheckoutFlow',
+        );
+        break;
+      }
+      if (existingCount > i) {
+        Log.info(
+          'Payment skip index $i: sudah tercatat di server (count=$existingCount)',
+          tag: 'CheckoutFlow',
+        );
+        state = state.copyWith(retryPaymentStartIndex: i + 1);
+        continue;
+      }
+
+      await _orderService.postPayment(
+        paymentPayload: paymentPayloads[i],
+        orderLetterId: orderLetterId,
+        receiptImage: i < receiptImages.length ? receiptImages[i] : null,
+        token: token,
+      );
+      state = state.copyWith(retryPaymentStartIndex: i + 1);
+    }
+
+    step3.stop();
+    AppTelemetry.event(
+      'checkout_step3_payments_posted',
+      data: {
+        'duration_ms': step3.elapsedMilliseconds,
+        'payments': paymentPayloads.length,
+        'payments_skipped': payStartIdx,
+      },
+      tag: 'CheckoutFlow',
+    );
+    return payStartIdx;
   }
 
   /// Rekonsiliasi retryContactStartIndex setelah error di step 2.
@@ -1133,6 +1214,12 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
 
       state = state.copyWith(retryOrderId: orderLetterId, retryNoSp: noSp);
 
+      // Snapshot jumlah payment sebelum edit — untuk skip shortage yang sudah
+      // ter-POST jika user retry setelah error di step berikutnya.
+      final paymentCountBeforeEdit = shortagePaymentPayloads.isNotEmpty
+          ? await _orderService.fetchExistingPaymentCount(orderLetterId, token)
+          : 0;
+
       // ── Step 0: Hapus detail + discount lama ──
       final editService = EditDetailsService();
       await editService.deleteAll(editOrder, token);
@@ -1198,7 +1285,19 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
 
       // ── Step 4: Post payment baru (untuk menutup selisih kekurangan) ──
       if (shortagePaymentPayloads.isNotEmpty) {
-        for (int i = 0; i < shortagePaymentPayloads.length; i++) {
+        final currentCount = await _orderService.fetchExistingPaymentCount(
+          orderLetterId,
+          token,
+        );
+        final alreadyPosted = (currentCount - paymentCountBeforeEdit)
+            .clamp(0, shortagePaymentPayloads.length);
+        if (alreadyPosted > 0) {
+          Log.info(
+            'EditItems: skip $alreadyPosted shortage payment(s) — sudah di server',
+            tag: 'CheckoutNotifier',
+          );
+        }
+        for (var i = alreadyPosted; i < shortagePaymentPayloads.length; i++) {
           await _orderService.postPayment(
             paymentPayload: shortagePaymentPayloads[i],
             orderLetterId: orderLetterId,
@@ -1209,7 +1308,8 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
           );
         }
         Log.info(
-          'EditItems: ${shortagePaymentPayloads.length} shortage payment(s) posted',
+          'EditItems: ${shortagePaymentPayloads.length - alreadyPosted} '
+          'shortage payment(s) posted',
           tag: 'CheckoutNotifier',
         );
       }

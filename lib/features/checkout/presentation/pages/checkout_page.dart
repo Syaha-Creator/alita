@@ -1726,12 +1726,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     BuildContext context,
     OrderHistory? editOrder,
   ) async {
+    if (_submitInFlight) return;
     if (editOrder == null) return;
     if (ifOfflineShowFeedback(context,
         isOffline: ref.read(isOfflineProvider))) {
       return;
     }
     if (!_validateForm()) return;
+    _submitInFlight = true;
 
     _showLoadingOverlay(context);
 
