@@ -9,6 +9,7 @@ import '../../../core/utils/log.dart';
 import '../../../core/utils/name_matcher.dart';
 import '../../history/data/models/order_history.dart';
 import 'approval_inbox_provider.dart';
+import 'approval_prior_check.dart';
 
 class ApprovalDecisionResult {
   final bool headerRejected;
@@ -27,30 +28,21 @@ class ApprovalDecisionService {
 
   static final ApiClient _api = ApiClient.instance;
 
-  /// Robustly parse [approver_level_id] which the API may send as int, String,
-  /// or null. Returns [fallback] (default 99) when unparseable so the caller
-  /// treats unknown levels conservatively.
-  static int parseLevel(dynamic value, [int fallback = 99]) {
-    if (value is int) return value;
-    if (value is num) return value.toInt();
-    if (value is String) return int.tryParse(value) ?? fallback;
-    return fallback;
-  }
+  /// Delegasi ke [parseApproverLevel] (satu sumber kebenaran).
+  static int parseLevel(dynamic value, [int fallback = 99]) =>
+      parseApproverLevel(value, fallback);
 
-  /// Index-based prior approval check: all discounts BEFORE [myIndex]
-  /// in the list must be approved. Uses list ordering from the API which
-  /// is always sequential (User → Supervisor → RSM → Analyst).
+  /// Delegasi ke [arePriorApprovalsSatisfied] (level-based + index fallback).
   static bool arePriorApprovedByIndex({
     required List<Map<String, dynamic>> discountsInDetail,
     required int myIndex,
+    Set<int> treatedAsApprovedIds = const {},
   }) {
-    for (int i = 0; i < myIndex; i++) {
-      if (OrderStatusX.fromDynamic(discountsInDetail[i]['approved']) !=
-          OrderStatus.approved) {
-        return false;
-      }
-    }
-    return true;
+    return arePriorApprovalsSatisfied(
+      discounts: discountsInDetail,
+      myIndex: myIndex,
+      treatedAsApprovedIds: treatedAsApprovedIds,
+    );
   }
 
   /// Sinkron dengan aturan inbox / [ApprovalDetailPage]: giliran user dan prior approved.
@@ -191,19 +183,11 @@ class ApprovalDecisionService {
 
         // Check all prior discounts: must be approved OR already
         // collected in this batch (same user, will be approved together).
-        bool allPriorOk = true;
-        for (int j = 0; j < i; j++) {
-          final prior = discountMaps[j];
-          final priorStatus = OrderStatusX.fromDynamic(prior['approved']);
-          if (priorStatus == OrderStatus.approved) continue;
-          final priorId =
-              (prior['order_letter_discount_id'] as num?)?.toInt() ?? 0;
-          if (priorId > 0 && batchIds.contains(priorId)) continue;
-          allPriorOk = false;
-          break;
-        }
-
-        if (allPriorOk) {
+        if (arePriorApprovalsSatisfied(
+          discounts: discountMaps,
+          myIndex: i,
+          treatedAsApprovedIds: batchIds,
+        )) {
           result.add(discMap);
           batchIds.add(discountId);
         }

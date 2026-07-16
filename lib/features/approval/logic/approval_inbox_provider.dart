@@ -12,124 +12,10 @@ import '../../../core/utils/log.dart';
 import '../../../core/utils/retry.dart';
 import '../../auth/logic/auth_provider.dart';
 import '../../profile/logic/profile_provider.dart';
+import 'approval_inbox_utils.dart';
+import 'approval_prior_check.dart';
 
-/// Susun satu baris alamat baca-manusia dari [Placemark] (prioritas Indonesia).
-/// Memakai `thoroughfare` / `subThoroughfare` bila `street` kosong (sering di Android).
-String formatPlacemarkAddressForApproval(Placemark place) {
-  String nt(String? s) => (s ?? '').trim();
-
-  var line1 = nt(place.street);
-  if (line1.isEmpty) {
-    final sub = nt(place.subThoroughfare);
-    final thru = nt(place.thoroughfare);
-    if (sub.isNotEmpty && thru.isNotEmpty) {
-      line1 = '$sub $thru';
-    } else if (thru.isNotEmpty) {
-      line1 = thru;
-    } else if (sub.isNotEmpty) {
-      line1 = sub;
-    } else {
-      line1 = nt(place.name);
-    }
-  }
-
-  final parts = <String>[];
-  if (line1.isNotEmpty) parts.add(line1);
-
-  void addUnique(String value) {
-    final t = value.trim();
-    if (t.isEmpty) return;
-    final lower = t.toLowerCase();
-    if (parts.any((p) => p.toLowerCase() == lower)) return;
-    parts.add(t);
-  }
-
-  addUnique(nt(place.subLocality));
-
-  final subAdm = nt(place.subAdministrativeArea);
-  if (subAdm.isNotEmpty) {
-    final lower = subAdm.toLowerCase();
-    addUnique(
-      lower.contains('kecamatan') ? subAdm : 'Kecamatan $subAdm',
-    );
-  }
-
-  addUnique(nt(place.locality));
-  addUnique(nt(place.administrativeArea));
-
-  return parts.join(', ');
-}
-
-/// Label lokasi/toko dari raw `orderWrap` API (sama logika dengan header approval).
-String approvalOrderWrapWorkPlace(dynamic wrap) {
-  if (wrap is! Map) return '';
-  final map = Map<String, dynamic>.from(wrap);
-  final order = map['order_letter'] as Map<String, dynamic>? ?? {};
-  for (final v in <dynamic>[
-    map['work_place_name'],
-    map['workplace_name'],
-    order['work_place_name'],
-    order['workplace_name'],
-    order['work_place'],
-  ]) {
-    final s = v?.toString().trim() ?? '';
-    if (s.isNotEmpty) return s;
-  }
-  return '';
-}
-
-/// Daftar unik `work_place` untuk tab Selesai (urut A–Z).
-List<String> approvalHistoryWorkPlaceOptions(List<dynamic> history) {
-  final set = <String>{};
-  for (final w in history) {
-    final label = approvalOrderWrapWorkPlace(w);
-    if (label.isNotEmpty) set.add(label);
-  }
-  final out = set.toList()
-    ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-  return out;
-}
-
-/// Riwayat approval difilter di klien menurut lokasi/toko.
-List<dynamic> approvalHistoryFilteredByWorkPlace(
-  List<dynamic> history,
-  String? workPlace,
-) {
-  if (workPlace == null || workPlace.isEmpty) return history;
-  return history
-      .where((w) => approvalOrderWrapWorkPlace(w) == workPlace)
-      .toList();
-}
-
-/// Filter list approval (pending atau history) berdasarkan query teks.
-/// Cocokkan terhadap: no_sp, customer_name, work_place, dan nama item pertama.
-List<dynamic> approvalFilteredByQuery(List<dynamic> items, String query) {
-  if (query.isEmpty) return items;
-  final q = query.toLowerCase().trim();
-  return items.where((wrap) {
-    if (wrap is! Map) return false;
-    final order = (wrap['order_letter'] as Map<String, dynamic>? ?? {});
-    final noSp = (order['no_sp'] as String? ?? '').toLowerCase();
-    final customer = (order['customer_name'] as String? ?? '').toLowerCase();
-    final workPlace = approvalOrderWrapWorkPlace(wrap).toLowerCase();
-    // Nama item pertama dari detail
-    final details = wrap['order_letter_details'] as List<dynamic>? ?? [];
-    String itemName = '';
-    if (details.isNotEmpty) {
-      final first = details.first;
-      if (first is Map) {
-        itemName = ((first['item_description'] as String?) ??
-                (first['desc_1'] as String?) ??
-                '')
-            .toLowerCase();
-      }
-    }
-    return noSp.contains(q) ||
-        customer.contains(q) ||
-        workPlace.contains(q) ||
-        itemName.contains(q);
-  }).toList();
-}
+export 'approval_inbox_utils.dart';
 
 // ── Geotagging: alamat + koordinat untuk payload approval ───────
 class ApprovalLocation {
@@ -156,6 +42,9 @@ class ApprovalInboxState {
   final String? error;
   final List<dynamic> pendingApprovals;
   final List<dynamic> historyApprovals;
+
+  /// Filter rentang tanggal eksplisit. Keduanya null → API tanpa
+  /// `date_from`/`date_to` → backend default **bulan berjalan**.
   final DateTime? startDate;
   final DateTime? endDate;
 
@@ -164,6 +53,9 @@ class ApprovalInboxState {
 
   /// Query pencarian teks bebas (no SP atau nama customer).
   final String searchQuery;
+
+  /// Waktu fetch sukses terakhir — untuk skip re-fetch yang terlalu dekat.
+  final DateTime? lastFetchedAt;
 
   const ApprovalInboxState({
     this.isLoading = true,
@@ -174,30 +66,35 @@ class ApprovalInboxState {
     this.endDate,
     this.historyWorkPlaceFilter,
     this.searchQuery = '',
+    this.lastFetchedAt,
   });
 
   ApprovalInboxState copyWith({
     bool? isLoading,
     String? error,
+    bool clearError = false,
     List<dynamic>? pendingApprovals,
     List<dynamic>? historyApprovals,
     DateTime? startDate,
     DateTime? endDate,
+    bool clearDateRange = false,
     bool updateHistoryWorkPlaceFilter = false,
     String? historyWorkPlaceFilter,
     String? searchQuery,
+    DateTime? lastFetchedAt,
   }) {
     return ApprovalInboxState(
       isLoading: isLoading ?? this.isLoading,
-      error: error ?? this.error,
+      error: clearError ? null : (error ?? this.error),
       pendingApprovals: pendingApprovals ?? this.pendingApprovals,
       historyApprovals: historyApprovals ?? this.historyApprovals,
-      startDate: startDate ?? this.startDate,
-      endDate: endDate ?? this.endDate,
+      startDate: clearDateRange ? null : (startDate ?? this.startDate),
+      endDate: clearDateRange ? null : (endDate ?? this.endDate),
       historyWorkPlaceFilter: updateHistoryWorkPlaceFilter
           ? historyWorkPlaceFilter
           : this.historyWorkPlaceFilter,
       searchQuery: searchQuery ?? this.searchQuery,
+      lastFetchedAt: lastFetchedAt ?? this.lastFetchedAt,
     );
   }
 
@@ -253,10 +150,10 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
 
   /// Hapus filter tanggal lalu re-fetch.
   void clearDateFilter() {
-    state = ApprovalInboxState(
-      pendingApprovals: state.pendingApprovals,
-      historyApprovals: state.historyApprovals,
-      historyWorkPlaceFilter: state.historyWorkPlaceFilter,
+    state = state.copyWith(
+      clearDateRange: true,
+      clearError: true,
+      isLoading: true,
     );
     fetchInbox(force: true);
   }
@@ -273,43 +170,8 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
   static OrderStatus _normalizeApprovedStatus(dynamic value) =>
       OrderStatusX.fromDynamic(value);
 
-  /// Level-based prior approval check: semua diskon dengan [approver_level_id]
-  /// lebih kecil dari level user di [myIndex] harus sudah Approved.
-  ///
-  /// Menggunakan approver_level_id (bukan array index) agar konsisten dengan
-  /// urutan tampilan di UI dan tidak bergantung pada urutan array dari API.
-  static bool _arePriorApprovedByIndex(
-    List<Map<String, dynamic>> discounts,
-    int myIndex,
-  ) {
-    final myLevel =
-        (discounts[myIndex]['approver_level_id'] as num?)?.toInt() ?? 0;
-
-    // Jika level tidak tersedia, fallback ke index-based (backward compat).
-    if (myLevel <= 0) {
-      for (int i = 0; i < myIndex; i++) {
-        if (_normalizeApprovedStatus(discounts[i]['approved']) !=
-            OrderStatus.approved) {
-          return false;
-        }
-      }
-      return true;
-    }
-
-    // Cek semua diskon yang levelnya lebih rendah dari level user ini.
-    for (int i = 0; i < discounts.length; i++) {
-      if (i == myIndex) continue;
-      final otherLevel =
-          (discounts[i]['approver_level_id'] as num?)?.toInt() ?? 0;
-      if (otherLevel > 0 && otherLevel < myLevel) {
-        if (_normalizeApprovedStatus(discounts[i]['approved']) !=
-            OrderStatus.approved) {
-          return false;
-        }
-      }
-    }
-    return true;
-  }
+  /// Skip re-fetch jika data masih segar (kecuali [force]).
+  static const _inboxFreshnessWindow = Duration(seconds: 45);
 
   static const _locationTimeout = Duration(seconds: 20);
   static const _geocodeTimeout = Duration(seconds: 3);
@@ -419,7 +281,9 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
     try {
       try {
         await setLocaleIdentifier('id_ID');
-      } catch (_) {}
+      } catch (e) {
+        Log.warning('setLocaleIdentifier id_ID gagal: $e', tag: 'Approval');
+      }
 
       final placemarks = await placemarkFromCoordinates(
         position.latitude,
@@ -559,12 +423,22 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
     );
   }
 
-  /// [force] = true: batalkan fetch yang sedang berjalan dan mulai yang baru
-  /// (untuk pull-to-refresh, filter tanggal, dan refresh pasca approve).
+  /// [force] = true: abaikan freshness window dan fetch ulang
+  /// (pull-to-refresh, filter tanggal, refresh pasca approve).
   Future<void> fetchInbox({bool force = false}) async {
     if (_fetchInFlight && !force) return;
+
+    // Hindari double-fetch beruntun dari profile + inbox + constructor.
+    if (!force &&
+        state.error == null &&
+        state.lastFetchedAt != null &&
+        DateTime.now().difference(state.lastFetchedAt!) <
+            _inboxFreshnessWindow) {
+      return;
+    }
+
     _fetchInFlight = true;
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(isLoading: true, clearError: true);
     final sw = Stopwatch()..start();
 
     try {
@@ -575,6 +449,9 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
         'user_id': profile?.id.toString() ?? '0',
       };
 
+      // Filter tanggal server-side (bukan page/limit).
+      // null = backend default ke bulan berjalan — sama kontrak dengan
+      // GET /order_letters di [orderHistoryProvider] / [dateFilterProvider].
       final startDate = state.startDate;
       final endDate = state.endDate;
       if (startDate != null && endDate != null) {
@@ -673,9 +550,10 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
                   discEnum == OrderStatus.rejected) {
                 isMyApprovalDone = true;
               } else if (discEnum == OrderStatus.pending) {
-                // Index-based: all discounts BEFORE this user's
-                // position must be approved.
-                if (_arePriorApprovedByIndex(discountMaps, i)) {
+                if (arePriorApprovalsSatisfied(
+                  discounts: discountMaps,
+                  myIndex: i,
+                )) {
                   hasActionablePending = true;
                 }
               }
@@ -712,8 +590,10 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
 
         state = state.copyWith(
           isLoading: false,
+          clearError: true,
           pendingApprovals: pending,
           historyApprovals: history,
+          lastFetchedAt: DateTime.now(),
         );
       } else {
         sw.stop();
@@ -725,7 +605,7 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
           await ref.read(authProvider.notifier).logout();
           state = state.copyWith(
             isLoading: false,
-            error: null,
+            clearError: true,
             pendingApprovals: const [],
             historyApprovals: const [],
           );

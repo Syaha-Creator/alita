@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/services/connectivity_service.dart';
@@ -28,10 +30,12 @@ class ApprovalInboxPage extends ConsumerStatefulWidget {
 
 class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
   final _searchCtrl = TextEditingController();
+  Timer? _searchDebounce;
 
   @override
   void initState() {
     super.initState();
+    // Freshness window di notifier mencegah double-fetch dengan profile/constructor.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(approvalInboxProvider.notifier).fetchInbox();
     });
@@ -39,6 +43,7 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -47,6 +52,8 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
   Widget build(BuildContext context) {
     final state = ref.watch(approvalInboxProvider);
 
+    // Tanpa filter aktif, label menampilkan bulan berjalan — selaras default
+    // backend saat `date_from`/`date_to` tidak dikirim.
     final hasDateFilter = state.startDate != null && state.endDate != null;
     final filterText = AppFormatters.dateRangeFilterLabel(
       start: state.startDate,
@@ -186,9 +193,15 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
                             ),
                             autocorrect: false,
                             enableSuggestions: false,
-                            onChanged: (q) => ref
-                                .read(approvalInboxProvider.notifier)
-                                .setSearchQuery(q),
+                            onChanged: (q) {
+                              _searchDebounce?.cancel();
+                              _searchDebounce = Timer(
+                                const Duration(milliseconds: 250),
+                                () => ref
+                                    .read(approvalInboxProvider.notifier)
+                                    .setSearchQuery(q),
+                              );
+                            },
                           ),
                         ),
                         Expanded(

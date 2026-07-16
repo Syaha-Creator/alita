@@ -244,6 +244,170 @@ void main() {
       ).called(1);
     });
 
+    test('successful refetch after error clears error', () async {
+      var call = 0;
+      when(
+        () => mockApi.get(
+          any(),
+          queryParams: any(named: 'queryParams'),
+          token: null,
+          timeout: _apiTimeout,
+        ),
+      ).thenAnswer((_) async {
+        call++;
+        if (call == 1) {
+          return http.Response('fail', 500);
+        }
+        return http.Response(jsonEncode({'result': []}), 200);
+      });
+
+      final container = ProviderContainer(
+        overrides: [
+          profileProvider.overrideWith((ref) async => _testProfile()),
+          approvalInboxProvider.overrideWith(
+            (ref) => ApprovalInboxNotifier(
+              ref,
+              apiClient: mockApi,
+              skipInitialFetch: true,
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await container.read(approvalInboxProvider.notifier).fetchInbox();
+      await _waitUntilNotLoading(container);
+      expect(container.read(approvalInboxProvider).error, isNotNull);
+
+      await container
+          .read(approvalInboxProvider.notifier)
+          .fetchInbox(force: true);
+      await _waitUntilNotLoading(container);
+      final s = container.read(approvalInboxProvider);
+      expect(s.error, isNull);
+      expect(s.isLoading, false);
+      expect(s.lastFetchedAt, isNotNull);
+    });
+
+    test('skips non-force refetch within freshness window', () async {
+      when(
+        () => mockApi.get(
+          any(),
+          queryParams: any(named: 'queryParams'),
+          token: null,
+          timeout: _apiTimeout,
+        ),
+      ).thenAnswer(
+        (_) async => http.Response(jsonEncode({'result': []}), 200),
+      );
+
+      final container = ProviderContainer(
+        overrides: [
+          profileProvider.overrideWith((ref) async => _testProfile()),
+          approvalInboxProvider.overrideWith(
+            (ref) => ApprovalInboxNotifier(
+              ref,
+              apiClient: mockApi,
+              skipInitialFetch: true,
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(approvalInboxProvider.notifier);
+      await notifier.fetchInbox();
+      await _waitUntilNotLoading(container);
+      await notifier.fetchInbox();
+      await notifier.fetchInbox();
+
+      verify(
+        () => mockApi.get(
+          '/order_letter_approvals',
+          queryParams: any(named: 'queryParams'),
+          token: null,
+          timeout: _apiTimeout,
+        ),
+      ).called(1);
+
+      await notifier.fetchInbox(force: true);
+      await _waitUntilNotLoading(container);
+      // mocktail: call yang sudah di-verify tidak dihitung lagi → expect 1 baru.
+      verify(
+        () => mockApi.get(
+          '/order_letter_approvals',
+          queryParams: any(named: 'queryParams'),
+          token: null,
+          timeout: _apiTimeout,
+        ),
+      ).called(1);
+    });
+
+    test('level-based prior: out-of-order discounts still actionable', () async {
+      const userId = 7;
+      when(
+        () => mockApi.get(
+          any(),
+          queryParams: any(named: 'queryParams'),
+          token: null,
+          timeout: _apiTimeout,
+        ),
+      ).thenAnswer(
+        (_) async => http.Response(
+          jsonEncode({
+            'result': [
+              {
+                'work_place_name': 'Toko',
+                'order_letter': {
+                  'id': 1,
+                  'status': 'Pending',
+                  'created_at': '2026-01-15T10:00:00Z',
+                },
+                'order_letter_details': [
+                  {
+                    'order_letter_discount': [
+                      // Higher level first in array (API out of order)
+                      {
+                        'approver_id': '$userId',
+                        'approver_level_id': 2,
+                        'approved': 'Pending',
+                      },
+                      {
+                        'approver_id': '99',
+                        'approver_level_id': 1,
+                        'approved': 'Approved',
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          }),
+          200,
+        ),
+      );
+
+      final container = ProviderContainer(
+        overrides: [
+          profileProvider.overrideWith(
+            (ref) async => _testProfile(id: userId),
+          ),
+          approvalInboxProvider.overrideWith(
+            (ref) => ApprovalInboxNotifier(
+              ref,
+              apiClient: mockApi,
+              skipInitialFetch: true,
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await container.read(approvalInboxProvider.notifier).fetchInbox();
+      await _waitUntilNotLoading(container);
+      expect(container.read(approvalInboxProvider).pendingApprovals, hasLength(1));
+    });
+
     test('network error: retry twice then error state, lists empty', () async {
       when(
         () => mockApi.get(

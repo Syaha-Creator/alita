@@ -23,8 +23,29 @@ class ApprovalCardItem extends StatelessWidget {
     required this.isPending,
   });
 
-  OrderStatus _statusFromPending() =>
-      isPending ? OrderStatus.pending : OrderStatus.approved;
+  OrderStatus _resolveDisplayStatus() {
+    if (isPending) return OrderStatus.pending;
+
+    final order = orderWrap is Map
+        ? Map<String, dynamic>.from(orderWrap as Map)
+        : <String, dynamic>{};
+    final letter = order['order_letter'] as Map<String, dynamic>? ?? {};
+    final header = OrderStatusX.fromRaw(letter['status']?.toString() ?? '');
+    if (header == OrderStatus.rejected) return OrderStatus.rejected;
+
+    final details = order['order_letter_details'] as List<dynamic>? ?? [];
+    for (final detail in details) {
+      if (detail is! Map) continue;
+      final discounts = detail['order_letter_discount'] as List<dynamic>? ?? [];
+      for (final disc in discounts) {
+        if (disc is! Map) continue;
+        if (OrderStatusX.fromDynamic(disc['approved']) == OrderStatus.rejected) {
+          return OrderStatus.rejected;
+        }
+      }
+    }
+    return OrderStatus.approved;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,9 +62,13 @@ class ApprovalCardItem extends StatelessWidget {
       order['order_date'] as String? ?? '',
     );
 
-    final status = _statusFromPending();
+    final status = _resolveDisplayStatus();
     final statusColor = status.listForegroundColor;
-    final statusLabel = isPending ? 'Menunggu' : 'Selesai';
+    final statusLabel = switch (status) {
+      OrderStatus.pending => 'Menunggu',
+      OrderStatus.rejected => 'Ditolak',
+      _ => 'Selesai',
+    };
 
     final int itemCount = details.length;
     final String firstItemName = itemCount > 0

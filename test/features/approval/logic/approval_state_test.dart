@@ -47,6 +47,23 @@ void main() {
       expect(s.startDate, start);
       expect(s.endDate, end);
     });
+
+    test('copyWith clears error when clearError is true', () {
+      const s = ApprovalInboxState(
+        isLoading: false,
+        error: 'network',
+      );
+      final cleared = s.copyWith(isLoading: true, clearError: true);
+      expect(cleared.error, isNull);
+      expect(cleared.isLoading, true);
+    });
+
+    test('copyWith(error: null) alone does not clear existing error', () {
+      const s = ApprovalInboxState(error: 'stale');
+      // Without clearError, null means "leave unchanged" (same as freezed).
+      final copy = s.copyWith(error: null);
+      expect(copy.error, 'stale');
+    });
   });
 
   group('ApprovalLocation', () {

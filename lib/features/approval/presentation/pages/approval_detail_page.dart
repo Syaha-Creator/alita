@@ -113,8 +113,12 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
       if (perm == LocationPermission.denied) {
         return 'Izin lokasi belum diberikan. Coba lagi dan izinkan akses lokasi saat diminta.';
       }
-    } catch (_) {
-      // fall through
+    } catch (e, st) {
+      Log.warning(
+        'Location permission hint failed: $e',
+        tag: 'ApprovalDetail',
+      );
+      Log.error(e, st, reason: 'ApprovalDetail._locationPermissionHint');
     }
     return 'Gagal mendeteksi lokasi (timeout). '
         'Pastikan GPS aktif dan coba di area dengan sinyal lebih baik.';
@@ -186,9 +190,15 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
     });
 
     try {
-      final location = await Future.any<ApprovalLocation?>(
-        [pendingLocation, skipCompleter.future],
-      );
+      // Tunggu GPS biasa, atau skip non-null. Skip yang mengembalikan null
+      // tidak boleh memenangkan race — lanjut tunggu GPS.
+      final location = await Future.any<ApprovalLocation?>([
+        pendingLocation,
+        skipCompleter.future.then((fallback) async {
+          if (fallback != null) return fallback;
+          return pendingLocation;
+        }),
+      ]);
       locationSettled = true;
       _locationSkipTimer?.cancel();
       _onLocationSkipRequested = null;
@@ -522,7 +532,6 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
           backgroundColor: AppColors.background,
           elevation: 0,
           scrolledUnderElevation: 0.5,
-          surfaceTintColor: Colors.transparent,
           iconTheme: const IconThemeData(color: AppColors.textPrimary),
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(1),

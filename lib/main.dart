@@ -166,7 +166,7 @@ class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     NotificationHandlerService.registerApprovalRefreshCallback(() {
-      ref.read(approvalInboxProvider.notifier).fetchInbox();
+      ref.read(approvalInboxProvider.notifier).fetchInbox(force: true);
     });
 
     _listenDeepLinks();
