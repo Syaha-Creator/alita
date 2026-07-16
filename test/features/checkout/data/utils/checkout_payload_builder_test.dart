@@ -787,6 +787,16 @@ void main() {
       expect(p['payment_bank'], 'Dana');
     });
 
+    test('channel Lainnya under Debit / QRIS uses otherChannelText as bank', () {
+      final p = entry(
+        method: 'Debit / QRIS',
+        bank: 'Lainnya',
+        other: 'Nobu',
+      );
+      expect(p['payment_method'], 'Debit / QRIS');
+      expect(p['payment_bank'], 'Nobu');
+    });
+
     test('contains all required keys', () {
       final p = entry();
       for (final key in [

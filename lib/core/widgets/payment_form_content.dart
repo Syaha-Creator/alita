@@ -159,6 +159,8 @@ class PaymentFormContent extends StatelessWidget {
 
   Widget _buildMethodAndChannel(BuildContext context) {
     final channels = paymentChannelsMap[paymentMethod] ?? const <String>[];
+    final useCustomChannel = paymentMethod == 'Lainnya' ||
+        paymentChannel == 'Lainnya';
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -190,7 +192,7 @@ class PaymentFormContent extends StatelessWidget {
             children: [
               FormFieldLabel(channelLabel),
               const SizedBox(height: 8),
-              if (paymentMethod == 'Lainnya')
+              if (useCustomChannel)
                 TextFormField(
                   controller: customChannelController,
                   decoration: _inputDecoration().copyWith(

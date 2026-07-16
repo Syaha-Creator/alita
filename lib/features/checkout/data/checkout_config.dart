@@ -1,31 +1,64 @@
 /// Centralised configuration for checkout / payment flows.
 abstract final class CheckoutConfig {
-  /// Payment method → available bank/channel options.
+  /// Metode pembayaran → opsi bank/channel.
   static const Map<String, List<String>> paymentChannelsMap = {
-    'Transfer Bank': [
+    'Debit / QRIS': [
       'BCA',
       'Mandiri',
       'BNI',
       'BRI',
       'CIMB Niaga',
-      'Permata',
       'BSI',
-      'Bank Jago',
+      'Mega',
+      'Danamon',
+      'Permata',
+      'Lainnya',
     ],
-    'Kartu Kredit': ['BCA Card', 'Visa', 'Mastercard', 'JCB', 'Amex'],
-    'E-Wallet': ['GoPay', 'OVO', 'Dana', 'ShopeePay', 'LinkAja'],
-    'QRIS': ['QRIS BCA', 'QRIS Mandiri', 'QRIS BNI', 'QRIS BRI', 'QRIS Nobu'],
+    'CC Full Payment': [
+      'EDC BCA',
+      'Blibli',
+    ],
+    'CC Cicilan': [
+      'EDC BCA',
+      'Blibli',
+    ],
+    'Leasing': [
+      'HCI',
+      'Kredit Plus',
+      'BAF',
+      'Spektra',
+      'Lainnya',
+    ],
     'PayLater': [
       'Kredivo',
       'Shopee PayLater',
-      'GoPay Later',
       'Indodana',
       'Akulaku',
-      'Home Credit',
       'BCA Paylater',
     ],
     'Lainnya': [],
   };
 
   static List<String> get paymentMethods => paymentChannelsMap.keys.toList();
+
+  /// Input teks bebas untuk channel: metode [Lainnya] atau sub-channel [Lainnya].
+  static bool usesCustomChannelText(String? method, String? channel) =>
+      method == 'Lainnya' || channel == 'Lainnya';
+
+  /// Nilai `payment_bank` yang dikirim ke API.
+  static String resolvePaymentBank({
+    required String? method,
+    required String? bank,
+    required String otherChannelText,
+  }) {
+    if (usesCustomChannelText(method, bank)) {
+      final custom = otherChannelText.trim();
+      if (custom.isNotEmpty) return custom;
+    }
+    return bank ?? '';
+  }
+
+  /// Nilai `payment_method` yang dikirim ke API.
+  static String resolvePaymentMethod(String? method) =>
+      method == 'Lainnya' ? 'other' : (method ?? '');
 }

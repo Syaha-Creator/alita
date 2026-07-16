@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../../../core/utils/order_letter_date_utils.dart';
+import '../data/checkout_config.dart';
 import '../data/models/payment_entry.dart';
 
 /// Pure validation logic extracted from [CheckoutPage].
@@ -124,9 +125,13 @@ abstract final class CheckoutFormValidator {
 
     if (!indirectSkipPaymentValidation) {
       for (final p in payments) {
+        final needsCustomChannel =
+            CheckoutConfig.usesCustomChannelText(p.method, p.bank);
         if (p.method == null ||
-            (p.method == 'Lainnya' && p.otherChannelCtrl.text.trim().isEmpty) ||
-            (p.method != 'Lainnya' && p.bank == null) ||
+            (needsCustomChannel &&
+                p.otherChannelCtrl.text.trim().isEmpty) ||
+            (!needsCustomChannel &&
+                (p.bank == null || p.bank!.isEmpty)) ||
             p.receiptImage == null) {
           return (key: paymentSectionKey, label: 'Informasi Pembayaran');
         }

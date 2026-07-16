@@ -10,6 +10,7 @@ import '../../../../core/widgets/image_source_sheet.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/utils/number_input_formatter.dart';
 import '../../../../core/widgets/payment_form_content.dart';
+import '../../../checkout/data/checkout_config.dart';
 
 class AddPaymentBottomSheet extends StatefulWidget {
   final double remainingPayment;
@@ -40,24 +41,6 @@ class _AddPaymentBottomSheetState extends State<AddPaymentBottomSheet> {
   File? _receiptImage;
   bool _isSubmitting = false;
 
-  static const List<String> _paymentMethods = [
-    'Transfer Bank',
-    'QRIS',
-    'Kartu Kredit',
-    'E-Wallet',
-    'PayLater',
-    'Cash',
-    'Lainnya',
-  ];
-
-  static const Map<String, List<String>> _paymentChannelsMap = {
-    'Transfer Bank': ['BCA', 'Mandiri', 'BNI', 'BRI', 'CIMB Niaga', 'Permata'],
-    'QRIS': ['QRIS BCA', 'QRIS Mandiri', 'QRIS BNI', 'QRIS BRI'],
-    'Kartu Kredit': ['BCA Card', 'Visa', 'Mastercard', 'JCB'],
-    'E-Wallet': ['GoPay', 'OVO', 'Dana', 'ShopeePay', 'LinkAja'],
-    'PayLater': ['Kredivo', 'Shopee PayLater', 'GoPay Later', 'Akulaku'],
-  };
-
   @override
   void initState() {
     super.initState();
@@ -85,8 +68,13 @@ class _AddPaymentBottomSheetState extends State<AddPaymentBottomSheet> {
       _nominalCtrl.text.isNotEmpty && _nominalValue == widget.remainingPayment;
 
   bool get _canSubmit {
-    final channels = _paymentChannelsMap[_paymentMethod] ?? const <String>[];
-    final hasChannel = _paymentMethod == 'Lainnya'
+    final channels =
+        CheckoutConfig.paymentChannelsMap[_paymentMethod] ?? const <String>[];
+    final needsCustomChannel = CheckoutConfig.usesCustomChannelText(
+      _paymentMethod,
+      _paymentChannel,
+    );
+    final hasChannel = needsCustomChannel
         ? _customChannelCtrl.text.trim().isNotEmpty
         : (channels.isEmpty || (_paymentChannel?.isNotEmpty ?? false));
     return !_isSubmitting &&
@@ -168,6 +156,7 @@ class _AddPaymentBottomSheetState extends State<AddPaymentBottomSheet> {
   }
 
   Future<void> _submit() async {
+    if (_isSubmitting) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final receipt = _receiptImage;
     if (receipt == null) {
@@ -182,11 +171,13 @@ class _AddPaymentBottomSheetState extends State<AddPaymentBottomSheet> {
     if (_isOverPayment || _nominalValue <= 0) return;
 
     final nominal = _nominalValue;
-    final channel = _paymentMethod == 'Lainnya'
-        ? _customChannelCtrl.text.trim()
-        : (_paymentChannel ?? '');
     final methodForApi =
-        _paymentMethod == 'Lainnya' ? 'other' : (_paymentMethod ?? '');
+        CheckoutConfig.resolvePaymentMethod(_paymentMethod);
+    final channel = CheckoutConfig.resolvePaymentBank(
+      method: _paymentMethod,
+      bank: _paymentChannel,
+      otherChannelText: _customChannelCtrl.text,
+    );
 
     setState(() => _isSubmitting = true);
     try {
@@ -299,18 +290,20 @@ class _AddPaymentBottomSheetState extends State<AddPaymentBottomSheet> {
                       return null;
                     },
                     amountStatusWidget: _buildAmountStatus(),
-                    paymentMethods: _paymentMethods,
+                    paymentMethods: CheckoutConfig.paymentMethods,
                     paymentMethod: _paymentMethod,
                     paymentChannel: _paymentChannel,
                     customChannelController: _customChannelCtrl,
-                    paymentChannelsMap: _paymentChannelsMap,
+                    paymentChannelsMap: CheckoutConfig.paymentChannelsMap,
                     onPaymentMethodChanged: (v) => setState(() {
                       _paymentMethod = v;
                       _paymentChannel = null;
                       if (v != 'Lainnya') _customChannelCtrl.clear();
                     }),
-                    onPaymentChannelChanged: (v) =>
-                        setState(() => _paymentChannel = v),
+                    onPaymentChannelChanged: (v) => setState(() {
+                      _paymentChannel = v;
+                      if (v != 'Lainnya') _customChannelCtrl.clear();
+                    }),
                     referenceLabel: 'No Referensi',
                     referenceController: _paymentRefCtrl,
                     paymentDate: _paymentDate,

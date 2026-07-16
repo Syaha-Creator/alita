@@ -3,6 +3,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_dropdown_field.dart';
 import '../../../../core/widgets/checkout_input_decoration.dart';
 import '../../../../core/widgets/form_field_label.dart';
+import '../../data/checkout_config.dart';
 
 /// Reusable payment method/channel inputs for checkout form.
 class PaymentMethodChannelSection extends StatelessWidget {
@@ -26,6 +27,10 @@ class PaymentMethodChannelSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final channels = paymentChannelsMap[paymentMethod] ?? const <String>[];
+    final useCustomChannel = CheckoutConfig.usesCustomChannelText(
+      paymentMethod,
+      paymentBank,
+    );
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -63,7 +68,7 @@ class PaymentMethodChannelSection extends StatelessWidget {
             children: [
               const FormFieldLabel('Channel *'),
               const SizedBox(height: 8),
-              if (paymentMethod == 'Lainnya')
+              if (useCustomChannel)
                 TextField(
                   controller: otherChannelController,
                   textInputAction: TextInputAction.next,
@@ -103,7 +108,7 @@ class PaymentMethodChannelSection extends StatelessWidget {
                     filled: paymentMethod == null,
                     fillColor: AppColors.surfaceLight,
                   ),
-                  validator: paymentMethod == null || paymentMethod == 'Lainnya'
+                  validator: paymentMethod == null || useCustomChannel
                       ? null
                       : (value) =>
                           value == null ? 'Channel wajib dipilih' : null,

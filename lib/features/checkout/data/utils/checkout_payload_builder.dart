@@ -2,6 +2,7 @@ import '../../../../core/enums/order_status.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/utils/number_input_formatter.dart';
 import '../../../cart/data/cart_item.dart';
+import '../checkout_config.dart';
 
 /// Centralized payload builders for checkout feature.
 class CheckoutPayloadBuilder {
@@ -283,11 +284,12 @@ class CheckoutPayloadBuilder {
             0.0);
 
     return {
-      'payment_method':
-          paymentMethod == 'Lainnya' ? 'other' : (paymentMethod ?? ''),
-      'payment_bank': paymentMethod == 'Lainnya'
-          ? otherChannelText.trim()
-          : (paymentBank ?? ''),
+      'payment_method': CheckoutConfig.resolvePaymentMethod(paymentMethod),
+      'payment_bank': CheckoutConfig.resolvePaymentBank(
+        method: paymentMethod,
+        bank: paymentBank,
+        otherChannelText: otherChannelText,
+      ),
       'payment_number': paymentRefText.trim(),
       'payment_amount': finalPaymentAmount,
       'payment_date': AppFormatters.apiDate(paymentDate),
@@ -313,9 +315,12 @@ class CheckoutPayloadBuilder {
         0.0;
 
     return {
-      'payment_method': method == 'Lainnya' ? 'other' : (method ?? ''),
-      'payment_bank':
-          method == 'Lainnya' ? otherChannelText.trim() : (bank ?? ''),
+      'payment_method': CheckoutConfig.resolvePaymentMethod(method),
+      'payment_bank': CheckoutConfig.resolvePaymentBank(
+        method: method,
+        bank: bank,
+        otherChannelText: otherChannelText,
+      ),
       'payment_number': refText.trim(),
       'payment_amount': amount,
       'payment_date': AppFormatters.apiDate(date),
