@@ -186,8 +186,7 @@ abstract final class ProductVariantResolver {
           anchor == AnchorType.sorong ? masterProduct.sorong : 'Tanpa Sorong';
     } else {
       final bool needsAutoSelect = anchor == AnchorType.divan
-          ? (selectedHeadboard == null ||
-              selectedHeadboard.trim().toLowerCase().contains('tanpa'))
+          ? selectedHeadboard == null
           : (selectedDivan == null ||
               selectedDivan.trim().toLowerCase().contains('tanpa'));
 
@@ -248,7 +247,8 @@ abstract final class ProductVariantResolver {
         .map((p) => p.headboard)
         .where((h) => h.isNotEmpty)
         .toSet();
-    final broadHeadboards = anchor == AnchorType.kasur
+    final broadHeadboards = (anchor == AnchorType.kasur ||
+            anchor == AnchorType.divan)
         ? broadByDivan
             .map((p) => p.headboard)
             .where((h) => h.isNotEmpty)
@@ -269,8 +269,10 @@ abstract final class ProductVariantResolver {
         effectiveHeadboard = 'Tanpa Headboard';
       }
     }
-    // For kasur-anchor use both strict + broad; for other anchors only strict.
-    final allByDivan = anchor == AnchorType.kasur
+    // For kasur/divan anchors use strict + broad so headboards from full-set
+    // rows are discoverable and selectable.
+    final allByDivan = (anchor == AnchorType.kasur ||
+            anchor == AnchorType.divan)
         ? {...siblingsByDivan, ...broadByDivan}.toList()
         : siblingsByDivan;
     final siblingsByHeadboard =
@@ -390,13 +392,8 @@ abstract final class ProductVariantResolver {
         : availableDivans
             .where((d) => d.trim().toLowerCase() != 'tanpa divan')
             .toList();
-    final headboardsForConfigurator = isKasurOnly
-        ? <String>[]
-        : anchor == AnchorType.divan
-            ? availableHeadboards
-                .where((h) => !h.trim().toLowerCase().contains('tanpa'))
-                .toList()
-            : availableHeadboards;
+    final headboardsForConfigurator =
+        isKasurOnly ? <String>[] : availableHeadboards;
 
     // Computed from the FULL available lists (not filtered by isKasurOnly)
     // so the "Beli Set" toggle is visible even when isKasurOnly = true.
