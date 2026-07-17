@@ -29,9 +29,15 @@ class GoRouterPopScope extends StatelessWidget {
     final router = GoRouter.of(context);
     if (router.canPop()) {
       router.pop();
-    } else if (fallbackLocation != null && fallbackLocation.isNotEmpty) {
-      router.go(fallbackLocation);
+      return;
     }
+    if (fallbackLocation != null && fallbackLocation.isNotEmpty) {
+      router.go(fallbackLocation);
+      return;
+    }
+    // Tanpa fallback: jangan no-op — arahkan ke home agar back tidak "mati"
+    // (dan activity tidak tertutup oleh handler lain).
+    router.go('/');
   }
 
   @override

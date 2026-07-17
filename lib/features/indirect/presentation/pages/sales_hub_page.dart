@@ -149,7 +149,8 @@ class _SalesHubPageState extends ConsumerState<SalesHubPage> {
       ref.read(selectedBrandProvider.notifier).state = null;
       // state diupdate sync di dalam setMode; prefs tulis di background.
       unawaited(ref.read(salesModeProvider.notifier).setMode(mode));
-      if (mounted) context.go('/');
+      // Push (bukan go) agar tombol back Android kembali ke hub, bukan exit app.
+      if (mounted) unawaited(context.push('/'));
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }

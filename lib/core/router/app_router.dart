@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:upgrader/upgrader.dart';
+import '../utils/app_feedback.dart';
 import '../utils/log.dart';
 import '../utils/platform_utils.dart';
 import '../utils/telemetry_access.dart';
@@ -36,6 +37,7 @@ import '../../features/approval/presentation/pages/approval_detail_loader_page.d
 import '../../features/quotation/data/quotation_model.dart';
 import '../../features/quotation/presentation/pages/quotation_history_page.dart';
 import '../../features/indirect/presentation/pages/sales_hub_page.dart';
+import 'android_system_back.dart';
 
 /// Android: gesture / tombol sistem harus memakai [GoRouter.pop], bukan hanya
 /// [Navigator.maybePop], supaya tidak menutup activity saat masih ada route di stack
@@ -55,17 +57,72 @@ Page<T> _adaptivePage<T>({required Widget child, required String name}) {
 
 /// Satu [PopScope] per halaman (via [_adaptivePage]): back sistem dialihkan ke GoRouter.
 /// Halaman yang punya [GoRouterPopScope] batin (checkout, approval) tetap menang lebih dulu.
-class _AndroidGoRouterBackScope extends StatelessWidget {
+///
+/// Root (`/` / `/sales_hub`): **double-back** untuk keluar — tidak langsung
+/// [SystemNavigator.pop]. Admin di `/` tanpa stack → `/sales_hub`.
+class _AndroidGoRouterBackScope extends StatefulWidget {
   const _AndroidGoRouterBackScope({required this.child});
 
   final Widget child;
 
-  static const _rootPaths = {
-    '/',
-    '/sales_hub',
-    '/login',
-    '/auth_boot',
-  };
+  @override
+  State<_AndroidGoRouterBackScope> createState() =>
+      _AndroidGoRouterBackScopeState();
+}
+
+class _AndroidGoRouterBackScopeState extends State<_AndroidGoRouterBackScope> {
+  DateTime? _lastExitPromptAt;
+  static const _exitConfirmWindow = Duration(seconds: 2);
+
+  bool get _exitPromptActive {
+    final last = _lastExitPromptAt;
+    if (last == null) return false;
+    return DateTime.now().difference(last) <= _exitConfirmWindow;
+  }
+
+  void _handleSystemBack() {
+    final router = GoRouter.of(context);
+    final loc = router.state.matchedLocation;
+
+    var canChooseSalesMode = false;
+    try {
+      final auth = ProviderScope.containerOf(context).read(authProvider);
+      canChooseSalesMode = TelemetryAccess.canChooseSalesMode(auth.userId);
+    } catch (e, s) {
+      Log.warning(
+        'Android back: gagal baca auth untuk sales-mode ($e)',
+      );
+      Log.error(e, s, reason: 'AndroidGoRouterBackScope.auth');
+    }
+
+    final decision = resolveAndroidSystemBack(
+      routerCanPop: router.canPop(),
+      matchedLocation: loc,
+      canChooseSalesMode: canChooseSalesMode,
+      exitPromptActive: _exitPromptActive,
+    );
+
+    switch (decision) {
+      case AndroidSystemBackDecision.popRouter:
+        router.pop();
+      case AndroidSystemBackDecision.goSalesHub:
+        router.go('/sales_hub');
+      case AndroidSystemBackDecision.goHome:
+        router.go('/');
+      case AndroidSystemBackDecision.confirmExit:
+        setState(() => _lastExitPromptAt = DateTime.now());
+        if (!mounted) return;
+        AppFeedback.show(
+          context,
+          message: 'Tekan sekali lagi untuk keluar',
+          type: AppFeedbackType.info,
+          floating: true,
+          duration: _exitConfirmWindow,
+        );
+      case AndroidSystemBackDecision.exitApp:
+        SystemNavigator.pop();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -73,28 +130,9 @@ class _AndroidGoRouterBackScope extends StatelessWidget {
       canPop: false,
       onPopInvokedWithResult: (bool didPop, dynamic result) {
         if (didPop) return;
-        final router = GoRouter.of(context);
-        if (router.canPop()) {
-          router.pop();
-          return;
-        }
-        final loc = router.state.matchedLocation;
-        if (_rootPaths.contains(loc)) {
-          SystemNavigator.pop();
-          return;
-        }
-        try {
-          final container = ProviderScope.containerOf(context);
-          final auth = container.read(authProvider);
-          final home = TelemetryAccess.canChooseSalesMode(auth.userId)
-              ? '/sales_hub'
-              : '/';
-          router.go(home);
-        } catch (_) {
-          router.go('/');
-        }
+        _handleSystemBack();
       },
-      child: child,
+      child: widget.child,
     );
   }
 }
