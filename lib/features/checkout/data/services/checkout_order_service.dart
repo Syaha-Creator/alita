@@ -1005,7 +1005,11 @@ class CheckoutOrderService {
 
       final presentEupSum =
           effEupKasur + effEupDivan + effEupHeadboard + effEupSorong;
-      final markupDiff = p.price - presentEupSum;
+      // Markup / edit total sudah terserap di `eup*` via CartItemBuilder.
+      // Jangan ikutkan `product.price` saat Program Bulanan aktif: price sering
+      // masih snapshot tampilan post-PB, sehingga delta = −PB lalu
+      // `applyProgramBulananToNetLine` memotong PB sekali lagi (double cut).
+      final markupDiff = pbActive ? 0.0 : (p.price - presentEupSum);
 
       if (markupDiff.abs() > 0.01) {
         if (kcPresent) {

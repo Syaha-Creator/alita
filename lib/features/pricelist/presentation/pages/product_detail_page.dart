@@ -219,13 +219,9 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
         _storeDiscountBoundAddressNumber = editItem.indirectStoreAddressNumber;
       }
 
-      if (editItem.hasProgramBulanan && _programBulananValue > 0) {
-        targetTotalEup = _programBulananType == 'percent'
-            ? p.price / (1 - _programBulananValue / 100)
-            : p.price + _programBulananValue;
-      } else {
-        targetTotalEup = p.price;
-      }
+      // product.price = total pre-PB (diskon toko + sales). PB diterapkan di UI
+      // via _applyProgramBulanan / CartItem.totalPrice, bukan di-bake ke price.
+      targetTotalEup = p.price;
       _targetTotalController.text =
           _totalCurrencyFormat.format(targetTotalEup!).trim();
 
@@ -1188,7 +1184,6 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
         effectiveHeadboard: effectiveHeadboard,
         effectiveSorong: effectiveSorong,
         totalFinalPrice: totalFinalPrice,
-        cartDisplayPrice: displayTotal,
         finalKasurPrice: finalKasurPrice,
         finalDivanPrice: finalDivanPrice,
         finalHeadboardPrice: finalHeadboardPrice,
@@ -1222,7 +1217,6 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     required ItemLookup? effectiveDivanLookup,
     required ItemLookup? effectiveHeadboardLookup,
     required ItemLookup? effectiveSorongLookup,
-    double? cartDisplayPrice,
   }) {
     // ── Validation ──
 
@@ -1327,7 +1321,6 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       pricelistArea: ref.read(effectiveAreaProvider),
       programBulananType: _programBulananType,
       programBulananValue: _programBulananValue,
-      cartDisplayPrice: cartDisplayPrice,
     );
 
     final summaryForToast = CartItemBuilder.buildSummaryForToast(

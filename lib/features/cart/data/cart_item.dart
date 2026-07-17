@@ -148,8 +148,9 @@ class CartItem with _$CartItem {
     @JsonKey(fromJson: _parseBoolDefaultFalse) @Default(false) bool isZeroPrice,
   }) = _CartItem;
 
-  /// EUP per unit setelah diskon toko (indirect) lalu diskon sales (bertingkat).
-  /// Untuk baris pricelist custom, dipakai sebagai harga tampilan & subtotal keranjang.
+  /// EUP per unit setelah diskon toko (indirect) lalu diskon sales (bertingkat),
+  /// lalu Program Bulanan (jika ada). Untuk baris pricelist custom, dipakai
+  /// sebagai harga tampilan & subtotal keranjang.
   double get effectiveUnitSellingPrice {
     if (isFocVoucherActive || isZeroPrice) return 0;
     final p = product;
@@ -157,7 +158,7 @@ class CartItem with _$CartItem {
         p.eupDivan +
         p.eupHeadboard +
         p.eupSorong;
-    if (unitEup <= 0) return p.price;
+    if (unitEup <= 0) return unitPriceAfterProgramBulanan(p.price);
 
     var base = unitEup;
     if (isIndirectSale && indirectStoreDiscounts.isNotEmpty) {
@@ -170,7 +171,40 @@ class CartItem with _$CartItem {
       discount3 / 100,
       discount4 / 100,
     ];
-    return ProductDetailUtils.calculateCascadingPrice(base, fractions);
+    final afterSales =
+        ProductDetailUtils.calculateCascadingPrice(base, fractions);
+    return unitPriceAfterProgramBulanan(afterSales);
+  }
+
+  /// Harga per unit untuk tampilan: [base] dikurangi Program Bulanan bila aktif.
+  ///
+  /// Snapshot lama sempat bake PB ke [product.price]; deteksi itu supaya tidak
+  /// potong dua kali di UI.
+  double unitPriceAfterProgramBulanan(double base) {
+    if (!isIndirectSale || !hasProgramBulanan) return base;
+
+    final eupSum = product.eupKasur +
+        product.eupDivan +
+        product.eupHeadboard +
+        product.eupSorong;
+    if (eupSum > 0) {
+      final legacyPostPb = _applyProgramBulananTo(eupSum);
+      // Legacy cart: price sudah post-PB (selisih ≈ potongan PB dari eup*).
+      if ((base - legacyPostPb).abs() <= 1.0) return base;
+    }
+
+    return _applyProgramBulananTo(base);
+  }
+
+  double _applyProgramBulananTo(double base) {
+    if (programBulananType == 'percent' && programBulananDiscount > 0) {
+      return (base * (1 - programBulananDiscount / 100))
+          .clamp(0, double.infinity);
+    }
+    if (programBulananType == 'nominal' && programBulananNominal > 0) {
+      return (base - programBulananNominal).clamp(0, double.infinity);
+    }
+    return base;
   }
 
   double get totalPrice {
@@ -178,7 +212,7 @@ class CartItem with _$CartItem {
     if (product.isPricelistCustomCartLine) {
       return quantity * effectiveUnitSellingPrice;
     }
-    return quantity * product.price;
+    return quantity * unitPriceAfterProgramBulanan(product.price);
   }
 
   /// Human-friendly name for display in cart / checkout.

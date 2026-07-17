@@ -482,6 +482,32 @@ void main() {
       expect(pbRows.first['discount_price'], 400_000.0);
     });
 
+    test('does not double-cut when product.price is legacy post-PB snapshot', () {
+      // Real cart path used to bake displayTotal into product.price while
+      // eup* stayed pre-PB. markupDiff must not re-apply that delta.
+      final product = _product(
+        price: 850_000, // 900_000 − 50_000 (legacy display bake)
+        plKasur: 1_000_000,
+        eupKasur: 900_000,
+      );
+      final details = _build(items: [
+        _item(
+          product: product,
+          quantity: 2,
+          indirectStoreAddressNumber: 100,
+          programBulananType: 'nominal',
+          programBulananNominal: 50_000,
+        ),
+      ]);
+      expect(details, hasLength(1));
+      // One cut only: 900_000 − 50_000 = 850_000 per unit (not 800_000)
+      expect(details.first.payload['net_price'], 850_000.0);
+      final pbRows = details.first.discounts
+          .where((r) => r['approver_level_id'] == 80)
+          .toList();
+      expect(pbRows.first['discount_price'], 100_000.0);
+    });
+
     test('nominal type: audit row appears exactly once for a SET product '
         '(no duplication across kasur + divan)', () {
       final product = _product(
