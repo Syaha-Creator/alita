@@ -27,6 +27,7 @@ import '../../../../core/widgets/loading_overlay.dart';
 import '../../../../core/widgets/image_viewer_dialog.dart';
 import '../../../../core/widgets/detail_note_card.dart';
 import '../../../../core/widgets/detail_shipping_info_card.dart';
+import '../../../../core/widgets/go_router_pop_scope.dart';
 import '../../../../core/widgets/pdf_action_sheet.dart';
 import '../../../../core/widgets/section_card.dart';
 import '../../../approval/logic/approval_decision_service.dart';
@@ -250,7 +251,14 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
     // Edit barang: berlaku untuk semua channel.
     final canEditItems = canEditBase && currentOrder.details.isNotEmpty;
 
-    return Scaffold(
+    // Cegah user keluar halaman selagi void SP sedang diproses ke server —
+    // sama seperti approval detail: tanpa ini, request GET
+    // order_letters_rejected bisa terputus tanpa error yang pernah terlihat
+    // user, karena mereka sudah berpindah halaman sendiri.
+    return PopScope(
+      canPop: !_voidingSp,
+      onPopInvokedWithResult: (didPop, result) {},
+      child: Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text(
@@ -265,8 +273,17 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
         backgroundColor: AppColors.background,
         elevation: 0,
         scrolledUnderElevation: 0.5,
-        surfaceTintColor: Colors.transparent,
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          tooltip: 'Kembali',
+          onPressed: _voidingSp
+              ? null
+              : () => GoRouterPopScope.handlePop(
+                  context,
+                  fallbackLocation: '/order_history',
+                ),
+        ),
         actions: [
           // Single entry point untuk semua "Edit": tap → adaptive sheet
           // (iOS action sheet / Android modal bottom sheet) berisi opsi
@@ -653,6 +670,7 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                     ),
                   ),
                 ),
+      ),
     );
   }
 

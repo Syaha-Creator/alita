@@ -273,19 +273,15 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
         final spNumber = order['no_sp']?.toString() ??
             order['order_letter_no']?.toString() ??
             '';
-        try {
-          await ApprovalDecisionService.triggerNextApprovalNotification(
+        unawaited(
+          ApprovalDecisionService.triggerNextApprovalNotification(
             orderData: widget.orderData,
             spNumber: spNumber,
             token: token,
             senderName: profile?.name ?? 'Approver',
             currentUserId: userId,
-          );
-        } catch (e, st) {
-          Log.warning('Notifikasi next approver gagal: $e',
-              tag: 'ApprovalDetail');
-          Log.error(e, st, reason: 'triggerNextApprovalNotification');
-        }
+          ),
+        );
       }
 
       if (!isApproved && decision.headerRejected) {
@@ -507,7 +503,16 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
       _MyApprovalState.loading => ApprovalBarState.loading,
     };
 
-    return GoRouterPopScope(
+    // Cegah user keluar halaman (tombol back, gesture swipe-back iOS, atau
+    // hardware back Android) selagi approval sedang diproses ke server.
+    // Tanpa ini, request POST/PUT approval bisa terputus (mis. koneksi
+    // lemah, app dibackground) tanpa pernah menampilkan error ke user —
+    // user mengira sudah berhasil (karena berpindah halaman sendiri),
+    // padahal server tidak menerima update-nya.
+    return PopScope(
+      canPop: !_isLoading,
+      onPopInvokedWithResult: (didPop, result) {},
+      child: GoRouterPopScope(
       fallbackLocation: '/approval_inbox',
       child: Scaffold(
         backgroundColor: AppColors.background,
@@ -515,10 +520,12 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_rounded),
             tooltip: 'Kembali',
-            onPressed: () => GoRouterPopScope.handlePop(
-              context,
-              fallbackLocation: '/approval_inbox',
-            ),
+            onPressed: _isLoading
+                ? null
+                : () => GoRouterPopScope.handlePop(
+                    context,
+                    fallbackLocation: '/approval_inbox',
+                  ),
           ),
           title: const Text(
             'Detail Persetujuan',
@@ -598,6 +605,7 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
           onReject: () => _confirmAction(context, false),
           onApprove: () => _confirmAction(context, true),
         ),
+      ),
       ),
     );
   }
