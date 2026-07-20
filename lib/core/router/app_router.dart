@@ -34,6 +34,7 @@ import '../../features/history/data/models/order_history.dart';
 import '../../features/approval/presentation/pages/approval_inbox_page.dart';
 import '../../features/approval/presentation/pages/approval_detail_page.dart';
 import '../../features/approval/presentation/pages/approval_detail_loader_page.dart';
+import '../../features/approval/presentation/approval_detail_route_args.dart';
 import '../../features/quotation/data/quotation_model.dart';
 import '../../features/quotation/presentation/pages/quotation_history_page.dart';
 import '../../features/indirect/presentation/pages/sales_hub_page.dart';
@@ -165,6 +166,18 @@ OrderDetailRouteArgs? _orderDetailRouteArgsFromExtra(Object? extra) {
   final oh = _orderHistoryFromRouteExtra(extra);
   if (oh == null) return null;
   return OrderDetailRouteArgs(order: oh);
+}
+
+/// [GoRouter] `extra` untuk `/approval_detail`: [ApprovalDetailRouteArgs] atau [Map].
+ApprovalDetailRouteArgs? _approvalDetailRouteArgsFromExtra(Object? extra) {
+  if (extra == null) return null;
+  if (extra is ApprovalDetailRouteArgs) return extra;
+  if (extra is Map) {
+    return ApprovalDetailRouteArgs(
+      orderData: Map<String, dynamic>.from(extra),
+    );
+  }
+  return null;
 }
 
 /// Root navigator key used by GoRouter.
@@ -458,9 +471,39 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/approval_detail',
             name: 'approval-detail',
             pageBuilder: (context, state) {
-              final orderData = state.extra as Map<String, dynamic>;
+              final args = _approvalDetailRouteArgsFromExtra(state.extra);
+              if (args == null) {
+                return _adaptivePage(
+                  name: 'approval-detail',
+                  child: Scaffold(
+                    backgroundColor: AppColors.background,
+                    appBar: AppBar(
+                      title: const Text(
+                        'Persetujuan Diskon',
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      backgroundColor: AppColors.background,
+                      elevation: 0,
+                      foregroundColor: AppColors.textPrimary,
+                    ),
+                    body: ErrorStateView(
+                      title: 'Tidak bisa membuka persetujuan',
+                      message:
+                          'Data persetujuan tidak valid atau formatnya berbeda. '
+                          'Buka lagi dari Inbox Persetujuan.',
+                      onRetry: () =>
+                          GoRouter.of(context).go('/approval_inbox'),
+                      retryLabel: 'Ke inbox persetujuan',
+                    ),
+                  ),
+                );
+              }
               return _adaptivePage(
-                child: ApprovalDetailPage(orderData: orderData),
+                child: ApprovalDetailPage(orderData: args.orderData),
                 name: 'approval-detail',
               );
             },

@@ -8,6 +8,7 @@ import '../../../../core/widgets/order_list_card_frame.dart';
 import '../../../../core/widgets/status_chip.dart';
 import '../../../history/data/models/order_history.dart';
 import '../../../history/presentation/order_detail_route_args.dart';
+import '../approval_detail_route_args.dart';
 
 /// A single approval card in the inbox list.
 ///
@@ -135,9 +136,13 @@ class ApprovalCardItem extends StatelessWidget {
       totalText: AppFormatters.currencyIdr(amount),
       onTap: () {
         hapticTap();
-        final map = Map<String, dynamic>.from(orderWrap as Map);
+        if (orderWrap is! Map) return;
+        final map = Map<String, dynamic>.from(orderWrap);
         if (isPending) {
-          context.push('/approval_detail', extra: map);
+          context.push(
+            '/approval_detail',
+            extra: ApprovalDetailRouteArgs(orderData: map),
+          );
         } else {
           final orderHistory = OrderHistory.fromApiJson(map);
           context.push(

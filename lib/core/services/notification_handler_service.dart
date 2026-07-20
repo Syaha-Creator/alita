@@ -7,6 +7,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../firebase_options.dart';
+import '../../features/approval/presentation/approval_detail_route_args.dart';
 import '../../features/history/data/models/order_history.dart';
 import '../utils/log.dart';
 
@@ -281,7 +282,10 @@ class NotificationHandlerService {
         case 'approval_detail':
           final orderData = parseOrderData();
           if (orderData != null) {
-            router.push('/approval_detail', extra: orderData);
+            router.push(
+              '/approval_detail',
+              extra: ApprovalDetailRouteArgs(orderData: orderData),
+            );
             break;
           }
           pushApprovalFromOrderId();

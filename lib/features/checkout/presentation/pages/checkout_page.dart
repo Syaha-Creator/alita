@@ -59,6 +59,7 @@ import '../../../pricelist/logic/product_provider.dart';
 import '../../../cart/logic/cart_item_price_refresh.dart';
 import '../../../history/data/models/order_history.dart';
 import '../../../history/logic/edit_order_context_provider.dart';
+import '../../../history/presentation/order_detail_route_args.dart';
 import '../../../indirect/logic/indirect_session_provider.dart';
 import '../../data/models/approver_model.dart';
 // activeDraftProvider is exported from quotation_list_provider.dart
@@ -599,7 +600,16 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             duration: const Duration(seconds: 3),
           );
           if (context.mounted) {
-            context.go('/order_detail', extra: editCtx);
+            // Pop ke order detail sebelumnya (provider sudah di-invalidate).
+            // Hindari context.go yang menghapus seluruh stack.
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go(
+                '/order_detail',
+                extra: OrderDetailRouteArgs(order: editCtx),
+              );
+            }
           }
           return;
         }

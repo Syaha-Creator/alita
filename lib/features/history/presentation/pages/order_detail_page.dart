@@ -31,6 +31,7 @@ import '../../../../core/widgets/pdf_action_sheet.dart';
 import '../../../../core/widgets/section_card.dart';
 import '../../../approval/logic/approval_decision_service.dart';
 import '../../../approval/logic/approval_inbox_provider.dart';
+import '../../../approval/presentation/approval_detail_route_args.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../cart/logic/cart_provider.dart';
 import '../../../profile/logic/profile_provider.dart';
@@ -489,8 +490,10 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                                       hapticTap();
                                       context.push(
                                         '/approval_detail',
-                                        extra: currentOrder
-                                            .toApprovalOrderDataMap(),
+                                        extra: ApprovalDetailRouteArgs(
+                                          orderData: currentOrder
+                                              .toApprovalOrderDataMap(),
+                                        ),
                                       );
                                     },
                                     style: FilledButton.styleFrom(
