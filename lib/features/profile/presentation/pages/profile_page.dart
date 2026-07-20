@@ -6,6 +6,7 @@ import '../../../../core/services/storage_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/utils/telemetry_access.dart';
+import '../../../../core/widgets/go_router_pop_scope.dart';
 import '../../../../core/enums/order_status.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../history/logic/order_history_provider.dart';
@@ -139,6 +140,14 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         title: const Text('Profil'),
         elevation: 0,
         backgroundColor: AppColors.background,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          tooltip: 'Kembali',
+          onPressed: () => GoRouterPopScope.handlePop(
+            context,
+            fallbackLocation: '/',
+          ),
+        ),
       ),
       body: ProfileRefreshable(
         child: ListView(

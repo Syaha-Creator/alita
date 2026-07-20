@@ -11,6 +11,7 @@ import '../../../../core/widgets/animated_list_item.dart';
 import '../../../../core/widgets/date_range_filter_action.dart';
 import '../../../../core/widgets/empty_state_view.dart';
 import '../../../../core/widgets/error_state_view.dart';
+import '../../../../core/widgets/go_router_pop_scope.dart';
 // AsyncStateView no longer needed — using .when() directly for offline-aware error
 import '../../../../core/widgets/order_list_card_frame.dart';
 import '../../../../core/widgets/status_chip.dart';
@@ -63,6 +64,14 @@ class _OrderHistoryPageState extends ConsumerState<OrderHistoryPage> {
         elevation: 0,
         scrolledUnderElevation: 1,
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          tooltip: 'Kembali',
+          onPressed: () => GoRouterPopScope.handlePop(
+            context,
+            fallbackLocation: '/profile',
+          ),
+        ),
         actions: [
           DateRangeFilterAction(
             label: filterText,

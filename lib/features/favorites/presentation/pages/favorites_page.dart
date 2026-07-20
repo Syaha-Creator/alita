@@ -10,6 +10,7 @@ import '../../../../core/widgets/action_button_bar.dart';
 import '../../../../core/widgets/animated_list_item.dart';
 import '../../../../core/widgets/empty_state_view.dart';
 import '../../../../core/widgets/error_state_view.dart';
+import '../../../../core/widgets/go_router_pop_scope.dart';
 import '../../logic/favorites_provider.dart';
 import '../../../pricelist/data/models/product.dart';
 import '../../../pricelist/logic/product_provider.dart';
@@ -37,6 +38,14 @@ class FavoritesPage extends ConsumerWidget {
           style: Theme.of(context).textTheme.headlineMedium,
         ),
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          tooltip: 'Kembali',
+          onPressed: () => GoRouterPopScope.handlePop(
+            context,
+            fallbackLocation: '/',
+          ),
+        ),
         actions: [
           if (favoriteProducts.isNotEmpty)
             TextButton(
@@ -204,7 +213,7 @@ class FavoritesPage extends ConsumerWidget {
         primaryLabel: 'Lihat Katalog',
         primaryLeading: const Icon(Icons.arrow_back),
         onPrimaryPressed: () {
-          Navigator.of(context).pop();
+          GoRouterPopScope.handlePop(context, fallbackLocation: '/');
         },
       ),
       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),

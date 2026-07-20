@@ -9,6 +9,7 @@ import '../../../../core/utils/store_display_utils.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/utils/store_discount_calculator.dart';
+import '../../../../core/widgets/go_router_pop_scope.dart';
 import '../../../../core/widgets/price_block.dart';
 import '../../data/models/item_lookup.dart';
 import '../../data/models/product.dart';
@@ -687,7 +688,10 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
           isSharing: ref.watch(_sharingProvider),
           sharingProvider: _sharingProvider,
           onShareTap: _shareProduct,
-          onBackTap: () => Navigator.pop(context),
+          onBackTap: () => GoRouterPopScope.handlePop(
+            context,
+            fallbackLocation: '/',
+          ),
         ),
       ),
       body: GestureDetector(

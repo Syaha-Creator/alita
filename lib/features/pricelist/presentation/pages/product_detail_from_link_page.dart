@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/go_router_pop_scope.dart';
 import '../../data/models/product.dart';
 import '../../logic/product_provider.dart';
 import 'product_detail_page.dart';
@@ -33,7 +34,11 @@ class ProductDetailFromLinkPage extends ConsumerWidget {
           title: const Text('Memuat…'),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            onPressed: () => context.pop(),
+            tooltip: 'Kembali',
+            onPressed: () => GoRouterPopScope.handlePop(
+              context,
+              fallbackLocation: '/',
+            ),
           ),
         ),
         body: const Center(
@@ -49,7 +54,11 @@ class ProductDetailFromLinkPage extends ConsumerWidget {
           title: const Text('Detail Produk'),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            onPressed: () => context.go('/'),
+            tooltip: 'Kembali',
+            onPressed: () => GoRouterPopScope.handlePop(
+              context,
+              fallbackLocation: '/',
+            ),
           ),
         ),
         body: Center(

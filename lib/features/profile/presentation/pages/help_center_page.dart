@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/go_router_pop_scope.dart';
 import '../../data/help_center_data.dart';
 import '../widgets/faq_tile.dart';
 import '../widgets/help_contact_footer.dart';
@@ -69,6 +70,14 @@ class _HelpCenterPageState extends State<HelpCenterPage> {
         elevation: 0,
         backgroundColor: AppColors.background,
         foregroundColor: AppColors.textPrimary,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          tooltip: 'Kembali',
+          onPressed: () => GoRouterPopScope.handlePop(
+            context,
+            fallbackLocation: '/profile',
+          ),
+        ),
       ),
       body: Column(
         children: [

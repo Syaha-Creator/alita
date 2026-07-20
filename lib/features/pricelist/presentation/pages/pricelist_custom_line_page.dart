@@ -15,6 +15,7 @@ import '../../../../core/utils/store_display_utils.dart';
 import '../../../../core/utils/store_discount_calculator.dart';
 import '../../../../core/widgets/checkout_input_decoration.dart';
 import '../../../../core/widgets/form_field_label.dart';
+import '../../../../core/widgets/go_router_pop_scope.dart';
 import '../../../../core/widgets/quantity_stepper.dart';
 import '../../../../core/widgets/section_card.dart';
 import '../../../cart/data/cart_indirect_meta.dart';
@@ -690,6 +691,14 @@ class _PricelistCustomLinePageState
           ],
         ),
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          tooltip: 'Kembali',
+          onPressed: () => GoRouterPopScope.handlePop(
+            context,
+            fallbackLocation: '/',
+          ),
+        ),
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(

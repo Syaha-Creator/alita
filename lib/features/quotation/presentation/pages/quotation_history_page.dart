@@ -10,6 +10,7 @@ import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/widgets/animated_list_item.dart';
 import '../../../../core/widgets/app_search_field.dart';
 import '../../../../core/widgets/empty_state_view.dart';
+import '../../../../core/widgets/go_router_pop_scope.dart';
 import '../../data/quotation_model.dart';
 import '../../logic/quotation_list_provider.dart';
 import '../../logic/quotation_pdf_generator.dart';
@@ -167,6 +168,14 @@ class _QuotationHistoryPageState extends ConsumerState<QuotationHistoryPage> {
         elevation: 0,
         backgroundColor: AppColors.background,
         foregroundColor: AppColors.textPrimary,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          tooltip: 'Kembali',
+          onPressed: () => GoRouterPopScope.handlePop(
+            context,
+            fallbackLocation: '/profile',
+          ),
+        ),
         actions: [
           PopupMenuButton<_SortMode>(
             icon: const Icon(Icons.sort_rounded, size: 22),

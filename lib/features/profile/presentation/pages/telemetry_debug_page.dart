@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/go_router_pop_scope.dart';
 
 /// Internal page for admin to understand telemetry coverage quickly.
 class TelemetryDebugPage extends StatelessWidget {
@@ -59,6 +60,14 @@ class TelemetryDebugPage extends StatelessWidget {
         title: const Text('Telemetry Debug'),
         backgroundColor: AppColors.background,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          tooltip: 'Kembali',
+          onPressed: () => GoRouterPopScope.handlePop(
+            context,
+            fallbackLocation: '/profile',
+          ),
+        ),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
