@@ -206,7 +206,11 @@ class CartItemBuilder {
 
     // ── Bonus snapshots ──
 
-    final bonusSnapshots = customBonuses != null && customBonuses.isNotEmpty
+    // `customBonuses != null` menandakan user sudah pernah membuka editor
+    // bonus (termasuk mengosongkannya secara sengaja). List kosong TIDAK
+    // boleh jatuh ke bonus default produk — jika tidak, bonus yang sudah
+    // dihapus user akan "muncul lagi" saat dikirim ke server.
+    final bonusSnapshots = customBonuses != null
         ? _buildCustomBonusSnapshots(customBonuses, groupedLookups,
             effectiveSize: effectiveSize)
         : _buildBonusSnapshots(activeProduct, groupedLookups,
@@ -245,7 +249,7 @@ class CartItemBuilder {
       discount3: discPct3,
       discount4: discPct4,
       bonusSnapshots: bonusSnapshots,
-      isBonusCustomized: customBonuses != null && customBonuses.isNotEmpty,
+      isBonusCustomized: customBonuses != null,
       isCustomSize: isCustomSize,
       indirectStoreAddressNumber: indirectMeta?.addressNumber,
       indirectStoreAlphaName: indirectMeta?.alphaName ?? '',

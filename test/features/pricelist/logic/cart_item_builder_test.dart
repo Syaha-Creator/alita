@@ -9,6 +9,9 @@ Product _p({
   String headboard = 'Tanpa Headboard',
   String sorong = 'Tanpa Sorong',
   double price = 1_000,
+  String? bonus1,
+  int? qtyBonus1,
+  double? plBonus1,
 }) {
   return Product(
     id: '1',
@@ -34,6 +37,9 @@ Product _p({
     plDivan: 0,
     plHeadboard: 0,
     plSorong: 0,
+    bonus1: bonus1,
+    qtyBonus1: qtyBonus1,
+    plBonus1: plBonus1,
   );
 }
 
@@ -186,6 +192,83 @@ void main() {
       expect(item.bonusSnapshots, hasLength(1));
       expect(item.bonusSnapshots.single.sku, 'BONUS-SKU');
       expect(item.bonusSnapshots.single.qty, 2);
+    });
+
+    test('emptied customBonuses does NOT fall back to product default bonus',
+        () {
+      // Product punya bonus default (bantal), tapi user membuka editor bonus
+      // dan menghapus semuanya (Simpan Perubahan dengan list kosong).
+      final active = _p(bonus1: 'Bantal Default', qtyBonus1: 1, plBonus1: 50);
+
+      final item = CartItemBuilder.build(
+        activeProduct: active,
+        masterProduct: active,
+        effectiveSize: '180',
+        effectiveDivan: 'Tanpa Divan',
+        effectiveHeadboard: 'Tanpa Headboard',
+        effectiveSorong: 'Tanpa Sorong',
+        totalFinalPrice: 1000,
+        finalKasurPrice: 1000,
+        finalDivanPrice: 0,
+        finalHeadboardPrice: 0,
+        finalSorongPrice: 0,
+        isKasurOnly: true,
+        appliedDiscounts: const [],
+        groupedLookups: const {},
+        isKasurCustom: false,
+        effectiveKasurLookup: null,
+        customKasurNote: '',
+        isDivanCustom: false,
+        effectiveDivanLookup: null,
+        customDivanNote: '',
+        isHeadboardCustom: false,
+        effectiveHeadboardLookup: null,
+        customHbNote: '',
+        isSorongCustom: false,
+        effectiveSorongLookup: null,
+        customSorongNote: '',
+        customBonuses: const [],
+      );
+
+      expect(item.bonusSnapshots, isEmpty);
+      expect(item.isBonusCustomized, isTrue);
+    });
+
+    test('null customBonuses falls back to product default bonus', () {
+      final active = _p(bonus1: 'Bantal Default', qtyBonus1: 1, plBonus1: 50);
+
+      final item = CartItemBuilder.build(
+        activeProduct: active,
+        masterProduct: active,
+        effectiveSize: '180',
+        effectiveDivan: 'Tanpa Divan',
+        effectiveHeadboard: 'Tanpa Headboard',
+        effectiveSorong: 'Tanpa Sorong',
+        totalFinalPrice: 1000,
+        finalKasurPrice: 1000,
+        finalDivanPrice: 0,
+        finalHeadboardPrice: 0,
+        finalSorongPrice: 0,
+        isKasurOnly: true,
+        appliedDiscounts: const [],
+        groupedLookups: const {},
+        isKasurCustom: false,
+        effectiveKasurLookup: null,
+        customKasurNote: '',
+        isDivanCustom: false,
+        effectiveDivanLookup: null,
+        customDivanNote: '',
+        isHeadboardCustom: false,
+        effectiveHeadboardLookup: null,
+        customHbNote: '',
+        isSorongCustom: false,
+        effectiveSorongLookup: null,
+        customSorongNote: '',
+      );
+
+      expect(item.bonusSnapshots, hasLength(1));
+      expect(item.bonusSnapshots.single.name, 'Bantal Default');
+      expect(item.isBonusCustomized, isFalse);
     });
   });
 }
