@@ -131,6 +131,38 @@ void main() {
           isFalse,
         );
       });
+
+      test('false when only discount4 (Analyst, not RSM)', () {
+        final cart = [_indirectItem(discount4: 5)];
+        expect(
+          IndirectApprovalRules.requiresRsm(
+            cartItems: cart,
+            isKlausRuleActive: false,
+          ),
+          isFalse,
+        );
+      });
+
+      test('false when only new-customer store (ASM, not RSM)', () {
+        final cart = [_indirectItem(isNewCustomerStore: true)];
+        expect(
+          IndirectApprovalRules.requiresRsm(
+            cartItems: cart,
+            isKlausRuleActive: false,
+          ),
+          isFalse,
+        );
+        expect(
+          IndirectApprovalRules.requiresAsm(
+            isCustomerBaruShipping: false,
+            hasNewCustomerStoreItem: true,
+            hasFocVoucherItem: false,
+            hasMedanPricelistItem: false,
+            hasCustomSizeItem: false,
+          ),
+          isTrue,
+        );
+      });
     });
 
     group('autoApprove', () {

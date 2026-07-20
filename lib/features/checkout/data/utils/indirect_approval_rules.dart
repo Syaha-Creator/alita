@@ -25,7 +25,11 @@ class IndirectApprovalRules {
         hasCustomSizeItem;
   }
 
-  /// RSM wajib: diskon tambahan, bonus diubah, customer baru toko, Klaus, d4.
+  /// RSM wajib: diskon tambahan d1–d3, bonus diubah, atau Klaus.
+  ///
+  /// Selaras [CheckoutDiscountBuilder] (indirect):
+  /// - d4 → Analyst (bukan RSM)
+  /// - customer baru toko → ASM ([requiresAsm]), bukan RSM
   static bool requiresRsm({
     required List<CartItem> cartItems,
     required bool isKlausRuleActive,
@@ -36,9 +40,7 @@ class IndirectApprovalRules {
       return item.discount1 > 0 ||
           item.discount2 > 0 ||
           item.discount3 > 0 ||
-          item.discount4 > 0 ||
-          item.isBonusCustomized ||
-          item.isNewCustomerStore;
+          item.isBonusCustomized;
     });
   }
 
