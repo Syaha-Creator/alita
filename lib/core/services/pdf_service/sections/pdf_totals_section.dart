@@ -1,6 +1,7 @@
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+import '../../../utils/payment_verification_utils.dart';
 import 'pdf_helpers.dart';
 
 /// Builds the notes, totals, and payment summary section.
@@ -26,13 +27,17 @@ abstract final class PdfTotalsSection {
       final net = PdfHelpers.dbl(d['net_price'] ?? d['customer_price']);
       return sum + net * (qty > 0 ? qty : 1);
     }).roundToDouble();
-    final totalPaid = payments.fold<double>(
+    // Baris `verified == false` (ditolak/duplikat/invalid) dikeluarkan dari
+    // Total Dibayar & daftar cicilan supaya tidak dobel-hitung.
+    final countedPayments =
+        payments.where((p) => paymentCountsTowardTotal(p['verified'])).toList();
+    final totalPaid = countedPayments.fold<double>(
         0, (s, p) => s + PdfHelpers.dbl(p['payment_amount']));
     final remaining = grandTotal - totalPaid;
     final paymentRows = <pw.Widget>[];
-    if (payments.isNotEmpty) {
-      for (var i = 0; i < payments.length; i++) {
-        final p = payments[i];
+    if (countedPayments.isNotEmpty) {
+      for (var i = 0; i < countedPayments.length; i++) {
+        final p = countedPayments[i];
         final amount = PdfHelpers.dbl(p['payment_amount']);
         final bank = p['payment_bank']?.toString() ?? '';
         final method = p['payment_method']?.toString() ?? '';

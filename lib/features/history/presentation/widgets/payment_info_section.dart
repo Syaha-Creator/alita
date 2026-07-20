@@ -22,16 +22,22 @@ class PaymentInfoSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final totalPaid =
-        order.payments.fold<double>(0, (sum, payment) => sum + payment.amount);
+    // Baris `verified == false` (ditolak/duplikat/invalid) disembunyikan dari
+    // riwayat — sama seperti PDF — supaya tidak terlihat seolah "dobel".
+    final visiblePayments =
+        order.payments.where((p) => p.countsTowardTotal).toList();
+    final totalPaid = visiblePayments.fold<double>(
+      0,
+      (sum, payment) => sum + payment.amount,
+    );
     final remaining = (order.totalAmount - totalPaid).clamp(0.0, double.infinity);
 
-    if (order.payments.isEmpty && remaining <= 0) {
+    if (visiblePayments.isEmpty && remaining <= 0) {
       return const SizedBox.shrink();
     }
 
     final paymentItems = <Widget>[
-      if (order.payments.isEmpty)
+      if (visiblePayments.isEmpty)
         Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
@@ -61,13 +67,13 @@ class PaymentInfoSection extends StatelessWidget {
             ],
           ),
         ),
-      ...order.payments.map(
+      ...visiblePayments.map(
         (payment) => DetailPaymentItemRow(
           method: payment.method,
           bank: payment.bank,
           amountText: currencyFormatter(payment.amount),
           receiptImageUrl: payment.image,
-          verified: payment.verified,
+          verified: payment.verified ?? false,
           onTapReceipt: payment.image.isNotEmpty
               ? () => onTapReceipt(payment.image)
               : null,

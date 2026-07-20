@@ -10,6 +10,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:alitapricelist/features/history/data/models/order_history.dart';
 
 import '../../utils/log.dart';
+import '../../utils/payment_verification_utils.dart';
 import '../pdf_asset_cache.dart';
 import 'sections/pdf_helpers.dart';
 import 'sections/pdf_header_section.dart';
@@ -259,8 +260,9 @@ class InvoicePdfGenerator {
     List<Map<String, dynamic>> payments,
     double grandTotal,
   ) async {
-    final paid = payments.fold<double>(
-        0, (s, p) => s + PdfHelpers.dbl(p['payment_amount']));
+    final paid = payments
+        .where((p) => paymentCountsTowardTotal(p['verified']))
+        .fold<double>(0, (s, p) => s + PdfHelpers.dbl(p['payment_amount']));
     final isPaid = grandTotal > 0 && grandTotal - paid <= 0;
     final allApproved = approvals.isNotEmpty &&
         approvals.every((a) => PdfHelpers.isApprovedStatus(a['approved']));
@@ -411,6 +413,7 @@ class InvoicePdfGenerator {
                 'payment_bank': p.bank,
                 'payment_date': p.paymentDate,
                 'created_at': p.createdAt,
+                'verified': p.verified,
               })
           .toList(),
       'creator': order.creator,
@@ -430,13 +433,18 @@ class InvoicePdfGenerator {
     double grandTotal,
   ) {
     final rawPayments = orderData['order_letter_payments'];
-    final payments = rawPayments is List
+    final allPayments = rawPayments is List
         ? rawPayments
             .map((e) => e is Map<String, dynamic>
                 ? e
                 : Map<String, dynamic>.from(e as Map))
             .toList()
         : fallbackPayments;
+    // `verified == false` (ditolak/duplikat/invalid) tidak dihitung sebagai
+    // pelunasan.
+    final payments = allPayments
+        .where((p) => paymentCountsTowardTotal(p['verified']))
+        .toList();
 
     if (payments.isEmpty) return '-';
 

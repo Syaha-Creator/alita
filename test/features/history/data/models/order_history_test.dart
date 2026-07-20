@@ -197,6 +197,43 @@ void main() {
       expect(order.createdAt, isNotNull);
       expect(order.createdAt!.year, 2026);
     });
+
+    test('skips non-Map details and payments without throwing', () {
+      final json = <String, dynamic>{
+        'order_letter': {
+          'id': 1,
+          'no_sp': 'SP-SAFE',
+          'order_date': '-',
+          'request_date': '-',
+          'note': '',
+          'customer_name': 'A',
+          'phone': '-',
+          'address': '-',
+          'extended_amount': 0,
+          'status': 'P',
+        },
+        'order_letter_details': <dynamic>[
+          'bad-row',
+          <String, dynamic>{
+            'id': 10,
+            'item_name': 'Kasur',
+            'qty': 1,
+            'price': 1000,
+            'type': 'Kasur',
+            'desc_1': 'Kasur',
+          },
+        ],
+        'order_letter_payments': <dynamic>[
+          42,
+          <String, dynamic>{'id': 1, 'amount': 1000},
+        ],
+      };
+
+      final order = OrderHistory.fromApiJson(json);
+      expect(order.details, hasLength(1));
+      expect(order.payments, hasLength(1));
+      expect(order.details.first.noSp, 'SP-SAFE');
+    });
   });
 
   group('OrderHistoryX extension', () {
@@ -342,6 +379,30 @@ void main() {
       expect(payment.bank, '-');
       expect(payment.amount, 0.0);
       expect(payment.image, '');
+    });
+
+    test('verified stays null (not false) when API omits the field', () {
+      // Regression: null harus dibedakan dari false eksplisit, supaya
+      // pembayaran yang "belum direview" tetap ikut dihitung, bukan
+      // dianggap sama dengan yang ditolak.
+      final payment = OrderPayment.fromApiJson(const <String, dynamic>{});
+      expect(payment.verified, isNull);
+      expect(payment.countsTowardTotal, isTrue);
+    });
+
+    test('verified true counts toward total', () {
+      final payment =
+          OrderPayment.fromApiJson(const <String, dynamic>{'verified': true});
+      expect(payment.verified, isTrue);
+      expect(payment.countsTowardTotal, isTrue);
+    });
+
+    test('verified false (ditolak/duplikat) is excluded from total', () {
+      final payment = OrderPayment.fromApiJson(
+        const <String, dynamic>{'verified': false},
+      );
+      expect(payment.verified, isFalse);
+      expect(payment.countsTowardTotal, isFalse);
     });
   });
 

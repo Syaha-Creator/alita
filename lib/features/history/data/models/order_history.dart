@@ -1,4 +1,6 @@
 import 'package:alitapricelist/core/enums/order_status.dart';
+import 'package:alitapricelist/core/utils/payment_verification_utils.dart';
+import 'package:alitapricelist/core/utils/safe_json_list.dart';
 import 'package:alitapricelist/core/utils/take_away_parse.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
@@ -14,11 +16,15 @@ double _parseDouble(dynamic value) {
   return double.tryParse(value.toString()) ?? 0.0;
 }
 
-bool _parseBoolDefaultFalse(dynamic value) {
-  if (value == null) return false;
+/// Parser tri-state untuk `verified`: TIDAK mengubah `null` menjadi `false`
+/// supaya "belum direview" (null) bisa dibedakan dari "ditolak" (false) —
+/// lihat [paymentCountsTowardTotal].
+bool? _parseBoolNullable(dynamic value) {
+  if (value == null) return null;
   if (value is bool) return value;
   if (value is num) return value != 0;
-  final s = value.toString().toLowerCase();
+  final s = value.toString().trim().toLowerCase();
+  if (s.isEmpty || s == 'null') return null;
   return s == 'true' || s == '1';
 }
 
@@ -110,14 +116,19 @@ class OrderHistory with _$OrderHistory {
 
     // Inject parent no_sp into every raw detail map BEFORE parsing,
     // because the API returns null for no_sp at the detail level.
+    // Skip non-Map elements — `.cast` would throw TypeError on bad API rows.
+    final detailsList = <Map<String, dynamic>>[];
     for (final item in rawDetails) {
-      if (item is Map<String, dynamic>) {
-        item['no_sp'] = parentNoSp;
-      }
+      if (item is! Map) continue;
+      final map = Map<String, dynamic>.from(item);
+      map['no_sp'] = parentNoSp;
+      detailsList.add(map);
     }
 
-    final detailsList = rawDetails.cast<Map<String, dynamic>>();
-    final paymentsList = rawPayments.cast<Map<String, dynamic>>();
+    final paymentsList = safeMapList(
+      rawPayments,
+      fieldName: 'order_letter_payments',
+    );
 
     return OrderHistory(
       id: (letter['id'] as num?)?.toInt() ?? 0,
@@ -249,6 +260,7 @@ extension OrderHistoryX on OrderHistory {
               'image': p.image,
               'payment_date': p.paymentDate,
               'created_at': p.createdAt,
+              'verified': p.verified,
             },
           )
           .toList(),
@@ -315,8 +327,10 @@ class OrderDetail with _$OrderDetail {
     Map<String, dynamic> json, {
     String parentNoSp = '-',
   }) {
-    final discList = (json['order_letter_discount'] as List? ?? const [])
-        .cast<Map<String, dynamic>>();
+    final discList = safeMapList(
+      json['order_letter_discount'],
+      fieldName: 'order_letter_discount',
+    );
     final parsedDiscounts = discList.map(OrderDiscount.fromApiJson).toList()
       ..sort((a, b) {
         final levelCmp = a.approverLevelId.compareTo(b.approverLevelId);
@@ -403,8 +417,11 @@ class OrderPayment with _$OrderPayment {
     required String image,
     @Default('') String paymentDate,
     @Default('') String createdAt,
-    /// True jika pembayaran sudah diverifikasi (field `verified` dari API).
-    @JsonKey(fromJson: _parseBoolDefaultFalse) @Default(false) bool verified,
+    /// Status verifikasi finance dari API, tri-state:
+    /// `true` = terverifikasi, `false` = ditolak/invalid, `null` = belum
+    /// direview. Jangan collapse `null` ke `false` — lihat
+    /// [paymentCountsTowardTotal] untuk cara menghitung total yang benar.
+    @JsonKey(fromJson: _parseBoolNullable) bool? verified,
   }) = _OrderPayment;
 
   factory OrderPayment.fromJson(Map<String, dynamic> json) =>
@@ -418,7 +435,13 @@ class OrderPayment with _$OrderPayment {
       image: json['image']?.toString() ?? '',
       paymentDate: json['payment_date']?.toString() ?? '',
       createdAt: json['created_at']?.toString() ?? '',
-      verified: _parseBoolDefaultFalse(json['verified']),
+      verified: _parseBoolNullable(json['verified']),
     );
   }
+}
+
+extension OrderPaymentX on OrderPayment {
+  /// `true` kecuali `verified` eksplisit `false` (ditolak/duplikat/invalid).
+  /// Pakai ini — bukan `verified` mentah — saat menjumlahkan Total Dibayar.
+  bool get countsTowardTotal => paymentCountsTowardTotal(verified);
 }

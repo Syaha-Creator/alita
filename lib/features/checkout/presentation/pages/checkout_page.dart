@@ -2221,10 +2221,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   ///     - `< 0` → kelebihan bayar (overpaid)
   ///     - `= 0` → lunas
   _EditSelisih _computeEditSelisih(OrderHistory order) {
-    final totalDibayar = order.payments.fold<double>(
-      0,
-      (sum, p) => sum + p.amount,
-    );
+    final totalDibayar = order.payments
+        .where((p) => p.countsTowardTotal)
+        .fold<double>(0, (sum, p) => sum + p.amount);
     final totalTagihan = _totalAkhir;
     final sisaTagihan = totalTagihan - totalDibayar;
     return _EditSelisih(

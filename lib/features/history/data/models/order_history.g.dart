@@ -164,9 +164,7 @@ _$OrderPaymentImpl _$$OrderPaymentImplFromJson(Map<String, dynamic> json) =>
       image: json['image'] as String,
       paymentDate: json['paymentDate'] as String? ?? '',
       createdAt: json['createdAt'] as String? ?? '',
-      verified: json['verified'] == null
-          ? false
-          : _parseBoolDefaultFalse(json['verified']),
+      verified: _parseBoolNullable(json['verified']),
     );
 
 Map<String, dynamic> _$$OrderPaymentImplToJson(_$OrderPaymentImpl instance) =>

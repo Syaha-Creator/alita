@@ -1759,9 +1759,12 @@ mixin _$OrderPayment {
   String get paymentDate => throw _privateConstructorUsedError;
   String get createdAt => throw _privateConstructorUsedError;
 
-  /// True jika pembayaran sudah diverifikasi (field `verified` dari API).
-  @JsonKey(fromJson: _parseBoolDefaultFalse)
-  bool get verified => throw _privateConstructorUsedError;
+  /// Status verifikasi finance dari API, tri-state:
+  /// `true` = terverifikasi, `false` = ditolak/invalid, `null` = belum
+  /// direview. Jangan collapse `null` ke `false` — lihat
+  /// [paymentCountsTowardTotal] untuk cara menghitung total yang benar.
+  @JsonKey(fromJson: _parseBoolNullable)
+  bool? get verified => throw _privateConstructorUsedError;
 
   /// Serializes this OrderPayment to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -1786,7 +1789,7 @@ abstract class $OrderPaymentCopyWith<$Res> {
       String image,
       String paymentDate,
       String createdAt,
-      @JsonKey(fromJson: _parseBoolDefaultFalse) bool verified});
+      @JsonKey(fromJson: _parseBoolNullable) bool? verified});
 }
 
 /// @nodoc
@@ -1810,7 +1813,7 @@ class _$OrderPaymentCopyWithImpl<$Res, $Val extends OrderPayment>
     Object? image = null,
     Object? paymentDate = null,
     Object? createdAt = null,
-    Object? verified = null,
+    Object? verified = freezed,
   }) {
     return _then(_value.copyWith(
       method: null == method
@@ -1837,10 +1840,10 @@ class _$OrderPaymentCopyWithImpl<$Res, $Val extends OrderPayment>
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
               as String,
-      verified: null == verified
+      verified: freezed == verified
           ? _value.verified
           : verified // ignore: cast_nullable_to_non_nullable
-              as bool,
+              as bool?,
     ) as $Val);
   }
 }
@@ -1860,7 +1863,7 @@ abstract class _$$OrderPaymentImplCopyWith<$Res>
       String image,
       String paymentDate,
       String createdAt,
-      @JsonKey(fromJson: _parseBoolDefaultFalse) bool verified});
+      @JsonKey(fromJson: _parseBoolNullable) bool? verified});
 }
 
 /// @nodoc
@@ -1882,7 +1885,7 @@ class __$$OrderPaymentImplCopyWithImpl<$Res>
     Object? image = null,
     Object? paymentDate = null,
     Object? createdAt = null,
-    Object? verified = null,
+    Object? verified = freezed,
   }) {
     return _then(_$OrderPaymentImpl(
       method: null == method
@@ -1909,10 +1912,10 @@ class __$$OrderPaymentImplCopyWithImpl<$Res>
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
               as String,
-      verified: null == verified
+      verified: freezed == verified
           ? _value.verified
           : verified // ignore: cast_nullable_to_non_nullable
-              as bool,
+              as bool?,
     ));
   }
 }
@@ -1927,7 +1930,7 @@ class _$OrderPaymentImpl implements _OrderPayment {
       required this.image,
       this.paymentDate = '',
       this.createdAt = '',
-      @JsonKey(fromJson: _parseBoolDefaultFalse) this.verified = false});
+      @JsonKey(fromJson: _parseBoolNullable) this.verified});
 
   factory _$OrderPaymentImpl.fromJson(Map<String, dynamic> json) =>
       _$$OrderPaymentImplFromJson(json);
@@ -1948,10 +1951,13 @@ class _$OrderPaymentImpl implements _OrderPayment {
   @JsonKey()
   final String createdAt;
 
-  /// True jika pembayaran sudah diverifikasi (field `verified` dari API).
+  /// Status verifikasi finance dari API, tri-state:
+  /// `true` = terverifikasi, `false` = ditolak/invalid, `null` = belum
+  /// direview. Jangan collapse `null` ke `false` — lihat
+  /// [paymentCountsTowardTotal] untuk cara menghitung total yang benar.
   @override
-  @JsonKey(fromJson: _parseBoolDefaultFalse)
-  final bool verified;
+  @JsonKey(fromJson: _parseBoolNullable)
+  final bool? verified;
 
   @override
   String toString() {
@@ -2004,7 +2010,7 @@ abstract class _OrderPayment implements OrderPayment {
           required final String image,
           final String paymentDate,
           final String createdAt,
-          @JsonKey(fromJson: _parseBoolDefaultFalse) final bool verified}) =
+          @JsonKey(fromJson: _parseBoolNullable) final bool? verified}) =
       _$OrderPaymentImpl;
 
   factory _OrderPayment.fromJson(Map<String, dynamic> json) =
@@ -2024,10 +2030,13 @@ abstract class _OrderPayment implements OrderPayment {
   @override
   String get createdAt;
 
-  /// True jika pembayaran sudah diverifikasi (field `verified` dari API).
+  /// Status verifikasi finance dari API, tri-state:
+  /// `true` = terverifikasi, `false` = ditolak/invalid, `null` = belum
+  /// direview. Jangan collapse `null` ke `false` — lihat
+  /// [paymentCountsTowardTotal] untuk cara menghitung total yang benar.
   @override
-  @JsonKey(fromJson: _parseBoolDefaultFalse)
-  bool get verified;
+  @JsonKey(fromJson: _parseBoolNullable)
+  bool? get verified;
 
   /// Create a copy of OrderPayment
   /// with the given fields replaced by the non-null parameter values.

@@ -219,10 +219,9 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
       myName: myName,
     );
 
-    final totalPaid = currentOrder.payments.fold<double>(
-      0,
-      (sum, payment) => sum + payment.amount,
-    );
+    final totalPaid = currentOrder.payments
+        .where((payment) => payment.countsTowardTotal)
+        .fold<double>(0, (sum, payment) => sum + payment.amount);
     final remainingPayment =
         (currentOrder.totalAmount - totalPaid).clamp(0.0, double.infinity);
 
