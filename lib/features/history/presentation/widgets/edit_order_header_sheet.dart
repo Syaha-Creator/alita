@@ -8,6 +8,7 @@ import '../../../../core/services/storage_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/utils/app_formatters.dart';
+import '../../../../core/utils/log.dart';
 import '../../../../core/utils/platform_utils.dart';
 import '../../../../core/widgets/loading_overlay.dart';
 import '../../data/models/order_history.dart';
@@ -132,7 +133,7 @@ class _EditOrderHeaderSheetState extends ConsumerState<EditOrderHeaderSheet> {
       lastDate: now.add(const Duration(days: 365 * 2)),
       helpText: 'Tanggal Kirim',
     );
-    if (picked != null) setState(() => _requestDate = picked);
+    if (picked != null && mounted) setState(() => _requestDate = picked);
   }
 
   Future<void> _submit() async {
@@ -174,7 +175,14 @@ class _EditOrderHeaderSheetState extends ConsumerState<EditOrderHeaderSheet> {
       final token = await StorageService.loadAccessToken();
       final postageRaw =
           _postageCtrl.text.replaceAll(RegExp(r'[^0-9]'), '').trim();
-      final postage = postageRaw.isEmpty ? 0.0 : double.parse(postageRaw);
+      final postage = postageRaw.isEmpty
+          ? 0.0
+          : (double.tryParse(postageRaw) ?? 0.0);
+      // `extended_amount` = subtotal item + ongkir. Server tidak menghitung
+      // ulang otomatis, jadi harus di-recompute & dikirim setiap ongkir
+      // diedit — subtotal diambil dari total lama dikurangi ongkir lama.
+      final itemsSubtotal = widget.order.totalAmount - widget.order.postage;
+      final extendedAmount = itemsSubtotal + postage;
       final payload = EditOrderHeaderService.buildHeaderPayload(
         customerName: _customerNameCtrl.text,
         phone: _phoneCtrl.text,
@@ -189,6 +197,7 @@ class _EditOrderHeaderSheetState extends ConsumerState<EditOrderHeaderSheet> {
         salesCode: _salesCodeCtrl.text,
         note: _noteCtrl.text,
         postage: postage,
+        extendedAmount: extendedAmount,
         status: isIndirect ? 'Approved' : 'Pending',
       );
 
@@ -222,11 +231,15 @@ class _EditOrderHeaderSheetState extends ConsumerState<EditOrderHeaderSheet> {
         type: AppFeedbackType.success,
         floating: true,
       );
-    } catch (e) {
+    } catch (e, st) {
       if (!mounted) return;
       LoadingOverlay.dismiss(context);
       setState(() => _isSubmitting = false);
       if (e is ApiSessionExpiredException) {
+        Log.warning(
+          'Edit order header session expired: ${e.detail}',
+          tag: 'EditOrderHeader',
+        );
         AppFeedback.show(
           context,
           message: e.toString(),
@@ -236,6 +249,7 @@ class _EditOrderHeaderSheetState extends ConsumerState<EditOrderHeaderSheet> {
         );
         return;
       }
+      Log.error(e, st, reason: 'EditOrderHeader._submit');
       AppFeedback.show(
         context,
         message: e.toString().replaceFirst('Exception: ', ''),

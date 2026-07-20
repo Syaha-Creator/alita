@@ -41,6 +41,10 @@ class EditOrderHeaderService {
     String? note,
     double postage = 0,
     String status = 'Pending',
+    /// `extended_amount` (grand total) baru = subtotal item + [postage].
+    /// WAJIB ikut dikirim setiap ongkir berubah — `order_letters.extended_amount`
+    /// tidak dihitung ulang otomatis oleh server.
+    required double extendedAmount,
   }) {
     final cleanNoPo = noPo?.trim();
     final cleanSalesCode = salesCode?.trim();
@@ -58,6 +62,7 @@ class EditOrderHeaderService {
           : cleanSalesCode,
       'note': note?.trim() ?? '',
       'postage': postage,
+      'extended_amount': extendedAmount,
       'status': status,
     };
   }

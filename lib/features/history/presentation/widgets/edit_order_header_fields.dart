@@ -230,11 +230,11 @@ class EditOrderDateField extends StatelessWidget {
               isDense: true,
             ),
             style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
-            controller: TextEditingController(
-              text: requestDate != null
-                  ? DateFormat('dd MMM yyyy', 'id_ID').format(requestDate!)
-                  : '',
-            ),
+            // Key + initialValue: rebuild saat tanggal berubah, tanpa leak controller.
+            key: ValueKey(requestDate?.millisecondsSinceEpoch ?? 0),
+            initialValue: requestDate != null
+                ? DateFormat('dd MMM yyyy', 'id_ID').format(requestDate!)
+                : '',
             validator: (_) =>
                 requestDate == null ? 'Tanggal kirim wajib dipilih' : null,
           ),
