@@ -80,7 +80,11 @@ class AuthService {
   AuthLoginResult _parseSuccessResponse(String body, String fallbackEmail) {
     final Map<String, dynamic> data;
     try {
-      data = jsonDecode(body) as Map<String, dynamic>;
+      final decoded = jsonDecode(body);
+      if (decoded is! Map) {
+        throw 'Format response tidak valid dari server.';
+      }
+      data = Map<String, dynamic>.from(decoded);
     } on FormatException {
       throw 'Format response tidak valid dari server.';
     }

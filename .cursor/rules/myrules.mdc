@@ -209,6 +209,7 @@ Before writing ANY new widget, utility, style, or layout, you MUST check this in
 | `ShippingUtils` | Shipping-related helpers | Checkout/delivery |
 | `PlatformUtils` | Platform detection helpers | Platform-specific behavior |
 | `AppTelemetry` | `event()`, `error()` performance/error tracking | Telemetry reporting |
+| `safeMapList()` | Coerce dynamic JSON into `List<Map<String, dynamic>>`, skipping non-Map elements | Parsing untrusted API/cache list data — replaces `.cast<Map<String, dynamic>>()` |
 
 ## Theme (`lib/core/theme/`)
 | Token | Purpose | USE WHEN |

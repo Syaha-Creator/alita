@@ -3,6 +3,7 @@ import 'package:pdf/widgets.dart' as pw;
 
 import 'package:alitapricelist/core/enums/order_status.dart';
 import 'package:alitapricelist/core/utils/log.dart';
+import 'package:alitapricelist/core/utils/safe_json_list.dart';
 
 /// Shared PDF utilities used across multiple section builders.
 abstract final class PdfHelpers {
@@ -25,16 +26,14 @@ abstract final class PdfHelpers {
     return int.tryParse(v.toString()) ?? 0;
   }
 
-  static List<Map<String, dynamic>> toListMap(dynamic data) {
-    if (data == null) return [];
-    if (data is List) {
-      return data
-          .map((e) => e is Map<String, dynamic>
-              ? e
-              : Map<String, dynamic>.from(e as Map))
-          .toList();
-    }
-    return [];
+  static List<Map<String, dynamic>> toListMap(dynamic data) =>
+      safeMapList(data);
+
+  /// Safe Map coerce — null jika [data] bukan Map (hindari TypeError di PDF).
+  static Map<String, dynamic>? toMap(dynamic data) {
+    if (data is Map<String, dynamic>) return data;
+    if (data is Map) return Map<String, dynamic>.from(data);
+    return null;
   }
 
   /// Kumpulkan baris diskon untuk PDF: root `order_letter_discounts` atau

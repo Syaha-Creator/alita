@@ -33,12 +33,20 @@ final profileProvider = FutureProvider<UserProfile?>((ref) async {
       throw Exception('Gagal memuat profil ($code)');
     }
 
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    final decodedBody = jsonDecode(response.body);
+    if (decodedBody is! Map) {
+      throw Exception('Format respons profil tidak valid.');
+    }
+    final body = Map<String, dynamic>.from(decodedBody);
     final result = body['result'] as List?;
 
     if (result == null || result.isEmpty) return null;
+    final first = result[0];
+    if (first is! Map) {
+      throw Exception('Format data profil tidak valid.');
+    }
 
-    final profile = UserProfile.fromJson(result[0] as Map<String, dynamic>);
+    final profile = UserProfile.fromJson(Map<String, dynamic>.from(first));
     if (profile.workTitle.isNotEmpty) {
       await StorageService.saveWorkTitle(profile.workTitle);
     }

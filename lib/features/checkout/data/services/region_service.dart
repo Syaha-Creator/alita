@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/config/app_config.dart';
 import '../../../../core/services/api_client.dart';
 import '../../../../core/utils/log.dart';
+import '../../../../core/utils/safe_json_list.dart';
 
 /// Fetches Indonesian administrative region data from the Emsifa open API
 /// and caches each endpoint on disk (not SharedPreferences) to avoid large
@@ -49,7 +50,7 @@ class RegionService {
         if (cached.isNotEmpty) {
           final decoded = json.decode(cached);
           if (decoded is List) {
-            return decoded.cast<Map<String, dynamic>>();
+            return safeMapList(decoded);
           }
         }
       }
@@ -63,7 +64,7 @@ class RegionService {
       try {
         final decoded = json.decode(legacy);
         if (decoded is List) {
-          final list = decoded.cast<Map<String, dynamic>>();
+          final list = safeMapList(decoded);
           await _writeFile(cacheKey, legacy);
           try {
             await prefs.remove(cacheKey);
@@ -88,7 +89,7 @@ class RegionService {
           try {
             await prefs.remove(cacheKey);
           } catch (_) {}
-          return decoded.cast<Map<String, dynamic>>();
+          return safeMapList(decoded);
         }
       }
     } catch (e, st) {
