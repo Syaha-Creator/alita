@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:alitapricelist/core/services/api_client.dart';
@@ -341,6 +342,77 @@ void main() {
           timeout: _apiTimeout,
         ),
       ).called(1);
+    });
+
+    test('force during in-flight applies only latest response', () async {
+      final staleCompleter = Completer<http.Response>();
+      var call = 0;
+      when(
+        () => mockApi.get(
+          any(),
+          queryParams: any(named: 'queryParams'),
+          token: null,
+          timeout: _apiTimeout,
+        ),
+      ).thenAnswer((_) async {
+        call++;
+        if (call == 1) return staleCompleter.future;
+        return http.Response(
+          jsonEncode({
+            'result': [
+              _wrapPending(
+                orderLetterId: 99,
+                userId: 7,
+                createdAt: '2026-06-02T00:00:00.000Z',
+              ),
+            ],
+          }),
+          200,
+        );
+      });
+
+      final container = ProviderContainer(
+        overrides: [
+          profileProvider.overrideWith((ref) async => _testProfile()),
+          approvalInboxProvider.overrideWith(
+            (ref) => ApprovalInboxNotifier(
+              ref,
+              apiClient: mockApi,
+              skipInitialFetch: true,
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(approvalInboxProvider.notifier);
+      final stale = notifier.fetchInbox();
+      await Future<void>.delayed(Duration.zero);
+      await notifier.fetchInbox(force: true);
+      await _waitUntilNotLoading(container);
+
+      staleCompleter.complete(
+        http.Response(
+          jsonEncode({
+            'result': [
+              _wrapPending(
+                orderLetterId: 1,
+                userId: 7,
+                createdAt: '2026-06-01T00:00:00.000Z',
+              ),
+            ],
+          }),
+          200,
+        ),
+      );
+      await stale;
+      await Future<void>.delayed(Duration.zero);
+
+      final s = container.read(approvalInboxProvider);
+      expect(s.isLoading, false);
+      expect(s.pendingApprovals, hasLength(1));
+      final letter = (s.pendingApprovals.first as Map)['order_letter'] as Map;
+      expect(letter['id'], 99);
     });
 
     test('level-based prior: out-of-order discounts still actionable', () async {

@@ -126,6 +126,10 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
   /// nilai default isLoading=true yang di-set sebelum fetch pertama jalan.
   bool _fetchInFlight = false;
 
+  /// Generasi fetch: `force` saat in-flight menaikkan token; respons lama
+  /// tidak menimpa state / tidak meng-clear flag milik fetch lebih baru.
+  int _fetchGeneration = 0;
+
   ApprovalInboxNotifier(
     this.ref, {
     ApiClient? apiClient,
@@ -425,6 +429,8 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
 
   /// [force] = true: abaikan freshness window dan fetch ulang
   /// (pull-to-refresh, filter tanggal, refresh pasca approve).
+  /// Jika sudah ada fetch berjalan, [force] tetap memulai fetch baru; hanya
+  /// respons dengan generasi terbaru yang diterapkan ke state.
   Future<void> fetchInbox({bool force = false}) async {
     if (_fetchInFlight && !force) return;
 
@@ -437,12 +443,14 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
       return;
     }
 
+    final generation = ++_fetchGeneration;
     _fetchInFlight = true;
     state = state.copyWith(isLoading: true, clearError: true);
     final sw = Stopwatch()..start();
 
     try {
       final profile = await ref.read(profileProvider.future);
+      if (generation != _fetchGeneration) return;
       final currentUserIdStr = profile?.id.toString() ?? '';
 
       final queryParams = <String, String>{
@@ -467,6 +475,7 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
         maxAttempts: 2,
         tag: 'approvalInbox',
       );
+      if (generation != _fetchGeneration) return;
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -582,6 +591,7 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
         history.sort((a, b) => parseDate(b).compareTo(parseDate(a)));
 
         sw.stop();
+        if (generation != _fetchGeneration) return;
         AppTelemetry.event('approval_inbox_loaded', data: {
           'pending_count': pending.length,
           'history_count': history.length,
@@ -597,12 +607,14 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
         );
       } else {
         sw.stop();
+        if (generation != _fetchGeneration) return;
         if (response.statusCode == 401 || response.statusCode == 403) {
           AppTelemetry.error('approval_inbox_auth', data: {
             'status_code': response.statusCode,
             'duration_ms': sw.elapsedMilliseconds,
           });
           await ref.read(authProvider.notifier).logout();
+          if (generation != _fetchGeneration) return;
           state = state.copyWith(
             isLoading: false,
             clearError: true,
@@ -622,6 +634,7 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
       }
     } catch (e, st) {
       sw.stop();
+      if (generation != _fetchGeneration) return;
       Log.error(e, st, reason: 'ApprovalInbox.fetchInbox');
       AppTelemetry.error('approval_inbox_failed', data: {
         'reason': e.toString(),
@@ -629,7 +642,9 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
       });
       state = state.copyWith(isLoading: false, error: e.toString());
     } finally {
-      _fetchInFlight = false;
+      if (generation == _fetchGeneration) {
+        _fetchInFlight = false;
+      }
     }
   }
 }
