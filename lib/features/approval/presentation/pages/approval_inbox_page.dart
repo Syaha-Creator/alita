@@ -112,6 +112,7 @@ class _ApprovalInboxPageState extends ConsumerState<ApprovalInboxPage> {
                     helpText: 'Pilih Rentang Tanggal',
                   );
 
+                  if (!mounted) return;
                   if (picked != null) {
                     ref
                         .read(approvalInboxProvider.notifier)

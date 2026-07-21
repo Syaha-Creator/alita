@@ -86,6 +86,7 @@ class _OrderHistoryPageState extends ConsumerState<OrderHistoryPage> {
                 initialDateRange: dateRange,
                 helpText: 'Pilih Rentang Tanggal',
               );
+              if (!mounted) return;
               if (picked != null) {
                 ref.read(dateFilterProvider.notifier).state = picked;
               }
