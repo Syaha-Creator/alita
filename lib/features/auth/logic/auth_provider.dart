@@ -76,11 +76,19 @@ class AuthState {
 // ─────────────────────────────────────────────────────────
 
 class AuthNotifier extends StateNotifier<AuthState> {
-  AuthNotifier() : super(const AuthState()) {
+  AuthNotifier({AuthService? authService})
+      : _authService = authService ?? AuthService(),
+        super(const AuthState()) {
     _init();
   }
 
-  final AuthService _authService = AuthService();
+  final AuthService _authService;
+
+  // Guards against a second login() firing (e.g. double-tap on a slow
+  // network) while one is already in flight — without this, two concurrent
+  // API calls race to write `state`, and whichever response arrives last
+  // wins regardless of which attempt the user actually intended.
+  bool _isLoggingIn = false;
 
   /// Data Connect membutuhkan user Firebase anonim; hanya dipanggil setelah
   /// login API sukses (bukan dari `main`) agar hot restart / tamu tidak membuat anon ganda.
@@ -169,6 +177,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// syncs FCM token in background.
   /// On failure: sets `errorMessage` on state for the UI to display.
   Future<void> login(String email, String password) async {
+    if (_isLoggingIn) return;
+    _isLoggingIn = true;
+
     state = state.copyWith(isLoading: true, clearError: true);
     final sw = Stopwatch()..start();
     AppTelemetry.event('login_attempted', data: {'email': email});
@@ -234,6 +245,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         isLoading: false,
         errorMessage: e.toString().replaceFirst('Exception: ', ''),
       );
+    } finally {
+      _isLoggingIn = false;
     }
   }
 
