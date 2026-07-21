@@ -7,6 +7,7 @@ import '../../../core/services/api_client.dart';
 import '../../../core/services/api_session_expired.dart';
 import '../../../core/utils/app_formatters.dart';
 import '../../../core/utils/retry.dart';
+import '../../../core/utils/safe_json_list.dart';
 import '../../auth/logic/auth_provider.dart';
 import '../data/models/order_history.dart';
 
@@ -56,15 +57,18 @@ final orderHistoryProvider = FutureProvider.autoDispose<List<OrderHistory>>((
     throw Exception('Gagal memuat data (${response.statusCode})');
   }
 
-  final body = jsonDecode(response.body) as Map<String, dynamic>;
+  final decoded = jsonDecode(response.body);
+  if (decoded is! Map) {
+    throw Exception('Format respons order_letters tidak valid.');
+  }
+  final body = Map<String, dynamic>.from(decoded);
 
   if (body['status'] != 'success') {
     throw Exception(body['message']?.toString() ?? 'Respons API tidak valid');
   }
 
-  final list = body['result'] as List? ?? [];
-  final orders = list
-      .map((e) => OrderHistory.fromApiJson(e as Map<String, dynamic>))
+  final orders = safeMapList(body['result'], fieldName: 'order_letters.result')
+      .map(OrderHistory.fromApiJson)
       .toList();
 
   orders.sort((a, b) {

@@ -72,6 +72,30 @@ void main() {
       expect(profile.divisions[0]['id'], 1);
       expect(profile.divisions[1]['id'], 2);
     });
+
+    test('does not throw when nested user/work_place/area/company are not Maps', () {
+      final json = <String, dynamic>{
+        'user': 'not-a-map',
+        'work_place': 42,
+        'area': ['not', 'a', 'map'],
+        'company': null,
+      };
+
+      final profile = UserProfile.fromJson(json);
+      expect(profile.name, 'Unknown User');
+      expect(profile.workPlaceName, '-');
+      expect(profile.areaName, '-');
+      expect(profile.companyId, 0);
+    });
+
+    test('does not throw when divisions is not a List', () {
+      final json = <String, dynamic>{
+        'divisions': {'not': 'a-list'},
+      };
+
+      final profile = UserProfile.fromJson(json);
+      expect(profile.divisions, isEmpty);
+    });
   });
 }
 

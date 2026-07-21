@@ -28,14 +28,8 @@ bool? _parseBoolNullable(dynamic value) {
   return s == 'true' || s == '1';
 }
 
-List<Map<String, dynamic>> _orderLetterContactsFromJson(dynamic json) {
-  if (json is! List) return [];
-  return json
-      .map((e) => e is Map<String, dynamic>
-          ? e
-          : Map<String, dynamic>.from(e as Map))
-      .toList();
-}
+List<Map<String, dynamic>> _orderLetterContactsFromJson(dynamic json) =>
+    safeMapList(json, fieldName: 'order_letter_contacts');
 
 dynamic _orderLetterContactsToJson(List<Map<String, dynamic>> v) => v;
 
@@ -108,25 +102,21 @@ class OrderHistory with _$OrderHistory {
       _$OrderHistoryFromJson(_orderHistoryJsonWithResolvedTakeAway(json));
 
   factory OrderHistory.fromApiJson(Map<String, dynamic> json) {
-    final letter = json['order_letter'] as Map<String, dynamic>? ?? json;
-    final rawDetails = json['order_letter_details'] as List? ?? const [];
-    final rawPayments = json['order_letter_payments'] as List? ?? const [];
+    final letterRaw = json['order_letter'];
+    final letter =
+        letterRaw is Map ? Map<String, dynamic>.from(letterRaw) : json;
 
     final parentNoSp = letter['no_sp']?.toString() ?? '-';
 
     // Inject parent no_sp into every raw detail map BEFORE parsing,
     // because the API returns null for no_sp at the detail level.
-    // Skip non-Map elements — `.cast` would throw TypeError on bad API rows.
-    final detailsList = <Map<String, dynamic>>[];
-    for (final item in rawDetails) {
-      if (item is! Map) continue;
-      final map = Map<String, dynamic>.from(item);
-      map['no_sp'] = parentNoSp;
-      detailsList.add(map);
-    }
+    final detailsList = safeMapList(
+      json['order_letter_details'],
+      fieldName: 'order_letter_details',
+    ).map((detail) => {...detail, 'no_sp': parentNoSp}).toList();
 
     final paymentsList = safeMapList(
-      rawPayments,
+      json['order_letter_payments'],
       fieldName: 'order_letter_payments',
     );
 
