@@ -128,6 +128,7 @@ class _ProductSpecificationsSectionState
                           alignment: Alignment.topLeft,
                           child: Text(
                             note,
+                            textAlign: TextAlign.justify,
                             style: const TextStyle(
                               fontSize: 12,
                               color: AppColors.textSecondary,
