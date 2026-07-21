@@ -16,8 +16,8 @@ final indirectSessionProvider =
 );
 
 class IndirectSessionNotifier extends StateNotifier<IndirectSessionState> {
-  IndirectSessionNotifier(this._ref)
-      : _discountService = IndirectStoreDiscountService(),
+  IndirectSessionNotifier(this._ref, {IndirectStoreDiscountService? discountService})
+      : _discountService = discountService ?? IndirectStoreDiscountService(),
         super(const IndirectSessionState());
 
   final Ref _ref;
@@ -87,6 +87,11 @@ class IndirectSessionNotifier extends StateNotifier<IndirectSessionState> {
   }
 
   void clear() {
+    // Reset the in-flight guard too — otherwise a fetch already running for
+    // the previously selected store would still pass the staleness check in
+    // selectStore() (same addressNumber) and clobber this cleared state once
+    // it resolves.
+    _pendingFetchAddressNumber = null;
     state = const IndirectSessionState();
   }
 }
