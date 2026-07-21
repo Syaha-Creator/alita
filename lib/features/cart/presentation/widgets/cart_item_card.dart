@@ -11,6 +11,8 @@ import '../../logic/cart_provider.dart';
 import '../../../pricelist/data/models/pricelist_custom_line.dart';
 import '../../../pricelist/data/models/product.dart';
 import '../../../pricelist/logic/product_display_image_provider.dart';
+import '../../../pricelist/presentation/pricelist_custom_line_route_args.dart';
+import '../../../pricelist/presentation/product_detail_route_args.dart';
 import '../../../../core/utils/product_image_utils.dart';
 import 'cart_foc_voucher_tile.dart';
 
@@ -65,11 +67,6 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
     Future<void> openDetail() async {
       final anchor = widget.anchorContext;
       final router = GoRouter.of(anchor);
-      final extra = <String, dynamic>{
-        'product': item.masterProduct ?? p,
-        'editItem': item,
-        'cartIndex': index,
-      };
 
       Navigator.of(context, rootNavigator: true).pop();
       await Future<void>.delayed(Duration.zero);
@@ -78,13 +75,20 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
       if (p.isPricelistCustomCartLine) {
         await router.push(
           '/pricelist/custom_line',
-          extra: <String, dynamic>{
-            'editItem': item,
-            'cartIndex': index,
-          },
+          extra: PricelistCustomLineRouteArgs(
+            editItem: item,
+            cartIndex: index,
+          ),
         );
       } else {
-        await router.push('/product/${p.id}', extra: extra);
+        await router.push(
+          '/product/${p.id}',
+          extra: ProductDetailRouteArgs(
+            product: item.masterProduct ?? p,
+            editItem: item,
+            cartIndex: index,
+          ),
+        );
       }
       if (!anchor.mounted) return;
       widget.onReturnFromProductDetail();

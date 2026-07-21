@@ -18,7 +18,9 @@ import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/pricelist/data/models/product.dart';
 import '../../features/pricelist/presentation/pages/product_list_page.dart';
 import '../../features/pricelist/presentation/pages/pricelist_custom_line_page.dart';
+import '../../features/pricelist/presentation/pricelist_custom_line_route_args.dart';
 import '../../features/pricelist/presentation/pages/product_detail_page.dart';
+import '../../features/pricelist/presentation/product_detail_route_args.dart';
 import '../../features/pricelist/presentation/pages/product_detail_from_link_page.dart';
 import '../../features/favorites/presentation/pages/favorites_page.dart';
 import '../../features/cart/data/cart_item.dart';
@@ -302,19 +304,14 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/pricelist/custom_line',
             name: 'pricelist-custom-line',
             pageBuilder: (context, state) {
-              CartItem? editItem;
-              int? cartIndex;
               final extra = state.extra;
-              if (extra is Map) {
-                final map = Map<String, dynamic>.from(extra);
-                editItem = map['editItem'] as CartItem?;
-                final raw = map['cartIndex'];
-                if (raw is int) cartIndex = raw;
-              }
+              final args = extra is PricelistCustomLineRouteArgs
+                  ? extra
+                  : const PricelistCustomLineRouteArgs();
               return _adaptivePage(
                 child: PricelistCustomLinePage(
-                  editItem: editItem,
-                  cartIndex: cartIndex,
+                  editItem: args.editItem,
+                  cartIndex: args.cartIndex,
                 ),
                 name: 'pricelist-custom-line',
               );
@@ -333,13 +330,12 @@ final routerProvider = Provider<GoRouter>((ref) {
                   name: 'product-detail',
                 );
               }
-              if (extra is Map<String, dynamic>) {
-                final map = extra;
+              if (extra is ProductDetailRouteArgs) {
                 return _adaptivePage(
                   child: ProductDetailPage(
-                    product: map['product'] as Product,
-                    editItem: map['editItem'] as CartItem?,
-                    cartIndex: map['cartIndex'] as int?,
+                    product: extra.product,
+                    editItem: extra.editItem,
+                    cartIndex: extra.cartIndex,
                   ),
                   name: 'product-detail',
                 );
