@@ -49,9 +49,11 @@ void main() {
     });
   });
 
-  test('AppConfig.brandSpecApis lists Comforta, Spring Air, and Therapedic',
+  test(
+      'AppConfig.brandSpecApis lists Comforta, Spring Air, Therapedic, and iSleep',
       () {
     final brands = AppConfig.brandSpecApis.map((c) => c.brand).toList();
-    expect(brands, containsAll(['Comforta', 'Spring Air', 'Therapedic']));
+    expect(brands,
+        containsAll(['Comforta', 'Spring Air', 'Therapedic', 'iSleep']));
   });
 }

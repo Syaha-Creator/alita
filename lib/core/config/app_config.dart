@@ -76,8 +76,8 @@ class AppConfig {
     }
   }
 
-  // ── Brand Spec APIs (Comforta, Spring Air, Therapedic) ──────────
-  // Ketiganya berbagi bentuk endpoint yang sama: `/api/types_with_features`
+  // ── Brand Spec APIs (Comforta, Spring Air, Therapedic, iSleep) ──
+  // Semua berbagi bentuk endpoint yang sama: `/api/types_with_features`
   // dengan query access_token/client_id/client_secret. Tambah brand baru:
   // tambah 4 getter host/token/id/secret di bawah + satu entri di [brandSpecApis].
 
@@ -105,6 +105,11 @@ class AppConfig {
   static String get therapedicClientSecret =>
       _fromEnv('THERAPEDIC_CLIENT_SECRET');
 
+  static String get isleepHost => _fromEnv('ISLEEP_API_HOST', 'isleep.co.id');
+  static String get isleepAccessToken => _fromEnv('ISLEEP_ACCESS_TOKEN');
+  static String get isleepClientId => _fromEnv('ISLEEP_CLIENT_ID');
+  static String get isleepClientSecret => _fromEnv('ISLEEP_CLIENT_SECRET');
+
   /// Semua brand spec API yang didukung. [brandSpecProvider] fetch tiap
   /// entri yang [BrandSpecApiConfig.isConfigured] lalu gabungkan hasilnya.
   static List<BrandSpecApiConfig> get brandSpecApis => [
@@ -128,6 +133,13 @@ class AppConfig {
           accessToken: therapedicAccessToken,
           clientId: therapedicClientId,
           clientSecret: therapedicClientSecret,
+        ),
+        BrandSpecApiConfig(
+          brand: 'iSleep',
+          host: isleepHost,
+          accessToken: isleepAccessToken,
+          clientId: isleepClientId,
+          clientSecret: isleepClientSecret,
         ),
       ];
 
