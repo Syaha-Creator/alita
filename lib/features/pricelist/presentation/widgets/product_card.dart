@@ -80,7 +80,10 @@ class ProductCard extends ConsumerWidget {
                         Hero(
                           tag: 'product-image-${product.id}',
                           child: Container(
-                            color: AppColors.background,
+                            // Foto produk/logo brand berbackground putih; pakai
+                            // surface (putih) bukan background (ice-blue) agar
+                            // tidak ada "seam" di sisa area BoxFit.contain.
+                            color: AppColors.surface,
                             child: NetworkImageView(
                               imageUrl: displayImageUrl,
                               fit: BoxFit.contain,

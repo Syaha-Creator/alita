@@ -32,7 +32,8 @@ class OrderSummaryItemHeader extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(8),
           child: ColoredBox(
-            color: AppColors.surfaceLight,
+            // surface (putih), bukan surfaceLight (biru) — lihat cart_item_card.
+            color: AppColors.surface,
             child: NetworkImageView(
               imageUrl: imageUrl,
               width: 50,

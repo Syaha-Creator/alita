@@ -137,7 +137,10 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: ColoredBox(
-                      color: AppColors.surfaceLight,
+                      // surface (putih), bukan surfaceLight (biru): thumbnail
+                      // asset (logo) pakai contain, sisa area harus putih agar
+                      // menyatu dengan background putih logo/foto studio.
+                      color: AppColors.surface,
                       child: NetworkImageView(
                         imageUrl: thumbUrl,
                         width: 72,
