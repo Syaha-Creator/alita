@@ -66,6 +66,28 @@ void main() {
     });
   });
 
+  group('FavoritesNotifier race with initial load', () {
+    test('toggleFavorite called before initial load finishes does not get '
+        'clobbered by the in-flight load', () async {
+      SharedPreferences.setMockInitialValues({
+        'favorite_ids': ['p1', 'p2'],
+      });
+
+      final racing = FavoritesNotifier();
+      // No delay — toggleFavorite() must itself await the in-flight load.
+      await racing.toggleFavorite('p3');
+
+      expect(racing.state, containsAll(['p1', 'p2', 'p3']));
+      expect(racing.state, hasLength(3));
+
+      // Confirm the toggle was actually persisted, not just clobbered back
+      // in-memory by the late-finishing _loadFavorites().
+      final verify = FavoritesNotifier();
+      await Future.delayed(const Duration(milliseconds: 50));
+      expect(verify.state, containsAll(['p1', 'p2', 'p3']));
+    });
+  });
+
   group('FavoritesNotifier persistence', () {
     test('loads persisted favorites on init', () async {
       SharedPreferences.setMockInitialValues({

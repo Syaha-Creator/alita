@@ -9,14 +9,33 @@ class FavoritesNotifier extends StateNotifier<List<String>> {
     _loadFavorites();
   }
 
+  bool _loadComplete = false;
+
   /// Load favorites from storage on init
   Future<void> _loadFavorites() async {
-    final favoriteIds = await StorageService.loadFavorites();
-    state = favoriteIds;
+    try {
+      final favoriteIds = await StorageService.loadFavorites();
+      state = favoriteIds;
+    } finally {
+      _loadComplete = true;
+    }
+  }
+
+  /// Waits for the initial [_loadFavorites] to finish before any mutation
+  /// runs — otherwise a toggle racing ahead of the load would compute its
+  /// result against the empty initial state, and the load completing
+  /// afterwards would then clobber the toggle back to the on-disk data.
+  Future<void> _ensureLoaded() async {
+    if (_loadComplete) return;
+    await Future.doWhile(() async {
+      await Future.delayed(const Duration(milliseconds: 50));
+      return !_loadComplete;
+    });
   }
 
   /// Toggle favorite status
   Future<void> toggleFavorite(String productId) async {
+    await _ensureLoaded();
     if (state.contains(productId)) {
       // Remove from favorites
       state = state.where((id) => id != productId).toList();
@@ -36,6 +55,7 @@ class FavoritesNotifier extends StateNotifier<List<String>> {
 
   /// Clear all favorites
   Future<void> clearFavorites() async {
+    await _ensureLoaded();
     state = [];
     await StorageService.saveFavorites([]);
   }
