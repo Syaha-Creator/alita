@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/services/app_analytics_service.dart';
 import '../../../../core/utils/app_formatters.dart';
@@ -1345,7 +1346,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
             type: AppFeedbackType.warning,
           );
           ref.read(cartProvider.notifier).addItem(snapshotItem);
-          if (context.mounted) Navigator.of(context).pop();
+          if (context.mounted) context.pop();
         }
         return;
       }
@@ -1354,12 +1355,12 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
             cartIndex,
             snapshotItem.copyWith(isFocVoucher: prevFoc),
           );
-                              Navigator.of(context).pop();
+      context.pop();
       AppFeedback.show(context,
-                                message: 'Keranjang diperbarui',
-                                type: AppFeedbackType.success,
+          message: 'Keranjang diperbarui',
+          type: AppFeedbackType.success,
           floating: true);
-                            } else {
+    } else {
       ref.read(cartProvider.notifier).addItem(snapshotItem);
       AppAnalyticsService.logAddToCart(
         widget.product.id.toString(),
