@@ -269,10 +269,13 @@ class EditOrderHeaderService {
         queryParams: {'user_id': userId},
       );
       if (res.statusCode != 200) return null;
-      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      final decoded = jsonDecode(res.body);
+      if (decoded is! Map) return null;
+      final body = Map<String, dynamic>.from(decoded);
       final result = body['result'];
       if (result is List && result.isNotEmpty) {
-        return (result.first as Map<String, dynamic>)['token']?.toString();
+        final first = result.first;
+        return first is Map ? first['token']?.toString() : null;
       } else if (result is Map) {
         return result['token']?.toString();
       }

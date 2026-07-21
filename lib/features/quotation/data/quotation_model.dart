@@ -299,7 +299,8 @@ class QuotationModel {
       items.length,
       (i) {
         if (rawLineTakeAway != null && i < rawLineTakeAway.length) {
-          return rawLineTakeAway[i] as bool;
+          final v = rawLineTakeAway[i];
+          if (v is bool) return v;
         }
         return legacyTakeAway;
       },

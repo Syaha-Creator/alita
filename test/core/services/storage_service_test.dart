@@ -72,6 +72,22 @@ void main() {
       final loaded = await StorageService.loadCart();
       expect(loaded, isEmpty);
     });
+
+    test('loadCart skips non-Map elements instead of throwing', () async {
+      SharedPreferences.setMockInitialValues({
+        'cart_items': '[{"id":"1","qty":2},"not-a-map",{"id":"2","qty":5}]',
+      });
+      final loaded = await StorageService.loadCart();
+      expect(loaded, hasLength(2));
+      expect(loaded[0]['id'], '1');
+      expect(loaded[1]['id'], '2');
+    });
+
+    test('loadCart returns empty when top-level JSON is not a List', () async {
+      SharedPreferences.setMockInitialValues({'cart_items': '{"id":"1"}'});
+      final loaded = await StorageService.loadCart();
+      expect(loaded, isEmpty);
+    });
   });
 
   group('Favorites persistence', () {
@@ -226,6 +242,25 @@ void main() {
       });
       final loaded = await StorageService.loadPricelistProductRows('no_items');
       expect(loaded, isNull);
+    });
+
+    test('loadPricelist skips non-Map rows instead of throwing', () async {
+      const key = 'mixed_rows';
+      final plCacheDir = Directory('${testSupportDir.path}/pl_cache');
+      plCacheDir.createSync(recursive: true);
+      File('${plCacheDir.path}/$key.json').writeAsStringSync(jsonEncode({
+        'v': 1,
+        'items': [
+          {'id': '1', 'name': 'Product A'},
+          'not-a-map',
+          {'id': '2', 'name': 'Product B'},
+        ],
+      }));
+
+      final loaded = await StorageService.loadPricelistProductRows(key);
+      expect(loaded, isNotNull);
+      expect(loaded, hasLength(2));
+      expect(loaded!.first['name'], 'Product A');
     });
   });
 

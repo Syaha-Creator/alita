@@ -26,8 +26,8 @@ final brandSpecProvider = FutureProvider<List<dynamic>>((ref) async {
 
     if (response.statusCode == 200) {
       final decoded = jsonDecode(response.body);
-      if (decoded != null) {
-        return decoded as List<dynamic>;
+      if (decoded is List) {
+        return decoded;
       }
     }
     return [];

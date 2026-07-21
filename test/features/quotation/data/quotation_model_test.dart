@@ -1,4 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:alitapricelist/features/cart/data/cart_item.dart';
+import 'package:alitapricelist/features/pricelist/data/models/product.dart';
 import 'package:alitapricelist/features/quotation/data/quotation_model.dart';
 
 void main() {
@@ -147,6 +151,34 @@ void main() {
       expect(restored.bonusTakeAwayQtyByKey, {'0_SKU1': 2, '1_SKU2': 1});
     });
 
+    test('lineTakeAway falls back to legacy flag when entry is not a bool', () {
+      final items = [
+        CartItem(product: _product(id: '1'), quantity: 1),
+        CartItem(product: _product(id: '2'), quantity: 1),
+        CartItem(product: _product(id: '3'), quantity: 1),
+      ];
+      final json = <String, dynamic>{
+        'id': 'x',
+        'customerName': 'A',
+        'isTakeAway': true,
+        'lineTakeAway': [true, 'not-a-bool', false],
+        'items': items.map((e) => e.toJson()).toList(),
+        'subtotal': 0,
+        'totalPrice': 0,
+        'createdAt': '2026-01-01T00:00:00Z',
+      };
+      // Round-trip through an actual JSON string (like decodeList does) so
+      // nested Product objects are converted to plain Maps, matching what
+      // CartItem.fromJson expects.
+      final decodedJson =
+          jsonDecode(jsonEncode(json)) as Map<String, dynamic>;
+
+      final q = QuotationModel.fromJson(decodedJson);
+      // Index 1 has a malformed (non-bool) entry — falls back to the
+      // legacy top-level isTakeAway flag instead of throwing.
+      expect(q.lineTakeAway, [true, true, false]);
+    });
+
     test('_parseStatus defaults to draft for unknown value', () {
       final json = <String, dynamic>{
         'id': 'x',
@@ -194,6 +226,29 @@ void main() {
     });
   });
 }
+
+Product _product({String id = '1', double price = 1000}) => Product(
+      id: id,
+      name: 'Test $id',
+      price: price,
+      imageUrl: '',
+      category: 'C',
+      kasur: 'K',
+      ukuran: '160x200',
+      divan: '',
+      headboard: '',
+      sorong: '',
+      isSet: false,
+      pricelist: price,
+      eupKasur: price,
+      eupDivan: 0,
+      eupHeadboard: 0,
+      eupSorong: 0,
+      plKasur: price,
+      plDivan: 0,
+      plHeadboard: 0,
+      plSorong: 0,
+    );
 
 QuotationModel _makeQuotation({
   String customerName = 'Test Customer',

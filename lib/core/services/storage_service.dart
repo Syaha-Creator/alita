@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/log.dart';
+import '../utils/safe_json_list.dart';
 
 /// Storage service for persistent data.
 ///
@@ -91,8 +92,11 @@ class StorageService {
 
   static List<Map<String, dynamic>> _decodeCartJson(String jsonString) {
     try {
-      final List<dynamic> decoded = jsonDecode(jsonString);
-      return decoded.cast<Map<String, dynamic>>();
+      final decoded = jsonDecode(jsonString);
+      // safeMapList materialises eagerly and skips non-Map rows — using
+      // `.cast<Map<String, dynamic>>()` here would defer the TypeError to
+      // whenever the returned list is later iterated, outside this catch.
+      return safeMapList(decoded, fieldName: 'cart_items');
     } catch (e) {
       Log.warning('StorageService decode failed: $e', tag: 'Storage');
       return [];
@@ -533,10 +537,8 @@ class StorageService {
       final decoded = jsonDecode(raw);
       if (decoded is! Map<String, dynamic>) return null;
       final list = decoded['items'];
-      if (list is! List<dynamic>) return null;
-      return list
-          .map((e) => Map<String, dynamic>.from(e as Map<dynamic, dynamic>))
-          .toList();
+      if (list is! List) return null;
+      return safeMapList(list, fieldName: 'pricelistCache.items');
     } catch (e, st) {
       Log.error(e, st, reason: 'StorageService.loadPricelistProductRows');
       return null;
