@@ -64,6 +64,8 @@ class _SalesHubPageState extends ConsumerState<SalesHubPage> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        // Gerbang pilih mode (root), bukan sub-halaman — tidak butuh back arrow.
+        automaticallyImplyLeading: false,
         title: const Text('Alita Pricelist'),
         elevation: 0,
       ),

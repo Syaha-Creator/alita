@@ -55,6 +55,8 @@ class _ProductListPageState extends ConsumerState<ProductListPage> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        // Katalog = layar utama (home) — tidak butuh back arrow.
+        automaticallyImplyLeading: false,
         title: Text(
           'Alita Pricelist',
           style: Theme.of(context).textTheme.headlineMedium,
