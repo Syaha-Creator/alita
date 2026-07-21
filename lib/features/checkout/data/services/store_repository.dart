@@ -60,14 +60,20 @@ class StoreRepository {
 
     final decoded = jsonDecode(response.body);
     final List<dynamic> rawList;
-    if (decoded is List<dynamic>) {
+    if (decoded is List) {
       rawList = decoded;
-    } else if (decoded is Map<String, dynamic>) {
-      rawList = (decoded['result'] as List<dynamic>?) ??
-          (decoded['data'] as List<dynamic>?) ??
-          [];
+    } else if (decoded is Map) {
+      final result = decoded['result'];
+      final data = decoded['data'];
+      if (result is List) {
+        rawList = result;
+      } else if (data is List) {
+        rawList = data;
+      } else {
+        rawList = const [];
+      }
     } else {
-      rawList = [];
+      rawList = const [];
     }
     final stores = rawList
         .whereType<Map<String, dynamic>>()

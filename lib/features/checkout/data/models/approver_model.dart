@@ -1,3 +1,5 @@
+import '../../../../core/utils/safe_json_list.dart';
+
 /// Represents a single approver (SPV / ASM / Manager) returned by the approval_sales API.
 class Approver {
   final int id;
@@ -13,10 +15,15 @@ class Approver {
   });
 
   factory Approver.fromJson(Map<String, dynamic> json) {
-    final contact = json['contact'] as Map<String, dynamic>? ?? {};
-    final cweList = json['contact_work_experiences'] as List? ?? [];
-    final cwe =
-        cweList.isNotEmpty ? cweList.first as Map<String, dynamic> : {};
+    final contactRaw = json['contact'];
+    final contact = contactRaw is Map
+        ? Map<String, dynamic>.from(contactRaw)
+        : <String, dynamic>{};
+    final cweList = safeMapList(
+      json['contact_work_experiences'],
+      fieldName: 'contact_work_experiences',
+    );
+    final cwe = cweList.isNotEmpty ? cweList.first : <String, dynamic>{};
 
     return Approver(
       id: (json['id'] as num?)?.toInt() ?? 0,

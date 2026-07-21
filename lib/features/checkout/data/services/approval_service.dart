@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../../../../core/services/api_client.dart';
+import '../../../../core/utils/safe_json_list.dart';
 import '../models/approver_model.dart';
 
 /// Fetches the list of approvers (SPV / ASM / Manager) for a given company + area
@@ -22,20 +23,24 @@ class ApprovalService {
     );
 
     if (response.statusCode == 200) {
-      final body = json.decode(response.body) as Map<String, dynamic>;
+      final decoded = json.decode(response.body);
+      if (decoded is! Map) {
+        throw Exception('Format response approval_sales tidak valid.');
+      }
+      final body = Map<String, dynamic>.from(decoded);
 
-      List<dynamic>? users;
+      dynamic users;
       final result = body['result'];
       if (result is Map) {
-        users = result['users'] as List?;
+        users = result['users'];
       } else if (result is List) {
         users = result;
       } else {
-        users = body['data'] as List?;
+        users = body['data'];
       }
 
-      return (users ?? [])
-          .map((e) => Approver.fromJson(e as Map<String, dynamic>))
+      return safeMapList(users, fieldName: 'approval_sales.users')
+          .map(Approver.fromJson)
           .toList();
     }
     throw Exception(
