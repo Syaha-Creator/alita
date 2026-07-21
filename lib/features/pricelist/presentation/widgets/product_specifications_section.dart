@@ -20,7 +20,7 @@ class ProductSpecificationsSection extends StatefulWidget {
 
 class _ProductSpecificationsSectionState
     extends State<ProductSpecificationsSection> {
-  final Set<int> _expandedIndices = {};
+  int? _expandedIndex;
 
   @override
   Widget build(BuildContext context) {
@@ -72,17 +72,13 @@ class _ProductSpecificationsSectionState
             children: gridFeatures.asMap().entries.map((entry) {
               final index = entry.key;
               final f = entry.value;
-              final isExpanded = _expandedIndices.contains(index);
+              final isExpanded = _expandedIndex == index;
               final name = f['name']?.toString() ?? '';
               final note = f['note']?.toString() ?? '';
               return TapScale(
                 child: GestureDetector(
                   onTap: () => setState(() {
-                    if (isExpanded) {
-                      _expandedIndices.remove(index);
-                    } else {
-                      _expandedIndices.add(index);
-                    }
+                    _expandedIndex = isExpanded ? null : index;
                   }),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
