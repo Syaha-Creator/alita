@@ -15,11 +15,11 @@
 - [x] Task 7: Tutup empty-catch tanpa Log + bare print → Log
 
 ## Phase 3 — State management races
-- [ ] Task 8: Quotation remove/update race vs load
-- [ ] Task 9: Favorites load-vs-toggle race
-- [ ] Task 10: Indirect clear() tidak cancel fetch in-flight
-- [ ] Task 11: Sales-mode _load() vs setMode() race
-- [ ] Task 12: AuthNotifier.login() in-flight guard
+- [x] Task 8: Quotation remove/update race vs load
+- [x] Task 9: Favorites load-vs-toggle race
+- [x] Task 10: Indirect clear() tidak cancel fetch in-flight
+- [x] Task 11: Sales-mode _load() vs setMode() race
+- [x] Task 12: AuthNotifier.login() in-flight guard
 
 ## Phase 4 — Presentation layer
 - [ ] Task 13: Ganti FutureBuilder di profile_version_footer.dart
