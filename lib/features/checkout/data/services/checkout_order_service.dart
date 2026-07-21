@@ -7,6 +7,7 @@ import '../../../../core/services/api_client.dart';
 import '../../../../core/utils/app_telemetry.dart';
 import '../../../../core/utils/store_discount_calculator.dart';
 import '../../../../core/utils/log.dart';
+import '../../../../core/utils/safe_json_list.dart';
 import '../../../cart/data/cart_item.dart';
 import '../../../pricelist/data/models/item_lookup.dart';
 import '../../../pricelist/data/models/pricelist_custom_line.dart';
@@ -49,7 +50,10 @@ class CheckoutOrderService {
         queryParams: {'user_id': userId.toString()},
       );
       if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
+        final data = safeMapList(
+          jsonDecode(response.body),
+          fieldName: 'attendanceList',
+        );
         if (data.isNotEmpty) {
           data.sort((a, b) {
             final dateA =
@@ -60,7 +64,7 @@ class CheckoutOrderService {
                     DateTime(2000);
             return dateB.compareTo(dateA);
           });
-          final latest = data.first as Map<String, dynamic>;
+          final latest = data.first;
           final rawId = latest['work_place_id'];
           if (rawId == null) return null;
           final id = rawId is int ? rawId : int.tryParse(rawId.toString());
@@ -92,7 +96,23 @@ class CheckoutOrderService {
       );
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return data['result'] as Map<String, dynamic>?;
+        if (data is! Map) {
+          Log.warning(
+            'fetchLeaderByUser: unexpected body shape ${data.runtimeType}',
+            tag: 'CheckoutOrderService',
+          );
+          return null;
+        }
+        final result = data['result'];
+        if (result == null) return null;
+        if (result is! Map) {
+          Log.warning(
+            'fetchLeaderByUser: unexpected "result" shape ${result.runtimeType}',
+            tag: 'CheckoutOrderService',
+          );
+          return null;
+        }
+        return Map<String, dynamic>.from(result);
       }
     } catch (e, st) {
       Log.error(e, st, reason: 'CheckoutOrderService.fetchLeaderByUser');
@@ -125,7 +145,24 @@ class CheckoutOrderService {
         payloadKeys: headerPayload.keys.toList(),
       );
     }
-    final headerData = jsonDecode(response.body) as Map<String, dynamic>;
+    final decodedHeader = jsonDecode(response.body);
+    if (decodedHeader is! Map) {
+      Log.error(
+        StateError('createOrderLetter: unexpected body shape'),
+        StackTrace.current,
+        reason:
+            'CheckoutOrderService.createOrderLetter got ${decodedHeader.runtimeType} instead of a Map',
+      );
+      throw CheckoutStepException(
+        step: 1,
+        stepName: 'Buat Header SP',
+        endpoint: endpoint,
+        statusCode: response.statusCode,
+        responseBody: response.body,
+        message: 'Format response server tidak valid',
+      );
+    }
+    final headerData = Map<String, dynamic>.from(decodedHeader);
     final parsed = OrderLetterResponseParser.parse(headerData);
     if (parsed.orderLetterId == 0) {
       throw CheckoutStepException(
@@ -512,8 +549,24 @@ class CheckoutOrderService {
       return null;
     }
 
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    return body['result'] as Map<String, dynamic>?;
+    final decoded = jsonDecode(response.body);
+    if (decoded is! Map) {
+      Log.warning(
+        'fetchFullOrder: unexpected body shape ${decoded.runtimeType}',
+        tag: 'CheckoutOrderService',
+      );
+      return null;
+    }
+    final result = decoded['result'];
+    if (result == null) return null;
+    if (result is! Map) {
+      Log.warning(
+        'fetchFullOrder: unexpected "result" shape ${result.runtimeType}',
+        tag: 'CheckoutOrderService',
+      );
+      return null;
+    }
+    return Map<String, dynamic>.from(result);
   }
 
   /// Hitung jumlah `order_letter_contacts` yang sudah ada di server.
