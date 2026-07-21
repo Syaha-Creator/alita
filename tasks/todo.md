@@ -9,10 +9,10 @@
 - [x] Task 3: Stop full re-parse `OrderHistory` di `approval_wraps_nominal_sum.dart` (+ test baru)
 
 ## Phase 2 — Data-layer cast safety
-- [ ] Task 4: Guard cast — store_repository, approval_service, local_contact_service, approver_model
-- [ ] Task 5: Guard cast — order_history.dart (letter/rawDetails/rawPayments/contacts), order_history_provider, user_profile
-- [ ] Task 6: Guard cast — storage_service, quotation_model, accessory_provider, item_lookup_provider, brand_spec_provider, edit_order_header_service
-- [ ] Task 7: Tutup empty-catch tanpa Log + bare print → Log
+- [x] Task 4: Guard cast — store_repository, approval_service, local_contact_service, approver_model (+ test)
+- [x] Task 5: Guard cast — order_history.dart (letter/rawDetails/rawPayments/contacts), order_history_provider, user_profile
+- [x] Task 6: Guard cast — storage_service, quotation_model, accessory_provider, item_lookup_provider, brand_spec_provider, edit_order_header_service
+- [x] Task 7: Tutup empty-catch tanpa Log + bare print → Log
 
 ## Phase 3 — State management races
 - [ ] Task 8: Quotation remove/update race vs load
