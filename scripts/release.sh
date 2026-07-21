@@ -34,6 +34,31 @@ read_env() {
 
 encode_kv() { echo -n "$1" | base64 | tr -d '\n'; }
 
+# ── Cegah .env asli ikut ter-bundle ke artifact release ──────────────────────
+# pubspec.yaml wajib mendaftarkan `.env` sebagai asset (flutter_dotenv baca lewat
+# asset bundle, bukan filesystem host) supaya `flutter run` lokal tanpa
+# --dart-define tetap bisa baca config. Tapi itu berarti isi .env asli (secret
+# mentah) ikut ter-bundle ke APK/IPA release kalau file itu ada saat `flutter
+# build` jalan. Karena dart-define sudah dibaca ke DART_DEFINES lebih dulu
+# (lihat load_dart_defines), .env aman untuk di-swap jadi kosong hanya selama
+# proses build — dikembalikan lagi sesudahnya lewat trap agar tetap restore
+# walau build gagal di tengah jalan.
+_ENV_BACKUP=""
+scrub_env_for_build() {
+  [[ -n "$_ENV_BACKUP" ]] && return 0 # sudah di-scrub, jangan timpa backup
+  _ENV_BACKUP="$(mktemp)"
+  cp "$ENV_FILE" "$_ENV_BACKUP"
+  : > "$ENV_FILE"
+  trap restore_env_after_build EXIT
+}
+restore_env_after_build() {
+  if [[ -n "$_ENV_BACKUP" && -f "$_ENV_BACKUP" ]]; then
+    cp "$_ENV_BACKUP" "$ENV_FILE"
+    rm -f "$_ENV_BACKUP"
+    _ENV_BACKUP=""
+  fi
+}
+
 # ── Load .env untuk dart-define ───────────────────────────────────────────────
 load_dart_defines() {
   local keys="API_BASE_URL CLIENT_ID_ANDROID CLIENT_SECRET_ANDROID CLIENT_ID_IOS CLIENT_SECRET_IOS COMFORTA_ACCESS_TOKEN COMFORTA_CLIENT_ID COMFORTA_CLIENT_SECRET"
@@ -175,6 +200,8 @@ build_ios() {
   cd ios && pod install && cd ..
   echo "▸ Generate DartSecrets.xcconfig..."
   gen_xcconfig
+  echo "▸ Kosongkan .env sementara (jangan ikut ke IPA)..."
+  scrub_env_for_build
   echo "▸ flutter build ipa --release..."
   flutter build ipa --release "${DART_DEFINES[@]}"
   IOS_DONE=1
@@ -186,6 +213,8 @@ build_ios() {
 build_android() {
   echo ""
   echo "══════════ Android ══════════"
+  echo "▸ Kosongkan .env sementara (jangan ikut ke APK/AAB)..."
+  scrub_env_for_build
   if [[ "$SUBTYPE" == "apk" ]]; then
     echo "▸ flutter build apk --release..."
     flutter build apk --release "${DART_DEFINES[@]}"
