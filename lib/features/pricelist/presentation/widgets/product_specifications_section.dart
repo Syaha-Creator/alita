@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/tap_scale.dart';
 import '../../data/models/product.dart';
 
-class ProductSpecificationsSection extends StatelessWidget {
+class ProductSpecificationsSection extends StatefulWidget {
   final Product product;
   final Map<String, dynamic>? matchedSpec;
 
@@ -13,7 +14,18 @@ class ProductSpecificationsSection extends StatelessWidget {
   });
 
   @override
+  State<ProductSpecificationsSection> createState() =>
+      _ProductSpecificationsSectionState();
+}
+
+class _ProductSpecificationsSectionState
+    extends State<ProductSpecificationsSection> {
+  final Set<int> _expandedIndices = {};
+
+  @override
   Widget build(BuildContext context) {
+    final product = widget.product;
+    final matchedSpec = widget.matchedSpec;
     final features = List<Map<String, dynamic>>.from(
       matchedSpec?['features'] ?? [],
     );
@@ -57,41 +69,79 @@ class ProductSpecificationsSection extends StatelessWidget {
           Wrap(
             spacing: 12,
             runSpacing: 12,
-            children: gridFeatures.map((f) {
-              return Container(
-                width: (MediaQuery.of(context).size.width - 52) / 2,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.accent.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppColors.accent.withValues(alpha: 0.15),
+            children: gridFeatures.asMap().entries.map((entry) {
+              final index = entry.key;
+              final f = entry.value;
+              final isExpanded = _expandedIndices.contains(index);
+              final name = f['name']?.toString() ?? '';
+              final note = f['note']?.toString() ?? '';
+              return TapScale(
+                child: GestureDetector(
+                  onTap: () => setState(() {
+                    if (isExpanded) {
+                      _expandedIndices.remove(index);
+                    } else {
+                      _expandedIndices.add(index);
+                    }
+                  }),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOutCubic,
+                    width: (MediaQuery.of(context).size.width - 52) / 2,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.accent.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppColors.accent.withValues(alpha: 0.15),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                name,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Icon(
+                              isExpanded
+                                  ? Icons.expand_less
+                                  : Icons.expand_more,
+                              size: 16,
+                              color: AppColors.textTertiary,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        AnimatedSize(
+                          duration: const Duration(milliseconds: 200),
+                          curve: Curves.easeOutCubic,
+                          alignment: Alignment.topLeft,
+                          child: Text(
+                            note,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
+                            ),
+                            maxLines: isExpanded ? null : 2,
+                            overflow: isExpanded
+                                ? TextOverflow.visible
+                                : TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      f['name']?.toString() ?? '',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      f['note']?.toString() ?? '',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
                 ),
               );
             }).toList(),
