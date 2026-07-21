@@ -52,6 +52,52 @@ void main() {
     expect(url, 'https://cdn.example/comforta.png');
   });
 
+  test('prefers spec kasur image over generic image (iSleep)', () async {
+    final isleepProduct = product.copyWith(name: 'iSleep Flex 180');
+    final container = ProviderContainer(
+      overrides: [
+        brandSpecProvider.overrideWith(
+          (ref) async => [
+            {
+              'name': 'iSleep Flex',
+              'image': 'https://cdn.example/isleep-composite.png',
+              'kasur': 'https://cdn.example/isleep-flex-set.avif',
+            },
+          ],
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(brandSpecProvider.future);
+
+    final url = container.read(productDisplayImageProvider(isleepProduct));
+    expect(url, 'https://cdn.example/isleep-flex-set.avif');
+  });
+
+  test('falls back to spec image when kasur is empty', () async {
+    final isleepProduct = product.copyWith(name: 'iSleep Flex 180');
+    final container = ProviderContainer(
+      overrides: [
+        brandSpecProvider.overrideWith(
+          (ref) async => [
+            {
+              'name': 'iSleep Flex',
+              'image': 'https://cdn.example/isleep-composite.png',
+              'kasur': '',
+            },
+          ],
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(brandSpecProvider.future);
+
+    final url = container.read(productDisplayImageProvider(isleepProduct));
+    expect(url, 'https://cdn.example/isleep-composite.png');
+  });
+
   test('falls back to product.imageUrl when no spec match', () async {
     final container = ProviderContainer(
       overrides: [
