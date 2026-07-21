@@ -48,27 +48,35 @@ class QuotationListNotifier extends StateNotifier<List<QuotationModel>> {
     }
   }
 
+  /// Waits for the initial [_load] to finish before any mutation runs —
+  /// otherwise a mutation racing ahead of `_load()` would operate on the
+  /// empty initial state, and `_load()` completing afterwards would then
+  /// clobber the mutation back to the pre-mutation (on-disk) data.
+  Future<void> _ensureLoaded() async {
+    if (_loadComplete) return;
+    await Future.doWhile(() async {
+      await Future.delayed(const Duration(milliseconds: 50));
+      return !_loadComplete;
+    });
+  }
+
   /// Add a new quotation draft (newest first).
-  /// Waits for initial load to finish to prevent overwriting existing data.
   Future<void> add(QuotationModel quotation) async {
-    if (!_loadComplete) {
-      await Future.doWhile(() async {
-        await Future.delayed(const Duration(milliseconds: 50));
-        return !_loadComplete;
-      });
-    }
+    await _ensureLoaded();
     state = [quotation, ...state];
     await _save();
   }
 
   /// Remove a draft by its ID.
   Future<void> remove(String id) async {
+    await _ensureLoaded();
     state = state.where((q) => q.id != id).toList();
     await _save();
   }
 
   /// Replace an existing draft (e.g. after re-edit).
   Future<void> update(QuotationModel quotation) async {
+    await _ensureLoaded();
     state = [
       for (final q in state)
         if (q.id == quotation.id) quotation else q,

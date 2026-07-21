@@ -84,6 +84,44 @@ void main() {
       expect(names, contains('Two'));
     });
 
+    test('remove called before initial load finishes does not get clobbered '
+        'by the in-flight load', () async {
+      // Seed disk with a quotation via one notifier instance, then create a
+      // brand-new instance and call remove() immediately — before its
+      // constructor-triggered _load() has had a chance to complete.
+      final seed = _makeQuotation(id: 'q-race', name: 'Racey');
+      await notifier.add(seed);
+
+      final racing = QuotationListNotifier();
+      // No delay here — remove() must itself await the in-flight load.
+      await racing.remove('q-race');
+
+      expect(racing.state, isEmpty);
+
+      // Reload from disk to make sure the removal was actually persisted,
+      // not just clobbered back in-memory by the late-finishing _load().
+      final verify = QuotationListNotifier();
+      await Future.delayed(const Duration(milliseconds: 100));
+      expect(verify.state, isEmpty);
+    });
+
+    test('update called before initial load finishes does not get clobbered '
+        'by the in-flight load', () async {
+      final seed = _makeQuotation(id: 'q-race-2', name: 'Before');
+      await notifier.add(seed);
+
+      final racing = QuotationListNotifier();
+      final updated = seed.copyWith(customerName: 'After');
+      await racing.update(updated);
+
+      expect(racing.state, hasLength(1));
+      expect(racing.state[0].customerName, 'After');
+
+      final verify = QuotationListNotifier();
+      await Future.delayed(const Duration(milliseconds: 100));
+      expect(verify.state[0].customerName, 'After');
+    });
+
     test('persists data across instances', () async {
       final q = _makeQuotation(id: 'q-persist', name: 'Persisted');
       await notifier.add(q);
