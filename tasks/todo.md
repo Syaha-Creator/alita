@@ -22,10 +22,10 @@
 - [x] Task 12: AuthNotifier.login() in-flight guard
 
 ## Phase 4 — Presentation layer
-- [ ] Task 13: Ganti FutureBuilder di profile_version_footer.dart
-- [ ] Task 14: Typed route args navigasi edit dari cart
-- [ ] Task 15: Ganti Navigator.pop mentah (stack-level) → context.pop/GoRouterPopScope
-- [ ] Task 16: mounted-safety setelah date-range picker
+- [x] Task 13: Ganti FutureBuilder di profile_version_footer.dart
+- [x] Task 14: Typed route args navigasi edit dari cart
+- [x] Task 15: Ganti Navigator.pop mentah (stack-level) → context.pop/GoRouterPopScope
+- [x] Task 16: mounted-safety setelah date-range picker
 
 ## Phase 5 — Performance (murni mobile-side, exclude pagination)
 - [ ] Task 17: Offload parsing JSON besar ke compute() (pricelist, order history, approval inbox, store list)
