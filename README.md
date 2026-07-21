@@ -188,7 +188,9 @@ flutter build appbundle --release \
 |----------|----------|-------------------------------------|
 | Alita API | `API_BASE_URL`, `CLIENT_ID`, `CLIENT_SECRET` | Ya |
 | Comforta | `COMFORTA_ACCESS_TOKEN`, `COMFORTA_CLIENT_ID`, `COMFORTA_CLIENT_SECRET` | Ya jika dipakai |
-| Default di kode | `COMFORTA_API_HOST`, `REGION_API_BASE_URL` | Tidak |
+| Spring Air | `SPRINGAIR_ACCESS_TOKEN`, `SPRINGAIR_CLIENT_ID`, `SPRINGAIR_CLIENT_SECRET` | Ya jika dipakai |
+| Therapedic | `THERAPEDIC_ACCESS_TOKEN`, `THERAPEDIC_CLIENT_ID`, `THERAPEDIC_CLIENT_SECRET` | Ya jika dipakai |
+| Default di kode | `COMFORTA_API_HOST`, `SPRINGAIR_API_HOST`, `THERAPEDIC_API_HOST`, `REGION_API_BASE_URL` | Tidak |
 | Firebase client | — | Pakai `firebase_options.dart`, bukan `.env` untuk app |
 
 ---

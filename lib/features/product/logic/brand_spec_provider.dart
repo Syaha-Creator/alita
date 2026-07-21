@@ -6,22 +6,35 @@ import '../../../core/services/api_client.dart';
 import '../../../core/utils/log.dart';
 import '../../../core/utils/retry.dart';
 
-/// Fetches the full brand/product-type spec catalogue from the Comforta API.
+/// Fetches the full product-type spec catalogue from all configured brand
+/// spec APIs (Comforta, Spring Air, Therapedic — see [AppConfig.brandSpecApis])
+/// and merges the results into one list.
 ///
-/// Uses [ApiClient.getExternal] because this is a third-party API with its
-/// own credentials (not the main on-premise backend).
+/// Uses [ApiClient.getExternal] because these are third-party APIs with their
+/// own credentials (not the main on-premise backend). One brand failing (bad
+/// credentials, network error) doesn't block the others — it just contributes
+/// an empty list.
 final brandSpecProvider = FutureProvider<List<dynamic>>((ref) async {
-  final url = Uri.https(AppConfig.comfortaHost, '/api/types_with_features', {
-    'access_token': AppConfig.comfortaAccessToken,
-    'client_id': AppConfig.comfortaClientId,
-    'client_secret': AppConfig.comfortaClientSecret,
+  final configs =
+      AppConfig.brandSpecApis.where((c) => c.isConfigured).toList();
+  if (configs.isEmpty) return const [];
+
+  final results = await Future.wait(configs.map(_fetchOne));
+  return results.expand((list) => list).toList();
+});
+
+Future<List<dynamic>> _fetchOne(BrandSpecApiConfig config) async {
+  final url = Uri.https(config.host, '/api/types_with_features', {
+    'access_token': config.accessToken,
+    'client_id': config.clientId,
+    'client_secret': config.clientSecret,
   }).toString();
 
   try {
     final response = await retry(
       () => ApiClient.instance.getExternal(url),
       maxAttempts: 2,
-      tag: 'brandSpec',
+      tag: 'brandSpec_${config.brand}',
     );
 
     if (response.statusCode == 200) {
@@ -30,9 +43,9 @@ final brandSpecProvider = FutureProvider<List<dynamic>>((ref) async {
         return decoded;
       }
     }
-    return [];
+    return const [];
   } catch (e, st) {
-    Log.error(e, st, reason: 'brandSpecProvider fetch');
-    return [];
+    Log.error(e, st, reason: 'brandSpecProvider fetch (${config.brand})');
+    return const [];
   }
-});
+}

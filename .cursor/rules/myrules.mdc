@@ -247,11 +247,11 @@ Rahasia tidak di-bundle dari .env. Untuk release build, WAJIB pass secrets lewat
 ./scripts/build_release.sh appbundle   # AAB untuk Play Store
 ./scripts/build_release.sh apk        # APK
 ```
-Tanpa export manual: script load API_BASE_URL, CLIENT_ID, CLIENT_SECRET, COMFORTA_* dari .env.
+Tanpa export manual: script load API_BASE_URL, CLIENT_ID, CLIENT_SECRET, COMFORTA_*/SPRINGAIR_*/THERAPEDIC_* dari .env.
 
 **Wajib (Alita API):** API_BASE_URL, CLIENT_ID, CLIENT_SECRET  
-**Opsional (Comforta):** COMFORTA_ACCESS_TOKEN, COMFORTA_CLIENT_ID, COMFORTA_CLIENT_SECRET  
-**Punya default (tidak perlu):** COMFORTA_API_HOST, REGION_API_BASE_URL
+**Opsional (Brand Spec — Comforta/Spring Air/Therapedic):** `<BRAND>_ACCESS_TOKEN`, `<BRAND>_CLIENT_ID`, `<BRAND>_CLIENT_SECRET`  
+**Punya default (tidak perlu):** `<BRAND>_API_HOST`, REGION_API_BASE_URL
 
 **Saat build release, SELALU gunakan script ini** — jangan pakai `flutter build` tanpa --dart-define untuk secrets.
 

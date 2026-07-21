@@ -76,19 +76,60 @@ class AppConfig {
     }
   }
 
-  // ── Comforta (Brand Spec) API ──────────────────────────────────
+  // ── Brand Spec APIs (Comforta, Spring Air, Therapedic) ──────────
+  // Ketiganya berbagi bentuk endpoint yang sama: `/api/types_with_features`
+  // dengan query access_token/client_id/client_secret. Tambah brand baru:
+  // tambah 4 getter host/token/id/secret di bawah + satu entri di [brandSpecApis].
 
   static String get comfortaHost =>
       _fromEnv('COMFORTA_API_HOST', 'comforta.co.id');
-
   static String get comfortaAccessToken =>
       _fromEnv('COMFORTA_ACCESS_TOKEN');
-
-  static String get comfortaClientId =>
-      _fromEnv('COMFORTA_CLIENT_ID');
-
+  static String get comfortaClientId => _fromEnv('COMFORTA_CLIENT_ID');
   static String get comfortaClientSecret =>
       _fromEnv('COMFORTA_CLIENT_SECRET');
+
+  static String get springAirHost =>
+      _fromEnv('SPRINGAIR_API_HOST', 'springair.co.id');
+  static String get springAirAccessToken =>
+      _fromEnv('SPRINGAIR_ACCESS_TOKEN');
+  static String get springAirClientId => _fromEnv('SPRINGAIR_CLIENT_ID');
+  static String get springAirClientSecret =>
+      _fromEnv('SPRINGAIR_CLIENT_SECRET');
+
+  static String get therapedicHost =>
+      _fromEnv('THERAPEDIC_API_HOST', 'therapedic.co.id');
+  static String get therapedicAccessToken =>
+      _fromEnv('THERAPEDIC_ACCESS_TOKEN');
+  static String get therapedicClientId => _fromEnv('THERAPEDIC_CLIENT_ID');
+  static String get therapedicClientSecret =>
+      _fromEnv('THERAPEDIC_CLIENT_SECRET');
+
+  /// Semua brand spec API yang didukung. [brandSpecProvider] fetch tiap
+  /// entri yang [BrandSpecApiConfig.isConfigured] lalu gabungkan hasilnya.
+  static List<BrandSpecApiConfig> get brandSpecApis => [
+        BrandSpecApiConfig(
+          brand: 'Comforta',
+          host: comfortaHost,
+          accessToken: comfortaAccessToken,
+          clientId: comfortaClientId,
+          clientSecret: comfortaClientSecret,
+        ),
+        BrandSpecApiConfig(
+          brand: 'Spring Air',
+          host: springAirHost,
+          accessToken: springAirAccessToken,
+          clientId: springAirClientId,
+          clientSecret: springAirClientSecret,
+        ),
+        BrandSpecApiConfig(
+          brand: 'Therapedic',
+          host: therapedicHost,
+          accessToken: therapedicAccessToken,
+          clientId: therapedicClientId,
+          clientSecret: therapedicClientSecret,
+        ),
+      ];
 
   // ── Region API ─────────────────────────────────────────────────
 
@@ -133,4 +174,25 @@ class AppConfig {
 
   /// When API row has no image field: empty string (synthetic → logo in UI via provider).
   static String placeholderProductImageById(dynamic id) => '';
+}
+
+/// Kredensial satu brand spec API (Comforta/Spring Air/Therapedic/dst).
+/// Lihat [AppConfig.brandSpecApis].
+class BrandSpecApiConfig {
+  const BrandSpecApiConfig({
+    required this.brand,
+    required this.host,
+    required this.accessToken,
+    required this.clientId,
+    required this.clientSecret,
+  });
+
+  final String brand;
+  final String host;
+  final String accessToken;
+  final String clientId;
+  final String clientSecret;
+
+  bool get isConfigured =>
+      accessToken.isNotEmpty && clientId.isNotEmpty && clientSecret.isNotEmpty;
 }
