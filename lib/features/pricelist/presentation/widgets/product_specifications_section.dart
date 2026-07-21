@@ -100,16 +100,16 @@ class _ProductSpecificationsSectionState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Expanded(
                               child: Text(
                                 name,
                                 style: const TextStyle(
-                                  fontSize: 11,
-                                  color: AppColors.textSecondary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary,
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             Icon(
@@ -129,9 +129,8 @@ class _ProductSpecificationsSectionState
                           child: Text(
                             note,
                             style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
                             ),
                             maxLines: isExpanded ? null : 2,
                             overflow: isExpanded
