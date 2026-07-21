@@ -103,28 +103,39 @@ void main() async {
 
   await initializeDateFormatting('id_ID');
 
+  // Catch blocks below guard calls INTO Crashlytics itself (e.g. Crashlytics
+  // not yet initialized) — routing through Log here would call back into
+  // the same failing plugin channel, so we fall back to debugPrint directly.
   FlutterError.onError = (details) {
     if (_isTransientAssetError(details)) {
       try {
         FirebaseCrashlytics.instance.recordFlutterError(details);
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('Crashlytics.recordFlutterError failed: $e');
+      }
       return;
     }
     try {
       FirebaseCrashlytics.instance.recordFlutterFatalError(details);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Crashlytics.recordFlutterFatalError failed: $e');
+    }
   };
 
   PlatformDispatcher.instance.onError = (error, stack) {
     if (_isLikelyTransientNetworkError(error)) {
       try {
         FirebaseCrashlytics.instance.recordError(error, stack, fatal: false);
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('Crashlytics.recordError (non-fatal) failed: $e');
+      }
       return true;
     }
     try {
       FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Crashlytics.recordError (fatal) failed: $e');
+    }
     return true;
   };
 

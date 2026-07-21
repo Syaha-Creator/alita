@@ -74,7 +74,9 @@ Future<bool> _verifiedOnline(Connectivity connectivity) async {
       );
     }
     return reachable;
-  } catch (_) {
+  } catch (e) {
+    Log.warning('DNS lookup failed, treating as offline: $e',
+        tag: 'Connectivity');
     return false;
   }
 }

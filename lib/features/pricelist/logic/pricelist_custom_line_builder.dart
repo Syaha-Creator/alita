@@ -1,3 +1,4 @@
+import '../../../core/utils/log.dart';
 import '../../cart/data/cart_indirect_meta.dart';
 import '../../cart/data/cart_item.dart';
 import '../data/models/pricelist_custom_line.dart';
@@ -79,8 +80,12 @@ class PricelistCustomLineBuilder {
       try {
         return PricelistCustomComponentType.values
             .firstWhere((e) => e.name == name);
-      } catch (_) {
-        // name tidak dikenali — lanjut ke fallback
+      } catch (e) {
+        // name tidak dikenali — lanjut ke fallback deteksi struktur.
+        Log.warning(
+          'PricelistCustomLineBuilder: custom_type "$name" tidak dikenali: $e',
+          tag: 'PricelistCustomLine',
+        );
       }
     }
 

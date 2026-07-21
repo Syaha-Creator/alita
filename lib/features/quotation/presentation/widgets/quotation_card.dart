@@ -260,7 +260,8 @@ class QuotationCard extends ConsumerWidget {
           type: AppFeedbackType.info,
         );
       }
-    } catch (_) {
+    } catch (e, st) {
+      Log.error(e, st, reason: 'QuotationCard: gagal membuka WhatsApp');
       if (!context.mounted) return;
       AppFeedback.show(
         context,

@@ -68,7 +68,9 @@ class RegionService {
           await _writeFile(cacheKey, legacy);
           try {
             await prefs.remove(cacheKey);
-          } catch (_) {}
+          } catch (e, st) {
+            Log.error(e, st, reason: 'RegionService remove legacy prefs key');
+          }
           return list;
         }
       } catch (e, st) {
@@ -88,7 +90,9 @@ class RegionService {
           await _writeFile(cacheKey, response.body);
           try {
             await prefs.remove(cacheKey);
-          } catch (_) {}
+          } catch (e, st) {
+            Log.error(e, st, reason: 'RegionService remove stale prefs key');
+          }
           return safeMapList(decoded);
         }
       }

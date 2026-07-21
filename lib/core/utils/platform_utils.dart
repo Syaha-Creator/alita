@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_colors.dart';
+import 'log.dart';
 
 // ─── Platform Detection ─────────────────────────────────────────────────────
 
@@ -11,26 +12,34 @@ bool get isIOS => Platform.isIOS;
 
 // ─── Haptic Feedback ────────────────────────────────────────────────────────
 // Wrapped in try/catch — MIUI/Xiaomi devices may lack VIBRATE permission.
+// Logged once per session (not per tap) to avoid flooding Crashlytics
+// breadcrumbs on affected devices while still surfacing the condition.
+
+bool _hapticFailureLogged = false;
+
+void _runHaptic(void Function() call) {
+  try {
+    call();
+  } on PlatformException catch (e) {
+    if (!_hapticFailureLogged) {
+      _hapticFailureLogged = true;
+      Log.warning('Haptic feedback unavailable on this device: $e',
+          tag: 'Haptic');
+    }
+  }
+}
 
 /// Light haptic tap for primary action buttons.
-void hapticTap() {
-  try { HapticFeedback.lightImpact(); } on PlatformException catch (_) {}
-}
+void hapticTap() => _runHaptic(HapticFeedback.lightImpact);
 
 /// Medium haptic for confirmations (approve, checkout).
-void hapticConfirm() {
-  try { HapticFeedback.mediumImpact(); } on PlatformException catch (_) {}
-}
+void hapticConfirm() => _runHaptic(HapticFeedback.mediumImpact);
 
 /// Heavy haptic for destructive actions (reject, delete).
-void hapticDestructive() {
-  try { HapticFeedback.heavyImpact(); } on PlatformException catch (_) {}
-}
+void hapticDestructive() => _runHaptic(HapticFeedback.heavyImpact);
 
 /// Selection tick for toggles, chips, pickers.
-void hapticSelection() {
-  try { HapticFeedback.selectionClick(); } on PlatformException catch (_) {}
-}
+void hapticSelection() => _runHaptic(HapticFeedback.selectionClick);
 
 // ─── Adaptive Alert Dialog ──────────────────────────────────────────────────
 

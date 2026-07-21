@@ -35,7 +35,11 @@ class CustomerRepository {
     if (auth.currentUser != null) {
       try {
         await auth.currentUser!.getIdToken(true);
-      } catch (_) {
+      } catch (e) {
+        Log.warning(
+          'CustomerRepository: token refresh gagal, sign out & buat ulang: $e',
+          tag: 'CustomerRepository',
+        );
         await auth.signOut();
       }
     }

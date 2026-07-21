@@ -173,7 +173,9 @@ class IosUpdateChecker {
           await launchUrl(uri, mode: LaunchMode.externalApplication);
           return;
         }
-      } catch (_) {
+      } catch (e) {
+        Log.warning('IosUpdateChecker: launchUrl gagal untuk $uri: $e',
+            tag: 'IosUpdate');
         continue;
       }
     }

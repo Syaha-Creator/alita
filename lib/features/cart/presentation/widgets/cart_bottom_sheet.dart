@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/utils/log.dart';
 import '../../../../core/widgets/animated_list_item.dart';
 import '../../../../core/widgets/empty_state_view.dart';
 import '../../../../core/widgets/sheet_scaffold.dart';
@@ -39,8 +40,12 @@ void _tryReopenCartSheetIfNeeded(BuildContext anchor) {
   try {
     final loc = GoRouterState.of(anchor).matchedLocation;
     if (loc == '/checkout' || loc == '/success') return;
-  } catch (_) {
-    // Anchor tidak di bawah GoRouter — abaikan guard.
+  } catch (e) {
+    // Anchor tidak di bawah GoRouter — abaikan guard, tapi tetap tercatat.
+    Log.warning(
+      '_tryReopenCartSheetIfNeeded: GoRouterState.of gagal: $e',
+      tag: 'CartSheet',
+    );
   }
   showCartSheet(anchor);
 }

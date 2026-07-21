@@ -28,8 +28,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
   }
-  // ignore: avoid_print
-  print('[FCM] Background message: ${message.messageId}');
+  Log.info('[FCM] Background message: ${message.messageId}', tag: 'FCM');
 }
 
 class NotificationHandlerService {

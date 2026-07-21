@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
+import '../../../../core/utils/log.dart';
 import '../../../../core/services/connectivity_service.dart';
 import '../../../approval/logic/approval_inbox_provider.dart';
 import '../../../history/logic/order_history_provider.dart';
@@ -46,7 +47,8 @@ class ProfileRefreshable extends ConsumerWidget {
     unawaited(ref.read(approvalInboxProvider.notifier).fetchInbox(force: true));
     try {
       await ref.read(profileProvider.future);
-    } catch (_) {
+    } catch (e, st) {
+      Log.error(e, st, reason: 'ProfileRefreshable: gagal memuat ulang profil');
       if (context.mounted) {
         AppFeedback.show(context,
             message: 'Gagal memuat ulang profil.',
