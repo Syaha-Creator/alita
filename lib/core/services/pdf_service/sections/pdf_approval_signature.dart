@@ -151,6 +151,7 @@ abstract final class PdfApprovalSignature {
 
     const terms = [
       'Pembayaran dianggap SAH hanya apabila sudah diterima di rekening perusahaan atas nama:\nPT MASSINDO KARYA PRIMA\nBANK BCA 066-328-8871\nPembayaran ke rekening lain tidak akan diakui sebagai pembayaran yang sah.',
+      'Konsumen wajib melunasi 100% nilai pesanan sebelum pengiriman/penyerahan barang pesanan. Pelunasan pesanan dilakukan selambat-lambatnya 3 hari kerja sebelum jadwal pengiriman/penyerahan yang dijadwalkan.',
       'Barang yang sudah dipesan / dibeli, tidak dapat ditukar atau dikembalikan.',
       'Uang muka yang telah dibayarkan tidak dapat dikembalikan.',
       'Sleep Center berhak mengubah tanggal pengiriman dengan sebelumnya memberitahukan kepada konsumen.',
