@@ -29,7 +29,7 @@
 
 ## Phase 5 — Performance (murni mobile-side, exclude pagination)
 - [x] Task 17: Offload parsing JSON besar ke compute() (pricelist, order history, approval inbox, store list)
-- [ ] Task 18: Debounce search (quotation history, store picker)
+- [x] Task 18: Debounce search (quotation history, store picker)
 - [ ] Task 19: Persempit ref.watch di product_list_page.dart
 - [ ] Task 20: Split god-files (checkout_page.dart dkk) — kerjakan satu per satu, task tersendiri
 
