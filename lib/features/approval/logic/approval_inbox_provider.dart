@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
@@ -116,6 +117,151 @@ class ApprovalInboxState {
   }
 }
 
+// ── Isolate offload: grouping + klasifikasi pending/history ─────
+//
+// `/order_letter_approvals` bisa membalas ratusan wrap bersarang (tiap SP
+// punya banyak order_letter_discount). Dedup + klasifikasi per-approver
+// sebelumnya jalan sinkron di UI thread setiap fetch/refresh — dipindah ke
+// background isolate lewat compute() supaya tab approval tidak macet saat
+// loading.
+
+/// Params for [_parseApprovalInboxEntryPoint] — [compute] hanya menerima
+/// satu argumen top-level function.
+@immutable
+class _ApprovalInboxParseParams {
+  const _ApprovalInboxParseParams(this.body, this.currentUserIdStr);
+  final String body;
+  final String currentUserIdStr;
+}
+
+/// Hasil klasifikasi: dua daftar wrap mentah (`pending` / `history`), sudah
+/// terurut terbaru dulu.
+@immutable
+class _ApprovalInboxParseResult {
+  const _ApprovalInboxParseResult(this.pending, this.history);
+  final List<dynamic> pending;
+  final List<dynamic> history;
+}
+
+/// Normalisasi nilai `approved` dari API ke [OrderStatus] enum.
+OrderStatus _normalizeApprovedStatus(dynamic value) =>
+    OrderStatusX.fromDynamic(value);
+
+_ApprovalInboxParseResult _parseApprovalInboxEntryPoint(
+  _ApprovalInboxParseParams params,
+) {
+  final data = jsonDecode(params.body) as Map<String, dynamic>;
+  final rawOrders = data['result'] as List<dynamic>? ?? [];
+  final currentUserIdStr = params.currentUserIdStr;
+
+  // Validasi tiap item (cegah silent crash)
+  final List<dynamic> rawOrdersSafe = [];
+  for (var i = 0; i < rawOrders.length; i++) {
+    try {
+      final wrap = rawOrders[i];
+      if (wrap is! Map) continue;
+      final wrapMap = Map<String, dynamic>.from(wrap);
+      wrapMap['order_letter'] as Map<String, dynamic>?;
+      wrapMap['order_letter_details'] as List<dynamic>?;
+      rawOrdersSafe.add(wrapMap);
+    } catch (e) {
+      Log.warning('Skip invalid approval item: $e', tag: 'Approval');
+    }
+  }
+
+  // ── Grouping: deduplikasi SP berdasarkan order_letter_id ──────
+  final Map<dynamic, Map<String, dynamic>> grouped = {};
+  for (final wrap in rawOrdersSafe) {
+    final letter = wrap['order_letter'] as Map<String, dynamic>? ?? {};
+    final key = letter['id'] ?? letter['no_sp'] ?? Object.hash(wrap, null);
+
+    if (!grouped.containsKey(key)) {
+      grouped[key] = Map<String, dynamic>.from(wrap);
+    }
+  }
+  final List<dynamic> allOrders = grouped.values.toList();
+
+  final List<dynamic> pending = [];
+  final List<dynamic> history = [];
+
+  for (var orderIndex = 0; orderIndex < allOrders.length; orderIndex++) {
+    final orderWrap = allOrders[orderIndex];
+    bool isMyApproval = false;
+    bool isMyApprovalDone = false;
+    bool hasActionablePending = false;
+
+    final letter = orderWrap['order_letter'] as Map<String, dynamic>? ?? {};
+    final details =
+        orderWrap['order_letter_details'] as List<dynamic>? ?? [];
+
+    final headerEnum = OrderStatusX.fromRaw(
+      letter['status']?.toString() ?? '',
+    );
+    final bool headerRejected = headerEnum == OrderStatus.rejected;
+
+    bool hasRejectedDiscount = false;
+
+    for (final detail in details) {
+      final discounts =
+          (detail as Map<String, dynamic>)['order_letter_discount']
+                  as List<dynamic>? ??
+              [];
+      final discountMaps =
+          discounts.map((d) => d as Map<String, dynamic>).toList();
+
+      for (int i = 0; i < discountMaps.length; i++) {
+        final disc = discountMaps[i];
+        final discEnum = _normalizeApprovedStatus(disc['approved']);
+
+        if (discEnum == OrderStatus.rejected) {
+          hasRejectedDiscount = true;
+        }
+
+        final approverId = disc['approver_id']?.toString() ?? '';
+        if (approverId.isEmpty || approverId != currentUserIdStr) {
+          continue;
+        }
+
+        isMyApproval = true;
+
+        if (discEnum == OrderStatus.approved ||
+            discEnum == OrderStatus.rejected) {
+          isMyApprovalDone = true;
+        } else if (discEnum == OrderStatus.pending) {
+          if (arePriorApprovalsSatisfied(
+            discounts: discountMaps,
+            myIndex: i,
+          )) {
+            hasActionablePending = true;
+          }
+        }
+      }
+    }
+
+    if (!isMyApproval) continue;
+
+    if (headerRejected || hasRejectedDiscount) {
+      history.add(orderWrap);
+    } else if (hasActionablePending) {
+      pending.add(orderWrap);
+    } else if (isMyApprovalDone) {
+      history.add(orderWrap);
+    }
+  }
+
+  // Urutkan terbaru di atas berdasarkan created_at
+  DateTime parseDate(dynamic wrap) =>
+      DateTime.tryParse(
+        wrap['order_letter']?['created_at']?.toString() ?? '',
+      ) ??
+      DateTime(2000);
+
+  pending.sort((a, b) => parseDate(b).compareTo(parseDate(a)));
+  history.sort((a, b) => parseDate(b).compareTo(parseDate(a)));
+
+  return _ApprovalInboxParseResult(pending, history);
+}
+
 // ── Notifier ──────────────────────────────────────────────────
 class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
   final Ref ref;
@@ -169,10 +315,6 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
       historyWorkPlaceFilter: workPlace,
     );
   }
-
-  /// Normalisasi nilai `approved` dari API ke [OrderStatus] enum.
-  static OrderStatus _normalizeApprovedStatus(dynamic value) =>
-      OrderStatusX.fromDynamic(value);
 
   /// Skip re-fetch jika data masih segar (kecuali [force]).
   static const _inboxFreshnessWindow = Duration(seconds: 45);
@@ -478,131 +620,24 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
       if (generation != _fetchGeneration) return;
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final rawOrders = data['result'] as List<dynamic>? ?? [];
-
-        // Validasi tiap item (cegah silent crash)
-        final List<dynamic> rawOrdersSafe = [];
-        for (var i = 0; i < rawOrders.length; i++) {
-          try {
-            final wrap = rawOrders[i];
-            if (wrap is! Map) continue;
-            final wrapMap = Map<String, dynamic>.from(wrap);
-            wrapMap['order_letter'] as Map<String, dynamic>?;
-            wrapMap['order_letter_details'] as List<dynamic>?;
-            rawOrdersSafe.add(wrapMap);
-          } catch (e) {
-            Log.warning('Skip invalid approval item: $e', tag: 'Approval');
-          }
-        }
-
-        // ── Grouping: deduplikasi SP berdasarkan order_letter_id ──────
-        final Map<dynamic, Map<String, dynamic>> grouped = {};
-        for (final wrap in rawOrdersSafe) {
-          final letter = wrap['order_letter'] as Map<String, dynamic>? ?? {};
-          final key =
-              letter['id'] ?? letter['no_sp'] ?? Object.hash(wrap, null);
-
-          if (!grouped.containsKey(key)) {
-            grouped[key] = Map<String, dynamic>.from(wrap);
-          }
-        }
-        final List<dynamic> allOrders = grouped.values.toList();
-
-        final List<dynamic> pending = [];
-        final List<dynamic> history = [];
-
-        for (var orderIndex = 0;
-            orderIndex < allOrders.length;
-            orderIndex++) {
-          final orderWrap = allOrders[orderIndex];
-          bool isMyApproval = false;
-          bool isMyApprovalDone = false;
-          bool hasActionablePending = false;
-
-          final letter =
-              orderWrap['order_letter'] as Map<String, dynamic>? ?? {};
-          final details =
-              orderWrap['order_letter_details'] as List<dynamic>? ?? [];
-
-          final headerEnum = OrderStatusX.fromRaw(
-            letter['status']?.toString() ?? '',
-          );
-          final bool headerRejected = headerEnum == OrderStatus.rejected;
-
-          bool hasRejectedDiscount = false;
-
-          for (final detail in details) {
-            final discounts =
-                (detail as Map<String, dynamic>)['order_letter_discount']
-                        as List<dynamic>? ??
-                    [];
-            final discountMaps =
-                discounts.map((d) => d as Map<String, dynamic>).toList();
-
-            for (int i = 0; i < discountMaps.length; i++) {
-              final disc = discountMaps[i];
-              final discEnum = _normalizeApprovedStatus(disc['approved']);
-
-              if (discEnum == OrderStatus.rejected) {
-                hasRejectedDiscount = true;
-              }
-
-              final approverId = disc['approver_id']?.toString() ?? '';
-              if (approverId.isEmpty || approverId != currentUserIdStr) {
-                continue;
-              }
-
-              isMyApproval = true;
-
-              if (discEnum == OrderStatus.approved ||
-                  discEnum == OrderStatus.rejected) {
-                isMyApprovalDone = true;
-              } else if (discEnum == OrderStatus.pending) {
-                if (arePriorApprovalsSatisfied(
-                  discounts: discountMaps,
-                  myIndex: i,
-                )) {
-                  hasActionablePending = true;
-                }
-              }
-            }
-          }
-
-          if (!isMyApproval) continue;
-
-          if (headerRejected || hasRejectedDiscount) {
-            history.add(orderWrap);
-          } else if (hasActionablePending) {
-            pending.add(orderWrap);
-          } else if (isMyApprovalDone) {
-            history.add(orderWrap);
-          }
-        }
-
-        // Urutkan terbaru di atas berdasarkan created_at
-        DateTime parseDate(dynamic wrap) =>
-            DateTime.tryParse(
-              wrap['order_letter']?['created_at']?.toString() ?? '',
-            ) ??
-            DateTime(2000);
-
-        pending.sort((a, b) => parseDate(b).compareTo(parseDate(a)));
-        history.sort((a, b) => parseDate(b).compareTo(parseDate(a)));
+        final parsed = await compute(
+          _parseApprovalInboxEntryPoint,
+          _ApprovalInboxParseParams(response.body, currentUserIdStr),
+        );
+        if (generation != _fetchGeneration) return;
 
         sw.stop();
-        if (generation != _fetchGeneration) return;
         AppTelemetry.event('approval_inbox_loaded', data: {
-          'pending_count': pending.length,
-          'history_count': history.length,
+          'pending_count': parsed.pending.length,
+          'history_count': parsed.history.length,
           'duration_ms': sw.elapsedMilliseconds,
         });
 
         state = state.copyWith(
           isLoading: false,
           clearError: true,
-          pendingApprovals: pending,
-          historyApprovals: history,
+          pendingApprovals: parsed.pending,
+          historyApprovals: parsed.history,
           lastFetchedAt: DateTime.now(),
         );
       } else {
