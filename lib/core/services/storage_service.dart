@@ -43,6 +43,7 @@ class StorageService {
   );
 
   static const String _tokenMigratedKey = 'token_migrated_v1';
+  static const String _emailMigratedKey = 'email_migrated_v1';
 
   static Future<File> _cartItemsFile() async {
     final appDir = await getApplicationSupportDirectory();
@@ -150,7 +151,15 @@ class StorageService {
   }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_isLoggedInKey, isLoggedIn);
-    await prefs.setString(_userEmailKey, email);
+    // Email adalah PII — simpan di secure storage (keychain/keystore), bukan
+    // SharedPreferences plaintext. Lihat [_migrateEmailIfNeeded] untuk
+    // pengguna lama yang masih punya salinan plaintext.
+    if (email.isNotEmpty) {
+      await _writeSecure(_userEmailKey, email);
+    } else {
+      await _deleteSecure(_userEmailKey);
+    }
+    await prefs.remove(_userEmailKey);
     await prefs.setString(_defaultAreaKey, defaultArea);
     if (accessToken.isNotEmpty) {
       await _writeSecure(_accessTokenKey, accessToken);
@@ -212,8 +221,8 @@ class StorageService {
   }
 
   static Future<String> loadUserEmail() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_userEmailKey) ?? '';
+    await _migrateEmailIfNeeded();
+    return await _readSecure(_userEmailKey) ?? '';
   }
 
   static Future<String> loadDefaultArea() async {
@@ -243,6 +252,20 @@ class StorageService {
     await prefs.setBool(_tokenMigratedKey, true);
   }
 
+  /// One-time migration: moves email from SharedPreferences (plaintext) →
+  /// secure storage. Mirrors [_migrateTokenIfNeeded].
+  static Future<void> _migrateEmailIfNeeded() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_emailMigratedKey) == true) return;
+
+    final legacyEmail = prefs.getString(_userEmailKey);
+    if (legacyEmail != null && legacyEmail.isNotEmpty) {
+      await _writeSecure(_userEmailKey, legacyEmail);
+      await prefs.remove(_userEmailKey);
+    }
+    await prefs.setBool(_emailMigratedKey, true);
+  }
+
   static Future<void> clearAuth() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_isLoggedInKey);
@@ -254,6 +277,7 @@ class StorageService {
     await prefs.remove(_userAddressNumberKey);
     await prefs.remove(_userWorkTitleKey);
     await _deleteSecure(_accessTokenKey);
+    await _deleteSecure(_userEmailKey);
   }
 
   // ── Master Data Cache (file-based; hindari JSON besar lewat channel SP) ──

@@ -307,4 +307,44 @@ void main() {
       expect(token, 'secure-tok');
     });
   });
+
+  group('Email migration (PII → secure storage)', () {
+    test('migrates plain-text email from SharedPreferences to secure storage',
+        () async {
+      SharedPreferences.setMockInitialValues({
+        'user_email': 'legacy@example.com',
+      });
+      mockSecureStorage();
+
+      final email = await StorageService.loadUserEmail();
+      expect(email, 'legacy@example.com');
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('user_email'), isNull);
+      expect(prefs.getBool('email_migrated_v1'), true);
+    });
+
+    test('does not re-migrate after first migration', () async {
+      SharedPreferences.setMockInitialValues({
+        'email_migrated_v1': true,
+      });
+      mockSecureStorage({'user_email': 'secure@example.com'});
+
+      final email = await StorageService.loadUserEmail();
+      expect(email, 'secure@example.com');
+    });
+
+    test('saveAuth never leaves a plaintext copy in SharedPreferences',
+        () async {
+      await StorageService.saveAuth(
+        isLoggedIn: true,
+        email: 'fresh@example.com',
+        defaultArea: 'Jakarta',
+      );
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('user_email'), isNull);
+      expect(await StorageService.loadUserEmail(), 'fresh@example.com');
+    });
+  });
 }
