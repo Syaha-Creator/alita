@@ -21,6 +21,10 @@ class Log {
   static void enableCrashlytics() => _crashlyticsReady = true;
 
   /// Non-fatal error — recorded in Crashlytics dashboard under "Non-Fatals".
+  ///
+  /// Safe to call from a background isolate (e.g. inside `compute()`):
+  /// Crashlytics' platform channel is only wired up on the root isolate, so
+  /// the call is wrapped defensively — the console line above still lands.
   static void error(
     dynamic exception,
     StackTrace? stackTrace, {
@@ -29,30 +33,47 @@ class Log {
     final tag = reason ?? 'untagged';
     debugPrint('[Log.error] ($tag) $exception');
     if (!kDebugMode && _crashlyticsReady) {
-      FirebaseCrashlytics.instance.recordError(
-        exception,
-        stackTrace,
-        reason: tag,
-      );
+      try {
+        FirebaseCrashlytics.instance.recordError(
+          exception,
+          stackTrace,
+          reason: tag,
+        );
+      } catch (_) {
+        // Not on the root isolate (or Crashlytics unavailable) — console
+        // line above already captured this, nothing else to do.
+      }
     }
   }
 
   /// Warning-level log — breadcrumb only, no error entry.
   /// Useful for expected failures (e.g., optional notification that failed).
+  ///
+  /// Safe to call from a background isolate — see [error].
   static void warning(String message, {String? tag}) {
     final prefix = tag != null ? '[$tag] ' : '';
     debugPrint('[Log.warning] $prefix$message');
     if (!kDebugMode && _crashlyticsReady) {
-      FirebaseCrashlytics.instance.log('$prefix$message');
+      try {
+        FirebaseCrashlytics.instance.log('$prefix$message');
+      } catch (_) {
+        // See [error] — background isolate has no Crashlytics channel.
+      }
     }
   }
 
   /// Informational log — console (and Crashlytics breadcrumb in release).
+  ///
+  /// Safe to call from a background isolate — see [error].
   static void info(String message, {String? tag}) {
     final prefix = tag != null ? '[$tag] ' : '';
     debugPrint('[Log.info] $prefix$message');
     if (!kDebugMode && _crashlyticsReady) {
-      FirebaseCrashlytics.instance.log('$prefix$message');
+      try {
+        FirebaseCrashlytics.instance.log('$prefix$message');
+      } catch (_) {
+        // See [error] — background isolate has no Crashlytics channel.
+      }
     }
   }
 
