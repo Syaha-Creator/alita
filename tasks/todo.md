@@ -34,7 +34,7 @@
 - [ ] Task 20: Split god-files (checkout_page.dart dkk) — kerjakan satu per satu, task tersendiri
 
 ## Phase 6 — Security (actionable dari mobile)
-- [ ] Task 21: Stop log response body mentah ke Crashlytics
+- [x] Task 21: Stop log response body mentah ke Crashlytics
 - [ ] Task 22: PII (email, saved customer) SharedPreferences → secure storage
 - [ ] Task 23: Re-fetch approval detail dari API, jangan percaya payload FCM mentah
 - [ ] Task 24: Allowlist path deep link sebelum router.go(path)
