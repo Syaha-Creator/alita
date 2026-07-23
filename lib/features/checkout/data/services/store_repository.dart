@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../../core/services/api_client.dart';
@@ -8,12 +9,37 @@ import '../../../../core/utils/log.dart';
 import '../../../../core/utils/retry.dart';
 import '../models/store_model.dart';
 
+/// Isolate entry point: decode + map the `/all_stores` response off the UI
+/// thread. The master store list can grow into the hundreds of entries.
+List<StoreModel> _parseStoresEntryPoint(String body) {
+  final decoded = jsonDecode(body);
+  final List<dynamic> rawList;
+  if (decoded is List) {
+    rawList = decoded;
+  } else if (decoded is Map) {
+    final result = decoded['result'];
+    final data = decoded['data'];
+    if (result is List) {
+      rawList = result;
+    } else if (data is List) {
+      rawList = data;
+    } else {
+      rawList = const [];
+    }
+  } else {
+    rawList = const [];
+  }
+  return rawList
+      .whereType<Map<String, dynamic>>()
+      .map(StoreModel.fromJson)
+      .toList();
+}
+
 /// Fetches the store master list from `/all_stores` with a 24-hour
 /// file-based cache so the list survives app restarts without hitting
 /// the API on every checkout.
 class StoreRepository {
-  StoreRepository({ApiClient? client})
-      : _api = client ?? ApiClient.instance;
+  StoreRepository({ApiClient? client}) : _api = client ?? ApiClient.instance;
 
   final ApiClient _api;
 
@@ -58,27 +84,7 @@ class StoreRepository {
       );
     }
 
-    final decoded = jsonDecode(response.body);
-    final List<dynamic> rawList;
-    if (decoded is List) {
-      rawList = decoded;
-    } else if (decoded is Map) {
-      final result = decoded['result'];
-      final data = decoded['data'];
-      if (result is List) {
-        rawList = result;
-      } else if (data is List) {
-        rawList = data;
-      } else {
-        rawList = const [];
-      }
-    } else {
-      rawList = const [];
-    }
-    final stores = rawList
-        .whereType<Map<String, dynamic>>()
-        .map(StoreModel.fromJson)
-        .toList();
+    final stores = await compute(_parseStoresEntryPoint, response.body);
 
     final sorted = _sortStoresByName(stores);
     await _saveCache(sorted);
