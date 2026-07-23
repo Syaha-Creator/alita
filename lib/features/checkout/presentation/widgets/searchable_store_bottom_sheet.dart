@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -115,9 +117,33 @@ class SearchableStoreBottomSheet extends ConsumerStatefulWidget {
       _SearchableStoreBottomSheetState();
 }
 
+/// Debounce before re-filtering the store list (master list can be in the
+/// hundreds) — same pattern as [SearchBarWidget] in pricelist.
+const _searchDebounce = Duration(milliseconds: 250);
+
 class _SearchableStoreBottomSheetState
     extends ConsumerState<SearchableStoreBottomSheet> {
   String _query = '';
+  Timer? _searchDebounceTimer;
+
+  @override
+  void dispose() {
+    _searchDebounceTimer?.cancel();
+    super.dispose();
+  }
+
+  void _onQueryChanged(String value) {
+    _searchDebounceTimer?.cancel();
+    // Clear immediately so the list resets without waiting.
+    if (value.isEmpty) {
+      setState(() => _query = '');
+      return;
+    }
+    _searchDebounceTimer = Timer(_searchDebounce, () {
+      if (!mounted) return;
+      setState(() => _query = value);
+    });
+  }
 
   List<StoreModel> _filter(List<StoreModel> stores) {
     final trimmed = _query.trim();
@@ -213,7 +239,7 @@ class _SearchableStoreBottomSheetState
                   autocorrect: false,
                   enableSuggestions: false,
                   textCapitalization: TextCapitalization.none,
-                  onChanged: (v) => setState(() => _query = v),
+                  onChanged: _onQueryChanged,
                   hintStyle: const TextStyle(
                     fontSize: 13,
                     color: AppColors.textTertiary,

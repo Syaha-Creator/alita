@@ -45,19 +45,23 @@ class QuotationHistoryPage extends ConsumerStatefulWidget {
       _QuotationHistoryPageState();
 }
 
+/// Debounce before re-filtering the draft list (avoids re-sort/filter churn
+/// on every keystroke — see [SearchBarWidget] in pricelist for the same
+/// pattern).
+const _searchDebounce = Duration(milliseconds: 250);
+
 class _QuotationHistoryPageState extends ConsumerState<QuotationHistoryPage> {
   bool _autoPdfTriggered = false;
   bool _onlinePriceSyncRunning = false;
   final _searchCtrl = TextEditingController();
   _SortMode _sortMode = _SortMode.newestFirst;
   String _searchQuery = '';
+  Timer? _searchDebounceTimer;
 
   @override
   void initState() {
     super.initState();
-    _searchCtrl.addListener(() {
-      setState(() => _searchQuery = _searchCtrl.text.trim().toLowerCase());
-    });
+    _searchCtrl.addListener(_onSearchChanged);
     if (widget.autoPdfQuotation != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _triggerAutoPdf();
@@ -65,8 +69,24 @@ class _QuotationHistoryPageState extends ConsumerState<QuotationHistoryPage> {
     }
   }
 
+  void _onSearchChanged() {
+    final value = _searchCtrl.text.trim().toLowerCase();
+    _searchDebounceTimer?.cancel();
+    // Clear immediately so the list resets without waiting.
+    if (value.isEmpty) {
+      setState(() => _searchQuery = '');
+      return;
+    }
+    _searchDebounceTimer = Timer(_searchDebounce, () {
+      if (!mounted) return;
+      setState(() => _searchQuery = value);
+    });
+  }
+
   @override
   void dispose() {
+    _searchDebounceTimer?.cancel();
+    _searchCtrl.removeListener(_onSearchChanged);
     _searchCtrl.dispose();
     super.dispose();
   }
