@@ -398,6 +398,37 @@ List<Product> _productsFromResponseBody(
   return mapFilteredPlRawListToProducts(rawList, channel, brand);
 }
 
+/// Params for [_productsFromResponseBodyEntryPoint] — [compute] only accepts
+/// a single-argument top-level function, so the 3 inputs are bundled here.
+@immutable
+class _ProductParseParams {
+  const _ProductParseParams(this.body, this.channel, this.brand);
+  final String body;
+  final String channel;
+  final String brand;
+}
+
+/// Isolate entry point: decode + map JSON pricelist response off the UI
+/// thread. Pricelist payloads can carry hundreds of rows with 30+ fields
+/// each — parsing them synchronously on the main isolate was a source of
+/// jank while the catalog list is loading.
+List<Product> _productsFromResponseBodyEntryPoint(
+  _ProductParseParams params,
+) =>
+    _productsFromResponseBody(params.body, params.channel, params.brand);
+
+/// Parses a pricelist API response off the UI thread via [compute].
+Future<List<Product>> _parseProductsOffMainThread(
+  String body,
+  String channel,
+  String brand,
+) {
+  return compute(
+    _productsFromResponseBodyEntryPoint,
+    _ProductParseParams(body, channel, brand),
+  );
+}
+
 /// One-shot pricelist fetch for cart/checkout price refresh.
 /// Does not write disk cache (unlike [productListProvider] success path).
 Future<List<Product>> fetchFilteredPlProductsForRefresh({
@@ -425,7 +456,7 @@ Future<List<Product>> fetchFilteredPlProductsForRefresh({
     );
   }
 
-  return _productsFromResponseBody(response.body, channel, brand);
+  return _parseProductsOffMainThread(response.body, channel, brand);
 }
 
 /// Fetches product list from API; on every **successful** response the full
@@ -478,7 +509,8 @@ final productListProvider = FutureProvider<ProductListLoadResult>((ref) async {
       );
     }
 
-    final products = _productsFromResponseBody(response.body, channel, brand);
+    final products =
+        await _parseProductsOffMainThread(response.body, channel, brand);
     final rows = products.map((p) => p.toJson()).toList(growable: false);
     await StorageService.savePricelistProductRows(cacheKey, rows);
 
