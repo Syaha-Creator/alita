@@ -718,7 +718,8 @@ class CheckoutOrderService {
             detailHadFailure = true;
             Log.warning(
               'Discount POST failed: level=$levelId detailId=$detailId '
-              'status=${response.statusCode} body=${response.body}',
+              'status=${response.statusCode} '
+              'body=${Log.previewBody(response.body)}',
               tag: 'CheckoutOrderService',
             );
           }

@@ -89,4 +89,13 @@ class Log {
     if (!_crashlyticsReady) return;
     FirebaseCrashlytics.instance.setUserIdentifier(userId);
   }
+
+  /// Truncates a raw API response body before it's embedded in a log
+  /// message or exception. Response bodies can carry PII (customer name,
+  /// phone, address, approver contacts) — never forward the full payload to
+  /// Crashlytics. Use this instead of interpolating `response.body` as-is.
+  static String previewBody(String body, {int maxLength = 200}) {
+    if (body.length <= maxLength) return body;
+    return '${body.substring(0, maxLength)}…';
+  }
 }

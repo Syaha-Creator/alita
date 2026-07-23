@@ -1,4 +1,5 @@
 import '../../../../core/config/app_config.dart';
+import '../../../../core/utils/log.dart';
 
 /// Public endpoint constants for the checkout flow.
 class CheckoutEndpoints {
@@ -101,10 +102,7 @@ class CheckoutStepException implements Exception {
       buf.writeln('Payload keys: ${payloadKeys.join(', ')}');
     }
     if (responseBody.isNotEmpty) {
-      final preview = responseBody.length > 300
-          ? '${responseBody.substring(0, 300)}…'
-          : responseBody;
-      buf.writeln('Response: $preview');
+      buf.writeln('Response: ${Log.previewBody(responseBody, maxLength: 300)}');
     }
     return buf.toString().trimRight();
   }

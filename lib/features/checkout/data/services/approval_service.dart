@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../../../../core/services/api_client.dart';
+import '../../../../core/utils/log.dart';
 import '../../../../core/utils/safe_json_list.dart';
 import '../models/approver_model.dart';
 
@@ -43,8 +44,11 @@ class ApprovalService {
           .map(Approver.fromJson)
           .toList();
     }
+    // Response bisa memuat data approver (nama, telepon) — jangan bawa body
+    // mentah ke pesan Exception, karena ini bisa berakhir di Crashlytics
+    // lewat Log.error di pemanggil (lihat CheckoutNotifier.fetchApprovers).
     throw Exception(
-      'HTTP ${response.statusCode}: ${response.body}',
+      'HTTP ${response.statusCode}: ${Log.previewBody(response.body)}',
     );
   }
 }

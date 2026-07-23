@@ -103,7 +103,8 @@ class DeviceTokenService {
     if (res.statusCode == 200 || res.statusCode == 201) return true;
 
     Log.warning(
-      'POST /device_tokens failed (${res.statusCode}): ${res.body}',
+      'POST /device_tokens failed (${res.statusCode}): '
+      '${Log.previewBody(res.body)}',
       tag: 'DeviceToken',
     );
     return false;

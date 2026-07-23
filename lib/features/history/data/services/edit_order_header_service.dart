@@ -253,8 +253,10 @@ class EditOrderHeaderService {
       throw ApiSessionExpiredException('$label status=$statusCode');
     }
     if (statusCode != 200 && statusCode != 201) {
-      final preview = body.length > 200 ? '${body.substring(0, 200)}…' : body;
-      throw Exception('Gagal $label (status $statusCode).\nResponse: $preview');
+      throw Exception(
+        'Gagal $label (status $statusCode).\n'
+        'Response: ${Log.previewBody(body)}',
+      );
     }
   }
 
