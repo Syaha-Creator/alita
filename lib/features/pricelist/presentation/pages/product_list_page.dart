@@ -45,10 +45,10 @@ class _ProductListPageState extends ConsumerState<ProductListPage> {
 
   @override
   Widget build(BuildContext context) {
-    final productsAsync = ref.watch(productListProvider);
-    final filteredProducts = ref.watch(filteredProductsProvider);
-    final isFilterComplete = ref.watch(isFilterCompleteProvider);
-    final isOffline = ref.watch(isOfflineProvider);
+    // Hanya userId (via select) di-watch di level Scaffold/AppBar — data
+    // katalog (productListProvider, filteredProductsProvider, dst) di-watch
+    // di dalam [_ProductListBody] supaya AppBar tidak rebuild setiap kali
+    // hasil pencarian/sort/diskon toko berubah.
     final userId = ref.watch(authProvider.select((a) => a.userId));
     final canPickSalesMode = TelemetryAccess.canChooseSalesMode(userId);
 
@@ -80,26 +80,43 @@ class _ProductListPageState extends ConsumerState<ProductListPage> {
           const SizedBox(width: 8),
         ],
       ),
-      body: AsyncStateView<ProductListLoadResult>(
-        state: productsAsync,
-        loading: _buildShimmerGrid(context),
-        errorBuilder: (error, _) =>
-            _buildErrorState(context, isOffline: isOffline),
-        dataBuilder: (result) {
-          if (!isFilterComplete) {
-            return _buildFilterPrompt(context);
-          }
-          if (filteredProducts.isEmpty) {
-            return _buildEmptyState(context);
-          }
-          return _buildProductGrid(
-            context,
-            filteredProducts,
-            showStaleCacheBanner: result.isFromStaleCache,
-          );
-        },
-      ),
+      body: const _ProductListBody(),
       floatingActionButton: const CartFAB(),
+    );
+  }
+}
+
+/// Body content: isolated from the AppBar so search/sort/discount/catalog
+/// churn only rebuilds this subtree, not the whole [Scaffold].
+class _ProductListBody extends ConsumerWidget {
+  const _ProductListBody();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final productsAsync = ref.watch(productListProvider);
+    final filteredProducts = ref.watch(filteredProductsProvider);
+    final isFilterComplete = ref.watch(isFilterCompleteProvider);
+    final isOffline = ref.watch(isOfflineProvider);
+
+    return AsyncStateView<ProductListLoadResult>(
+      state: productsAsync,
+      loading: _buildShimmerGrid(context, ref),
+      errorBuilder: (error, _) =>
+          _buildErrorState(context, ref, isOffline: isOffline),
+      dataBuilder: (result) {
+        if (!isFilterComplete) {
+          return _buildFilterPrompt(context, ref);
+        }
+        if (filteredProducts.isEmpty) {
+          return _buildEmptyState(context, ref);
+        }
+        return _buildProductGrid(
+          context,
+          ref,
+          filteredProducts,
+          showStaleCacheBanner: result.isFromStaleCache,
+        );
+      },
     );
   }
 
@@ -126,7 +143,7 @@ class _ProductListPageState extends ConsumerState<ProductListPage> {
   }
 
   /// Common sliver headers used in every state
-  List<Widget> _buildStickyHeaders(BuildContext context) {
+  List<Widget> _buildStickyHeaders(BuildContext context, WidgetRef ref) {
     // Deteksi apakah banner "tidak ada diskon toko" sedang tampil agar
     // tinggi sticky filter header bisa disesuaikan.
     final isIndirect = ref.watch(salesModeProvider) == SalesMode.indirect;
@@ -158,10 +175,10 @@ class _ProductListPageState extends ConsumerState<ProductListPage> {
   // ─────────────────── Body states ───────────────────
 
   /// Shimmer skeleton while product data loads
-  Widget _buildShimmerGrid(BuildContext context) {
+  Widget _buildShimmerGrid(BuildContext context, WidgetRef ref) {
     return CustomScrollView(
       slivers: [
-        ..._buildStickyHeaders(context),
+        ..._buildStickyHeaders(context, ref),
         SliverPadding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           sliver: SliverMasonryGrid.count(
@@ -178,7 +195,7 @@ class _ProductListPageState extends ConsumerState<ProductListPage> {
   }
 
   /// Prompt user to complete cascading filter selection
-  Widget _buildFilterPrompt(BuildContext context) {
+  Widget _buildFilterPrompt(BuildContext context, WidgetRef ref) {
     final isIndirect = ref.watch(salesModeProvider) == SalesMode.indirect;
     final hasIndirectStore =
         ref.watch(indirectSessionProvider.select((s) => s.hasStore));
@@ -216,7 +233,7 @@ class _ProductListPageState extends ConsumerState<ProductListPage> {
 
     return CustomScrollView(
       slivers: [
-        ..._buildStickyHeaders(context),
+        ..._buildStickyHeaders(context, ref),
         SliverFillRemaining(
           child: EmptyStateView(
             icon: Icons.filter_list_rounded,
@@ -231,10 +248,10 @@ class _ProductListPageState extends ConsumerState<ProductListPage> {
   }
 
   /// No products match the current filters
-  Widget _buildEmptyState(BuildContext context) {
+  Widget _buildEmptyState(BuildContext context, WidgetRef ref) {
     return CustomScrollView(
       slivers: [
-        ..._buildStickyHeaders(context),
+        ..._buildStickyHeaders(context, ref),
         const SliverFillRemaining(
           child: EmptyStateView(
             icon: Icons.search_off_outlined,
@@ -249,6 +266,7 @@ class _ProductListPageState extends ConsumerState<ProductListPage> {
   /// Product grid with data
   Widget _buildProductGrid(
     BuildContext context,
+    WidgetRef ref,
     List<Product> products, {
     bool showStaleCacheBanner = false,
   }) {
@@ -270,7 +288,7 @@ class _ProductListPageState extends ConsumerState<ProductListPage> {
       onRefresh: () async => ref.invalidate(productListProvider),
       child: CustomScrollView(
         slivers: [
-          ..._buildStickyHeaders(context),
+          ..._buildStickyHeaders(context, ref),
           if (showStaleCacheBanner)
             SliverToBoxAdapter(
               child: Padding(
@@ -359,7 +377,11 @@ class _ProductListPageState extends ConsumerState<ProductListPage> {
   }
 
   /// Error state with retry
-  Widget _buildErrorState(BuildContext context, {required bool isOffline}) {
+  Widget _buildErrorState(
+    BuildContext context,
+    WidgetRef ref, {
+    required bool isOffline,
+  }) {
     return ErrorStateView(
       title: isOffline ? 'Sedang offline' : 'Gagal memuat produk',
       message: isOffline
