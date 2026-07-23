@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -14,6 +15,36 @@ import '../data/models/order_history.dart';
 // ── Filter tanggal: null = backend pakai default (bulan berjalan) ──
 
 final dateFilterProvider = StateProvider<DateTimeRange?>((ref) => null);
+
+/// Isolate entry point: decode + validate + map the full order history
+/// response off the UI thread. A user with a long order history can easily
+/// have a JSON payload with hundreds of nested order letters — parsing that
+/// synchronously blocked the UI while the history tab was loading.
+List<OrderHistory> _parseOrderHistoryEntryPoint(String body) {
+  final decoded = jsonDecode(body);
+  if (decoded is! Map) {
+    throw Exception('Format respons order_letters tidak valid.');
+  }
+  final map = Map<String, dynamic>.from(decoded);
+
+  if (map['status'] != 'success') {
+    throw Exception(map['message']?.toString() ?? 'Respons API tidak valid');
+  }
+
+  final orders = safeMapList(map['result'], fieldName: 'order_letters.result')
+      .map(OrderHistory.fromApiJson)
+      .toList();
+
+  orders.sort((a, b) {
+    final dateA =
+        a.createdAt ?? DateTime.tryParse(a.orderDate) ?? DateTime(2000);
+    final dateB =
+        b.createdAt ?? DateTime.tryParse(b.orderDate) ?? DateTime(2000);
+    return dateB.compareTo(dateA);
+  });
+
+  return orders;
+}
 
 // ── Main provider ──────────────────────────────────────────────────
 
@@ -57,27 +88,5 @@ final orderHistoryProvider = FutureProvider.autoDispose<List<OrderHistory>>((
     throw Exception('Gagal memuat data (${response.statusCode})');
   }
 
-  final decoded = jsonDecode(response.body);
-  if (decoded is! Map) {
-    throw Exception('Format respons order_letters tidak valid.');
-  }
-  final body = Map<String, dynamic>.from(decoded);
-
-  if (body['status'] != 'success') {
-    throw Exception(body['message']?.toString() ?? 'Respons API tidak valid');
-  }
-
-  final orders = safeMapList(body['result'], fieldName: 'order_letters.result')
-      .map(OrderHistory.fromApiJson)
-      .toList();
-
-  orders.sort((a, b) {
-    final dateA =
-        a.createdAt ?? DateTime.tryParse(a.orderDate) ?? DateTime(2000);
-    final dateB =
-        b.createdAt ?? DateTime.tryParse(b.orderDate) ?? DateTime(2000);
-    return dateB.compareTo(dateA);
-  });
-
-  return orders;
+  return compute(_parseOrderHistoryEntryPoint, response.body);
 });
