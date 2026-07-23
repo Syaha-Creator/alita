@@ -182,6 +182,22 @@ ApprovalDetailRouteArgs? _approvalDetailRouteArgsFromExtra(Object? extra) {
   return null;
 }
 
+/// Allowlist untuk path yang boleh dinavigasi lewat deep link eksternal
+/// (App Links/Universal Links, mis. dari `uriLinkStream` di `main.dart`).
+///
+/// HARUS sinkron dengan `pathPrefix`/`path` yang di-declare sebagai
+/// associated domain terverifikasi di `AndroidManifest.xml`
+/// (`android:pathPrefix="/product"`) dan `Runner.entitlements`
+/// (`applinks:alita-pricelist-12d76.web.app`). Path lain ditolak agar link
+/// eksternal (mis. tersisip di pesan/QR pihak ketiga) tidak bisa memaksa
+/// navigasi ke route internal sembarang (mis. `/checkout`, `/approval_detail`)
+/// yang mengharapkan `extra` typed dan bisa crash tanpanya.
+const _deepLinkAllowedPrefixes = ['/product/'];
+
+bool isAllowedDeepLinkPath(String path) {
+  return _deepLinkAllowedPrefixes.any(path.startsWith);
+}
+
 /// Root navigator key used by GoRouter.
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -491,8 +507,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                       message:
                           'Data persetujuan tidak valid atau formatnya berbeda. '
                           'Buka lagi dari Inbox Persetujuan.',
-                      onRetry: () =>
-                          GoRouter.of(context).go('/approval_inbox'),
+                      onRetry: () => GoRouter.of(context).go('/approval_inbox'),
                       retryLabel: 'Ke inbox persetujuan',
                     ),
                   ),

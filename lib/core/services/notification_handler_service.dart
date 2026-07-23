@@ -7,7 +7,6 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../firebase_options.dart';
-import '../../features/approval/presentation/approval_detail_route_args.dart';
 import '../../features/history/data/models/order_history.dart';
 import '../utils/log.dart';
 
@@ -234,18 +233,6 @@ class NotificationHandlerService {
       final type =
           (data['type'] ?? data['screen'] ?? '').toString().toLowerCase();
 
-      Map<String, dynamic>? parseOrderData() {
-        final raw = data['order_data'] ?? data['order_wrap'] ?? data['payload'];
-        if (raw == null || raw.trim().isEmpty) return null;
-        try {
-          final decoded = jsonDecode(raw);
-          if (decoded is Map<String, dynamic>) return decoded;
-        } catch (e, st) {
-          Log.error(e, st, reason: 'FCM: failed to decode order_data JSON');
-        }
-        return null;
-      }
-
       int? parseOrderLetterId() {
         final raw = data['order_letter_id'] ?? data['order_id'];
         if (raw == null || raw.isEmpty) return null;
@@ -279,14 +266,10 @@ class NotificationHandlerService {
 
       switch (type) {
         case 'approval_detail':
-          final orderData = parseOrderData();
-          if (orderData != null) {
-            router.push(
-              '/approval_detail',
-              extra: ApprovalDetailRouteArgs(orderData: orderData),
-            );
-            break;
-          }
+          // Jangan percaya payload FCM mentah (`order_data`/`order_wrap`) —
+          // bisa stale atau (secara teori) dipalsukan sumber non-FCM resmi
+          // yang mengetahui skema data. Selalu re-fetch dari API pakai
+          // order_letter_id via [ApprovalDetailLoaderPage].
           pushApprovalFromOrderId();
           break;
         case 'fully_approved':

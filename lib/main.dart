@@ -75,9 +75,8 @@ void main() async {
                 ? AndroidProvider.playIntegrity
                 : AndroidProvider.debug,
             // ignore: deprecated_member_use
-            appleProvider: kReleaseMode
-                ? AppleProvider.deviceCheck
-                : AppleProvider.debug,
+            appleProvider:
+                kReleaseMode ? AppleProvider.deviceCheck : AppleProvider.debug,
           )
           .timeout(_firebaseStartupTimeout);
       await FirebaseAppCheck.instance.setTokenAutoRefreshEnabled(true);
@@ -85,7 +84,8 @@ void main() async {
       Log.error(
         e,
         st,
-        reason: 'Firebase App Check activate failed (Data Connect bisa ditolak)',
+        reason:
+            'Firebase App Check activate failed (Data Connect bisa ditolak)',
       );
     }
 
@@ -208,6 +208,13 @@ class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp>
       final appLinks = AppLinks();
       _deepLinkSubscription = appLinks.uriLinkStream.listen((Uri? uri) {
         if (!mounted || uri == null || uri.path.isEmpty) return;
+        if (!isAllowedDeepLinkPath(uri.path)) {
+          Log.warning(
+            'Blocked deep link outside allowlist: ${uri.path}',
+            tag: 'DeepLink',
+          );
+          return;
+        }
         final path = uri.query.isEmpty ? uri.path : '${uri.path}?${uri.query}';
         ref.read(routerProvider).go(path);
       });
