@@ -112,12 +112,25 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
   int? _storeDiscountBoundAddressNumber;
 
   /// Hitung harga setelah diskon program bulanan diterapkan di atas [base].
+  ///
+  /// Urutan resmi: EUP → diskon toko → Program Bulanan → diskon tambahan.
+  /// [base] di sini sudah melewati diskon toko DAN diskon tambahan
+  /// (keduanya perkalian, jadi komutatif satu sama lain). Untuk tipe nominal,
+  /// potongan per-unit dikalikan faktor kaskade [appliedDiscounts] agar
+  /// hasilnya identik secara matematis dengan memotong PB SEBELUM diskon
+  /// tambahan diterapkan (bukan sesudah semua diskon selesai). Tipe persen
+  /// tidak terpengaruh urutan (perkalian × perkalian tetap sama).
   double _applyProgramBulanan(double base) {
     if (_programBulananType == 'percent' && _programBulananValue > 0) {
       return (base * (1 - _programBulananValue / 100))
           .clamp(0, double.infinity);
     } else if (_programBulananType == 'nominal' && _programBulananValue > 0) {
-      return (base - _programBulananValue).clamp(0, double.infinity);
+      var salesFactor = 1.0;
+      for (final d in appliedDiscounts) {
+        salesFactor *= (1 - d.clamp(0.0, 1.0));
+      }
+      return (base - _programBulananValue * salesFactor)
+          .clamp(0, double.infinity);
     }
     return base;
   }
@@ -632,21 +645,15 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
 
     final effectiveTotal = targetTotalEup ?? totalFinalPrice;
 
-    // Total EUP setelah diskon toko, sebelum diskon tambahan sales.
-    // Ini menjadi base untuk program bulanan agar urutan perhitungannya:
-    //   EUP → diskon toko → program bulanan → diskon tambahan → displayTotal
-    // (bukan: EUP → diskon toko → diskon tambahan → program bulanan)
-    final totalEupAfterStore = eupAfterStoreDiscount(anchoredKasurEup) +
-        eupAfterStoreDiscount(anchoredDivanEup) +
-        eupAfterStoreDiscount(activeProduct.eupHeadboard) +
-        eupAfterStoreDiscount(activeProduct.eupSorong);
-
+    // Urutan perhitungan HARUS sama dengan cart/checkout (CartItem.totalPrice
+    // & checkout_order_service applyProgramBulananToNetLine):
+    //   EUP → diskon toko → diskon tambahan (sales) → program bulanan.
+    // Program Bulanan diterapkan terakhir di atas totalFinalPrice, bukan
+    // sebelum diskon tambahan — jika dibalik, "Total akhir" di halaman ini
+    // akan berbeda dari nominal yang benar-benar tersimpan di keranjang.
     final displayTotal = targetTotalEup != null
         ? _applyProgramBulanan(targetTotalEup!)
-        : _calculateCascadingPrice(
-            _applyProgramBulanan(totalEupAfterStore),
-            appliedDiscounts,
-          );
+        : _applyProgramBulanan(totalFinalPrice);
     _lastBottomPriceAnalyst = activeProduct.bottomPriceAnalyst;
     _lastPlDiscountBaseTotal = useIndirectStoreNet
         ? StoreDiscountCalculator.cascade(

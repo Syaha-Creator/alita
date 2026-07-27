@@ -188,7 +188,7 @@ class CartItem with _$CartItem {
         product.eupHeadboard +
         product.eupSorong;
     if (eupSum > 0) {
-      final legacyPostPb = _applyProgramBulananTo(eupSum);
+      final legacyPostPb = _legacyApplyProgramBulananTo(eupSum);
       // Legacy cart: price sudah post-PB (selisih ≈ potongan PB dari eup*).
       if ((base - legacyPostPb).abs() <= 1.0) return base;
     }
@@ -196,7 +196,41 @@ class CartItem with _$CartItem {
     return _applyProgramBulananTo(base);
   }
 
+  /// Urutan resmi: EUP → diskon toko → Program Bulanan → diskon tambahan.
+  ///
+  /// [base] yang masuk ke sini sudah melewati diskon toko DAN diskon tambahan
+  /// (d1–d4), karena semua faktor tersebut bersifat perkalian (komutatif) —
+  /// hasil akhirnya sama baik diskon toko/tambahan diterapkan sebelum atau
+  /// sesudah satu sama lain. Yang benar-benar berpengaruh hanya POSISI PB
+  /// nominal (potongan flat) relatif terhadap diskon tambahan:
+  /// - Tipe persen: aman diterapkan di titik manapun (perkalian × perkalian).
+  /// - Tipe nominal: potongan per-unit dikalikan [_salesDiscountFactor] agar
+  ///   hasilnya identik secara matematis dengan memotong PB SEBELUM diskon
+  ///   tambahan (bukan setelah semua diskon selesai).
   double _applyProgramBulananTo(double base) {
+    if (programBulananType == 'percent' && programBulananDiscount > 0) {
+      return (base * (1 - programBulananDiscount / 100))
+          .clamp(0, double.infinity);
+    }
+    if (programBulananType == 'nominal' && programBulananNominal > 0) {
+      return (base - programBulananNominal * _salesDiscountFactor)
+          .clamp(0, double.infinity);
+    }
+    return base;
+  }
+
+  /// Faktor kaskade diskon tambahan (d1..d4), dipakai untuk mengoreksi
+  /// potongan Program Bulanan nominal — lihat [_applyProgramBulananTo].
+  double get _salesDiscountFactor =>
+      (1 - discount1.clamp(0, 100) / 100) *
+      (1 - discount2.clamp(0, 100) / 100) *
+      (1 - discount3.clamp(0, 100) / 100) *
+      (1 - discount4.clamp(0, 100) / 100);
+
+  /// Formula lama (PB diterapkan tanpa koreksi diskon tambahan) — hanya
+  /// dipakai untuk mendeteksi snapshot cart lama yang sudah ter-bake PB
+  /// ke [product.price], bukan untuk kalkulasi harga sebenarnya.
+  double _legacyApplyProgramBulananTo(double base) {
     if (programBulananType == 'percent' && programBulananDiscount > 0) {
       return (base * (1 - programBulananDiscount / 100))
           .clamp(0, double.infinity);

@@ -864,14 +864,30 @@ class CheckoutOrderService {
           !srPresentForPb;
       // Estimasi Rp untuk audit (`discount_price`):
       // - persen: estimasi dari basis EUP × qty × %
-      // - nominal: nilai input **per unit** × qty (potongan line total)
+      // - nominal: nilai input **per unit** × qty (potongan line total),
+      //   dikoreksi dengan [salesDiscountFactor] — lihat komentar di
+      //   `applyProgramBulananToNetLine` untuk alasannya.
       final int pbQty = item.quantity < 1 ? 1 : item.quantity;
       final double pbNominalLineTotal = pbNominal * pbQty;
+      // Urutan resmi: EUP → diskon toko → Program Bulanan → diskon tambahan
+      // (d1–d4). Diskon toko & diskon tambahan sama-sama perkalian sehingga
+      // komutatif satu sama lain; yang berpengaruh hanya posisi potongan PB
+      // NOMINAL relatif terhadap diskon tambahan. `netLine` di bawah sudah
+      // melewati d1–d4 DAN diskon toko sepenuhnya, jadi potongan nominal
+      // per-unit dikalikan faktor kaskade d1–d4 agar hasilnya identik secara
+      // matematis dengan memotong PB sebelum diskon tambahan diterapkan.
+      // Tipe persen tidak terpengaruh urutan (perkalian × perkalian).
+      final double salesDiscountFactor = (1 - item.discount1.clamp(0, 100) / 100) *
+          (1 - item.discount2.clamp(0, 100) / 100) *
+          (1 - item.discount3.clamp(0, 100) / 100) *
+          (1 - item.discount4.clamp(0, 100) / 100);
+      final double pbNominalLineTotalAdjusted =
+          pbNominalLineTotal * salesDiscountFactor;
       final double pbDiscountPriceRp = !pbActive
           ? 0
           : pbIsPercent
               ? presentEupSumForPb * pbQty * (pbPercent / 100)
-              : pbNominalLineTotal;
+              : pbNominalLineTotalAdjusted;
 
       /// Menerapkan potongan Program Bulanan ke net line SATU komponen.
       /// [isAnchor] menandai komponen yang boleh menyerap potongan nominal
@@ -883,7 +899,7 @@ class CheckoutOrderService {
           return (netLine * (1 - pbPercent / 100)).clamp(0, double.infinity);
         }
         if (!isAnchor) return netLine;
-        return (netLine - pbNominalLineTotal).clamp(0, double.infinity);
+        return (netLine - pbNominalLineTotalAdjusted).clamp(0, double.infinity);
       }
 
       List<Map<String, dynamic>> buildDiscounts({

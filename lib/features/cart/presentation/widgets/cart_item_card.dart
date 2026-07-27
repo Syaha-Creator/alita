@@ -55,7 +55,7 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
         ? 0.0
         : (p.isPricelistCustomCartLine
             ? item.effectiveUnitSellingPrice
-            : p.price);
+            : item.unitPriceAfterProgramBulanan(p.price));
     final hasDiscount =
         !isFoc && p.pricelist > displayUnitPrice && p.pricelist > 0;
     final tipe = _resolveTypeLabel(p);

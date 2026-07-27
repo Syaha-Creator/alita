@@ -482,6 +482,37 @@ void main() {
       expect(pbRows.first['discount_price'], 400_000.0);
     });
 
+    test(
+        'nominal type is applied BEFORE diskon tambahan (d1), not after: '
+        'order is EUP → diskon toko → Program Bulanan → diskon tambahan', () {
+      // EUP 1_000_000, PB nominal 100_000/unit, diskon tambahan (d1) 10%.
+      // Correct order: (1_000_000 − 100_000) × 0.9 = 810_000.
+      // Wrong order (PB after d1): 1_000_000 × 0.9 − 100_000 = 800_000.
+      final product = _product(
+        price: 900_000,
+        plKasur: 1_000_000,
+        eupKasur: 1_000_000,
+      );
+      final details = _build(items: [
+        _item(
+          product: product,
+          indirectStoreAddressNumber: 100,
+          discount1: 10,
+          programBulananType: 'nominal',
+          programBulananNominal: 100_000,
+        ),
+      ]);
+      expect(details, hasLength(1));
+      expect(details.first.payload['net_price'], 810_000.0);
+
+      final pbRows = details.first.discounts
+          .where((r) => r['approver_level_id'] == 80)
+          .toList();
+      expect(pbRows, hasLength(1));
+      // Audit row reflects the same order-adjusted amount actually deducted.
+      expect(pbRows.first['discount_price'], 90_000.0);
+    });
+
     test('does not double-cut when product.price is legacy post-PB snapshot', () {
       // Real cart path used to bake displayTotal into product.price while
       // eup* stayed pre-PB. markupDiff must not re-apply that delta.
