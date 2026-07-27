@@ -1139,6 +1139,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
           child: ProductSpecificationsSection(
             product: activeProduct,
             matchedSpec: matchedSpec,
+            area: ref.watch(effectiveAreaProvider),
           ),
         ),
 

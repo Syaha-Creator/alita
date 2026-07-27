@@ -7,10 +7,14 @@ class ProductSpecificationsSection extends StatefulWidget {
   final Product product;
   final Map<String, dynamic>? matchedSpec;
 
+  /// Area pricelist yang sedang aktif (mis. hasil `effectiveAreaProvider`).
+  final String area;
+
   const ProductSpecificationsSection({
     super.key,
     required this.product,
     required this.matchedSpec,
+    required this.area,
   });
 
   @override
@@ -188,6 +192,11 @@ class _ProductSpecificationsSectionState
           context,
           'Channel',
           product.channel.isNotEmpty ? product.channel : '-',
+        ),
+        _buildSpecItem(
+          context,
+          'Area',
+          widget.area.isNotEmpty ? widget.area : '-',
         ),
         _buildSpecItem(
           context,
