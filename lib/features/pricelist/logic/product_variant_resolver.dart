@@ -291,12 +291,18 @@ abstract final class ProductVariantResolver {
     }
 
     // ── 6. Active product (final SKU) ──
-    final Product activeProduct = siblingsByHeadboard.firstWhere(
+    // Broadened siblings may resolve to a full-SET row that carries a real
+    // `kasur` name — strip it so a non-kasur anchor never leaks a mattress
+    // into checkout.
+    final Product rawActiveProduct = siblingsByHeadboard.firstWhere(
       (p) => p.sorong == effectiveSorong,
       orElse: () => siblingsByHeadboard.isNotEmpty
           ? siblingsByHeadboard.first
           : masterProduct,
     );
+    final Product activeProduct = anchor == AnchorType.kasur
+        ? rawActiveProduct
+        : rawActiveProduct.copyWith(kasur: 'Tanpa Kasur');
 
     // ── 7. Lookup resolution ──
     final kasurKey = activeProduct.kasur.trim().toLowerCase();
