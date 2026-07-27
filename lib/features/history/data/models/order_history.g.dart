@@ -104,6 +104,7 @@ _$OrderDetailImpl _$$OrderDetailImplFromJson(Map<String, dynamic> json) =>
       isTakeAway: json['isTakeAway'] as bool? ?? false,
       itemNumber: json['itemNumber'] as String? ?? '',
       pricelistType: json['pricelistType'] as String? ?? '',
+      pricelistArea: json['pricelistArea'] as String? ?? '',
     );
 
 Map<String, dynamic> _$$OrderDetailImplToJson(_$OrderDetailImpl instance) =>
@@ -124,6 +125,7 @@ Map<String, dynamic> _$$OrderDetailImplToJson(_$OrderDetailImpl instance) =>
       'isTakeAway': instance.isTakeAway,
       'itemNumber': instance.itemNumber,
       'pricelistType': instance.pricelistType,
+      'pricelistArea': instance.pricelistArea,
     };
 
 _$OrderDiscountImpl _$$OrderDiscountImplFromJson(Map<String, dynamic> json) =>

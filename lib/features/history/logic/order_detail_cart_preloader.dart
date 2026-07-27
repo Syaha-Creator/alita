@@ -229,7 +229,7 @@ abstract final class OrderDetailCartPreloader {
       indirectStoreAlphaName: storeAlphaName,
       indirectStoreDiscounts: storeDiscounts,
       indirectStoreDiscountDisplay: '',
-      pricelistArea: '',
+      pricelistArea: d.pricelistArea.trim(),
       isNewCustomerStore:
           isIndirect && AssignedStoreX.isNewCustomerSearchType(customerType),
       indirectCustomerType: isIndirect ? customerType.trim() : '',

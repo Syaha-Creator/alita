@@ -6,6 +6,7 @@ import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/utils/discount_formatter.dart';
 import '../../../../core/widgets/detail_bonus_items_section.dart';
 import '../../../../core/widgets/detail_discount_block.dart';
+import '../../../../core/widgets/detail_info_row.dart';
 import '../../../../core/widgets/detail_item_index_badge.dart';
 import '../../../../core/widgets/detail_section_label.dart';
 import '../../../../core/widgets/detail_surface_card.dart';
@@ -66,6 +67,10 @@ class ApprovalProductsCard extends StatelessWidget {
                 double.tryParse(detail['net_price']?.toString() ?? '0') ?? 0;
             final discounts =
                 detail['order_letter_discount'] as List<dynamic>? ?? [];
+            final pricelistType =
+                (detail['pricelist_type'] as String? ?? '').trim();
+            final pricelistArea =
+                (detail['pricelist_area'] as String? ?? '').trim();
 
             return Container(
               padding: const EdgeInsets.all(12),
@@ -116,6 +121,22 @@ class ApprovalProductsCard extends StatelessWidget {
                             ),
                           ],
                         ),
+                        if (pricelistType.isNotEmpty ||
+                            pricelistArea.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          if (pricelistType.isNotEmpty)
+                            DetailInfoRow(
+                              label: 'Tipe Pricelist',
+                              value: pricelistType,
+                            ),
+                          if (pricelistArea.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            DetailInfoRow(
+                              label: 'Area Pricelist',
+                              value: pricelistArea,
+                            ),
+                          ],
+                        ],
                         if (discounts.isNotEmpty) ...[
                           const SizedBox(height: 8),
                           _buildDiscountBlock(discounts),

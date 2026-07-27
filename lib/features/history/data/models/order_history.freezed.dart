@@ -870,6 +870,9 @@ mixin _$OrderDetail {
   /// Channel / tipe pricelist dari field `pricelist_type` API.
   String get pricelistType => throw _privateConstructorUsedError;
 
+  /// Area pricelist dari field `pricelist_area` API.
+  String get pricelistArea => throw _privateConstructorUsedError;
+
   /// Serializes this OrderDetail to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
@@ -902,7 +905,8 @@ abstract class $OrderDetailCopyWith<$Res> {
       List<OrderDiscount> discounts,
       bool isTakeAway,
       String itemNumber,
-      String pricelistType});
+      String pricelistType,
+      String pricelistArea});
 }
 
 /// @nodoc
@@ -936,6 +940,7 @@ class _$OrderDetailCopyWithImpl<$Res, $Val extends OrderDetail>
     Object? isTakeAway = null,
     Object? itemNumber = null,
     Object? pricelistType = null,
+    Object? pricelistArea = null,
   }) {
     return _then(_value.copyWith(
       id: null == id
@@ -1002,6 +1007,10 @@ class _$OrderDetailCopyWithImpl<$Res, $Val extends OrderDetail>
           ? _value.pricelistType
           : pricelistType // ignore: cast_nullable_to_non_nullable
               as String,
+      pricelistArea: null == pricelistArea
+          ? _value.pricelistArea
+          : pricelistArea // ignore: cast_nullable_to_non_nullable
+              as String,
     ) as $Val);
   }
 }
@@ -1030,7 +1039,8 @@ abstract class _$$OrderDetailImplCopyWith<$Res>
       List<OrderDiscount> discounts,
       bool isTakeAway,
       String itemNumber,
-      String pricelistType});
+      String pricelistType,
+      String pricelistArea});
 }
 
 /// @nodoc
@@ -1062,6 +1072,7 @@ class __$$OrderDetailImplCopyWithImpl<$Res>
     Object? isTakeAway = null,
     Object? itemNumber = null,
     Object? pricelistType = null,
+    Object? pricelistArea = null,
   }) {
     return _then(_$OrderDetailImpl(
       id: null == id
@@ -1128,6 +1139,10 @@ class __$$OrderDetailImplCopyWithImpl<$Res>
           ? _value.pricelistType
           : pricelistType // ignore: cast_nullable_to_non_nullable
               as String,
+      pricelistArea: null == pricelistArea
+          ? _value.pricelistArea
+          : pricelistArea // ignore: cast_nullable_to_non_nullable
+              as String,
     ));
   }
 }
@@ -1151,7 +1166,8 @@ class _$OrderDetailImpl implements _OrderDetail {
       final List<OrderDiscount> discounts = const <OrderDiscount>[],
       this.isTakeAway = false,
       this.itemNumber = '',
-      this.pricelistType = ''})
+      this.pricelistType = '',
+      this.pricelistArea = ''})
       : _discounts = discounts;
 
   factory _$OrderDetailImpl.fromJson(Map<String, dynamic> json) =>
@@ -1210,9 +1226,14 @@ class _$OrderDetailImpl implements _OrderDetail {
   @JsonKey()
   final String pricelistType;
 
+  /// Area pricelist dari field `pricelist_area` API.
+  @override
+  @JsonKey()
+  final String pricelistArea;
+
   @override
   String toString() {
-    return 'OrderDetail(id: $id, noSp: $noSp, itemDescription: $itemDescription, desc1: $desc1, desc2: $desc2, itemType: $itemType, qty: $qty, customerPrice: $customerPrice, netPrice: $netPrice, brand: $brand, unitPrice: $unitPrice, extendedPrice: $extendedPrice, discounts: $discounts, isTakeAway: $isTakeAway, itemNumber: $itemNumber, pricelistType: $pricelistType)';
+    return 'OrderDetail(id: $id, noSp: $noSp, itemDescription: $itemDescription, desc1: $desc1, desc2: $desc2, itemType: $itemType, qty: $qty, customerPrice: $customerPrice, netPrice: $netPrice, brand: $brand, unitPrice: $unitPrice, extendedPrice: $extendedPrice, discounts: $discounts, isTakeAway: $isTakeAway, itemNumber: $itemNumber, pricelistType: $pricelistType, pricelistArea: $pricelistArea)';
   }
 
   @override
@@ -1245,7 +1266,9 @@ class _$OrderDetailImpl implements _OrderDetail {
             (identical(other.itemNumber, itemNumber) ||
                 other.itemNumber == itemNumber) &&
             (identical(other.pricelistType, pricelistType) ||
-                other.pricelistType == pricelistType));
+                other.pricelistType == pricelistType) &&
+            (identical(other.pricelistArea, pricelistArea) ||
+                other.pricelistArea == pricelistArea));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1267,7 +1290,8 @@ class _$OrderDetailImpl implements _OrderDetail {
       const DeepCollectionEquality().hash(_discounts),
       isTakeAway,
       itemNumber,
-      pricelistType);
+      pricelistType,
+      pricelistArea);
 
   /// Create a copy of OrderDetail
   /// with the given fields replaced by the non-null parameter values.
@@ -1302,7 +1326,8 @@ abstract class _OrderDetail implements OrderDetail {
       final List<OrderDiscount> discounts,
       final bool isTakeAway,
       final String itemNumber,
-      final String pricelistType}) = _$OrderDetailImpl;
+      final String pricelistType,
+      final String pricelistArea}) = _$OrderDetailImpl;
 
   factory _OrderDetail.fromJson(Map<String, dynamic> json) =
       _$OrderDetailImpl.fromJson;
@@ -1347,6 +1372,10 @@ abstract class _OrderDetail implements OrderDetail {
   /// Channel / tipe pricelist dari field `pricelist_type` API.
   @override
   String get pricelistType;
+
+  /// Area pricelist dari field `pricelist_area` API.
+  @override
+  String get pricelistArea;
 
   /// Create a copy of OrderDetail
   /// with the given fields replaced by the non-null parameter values.

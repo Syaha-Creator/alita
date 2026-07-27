@@ -5,6 +5,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/discount_formatter.dart';
 import '../../../../core/widgets/detail_bonus_items_section.dart';
 import '../../../../core/widgets/detail_discount_block.dart';
+import '../../../../core/widgets/detail_info_row.dart';
 import '../../../../core/widgets/detail_item_index_badge.dart';
 import '../../../../core/widgets/detail_section_label.dart';
 import '../../../../core/widgets/detail_surface_card.dart';
@@ -124,6 +125,24 @@ class ProductItemsList extends StatelessWidget {
                                           fontStyle: FontStyle.italic,
                                         ),
                                       ),
+                                    if (item.pricelistType.trim().isNotEmpty ||
+                                        item.pricelistArea
+                                            .trim()
+                                            .isNotEmpty) ...[
+                                      const SizedBox(height: 4),
+                                      if (item.pricelistType.trim().isNotEmpty)
+                                        DetailInfoRow(
+                                          label: 'Tipe Pricelist',
+                                          value: item.pricelistType.trim(),
+                                        ),
+                                      if (item.pricelistArea.trim().isNotEmpty) ...[
+                                        const SizedBox(height: 2),
+                                        DetailInfoRow(
+                                          label: 'Area Pricelist',
+                                          value: item.pricelistArea.trim(),
+                                        ),
+                                      ],
+                                    ],
                                   ],
                                 ),
                               ),

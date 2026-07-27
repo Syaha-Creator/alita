@@ -306,6 +306,8 @@ class OrderDetail with _$OrderDetail {
     @Default('') String itemNumber,
     /// Channel / tipe pricelist dari field `pricelist_type` API.
     @Default('') String pricelistType,
+    /// Area pricelist dari field `pricelist_area` API.
+    @Default('') String pricelistArea,
   }) = _OrderDetail;
 
   factory OrderDetail.fromJson(Map<String, dynamic> json) =>
@@ -341,6 +343,7 @@ class OrderDetail with _$OrderDetail {
       desc2: json['desc_2']?.toString() ?? '',
       itemNumber: json['item_number']?.toString() ?? '',
       pricelistType: json['pricelist_type']?.toString() ?? '',
+      pricelistArea: json['pricelist_area']?.toString() ?? '',
       itemType: json['item_type']?.toString() ?? '',
       qty: q,
       customerPrice: _parseDouble(json['customer_price']),
