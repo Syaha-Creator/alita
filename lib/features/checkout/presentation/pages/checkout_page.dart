@@ -378,7 +378,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     _prefillIndirectSalesCodeFromAuthIfEmpty();
   }
 
-  double get _minimumDp => _grandTotal * 0.3;
+  /// DP minimal 30% dihitung dari Total Akhir (subtotal + ongkir), bukan
+  /// subtotal barang saja — supaya konsisten dengan `extended_amount` yang
+  /// benar-benar ditagih ke customer (lihat PDF invoice & order_letters).
+  double get _minimumDp => _totalAkhir * 0.3;
 
   double get _totalAkhir {
     final ongkir = double.tryParse(
