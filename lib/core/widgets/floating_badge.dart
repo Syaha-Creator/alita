@@ -3,10 +3,7 @@ import '../theme/app_colors.dart';
 
 /// Reusable circular badge for floating icons/buttons.
 ///
-/// Function:
-/// - Menampilkan jumlah item kecil di atas widget lain (mis. FAB/icon).
-/// - Otomatis membatasi angka besar lewat `maxCount` (contoh: `99+`).
-/// - Menjaga gaya badge konsisten di semua fitur.
+/// Caps large counts via [maxCount] (e.g. `99+`) so the badge stays compact.
 class FloatingBadge extends StatelessWidget {
   final int count;
   final int maxCount;

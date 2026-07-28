@@ -3,9 +3,7 @@ import '../theme/app_colors.dart';
 
 /// Reusable two-column info row used in detail pages.
 ///
-/// Function:
-/// - Menampilkan pasangan `label` dan `value` dalam layout 2 kolom.
-/// - Menjaga konsistensi style untuk baris informasi ringkas di halaman detail.
+/// Menampilkan pasangan `label`/`value` dalam layout 2 kolom yang konsisten.
 class DetailInfoRow extends StatelessWidget {
   final String label;
   final String value;

@@ -5,14 +5,12 @@ import '../theme/app_colors.dart';
 
 /// Reusable error state with optional retry action.
 ///
-/// Function:
-/// - Menampilkan error secara konsisten (icon, title, message).
-/// - Menyediakan tombol retry yang bisa dipakai ulang lintas halaman.
-/// - Mengurangi duplikasi blok `Center + Column + ElevatedButton`.
+/// Menampilkan error secara konsisten (icon, title, message, tombol retry)
+/// dan menghindari duplikasi blok `Center + Column + ElevatedButton`.
 ///
-/// After the retry button is tapped, the button switches to a loading spinner
-/// so the user has immediate feedback. The loading state auto-resets after 8s
-/// as a safety net if the parent hasn't unmounted the widget (e.g. fast re-error).
+/// After tapping retry, the button shows a loading spinner for immediate
+/// feedback, and auto-resets after 8s as a safety net in case the parent
+/// hasn't unmounted the widget yet (e.g. a fast re-error).
 class ErrorStateView extends StatefulWidget {
   final String title;
   final String message;
@@ -53,9 +51,8 @@ class _ErrorStateViewState extends State<ErrorStateView> {
     if (_isRetrying) return;
     setState(() => _isRetrying = true);
     widget.onRetry?.call();
-    // Safety reset in case the parent widget hasn't unmounted yet
-    // (e.g. provider returns error again very quickly). Cancelled in
-    // dispose() so it never fires (or leaks) after the widget is gone.
+    // Reset spinner even if the parent never unmounts (fast re-error).
+    // Cancelled in dispose() so it can't fire/leak after teardown.
     _resetTimer?.cancel();
     _resetTimer = Timer(const Duration(seconds: 8), () {
       if (mounted) setState(() => _isRetrying = false);

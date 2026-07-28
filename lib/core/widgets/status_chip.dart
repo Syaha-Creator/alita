@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 
 /// Reusable compact status badge with optional icon.
 ///
-/// Function:
-/// - Menstandarkan tampilan badge status (approved/pending/rejected/take-away).
-/// - Mengurangi duplikasi `Container + Row + Text` untuk label status.
-/// - Tetap fleksibel lewat warna, border, dan spacing yang bisa dikustom.
+/// Standardizes status labels (approved/pending/rejected/etc.) while staying
+/// customizable via color, border, and spacing.
 class StatusChip extends StatelessWidget {
   final String label;
   final IconData? icon;

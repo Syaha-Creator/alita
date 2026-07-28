@@ -3,10 +3,7 @@ import '../theme/app_colors.dart';
 
 /// Reusable price presentation for product and cart contexts.
 ///
-/// Function:
-/// - Menampilkan harga utama (`price`) sebagai nilai final.
-/// - Menampilkan harga coret (`originalPrice`) hanya jika nilainya lebih besar.
-/// - Menjaga konsistensi style harga di berbagai fitur tanpa deklarasi ulang.
+/// Shows [originalPrice] struck-through only when it's greater than [price].
 class PriceBlock extends StatelessWidget {
   final double price;
   final double? originalPrice;

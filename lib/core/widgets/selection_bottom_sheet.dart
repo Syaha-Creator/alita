@@ -6,11 +6,8 @@ import 'sheet_scaffold.dart';
 
 /// Reusable selection sheet for choosing one item from a list.
 ///
-/// Function:
-/// - Menampilkan daftar pilihan dengan header title yang konsisten.
-/// - Menandai item aktif dengan icon check.
-/// - Mengembalikan item terpilih lewat callback dan menutup sheet otomatis.
-/// - Opsional: search bar aktif lewat [searchHint].
+/// Marks the active item with a check icon and closes the sheet on
+/// selection. Pass [searchHint] to enable an optional filter search bar.
 class SelectionBottomSheet<T> extends StatefulWidget {
   final String title;
   final List<T> items;

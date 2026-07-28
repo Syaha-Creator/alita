@@ -4,11 +4,8 @@ import '../theme/app_layout_tokens.dart';
 
 /// Reusable frame for order-like list cards.
 ///
-/// Function:
-/// - Menstandarkan shell card (border, shadow, ripple, radius).
-/// - Menyediakan header (ikon dokumen + nomor referensi + status).
-/// - Menyediakan footer standar (tanggal + total).
-/// - Membiarkan konten body tetap fleksibel per fitur.
+/// Provides the shared shell (border/shadow/ripple), header (reference no +
+/// status), and footer (date + total); [body] stays flexible per feature.
 class OrderListCardFrame extends StatelessWidget {
   final String referenceNo;
   final Widget trailingStatus;

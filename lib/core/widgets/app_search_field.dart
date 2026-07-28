@@ -3,10 +3,8 @@ import '../theme/app_colors.dart';
 
 /// Reusable search input with built-in clear action.
 ///
-/// Function:
-/// - Menyatukan perilaku field pencarian (ikon search, clear button, onChanged).
-/// - Mengurangi duplikasi dekorasi `TextField` pada berbagai halaman.
-/// - Tetap fleksibel lewat parameter style/decor agar cocok untuk tiap fitur.
+/// Menyatukan perilaku field pencarian (ikon, clear button, onChanged) agar
+/// konsisten dan menghindari duplikasi dekorasi `TextField` di setiap fitur.
 class AppSearchField extends StatefulWidget {
   final TextEditingController? controller;
   final String hintText;

@@ -4,10 +4,8 @@ import '../theme/app_layout_tokens.dart';
 
 /// Reusable elevated section card with optional title and trailing action.
 ///
-/// Function:
-/// - Menyatukan pola container section (`surface + radius + soft shadow`).
-/// - Mendukung header standar (title + trailing) untuk form/summary sections.
-/// - Mengurangi duplikasi style card di halaman besar seperti checkout/detail.
+/// Standardizes the surface + radius + soft-shadow container used across
+/// form/summary sections (checkout, detail pages, etc.).
 class SectionCard extends StatelessWidget {
   final Widget child;
   final String? title;

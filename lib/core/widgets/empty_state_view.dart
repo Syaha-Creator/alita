@@ -3,11 +3,8 @@ import '../theme/app_colors.dart';
 
 /// Reusable empty state section for list/grid/screen content.
 ///
-/// Function:
-/// - Menampilkan pesan saat data kosong dengan struktur konsisten:
-///   `icon -> title -> subtitle -> optional action`.
-/// - Mengurangi deklarasi ulang `Center + Column + Text` di banyak halaman.
-/// - Menjaga visual empty state tetap seragam lintas fitur.
+/// Struktur konsisten `icon -> title -> subtitle -> optional action`,
+/// menghindari deklarasi ulang `Center + Column + Text` di banyak halaman.
 class EmptyStateView extends StatelessWidget {
   final IconData icon;
   final String title;

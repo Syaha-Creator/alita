@@ -3,9 +3,7 @@ import '../theme/app_colors.dart';
 
 /// Reusable label text for subsection titles in detail pages.
 ///
-/// Function:
-/// - Menstandarkan gaya label subsection agar konsisten.
-/// - Mengurangi duplikasi TextStyle pada detail screens.
+/// Menstandarkan gaya label subsection agar konsisten lintas detail screens.
 class DetailSectionLabel extends StatelessWidget {
   final String title;
   final TextStyle? style;

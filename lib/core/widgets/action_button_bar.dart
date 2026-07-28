@@ -4,10 +4,8 @@ import '../utils/platform_utils.dart';
 
 /// Reusable action button row for primary/secondary actions.
 ///
-/// Function:
-/// - Menyatukan pola tombol aksi (utama + opsional sekunder) agar konsisten.
-/// - Bisa dipakai sebagai tombol full-width di bottom section atau modal.
-/// - Mendukung ikon/leading custom tanpa mengubah style dasar tiap halaman.
+/// Menyatukan pola tombol aksi (utama + opsional sekunder) agar konsisten
+/// lintas halaman; mendukung mode full-width maupun inline dan leading custom.
 class ActionButtonBar extends StatelessWidget {
   final String primaryLabel;
   final VoidCallback? onPrimaryPressed;

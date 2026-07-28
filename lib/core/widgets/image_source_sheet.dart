@@ -8,10 +8,9 @@ import '../utils/platform_utils.dart';
 /// Tutup sheet lalu jalankan [fn] setelah frame berikutnya.
 ///
 /// Tanpa ini, `pickImage` dipanggil saat animasi pop masih berjalan — di iOS +
-/// GoRouter sering memicu navigasi salah atau picker macet. Juga hindari
-/// `Navigator.pop` dengan [context] pemanggil: di [ShellRoute] navigator
-/// terdekat bisa navigator bersarang sehingga yang ter-pop malah halaman,
-/// bukan modal.
+/// GoRouter sering memicu navigasi salah atau picker macet. Pop juga selalu
+/// pakai context sheet/modal sendiri, bukan context pemanggil, karena di
+/// [ShellRoute] navigator terdekat bisa jadi navigator bersarang.
 void _closeSheetThen(VoidCallback fn) {
   SchedulerBinding.instance.addPostFrameCallback((_) {
     fn();

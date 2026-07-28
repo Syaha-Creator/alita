@@ -3,10 +3,7 @@ import '../theme/app_colors.dart';
 
 /// Reusable horizontal quantity stepper with minus/plus actions.
 ///
-/// Function:
-/// - Menstandarkan kontrol perubahan jumlah item (`- qty +`) di UI.
-/// - Mendukung icon khusus saat kuantitas minimum (mis. icon delete).
-/// - Mengurangi duplikasi layout border, radius, dan spacing untuk stepper.
+/// [decrementIcon] can be swapped (e.g. to a delete icon) at minimum quantity.
 class QuantityStepper extends StatelessWidget {
   final int quantity;
   final VoidCallback onDecrement;

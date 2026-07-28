@@ -2,10 +2,7 @@ import 'package:flutter/material.dart';
 
 /// Reusable single-line row to show label on left and value on right.
 ///
-/// Function:
-/// - Menyatukan pola `label : value` yang sering dipakai di summary/footer.
-/// - Menjaga spacing dan alignment konsisten untuk teks total/subtotal.
-/// - Mendukung style custom tanpa deklarasi ulang `Row + Text` berulang.
+/// Common pattern for summary/footer rows (e.g. total, subtotal).
 class LabelValueRow extends StatelessWidget {
   final String label;
   final String value;
