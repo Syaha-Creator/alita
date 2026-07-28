@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
@@ -17,6 +18,20 @@ import 'sections/pdf_header_section.dart';
 import 'sections/pdf_items_table.dart';
 import 'sections/pdf_totals_section.dart';
 import 'sections/pdf_approval_signature.dart';
+
+/// Hasil keputusan stempel watermark PDF: aset gambar + fallback teks/warna
+/// kalau aset gagal dimuat. Lihat [InvoicePdfGenerator.resolveWatermarkSpec].
+class WatermarkSpec {
+  const WatermarkSpec({
+    required this.assetPath,
+    required this.fallbackLabel,
+    required this.fallbackColor,
+  });
+
+  final String assetPath;
+  final String fallbackLabel;
+  final PdfColor fallbackColor;
+}
 
 /// Generator PDF Surat Pesanan — 2 versi:
 /// * **Eksternal (Customer)**: 7 kolom, tanpa approval, syarat & TTD.
@@ -255,22 +270,92 @@ class InvoicePdfGenerator {
   // WATERMARK
   // ═══════════════════════════════════════════════════════════════════════════
 
+  /// Stempel PDF punya 6 status berbeda — "approved" (semua approver
+  /// menyetujui) TIDAK sama dengan "lunas" (grand total sudah terbayar).
+  /// SP boleh saja fully-approved tapi belum ada pembayaran sama sekali,
+  /// jadi stempel PAID tidak boleh keluar hanya karena approval selesai.
+  ///
+  /// Pure decision logic — dipisah dari I/O ([rootBundle.load]) agar bisa
+  /// diuji tanpa perlu render PDF sungguhan.
+  @visibleForTesting
+  static WatermarkSpec resolveWatermarkSpec(
+    List<Map<String, dynamic>> approvals,
+    List<Map<String, dynamic>> payments,
+    double grandTotal,
+  ) {
+    final allApproved = approvals.isNotEmpty &&
+        approvals.every((a) => PdfHelpers.isApprovedStatus(a['approved']));
+
+    if (!allApproved) {
+      return const WatermarkSpec(
+        assetPath: 'assets/images/approval.png',
+        fallbackLabel: 'MENUNGGU APPROVAL',
+        fallbackColor: PdfColors.yellow700,
+      );
+    }
+
+    final countedPayments =
+        payments.where((p) => paymentCountsTowardTotal(p['verified']));
+    final hasPendingVerification =
+        countedPayments.any((p) => p['verified'] == null);
+    final paid = countedPayments.fold<double>(
+        0, (s, p) => s + PdfHelpers.dbl(p['payment_amount']));
+    final isFullyPaid = grandTotal > 0 && paid >= grandTotal;
+    final isPartiallyPaid = paid > 0 && !isFullyPaid;
+
+    if (payments.isEmpty) {
+      return const WatermarkSpec(
+        assetPath: 'assets/images/approve.png',
+        fallbackLabel: 'APPROVED',
+        fallbackColor: PdfColors.green300,
+      );
+    }
+    if (hasPendingVerification) {
+      return const WatermarkSpec(
+        assetPath: 'assets/images/verification.png',
+        fallbackLabel: 'MENUNGGU VERIFIKASI',
+        fallbackColor: PdfColors.blue300,
+      );
+    }
+    if (isFullyPaid) {
+      return const WatermarkSpec(
+        assetPath: 'assets/images/paid.png',
+        fallbackLabel: 'LUNAS',
+        fallbackColor: PdfColors.green300,
+      );
+    }
+    if (isPartiallyPaid) {
+      return const WatermarkSpec(
+        assetPath: 'assets/images/dp.png',
+        fallbackLabel: 'DP TERVERIFIKASI',
+        fallbackColor: PdfColors.cyan300,
+      );
+    }
+    return const WatermarkSpec(
+      assetPath: 'assets/images/unpaid.png',
+      fallbackLabel: 'BELUM LUNAS',
+      fallbackColor: PdfColors.red300,
+    );
+  }
+
   static Future<pw.Widget?> _buildWatermark(
     List<Map<String, dynamic>> approvals,
     List<Map<String, dynamic>> payments,
     double grandTotal,
   ) async {
-    final paid = payments
-        .where((p) => paymentCountsTowardTotal(p['verified']))
-        .fold<double>(0, (s, p) => s + PdfHelpers.dbl(p['payment_amount']));
-    final isPaid = grandTotal > 0 && grandTotal - paid <= 0;
-    final allApproved = approvals.isNotEmpty &&
-        approvals.every((a) => PdfHelpers.isApprovedStatus(a['approved']));
+    final spec = resolveWatermarkSpec(approvals, payments, grandTotal);
+    return _watermarkFromAsset(
+      spec.assetPath,
+      fallbackLabel: spec.fallbackLabel,
+      fallbackColor: spec.fallbackColor,
+    );
+  }
 
-    final isApproved = allApproved || isPaid;
-    final String assetPath =
-        isApproved ? 'assets/images/paid.png' : 'assets/images/approval.png';
-
+  static Future<pw.Widget> _watermarkFromAsset(
+    String assetPath, {
+    required String fallbackLabel,
+    required PdfColor fallbackColor,
+  }) async {
     try {
       final d = await rootBundle.load(assetPath);
       return pw.Center(
@@ -289,15 +374,13 @@ class InvoicePdfGenerator {
         child: pw.Transform.rotate(
           angle: 0.785,
           child: pw.Text(
-            isApproved ? 'LUNAS' : 'BELUM LUNAS',
+            fallbackLabel,
             style: pw.TextStyle(
-              fontSize: 120,
+              fontSize: 90,
               color: PdfColor(
-                isApproved ? PdfColors.green300.red : PdfColors.orange300.red,
-                isApproved
-                    ? PdfColors.green300.green
-                    : PdfColors.orange300.green,
-                isApproved ? PdfColors.green300.blue : PdfColors.orange300.blue,
+                fallbackColor.red,
+                fallbackColor.green,
+                fallbackColor.blue,
                 0.10,
               ),
               fontWeight: pw.FontWeight.bold,
