@@ -71,10 +71,18 @@ class ApprovalCardItem extends StatelessWidget {
       _ => 'Selesai',
     };
 
-    final int itemCount = details.length;
+    // Baris `item_type: 'bonus'` bukan produk utama — jangan ikut dihitung di
+    // badge "+N item lainnya" (lihat [ApprovalProductsCard._isBonusRow]).
+    final mainDetails = details
+        .whereType<Map<String, dynamic>>()
+        .where((d) =>
+            !(d['item_type']?.toString() ?? '').toLowerCase().contains('bonus'))
+        .toList();
+    final int itemCount = mainDetails.isNotEmpty ? mainDetails.length : details.length;
     final String firstItemName = itemCount > 0
         ? (() {
-            final d = details[0] as Map<String, dynamic>;
+            final d = (mainDetails.isNotEmpty ? mainDetails[0] : details[0])
+                as Map<String, dynamic>;
             final desc = (d['item_description'] as String? ?? '').trim();
             return desc.isNotEmpty ? desc : (d['desc_1'] as String? ?? 'Item');
           })()
