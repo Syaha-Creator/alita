@@ -171,6 +171,11 @@ class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp>
   bool _initialMessageHandled = false;
   bool _imagePrecached = false;
   StreamSubscription<Uri?>? _deepLinkSubscription;
+  // Deep link diterima saat auth masih [isLoading] (cold start): ditahan di
+  // sini, baru dinavigasikan begitu auth selesai — supaya redirect `/auth_boot`
+  // tidak menimpa/menghilangkan intent-nya (lihat listener auth di [build]).
+  String? _pendingDeepLinkPath;
+  Uri? _lastHandledDeepLinkUri;
 
   @override
   void initState() {
@@ -181,6 +186,7 @@ class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp>
     });
 
     _listenDeepLinks();
+    _checkInitialDeepLink();
 
     // Delay heavy platform-channel work so first frame renders fast.
     Future.delayed(const Duration(seconds: 2), () {
@@ -202,25 +208,58 @@ class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp>
     super.dispose();
   }
 
+  final AppLinks _appLinks = AppLinks();
+
   void _listenDeepLinks() {
     _deepLinkSubscription?.cancel();
     try {
-      final appLinks = AppLinks();
-      _deepLinkSubscription = appLinks.uriLinkStream.listen((Uri? uri) {
-        if (!mounted || uri == null || uri.path.isEmpty) return;
-        if (!isAllowedDeepLinkPath(uri.path)) {
-          Log.warning(
-            'Blocked deep link outside allowlist: ${uri.path}',
-            tag: 'DeepLink',
-          );
-          return;
-        }
-        final path = uri.query.isEmpty ? uri.path : '${uri.path}?${uri.query}';
-        ref.read(routerProvider).go(path);
-      });
+      _deepLinkSubscription =
+          _appLinks.uriLinkStream.listen(_handleDeepLinkUri);
     } catch (e, st) {
       Log.error(e, st, reason: 'AppLinks deep link listener');
     }
+  }
+
+  /// Cold start (app terminated) tidak selalu diteruskan lewat [uriLinkStream]
+  /// — wajib dicek terpisah lewat [AppLinks.getInitialLink], atau link yang
+  /// membuka app dari kondisi tertutup tidak pernah tertangani sama sekali.
+  Future<void> _checkInitialDeepLink() async {
+    try {
+      final uri = await _appLinks.getInitialLink();
+      if (!mounted) return;
+      _handleDeepLinkUri(uri);
+    } catch (e, st) {
+      Log.error(e, st, reason: 'AppLinks getInitialLink');
+    }
+  }
+
+  void _handleDeepLinkUri(Uri? uri) {
+    if (!mounted || uri == null || uri.path.isEmpty) return;
+    // getInitialLink() dan uriLinkStream bisa mengirim URI cold-start yang
+    // sama dua kali — cegah navigasi dobel.
+    if (uri == _lastHandledDeepLinkUri) return;
+    _lastHandledDeepLinkUri = uri;
+
+    if (!isAllowedDeepLinkPath(uri.path)) {
+      Log.warning(
+        'Blocked deep link outside allowlist: ${uri.path}',
+        tag: 'DeepLink',
+      );
+      return;
+    }
+    final path = uri.query.isEmpty ? uri.path : '${uri.path}?${uri.query}';
+    _navigateToDeepLinkOrDefer(path);
+  }
+
+  /// Auth belum selesai baca storage saat cold start → redirect router masih
+  /// memaksa `/auth_boot` untuk path apa pun. Tahan path di [_pendingDeepLinkPath]
+  /// dan navigasikan setelah auth [isLoading] selesai (lihat listener di [build]).
+  void _navigateToDeepLinkOrDefer(String path) {
+    if (ref.read(authProvider).isLoading) {
+      _pendingDeepLinkPath = path;
+      return;
+    }
+    ref.read(routerProvider).go(path);
   }
 
   @override
@@ -262,6 +301,13 @@ class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp>
     NotificationHandlerService.registerNavigateCallback(router);
 
     ref.listen<AuthState>(authProvider, (prev, next) {
+      if ((prev?.isLoading ?? false) && !next.isLoading) {
+        final pending = _pendingDeepLinkPath;
+        if (pending != null) {
+          _pendingDeepLinkPath = null;
+          ref.read(routerProvider).go(pending);
+        }
+      }
       if (prev?.isLoggedIn != true && next.isLoggedIn) {
         // Jangan invalidate sinkron di dalam listener: Riverpod sedang flush
         // dependensi auth; invalidate memicu ConcurrentModificationError saat
