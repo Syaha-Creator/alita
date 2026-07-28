@@ -74,4 +74,61 @@ void main() {
       expect(items.first.pricelistArea, '');
     });
   });
+
+  group('OrderDetailCartPreloader.convert — orphan bonus rows', () {
+    test(
+      'bonus row appearing before any main item is not dropped '
+      '(regression: previously discarded when result list was still empty)',
+      () {
+        final order = OrderHistory.fromApiJson({
+          'order_letter': {
+            'id': 1,
+            'no_sp': 'SP-002',
+            'order_date': '2026-01-01',
+            'request_date': '-',
+            'note': '',
+            'customer_name': 'A',
+            'phone': '-',
+            'address': '-',
+            'email': '',
+            'extended_amount': 1000000,
+            'status': 'Approved',
+            'channel': 'S1',
+          },
+          'order_letter_details': [
+            {
+              'order_letter_detail_id': 1,
+              'desc_1': 'Bantal Gratis',
+              'item_description': 'Bantal Gratis',
+              'item_type': 'bonus',
+              'qty': 1,
+              'customer_price': 0,
+              'net_price': 0,
+              'brand': 'Comforta',
+              'unit_price': 0,
+            },
+            {
+              'order_letter_detail_id': 2,
+              'desc_1': 'Kasur Bulan Purnama',
+              'desc_2': '160x200',
+              'item_description': 'Kasur Bulan Purnama',
+              'item_type': 'Mattress',
+              'qty': 1,
+              'customer_price': 1000000,
+              'net_price': 900000,
+              'brand': 'Comforta',
+              'unit_price': 1000000,
+            },
+          ],
+          'order_letter_payments': <dynamic>[],
+        });
+
+        final items = OrderDetailCartPreloader.convert(order);
+
+        expect(items, hasLength(1));
+        expect(items.first.bonusSnapshots, hasLength(1));
+        expect(items.first.bonusSnapshots.first.name, 'Bantal Gratis');
+      },
+    );
+  });
 }

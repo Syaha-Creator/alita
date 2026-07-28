@@ -44,8 +44,10 @@ abstract final class OrderDetailCartPreloader {
     final pendingBonuses = <OrderDetail>[];
 
     void flushBonusesToLast() {
+      // Bonus di awal list (sebelum ada CartItem apa pun) tidak boleh dibuang
+      // — tahan (jangan clear) sampai CartItem pertama benar-benar dibuat,
+      // baru dilampirkan ke situ.
       if (pendingBonuses.isEmpty || result.isEmpty) {
-        pendingBonuses.clear();
         return;
       }
       final last = result.last;
@@ -85,7 +87,12 @@ abstract final class OrderDetailCartPreloader {
         isIndirect: isIndirect,
         customerType: order.customerType,
       );
-      if (item != null) result.add(item);
+      if (item != null) {
+        result.add(item);
+        // Lampirkan bonus orphan yang tertahan (muncul sebelum CartItem
+        // pertama ada) ke item baru ini.
+        flushBonusesToLast();
+      }
     }
 
     // Sisa bonus setelah loop (bonus di akhir list).
