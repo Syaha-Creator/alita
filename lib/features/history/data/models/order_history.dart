@@ -223,6 +223,11 @@ extension OrderHistoryX on OrderHistory {
               'unit_price': d.unitPrice,
               'extended_price': d.extendedPrice,
               'take_away': d.isTakeAway,
+              if (d.itemNumber.trim().isNotEmpty) 'item_number': d.itemNumber.trim(),
+              if (d.pricelistType.trim().isNotEmpty)
+                'pricelist_type': d.pricelistType.trim(),
+              if (d.pricelistArea.trim().isNotEmpty)
+                'pricelist_area': d.pricelistArea.trim(),
               'order_letter_discount': d.discounts
                   .map(
                     (x) => {
