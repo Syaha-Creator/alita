@@ -36,6 +36,7 @@ class IosUpdateChecker {
       'https://alita-pricelist-12d76.web.app/version.json';
 
   static const _prefLastCheckKey = 'ios_upd_last_check_ms';
+  static const _prefUpdateRequiredKey = 'ios_upd_required';
   static const _checkInterval = Duration(hours: 4);
 
   static bool _isShowing = false;
@@ -53,8 +54,15 @@ class IosUpdateChecker {
       final prefs = await SharedPreferences.getInstance();
       final nowMs = DateTime.now().millisecondsSinceEpoch;
       final lastCheckMs = prefs.getInt(_prefLastCheckKey) ?? 0;
+      final lastKnownRequired = prefs.getBool(_prefUpdateRequiredKey) ?? false;
 
-      if ((nowMs - lastCheckMs) < _checkInterval.inMilliseconds) return;
+      // Debounce hanya untuk kasus "belum perlu update" — kalau update
+      // terakhir kali dicek WAJIB, jangan biarkan user pakai versi lama
+      // sampai 4 jam cuma karena dialog sempat ditutup/app di-kill.
+      if (!lastKnownRequired &&
+          (nowMs - lastCheckMs) < _checkInterval.inMilliseconds) {
+        return;
+      }
 
       final manifest = await _fetchManifest();
       if (manifest == null) return;
@@ -73,7 +81,9 @@ class IosUpdateChecker {
       final packageInfo = await PackageInfo.fromPlatform();
       final installedVersion = packageInfo.version;
 
-      if (!_isManifestNewer(minimumVersion, installedVersion)) return;
+      final updateRequired = _isManifestNewer(minimumVersion, installedVersion);
+      await prefs.setBool(_prefUpdateRequiredKey, updateRequired);
+      if (!updateRequired) return;
 
       final releaseNotes = iosSection['release_notes'] as String?;
 
