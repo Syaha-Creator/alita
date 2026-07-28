@@ -21,6 +21,7 @@ import '../../../../core/widgets/loading_overlay.dart';
 import '../../../../core/widgets/detail_contact_info_card.dart';
 import '../../../../core/widgets/detail_note_card.dart';
 import '../../../../core/widgets/detail_shipping_info_card.dart';
+import '../../../history/data/services/order_letter_fetch.dart';
 import '../../logic/approval_decision_service.dart';
 import '../widgets/approval_detail_bottom_bar.dart';
 import '../widgets/approval_header_card.dart';
@@ -231,16 +232,42 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
       final token = await StorageService.loadAccessToken();
       final userId = await StorageService.loadUserId();
       final profile = await profileFuture;
-      final pendingDiscs = ApprovalDecisionService.collectPendingDiscounts(
-        orderData: widget.orderData,
-        myName: profile?.name ?? '',
-        myUserId: userId,
-      );
       final orderId = ApprovalDecisionService.resolveOrderId(widget.orderData);
       if (orderId <= 0) {
         throw Exception(
             'Order letter ID tidak valid untuk sinkronisasi status.');
       }
+
+      // `widget.orderData` adalah snapshot saat halaman dibuka — bisa basi
+      // kalau approver lain sudah memproses SP ini sementara halaman ini
+      // terbuka (deteksi lokasi + konfirmasi bisa makan waktu). Refetch
+      // sebelum submit supaya tidak dobel-approve/reject discount yang
+      // statusnya sudah berubah di server.
+      final freshWrap = await fetchOrderLetterResultWrap(orderId);
+      final orderDataForSubmit = freshWrap ?? widget.orderData;
+      final freshLetter =
+          orderDataForSubmit['order_letter'] as Map<String, dynamic>? ?? {};
+      final freshHeaderStatus =
+          OrderStatusX.fromRaw(freshLetter['status']?.toString() ?? '');
+      if (freshHeaderStatus == OrderStatus.approved ||
+          freshHeaderStatus == OrderStatus.rejected) {
+        if (mounted) {
+          AppFeedback.show(
+            context,
+            message: 'SP ini sudah diproses lebih dulu oleh approver lain.',
+            type: AppFeedbackType.warning,
+            floating: true,
+          );
+          context.pop();
+        }
+        return;
+      }
+
+      final pendingDiscs = ApprovalDecisionService.collectPendingDiscounts(
+        orderData: orderDataForSubmit,
+        myName: profile?.name ?? '',
+        myUserId: userId,
+      );
 
       if (pendingDiscs.isEmpty) {
         if (mounted) {
@@ -268,14 +295,12 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
       if (!mounted) return;
 
       if (isApproved && !decision.headerRejected) {
-        final order =
-            widget.orderData['order_letter'] as Map<String, dynamic>? ?? {};
-        final spNumber = order['no_sp']?.toString() ??
-            order['order_letter_no']?.toString() ??
+        final spNumber = freshLetter['no_sp']?.toString() ??
+            freshLetter['order_letter_no']?.toString() ??
             '';
         unawaited(
           ApprovalDecisionService.triggerNextApprovalNotification(
-            orderData: widget.orderData,
+            orderData: orderDataForSubmit,
             spNumber: spNumber,
             token: token,
             senderName: profile?.name ?? 'Approver',
@@ -285,15 +310,13 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
       }
 
       if (!isApproved && decision.headerRejected) {
-        final orderLetter =
-            widget.orderData['order_letter'] as Map<String, dynamic>? ?? {};
-        final spNumber = orderLetter['no_sp']?.toString() ??
-            orderLetter['order_letter_no']?.toString() ??
+        final spNumber = freshLetter['no_sp']?.toString() ??
+            freshLetter['order_letter_no']?.toString() ??
             '';
         if (spNumber.isNotEmpty) {
           unawaited(
             ApprovalDecisionService.triggerRejectionNotification(
-              orderData: widget.orderData,
+              orderData: orderDataForSubmit,
               spNumber: spNumber,
               token: token,
               senderName: profile?.name ?? 'Approver',
