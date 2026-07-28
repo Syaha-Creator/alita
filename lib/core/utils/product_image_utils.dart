@@ -21,6 +21,27 @@ abstract final class ProductImageUtils {
     return u.startsWith('http://') || u.startsWith('https://');
   }
 
+  /// True if [url] points at an AVIF-encoded image.
+  static bool isAvifUrl(String url) => url.toLowerCase().contains('.avif');
+
+  /// Rewrites AVIF image URLs through a JPEG-converting proxy before display.
+  ///
+  /// Flutter's built-in (Skia) image decoder often mishandles AVIF color
+  /// profiles — real-world AVIF photos (e.g. product photos from some
+  /// vendor CDNs) render washed-out / visibly wrong colors in-app even
+  /// though they look correct in a browser. Since we don't control those
+  /// vendor CDNs, AVIF URLs are routed through wsrv.nl (a free public image
+  /// proxy) to convert them to JPEG on the fly. Non-AVIF URLs, asset URIs,
+  /// and synthetic placeholders pass through unchanged.
+  static String resolveDisplayUrl(String url) {
+    if (!isNetworkProductPhoto(url) || !isAvifUrl(url)) return url;
+    return Uri.https('wsrv.nl', '/', {
+      'url': url,
+      'output': 'jpg',
+      'q': '85',
+    }).toString();
+  }
+
   /// [assetUriPrefix] + path for [NetworkImageView], e.g. `asset://assets/logo/...`.
   static String brandLogoAssetUri(String brand) =>
       '$assetUriPrefix${brandLogoAssetPath(brand)}';

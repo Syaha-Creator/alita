@@ -72,7 +72,7 @@ class NetworkImageView extends StatelessWidget {
     }
 
     final image = CachedNetworkImage(
-      imageUrl: imageUrl,
+      imageUrl: ProductImageUtils.resolveDisplayUrl(imageUrl),
       fit: fit,
       width: width,
       height: height,
