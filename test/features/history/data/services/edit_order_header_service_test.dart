@@ -17,10 +17,32 @@ void main() {
         requestDate: '2026-07-20',
         postage: 150000,
         extendedAmount: 3150000,
+        hargaAwal: 3300000,
       );
 
       expect(payload['postage'], 150000);
       expect(payload['extended_amount'], 3150000);
+    });
+
+    test('recomputes discount % from hargaAwal + new extendedAmount', () {
+      // Regression: edit header (ongkir) sebelumnya tidak kirim ulang
+      // `harga_awal`/`discount`, jadi nilainya basi begitu extended_amount
+      // berubah karena ongkir diedit.
+      final payload = EditOrderHeaderService.buildHeaderPayload(
+        customerName: 'Budi',
+        phone: '0812',
+        address: 'Jl. A',
+        email: 'a@a.com',
+        shipToName: 'Budi',
+        addressShipTo: 'Jl. A',
+        requestDate: '2026-07-20',
+        postage: 150000,
+        extendedAmount: 3150000,
+        hargaAwal: 3500000,
+      );
+
+      expect(payload['harga_awal'], 3500000);
+      expect(payload['discount'], closeTo(10.0, 0.001));
     });
 
     test('extendedAmount reflects subtotal (unchanged) + new postage', () {
@@ -42,6 +64,7 @@ void main() {
         requestDate: '2026-07-20',
         postage: newPostage,
         extendedAmount: newExtendedAmount,
+        hargaAwal: 3200000,
       );
 
       expect(itemsSubtotal, 3000000.0);

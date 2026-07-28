@@ -180,9 +180,13 @@ class _EditOrderHeaderSheetState extends ConsumerState<EditOrderHeaderSheet> {
           : (double.tryParse(postageRaw) ?? 0.0);
       // `extended_amount` = subtotal item + ongkir. Server tidak menghitung
       // ulang otomatis, jadi harus di-recompute & dikirim setiap ongkir
-      // diedit — subtotal diambil dari total lama dikurangi ongkir lama.
-      final itemsSubtotal = widget.order.totalAmount - widget.order.postage;
+      // diedit — subtotal dihitung dari detail item langsung (net_price *
+      // qty), bukan `totalAmount - postage` yang rawan salah kalau data lama
+      // sudah korup/tidak sinkron.
+      final itemsSubtotal =
+          EditOrderHeaderService.computeItemsSubtotal(widget.order);
       final extendedAmount = itemsSubtotal + postage;
+      final hargaAwal = EditOrderHeaderService.computeHargaAwal(widget.order);
       final payload = EditOrderHeaderService.buildHeaderPayload(
         customerName: _customerNameCtrl.text,
         phone: _phoneCtrl.text,
@@ -198,6 +202,7 @@ class _EditOrderHeaderSheetState extends ConsumerState<EditOrderHeaderSheet> {
         note: _noteCtrl.text,
         postage: postage,
         extendedAmount: extendedAmount,
+        hargaAwal: hargaAwal,
         status: isIndirect ? 'Approved' : 'Pending',
       );
 

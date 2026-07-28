@@ -45,9 +45,17 @@ class EditOrderHeaderService {
     /// WAJIB ikut dikirim setiap ongkir berubah — `order_letters.extended_amount`
     /// tidak dihitung ulang otomatis oleh server.
     required double extendedAmount,
+    /// Sum `customer_price * qty` semua item (harga sebelum diskon) — dipakai
+    /// server untuk hitung ulang `discount` (%) supaya tetap konsisten dengan
+    /// `extended_amount` baru. Item tidak berubah saat edit header, tapi kalau
+    /// `harga_awal`/`discount` tidak dikirim ulang, nilainya jadi stale
+    /// (masih pakai extended_amount lama sebelum ongkir diedit).
+    required double hargaAwal,
   }) {
     final cleanNoPo = noPo?.trim();
     final cleanSalesCode = salesCode?.trim();
+    final discount =
+        hargaAwal > 0 ? ((hargaAwal - extendedAmount) / hargaAwal) * 100 : 0.0;
     return {
       'customer_name': customerName.trim(),
       'phone': phone.trim(),
@@ -63,9 +71,23 @@ class EditOrderHeaderService {
       'note': note?.trim() ?? '',
       'postage': postage,
       'extended_amount': extendedAmount,
+      'harga_awal': hargaAwal,
+      'discount': discount,
       'status': status,
     };
   }
+
+  /// Sum `customer_price * qty` dari semua [OrderHistory.details] — baseline
+  /// harga sebelum diskon, dipakai untuk recompute `discount` (%) di
+  /// [buildHeaderPayload] tanpa perlu menyentuh item.
+  static double computeHargaAwal(OrderHistory order) =>
+      order.details.fold<double>(0, (s, d) => s + d.customerPrice * d.qty);
+
+  /// Sum `net_price * qty` dari semua [OrderHistory.details] — subtotal item
+  /// riil (sebelum ongkir). Lebih aman daripada `totalAmount - postage`
+  /// karena tidak tergantung field lama yang mungkin sudah korup/tidak sinkron.
+  static double computeItemsSubtotal(OrderHistory order) =>
+      order.details.fold<double>(0, (s, d) => s + d.netPrice * d.qty);
 
   // ── Helpers: collect IDs ─────────────────────────────────────────
 
