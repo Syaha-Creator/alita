@@ -81,6 +81,7 @@ Map<String, dynamic> _defaultHeader({
   int? indirectCustomerMaster,
   DateTime? requestDate,
   List<Map<String, dynamic>>? divisions,
+  String? userAddressNumber,
 }) {
   final items = cartItems ??
       [
@@ -121,6 +122,7 @@ Map<String, dynamic> _defaultHeader({
     indirectNoPoText: indirectNoPoText,
     indirectCustomerMaster: indirectCustomerMaster,
     autoApprove: autoApprove,
+    userAddressNumber: userAddressNumber,
   );
 }
 
@@ -229,12 +231,25 @@ void main() {
         expect(p['channel'], 'S1');
       });
 
-      test('SO when divisionId 24 present but no S1', () {
+      // Sejak cced66f: SO butuh divisionId 24 DAN userAddressNumber. Tanpa
+      // address_number, divisionId 24 sendirian fallback ke S1 (bukan SO lagi).
+      test('S1 when divisionId 24 present without userAddressNumber', () {
         final p = _defaultHeader(
           divisions: [
             {'id': 24},
             {'id': 26},
           ],
+        );
+        expect(p['channel'], 'S1');
+      });
+
+      test('SO when divisionId 24 present with userAddressNumber', () {
+        final p = _defaultHeader(
+          divisions: [
+            {'id': 24},
+            {'id': 26},
+          ],
+          userAddressNumber: '12345',
         );
         expect(p['channel'], 'SO');
       });
@@ -787,7 +802,8 @@ void main() {
       expect(p['payment_bank'], 'Dana');
     });
 
-    test('channel Lainnya under Debit / QRIS uses otherChannelText as bank', () {
+    test('channel Lainnya under Debit / QRIS uses otherChannelText as bank',
+        () {
       final p = entry(
         method: 'Debit / QRIS',
         bank: 'Lainnya',

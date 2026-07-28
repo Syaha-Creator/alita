@@ -123,8 +123,9 @@ void main() {
         discount3: 0,
         discount4: 0,
       );
-      // 100% discount → 0, fallback to base = 1000
-      expect(result, 1000.0);
+      // 100% (clamped) discount → net <= 0 → 0, bukan fallback ke harga penuh.
+      // Lihat commit 64350d2: fallback ke customerPrice*qty adalah bug lama.
+      expect(result, 0.0);
     });
 
     test('clamps negative discount to 0', () {
