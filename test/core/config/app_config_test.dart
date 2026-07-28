@@ -4,8 +4,24 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:alitapricelist/core/config/app_config.dart';
 
 void main() {
-  setUp(() {
-    dotenv.testLoad(fileInput: '');
+  group('AppConfig env resolution', () {
+    // Urutan penting: dotenv adalah singleton global — begitu `testLoad`
+    // dipanggil, `isInitialized` tidak bisa direset lagi di tes lain.
+    test('returns empty string, not a crash, when dotenv never loaded', () {
+      // assertConfigured() harus melempar StateError yang jelas, bukan
+      // NotInitializedError mentah dari package flutter_dotenv.
+      expect(() => AppConfig.assertConfigured(), throwsA(isA<StateError>()));
+    });
+
+    test('falls back to dotenv when no --dart-define is set', () {
+      // Regression: `String.fromEnvironment` dipanggil dengan key literal
+      // per-getter (bukan lewat parameter `String key`) — variabel/parameter
+      // membuatnya selalu balik defaultValue walau --dart-define diisi saat
+      // build, sehingga fallback ke dotenv tak pernah tersentuh di release.
+      dotenv.testLoad(fileInput: 'API_BASE_URL=https://dotenv.example/api');
+
+      expect(AppConfig.apiBaseUrl, 'https://dotenv.example/api');
+    });
   });
 
   group('BrandSpecApiConfig.isConfigured', () {

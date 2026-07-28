@@ -20,10 +20,16 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 class AppConfig {
   AppConfig._();
 
-  static String _fromEnv(String key, [String defaultValue = '']) {
-    final fromDefine = String.fromEnvironment(key, defaultValue: '');
+  // `String.fromEnvironment` HANYA terbaca kalau dipanggil `const` dengan
+  // key literal — dipanggil lewat variabel/parameter (non-const) selalu
+  // balik defaultValue, walau --dart-define diisi saat build. Makanya tiap
+  // key wajib const terpisah di sini, bukan lewat helper yang menerima
+  // `String key` sebagai parameter.
+  static String _pick(String fromDefine, String dotenvKey,
+      [String defaultValue = '']) {
     if (fromDefine.isNotEmpty) return fromDefine;
-    return dotenv.env[key] ?? defaultValue;
+    if (!dotenv.isInitialized) return defaultValue;
+    return dotenv.env[dotenvKey] ?? defaultValue;
   }
 
   // ── App identity ────────────────────────────────────────────────
@@ -32,13 +38,23 @@ class AppConfig {
 
   // ── Alita (Ruby) API ────────────────────────────────────────────
 
-  static String get apiBaseUrl => _fromEnv('API_BASE_URL');
+  static const _apiBaseUrlDefine = String.fromEnvironment('API_BASE_URL');
+  static String get apiBaseUrl => _pick(_apiBaseUrlDefine, 'API_BASE_URL');
 
-  static String get clientId =>
-      Platform.isAndroid ? _fromEnv('CLIENT_ID_ANDROID') : _fromEnv('CLIENT_ID_IOS');
+  static const _clientIdAndroidDefine =
+      String.fromEnvironment('CLIENT_ID_ANDROID');
+  static const _clientIdIosDefine = String.fromEnvironment('CLIENT_ID_IOS');
+  static String get clientId => Platform.isAndroid
+      ? _pick(_clientIdAndroidDefine, 'CLIENT_ID_ANDROID')
+      : _pick(_clientIdIosDefine, 'CLIENT_ID_IOS');
 
-  static String get clientSecret =>
-      Platform.isAndroid ? _fromEnv('CLIENT_SECRET_ANDROID') : _fromEnv('CLIENT_SECRET_IOS');
+  static const _clientSecretAndroidDefine =
+      String.fromEnvironment('CLIENT_SECRET_ANDROID');
+  static const _clientSecretIosDefine =
+      String.fromEnvironment('CLIENT_SECRET_IOS');
+  static String get clientSecret => Platform.isAndroid
+      ? _pick(_clientSecretAndroidDefine, 'CLIENT_SECRET_ANDROID')
+      : _pick(_clientSecretIosDefine, 'CLIENT_SECRET_IOS');
 
   /// Shared query map used by almost every API call.
   static Map<String, String> authQuery(String accessToken) => {
@@ -81,34 +97,72 @@ class AppConfig {
   // dengan query access_token/client_id/client_secret. Tambah brand baru:
   // tambah 4 getter host/token/id/secret di bawah + satu entri di [brandSpecApis].
 
+  static const _comfortaHostDefine =
+      String.fromEnvironment('COMFORTA_API_HOST');
   static String get comfortaHost =>
-      _fromEnv('COMFORTA_API_HOST', 'comforta.co.id');
+      _pick(_comfortaHostDefine, 'COMFORTA_API_HOST', 'comforta.co.id');
+  static const _comfortaAccessTokenDefine =
+      String.fromEnvironment('COMFORTA_ACCESS_TOKEN');
   static String get comfortaAccessToken =>
-      _fromEnv('COMFORTA_ACCESS_TOKEN');
-  static String get comfortaClientId => _fromEnv('COMFORTA_CLIENT_ID');
+      _pick(_comfortaAccessTokenDefine, 'COMFORTA_ACCESS_TOKEN');
+  static const _comfortaClientIdDefine =
+      String.fromEnvironment('COMFORTA_CLIENT_ID');
+  static String get comfortaClientId =>
+      _pick(_comfortaClientIdDefine, 'COMFORTA_CLIENT_ID');
+  static const _comfortaClientSecretDefine =
+      String.fromEnvironment('COMFORTA_CLIENT_SECRET');
   static String get comfortaClientSecret =>
-      _fromEnv('COMFORTA_CLIENT_SECRET');
+      _pick(_comfortaClientSecretDefine, 'COMFORTA_CLIENT_SECRET');
 
+  static const _springAirHostDefine =
+      String.fromEnvironment('SPRINGAIR_API_HOST');
   static String get springAirHost =>
-      _fromEnv('SPRINGAIR_API_HOST', 'springair.co.id');
+      _pick(_springAirHostDefine, 'SPRINGAIR_API_HOST', 'springair.co.id');
+  static const _springAirAccessTokenDefine =
+      String.fromEnvironment('SPRINGAIR_ACCESS_TOKEN');
   static String get springAirAccessToken =>
-      _fromEnv('SPRINGAIR_ACCESS_TOKEN');
-  static String get springAirClientId => _fromEnv('SPRINGAIR_CLIENT_ID');
+      _pick(_springAirAccessTokenDefine, 'SPRINGAIR_ACCESS_TOKEN');
+  static const _springAirClientIdDefine =
+      String.fromEnvironment('SPRINGAIR_CLIENT_ID');
+  static String get springAirClientId =>
+      _pick(_springAirClientIdDefine, 'SPRINGAIR_CLIENT_ID');
+  static const _springAirClientSecretDefine =
+      String.fromEnvironment('SPRINGAIR_CLIENT_SECRET');
   static String get springAirClientSecret =>
-      _fromEnv('SPRINGAIR_CLIENT_SECRET');
+      _pick(_springAirClientSecretDefine, 'SPRINGAIR_CLIENT_SECRET');
 
-  static String get therapedicHost =>
-      _fromEnv('THERAPEDIC_API_HOST', 'therapedic.co.id');
+  static const _therapedicHostDefine =
+      String.fromEnvironment('THERAPEDIC_API_HOST');
+  static String get therapedicHost => _pick(
+      _therapedicHostDefine, 'THERAPEDIC_API_HOST', 'therapedic.co.id');
+  static const _therapedicAccessTokenDefine =
+      String.fromEnvironment('THERAPEDIC_ACCESS_TOKEN');
   static String get therapedicAccessToken =>
-      _fromEnv('THERAPEDIC_ACCESS_TOKEN');
-  static String get therapedicClientId => _fromEnv('THERAPEDIC_CLIENT_ID');
+      _pick(_therapedicAccessTokenDefine, 'THERAPEDIC_ACCESS_TOKEN');
+  static const _therapedicClientIdDefine =
+      String.fromEnvironment('THERAPEDIC_CLIENT_ID');
+  static String get therapedicClientId =>
+      _pick(_therapedicClientIdDefine, 'THERAPEDIC_CLIENT_ID');
+  static const _therapedicClientSecretDefine =
+      String.fromEnvironment('THERAPEDIC_CLIENT_SECRET');
   static String get therapedicClientSecret =>
-      _fromEnv('THERAPEDIC_CLIENT_SECRET');
+      _pick(_therapedicClientSecretDefine, 'THERAPEDIC_CLIENT_SECRET');
 
-  static String get isleepHost => _fromEnv('ISLEEP_API_HOST', 'isleep.co.id');
-  static String get isleepAccessToken => _fromEnv('ISLEEP_ACCESS_TOKEN');
-  static String get isleepClientId => _fromEnv('ISLEEP_CLIENT_ID');
-  static String get isleepClientSecret => _fromEnv('ISLEEP_CLIENT_SECRET');
+  static const _isleepHostDefine = String.fromEnvironment('ISLEEP_API_HOST');
+  static String get isleepHost =>
+      _pick(_isleepHostDefine, 'ISLEEP_API_HOST', 'isleep.co.id');
+  static const _isleepAccessTokenDefine =
+      String.fromEnvironment('ISLEEP_ACCESS_TOKEN');
+  static String get isleepAccessToken =>
+      _pick(_isleepAccessTokenDefine, 'ISLEEP_ACCESS_TOKEN');
+  static const _isleepClientIdDefine =
+      String.fromEnvironment('ISLEEP_CLIENT_ID');
+  static String get isleepClientId =>
+      _pick(_isleepClientIdDefine, 'ISLEEP_CLIENT_ID');
+  static const _isleepClientSecretDefine =
+      String.fromEnvironment('ISLEEP_CLIENT_SECRET');
+  static String get isleepClientSecret =>
+      _pick(_isleepClientSecretDefine, 'ISLEEP_CLIENT_SECRET');
 
   /// Semua brand spec API yang didukung. [brandSpecProvider] fetch tiap
   /// entri yang [BrandSpecApiConfig.isConfigured] lalu gabungkan hasilnya.
@@ -145,18 +199,30 @@ class AppConfig {
 
   // ── Region API ─────────────────────────────────────────────────
 
-  static String get regionApiBaseUrl =>
-      _fromEnv('REGION_API_BASE_URL',
-          'https://www.emsifa.com/api-wilayah-indonesia/api');
+  static const _regionApiBaseUrlDefine =
+      String.fromEnvironment('REGION_API_BASE_URL');
+  static String get regionApiBaseUrl => _pick(
+        _regionApiBaseUrlDefine,
+        'REGION_API_BASE_URL',
+        'https://www.emsifa.com/api-wilayah-indonesia/api',
+      );
 
   // ── Indirect sales: assigned toko (host terpisah + header API key) ──
   /// Base URL tanpa trailing slash, contoh: `http://host:8000`
+  static const _indirectStoresBaseUrlDefine =
+      String.fromEnvironment('INDIRECT_STORES_BASE_URL');
   static String get indirectStoresBaseUrl =>
-      _fromEnv('INDIRECT_STORES_BASE_URL', '');
+      _pick(_indirectStoresBaseUrlDefine, 'INDIRECT_STORES_BASE_URL');
 
-  static String get indirectApiKey => _fromEnv('INDIRECT_API_KEY', '');
+  static const _indirectApiKeyDefine =
+      String.fromEnvironment('INDIRECT_API_KEY');
+  static String get indirectApiKey =>
+      _pick(_indirectApiKeyDefine, 'INDIRECT_API_KEY');
 
-  static String get indirectClientKey => _fromEnv('INDIRECT_CLIENT_KEY', '');
+  static const _indirectClientKeyDefine =
+      String.fromEnvironment('INDIRECT_CLIENT_KEY');
+  static String get indirectClientKey =>
+      _pick(_indirectClientKeyDefine, 'INDIRECT_CLIENT_KEY');
 
   /// True jika konfigurasi fetch daftar toko assign sudah lengkap.
   static bool get isIndirectStoresConfigured =>
