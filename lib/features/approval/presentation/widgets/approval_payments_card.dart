@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_formatters.dart';
+import '../../../../core/utils/payment_verification_utils.dart';
 import '../../../../core/widgets/detail_payment_item_row.dart';
 import '../../../../core/widgets/detail_payments_section.dart';
 import '../../../../core/widgets/detail_surface_card.dart';
@@ -23,16 +24,17 @@ class ApprovalPaymentsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final paymentItems = payments.map((entry) {
-      final p = entry as Map<String, dynamic>;
+    // Baris `verified == false` (ditolak/duplikat/invalid) disembunyikan —
+    // sama seperti riwayat pesanan & PDF (lihat [paymentCountsTowardTotal]).
+    final visiblePayments = payments
+        .whereType<Map<String, dynamic>>()
+        .where((p) => paymentCountsTowardTotal(p['verified']));
+    final paymentItems = visiblePayments.map((p) {
       final method = p['payment_method']?.toString() ?? '-';
       final bank = p['payment_bank']?.toString() ?? '-';
       final amount = double.tryParse(p['payment_amount']?.toString() ?? '0') ?? 0;
       final imageUrl = p['image']?.toString() ?? '';
-      final verifiedRaw = p['verified'];
-      final isVerified = verifiedRaw == true ||
-          verifiedRaw == 1 ||
-          verifiedRaw?.toString().toLowerCase() == 'true';
+      final isVerified = p['verified'] == true;
       return DetailPaymentItemRow(
         method: method,
         bank: bank,
