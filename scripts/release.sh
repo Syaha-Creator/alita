@@ -50,7 +50,6 @@ scrub_env_for_build() {
   cp "$ENV_FILE" "$_ENV_BACKUP"
   # File 0 byte bikin flutter_dotenv melempar EmptyEnvFileError (unhandled).
   echo "# scrubbed for release build — secrets dikirim via --dart-define" > "$ENV_FILE"
-  trap restore_env_after_build EXIT
 }
 restore_env_after_build() {
   if [[ -n "$_ENV_BACKUP" && -f "$_ENV_BACKUP" ]]; then
@@ -193,6 +192,33 @@ if [[ -z "$PLATFORM" ]]; then
   esac
 fi
 
+# Validasi lebih dulu — argumen typo (mis. "androi") tidak boleh lolos sampai
+# lewat bump_version, karena setelahnya tidak ada build yang jalan tapi versi
+# sudah ke-bump ("sukses palsu").
+case "$PLATFORM" in
+  ios|android|all) ;;
+  *)
+    echo "Error: platform tidak dikenal: '$PLATFORM' (pilih: ios / android / all)"
+    exit 1
+    ;;
+esac
+if [[ "$PLATFORM" == "android" && -n "$SUBTYPE" && "$SUBTYPE" != "apk" ]]; then
+  echo "Error: subtype android tidak dikenal: '$SUBTYPE' (pilih: apk, atau kosongkan untuk AAB)"
+  exit 1
+fi
+
+require_android_keys() {
+  local missing=""
+  for k in API_BASE_URL CLIENT_ID_ANDROID CLIENT_SECRET_ANDROID; do
+    [[ -z "$(read_env "$k")" ]] && missing="$missing $k"
+  done
+  if [[ -n "$missing" ]]; then
+    echo "Error: key wajib kosong di .env untuk build Android:$missing"
+    exit 1
+  fi
+}
+[[ "$PLATFORM" == "android" || "$PLATFORM" == "all" ]] && require_android_keys
+
 # ════════════════════════════════════════════════════════════════════════════
 # Konfirmasi & bump versi
 # ════════════════════════════════════════════════════════════════════════════
@@ -206,6 +232,22 @@ echo "  Versi    : $OLD_VERSION+$OLD_BUILD → $PREVIEW"
 echo ""
 read -p "  Lanjutkan? (y/N) " CONFIRM
 [[ "$CONFIRM" != "y" && "$CONFIRM" != "Y" ]] && echo "Dibatalkan." && exit 0
+
+# Rollback versi kalau build gagal di tengah jalan — versi tidak boleh
+# "nyangkut" naik tanpa artifact yang jadi.
+BUILD_SUCCESS=""
+_PUBSPEC_BACKUP="$(mktemp)"; cp "$PUBSPEC" "$_PUBSPEC_BACKUP"
+_VERSION_JSON_BACKUP="$(mktemp)"; cp "$VERSION_JSON" "$_VERSION_JSON_BACKUP"
+on_exit() {
+  restore_env_after_build
+  if [[ -z "$BUILD_SUCCESS" ]]; then
+    cp "$_PUBSPEC_BACKUP" "$PUBSPEC"
+    cp "$_VERSION_JSON_BACKUP" "$VERSION_JSON"
+    echo "  ⚠ Build gagal/dibatalkan — versi dikembalikan ke $OLD_VERSION+$OLD_BUILD"
+  fi
+  rm -f "$_PUBSPEC_BACKUP" "$_VERSION_JSON_BACKUP"
+}
+trap on_exit EXIT
 
 bump_version
 load_dart_defines
@@ -251,6 +293,7 @@ build_android() {
 
 [[ "$PLATFORM" == "ios" || "$PLATFORM" == "all" ]]     && build_ios
 [[ "$PLATFORM" == "android" || "$PLATFORM" == "all" ]] && build_android
+BUILD_SUCCESS=1
 
 # ════════════════════════════════════════════════════════════════════════════
 # Summary
