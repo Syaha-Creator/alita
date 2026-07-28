@@ -54,6 +54,8 @@ class OrderItemTile extends ConsumerWidget {
     this.showBonusSection = true,
   });
 
+  /// Prioritas tampilan: Kasur > Divan > Sandaran > Sorong — SKU komponen
+  /// pertama yang tersedia dipakai sebagai SKU utama pada tile.
   static String _primarySkuLabel(CartItem item) {
     bool present(String f) {
       final v = f.trim().toLowerCase();
@@ -99,6 +101,7 @@ class OrderItemTile extends ConsumerWidget {
         p.sorong.isNotEmpty &&
         !p.sorong.toLowerCase().contains('tanpa');
 
+    // Label tipe bundle diturunkan dari kombinasi komponen set yang tersedia.
     String bundleTypeLabel() {
       if (!p.isSet) return 'Kasur Saja';
 

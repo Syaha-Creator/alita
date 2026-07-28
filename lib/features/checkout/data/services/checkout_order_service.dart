@@ -829,11 +829,11 @@ class CheckoutOrderService {
       // ── Program Bulanan (indirect only): setup sekali per item ──
       // Baris audit (approver_level_id 80) hanya ditempel ke SATU komponen
       // "anchor" (prioritas sama dengan markupDiff di bawah: kasur > divan >
-      // headboard > sorong > fallback Produk) agar tidak terduplikasi ke
-      // setiap baris detail pada produk SET. Potongan net_price riil tetap
-      // diterapkan ke semua komponen relevan: proporsional untuk tipe
-      // persen (matematis setara dengan memotong di agregat), atau nilai
-      // penuh hanya ke komponen anchor untuk tipe nominal.
+      // headboard > sorong > fallback Produk) agar tidak terduplikasi per
+      // baris detail pada produk SET. Potongan net_price riil tetap
+      // diterapkan ke semua komponen: proporsional untuk tipe persen
+      // (setara matematis dengan memotong di agregat), nilai penuh hanya
+      // di anchor untuk tipe nominal.
       final bool kcPresentForPb = hasComponent(p.kasur);
       final bool dvPresentForPb = p.isSet && hasComponent(p.divan);
       final bool hbPresentForPb = p.isSet && hasComponent(p.headboard);
@@ -871,12 +871,12 @@ class CheckoutOrderService {
       final double pbNominalLineTotal = pbNominal * pbQty;
       // Urutan resmi: EUP → diskon toko → Program Bulanan → diskon tambahan
       // (d1–d4). Diskon toko & diskon tambahan sama-sama perkalian sehingga
-      // komutatif satu sama lain; yang berpengaruh hanya posisi potongan PB
-      // NOMINAL relatif terhadap diskon tambahan. `netLine` di bawah sudah
-      // melewati d1–d4 DAN diskon toko sepenuhnya, jadi potongan nominal
-      // per-unit dikalikan faktor kaskade d1–d4 agar hasilnya identik secara
-      // matematis dengan memotong PB sebelum diskon tambahan diterapkan.
-      // Tipe persen tidak terpengaruh urutan (perkalian × perkalian).
+      // komutatif; hanya posisi potongan PB NOMINAL relatif terhadap diskon
+      // tambahan yang berpengaruh. `netLine` di bawah sudah melewati d1–d4
+      // dan diskon toko sepenuhnya, jadi potongan nominal per-unit dikalikan
+      // faktor kaskade d1–d4 agar hasilnya identik secara matematis dengan
+      // memotong PB sebelum diskon tambahan. Tipe persen tidak terpengaruh
+      // urutan (perkalian × perkalian).
       final double salesDiscountFactor = (1 - item.discount1.clamp(0, 100) / 100) *
           (1 - item.discount2.clamp(0, 100) / 100) *
           (1 - item.discount3.clamp(0, 100) / 100) *

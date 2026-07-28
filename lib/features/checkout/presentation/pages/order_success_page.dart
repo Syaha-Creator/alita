@@ -18,7 +18,6 @@ class OrderSuccessPage extends StatelessWidget {
             children: [
               const Spacer(),
 
-              // Success icon
               Container(
                 width: 120,
                 height: 120,
@@ -43,7 +42,6 @@ class OrderSuccessPage extends StatelessWidget {
 
               const SizedBox(height: 32),
 
-              // Title
               Text(
                 'Pesanan Berhasil Dibuat!',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -55,7 +53,6 @@ class OrderSuccessPage extends StatelessWidget {
 
               const SizedBox(height: 12),
 
-              // Description
               Text(
                 'Kami akan memproses pesanan Anda segera.',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -67,7 +64,6 @@ class OrderSuccessPage extends StatelessWidget {
 
               const Spacer(),
 
-              // Button
               SizedBox(
                 width: double.infinity,
                 height: 54,

@@ -16,6 +16,8 @@ class OrderLetterResponseParser {
   static OrderLetterResponseParseResult parse(Map<String, dynamic> headerData) {
     final dynamic resultNode = headerData['result'];
 
+    // API response shape varies by endpoint version; try nested `order_letter.id`
+    // first, then flatter `result.id` / `data.id` / top-level `id` as fallbacks.
     final int orderLetterId = ((() {
           if (resultNode is Map) {
             final fromOrderLetter =

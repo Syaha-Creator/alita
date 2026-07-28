@@ -693,7 +693,6 @@ class _StorePickerState extends State<_StorePicker> {
                           ),
                         ),
                       ),
-                      // Refresh button
                       if (widget.onRefresh != null)
                         Tooltip(
                           message: 'Perbarui daftar toko',
