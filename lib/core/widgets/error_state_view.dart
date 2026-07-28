@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
@@ -45,16 +47,25 @@ class ErrorStateView extends StatefulWidget {
 
 class _ErrorStateViewState extends State<ErrorStateView> {
   bool _isRetrying = false;
+  Timer? _resetTimer;
 
   void _handleRetry() {
     if (_isRetrying) return;
     setState(() => _isRetrying = true);
     widget.onRetry?.call();
     // Safety reset in case the parent widget hasn't unmounted yet
-    // (e.g. provider returns error again very quickly).
-    Future.delayed(const Duration(seconds: 8), () {
+    // (e.g. provider returns error again very quickly). Cancelled in
+    // dispose() so it never fires (or leaks) after the widget is gone.
+    _resetTimer?.cancel();
+    _resetTimer = Timer(const Duration(seconds: 8), () {
       if (mounted) setState(() => _isRetrying = false);
     });
+  }
+
+  @override
+  void dispose() {
+    _resetTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -73,8 +84,7 @@ class _ErrorStateViewState extends State<ErrorStateView> {
                 widget.title,
                 textAlign: TextAlign.center,
                 style: widget.titleStyle ??
-                    const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 16),
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
               const SizedBox(height: 8),
               Text(
