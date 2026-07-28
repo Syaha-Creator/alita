@@ -356,15 +356,13 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
         return null;
       }
 
-      // LocationAccuracy.medium pakai network/WiFi positioning — jauh lebih cepat
-      // (~1–3s) dibanding .high yang menunggu GPS hardware cold-fix (bisa 30–60s).
-      // Akurasi ~100m sudah cukup untuk geotagging approval.
+      // .medium (network/WiFi) ~1–3s vs .high GPS cold-fix 30–60s; ~100m
+      // akurasi sudah cukup untuk geotagging approval.
       //
       // Balapan dengan cache OS: kalau fix segar belum siap dalam
-      // [_lastKnownRaceDelay], coba posisi terakhir yang di-cache OS
-      // (near-instant) sebagai fallback — asal tidak terlalu basi. Fix segar
-      // tetap dibiarkan berjalan sampai [_locationTimeout] sebagai jaring
-      // pengaman kalau cache tidak tersedia.
+      // [_lastKnownRaceDelay], fallback ke posisi cache (near-instant, asal
+      // tidak basi). Fix segar tetap jalan sampai [_locationTimeout] sebagai
+      // jaring pengaman kalau cache tidak tersedia.
       final completer = Completer<Position?>();
 
       unawaited(

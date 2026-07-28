@@ -49,7 +49,7 @@ class UserProfile {
       workPlaceName: workPlace['name']?.toString() ?? '-',
       areaName: area['name']?.toString() ?? '-',
       imageUrl: '',
-      companyId: (company['id'] as num?)?.toInt() ?? 0,   // company.id = 2, bukan work_place.id = 6
+      companyId: (company['id'] as num?)?.toInt() ?? 0,
       areaId: (area['id'] as num?)?.toInt() ?? 0,
       divisions: safeMapList(json['divisions'], fieldName: 'divisions'),
     );

@@ -575,6 +575,9 @@ class InvoicePdfGenerator {
     return tglPelunasan;
   }
 
+  /// Resolves sales/SC name via fallback chain: order/letter fields first,
+  /// then the discount approver matching the creator ID or level `"user"`,
+  /// finally a generic placeholder (label differs for indirect vs direct).
   static (String, String) _resolveSalesIdentity(
     Map<String, dynamic> orderData,
     List<Map<String, dynamic>> details,

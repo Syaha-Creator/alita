@@ -10,14 +10,6 @@ import '../../firebase_options.dart';
 import '../../features/history/data/models/order_history.dart';
 import '../utils/log.dart';
 
-/// Handles FCM notification display and tap navigation.
-///
-/// - [init]: permission, local notification plugin, [onMessage] / [onMessageOpenedApp].
-/// - [registerNavigateCallback]: provide GoRouter so tap / getInitialMessage can navigate.
-/// - [handleInitialMessage]: call once when app is ready; navigates if app was opened from a notification.
-///
-/// Foreground FCM messages are shown via [flutter_local_notifications] (system tray, sound, tappable).
-
 /// Top-level entry point for FCM when app is in background or terminated.
 /// Runs in a separate isolate — must ensure Firebase is initialized.
 @pragma('vm:entry-point')
@@ -30,6 +22,13 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   Log.info('[FCM] Background message: ${message.messageId}', tag: 'FCM');
 }
 
+/// Handles FCM notification display and tap navigation.
+///
+/// - [init]: permission, local notification plugin, [onMessage] / [onMessageOpenedApp].
+/// - [registerNavigateCallback]: provide GoRouter so tap / getInitialMessage can navigate.
+/// - [handleInitialMessage]: call once when app is ready; navigates if app was opened from a notification.
+///
+/// Foreground FCM messages are shown via [flutter_local_notifications] (system tray, sound, tappable).
 class NotificationHandlerService {
   NotificationHandlerService._();
 
