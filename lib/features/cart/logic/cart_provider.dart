@@ -8,13 +8,12 @@ import '../data/cart_item.dart';
 /// Stable key for a cart line — must match _isSameLine exactly.
 /// Used for selection and for removeItemsByIds.
 String cartItemKey(CartItem item) {
-  final indirect = item.isIndirectSale
-      ? '|i${item.indirectStoreAddressNumber}'
-      : '|d';
+  final indirect =
+      item.isIndirectSale ? '|i${item.indirectStoreAddressNumber}' : '|d';
   final foc = item.isFocVoucherActive ? '|foc' : '';
-  final bonus =
-      item.bonusSnapshots.map((b) => '${b.name}:${b.qty}').join(',');
-  return '${item.product.id}|${item.kasurSku}|${item.divanSku}|${item.sandaranSku}|${item.sorongSku}$indirect$foc|$bonus';
+  final bonus = item.bonusSnapshots.map((b) => '${b.name}:${b.qty}').join(',');
+  final bonusSuffix = bonus.isEmpty ? '' : '|$bonus';
+  return '${item.product.id}|${item.kasurSku}|${item.divanSku}|${item.sandaranSku}|${item.sorongSku}$indirect$foc$bonusSuffix';
 }
 
 /// Cart state notifier with persistent storage
@@ -30,9 +29,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
     final cartData = await StorageService.loadCart();
     if (cartData.isNotEmpty) {
       try {
-        final items = cartData
-            .map((json) => CartItem.fromJson(json))
-            .toList();
+        final items = cartData.map((json) => CartItem.fromJson(json)).toList();
         state = items;
       } catch (e, st) {
         Log.error(e, st, reason: 'CartNotifier._loadCart parse');
@@ -367,7 +364,5 @@ final cartSelectedTotalAmountProvider = Provider<double>((ref) {
 final selectedCartItemsProvider = Provider<List<CartItem>>((ref) {
   final cart = ref.watch(cartProvider);
   final selectedIds = ref.watch(selectedCartItemIdsProvider);
-  return cart
-      .where((item) => selectedIds.contains(cartItemKey(item)))
-      .toList();
+  return cart.where((item) => selectedIds.contains(cartItemKey(item))).toList();
 });
