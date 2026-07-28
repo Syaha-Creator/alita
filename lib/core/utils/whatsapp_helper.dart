@@ -44,10 +44,9 @@ class WhatsAppHelper {
 
   /// Validate phone number format
   static bool isValidPhoneNumber(String phone) {
-    // Remove all non-digit characters
     final digitsOnly = phone.replaceAll(RegExp(r'\D'), '');
 
-    // Should start with country code and have at least 10 digits
+    // 10-15 digits covers country code + local number for valid Indonesian numbers.
     return digitsOnly.length >= 10 && digitsOnly.length <= 15;
   }
 }

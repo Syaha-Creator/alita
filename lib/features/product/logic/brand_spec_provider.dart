@@ -6,14 +6,12 @@ import '../../../core/services/api_client.dart';
 import '../../../core/utils/log.dart';
 import '../../../core/utils/retry.dart';
 
-/// Fetches the full product-type spec catalogue from all configured brand
-/// spec APIs (Comforta, Spring Air, Therapedic — see [AppConfig.brandSpecApis])
-/// and merges the results into one list.
+/// Fetches product-type specs from all configured brand APIs (Comforta,
+/// Spring Air, Therapedic — see [AppConfig.brandSpecApis]) and merges them.
 ///
-/// Uses [ApiClient.getExternal] because these are third-party APIs with their
-/// own credentials (not the main on-premise backend). One brand failing (bad
-/// credentials, network error) doesn't block the others — it just contributes
-/// an empty list.
+/// Uses [ApiClient.getExternal] since these are third-party APIs with their
+/// own credentials. One brand failing doesn't block the others — it just
+/// contributes an empty list.
 final brandSpecProvider = FutureProvider<List<dynamic>>((ref) async {
   final configs =
       AppConfig.brandSpecApis.where((c) => c.isConfigured).toList();

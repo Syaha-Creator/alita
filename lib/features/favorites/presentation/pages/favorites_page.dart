@@ -129,12 +129,10 @@ class FavoritesPage extends ConsumerWidget {
       onRefresh: () async => ref.invalidate(productListProvider),
       child: CustomScrollView(
       slivers: [
-        // Padding at top
         const SliverToBoxAdapter(
           child: SizedBox(height: 16),
         ),
 
-        // Favorites count
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -147,7 +145,6 @@ class FavoritesPage extends ConsumerWidget {
           ),
         ),
 
-        // Masonry Grid
         SliverPadding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           sliver: SliverMasonryGrid.count(
@@ -172,7 +169,6 @@ class FavoritesPage extends ConsumerWidget {
           ),
         ),
 
-        // Padding at bottom
         const SliverToBoxAdapter(
           child: SizedBox(height: 16),
         ),

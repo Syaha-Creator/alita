@@ -38,7 +38,7 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.light,
 
-      // Color scheme — Massindo brand; onPrimary/onSecondary ensure contrast
+      // Massindo brand palette; onPrimary/onSecondary explicit to guarantee contrast
       colorScheme: const ColorScheme.light(
         primary: AppColors.primary,
         onPrimary: AppColors.onPrimary,
@@ -64,7 +64,6 @@ class AppTheme {
         ),
       ),
 
-      // Typography — bundled Inter (works offline)
       textTheme: baseText.copyWith(
         displayLarge: _text(32, FontWeight.w700, AppColors.textPrimary),
         displayMedium: _text(28, FontWeight.w600, AppColors.textPrimary),
@@ -82,7 +81,6 @@ class AppTheme {
         labelSmall: _text(11, FontWeight.w400, AppColors.textTertiary),
       ),
 
-      // Card theme - soft shadows
       cardTheme: const CardThemeData(
         elevation: 0,
         shape: RoundedRectangleBorder(
@@ -92,14 +90,12 @@ class AppTheme {
         margin: EdgeInsets.zero,
       ),
 
-      // Divider
       dividerTheme: const DividerThemeData(
         color: AppColors.divider,
         thickness: 1,
         space: 1,
       ),
 
-      // Checkbox — rounded, branded
       checkboxTheme: CheckboxThemeData(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(5),
@@ -114,7 +110,6 @@ class AppTheme {
         visualDensity: VisualDensity.compact,
       ),
 
-      // PopupMenu — rounded, subtle shadow
       popupMenuTheme: PopupMenuThemeData(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
@@ -125,7 +120,6 @@ class AppTheme {
         textStyle: _text(14, FontWeight.w400, AppColors.textPrimary),
       ),
 
-      // Dialog — rounded, clean surface
       dialogTheme: DialogThemeData(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
@@ -142,7 +136,6 @@ class AppTheme {
         ),
       ),
 
-      // DatePicker — branded colors
       datePickerTheme: DatePickerThemeData(
         backgroundColor: AppColors.surface,
         surfaceTintColor: Colors.transparent,
@@ -184,7 +177,6 @@ class AppTheme {
         rangeSelectionBackgroundColor: AppColors.accentLight,
       ),
 
-      // ElevatedButton — rounded, accent default
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.accent,
@@ -200,7 +192,6 @@ class AppTheme {
         ),
       ),
 
-      // TextButton — branded
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: AppColors.accent,
@@ -211,7 +202,6 @@ class AppTheme {
         ),
       ),
 
-      // SnackBar — floating, rounded
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: AppColors.primary,

@@ -198,15 +198,11 @@ class CartItem with _$CartItem {
 
   /// Urutan resmi: EUP → diskon toko → Program Bulanan → diskon tambahan.
   ///
-  /// [base] yang masuk ke sini sudah melewati diskon toko DAN diskon tambahan
-  /// (d1–d4), karena semua faktor tersebut bersifat perkalian (komutatif) —
-  /// hasil akhirnya sama baik diskon toko/tambahan diterapkan sebelum atau
-  /// sesudah satu sama lain. Yang benar-benar berpengaruh hanya POSISI PB
-  /// nominal (potongan flat) relatif terhadap diskon tambahan:
-  /// - Tipe persen: aman diterapkan di titik manapun (perkalian × perkalian).
-  /// - Tipe nominal: potongan per-unit dikalikan [_salesDiscountFactor] agar
-  ///   hasilnya identik secara matematis dengan memotong PB SEBELUM diskon
-  ///   tambahan (bukan setelah semua diskon selesai).
+  /// [base] sudah melewati diskon toko dan diskon tambahan (d1–d4) — aman,
+  /// karena faktor-faktor itu bersifat perkalian/komutatif. Yang berpengaruh
+  /// hanya posisi PB nominal relatif diskon tambahan: tipe persen aman di
+  /// titik manapun, tipe nominal dikalikan [_salesDiscountFactor] agar
+  /// hasilnya setara dengan memotong PB SEBELUM diskon tambahan.
   double _applyProgramBulananTo(double base) {
     if (programBulananType == 'percent' && programBulananDiscount > 0) {
       return (base * (1 - programBulananDiscount / 100))

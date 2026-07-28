@@ -26,13 +26,11 @@ abstract final class ProductImageUtils {
 
   /// Rewrites AVIF image URLs through a JPEG-converting proxy before display.
   ///
-  /// Flutter's built-in (Skia) image decoder often mishandles AVIF color
-  /// profiles — real-world AVIF photos (e.g. product photos from some
-  /// vendor CDNs) render washed-out / visibly wrong colors in-app even
-  /// though they look correct in a browser. Since we don't control those
-  /// vendor CDNs, AVIF URLs are routed through wsrv.nl (a free public image
-  /// proxy) to convert them to JPEG on the fly. Non-AVIF URLs, asset URIs,
-  /// and synthetic placeholders pass through unchanged.
+  /// Flutter's Skia decoder often mishandles AVIF color profiles, causing
+  /// washed-out colors in-app even though the source looks correct in a
+  /// browser. Since we don't control the vendor CDNs serving these photos,
+  /// AVIF URLs are routed through wsrv.nl to convert them to JPEG on the fly.
+  /// Non-AVIF URLs, asset URIs, and synthetic placeholders pass through unchanged.
   static String resolveDisplayUrl(String url) {
     if (!isNetworkProductPhoto(url) || !isAvifUrl(url)) return url;
     return Uri.https('wsrv.nl', '/', {

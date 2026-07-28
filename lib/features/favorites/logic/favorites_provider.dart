@@ -37,14 +37,11 @@ class FavoritesNotifier extends StateNotifier<List<String>> {
   Future<void> toggleFavorite(String productId) async {
     await _ensureLoaded();
     if (state.contains(productId)) {
-      // Remove from favorites
       state = state.where((id) => id != productId).toList();
     } else {
-      // Add to favorites
       state = [...state, productId];
     }
-    
-    // Save to storage
+
     await StorageService.saveFavorites(state);
   }
 
@@ -64,7 +61,6 @@ class FavoritesNotifier extends StateNotifier<List<String>> {
   int get favoritesCount => state.length;
 }
 
-/// Favorites provider
 final favoritesProvider =
     StateNotifierProvider<FavoritesNotifier, List<String>>((ref) {
   return FavoritesNotifier();
@@ -80,17 +76,16 @@ final isFavoriteProvider = Provider.family<bool, String>((ref, productId) {
   );
 });
 
-/// Total favorites count provider
 final favoritesCountProvider = Provider<int>((ref) {
   return ref.watch(favoritesProvider.select((ids) => ids.length));
 });
 
-/// Favorite products provider - returns only favorited products
+/// Products filtered down to only favorited IDs.
 final favoriteProductsProvider = Provider<List<Product>>((ref) {
   final allProducts =
       ref.watch(productListProvider.select((v) => v.valueOrNull?.products ?? []));
   final favoriteIds = ref.watch(favoritesProvider);
-  
+
   return allProducts
       .where((product) => favoriteIds.contains(product.id))
       .toList();
