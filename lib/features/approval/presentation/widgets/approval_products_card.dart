@@ -28,23 +28,30 @@ class ApprovalProductsCard extends StatelessWidget {
 
   static String _fmt(num value) => AppFormatters.currencyIdr(value);
 
+  static bool _isBonusRow(Map<String, dynamic> d) =>
+      (d['item_type']?.toString() ?? '').toLowerCase().contains('bonus');
+
   @override
   Widget build(BuildContext context) {
     final postage = double.tryParse(order['postage']?.toString() ?? '0') ?? 0;
     final totalAmount =
         double.tryParse(order['extended_amount']?.toString() ?? '0') ?? 0;
 
+    // `order_letter_details` menandai bonus lewat `item_type: 'bonus'` — bukan
+    // field `bonus_N`/`qty_bonusN` (itu field katalog produk, beda payload).
+    // Baris bonus harus dipisah dari daftar utama, bukan ikut dinomori.
+    final mainDetails = <Map<String, dynamic>>[];
     final List<Map<String, dynamic>> bonusItems = [];
     for (final detail in details) {
       final d = detail as Map<String, dynamic>;
-      for (int i = 1; i <= 8; i++) {
-        final bonusKey = 'bonus_$i';
-        final qtyKey = 'qty_bonus$i';
-        final bonusName = d[bonusKey] as String?;
-        final bonusQty = d[qtyKey];
-        if (bonusName != null && bonusName.isNotEmpty) {
-          bonusItems.add({'name': bonusName, 'qty': bonusQty ?? 1});
-        }
+      if (_isBonusRow(d)) {
+        final name = (d['item_description']?.toString().trim().isNotEmpty ??
+                false)
+            ? d['item_description'].toString().trim()
+            : (d['desc_1']?.toString() ?? 'Bonus');
+        bonusItems.add({'name': name, 'qty': d['qty'] ?? 1});
+      } else {
+        mainDetails.add(d);
       }
     }
 
@@ -54,9 +61,9 @@ class ApprovalProductsCard extends StatelessWidget {
         children: [
           const DetailSectionLabel(title: 'Rincian Barang & Approval Diskon'),
           const SizedBox(height: 14),
-          ...details.asMap().entries.map((entry) {
+          ...mainDetails.asMap().entries.map((entry) {
             final idx = entry.key;
-            final detail = entry.value as Map<String, dynamic>;
+            final detail = entry.value;
 
             final rawDesc = (detail['item_description'] as String? ?? '').trim();
             final name = rawDesc.isNotEmpty
@@ -74,7 +81,8 @@ class ApprovalProductsCard extends StatelessWidget {
 
             return Container(
               padding: const EdgeInsets.all(12),
-              margin: EdgeInsets.only(bottom: idx == details.length - 1 ? 0 : 10),
+              margin:
+                  EdgeInsets.only(bottom: idx == mainDetails.length - 1 ? 0 : 10),
               decoration: BoxDecoration(
                 color: AppColors.surface,
                 borderRadius: BorderRadius.circular(12),
@@ -214,8 +222,9 @@ class ApprovalProductsCard extends StatelessWidget {
   }
 
   Widget _buildDiscountRow(dynamic disc) {
-    final status = disc['approved'] as String? ?? OrderStatus.pending.apiValue;
-    final statusEnum = OrderStatusX.fromRaw(status);
+    // `approved` bisa datang sebagai bool dari API (bukan hanya String) —
+    // cast langsung ke String? melempar TypeCastError dan crash card ini.
+    final statusEnum = OrderStatusX.fromDynamic(disc['approved']);
     final color = statusEnum.detailForegroundColor;
     final icon = statusEnum.icon;
     final level = disc['approver_level'] as String? ?? '-';
