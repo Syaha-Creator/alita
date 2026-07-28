@@ -9,6 +9,7 @@ import '../../../core/services/api_client.dart';
 import '../../../core/utils/app_feedback.dart';
 import '../../../core/utils/product_image_utils.dart';
 import '../../../core/utils/app_formatters.dart';
+import '../../../core/utils/user_facing_error.dart';
 import '../data/models/product.dart';
 
 /// Handles share-product logic extracted from [ProductDetailPage].
@@ -55,16 +56,18 @@ class ProductShareHelper {
         files.add(XFile(file.path, mimeType: 'image/png'));
       }
 
-      await Share.shareXFiles(
-        files,
-        text: text,
-        sharePositionOrigin: origin,
+      await SharePlus.instance.share(
+        ShareParams(
+          files: files,
+          text: text,
+          sharePositionOrigin: origin,
+        ),
       );
     } catch (e) {
       if (context.mounted) {
         AppFeedback.show(
           context,
-          message: 'Gagal membagikan produk: $e',
+          message: 'Gagal membagikan produk. ${userFacingErrorMessage(e)}',
           type: AppFeedbackType.error,
           floating: true,
         );

@@ -46,9 +46,11 @@ class QuotationPdfGenerator {
       '"${dir.path}" untuk membuka folder tmp.)',
       tag: 'QuotationPdf',
     );
-    await Share.shareXFiles(
-      [XFile(file.path, name: fileName, mimeType: 'application/pdf')],
-      sharePositionOrigin: sharePositionOrigin ?? Rect.zero,
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path, name: fileName, mimeType: 'application/pdf')],
+        sharePositionOrigin: sharePositionOrigin ?? Rect.zero,
+      ),
     );
   }
 

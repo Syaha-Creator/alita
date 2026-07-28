@@ -132,9 +132,11 @@ class InvoicePdfGenerator {
     final dir = await getTemporaryDirectory();
     final file = File('${dir.path}/$fileName');
     await file.writeAsBytes(bytes);
-    await Share.shareXFiles(
-      [XFile(file.path, name: fileName, mimeType: 'application/pdf')],
-      sharePositionOrigin: sharePositionOrigin,
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path, name: fileName, mimeType: 'application/pdf')],
+        sharePositionOrigin: sharePositionOrigin,
+      ),
     );
   }
 
