@@ -144,6 +144,7 @@ class NotificationHandlerService {
     'fully_approved',
     'rejected',
     'reminder',
+    're_edit',
   };
 
   static int _foregroundNotificationId(RemoteMessage message) {
@@ -277,6 +278,7 @@ class NotificationHandlerService {
           pushOrderDetailFromNotification();
           break;
         case 'next_approver':
+        case 're_edit':
           pushApprovalFromOrderId();
           break;
         case 'approval':
