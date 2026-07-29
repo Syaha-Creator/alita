@@ -80,6 +80,15 @@ class AppConfig {
         'Isi di .env (dev) atau --dart-define=API_BASE_URL=... (release).',
       );
     }
+    // `access_token`/`client_id`/`client_secret` dikirim lewat query string
+    // (format API backend, lihat [authQuery]) — WAJIB HTTPS supaya credential
+    // itu tetap terenkripsi in-transit, tidak bisa disadap di jaringan.
+    if (!apiBaseUrl.startsWith('https://')) {
+      throw StateError(
+        'API_BASE_URL harus https:// — credential (access_token/client_id/'
+        'client_secret) dikirim lewat query string, wajib terenkripsi TLS.',
+      );
+    }
     if (clientId.isEmpty || clientSecret.isEmpty) {
       final platformKeys = Platform.isAndroid
           ? 'CLIENT_ID_ANDROID dan CLIENT_SECRET_ANDROID'

@@ -16,10 +16,9 @@ import '../data/models/order_history.dart';
 
 final dateFilterProvider = StateProvider<DateTimeRange?>((ref) => null);
 
-/// Isolate entry point: decode + validate + map the full order history
-/// response off the UI thread. A user with a long order history can easily
-/// have a JSON payload with hundreds of nested order letters — parsing that
-/// synchronously blocked the UI while the history tab was loading.
+/// Isolate entry point: decode + validate + map order history off the UI
+/// thread. Long order histories can have JSON payloads with hundreds of
+/// nested order letters, which blocked the UI when parsed synchronously.
 List<OrderHistory> _parseOrderHistoryEntryPoint(String body) {
   final decoded = jsonDecode(body);
   if (decoded is! Map) {

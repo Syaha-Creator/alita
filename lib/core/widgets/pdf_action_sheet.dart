@@ -3,6 +3,7 @@ import '../theme/app_colors.dart';
 import '../utils/platform_utils.dart';
 import '../utils/app_feedback.dart';
 import '../utils/log.dart';
+import '../utils/user_facing_error.dart';
 import 'loading_overlay.dart';
 
 /// A reusable bottom sheet for print/share PDF actions.
@@ -105,7 +106,7 @@ class PdfActionSheet {
       if (context.mounted) {
         AppFeedback.show(
           context,
-          message: 'Gagal membuat PDF: $e',
+          message: 'Gagal membuat PDF. ${userFacingErrorMessage(e)}',
           type: AppFeedbackType.error,
           floating: true,
         );

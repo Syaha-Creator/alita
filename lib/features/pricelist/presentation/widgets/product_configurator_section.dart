@@ -56,7 +56,6 @@ class ProductConfiguratorSection extends StatelessWidget {
   final TextEditingController customSizeCtrl;
   final VoidCallback onSizeCustomTap;
 
-  // Callbacks
   final ValueChanged<String> onSizeSelected;
   final ValueChanged<String> onDivanSelected;
   final ValueChanged<String> onHeadboardSelected;

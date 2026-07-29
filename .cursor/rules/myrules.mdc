@@ -162,6 +162,7 @@ Before writing ANY new widget, utility, style, or layout, you MUST check this in
 | `AsyncStateView` | Loading/empty/error/data state wrapper | Any async list/grid screen |
 | `SectionCard` | Surface + radius + soft shadow + optional title/trailing | Any card section |
 | `LabelValueRow` | Label left, value right | Total/subtotal/info summary rows |
+| `DetailInfoPillRow` | Label left, colored pill value right | Order/approval header rows (Tanggal, Permintaan Kirim, Lokasi) |
 | `FormFieldLabel` | Styled label for form fields | Any form label |
 | `DatePickerFieldTile` | Date picker with label | Date selection fields |
 | `DateRangeFilterAction` | AppBar action for date range filter | History/list pages |
@@ -187,7 +188,8 @@ Before writing ANY new widget, utility, style, or layout, you MUST check this in
 | `DetailDiscountBlock` | Discount breakdown block | Order/approval detail |
 | `DetailNoteCard` | Highlighted note card | Order/approval detail |
 | `DetailItemIndexBadge` | Numbered index badge for items | Detail item lists |
-| `DetailBonusItemsSection` | Bonus items section | Order/approval detail |
+| `DetailBonusItemsSection` | Bonus items section (wraps `DetailBonusChip` pills) | Order/approval detail |
+| `DetailPricelistTags` | Tipe/Area Pricelist pill pair | Order/approval item rows |
 | `DetailPaymentItemRow` | Single payment row | Payment sections |
 | `DetailPaymentsSection` | Full payments section | Order/approval detail |
 | `DetailTotalsSummarySection` | Totals breakdown section | Order/approval detail |

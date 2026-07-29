@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:upgrader/upgrader.dart';
 import '../utils/app_feedback.dart';
+import '../utils/approver_access.dart';
 import '../utils/log.dart';
 import '../utils/platform_utils.dart';
 import '../utils/telemetry_access.dart';
@@ -269,6 +270,17 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       if (isTelemetryRoute && !TelemetryAccess.canAccess(auth.userId)) {
         return '/profile';
+      }
+
+      // Role-guard: blokir hanya kalau kita SUDAH TAHU (cache work title
+      // terisi) user ini bukan approver — fail-open kalau belum tahu supaya
+      // approver asli tidak ke-block sebelum profil sempat termuat. Backend
+      // (order_letter_approvals + approver_id match) tetap jadi penjaga utama.
+      final isApprovalRoute = state.matchedLocation.startsWith('/approval');
+      if (isApprovalRoute &&
+          ApproverAccess.hasCachedTitle &&
+          !ApproverAccess.isApproverCached) {
+        return '/';
       }
 
       return null;

@@ -16,7 +16,6 @@ class SortBottomSheet extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Header
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
             child: Align(
@@ -32,7 +31,6 @@ class SortBottomSheet extends ConsumerWidget {
 
           const Divider(height: 1),
 
-          // Sort options
           ...SortOption.values.map((option) {
             final isSelected = option == currentSort;
             return _SortOptionTile(

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_formatters.dart';
+import '../../../../core/utils/approver_access.dart';
 import '../../../../core/utils/telemetry_access.dart';
 import '../../../../core/widgets/go_router_pop_scope.dart';
 import '../../../../core/enums/order_status.dart';
@@ -58,18 +59,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     final profileAsync = ref.watch(profileProvider);
     final profile = profileAsync.valueOrNull;
     final workTitle =
-        (profile?.workTitle.isNotEmpty == true ? profile!.workTitle : _cachedWorkTitle)
-            .toLowerCase();
-    final isApprover = workTitle.contains('manager') ||
-        workTitle.contains('supervisor') ||
-        workTitle.contains('spv') ||
-        workTitle.contains('rsm') ||
-        workTitle.contains('analyst') ||
-        workTitle.contains('head') ||
-        workTitle.contains('director') ||
-        workTitle.contains('gm') ||
-        workTitle.contains('chief') ||
-        workTitle.contains('kepala');
+        profile?.workTitle.isNotEmpty == true ? profile!.workTitle : _cachedWorkTitle;
+    final isApprover = ApproverAccess.isApproverTitle(workTitle);
 
     final orderHistoryAsync = ref.watch(orderHistoryProvider);
     final inboxState = ref.watch(approvalInboxProvider);

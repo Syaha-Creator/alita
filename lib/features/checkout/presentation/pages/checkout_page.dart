@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/services/app_analytics_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
+import '../../../../core/utils/user_facing_error.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/utils/log.dart';
 import '../../../../core/utils/app_telemetry.dart';
@@ -2159,7 +2160,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         dismissOverlay();
         AppFeedback.show(
           context,
-          message: 'Gagal memperbarui harga: $e',
+          message: 'Gagal memperbarui harga. ${userFacingErrorMessage(e)}',
           type: AppFeedbackType.error,
         );
       }

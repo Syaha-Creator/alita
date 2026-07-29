@@ -11,10 +11,11 @@ import '../utils/safe_json_list.dart';
 
 /// Storage service for persistent data.
 ///
-/// Sensitive credentials (access token) are stored in [FlutterSecureStorage]
-/// (encrypted keychain / keystore). Small flags/lists use [SharedPreferences];
-/// large JSON (cart, pricelist, master cache, quotation drafts, region cache on disk)
-/// uses app support files.
+/// Sensitive credentials & identity (access token, email, user_id, nama,
+/// sales code) are stored in [FlutterSecureStorage] (encrypted keychain /
+/// keystore). Non-sensitive flags use [SharedPreferences]; large JSON (cart,
+/// pricelist, master cache, quotation drafts, region cache on disk) uses app
+/// support files.
 class StorageService {
   static const String _cartKey = 'cart_items';
   static const String _cartFileName = 'cart_items_v1.json';
@@ -44,6 +45,17 @@ class StorageService {
 
   static const String _tokenMigratedKey = 'token_migrated_v1';
   static const String _emailMigratedKey = 'email_migrated_v1';
+  static const String _profileFieldsMigratedKey = 'profile_fields_migrated_v1';
+
+  /// Coalesces concurrent reads of the same secure-storage key into a single
+  /// platform-channel call. Tanpa ini, dua pemanggil yang membaca key yang
+  /// sama bersamaan (mis. `fetchApprovers()` + `fetchAttendanceWorkPlace()`
+  /// keduanya butuh access_token saat checkout dibuka) memicu concurrent
+  /// access ke Android Keystore/EncryptedSharedPreferences — pola yang
+  /// dikenal bisa deadlock, terutama saat key butuh regenerasi setelah lama
+  /// tidak dipakai (persis kasus "lama tidak checkout, pertama kali akses
+  /// checkout langsung muter terus").
+  static final Map<String, Future<String?>> _inFlightSecureReads = {};
 
   static Future<File> _cartItemsFile() async {
     final appDir = await getApplicationSupportDirectory();
@@ -150,7 +162,6 @@ class StorageService {
     String? addressNumber,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_isLoggedInKey, isLoggedIn);
     // Email adalah PII — simpan di secure storage (keychain/keystore), bukan
     // SharedPreferences plaintext. Lihat [_migrateEmailIfNeeded] untuk
     // pengguna lama yang masih punya salinan plaintext.
@@ -161,33 +172,42 @@ class StorageService {
     }
     await prefs.remove(_userEmailKey);
     await prefs.setString(_defaultAreaKey, defaultArea);
+
+    // Kalau menulis access_token ke secure storage gagal (Keystore corrupt,
+    // dll.), jangan set `isLoggedIn = true` — kalau tidak, sesi berikutnya
+    // "login" tapi token-nya kosong dan semua API call gagal diam-diam.
+    var tokenOk = true;
     if (accessToken.isNotEmpty) {
-      await _writeSecure(_accessTokenKey, accessToken);
+      tokenOk = await _writeSecure(_accessTokenKey, accessToken);
     }
+    await prefs.setBool(_isLoggedInKey, isLoggedIn && tokenOk);
+    // user_id, nama, dan sales code adalah identitas pengguna — simpan di
+    // secure storage seperti token/email, bukan SharedPreferences plaintext.
     if (userId > 0) {
-      await prefs.setInt(_userIdKey, userId);
+      await _writeSecure(_userIdKey, userId.toString());
     }
     if (userName.isNotEmpty) {
-      await prefs.setString(_userNameKey, userName);
+      await _writeSecure(_userNameKey, userName);
     }
     if (userImageUrl.isNotEmpty) {
       await prefs.setString(_userImageUrlKey, userImageUrl);
     }
     if (addressNumber != null && addressNumber.isNotEmpty) {
-      await prefs.setString(_userAddressNumberKey, addressNumber);
+      await _writeSecure(_userAddressNumberKey, addressNumber);
     } else {
-      await prefs.remove(_userAddressNumberKey);
+      await _deleteSecure(_userAddressNumberKey);
     }
   }
 
   static Future<int> loadUserId() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt(_userIdKey) ?? 0;
+    await _migrateProfileFieldsIfNeeded();
+    final raw = await _readSecure(_userIdKey);
+    return int.tryParse(raw ?? '') ?? 0;
   }
 
   static Future<String> loadUserName() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_userNameKey) ?? '';
+    await _migrateProfileFieldsIfNeeded();
+    return await _readSecure(_userNameKey) ?? '';
   }
 
   static Future<String> loadUserImageUrl() async {
@@ -196,8 +216,8 @@ class StorageService {
   }
 
   static Future<String?> loadUserAddressNumber() async {
-    final prefs = await SharedPreferences.getInstance();
-    final v = prefs.getString(_userAddressNumberKey);
+    await _migrateProfileFieldsIfNeeded();
+    final v = await _readSecure(_userAddressNumberKey);
     if (v == null || v.isEmpty) return null;
     return v;
   }
@@ -266,6 +286,31 @@ class StorageService {
     await prefs.setBool(_emailMigratedKey, true);
   }
 
+  /// One-time migration: pindahkan user_id/nama/sales code dari
+  /// SharedPreferences plaintext ke secure storage. Mirrors
+  /// [_migrateTokenIfNeeded]/[_migrateEmailIfNeeded].
+  static Future<void> _migrateProfileFieldsIfNeeded() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_profileFieldsMigratedKey) == true) return;
+
+    final legacyUserId = prefs.getInt(_userIdKey);
+    if (legacyUserId != null && legacyUserId > 0) {
+      await _writeSecure(_userIdKey, legacyUserId.toString());
+      await prefs.remove(_userIdKey);
+    }
+    final legacyName = prefs.getString(_userNameKey);
+    if (legacyName != null && legacyName.isNotEmpty) {
+      await _writeSecure(_userNameKey, legacyName);
+      await prefs.remove(_userNameKey);
+    }
+    final legacyAddr = prefs.getString(_userAddressNumberKey);
+    if (legacyAddr != null && legacyAddr.isNotEmpty) {
+      await _writeSecure(_userAddressNumberKey, legacyAddr);
+      await prefs.remove(_userAddressNumberKey);
+    }
+    await prefs.setBool(_profileFieldsMigratedKey, true);
+  }
+
   static Future<void> clearAuth() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_isLoggedInKey);
@@ -278,6 +323,9 @@ class StorageService {
     await prefs.remove(_userWorkTitleKey);
     await _deleteSecure(_accessTokenKey);
     await _deleteSecure(_userEmailKey);
+    await _deleteSecure(_userIdKey);
+    await _deleteSecure(_userNameKey);
+    await _deleteSecure(_userAddressNumberKey);
   }
 
   // ── Master Data Cache (file-based; hindari JSON besar lewat channel SP) ──
@@ -376,36 +424,62 @@ class StorageService {
     return prefs.getString(_brandsCacheKey) ?? '[]';
   }
 
-  // ── Quotation drafts (file-based; same motivasi seperti pricelist cache) ──
+  // ── Quotation drafts ──
+  //
+  // Berisi PII customer (nama/telp/email) — disimpan di secure storage
+  // (encrypted keychain/keystore), bukan file JSON plaintext. Draft biasanya
+  // kecil (belasan quotation per user), beda dengan pricelist/master cache
+  // yang sengaja dipindah ke file karena ukurannya besar.
+
+  static const String _quotationDraftsSecureKey = 'quotation_drafts_secure_v1';
 
   static Future<File> _quotationDraftsFile() async {
     final appDir = await getApplicationSupportDirectory();
     return File('${appDir.path}/$_quotationDraftsFileName');
   }
 
-  /// Raw JSON dari [QuotationModel.encodeList] — disimpan di disk, bukan SP.
-  static Future<void> saveQuotationsJson(String json) async {
+  /// One-time migration: file JSON plaintext lama → secure storage.
+  static Future<String?> _migrateQuotationDraftsFileIfNeeded() async {
     try {
       final file = await _quotationDraftsFile();
-      await file.writeAsString(json, flush: true);
+      if (!file.existsSync()) return null;
+      final legacy = await file.readAsString();
+      await file.delete();
+      if (legacy.isEmpty) return null;
+      await _writeSecure(_quotationDraftsSecureKey, legacy);
+      return legacy;
     } catch (e, st) {
-      Log.error(e, st, reason: 'StorageService.saveQuotationsJson');
+      Log.error(e, st, reason: 'migrateQuotationDraftsFileIfNeeded');
+      return null;
     }
+  }
+
+  /// Raw JSON dari [QuotationModel.encodeList].
+  static Future<void> saveQuotationsJson(String json) async {
+    await _writeSecure(_quotationDraftsSecureKey, json);
   }
 
   static Future<String> loadQuotationsJson() async {
+    final fromLegacyFile = await _migrateQuotationDraftsFileIfNeeded();
+    if (fromLegacyFile != null) return fromLegacyFile;
+    return await _readSecure(_quotationDraftsSecureKey) ?? '';
+  }
+
+  /// Hapus draft quotation (berisi nama/telp/email customer). Dipanggil saat
+  /// logout — draft ini PII milik user yang sedang login, tidak boleh
+  /// terbawa ke user berikutnya yang login di perangkat sama.
+  static Future<void> clearQuotationDrafts() async {
+    await _deleteSecure(_quotationDraftsSecureKey);
     try {
       final file = await _quotationDraftsFile();
-      if (!file.existsSync()) return '';
-      final s = await file.readAsString();
-      return s;
+      if (file.existsSync()) await file.delete();
     } catch (e, st) {
-      Log.error(e, st, reason: 'StorageService.loadQuotationsJson');
-      return '';
+      Log.error(e, st, reason: 'StorageService.clearQuotationDrafts');
     }
   }
 
-  /// Pindahkan legacy `quotation_drafts` dari SharedPreferences ke file lalu hapus key.
+  /// Pindahkan legacy `quotation_drafts` dari SharedPreferences (plaintext)
+  /// ke secure storage lalu hapus key.
   ///
   /// Catatan: jika nilai di SP sudah sangat besar, satu kali [getString] di perangkat
   /// lemah bisa tetap memicu OOM — pengguna terdampak mungkin perlu hapus data aplikasi sekali.
@@ -415,13 +489,13 @@ class StorageService {
     if (legacy == null || legacy.isEmpty) return;
 
     try {
-      final file = await _quotationDraftsFile();
-      if (!file.existsSync() || file.lengthSync() == 0) {
-        await file.writeAsString(legacy, flush: true);
+      final existing = await _readSecure(_quotationDraftsSecureKey);
+      if (existing == null || existing.isEmpty) {
+        await _writeSecure(_quotationDraftsSecureKey, legacy);
       }
       await prefs.remove(quotationDraftsLegacyPrefKey);
       Log.warning(
-        'Migrated quotation drafts from SharedPreferences to file',
+        'Migrated quotation drafts from SharedPreferences to secure storage',
         tag: 'Storage',
       );
     } catch (e, st) {
@@ -438,12 +512,7 @@ class StorageService {
     } catch (e, st) {
       Log.error(e, st, reason: 'SecureStorage.deleteAll failed');
     }
-    try {
-      final qf = await _quotationDraftsFile();
-      if (qf.existsSync()) await qf.delete();
-    } catch (e) {
-      Log.warning('clearAll quotation file: $e', tag: 'Storage');
-    }
+    await clearQuotationDrafts();
     try {
       final cf = await _cartItemsFile();
       if (cf.existsSync()) await cf.delete();
@@ -475,26 +544,52 @@ class StorageService {
 
   // ── Secure storage helpers (defensive against Keystore failures) ──
 
-  static Future<String?> _readSecure(String key) async {
+  /// Beberapa OEM Android/iOS sesekali menggantung pada panggilan platform
+  /// channel Keystore/Keychain (bukan exception, benar-benar tidak pernah
+  /// resolve). Tanpa timeout ini, `await`-nya membuat seluruh chain pemanggil
+  /// (mis. fetch approver di checkout) macet loading selamanya — lihat
+  /// laporan "muter load saja tapi tidak muncul apapun" di kartu persetujuan.
+  static const Duration _secureStorageTimeout = Duration(seconds: 6);
+
+  static Future<String?> _readSecure(String key) {
+    final inFlight = _inFlightSecureReads[key];
+    if (inFlight != null) return inFlight;
+
+    final future = _doReadSecure(key).whenComplete(() {
+      _inFlightSecureReads.remove(key);
+    });
+    _inFlightSecureReads[key] = future;
+    return future;
+  }
+
+  static Future<String?> _doReadSecure(String key) async {
     try {
-      return await _secureStorage.read(key: key);
+      return await _secureStorage.read(key: key).timeout(_secureStorageTimeout);
     } catch (e, st) {
       Log.error(e, st, reason: 'SecureStorage.read($key) failed');
       return null;
     }
   }
 
-  static Future<void> _writeSecure(String key, String value) async {
+  /// Returns `true` on success — callers that gate a critical flag (mis.
+  /// `isLoggedIn`) on this write must check the result, karena Keystore/
+  /// Keychain bisa gagal (corrupt, storage penuh, dll.) tanpa exception yang
+  /// terlihat di level pemanggil.
+  static Future<bool> _writeSecure(String key, String value) async {
     try {
-      await _secureStorage.write(key: key, value: value);
+      await _secureStorage
+          .write(key: key, value: value)
+          .timeout(_secureStorageTimeout);
+      return true;
     } catch (e, st) {
       Log.error(e, st, reason: 'SecureStorage.write($key) failed');
+      return false;
     }
   }
 
   static Future<void> _deleteSecure(String key) async {
     try {
-      await _secureStorage.delete(key: key);
+      await _secureStorage.delete(key: key).timeout(_secureStorageTimeout);
     } catch (e, st) {
       Log.error(e, st, reason: 'SecureStorage.delete($key) failed');
     }

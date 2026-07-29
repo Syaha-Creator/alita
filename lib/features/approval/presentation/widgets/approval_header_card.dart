@@ -5,7 +5,7 @@ import '../../../../core/utils/take_away_parse.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/contact_actions.dart';
 import '../../../../core/utils/app_formatters.dart';
-import '../../../../core/widgets/detail_info_row.dart';
+import '../../../../core/widgets/detail_info_pill_row.dart';
 import '../../../../core/widgets/detail_surface_card.dart';
 import '../../../../core/widgets/status_chip.dart';
 
@@ -169,43 +169,19 @@ class ApprovalHeaderCard extends StatelessWidget {
                 const SizedBox(height: 16),
                 Container(height: 1, color: AppColors.divider),
                 const SizedBox(height: 14),
-                DetailInfoRow(
+                DetailInfoPillRow(
                   label: 'Tanggal Pesanan',
                   value: orderDate.isNotEmpty
                       ? AppFormatters.shortDateId(orderDate)
                       : '-',
                 ),
                 if (requestDate.isNotEmpty && requestDate != '-') ...[
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Permintaan Kirim',
-                        style: TextStyle(
-                          color: AppColors.textTertiary,
-                          fontSize: 12,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.accentLight,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          AppFormatters.shortDateId(requestDate),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.accent,
-                          ),
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: 8),
+                  DetailInfoPillRow(
+                    label: 'Permintaan Kirim',
+                    value: AppFormatters.shortDateId(requestDate),
+                    backgroundColor: AppColors.accentLight,
+                    foregroundColor: AppColors.accent,
                   ),
                 ],
                 const SizedBox(height: 8),
@@ -235,13 +211,14 @@ class ApprovalHeaderCard extends StatelessWidget {
                             : AppColors.primary,
                       ),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
+                          horizontal: 8, vertical: 3),
+                      borderRadius: 6,
                     ),
                   ],
                 ),
                 if (workPlace.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  DetailInfoRow(label: 'Lokasi / Toko', value: workPlace),
+                  const SizedBox(height: 8),
+                  DetailInfoPillRow(label: 'Lokasi / Toko', value: workPlace),
                 ],
               ],
             ),

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/enums/order_status.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_formatters.dart';
-import '../../../../core/widgets/detail_info_row.dart';
+import '../../../../core/widgets/detail_info_pill_row.dart';
 import '../../../../core/widgets/detail_surface_card.dart';
 import '../../../../core/widgets/status_chip.dart';
 import '../../data/models/order_history.dart';
@@ -141,41 +141,17 @@ class OrderStatusHeader extends StatelessWidget {
                 const SizedBox(height: 16),
                 Container(height: 1, color: AppColors.divider),
                 const SizedBox(height: 14),
-                DetailInfoRow(
+                DetailInfoPillRow(
                   label: 'Tanggal Pesanan',
                   value: AppFormatters.shortDateId(order.orderDate),
                 ),
                 if (order.requestDate != '-') ...[
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Permintaan Kirim',
-                        style: TextStyle(
-                          color: AppColors.textTertiary,
-                          fontSize: 12,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.accentLight,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          AppFormatters.shortDateId(order.requestDate),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.accent,
-                          ),
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: 8),
+                  DetailInfoPillRow(
+                    label: 'Permintaan Kirim',
+                    value: AppFormatters.shortDateId(order.requestDate),
+                    backgroundColor: AppColors.accentLight,
+                    foregroundColor: AppColors.accent,
                   ),
                 ],
                 const SizedBox(height: 8),
@@ -206,13 +182,14 @@ class OrderStatusHeader extends StatelessWidget {
                       ),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
-                        vertical: 2,
+                        vertical: 3,
                       ),
+                      borderRadius: 6,
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                DetailInfoRow(
+                const SizedBox(height: 8),
+                DetailInfoPillRow(
                   label: 'Lokasi / Toko',
                   value: order.workPlaceName,
                 ),

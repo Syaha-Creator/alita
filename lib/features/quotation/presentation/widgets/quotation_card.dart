@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/services/connectivity_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
+import '../../../../core/utils/user_facing_error.dart';
 import '../../../../core/utils/log.dart';
 import '../../../../core/widgets/loading_overlay.dart';
 import '../../../../core/utils/app_formatters.dart';
@@ -223,7 +224,8 @@ class QuotationCard extends ConsumerWidget {
     } catch (e) {
       if (context.mounted) {
         AppFeedback.show(context,
-            message: 'Gagal: $e', type: AppFeedbackType.error);
+            message: 'Gagal membuat PDF. ${userFacingErrorMessage(e)}',
+            type: AppFeedbackType.error);
       }
     }
   }
@@ -380,8 +382,8 @@ class QuotationCard extends ConsumerWidget {
       LoadingOverlay.dismiss(context);
       AppFeedback.show(
         context,
-        message:
-            'Gagal menyelaraskan harga. Melanjutkan dengan harga tersimpan: $e',
+        message: 'Gagal menyelaraskan harga. Melanjutkan dengan harga '
+            'tersimpan. ${userFacingErrorMessage(e)}',
         type: AppFeedbackType.warning,
       );
       if (!context.mounted) return;

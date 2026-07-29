@@ -12,7 +12,6 @@ import '../../../../core/widgets/date_range_filter_action.dart';
 import '../../../../core/widgets/empty_state_view.dart';
 import '../../../../core/widgets/error_state_view.dart';
 import '../../../../core/widgets/go_router_pop_scope.dart';
-// AsyncStateView no longer needed — using .when() directly for offline-aware error
 import '../../../../core/widgets/order_list_card_frame.dart';
 import '../../../../core/widgets/status_chip.dart';
 import '../../data/models/order_history.dart';
@@ -34,8 +33,6 @@ class _OrderHistoryPageState extends ConsumerState<OrderHistoryPage> {
       OrderStatusX.fromRaw(status).listForegroundColor;
 
   IconData _statusIcon(String status) => OrderStatusX.fromRaw(status).icon;
-
-  // ── Date filter helpers ──────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -103,6 +100,7 @@ class _OrderHistoryPageState extends ConsumerState<OrderHistoryPage> {
   }
 
   // ── Body (offline-aware error) ───────────────────────────────────
+  // Uses .when() directly (not AsyncStateView) to render an offline-aware error state.
 
   Widget _buildBody(
     AsyncValue<List<OrderHistory>> historyAsync, {

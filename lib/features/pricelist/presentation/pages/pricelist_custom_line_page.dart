@@ -171,7 +171,6 @@ class _PricelistCustomLinePageState
             ? edit.programBulananDiscount
             : edit.programBulananNominal;
       }
-      // Restore flag harga 0.
       _isZeroPrice = edit.isZeroPrice;
     } else {
       _nameCtrl = TextEditingController();
@@ -1413,7 +1412,6 @@ class _PricelistCustomLinePageState
                         }
                       }),
                     ),
-                    // ── Divider ───────────────────────────────────────
                     const Padding(
                       padding: EdgeInsets.symmetric(
                           vertical: AppLayoutTokens.space12),

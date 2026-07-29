@@ -4,6 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 
 import '../utils/log.dart';
 import 'device_token_service.dart';
+import 'storage_service.dart';
 
 /// Orchestrates FCM token lifecycle:
 /// - [syncToken]: delegates to [DeviceTokenService.syncFcmToken]
@@ -41,6 +42,19 @@ class FcmTokenService {
       _refreshSub =
           FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
         try {
+          // Guard against a refresh event yang sudah mulai dieksekusi tepat
+          // saat logout() berjalan — `cancel()` tidak membatalkan callback
+          // yang sedang di tengah jalan. Cek ulang token aktif di storage
+          // sebelum kirim, supaya token milik user yang sudah logout tidak
+          // ke-sync atas nama user berikutnya di perangkat yang sama.
+          final activeToken = await StorageService.loadAccessToken();
+          if (activeToken != accessToken) {
+            Log.warning(
+              'FCM.onTokenRefresh: sesi sudah berubah, skip sync',
+              tag: 'FcmTokenService',
+            );
+            return;
+          }
           await DeviceTokenService.syncFcmToken(
             userId: userId,
             accessToken: accessToken,

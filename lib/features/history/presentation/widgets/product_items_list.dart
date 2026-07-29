@@ -5,8 +5,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/discount_formatter.dart';
 import '../../../../core/widgets/detail_bonus_items_section.dart';
 import '../../../../core/widgets/detail_discount_block.dart';
-import '../../../../core/widgets/detail_info_row.dart';
 import '../../../../core/widgets/detail_item_index_badge.dart';
+import '../../../../core/widgets/detail_pricelist_tags.dart';
 import '../../../../core/widgets/detail_section_label.dart';
 import '../../../../core/widgets/detail_surface_card.dart';
 import '../../../../core/widgets/detail_totals_summary_section.dart';
@@ -35,12 +35,17 @@ class ProductItemsList extends StatelessWidget {
           ...sorted.asMap().entries.map((entry) {
             final idx = entry.key;
             final item = entry.value;
-            final isLast = idx == sorted.length - 1 && order.bonusItems.isEmpty;
+            final isLast = idx == sorted.length - 1;
 
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+            return Container(
+              margin: EdgeInsets.only(bottom: isLast ? 0 : 10),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     DetailItemIndexBadge(index: idx + 1),
@@ -129,19 +134,11 @@ class ProductItemsList extends StatelessWidget {
                                         item.pricelistArea
                                             .trim()
                                             .isNotEmpty) ...[
-                                      const SizedBox(height: 4),
-                                      if (item.pricelistType.trim().isNotEmpty)
-                                        DetailInfoRow(
-                                          label: 'Tipe Pricelist',
-                                          value: item.pricelistType.trim(),
-                                        ),
-                                      if (item.pricelistArea.trim().isNotEmpty) ...[
-                                        const SizedBox(height: 2),
-                                        DetailInfoRow(
-                                          label: 'Area Pricelist',
-                                          value: item.pricelistArea.trim(),
-                                        ),
-                                      ],
+                                      const SizedBox(height: 6),
+                                      DetailPricelistTags(
+                                        type: item.pricelistType,
+                                        area: item.pricelistArea,
+                                      ),
                                     ],
                                   ],
                                 ),
@@ -162,12 +159,6 @@ class ProductItemsList extends StatelessWidget {
                     ),
                   ],
                 ),
-                if (!isLast) ...[
-                  const SizedBox(height: 14),
-                  Container(height: 1, color: AppColors.divider),
-                  const SizedBox(height: 14),
-                ],
-              ],
             );
           }),
           if (order.bonusItems.isNotEmpty)
@@ -234,73 +225,20 @@ class _CollapsibleBonusSectionState extends State<_CollapsibleBonusSection>
       child: DetailBonusItemsSection(
       rows: [
         ...visibleItems.map(
-          (b) => Padding(
-            padding: const EdgeInsets.only(bottom: 3),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(width: 2),
-                const Text(
-                  '·  ',
-                  style: TextStyle(
-                    color: AppColors.textTertiary,
-                    fontSize: 12,
-                  ),
-                ),
-                Expanded(
-                  child: Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          '${b.qty}x ${b.desc1}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ),
-                      if (b.isTakeAway) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color:
-                                AppColors.textPrimary.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(
-                              color:
-                                  AppColors.textPrimary.withValues(alpha: 0.2),
-                              width: 1,
-                            ),
-                          ),
-                          child: const Text(
-                            'Bawa Langsung',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
+          (b) => DetailBonusChip(
+            label: '${b.qty}x ${b.desc1}',
+            isTakeAway: b.isTakeAway,
           ),
         ),
         if (shouldCollapse)
           GestureDetector(
             onTap: () => setState(() => _expanded = !_expanded),
-            child: Padding(
-              padding: const EdgeInsets.only(top: 4, bottom: 2),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
               child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const SizedBox(width: 2),
                   Icon(
                     _expanded
                         ? Icons.keyboard_arrow_up_rounded
@@ -308,7 +246,7 @@ class _CollapsibleBonusSectionState extends State<_CollapsibleBonusSection>
                     size: 16,
                     color: AppColors.primary,
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 2),
                   Text(
                     _expanded
                         ? 'Sembunyikan'

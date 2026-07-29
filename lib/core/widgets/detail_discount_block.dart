@@ -18,29 +18,38 @@ class DetailDiscountBlock extends StatelessWidget {
       container: true,
       label: title,
       child: Container(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textSecondary,
-              letterSpacing: 0.3,
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        decoration: BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.verified_outlined,
+                  size: 12,
+                  color: AppColors.textSecondary,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textSecondary,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 8),
-          ...rows,
-        ],
+            const SizedBox(height: 8),
+            ...rows,
+          ],
+        ),
       ),
-    ),
     );
   }
 }
@@ -67,13 +76,23 @@ class DetailDiscountRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Icon(icon, size: 14, color: color),
+          Container(
+            width: 22,
+            height: 22,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Icon(icon, size: 13, color: color),
+          ),
           const SizedBox(width: 8),
           leadingValue,
           Expanded(
             child: Text(
               approverName,
-              style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
+              style:
+                  const TextStyle(fontSize: 11, color: AppColors.textTertiary),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),

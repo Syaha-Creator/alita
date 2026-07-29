@@ -8,7 +8,10 @@ import '../../../core/services/device_token_service.dart';
 import '../../../core/services/fcm_token_service.dart';
 import '../../../core/services/storage_service.dart';
 import '../../../core/utils/app_telemetry.dart';
+import '../../../core/utils/approver_access.dart';
 import '../../../core/utils/log.dart';
+import '../../../core/utils/user_facing_error.dart';
+import '../../checkout/data/services/local_contact_service.dart';
 import '../data/services/auth_service.dart';
 
 // ─────────────────────────────────────────────────────────
@@ -129,9 +132,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
         StorageService.loadUserName(), // 5
         StorageService.loadUserImageUrl(), // 6
         StorageService.loadUserAddressNumber(), // 7
+        StorageService.loadWorkTitle(), // 8
       ]);
 
-      final isLoggedIn = results[0] as bool;
+      var isLoggedIn = results[0] as bool;
       final email = results[1] as String;
       final area = results[2] as String;
       final token = results[3] as String;
@@ -139,6 +143,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final name = results[5] as String;
       final imageUrl = results[6] as String;
       final addr = results[7] as String?;
+      // Cache di-memory sedini mungkin — dipakai router redirect untuk
+      // role-guard route approval (lihat [ApproverAccess]).
+      ApproverAccess.updateCache(results[8] as String);
+
+      // Safety net: `isLoggedIn = true` tanpa token adalah sesi rusak (mis.
+      // secure-storage write pernah gagal saat login) — treat as logged out
+      // daripada user stuck dengan API call yang gagal diam-diam.
+      if (isLoggedIn && token.isEmpty) {
+        Log.warning(
+          'isLoggedIn=true tapi access_token kosong — treat as logged out',
+          tag: 'Auth',
+        );
+        isLoggedIn = false;
+      }
 
       // Yield to the next event-loop turn so the state mutation doesn't
       // overlap with Riverpod's vsync flush during the initial build frame.
@@ -182,7 +200,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
     state = state.copyWith(isLoading: true, clearError: true);
     final sw = Stopwatch()..start();
-    AppTelemetry.event('login_attempted', data: {'email': email});
+    // Email adalah PII — jangan dikirim ke telemetry, cukup event tanpa data.
+    AppTelemetry.event('login_attempted');
 
     try {
       final result = await _authService.login(email, password);
@@ -243,7 +262,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       });
       state = state.copyWith(
         isLoading: false,
-        errorMessage: e.toString().replaceFirst('Exception: ', ''),
+        errorMessage: userFacingErrorMessage(e),
       );
     } finally {
       _isLoggingIn = false;
@@ -331,18 +350,24 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
     AppTelemetry.event('logout', data: {'user_id': state.userId});
 
-    // Clear session first so UI navigates instantly
+    // Clear session first so UI navigates instantly. Draft quotation &
+    // saved customer contacts adalah PII milik user ini — wajib ikut
+    // dihapus supaya tidak bocor ke user berikutnya di perangkat sama.
     await StorageService.clearAuth();
+    await StorageService.clearQuotationDrafts();
+    await LocalContactService.clearAll();
+    ApproverAccess.reset();
     state = const AuthState(isLoading: false);
 
     await _deleteAnonymousFirebaseUserOnLogout();
 
-    // Fire-and-forget cleanup — never blocks the user
+    // Cancel FCM refresh listener first (fast, local) — hindari race token
+    // refresh yang nyasar sync pakai token yang baru saja di-revoke.
+    // Revoke session & delete token tetap fire-and-forget karena network call.
     if (uid != '0' && token.isNotEmpty) {
-      unawaited(FcmTokenService.cancelRefreshListener());
+      await FcmTokenService.cancelRefreshListener();
       unawaited(_revokeSession(token));
-      unawaited(
-          DeviceTokenService.deleteToken());
+      unawaited(DeviceTokenService.deleteToken());
     }
   }
 

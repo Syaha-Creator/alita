@@ -138,12 +138,9 @@ class CartItemBuilder {
 
     // ── Rounding / markup correction ──
     //
-    // When the user edits the total EUP upward, the difference between
-    // totalFinalPrice and the component sum must be applied to the
-    // PRIMARY component (the one that actually contributes to the price).
-    // For standard products this is kasur; for divan-only or headboard-only
-    // products there is no kasur so we fall through to the first non-zero
-    // component.
+    // Any diff between totalFinalPrice and the component sum (e.g. from a
+    // manual EUP edit) is absorbed by the primary component — kasur if
+    // present, else the first non-zero component (divan/headboard/sorong).
 
     final componentSum = finalKasurPrice +
         finalDivanPrice +
@@ -206,10 +203,9 @@ class CartItemBuilder {
 
     // ── Bonus snapshots ──
 
-    // `customBonuses != null` menandakan user sudah pernah membuka editor
-    // bonus (termasuk mengosongkannya secara sengaja). List kosong TIDAK
-    // boleh jatuh ke bonus default produk — jika tidak, bonus yang sudah
-    // dihapus user akan "muncul lagi" saat dikirim ke server.
+    // `customBonuses != null` berarti user sudah membuka editor bonus,
+    // termasuk kemungkinan mengosongkannya. List kosong TIDAK boleh jatuh
+    // ke default produk, atau bonus yang sudah dihapus akan muncul lagi.
     final bonusSnapshots = customBonuses != null
         ? _buildCustomBonusSnapshots(customBonuses, groupedLookups,
             effectiveSize: effectiveSize)

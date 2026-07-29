@@ -109,6 +109,16 @@ class LocalContactService {
     await _writeRawList(encoded);
   }
 
+  /// Hapus semua contact tersimpan (nama/telp/alamat customer) — dipanggil
+  /// saat logout supaya tidak terbawa ke user berikutnya di perangkat sama.
+  static Future<void> clearAll() async {
+    try {
+      await _secureStorage.delete(key: _key);
+    } catch (e, st) {
+      Log.error(e, st, reason: 'LocalContactService: clearAll failed');
+    }
+  }
+
   /// Returns all saved contacts, most recently added first.
   static Future<List<Map<String, dynamic>>> getContacts() async {
     final savedList = await _readRawList();

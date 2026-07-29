@@ -322,7 +322,6 @@ class _ProductListBody extends ConsumerWidget {
                 ),
               ),
             ),
-          // Products count
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -334,7 +333,6 @@ class _ProductListBody extends ConsumerWidget {
               ),
             ),
           ),
-          // Masonry Grid
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             sliver: SliverMasonryGrid.count(

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -14,12 +15,41 @@ void main() {
 
   late QuotationListNotifier notifier;
 
+  /// Draft quotation disimpan di secure storage (lihat
+  /// [StorageService.saveQuotationsJson]) — perlu mock channel-nya di sini.
+  void mockSecureStorage() {
+    final store = <String, String>{};
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
+      (MethodCall call) async {
+        switch (call.method) {
+          case 'read':
+            return store[call.arguments['key']];
+          case 'write':
+            store[call.arguments['key'] as String] =
+                call.arguments['value'] as String;
+            return null;
+          case 'delete':
+            store.remove(call.arguments['key']);
+            return null;
+          case 'deleteAll':
+            store.clear();
+            return null;
+          default:
+            return null;
+        }
+      },
+    );
+  }
+
   setUp(() async {
     StorageService.debugResetFileCacheForTests();
     setMockApplicationSupportDirectory(
       Directory.systemTemp.createTempSync('alita_quotation_test_').path,
     );
     SharedPreferences.setMockInitialValues({});
+    mockSecureStorage();
     notifier = QuotationListNotifier();
     await Future.delayed(const Duration(milliseconds: 100));
   });

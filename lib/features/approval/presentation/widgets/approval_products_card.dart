@@ -6,8 +6,8 @@ import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/utils/discount_formatter.dart';
 import '../../../../core/widgets/detail_bonus_items_section.dart';
 import '../../../../core/widgets/detail_discount_block.dart';
-import '../../../../core/widgets/detail_info_row.dart';
 import '../../../../core/widgets/detail_item_index_badge.dart';
+import '../../../../core/widgets/detail_pricelist_tags.dart';
 import '../../../../core/widgets/detail_section_label.dart';
 import '../../../../core/widgets/detail_surface_card.dart';
 import '../../../../core/widgets/detail_totals_summary_section.dart';
@@ -132,18 +132,10 @@ class ApprovalProductsCard extends StatelessWidget {
                         if (pricelistType.isNotEmpty ||
                             pricelistArea.isNotEmpty) ...[
                           const SizedBox(height: 6),
-                          if (pricelistType.isNotEmpty)
-                            DetailInfoRow(
-                              label: 'Tipe Pricelist',
-                              value: pricelistType,
-                            ),
-                          if (pricelistArea.isNotEmpty) ...[
-                            const SizedBox(height: 2),
-                            DetailInfoRow(
-                              label: 'Area Pricelist',
-                              value: pricelistArea,
-                            ),
-                          ],
+                          DetailPricelistTags(
+                            type: pricelistType,
+                            area: pricelistArea,
+                          ),
                         ],
                         if (discounts.isNotEmpty) ...[
                           const SizedBox(height: 8),
@@ -159,33 +151,7 @@ class ApprovalProductsCard extends StatelessWidget {
           if (bonusItems.isNotEmpty) ...[
             DetailBonusItemsSection(
               rows: bonusItems
-                  .map(
-                    (b) => Padding(
-                      padding: const EdgeInsets.only(bottom: 3),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(width: 2),
-                          const Text(
-                            '·  ',
-                            style: TextStyle(
-                              color: AppColors.textTertiary,
-                              fontSize: 12,
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              '${b['qty']}x ${b['name']}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
+                  .map((b) => DetailBonusChip(label: '${b['qty']}x ${b['name']}'))
                   .toList(),
             ),
           ],

@@ -110,6 +110,8 @@ class ApprovalTimelineWidget extends StatelessWidget {
   }
 
   List<_ApprovalEntry> _extractApprovals(OrderHistory order) {
+    // Multiple items can carry a discount row for the same approver — keep
+    // one timeline entry per level+name (last write wins).
     final map = <String, _ApprovalEntry>{};
     for (final detail in order.details) {
       for (final discount in detail.discounts) {

@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/services/connectivity_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
+import '../../../../core/utils/user_facing_error.dart';
 import '../../../../core/widgets/animated_list_item.dart';
 import '../../../../core/widgets/app_search_field.dart';
 import '../../../../core/widgets/empty_state_view.dart';
@@ -117,7 +118,8 @@ class _QuotationHistoryPageState extends ConsumerState<QuotationHistoryPage> {
     } catch (e) {
       if (mounted) {
         AppFeedback.show(context,
-            message: 'Gagal membuat PDF: $e', type: AppFeedbackType.error);
+            message: 'Gagal membuat PDF. ${userFacingErrorMessage(e)}',
+            type: AppFeedbackType.error);
       }
     }
   }

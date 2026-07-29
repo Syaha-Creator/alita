@@ -163,7 +163,12 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       approversErrorTitle: null,
     );
     try {
-      final profile = await _ref.read(profileProvider.future);
+      // Timeout jaga-jaga: mencegah kartu "Persetujuan Surat Pesanan" macet
+      // loading selamanya jika profileProvider tergantung tanpa batas waktu
+      // (mis. platform channel storage yang hang, di luar timeout HTTP-nya).
+      final profile = await _ref
+          .read(profileProvider.future)
+          .timeout(const Duration(seconds: 20));
       if (profile == null) {
         state = state.copyWith(
           approvers: [],

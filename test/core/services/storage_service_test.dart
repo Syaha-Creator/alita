@@ -347,4 +347,128 @@ void main() {
       expect(await StorageService.loadUserEmail(), 'fresh@example.com');
     });
   });
+
+  group('Profile fields (user_id/nama/sales code → secure storage)', () {
+    test('saveAuth never leaves user_id/nama/sales code in SharedPreferences',
+        () async {
+      await StorageService.saveAuth(
+        isLoggedIn: true,
+        email: 'a@b.com',
+        defaultArea: 'Jakarta',
+        accessToken: 'tok',
+        userId: 99,
+        userName: 'Budi',
+        addressNumber: 'SC-01',
+      );
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getInt('user_id'), isNull);
+      expect(prefs.getString('user_name'), isNull);
+      expect(prefs.getString('user_address_number'), isNull);
+
+      expect(await StorageService.loadUserId(), 99);
+      expect(await StorageService.loadUserName(), 'Budi');
+      expect(await StorageService.loadUserAddressNumber(), 'SC-01');
+    });
+
+    test('migrates legacy plaintext user_id/nama/sales code once', () async {
+      SharedPreferences.setMockInitialValues({
+        'user_id': 7,
+        'user_name': 'Legacy Name',
+        'user_address_number': 'SC-LEGACY',
+      });
+      mockSecureStorage();
+
+      expect(await StorageService.loadUserId(), 7);
+      expect(await StorageService.loadUserName(), 'Legacy Name');
+      expect(await StorageService.loadUserAddressNumber(), 'SC-LEGACY');
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getInt('user_id'), isNull);
+      expect(prefs.getString('user_name'), isNull);
+      expect(prefs.getString('user_address_number'), isNull);
+      expect(prefs.getBool('profile_fields_migrated_v1'), true);
+    });
+  });
+
+  group('Concurrent secure-storage read coalescing', () {
+    test(
+        'two concurrent loadAccessToken() calls trigger only one native read',
+        () async {
+      // Regression: checkout page fires fetchApprovers() + fetchAttendance
+      // WorkPlace() concurrently, both needing access_token. Without
+      // coalescing, this hits the Keystore/EncryptedSharedPreferences
+      // plugin twice at once — a known trigger for platform-channel
+      // deadlocks, especially right after long inactivity when the key
+      // needs regeneration. Reported by user as "checkout pertama kali
+      // setelah lama, approval card muter terus".
+      var readCallCount = 0;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
+        (MethodCall call) async {
+          if (call.method == 'read') {
+            readCallCount++;
+            await Future<void>.delayed(const Duration(milliseconds: 30));
+            return 'concurrent-tok';
+          }
+          return null;
+        },
+      );
+
+      final results = await Future.wait([
+        StorageService.loadAccessToken(),
+        StorageService.loadAccessToken(),
+      ]);
+
+      expect(results, ['concurrent-tok', 'concurrent-tok']);
+      expect(readCallCount, 1);
+    });
+
+    test('sequential reads after completion each hit the native layer again',
+        () async {
+      var readCallCount = 0;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
+        (MethodCall call) async {
+          if (call.method == 'read') readCallCount++;
+          return 'seq-tok';
+        },
+      );
+
+      await StorageService.loadAccessToken();
+      await StorageService.loadAccessToken();
+
+      expect(readCallCount, 2);
+    });
+  });
+
+  group('Secure-storage write failure safety net', () {
+    test('isLoggedIn stays false if access_token write to Keystore fails',
+        () async {
+      // Regression: token gagal ditulis (Keystore corrupt/full) tidak boleh
+      // membuat sesi berikutnya "isLoggedIn=true" dengan token kosong.
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
+        (MethodCall call) async {
+          if (call.method == 'write' &&
+              call.arguments['key'] == 'access_token') {
+            throw PlatformException(code: 'write_error');
+          }
+          return null;
+        },
+      );
+
+      await StorageService.saveAuth(
+        isLoggedIn: true,
+        email: 'a@b.com',
+        defaultArea: 'Jakarta',
+        accessToken: 'tok-that-fails-to-write',
+      );
+
+      expect(await StorageService.loadIsLoggedIn(), isFalse);
+    });
+  });
 }

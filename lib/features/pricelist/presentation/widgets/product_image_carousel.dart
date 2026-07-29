@@ -63,8 +63,8 @@ class ProductImageCarousel extends StatelessWidget {
                   final isAsset =
                       url.startsWith(ProductImageUtils.assetUriPrefix);
                   final img = ColoredBox(
-                    // surface (putih), bukan background (ice-blue): foto studio
-                    // & logo brand berbackground putih, hindari seam saat contain.
+                    // Surface (putih), bukan background: foto studio & logo brand
+                    // berbackground putih, hindari seam saat BoxFit.contain.
                     color: AppColors.surface,
                     child: NetworkImageView(
                       imageUrl: url,

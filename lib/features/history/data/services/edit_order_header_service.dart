@@ -41,15 +41,12 @@ class EditOrderHeaderService {
     String? note,
     double postage = 0,
     String status = 'Pending',
-    /// `extended_amount` (grand total) baru = subtotal item + [postage].
-    /// WAJIB ikut dikirim setiap ongkir berubah — `order_letters.extended_amount`
-    /// tidak dihitung ulang otomatis oleh server.
+    /// Grand total baru = subtotal item + [postage]. WAJIB dikirim setiap
+    /// ongkir berubah — server tidak menghitung ulang `extended_amount` sendiri.
     required double extendedAmount,
-    /// Sum `customer_price * qty` semua item (harga sebelum diskon) — dipakai
-    /// server untuk hitung ulang `discount` (%) supaya tetap konsisten dengan
-    /// `extended_amount` baru. Item tidak berubah saat edit header, tapi kalau
-    /// `harga_awal`/`discount` tidak dikirim ulang, nilainya jadi stale
-    /// (masih pakai extended_amount lama sebelum ongkir diedit).
+    /// Sum `customer_price * qty` semua item (sebelum diskon) — dipakai server
+    /// untuk hitung ulang `discount` (%). Wajib dikirim ulang tiap edit header
+    /// (walau item tak berubah), atau nilainya stale terhadap `extendedAmount` baru.
     required double hargaAwal,
   }) {
     final cleanNoPo = noPo?.trim();

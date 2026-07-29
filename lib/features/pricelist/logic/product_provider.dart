@@ -409,9 +409,8 @@ class _ProductParseParams {
 }
 
 /// Isolate entry point: decode + map JSON pricelist response off the UI
-/// thread. Pricelist payloads can carry hundreds of rows with 30+ fields
-/// each — parsing them synchronously on the main isolate was a source of
-/// jank while the catalog list is loading.
+/// thread. Payloads can carry hundreds of rows with 30+ fields each — parsing
+/// synchronously on the main isolate was a source of jank while loading.
 List<Product> _productsFromResponseBodyEntryPoint(
   _ProductParseParams params,
 ) =>

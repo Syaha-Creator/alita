@@ -20,7 +20,7 @@ class ProductCardShimmer extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image skeleton — same aspect ratio as ProductCard
+            // Aspect ratio matches ProductCard's actual image.
             ClipRRect(
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(16),
@@ -30,23 +30,17 @@ class ProductCardShimmer extends StatelessWidget {
                 child: Container(color: AppColors.surfaceLight),
               ),
             ),
-
-            // Info skeleton
             const Padding(
               padding: EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Title line 1
                   _SkeletonLine(width: double.infinity, height: 14),
                   SizedBox(height: 6),
-                  // Title line 2 (shorter)
                   _SkeletonLine(width: 80, height: 14),
                   SizedBox(height: 8),
-                  // Category
                   _SkeletonLine(width: 60, height: 10),
                   SizedBox(height: 10),
-                  // Price
                   _SkeletonLine(width: 100, height: 14),
                 ],
               ),

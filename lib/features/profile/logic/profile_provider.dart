@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/services/api_client.dart';
 import '../../../core/services/storage_service.dart';
+import '../../../core/utils/approver_access.dart';
 import '../../../core/utils/log.dart';
 import '../../../core/utils/network_error.dart';
 import '../../auth/logic/auth_provider.dart';
@@ -49,6 +50,7 @@ final profileProvider = FutureProvider<UserProfile?>((ref) async {
     final profile = UserProfile.fromJson(Map<String, dynamic>.from(first));
     if (profile.workTitle.isNotEmpty) {
       await StorageService.saveWorkTitle(profile.workTitle);
+      ApproverAccess.updateCache(profile.workTitle);
     }
     return profile;
   } catch (e) {

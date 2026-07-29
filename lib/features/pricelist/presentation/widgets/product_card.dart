@@ -68,7 +68,7 @@ class ProductCard extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Product Image with rounded top corners & Hero animation
+                // Rounded top corners + Hero animation for detail-page transition
                 ClipRRect(
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(16),
@@ -80,9 +80,9 @@ class ProductCard extends ConsumerWidget {
                         Hero(
                           tag: 'product-image-${product.id}',
                           child: Container(
-                            // Foto produk/logo brand berbackground putih; pakai
-                            // surface (putih) bukan background (ice-blue) agar
-                            // tidak ada "seam" di sisa area BoxFit.contain.
+                            // surface (putih) bukan background (ice-blue): foto
+                            // produk/logo brand berbackground putih, hindari seam
+                            // di sisa area saat BoxFit.contain.
                             color: AppColors.surface,
                             child: NetworkImageView(
                               imageUrl: displayImageUrl,
@@ -156,7 +156,6 @@ class ProductCard extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Product Name
                       Text(
                         product.name,
                         style:
@@ -170,7 +169,6 @@ class ProductCard extends ConsumerWidget {
 
                       const SizedBox(height: 4),
 
-                      // Category
                       Text(
                         product.isPricelistCustomPlaceholder
                             ? 'Tanpa SKU · brand dari filter'

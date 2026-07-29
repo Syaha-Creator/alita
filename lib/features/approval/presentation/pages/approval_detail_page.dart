@@ -12,6 +12,7 @@ import '../../../../core/utils/contact_actions.dart';
 import '../../../../core/utils/order_letter_contact_utils.dart';
 import '../../../../core/utils/name_matcher.dart';
 import '../../../../core/utils/app_feedback.dart';
+import '../../../../core/utils/user_facing_error.dart';
 import '../../../../core/utils/app_telemetry.dart';
 import '../../../../core/utils/shipping_utils.dart';
 import '../../../../core/utils/log.dart';
@@ -395,7 +396,7 @@ class _ApprovalDetailPageState extends ConsumerState<ApprovalDetailPage> {
       if (!mounted) return;
       AppFeedback.show(
         context,
-        message: 'Terjadi kesalahan: $e',
+        message: userFacingErrorMessage(e),
         type: AppFeedbackType.error,
         floating: true,
       );

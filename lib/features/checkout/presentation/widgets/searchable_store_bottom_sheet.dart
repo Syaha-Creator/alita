@@ -10,6 +10,7 @@ import '../../../../core/widgets/empty_state_view.dart';
 import '../../../../core/widgets/error_state_view.dart';
 import '../../../../core/widgets/network_image_view.dart';
 import '../../../../core/utils/app_feedback.dart';
+import '../../../../core/utils/user_facing_error.dart';
 import '../../../../core/widgets/sheet_scaffold.dart';
 import '../../data/models/store_model.dart';
 import '../../logic/store_provider.dart';
@@ -198,7 +199,7 @@ class _SearchableStoreBottomSheetState
                       if (async.hasError) {
                         AppFeedback.show(
                           context,
-                          message: async.error.toString(),
+                          message: userFacingErrorMessage(async.error!),
                           type: AppFeedbackType.error,
                           floating: true,
                         );
@@ -272,7 +273,7 @@ class _SearchableStoreBottomSheetState
                 ),
                 error: (error, _) => ErrorStateView(
                   title: 'Gagal Memuat Toko',
-                  message: error.toString(),
+                  message: userFacingErrorMessage(error),
                   onRetry: () => ref
                       .read(storeListProvider.notifier)
                       .refreshFromNetwork(),

@@ -22,6 +22,15 @@ void main() {
 
       expect(AppConfig.apiBaseUrl, 'https://dotenv.example/api');
     });
+
+    test('rejects non-https API_BASE_URL — credential dikirim via query string',
+        () {
+      // access_token/client_id/client_secret dikirim lewat query string
+      // (lihat AppConfig.authQuery) — tanpa TLS, itu bisa disadap di jaringan.
+      dotenv.testLoad(fileInput: 'API_BASE_URL=http://insecure.example/api');
+
+      expect(() => AppConfig.assertConfigured(), throwsA(isA<StateError>()));
+    });
   });
 
   group('BrandSpecApiConfig.isConfigured', () {

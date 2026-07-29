@@ -48,6 +48,7 @@ class ProductInfoHeader extends StatelessWidget {
     );
   }
 
+  // Static placeholder rating (4.5, "1k+ reviews") — not sourced from real review data.
   Widget _buildRating(BuildContext context) {
     return Row(
       children: [

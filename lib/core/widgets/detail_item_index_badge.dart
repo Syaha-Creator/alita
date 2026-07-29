@@ -13,19 +13,19 @@ class DetailItemIndexBadge extends StatelessWidget {
       label: 'Item nomor $index',
       child: ExcludeSemantics(
         child: Container(
-          width: 22,
-          height: 22,
-          decoration: BoxDecoration(
-            color: AppColors.accentLight,
-            borderRadius: BorderRadius.circular(6),
+          width: 24,
+          height: 24,
+          decoration: const BoxDecoration(
+            color: AppColors.accent,
+            shape: BoxShape.circle,
           ),
           alignment: Alignment.center,
           child: Text(
             '$index',
             style: const TextStyle(
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: FontWeight.bold,
-              color: AppColors.accent,
+              color: AppColors.onPrimary,
             ),
           ),
         ),

@@ -157,9 +157,8 @@ abstract final class ProductVariantResolver {
         .toList()
       ..sort();
 
-    // Broad siblings filtered by size — used to discover headboard/sorong
-    // options that exist on full-set rows (kasur+divan+hb+sorong) but not
-    // on the strict divan-only / headboard-only rows.
+    // Broad siblings filtered by size — discovers headboard/sorong options
+    // that exist on full-set rows but not on strict divan/headboard-only rows.
     final broadBySize =
         broadSiblings.where((p) => p.ukuran == effectiveSize).toList();
 
@@ -239,10 +238,9 @@ abstract final class ProductVariantResolver {
         broadBySize.where((p) => p.divan == effectiveDivan).toList();
 
     // ── 4. Filter Headboard ──
-    // For kasur-anchor: merge strict + broad so headboards from full-set
-    // rows are discoverable. For divan/headboard/sorong anchors: only use
-    // strict siblings — broad siblings include kasur-based set products
-    // whose headboards are not valid companions for this anchor.
+    // Kasur/divan anchors: merge strict + broad so headboards from full-set
+    // rows are discoverable. Other anchors: strict only — broad siblings
+    // include kasur-based set products whose headboards aren't valid here.
     final strictHeadboards = siblingsByDivan
         .map((p) => p.headboard)
         .where((h) => h.isNotEmpty)

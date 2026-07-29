@@ -15,6 +15,7 @@ import '../../../../core/services/screen_capture_guard_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_layout_tokens.dart';
 import '../../../../core/utils/app_feedback.dart';
+import '../../../../core/utils/user_facing_error.dart';
 import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/utils/contact_actions.dart';
 import '../../../../core/utils/order_letter_contact_utils.dart';
@@ -193,7 +194,7 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
       Log.error(e, st, reason: 'OrderDetail.voidSuratPesanan');
       AppFeedback.show(
         context,
-        message: e.toString().replaceFirst('Exception: ', ''),
+        message: userFacingErrorMessage(e),
         type: AppFeedbackType.error,
         floating: true,
       );
@@ -948,7 +949,7 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
             if (context.mounted) {
               AppFeedback.show(
                 context,
-                message: e.toString().replaceFirst('Exception: ', ''),
+                message: userFacingErrorMessage(e),
                 type: AppFeedbackType.error,
                 floating: true,
               );
