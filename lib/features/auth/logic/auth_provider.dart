@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/enums/sales_mode.dart';
 import '../../../core/services/api_client.dart';
 import '../../../core/services/device_token_service.dart';
 import '../../../core/services/fcm_token_service.dart';
@@ -12,6 +13,7 @@ import '../../../core/utils/approver_access.dart';
 import '../../../core/utils/log.dart';
 import '../../../core/utils/user_facing_error.dart';
 import '../../checkout/data/services/local_contact_service.dart';
+import '../../indirect/logic/sales_mode_provider.dart';
 import '../data/services/auth_service.dart';
 
 // ─────────────────────────────────────────────────────────
@@ -79,13 +81,14 @@ class AuthState {
 // ─────────────────────────────────────────────────────────
 
 class AuthNotifier extends StateNotifier<AuthState> {
-  AuthNotifier({AuthService? authService})
+  AuthNotifier(this._ref, {AuthService? authService})
       : _authService = authService ?? AuthService(),
         super(const AuthState()) {
     _init();
   }
 
   final AuthService _authService;
+  final Ref _ref;
 
   // Guards against a second login() firing (e.g. double-tap on a slow
   // network) while one is already in flight — without this, two concurrent
@@ -357,6 +360,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await StorageService.clearQuotationDrafts();
     await LocalContactService.clearAll();
     ApproverAccess.reset();
+    // Sales mode (direct/indirect) is derived from the logged-in user's
+    // address_number — must not leak into the next account that logs in on
+    // this device, otherwise a fresh login can be stuck showing the
+    // previous user's mode with an empty/mismatched address_number.
+    await _ref.read(salesModeProvider.notifier).setMode(SalesMode.direct);
     state = const AuthState(isLoading: false);
 
     await _deleteAnonymousFirebaseUserOnLogout();
@@ -389,5 +397,5 @@ class AuthNotifier extends StateNotifier<AuthState> {
 // ─────────────────────────────────────────────────────────
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>(
-  (ref) => AuthNotifier(),
+  (ref) => AuthNotifier(ref),
 );

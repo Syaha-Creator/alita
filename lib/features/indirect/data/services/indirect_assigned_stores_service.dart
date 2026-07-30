@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
 import '../../../../core/config/app_config.dart';
 import '../../../../core/utils/log.dart';
+import '../../../../core/utils/retry.dart';
 import '../models/assigned_store.dart';
 
 /// Fetch daftar toko assign (indirect) dari host terpisah.
@@ -30,14 +33,19 @@ class IndirectAssignedStoresService {
     if (salesCode.isEmpty) return [];
 
     final url = _storeListUri(salesCode);
-    final response = await _client.get(
-      url,
-      headers: {
-        'Accept': 'application/json',
-        'x-api-key': AppConfig.indirectApiKey,
-        'x-client-key': AppConfig.indirectClientKey,
-      },
-    ).timeout(const Duration(seconds: 30));
+    final response = await retry(
+      () => _client.get(
+        url,
+        headers: {
+          'Accept': 'application/json',
+          'x-api-key': AppConfig.indirectApiKey,
+          'x-client-key': AppConfig.indirectClientKey,
+        },
+      ).timeout(const Duration(seconds: 30)),
+      retryIf: (e) =>
+          e is SocketException || e is TimeoutException || e is http.ClientException,
+      tag: 'IndirectStores',
+    );
 
     if (response.statusCode != 200) {
       throw Exception(

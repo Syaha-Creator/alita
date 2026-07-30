@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/config/app_config.dart';
 import '../../../../core/enums/sales_mode.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_layout_tokens.dart';
@@ -59,6 +60,29 @@ void _openIndirectStorePicker(BuildContext context, WidgetRef ref) {
   unawaited(_openIndirectStorePickerAsync(context, ref));
 }
 
+/// Pesan spesifik per kondisi kosongnya [assignedStoresProvider] — supaya
+/// laporan bug user langsung mengarah ke akar masalah (bukan tebak-tebakan
+/// antara mode salah, sales code kosong, config host kosong, atau memang
+/// API balik 0 toko).
+String _emptyStoresReason(WidgetRef ref) {
+  final mode = ref.read(salesModeProvider);
+  if (mode != SalesMode.indirect) {
+    return 'Mode akun Anda belum Indirect (mode saat ini: ${mode.name}). '
+        'Hubungi admin untuk diaktifkan.';
+  }
+  final addressNumber = ref.read(authProvider.select((a) => a.addressNumber));
+  if (addressNumber == null || addressNumber.trim().isEmpty) {
+    return 'Sales code akun Anda kosong. Coba logout lalu login ulang; '
+        'kalau masih kosong, hubungi admin.';
+  }
+  if (!AppConfig.isIndirectStoresConfigured) {
+    return 'Konfigurasi host indirect di aplikasi belum lengkap. '
+        'Hubungi tim developer (info ini: config kosong).';
+  }
+  return 'Tidak ada toko yang di-assign untuk sales code $addressNumber. '
+      'Hubungi admin untuk assign toko.';
+}
+
 Future<void> _openIndirectStorePickerAsync(
   BuildContext context,
   WidgetRef ref,
@@ -70,9 +94,7 @@ Future<void> _openIndirectStorePickerAsync(
     if (stores.isEmpty) {
       AppFeedback.show(
         context,
-        message:
-            'Tidak ada toko assign untuk sales code Anda, sales code akun kosong, '
-            'atau host indirect belum dikonfigurasi.',
+        message: _emptyStoresReason(ref),
         type: AppFeedbackType.warning,
         floating: true,
       );

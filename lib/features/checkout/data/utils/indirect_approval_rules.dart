@@ -1,4 +1,5 @@
 import '../../../cart/data/cart_item.dart';
+import '../../../history/data/models/order_history.dart';
 
 /// Aturan persetujuan pesanan **indirect (SO)** — mirror logic checkout create.
 ///
@@ -9,6 +10,31 @@ class IndirectApprovalRules {
 
   static bool isIndirectCart(List<CartItem> cartItems) =>
       cartItems.any((e) => e.isIndirectSale);
+
+  /// True jika shipping tujuan berbeda dari alamat customer ("Customer Baru").
+  ///
+  /// **Create mode** ([editOrder] null): pakai toggle UI checkout langsung.
+  ///
+  /// **Edit mode** ([editOrder] non-null): field pengiriman di checkout page
+  /// disembunyikan saat edit item, dan toggle UI-nya (`isShippingSameAsCustomer`
+  /// / `isReceiverBranchMode`) TIDAK direstore dari order lama — nilainya
+  /// selalu default. Kalau dipakai apa adanya, syarat ASM "Customer Baru"
+  /// yang berlaku saat order pertama dibuat akan diam-diam hilang begitu
+  /// item diedit (baris approval lama dihapus lalu tidak dibuat ulang).
+  /// Jadi untuk edit mode kita derive langsung dari data order:
+  /// `ship_to_name` berbeda dari `customer_name` → dianggap Customer Baru.
+  static bool isCustomerBaruShipping({
+    required OrderHistory? editOrder,
+    required bool isShippingSameAsCustomer,
+    required bool isReceiverBranchMode,
+  }) {
+    if (editOrder != null) {
+      final shipToName = editOrder.shipToName.trim();
+      final customerName = editOrder.customerName.trim();
+      return shipToName.isNotEmpty && shipToName != customerName;
+    }
+    return !isShippingSameAsCustomer && !isReceiverBranchMode;
+  }
 
   /// ASM wajib (acknowledgment 0%). **Tidak** termasuk diskon tambahan.
   static bool requiresAsm({

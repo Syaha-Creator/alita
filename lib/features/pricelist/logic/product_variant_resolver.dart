@@ -92,11 +92,13 @@ abstract final class ProductVariantResolver {
     String lKey(ItemLookup? l) => ProductDetailUtils.lookupKey(l);
 
     // ── 0. Sibling list ──
-    // For divan/headboard/sorong anchors we use a strict filter first
-    // (matching anchor + no higher-priority component). If that yields
-    // no set-level headboard/sorong choices, we broaden the search to
-    // include ALL rows sharing the same anchor component name so that
-    // accessories from kasur-based set rows are also available.
+    // For divan/headboard/sorong anchors we require the anchor's own
+    // component to match AND every higher-priority component (closer to
+    // kasur) to stay absent. This means we only ever discover combinations
+    // *below* the anchor (e.g. divan+headboard both without kasur), never
+    // combinations *above* it — a headboard that only exists bundled inside
+    // a full mattress-set row must not leak into a standalone product's
+    // available options or pricing.
     final siblings = rawProducts.where((p) {
       switch (anchor) {
         case AnchorType.kasur:
@@ -115,22 +117,6 @@ abstract final class ProductVariantResolver {
               !isPresent(p.headboard);
       }
     }).toList();
-
-    // Broadened sibling list: match by anchor name only (ignoring kasur
-    // presence). Used to discover headboard/sorong options that may only
-    // exist on full-set rows.
-    final List<Product> broadSiblings;
-    if (anchor == AnchorType.divan) {
-      broadSiblings = rawProducts
-          .where((p) => p.divan.trim() == masterProduct.divan.trim())
-          .toList();
-    } else if (anchor == AnchorType.headboard) {
-      broadSiblings = rawProducts
-          .where((p) => p.headboard.trim() == masterProduct.headboard.trim())
-          .toList();
-    } else {
-      broadSiblings = siblings;
-    }
 
     final siblingsList = siblings.isEmpty ? [masterProduct] : siblings;
 
@@ -157,23 +143,12 @@ abstract final class ProductVariantResolver {
         .toList()
       ..sort();
 
-    // Broad siblings filtered by size — discovers headboard/sorong options
-    // that exist on full-set rows but not on strict divan/headboard-only rows.
-    final broadBySize =
-        broadSiblings.where((p) => p.ukuran == effectiveSize).toList();
-
     // ── 2. Auto-select default "Beli Set" ──
     String effectiveDivan;
     String effectiveHeadboard;
     String effectiveSorong;
 
-    // Source for auto-select: for kasur-anchor fall back to broad if strict
-    // has only 1 row; for other anchors stay strict (broad would pull in
-    // companions from a different product family).
-    final autoSelectPool =
-        (anchor == AnchorType.kasur && siblingsBySize.length <= 1)
-            ? broadBySize
-            : siblingsBySize;
+    final autoSelectPool = siblingsBySize;
 
     if (isKasurOnly) {
       effectiveDivan =
@@ -234,26 +209,14 @@ abstract final class ProductVariantResolver {
     }
     final siblingsByDivan =
         siblingsBySize.where((p) => p.divan == effectiveDivan).toList();
-    final broadByDivan =
-        broadBySize.where((p) => p.divan == effectiveDivan).toList();
 
     // ── 4. Filter Headboard ──
-    // Kasur/divan anchors: merge strict + broad so headboards from full-set
-    // rows are discoverable. Other anchors: strict only — broad siblings
-    // include kasur-based set products whose headboards aren't valid here.
-    final strictHeadboards = siblingsByDivan
+    final availableHeadboards = siblingsByDivan
         .map((p) => p.headboard)
         .where((h) => h.isNotEmpty)
-        .toSet();
-    final broadHeadboards = (anchor == AnchorType.kasur ||
-            anchor == AnchorType.divan)
-        ? broadByDivan
-            .map((p) => p.headboard)
-            .where((h) => h.isNotEmpty)
-            .toSet()
-        : <String>{};
-    final availableHeadboards =
-        (strictHeadboards.union(broadHeadboards)).toList()..sort();
+        .toSet()
+        .toList()
+      ..sort();
 
     if (!availableHeadboards.contains(effectiveHeadboard)) {
       if (!isKasurOnly) {
@@ -267,14 +230,9 @@ abstract final class ProductVariantResolver {
         effectiveHeadboard = 'Tanpa Headboard';
       }
     }
-    // For kasur/divan anchors use strict + broad so headboards from full-set
-    // rows are discoverable and selectable.
-    final allByDivan = (anchor == AnchorType.kasur ||
-            anchor == AnchorType.divan)
-        ? {...siblingsByDivan, ...broadByDivan}.toList()
-        : siblingsByDivan;
-    final siblingsByHeadboard =
-        allByDivan.where((p) => p.headboard == effectiveHeadboard).toList();
+    final siblingsByHeadboard = siblingsByDivan
+        .where((p) => p.headboard == effectiveHeadboard)
+        .toList();
 
     // ── 5. Filter Sorong ──
     final availableSorongs = siblingsByHeadboard
@@ -289,9 +247,10 @@ abstract final class ProductVariantResolver {
     }
 
     // ── 6. Active product (final SKU) ──
-    // Broadened siblings may resolve to a full-SET row that carries a real
-    // `kasur` name — strip it so a non-kasur anchor never leaks a mattress
-    // into checkout.
+    // Defense in depth: the sibling filter above already guarantees a
+    // non-kasur anchor never matches a row with a real mattress, but we
+    // strip `kasur` here too so a future filter change can't silently leak
+    // one into checkout.
     final Product rawActiveProduct = siblingsByHeadboard.firstWhere(
       (p) => p.sorong == effectiveSorong,
       orElse: () => siblingsByHeadboard.isNotEmpty

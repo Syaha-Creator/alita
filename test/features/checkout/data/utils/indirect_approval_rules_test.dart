@@ -1,7 +1,27 @@
 import 'package:alitapricelist/features/cart/data/cart_item.dart';
 import 'package:alitapricelist/features/checkout/data/utils/indirect_approval_rules.dart';
+import 'package:alitapricelist/features/history/data/models/order_history.dart';
 import 'package:alitapricelist/features/pricelist/data/models/product.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+OrderHistory _order({required String customerName, required String shipToName}) =>
+    OrderHistory(
+      id: 1,
+      noSp: 'SP-T',
+      orderDate: '-',
+      requestDate: '-',
+      note: '',
+      customerName: customerName,
+      phone: '-',
+      address: '-',
+      email: '',
+      shipToName: shipToName,
+      isTakeAway: false,
+      workPlaceName: '-',
+      companyName: '-',
+      totalAmount: 0,
+      status: 'Approved',
+    );
 
 Product _product({double price = 1_000_000}) => Product(
       id: 'P1',
@@ -161,6 +181,66 @@ void main() {
             hasCustomSizeItem: false,
           ),
           isTrue,
+        );
+      });
+    });
+
+    group('isCustomerBaruShipping', () {
+      test('create mode (no editOrder): mirrors UI toggle', () {
+        expect(
+          IndirectApprovalRules.isCustomerBaruShipping(
+            editOrder: null,
+            isShippingSameAsCustomer: false,
+            isReceiverBranchMode: false,
+          ),
+          isTrue,
+        );
+        expect(
+          IndirectApprovalRules.isCustomerBaruShipping(
+            editOrder: null,
+            isShippingSameAsCustomer: true,
+            isReceiverBranchMode: false,
+          ),
+          isFalse,
+        );
+      });
+
+      test(
+        'edit mode: derives from ship_to_name vs customer_name, ignoring '
+        'stale UI toggle defaults',
+        () {
+          // Regression: order awal butuh ASM (Customer Baru — ship_to_name
+          // beda dari customer_name). Saat edit item, checkout page tidak
+          // pernah restore isShippingSameAsCustomer/isReceiverBranchMode dari
+          // order lama (tetap default true) — sebelum fix ini membuat syarat
+          // ASM diam-diam hilang.
+          final editOrder = _order(
+            customerName: 'Toko Sejahtera',
+            shipToName: 'Gudang Cabang Baru',
+          );
+          expect(
+            IndirectApprovalRules.isCustomerBaruShipping(
+              editOrder: editOrder,
+              isShippingSameAsCustomer: true, // stale UI default
+              isReceiverBranchMode: true, // stale UI default
+            ),
+            isTrue,
+          );
+        },
+      );
+
+      test('edit mode: ship_to_name sama dengan customer_name → bukan customer baru', () {
+        final editOrder = _order(
+          customerName: 'Toko Sejahtera',
+          shipToName: 'Toko Sejahtera',
+        );
+        expect(
+          IndirectApprovalRules.isCustomerBaruShipping(
+            editOrder: editOrder,
+            isShippingSameAsCustomer: true,
+            isReceiverBranchMode: true,
+          ),
+          isFalse,
         );
       });
     });

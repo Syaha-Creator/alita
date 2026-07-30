@@ -986,8 +986,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                             hasFocVoucherItem: _hasFocVoucherItem(cartItems),
                             isCustomerBaru: cartItems.any(
                                     (e) => e.isIndirectSale) &&
-                                (!_isShippingSameAsCustomer &&
-                                        !_isReceiverBranchMode ||
+                                (_isCustomerBaruShippingForApproval() ||
                                     cartItems.any(
                                         (e) => e.isNewCustomerStore)),
                             isKlausManagerAutoAssigned: ref
@@ -1157,6 +1156,18 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     );
   }
 
+  /// True jika shipping tujuan berbeda dari alamat customer ("Customer Baru")
+  /// — dipakai untuk menentukan wajib-tidaknya persetujuan ASM (indirect).
+  /// Lihat [IndirectApprovalRules.isCustomerBaruShipping] untuk alasan edit
+  /// mode di-derive dari data order, bukan dari toggle UI.
+  bool _isCustomerBaruShippingForApproval() {
+    return IndirectApprovalRules.isCustomerBaruShipping(
+      editOrder: ref.read(editOrderContextProvider),
+      isShippingSameAsCustomer: _isShippingSameAsCustomer,
+      isReceiverBranchMode: _isReceiverBranchMode,
+    );
+  }
+
   /// True jika cart memerlukan pemilihan ASM (indirect) / SPV (direct).
   ///
   /// Indirect — ASM wajib untuk: Customer Baru, toko new_customer, FOC,
@@ -1165,10 +1176,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   bool _requiresSpvApproval(List<CartItem> cartItems) {
     final isIndirect = cartItems.any((e) => e.isIndirectSale);
     if (isIndirect) {
-      final isCustomerBaru =
-          !_isShippingSameAsCustomer && !_isReceiverBranchMode;
       return IndirectApprovalRules.requiresAsm(
-        isCustomerBaruShipping: isCustomerBaru,
+        isCustomerBaruShipping: _isCustomerBaruShippingForApproval(),
         hasNewCustomerStoreItem:
             IndirectApprovalRules.cartHasNewCustomerStore(cartItems),
         hasFocVoucherItem:
@@ -1733,6 +1742,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           newCustomerContact: newCustomerContact,
           selectedCartItems: widget.selectedCartItems,
           requiresApproval: !autoApprove,
+          requiresSpvApproval: _requiresSpvApproval(cartItems),
+          requiresManagerApproval: _requiresManagerApproval(cartItems),
         ));
   }
 
@@ -1794,6 +1805,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           shortagePaymentPayloads: shortagePayloads,
           shortageReceiptImages: shortageReceipts,
           requiresApproval: !autoApprove,
+          requiresSpvApproval: _requiresSpvApproval(cartItems),
+          requiresManagerApproval: _requiresManagerApproval(cartItems),
         ));
   }
 

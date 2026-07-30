@@ -305,6 +305,31 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     state = state.copyWith(selectedSpv: approver, selectedManager: newManager);
   }
 
+  /// Defense-in-depth: page-level `_validateForm()`/`_validateApprovalOnly()`
+  /// sudah memblokir submit kalau approver wajib belum dipilih — tapi validasi
+  /// itu hidup di UI dan bisa saja diubah/lupa dipanggil di masa depan
+  /// (persis seperti bug "Customer Baru hilang saat edit item", Jul 2026).
+  /// Guard ini membuat kelas bug itu MUSTAHIL lolos diam-diam: kalau caller
+  /// bilang approval wajib tapi approver-nya `null`, gagal keras di sini
+  /// alih-alih membuat/mengedit order dengan baris approval yang hilang.
+  void _assertApprovalNotSilentlyDropped({
+    required bool requiresSpvApproval,
+    required bool requiresManagerApproval,
+  }) {
+    if (requiresSpvApproval && state.selectedSpv == null) {
+      throw StateError(
+        'Approval SPV/ASM wajib untuk pesanan ini tapi belum dipilih — '
+        'submit dibatalkan untuk mencegah order tanpa baris approval.',
+      );
+    }
+    if (requiresManagerApproval && state.selectedManager == null) {
+      throw StateError(
+        'Approval Manager/RSM wajib untuk pesanan ini tapi belum dipilih — '
+        'submit dibatalkan untuk mencegah order tanpa baris approval.',
+      );
+    }
+  }
+
   void selectManager(Approver? approver) {
     state = state.copyWith(selectedManager: approver);
   }
@@ -336,6 +361,11 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     // dan selectedManager tidak dipakai agar tidak membuat baris approval
     // dengan approved=null sementara order_letters sudah berstatus Approved.
     bool requiresApproval = true,
+    // Flag granular untuk guard [_assertApprovalNotSilentlyDropped] —
+    // default false (tidak menambah assertion) agar caller lama/test yang
+    // belum mengirim flag ini tidak berubah perilakunya.
+    bool requiresSpvApproval = false,
+    bool requiresManagerApproval = false,
   }) async {
     if (state.isSubmitting) return; // Reentrancy guard
 
@@ -363,6 +393,11 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     var completedSteps = Set<int>.from(state.retryCompletedSteps);
 
     try {
+      _assertApprovalNotSilentlyDropped(
+        requiresSpvApproval: requiresSpvApproval,
+        requiresManagerApproval: requiresManagerApproval,
+      );
+
       final prepSw = Stopwatch()..start();
       final int userId = await StorageService.loadUserId();
       token = await StorageService.loadAccessToken();
@@ -1176,6 +1211,11 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     /// Indirect auto-approve: false → null-kan selectedSpv/selectedManager
     /// agar tidak membuat baris approval pending (mirror [submitOrder]).
     bool requiresApproval = true,
+    // Flag granular untuk guard [_assertApprovalNotSilentlyDropped] — lihat
+    // dokumentasi di [submitOrder]. Default false = tidak ada assertion baru
+    // untuk caller/test yang belum mengirim flag ini.
+    bool requiresSpvApproval = false,
+    bool requiresManagerApproval = false,
   }) async {
     if (state.isSubmitting) return;
     state = state.copyWith(
@@ -1187,6 +1227,11 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
 
     final sw = Stopwatch()..start();
     try {
+      _assertApprovalNotSilentlyDropped(
+        requiresSpvApproval: requiresSpvApproval,
+        requiresManagerApproval: requiresManagerApproval,
+      );
+
       final token = await StorageService.loadAccessToken();
       final int userId = await StorageService.loadUserId();
 

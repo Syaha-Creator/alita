@@ -40,9 +40,9 @@ Product _p({
 void main() {
   group('ProductVariantResolver.resolve — divan anchor kasur leak (regression)', () {
     test(
-      'never selects a full-SET row as activeProduct when the only catalog '
-      'row offering the chosen headboard bundles a real mattress — the '
-      'resolved product must stay "Tanpa Kasur" (divan+headboard only)',
+      'never offers a headboard that only exists bundled inside a full-SET '
+      'row (a combination above the anchor) as a "Beli Set" option for a '
+      'standalone divan — falls back to "Tanpa Headboard" instead',
       () {
         final masterProduct = _p(
           kasur: 'Tanpa Kasur',
@@ -59,7 +59,8 @@ void main() {
         );
         // The only row in the catalog offering headboard "Matrix" alongside
         // divan "Superfit" is a full SET row that also carries a real
-        // mattress. This must NOT leak into the resolved activeProduct.
+        // mattress — a combination *above* the divan anchor. This must NOT
+        // leak into the standalone divan's available options or pricing.
         final fullSetWithMatrix = _p(
           kasur: 'Bulan Purnama',
           divan: 'Superfit',
@@ -88,17 +89,64 @@ void main() {
           groupedLookups: const {},
         );
 
-        expect(result.effectiveHeadboard, 'Matrix');
         expect(
-          result.activeProduct.kasur.trim().toLowerCase(),
-          'tanpa kasur',
-          reason: 'A divan-anchor selection must never resolve to a product '
-              'row that carries a real mattress, even if that is the only '
-              'catalog row exposing the chosen headboard.',
+          result.availableHeadboards,
+          ['Tanpa Headboard'],
+          reason: 'Matrix only exists bundled with a real mattress, so it is '
+              'not a valid below-anchor option for the standalone divan.',
         );
-        // Headboard pricing must still come through even though the source
-        // row was a full SET — only the mattress leak is stripped.
+        expect(result.effectiveHeadboard, 'Tanpa Headboard');
+        expect(result.activeProduct.kasur.trim().toLowerCase(), 'tanpa kasur');
+        expect(result.activeProduct.headboard, 'Tanpa Headboard');
+        expect(
+          result.hasSetOptions,
+          false,
+          reason: '"Beli Set" must not be offered when no headboard exists '
+              'below the divan anchor without a mattress attached.',
+        );
+      },
+    );
+
+    test(
+      'offers a headboard as a "Beli Set" option when a genuine below-anchor '
+      'row exists (same divan, still no kasur attached)',
+      () {
+        final masterProduct = _p(
+          kasur: 'Tanpa Kasur',
+          divan: 'Superfit',
+          headboard: 'Tanpa Headboard',
+          sorong: 'Tanpa Sorong',
+        );
+        final divanWithHeadboardNoKasur = _p(
+          kasur: 'Tanpa Kasur',
+          divan: 'Superfit',
+          headboard: 'Matrix',
+          sorong: 'Tanpa Sorong',
+        );
+
+        final result = ProductVariantResolver.resolve(
+          masterProduct: masterProduct,
+          rawProducts: [masterProduct, divanWithHeadboardNoKasur],
+          anchor: AnchorType.divan,
+          isKasurOnly: false,
+          selectedSize: '160x200',
+          selectedDivan: 'Superfit',
+          selectedHeadboard: 'Matrix',
+          selectedSorong: null,
+          selectedKasurLookup: null,
+          selectedDivanLookup: null,
+          selectedHeadboardLookup: null,
+          selectedSorongLookup: null,
+          isKasurCustom: false,
+          isDivanCustom: false,
+          isHeadboardCustom: false,
+          isSorongCustom: false,
+          groupedLookups: const {},
+        );
+
+        expect(result.effectiveHeadboard, 'Matrix');
         expect(result.activeProduct.eupHeadboard, 200_000);
+        expect(result.hasSetOptions, true);
       },
     );
 
