@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_layout_tokens.dart';
 import '../../../../core/utils/product_image_utils.dart';
 import '../../../../core/widgets/image_viewer_dialog.dart';
 import '../../../../core/widgets/network_image_view.dart';
@@ -35,112 +36,128 @@ class ProductImageCarousel extends StatelessWidget {
         ? <String>[ProductImageUtils.brandLogoAssetUri('')]
         : urls;
 
+    // Cap content width on tablet/desktop so the carousel doesn't stretch
+    // full-bleed and upscale the (600px-decoded) network image into a blur.
+    final contentWidth = screenWidth > AppLayoutTokens.maxContentWidth
+        ? AppLayoutTokens.maxContentWidth
+        : screenWidth;
+
     return SliverToBoxAdapter(
       child: SizedBox(
-        height: screenWidth * 0.85,
+        height: contentWidth * 0.85,
         width: double.infinity,
-        child: Stack(
-          children: [
-            GestureDetector(
-              onTap: () {
-                final u = slides[currentIndex];
-                if (ProductImageUtils.isNetworkProductPhoto(u) &&
-                    currentIndex == 0) {
-                  ImageViewerDialog.show(
-                    context: context,
-                    imageUrl: u,
-                    maxScale: 4.0,
-                    showCloseButton: false,
-                  );
-                }
-              },
-              child: PageView.builder(
-                controller: controller,
-                itemCount: slides.length,
-                onPageChanged: onPageChanged,
-                itemBuilder: (context, index) {
-                  final url = slides[index];
-                  final isAsset =
-                      url.startsWith(ProductImageUtils.assetUriPrefix);
-                  final img = ColoredBox(
-                    // Surface (putih), bukan background: foto studio & logo brand
-                    // berbackground putih, hindari seam saat BoxFit.contain.
-                    color: AppColors.surface,
-                    child: NetworkImageView(
-                      imageUrl: url,
-                      fit: isAsset ? BoxFit.contain : BoxFit.cover,
-                      width: double.infinity,
-                      height: double.infinity,
-                      memCacheWidth: 600,
-                      errorWidget: Container(
-                        color: AppColors.border,
-                        child: const Icon(
-                          Icons.broken_image_outlined,
-                          size: 60,
-                          color: AppColors.textTertiary,
+        child: ColoredBox(
+          color: AppColors.surface,
+          child: Center(
+            child: SizedBox(
+              key: const Key('productImageCarouselContent'),
+              width: contentWidth,
+              child: Stack(
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      final u = slides[currentIndex];
+                      if (ProductImageUtils.isNetworkProductPhoto(u) &&
+                          currentIndex == 0) {
+                        ImageViewerDialog.show(
+                          context: context,
+                          imageUrl: u,
+                          maxScale: 4.0,
+                          showCloseButton: false,
+                        );
+                      }
+                    },
+                    child: PageView.builder(
+                      controller: controller,
+                      itemCount: slides.length,
+                      onPageChanged: onPageChanged,
+                      itemBuilder: (context, index) {
+                        final url = slides[index];
+                        final isAsset =
+                            url.startsWith(ProductImageUtils.assetUriPrefix);
+                        final img = ColoredBox(
+                          // Surface (putih), bukan background: foto studio &
+                          // logo brand berbackground putih, hindari seam saat
+                          // BoxFit.contain.
+                          color: AppColors.surface,
+                          child: NetworkImageView(
+                            imageUrl: url,
+                            fit: isAsset ? BoxFit.contain : BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
+                            memCacheWidth: 600,
+                            errorWidget: Container(
+                              color: AppColors.border,
+                              child: const Icon(
+                                Icons.broken_image_outlined,
+                                size: 60,
+                                color: AppColors.textTertiary,
+                              ),
+                            ),
+                          ),
+                        );
+                        return index == 0
+                            ? Hero(
+                                tag: 'product-image-$productId',
+                                child: img,
+                              )
+                            : img;
+                      },
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: 64,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.35),
+                          ],
                         ),
                       ),
                     ),
-                  );
-                  return index == 0
-                      ? Hero(
-                          tag: 'product-image-$productId',
-                          child: img,
-                        )
-                      : img;
-                },
-              ),
-            ),
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: 64,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withValues(alpha: 0.35),
-                    ],
                   ),
-                ),
+                  if (slides.length > 1)
+                    Positioned(
+                      bottom: 16,
+                      left: 0,
+                      right: 0,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(slides.length, (i) {
+                          final isActive = currentIndex == i;
+                          return AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            height: 6,
+                            width: isActive ? 20 : 6,
+                            decoration: BoxDecoration(
+                              color: isActive
+                                  ? AppColors.accent
+                                  : Colors.white.withValues(alpha: 0.7),
+                              borderRadius: BorderRadius.circular(10),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Colors.black26,
+                                  blurRadius: 4,
+                                  offset: Offset(0, 1),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ),
+                    ),
+                ],
               ),
             ),
-            if (slides.length > 1)
-              Positioned(
-                bottom: 16,
-                left: 0,
-                right: 0,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(slides.length, (i) {
-                    final isActive = currentIndex == i;
-                    return AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      height: 6,
-                      width: isActive ? 20 : 6,
-                      decoration: BoxDecoration(
-                        color: isActive
-                            ? AppColors.accent
-                            : Colors.white.withValues(alpha: 0.7),
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Colors.black26,
-                            blurRadius: 4,
-                            offset: Offset(0, 1),
-                          ),
-                        ],
-                      ),
-                    );
-                  }),
-                ),
-              ),
-          ],
+          ),
         ),
       ),
     );

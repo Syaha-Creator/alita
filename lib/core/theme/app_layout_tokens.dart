@@ -52,4 +52,9 @@ class AppLayoutTokens {
     if (width >= breakpointTablet) return 3;
     return 2;
   }
+
+  /// Caps full-bleed content (e.g. detail-page image carousels) at phone-like
+  /// width on tablets/desktop, so it doesn't stretch oversized or force the
+  /// underlying network image to upscale past its decoded resolution.
+  static const double maxContentWidth = 480;
 }
