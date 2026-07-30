@@ -39,4 +39,17 @@ class AppLayoutTokens {
     blurRadius: 12,
     offset: const Offset(0, 4),
   );
+
+  // Responsive breakpoints (logical pixels), matching Material's compact/
+  // medium/expanded width classes so tablets and foldables get more columns.
+  static const double breakpointTablet = 600;
+  static const double breakpointDesktop = 900;
+
+  /// Product/favorites grid column count for a given screen [width].
+  /// 2 on phones, 3 on tablets, 4 on desktop-sized/large-tablet screens.
+  static int gridColumnCountForWidth(double width) {
+    if (width >= breakpointDesktop) return 4;
+    if (width >= breakpointTablet) return 3;
+    return 2;
+  }
 }

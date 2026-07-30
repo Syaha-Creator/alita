@@ -8,6 +8,7 @@ import '../../../../core/utils/telemetry_access.dart';
 import '../../../../core/widgets/async_state_view.dart';
 import '../../../../core/widgets/error_state_view.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_layout_tokens.dart';
 import '../../../../core/widgets/empty_state_view.dart';
 import '../../../../core/widgets/animated_list_item.dart';
 import '../../../../core/widgets/floating_badge.dart';
@@ -176,13 +177,16 @@ class _ProductListBody extends ConsumerWidget {
 
   /// Shimmer skeleton while product data loads
   Widget _buildShimmerGrid(BuildContext context, WidgetRef ref) {
+    final crossAxisCount = AppLayoutTokens.gridColumnCountForWidth(
+      MediaQuery.of(context).size.width,
+    );
     return CustomScrollView(
       slivers: [
         ..._buildStickyHeaders(context, ref),
         SliverPadding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           sliver: SliverMasonryGrid.count(
-            crossAxisCount: 2,
+            crossAxisCount: crossAxisCount,
             mainAxisSpacing: 16,
             crossAxisSpacing: 16,
             childCount: 6,
@@ -282,6 +286,9 @@ class _ProductListBody extends ConsumerWidget {
         indirectSession.hasStore &&
         !indirectSession.isLoadingDiscounts &&
         !indirectSession.hasDiscounts;
+    final crossAxisCount = AppLayoutTokens.gridColumnCountForWidth(
+      MediaQuery.of(context).size.width,
+    );
 
     return RefreshIndicator.adaptive(
       color: AppColors.accent,
@@ -336,7 +343,7 @@ class _ProductListBody extends ConsumerWidget {
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             sliver: SliverMasonryGrid.count(
-              crossAxisCount: 2,
+              crossAxisCount: crossAxisCount,
               mainAxisSpacing: 16,
               crossAxisSpacing: 16,
               childCount: products.length,

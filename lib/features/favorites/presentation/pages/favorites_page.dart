@@ -4,6 +4,7 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/services/connectivity_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_layout_tokens.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/utils/platform_utils.dart';
 import '../../../../core/widgets/action_button_bar.dart';
@@ -92,7 +93,7 @@ class FavoritesPage extends ConsumerWidget {
             ),
           Expanded(
             child: isLoading
-                ? _buildLoadingSkeleton()
+                ? _buildLoadingSkeleton(context)
                 : hasError
                     ? _buildErrorState(context, ref, isOffline: isOffline)
                     : favoriteProducts.isEmpty
@@ -105,11 +106,13 @@ class FavoritesPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildLoadingSkeleton() {
+  Widget _buildLoadingSkeleton(BuildContext context) {
     return GridView.builder(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: AppLayoutTokens.gridColumnCountForWidth(
+          MediaQuery.of(context).size.width,
+        ),
         mainAxisSpacing: 16,
         crossAxisSpacing: 16,
         childAspectRatio: 0.62,
@@ -148,7 +151,9 @@ class FavoritesPage extends ConsumerWidget {
         SliverPadding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           sliver: SliverMasonryGrid.count(
-            crossAxisCount: 2,
+            crossAxisCount: AppLayoutTokens.gridColumnCountForWidth(
+              MediaQuery.of(context).size.width,
+            ),
             mainAxisSpacing: 16,
             crossAxisSpacing: 16,
             childCount: products.length,
