@@ -51,4 +51,20 @@ class AppColors {
   static const Color overlay = Color(0x8A000000);
   static const Color onPrimaryHigh = Color(0xE6FFFFFF);
   static const Color onPrimaryMedium = Color(0xB3FFFFFF);
+
+  // Checkout approval-reason badges — one hue per distinct reason so users
+  // scan multiple simultaneous badges at a glance. Values match Flutter's
+  // Colors.orange/purple/indigo Material swatch exactly (formalized here
+  // instead of referencing Colors.* directly, so they can't silently drift).
+  static const Color reasonBonus = Color(0xFFFF9800); // Colors.orange
+  static const Color reasonBonusIcon = Color(0xFFF57C00); // .shade700
+  static const Color reasonBonusText = Color(0xFFEF6C00); // .shade800
+
+  static const Color reasonCustomSize = Color(0xFF9C27B0); // Colors.purple
+  static const Color reasonCustomSizeIcon = Color(0xFF7B1FA2); // .shade700
+  static const Color reasonCustomSizeText = Color(0xFF6A1B9A); // .shade800
+
+  static const Color reasonKlaus = Color(0xFF3F51B5); // Colors.indigo
+  static const Color reasonKlausIcon = Color(0xFF3949AB); // .shade600
+  static const Color reasonKlausText = Color(0xFF303F9F); // .shade700
 }

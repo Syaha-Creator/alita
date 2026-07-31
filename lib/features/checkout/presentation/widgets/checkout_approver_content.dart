@@ -88,23 +88,23 @@ class CheckoutApproverContent extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.orange.withValues(alpha: 0.08),
+              color: AppColors.reasonBonus.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: Colors.orange.withValues(alpha: 0.3),
+                color: AppColors.reasonBonus.withValues(alpha: 0.3),
               ),
             ),
-            child: Row(
+            child: const Row(
               children: [
                 Icon(Icons.card_giftcard_outlined,
-                    size: 14, color: Colors.orange.shade700),
-                const SizedBox(width: 6),
+                    size: 14, color: AppColors.reasonBonusIcon),
+                SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     'Ada bonus yang diubah dari bundle default — RSM wajib menyetujui.',
                     style: TextStyle(
                       fontSize: 11,
-                      color: Colors.orange.shade800,
+                      color: AppColors.reasonBonusText,
                       height: 1.4,
                     ),
                   ),
@@ -118,23 +118,23 @@ class CheckoutApproverContent extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.purple.withValues(alpha: 0.07),
+              color: AppColors.reasonCustomSize.withValues(alpha: 0.07),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: Colors.purple.withValues(alpha: 0.25),
+                color: AppColors.reasonCustomSize.withValues(alpha: 0.25),
               ),
             ),
-            child: Row(
+            child: const Row(
               children: [
                 Icon(Icons.straighten_outlined,
-                    size: 14, color: Colors.purple.shade700),
-                const SizedBox(width: 6),
+                    size: 14, color: AppColors.reasonCustomSizeIcon),
+                SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     'Ada item dengan ukuran custom — ASM wajib menyetujui.',
                     style: TextStyle(
                       fontSize: 11,
-                      color: Colors.purple.shade800,
+                      color: AppColors.reasonCustomSizeText,
                       height: 1.4,
                     ),
                   ),
@@ -240,23 +240,23 @@ class CheckoutApproverContent extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.indigo.withValues(alpha: 0.07),
+                color: AppColors.reasonKlaus.withValues(alpha: 0.07),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: Colors.indigo.withValues(alpha: 0.25),
+                  color: AppColors.reasonKlaus.withValues(alpha: 0.25),
                 ),
               ),
-              child: Row(
+              child: const Row(
                 children: [
                   Icon(Icons.person_pin_outlined,
-                      size: 14, color: Colors.indigo.shade600),
-                  const SizedBox(width: 6),
+                      size: 14, color: AppColors.reasonKlausIcon),
+                  SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       'Lokasi toko ini memerlukan persetujuan RSM Klaus secara otomatis.',
                       style: TextStyle(
                         fontSize: 11,
-                        color: Colors.indigo.shade700,
+                        color: AppColors.reasonKlausText,
                         height: 1.4,
                       ),
                     ),
