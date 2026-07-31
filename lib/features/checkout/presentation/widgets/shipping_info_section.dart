@@ -6,6 +6,7 @@ import '../../../../core/widgets/checkout_input_decoration.dart';
 import '../../../../core/widgets/form_field_label.dart';
 import '../../../../core/widgets/segmented_toggle.dart';
 import '../../data/models/store_model.dart';
+import 'pick_contact_pill.dart';
 
 /// Shipping address section extracted from CheckoutPage.
 ///
@@ -28,10 +29,6 @@ class ShippingInfoSection extends StatelessWidget {
     /// Indirect + alamat beda: email penerima (opsional).
     this.showIndirectAlternateReceiverEmail = false,
     this.shippingEmailCtrl,
-    this.showIndirectSaveReceiverContact = false,
-    this.isFromContactBook = false,
-    this.shouldSaveReceiverContact = true,
-    required this.onToggleSaveReceiverContact,
     required this.customerAddressCtrl,
     required this.regionCtrl,
     required this.isShippingSameAsCustomer,
@@ -65,10 +62,6 @@ class ShippingInfoSection extends StatelessWidget {
   final bool receiverContactOptional;
   final bool showIndirectAlternateReceiverEmail;
   final TextEditingController? shippingEmailCtrl;
-  final bool showIndirectSaveReceiverContact;
-  final bool isFromContactBook;
-  final bool shouldSaveReceiverContact;
-  final ValueChanged<bool> onToggleSaveReceiverContact;
 
   final TextEditingController customerAddressCtrl;
   final TextEditingController regionCtrl;
@@ -96,7 +89,7 @@ class ShippingInfoSection extends StatelessWidget {
   /// Customer Baru mode: callback untuk pilih kontak dari buku kontak.
   final VoidCallback? onPickReceiverContact;
 
-  /// True jika penerima sudah dipilih dari buku kontak (sembunyikan simpan kontak).
+  /// True jika penerima sudah dipilih dari buku kontak server.
   final bool isFromReceiverContactBook;
 
   /// Refresh daftar toko (all stores API).
@@ -179,12 +172,26 @@ class ShippingInfoSection extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 12),
-                    Text(
-                      receiverBlockTitle,
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleSmall
-                          ?.copyWith(fontWeight: FontWeight.w600),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            receiverBlockTitle,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        // Hanya relevan saat Customer Baru (form bebas) —
+                        // mode Cabang/Gudang mengisi dari daftar toko, bukan
+                        // buku kontak.
+                        if (onPickReceiverContact != null &&
+                            (onToggleReceiverBranchMode == null ||
+                                !isReceiverBranchMode))
+                          PickContactPill(onTap: onPickReceiverContact!),
+                      ],
                     ),
                     // Mode toggle: hanya tampil untuk indirect (onToggleReceiverBranchMode != null)
                     if (onToggleReceiverBranchMode != null) ...[
@@ -211,25 +218,10 @@ class ShippingInfoSection extends StatelessWidget {
                       ],
                       const SizedBox(height: 8),
                     ] else ...[
-                      // Customer baru / non-indirect: form bebas
-                      // Tombol pilih dari kontak (hanya untuk indirect customer baru)
-                      if (onPickReceiverContact != null) ...[
-                        OutlinedButton.icon(
-                          onPressed: onPickReceiverContact,
-                          icon: const Icon(Icons.contacts_outlined, size: 16),
-                          label: const Text('Pilih dari Kontak',
-                              style: TextStyle(fontSize: 13)),
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size(double.infinity, 40),
-                            side: const BorderSide(color: AppColors.border),
-                            foregroundColor: AppColors.textSecondary,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                      ],
+                      // Customer baru / non-indirect: form bebas.
+                      // Tombol pilih dari kontak sudah dipindah ke baris
+                      // judul (`PickContactPill` di atas), jadi tidak perlu
+                      // tombol full-width duplikat di sini lagi.
                       _buildTextField(
                         controller: shippingNameCtrl,
                         label: receiverContactOptional
@@ -237,8 +229,9 @@ class ShippingInfoSection extends StatelessWidget {
                             : 'Nama Penerima *',
                         isRequired: !receiverContactOptional,
                       ),
-                      const SizedBox(height: 16),
-                      _buildReceiverPhoneRow(),
+                      // Urutan Nama → Email → No. HP disamakan dengan blok
+                      // "Informasi Pelanggan" (`CustomerInfoSection`) supaya
+                      // konsisten di seluruh form checkout.
                       if (showIndirectAlternateReceiverEmail &&
                           shippingEmailCtrl != null) ...[
                         const SizedBox(height: 16),
@@ -258,6 +251,8 @@ class ShippingInfoSection extends StatelessWidget {
                         ),
                       ],
                       const SizedBox(height: 16),
+                      _buildReceiverPhoneRow(),
+                      const SizedBox(height: 16),
                       _buildRegionSelector(
                         controller: shippingRegionCtrl,
                         label: 'Provinsi, Kota/Kab, Kecamatan Penerima *',
@@ -272,35 +267,6 @@ class ShippingInfoSection extends StatelessWidget {
                         alignLabelWithHint: true,
                         isRequired: true,
                       ),
-                      // Simpan kontak penerima — hanya di mode Customer Baru
-                      if (showIndirectSaveReceiverContact &&
-                          !isFromReceiverContactBook) ...[
-                        const SizedBox(height: 12),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: Checkbox.adaptive(
-                                value: shouldSaveReceiverContact,
-                                onChanged: (v) =>
-                                    onToggleSaveReceiverContact(v ?? true),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            const Expanded(
-                              child: Text(
-                                'Simpan kontak penerima ke buku kontak',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
                       const SizedBox(height: 8),
                     ],
                   ],

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -30,15 +29,14 @@ import '../../../profile/logic/profile_provider.dart';
 import '../../data/models/payment_entry.dart';
 import '../../data/models/region_result.dart';
 import '../../data/models/store_model.dart';
-import '../../data/services/local_contact_service.dart';
+import '../../data/models/address_book_contact.dart';
+import '../../logic/address_book_provider.dart';
 import '../../data/utils/checkout_payload_builder.dart';
 import '../../data/utils/indirect_approval_rules.dart';
 import '../../logic/bonus_takeaway_state.dart';
 import '../../logic/checkout_form_validator.dart';
 import '../../logic/checkout_provider.dart';
-import '../../logic/customer_repository_provider.dart';
 import '../../logic/store_provider.dart';
-import '../../data/services/customer_repository.dart';
 import '../../logic/quotation_save_handler.dart';
 import '../widgets/active_draft_banner.dart';
 import '../widgets/checkout_approval_card.dart';
@@ -129,17 +127,15 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   bool _isShippingSameAsCustomer = true;
   bool _showBackupPhone = false;
   bool _showReceiverBackupPhone = false;
-  bool _shouldSaveCustomerContact = true;
 
-  /// Indirect: simpan ke buku kontak memakai data penerima (bukan toko).
-  bool _shouldSaveReceiverContact = true;
-  bool _isCloudLookupLoading = false;
+  /// True jika field nama/HP pelanggan sedang berisi data hasil pilih dari
+  /// [ContactPickerBottomSheet] (buku kontak server, `/address_books`) —
+  /// dipakai untuk auto-clear indikator saat user mengedit manual lagi.
   bool _isFromContactBook = false;
 
   /// Guard sinkron untuk mencegah double-tap pada tombol "Buat Surat Pesanan".
   /// Diset true sebelum submitOrder dipanggil, dikosongkan saat overlay tutup.
   bool _submitInFlight = false;
-  String? _selectedContactId;
 
   /// Edit mode: pastikan prefill approver dari OrderHistory hanya jalan sekali
   /// setelah daftar approver selesai di-fetch.
@@ -428,60 +424,6 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       ? _customerEmailCtrl.text.trim()
       : _shippingEmailCtrl.text.trim();
 
-  String _indirectSavedContactDisplayName() {
-    if (_isShippingSameAsCustomer) {
-      return '';
-    }
-    final n = _shippingNameCtrl.text.trim();
-    if (n.isNotEmpty) return n;
-    final p = _shippingPhoneCtrl.text.trim();
-    if (p.isNotEmpty) return p;
-    final e = _shippingEmailCtrl.text.trim();
-    if (e.isNotEmpty) return e.split('@').first;
-    return '';
-  }
-
-  Map<String, dynamic> _newCustomerContactPayload(bool isIndirect) {
-    if (!isIndirect) {
-      return CheckoutPayloadBuilder.buildNewCustomerContactPayload(
-        customerName: _customerNameCtrl.text,
-        customerPhone: _customerPhoneCtrl.text,
-        customerEmail: _customerEmailCtrl.text,
-        customerAddress: _customerAddressCtrl.text,
-        regionText: _regionCtrl.text,
-        selectedKecamatan: _selectedKecamatan,
-        selectedKota: _selectedKota,
-        selectedProvinsi: _selectedProvinsi,
-        customerPhone2: _customerPhone2Ctrl.text,
-      );
-    }
-    if (_isShippingSameAsCustomer) {
-      return CheckoutPayloadBuilder.buildNewCustomerContactPayload(
-        customerName: '',
-        customerPhone: '',
-        customerEmail: '',
-        customerAddress: _customerAddressCtrl.text,
-        regionText: _regionCtrl.text,
-        selectedKecamatan: _selectedKecamatan,
-        selectedKota: _selectedKota,
-        selectedProvinsi: _selectedProvinsi,
-        customerPhone2: '',
-      );
-    }
-    final display = _indirectSavedContactDisplayName();
-    return CheckoutPayloadBuilder.buildNewCustomerContactPayload(
-      customerName: display,
-      customerPhone: _shippingPhoneCtrl.text,
-      customerEmail: _shippingEmailCtrl.text,
-      customerAddress: _shippingAddressCtrl.text,
-      regionText: _shippingRegionCtrl.text,
-      selectedKecamatan: _shippingKecamatan,
-      selectedKota: _shippingKota,
-      selectedProvinsi: _shippingProvinsi,
-      customerPhone2: _shippingPhone2Ctrl.text,
-    );
-  }
-
   @override
   void dispose() {
     _customerNameCtrl.dispose();
@@ -653,8 +595,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     // Edit mode: jika order asli adalah SO (indirect) tapi item belum memiliki
     // indirectStoreAddressNumber yang valid, tetap anggap indirect.
     final isIndirectCheckout = cartItems.any((e) => e.isIndirectSale) ||
-        (isEditMode &&
-            (editOrder.channel?.trim().toUpperCase() ?? '') == 'SO');
+        (isEditMode && (editOrder.channel?.trim().toUpperCase() ?? '') == 'SO');
 
     // Edit mode: begitu daftar approver selesai fetch, prefill SPV/Manager dari
     // order yang sedang di-edit supaya user tidak perlu memilih ulang.
@@ -787,110 +728,97 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                         return KeyedSubtree(
                           key: _customerSectionKey,
                           child: CheckoutCustomerShippingCard(
-                        customerSectionTitle: isIndirectCheckout
-                            ? 'Informasi Toko'
-                            : 'Informasi Pelanggan',
-                        customerSectionSubtitle:
-                            isIndirectCheckout ? null : null,
-                        shippingSectionTitle: isIndirectCheckout
-                            ? 'Alamat toko & pengiriman'
-                            : 'Alamat & Pengiriman',
-                        sameAsCustomerLabel: isIndirectCheckout
-                            ? 'Kirim ke alamat toko di atas'
-                            : 'Kirim ke alamat pelanggan di atas',
-                        receiverBlockTitle: isIndirectCheckout
-                            ? 'Penerima / gudang / cabang lain'
-                            : 'Informasi Penerima (Dropship / Lokasi Lain)',
-                        storeContactOptional: false,
-                        indirectStoreOnly: isIndirectCheckout,
-                        customerNameFieldLabel: isIndirectCheckout
-                            ? 'Nama Toko *'
-                            : 'Nama Pelanggan *',
-                        useStoreAddressLabels: isIndirectCheckout,
-                        hideCustomerRegionPicker: isIndirectCheckout,
-                        receiverContactOptional: isIndirectCheckout,
-                        showIndirectAlternateReceiverEmail:
-                            isIndirectCheckout && !_isShippingSameAsCustomer,
-                        shippingEmailCtrl: _shippingEmailCtrl,
-                        showIndirectSaveReceiverContact:
-                            isIndirectCheckout && !_isShippingSameAsCustomer,
-                        shouldSaveReceiverContact: _shouldSaveReceiverContact,
-                        onToggleSaveReceiverContact: (v) =>
-                            setState(() => _shouldSaveReceiverContact = v),
-                        customerNameCtrl: _customerNameCtrl,
-                        customerEmailCtrl: _customerEmailCtrl,
-                        customerPhoneCtrl: _customerPhoneCtrl,
-                        customerPhone2Ctrl: _customerPhone2Ctrl,
-                        showBackupPhone: _showBackupPhone,
-                        onToggleBackupPhone: () =>
-                            setState(() => _showBackupPhone = true),
-                        isFromContactBook: _isFromContactBook,
-                        shouldSaveCustomerContact: _shouldSaveCustomerContact,
-                        onToggleSaveContact: (v) =>
-                            setState(() => _shouldSaveCustomerContact = v),
-                        selectedContactId: _selectedContactId,
-                        onContactFieldCleared: () => setState(() {
-                          _selectedContactId = null;
-                          _isFromContactBook = false;
-                        }),
-                        onPickContact: _pickContact,
-                        onCloudLookup: isIndirectCheckout
-                            ? null
-                            : _lookupCustomerFromCloud,
-                        isCloudLookupLoading: _isCloudLookupLoading,
-                        customerAddressCtrl: _customerAddressCtrl,
-                        regionCtrl: _regionCtrl,
-                        isShippingSameAsCustomer: _isShippingSameAsCustomer,
-                        onToggleSameAddress: (v) =>
-                            setState(() => _isShippingSameAsCustomer = v),
-                        onPickCustomerRegion: () =>
-                            _pickRegion(isShipping: false),
-                        shippingNameCtrl: _shippingNameCtrl,
-                        shippingPhoneCtrl: _shippingPhoneCtrl,
-                        shippingPhone2Ctrl: _shippingPhone2Ctrl,
-                        showReceiverBackupPhone: _showReceiverBackupPhone,
-                        onToggleReceiverBackupPhone: () =>
-                            setState(() => _showReceiverBackupPhone = true),
-                        shippingAddressCtrl: _shippingAddressCtrl,
-                        shippingRegionCtrl: _shippingRegionCtrl,
-                        onPickShippingRegion: () =>
-                            _pickRegion(isShipping: true),
-                        isReceiverBranchMode: isIndirectCheckout
-                            ? _isReceiverBranchMode
-                            : false,
-                        onToggleReceiverBranchMode: isIndirectCheckout
-                            ? (v) => setState(() {
-                                  _isReceiverBranchMode = v;
-                                  _selectedReceiverStore = null;
-                                  _isFromReceiverContactBook = false;
-                                  _shippingNameCtrl.clear();
-                                  _shippingPhoneCtrl.clear();
-                                  _shippingPhone2Ctrl.clear();
-                                  _shippingAddressCtrl.clear();
-                                  _shippingRegionCtrl.clear();
-                                  _shippingProvinsi = null;
-                                  _shippingKota = null;
-                                  _shippingKecamatan = null;
-                                })
-                            : null,
-                        availableStores: allStores,
-                        selectedReceiverStore: _selectedReceiverStore,
-                        onReceiverStorePicked: isIndirectCheckout
-                            ? _onReceiverStorePicked
-                            : null,
-                        onPickReceiverContact: isIndirectCheckout
-                            ? _pickReceiverContact
-                            : null,
-                        isFromReceiverContactBook: _isFromReceiverContactBook,
-                        onRefreshStores: isIndirectCheckout
-                            ? () => ref
-                                .read(storeListProvider.notifier)
-                                .refreshFromNetwork()
-                            : null,
-                        isRefreshingStores: isIndirectCheckout
-                            ? isRefreshingStores
-                            : false,
-                      ),
+                            customerSectionTitle: isIndirectCheckout
+                                ? 'Informasi Toko'
+                                : 'Informasi Pelanggan',
+                            customerSectionSubtitle:
+                                isIndirectCheckout ? null : null,
+                            shippingSectionTitle: isIndirectCheckout
+                                ? 'Alamat toko & pengiriman'
+                                : 'Alamat & Pengiriman',
+                            sameAsCustomerLabel: isIndirectCheckout
+                                ? 'Kirim ke alamat toko di atas'
+                                : 'Kirim ke alamat pelanggan di atas',
+                            receiverBlockTitle: isIndirectCheckout
+                                ? 'Penerima / gudang / cabang lain'
+                                : 'Informasi Penerima (Dropship / Lokasi Lain)',
+                            storeContactOptional: false,
+                            indirectStoreOnly: isIndirectCheckout,
+                            customerNameFieldLabel: isIndirectCheckout
+                                ? 'Nama Toko *'
+                                : 'Nama Pelanggan *',
+                            useStoreAddressLabels: isIndirectCheckout,
+                            hideCustomerRegionPicker: isIndirectCheckout,
+                            receiverContactOptional: isIndirectCheckout,
+                            showIndirectAlternateReceiverEmail:
+                                isIndirectCheckout &&
+                                    !_isShippingSameAsCustomer,
+                            shippingEmailCtrl: _shippingEmailCtrl,
+                            customerNameCtrl: _customerNameCtrl,
+                            customerEmailCtrl: _customerEmailCtrl,
+                            customerPhoneCtrl: _customerPhoneCtrl,
+                            customerPhone2Ctrl: _customerPhone2Ctrl,
+                            showBackupPhone: _showBackupPhone,
+                            onToggleBackupPhone: () =>
+                                setState(() => _showBackupPhone = true),
+                            isFromContactBook: _isFromContactBook,
+                            onContactFieldCleared: () => setState(() {
+                              _isFromContactBook = false;
+                            }),
+                            onPickContact: _pickContact,
+                            customerAddressCtrl: _customerAddressCtrl,
+                            regionCtrl: _regionCtrl,
+                            isShippingSameAsCustomer: _isShippingSameAsCustomer,
+                            onToggleSameAddress: (v) =>
+                                setState(() => _isShippingSameAsCustomer = v),
+                            onPickCustomerRegion: () =>
+                                _pickRegion(isShipping: false),
+                            shippingNameCtrl: _shippingNameCtrl,
+                            shippingPhoneCtrl: _shippingPhoneCtrl,
+                            shippingPhone2Ctrl: _shippingPhone2Ctrl,
+                            showReceiverBackupPhone: _showReceiverBackupPhone,
+                            onToggleReceiverBackupPhone: () =>
+                                setState(() => _showReceiverBackupPhone = true),
+                            shippingAddressCtrl: _shippingAddressCtrl,
+                            shippingRegionCtrl: _shippingRegionCtrl,
+                            onPickShippingRegion: () =>
+                                _pickRegion(isShipping: true),
+                            isReceiverBranchMode: isIndirectCheckout
+                                ? _isReceiverBranchMode
+                                : false,
+                            onToggleReceiverBranchMode: isIndirectCheckout
+                                ? (v) => setState(() {
+                                      _isReceiverBranchMode = v;
+                                      _selectedReceiverStore = null;
+                                      _isFromReceiverContactBook = false;
+                                      _shippingNameCtrl.clear();
+                                      _shippingPhoneCtrl.clear();
+                                      _shippingPhone2Ctrl.clear();
+                                      _shippingAddressCtrl.clear();
+                                      _shippingRegionCtrl.clear();
+                                      _shippingProvinsi = null;
+                                      _shippingKota = null;
+                                      _shippingKecamatan = null;
+                                    })
+                                : null,
+                            availableStores: allStores,
+                            selectedReceiverStore: _selectedReceiverStore,
+                            onReceiverStorePicked: isIndirectCheckout
+                                ? _onReceiverStorePicked
+                                : null,
+                            onPickReceiverContact: isIndirectCheckout
+                                ? _pickReceiverContact
+                                : null,
+                            isFromReceiverContactBook:
+                                _isFromReceiverContactBook,
+                            onRefreshStores: isIndirectCheckout
+                                ? () => ref
+                                    .read(storeListProvider.notifier)
+                                    .refreshFromNetwork()
+                                : null,
+                            isRefreshingStores:
+                                isIndirectCheckout ? isRefreshingStores : false,
+                          ),
                         );
                       },
                     ),
@@ -984,11 +912,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                             hasCustomSizeItem:
                                 cartItems.any((e) => e.isCustomSize),
                             hasFocVoucherItem: _hasFocVoucherItem(cartItems),
-                            isCustomerBaru: cartItems.any(
-                                    (e) => e.isIndirectSale) &&
+                            isCustomerBaru: cartItems
+                                    .any((e) => e.isIndirectSale) &&
                                 (_isCustomerBaruShippingForApproval() ||
-                                    cartItems.any(
-                                        (e) => e.isNewCustomerStore)),
+                                    cartItems.any((e) => e.isNewCustomerStore)),
                             isKlausManagerAutoAssigned: ref
                                 .read(checkoutProvider.notifier)
                                 .isKlausRuleActive,
@@ -1180,12 +1107,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         isCustomerBaruShipping: _isCustomerBaruShippingForApproval(),
         hasNewCustomerStoreItem:
             IndirectApprovalRules.cartHasNewCustomerStore(cartItems),
-        hasFocVoucherItem:
-            IndirectApprovalRules.cartHasFocVoucher(cartItems),
+        hasFocVoucherItem: IndirectApprovalRules.cartHasFocVoucher(cartItems),
         hasMedanPricelistItem:
             IndirectApprovalRules.cartHasMedanArea(cartItems),
-        hasCustomSizeItem:
-            IndirectApprovalRules.cartHasCustomSize(cartItems),
+        hasCustomSizeItem: IndirectApprovalRules.cartHasCustomSize(cartItems),
       );
     }
     return true;
@@ -1361,94 +1286,34 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           .where((s) => s.isNotEmpty)
           .toList();
       _shippingRegionCtrl.text = parts.join(', ');
-      _shippingProvinsi = store.state.trim().isEmpty ? null : store.state.trim();
+      _shippingProvinsi =
+          store.state.trim().isEmpty ? null : store.state.trim();
       _shippingKota = store.city.trim().isEmpty ? null : store.city.trim();
-      _shippingKecamatan =
-          store.area.trim().isEmpty ? null : store.area.trim();
+      _shippingKecamatan = store.area.trim().isEmpty ? null : store.area.trim();
     });
   }
 
-  Future<void> _lookupCustomerFromCloud() async {
-    final trimmed = _customerPhoneCtrl.text.trim();
-    final key = CustomerRepository.normalizePhoneKey(trimmed);
-    if (key.length < 10) {
-      AppFeedback.show(
-        context,
-        message: 'Isi nomor HP utama yang valid terlebih dahulu.',
-        type: AppFeedbackType.warning,
-        floating: true,
-      );
-      return;
-    }
-    if (ifOfflineShowFeedback(
-      context,
-      isOffline: ref.read(isOfflineProvider),
-    )) {
-      return;
-    }
-
-    setState(() => _isCloudLookupLoading = true);
+  /// Loads the area-filtered contact list from the server address book
+  /// (`/address_books`) and opens the picker sheet. Returns `null` if the
+  /// user cancels, the area has no contacts, or the fetch fails.
+  Future<AddressBookContact?> _showAddressBookPicker() async {
+    List<AddressBookContact> contacts;
     try {
-      final repo = ref.read(customerRepositoryProvider);
-      final c = await repo.getCustomerByPhone(trimmed);
-      if (!mounted) return;
-      if (c != null) {
-        _customerNameCtrl.text = c.name;
-        _customerEmailCtrl.text = c.email;
-        _customerAddressCtrl.text = c.address;
-        _regionCtrl.text = c.region;
-        _selectedProvinsi =
-            (c.provinsi != null && c.provinsi!.isNotEmpty) ? c.provinsi : null;
-        _selectedKota = (c.kota != null && c.kota!.isNotEmpty) ? c.kota : null;
-        _selectedKecamatan = (c.kecamatan != null && c.kecamatan!.isNotEmpty)
-            ? c.kecamatan
-            : null;
-        _selectedContactId = null;
-        _isFromContactBook = false;
-        _shouldSaveCustomerContact = true;
-        AppFeedback.show(
-          context,
-          message: 'Data pelanggan ditemukan dari sistem!',
-          type: AppFeedbackType.success,
-          floating: true,
-          duration: const Duration(seconds: 2),
-        );
-      } else {
-        AppFeedback.show(
-          context,
-          message:
-              'Pelanggan dengan nomor ini belum ada di data cloud. Lanjutkan isi form manual atau setelah SP sukses data bisa tersimpan ke cloud.',
-          type: AppFeedbackType.info,
-          floating: true,
-          duration: const Duration(seconds: 4),
-        );
-      }
+      contacts = await ref.read(addressBookContactsProvider.future);
     } catch (e, st) {
-      Log.error(e, st, reason: 'Checkout: cloud customer lookup');
-      if (!mounted) return;
-      final hint = kDebugMode ? ' ($e)' : '';
+      Log.error(e, st, reason: 'Checkout: fetch address book contacts');
+      if (!mounted) return null;
       AppFeedback.show(
         context,
-        message: 'Gagal menghubungi Data Connect.$hint '
-            'Periksa App Check (token debug di Console), koneksi, dan bahwa Anonymous Auth aktif.',
+        message: userFacingErrorMessage(e),
         type: AppFeedbackType.warning,
         floating: true,
       );
-    } finally {
-      if (mounted) setState(() => _isCloudLookupLoading = false);
+      return null;
     }
-  }
+    if (!mounted) return null;
 
-  Future<void> _pickContact() async {
-    final contacts = await LocalContactService.getContacts();
-    if (!mounted) return;
-    if (contacts.isEmpty) {
-      AppFeedback.plain(context, 'Belum ada kontak tersimpan.');
-      return;
-    }
-
-    if (!mounted) return;
-    final selected = await showModalBottomSheet<Map<String, dynamic>>(
+    return showModalBottomSheet<AddressBookContact>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
@@ -1456,84 +1321,30 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       ),
       builder: (_) => ContactPickerBottomSheet(contacts: contacts),
     );
+  }
 
-    if (!mounted) return;
-    if (selected != null) {
-      final phone2 = (selected['phone2'] as String?) ?? '';
-      final selectedId = selected['id']?.toString();
-      setState(() {
-        _customerNameCtrl.text = selected['name'] ?? '';
-        _customerPhoneCtrl.text = selected['phone'] ?? '';
-        _customerPhone2Ctrl.text = phone2;
-        _customerEmailCtrl.text = selected['email'] ?? '';
-        _customerAddressCtrl.text =
-            selected['alamat_detail'] ?? selected['address'] ?? '';
-
-        _selectedProvinsi = selected['provinsi'] as String?;
-        _selectedKota = selected['kota'] as String?;
-        _selectedKecamatan = selected['kecamatan'] as String?;
-
-        final kec = _selectedKecamatan;
-        final kota = _selectedKota;
-        final prov = _selectedProvinsi;
-        if (kec != null || kota != null || prov != null) {
-          _regionCtrl.text = [
-            if (kec != null) 'Kec. $kec',
-            if (kota != null) kota,
-            if (prov != null) prov,
-          ].join(', ');
-        }
-
-        _showBackupPhone = phone2.isNotEmpty;
-        _isFromContactBook = true;
-        _shouldSaveCustomerContact = false;
-        _selectedContactId = selectedId;
-      });
-    }
+  /// Pelanggan (direct) / toko (indirect): isi nama & HP dari buku kontak
+  /// server. Endpoint ini hanya punya nama + HP — alamat/wilayah tetap diisi
+  /// manual.
+  Future<void> _pickContact() async {
+    final selected = await _showAddressBookPicker();
+    if (!mounted || selected == null) return;
+    setState(() {
+      _customerNameCtrl.text = selected.name;
+      _customerPhoneCtrl.text = selected.phone;
+      _isFromContactBook = true;
+    });
   }
 
   /// Indirect: pilih kontak dari buku kontak untuk mengisi field penerima
-  /// (Customer Baru mode — bukan Cabang/Gudang).
+  /// (Customer Baru mode — bukan Cabang/Gudang). Hanya nama + HP tersedia.
   Future<void> _pickReceiverContact() async {
-    final contacts = await LocalContactService.getContacts();
-    if (!mounted) return;
-    if (contacts.isEmpty) {
-      AppFeedback.plain(context, 'Belum ada kontak tersimpan.');
-      return;
-    }
-    if (!mounted) return;
-    final selected = await showModalBottomSheet<Map<String, dynamic>>(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (_) => ContactPickerBottomSheet(contacts: contacts),
-    );
+    final selected = await _showAddressBookPicker();
     if (!mounted || selected == null) return;
-    final phone2 = (selected['phone2'] as String?) ?? '';
     setState(() {
-      _shippingNameCtrl.text = selected['name'] ?? '';
-      _shippingPhoneCtrl.text = selected['phone'] ?? '';
-      _shippingPhone2Ctrl.text = phone2;
-      _shippingAddressCtrl.text =
-          selected['alamat_detail'] ?? selected['address'] ?? '';
-      _shippingProvinsi = selected['provinsi'] as String?;
-      _shippingKota = selected['kota'] as String?;
-      _shippingKecamatan = selected['kecamatan'] as String?;
-      final kec = _shippingKecamatan;
-      final kota = _shippingKota;
-      final prov = _shippingProvinsi;
-      if (kec != null || kota != null || prov != null) {
-        _shippingRegionCtrl.text = [
-          if (kec != null) 'Kec. $kec',
-          if (kota != null) kota,
-          if (prov != null) prov,
-        ].join(', ');
-      }
-      _showReceiverBackupPhone = phone2.isNotEmpty;
+      _shippingNameCtrl.text = selected.name;
+      _shippingPhoneCtrl.text = selected.phone;
       _isFromReceiverContactBook = true;
-      _shouldSaveReceiverContact = false;
     });
   }
 
@@ -1721,11 +1532,6 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       }
     }
 
-    final newCustomerContact = _newCustomerContactPayload(isIndirect);
-    if (_selectedContactId != null) {
-      newCustomerContact['id'] = _selectedContactId;
-    }
-
     unawaited(ref.read(checkoutProvider.notifier).submitOrder(
           cartItems: cartItems,
           headerPayload: headerPayload,
@@ -1735,11 +1541,6 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           lineIsTakeAway: _lineTakeAwayAt,
           isBonusTakeAwayChecked: _isBonusTakeAwayChecked,
           currentTakeAwayQty: _currentTakeAwayQty,
-          selectedContactId: _selectedContactId,
-          shouldSaveCustomerContact: isIndirect
-              ? (!_isShippingSameAsCustomer && _shouldSaveReceiverContact)
-              : _shouldSaveCustomerContact,
-          newCustomerContact: newCustomerContact,
           selectedCartItems: widget.selectedCartItems,
           requiresApproval: !autoApprove,
           requiresSpvApproval: _requiresSpvApproval(cartItems),

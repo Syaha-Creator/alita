@@ -25,9 +25,6 @@ import '../data/models/store_model.dart';
 import '../data/services/approval_service.dart';
 import '../data/models/checkout_models.dart';
 import '../data/services/checkout_order_service.dart';
-import '../data/services/customer_repository.dart';
-import '../data/services/local_contact_service.dart';
-import 'customer_repository_provider.dart';
 
 part 'checkout_provider.freezed.dart';
 
@@ -49,6 +46,7 @@ class CheckoutState with _$CheckoutState {
     @Default([]) List<Approver> approvers,
     @Default(true) bool isLoadingApprovers,
     String? approversError,
+
     /// Judul kartu error (bukan lagi satu pesan generik untuk semua kasus).
     String? approversErrorTitle,
     Approver? selectedSpv,
@@ -222,9 +220,8 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         approversError: data.isEmpty
             ? 'Belum ada Supervisor (SPV), Area Sales Manager (ASM), atau Manager yang terdaftar untuk perusahaan dan area Anda di sistem persetujuan. Hubungi administrator untuk mengatur daftar approver.'
             : null,
-        approversErrorTitle: data.isEmpty
-            ? 'Tidak ada atasan yang cocok'
-            : null,
+        approversErrorTitle:
+            data.isEmpty ? 'Tidak ada atasan yang cocok' : null,
       );
     } catch (e, st) {
       Log.error(e, st, reason: 'CheckoutNotifier.fetchApprovers');
@@ -249,8 +246,9 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       );
     }
     final raw = e.toString();
-    final stripped =
-        raw.startsWith('Exception: ') ? raw.substring('Exception: '.length) : raw;
+    final stripped = raw.startsWith('Exception: ')
+        ? raw.substring('Exception: '.length)
+        : raw;
     if (stripped.startsWith('HTTP ')) {
       return (
         'Gagal mengambil daftar approver',
@@ -351,10 +349,6 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     required bool Function(int itemIndex, CartBonusSnapshot)
         isBonusTakeAwayChecked,
     required int Function(int itemIndex, CartBonusSnapshot) currentTakeAwayQty,
-    // Contact saving
-    required String? selectedContactId,
-    required bool shouldSaveCustomerContact,
-    required Map<String, dynamic>? newCustomerContact,
     // Cart cleanup
     required List<CartItem>? selectedCartItems,
     // Jika false (indirect tanpa diskon tambahan → autoApprove), selectedSpv
@@ -491,22 +485,6 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
           retryNoSp: noSp,
           retryCompletedSteps: completedSteps.toList(),
         );
-
-        // Auto-save customer contact (hanya untuk order baru, bukan saat retry)
-        final shouldPersist = selectedContactId != null ||
-            (selectedContactId == null && shouldSaveCustomerContact);
-        if (shouldPersist && newCustomerContact != null) {
-          final name = (newCustomerContact['name'] as String?) ?? '';
-          final phone = (newCustomerContact['phone'] as String?) ?? '';
-          final email = (newCustomerContact['email'] as String?) ?? '';
-          if (name.isNotEmpty || phone.isNotEmpty || email.isNotEmpty) {
-            try {
-              await LocalContactService.saveContact(newCustomerContact);
-            } catch (e, st) {
-              Log.error(e, st, reason: 'Checkout: save local contact');
-            }
-          }
-        }
       }
 
       // ── STEP 2: Post Contacts ──
@@ -633,8 +611,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         );
 
         final step5 = Stopwatch()..start();
-        final needsFallback =
-            succeededForDiscounts.any((s) => s.detailId <= 0);
+        final needsFallback = succeededForDiscounts.any((s) => s.detailId <= 0);
         final fallbackIds = needsFallback
             ? await _orderService.fetchDetailIds(orderLetterId, token)
             : <int>[];
@@ -677,7 +654,8 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
           await _ref.read(cartProvider.notifier).clearCart();
         }
         _ref.invalidate(orderHistoryProvider);
-        unawaited(_ref.read(approvalInboxProvider.notifier).fetchInbox(force: true));
+        unawaited(
+            _ref.read(approvalInboxProvider.notifier).fetchInbox(force: true));
 
         state = state.copyWith(
           isSubmitting: false,
@@ -690,12 +668,6 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
           retryPaymentStartIndex: 0,
           submitSuccess: true,
           successNoSp: noSp,
-        );
-        unawaited(
-          CustomerRepository.upsertFromCheckoutContactMapQuiet(
-            _ref.read(customerRepositoryProvider),
-            newCustomerContact,
-          ),
         );
 
         unawaited(_notifyFirstApprover(
@@ -726,8 +698,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         state = state.copyWith(
           isSubmitting: false,
           // retryDiscountDetails sudah diset ke failedDiscountDetails di atas
-          submitError:
-              'SP $noSp berhasil dibuat, tetapi diskon untuk '
+          submitError: 'SP $noSp berhasil dibuat, tetapi diskon untuk '
               '${failedDiscountDetails.length} item gagal dicatat.\n\n'
               'Tekan tombol "Coba Lagi Kirim Diskon" yang muncul di bawah '
               'untuk mengirim ulang tanpa membuat SP baru.',
@@ -902,7 +873,9 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     required Set<int> completedSteps,
     required int totalContacts,
   }) async {
-    if (completedSteps.contains(2) || orderLetterId <= 0 || totalContacts <= 0) {
+    if (completedSteps.contains(2) ||
+        orderLetterId <= 0 ||
+        totalContacts <= 0) {
       return;
     }
     try {
@@ -947,7 +920,9 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     required int totalPayments,
   }) async {
     // Hanya perlu rekonsiliasi jika step 3 belum selesai dan ada payment.
-    if (completedSteps.contains(3) || orderLetterId <= 0 || totalPayments <= 0) {
+    if (completedSteps.contains(3) ||
+        orderLetterId <= 0 ||
+        totalPayments <= 0) {
       return;
     }
     try {
@@ -1039,8 +1014,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       if (succeededForDiscounts.isNotEmpty) {
         state = state.copyWith(retryDiscountDetails: succeededForDiscounts);
 
-        final needsFallback =
-            succeededForDiscounts.any((s) => s.detailId <= 0);
+        final needsFallback = succeededForDiscounts.any((s) => s.detailId <= 0);
         final fallbackIds = needsFallback
             ? await _orderService.fetchDetailIds(orderId, token)
             : <int>[];
@@ -1069,7 +1043,8 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         }
 
         _ref.invalidate(orderHistoryProvider);
-        unawaited(_ref.read(approvalInboxProvider.notifier).fetchInbox(force: true));
+        unawaited(
+            _ref.read(approvalInboxProvider.notifier).fetchInbox(force: true));
 
         state = state.copyWith(
           isSubmitting: false,
@@ -1371,7 +1346,8 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       await _ref.read(cartProvider.notifier).clearCart();
       _ref.invalidate(orderHistoryProvider);
       _ref.invalidate(orderDetailProvider(orderLetterId));
-      unawaited(_ref.read(approvalInboxProvider.notifier).fetchInbox(force: true));
+      unawaited(
+          _ref.read(approvalInboxProvider.notifier).fetchInbox(force: true));
 
       sw.stop();
       AppTelemetry.event(
@@ -1431,7 +1407,8 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       );
       state = state.copyWith(
         isSubmitting: false,
-        submitError: 'Terjadi kesalahan saat menyimpan perubahan.\n\nDetail:\n$e',
+        submitError:
+            'Terjadi kesalahan saat menyimpan perubahan.\n\nDetail:\n$e',
       );
     }
   }
@@ -1451,7 +1428,6 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
 // Provider
 // ─────────────────────────────────────────────────────────────────
 
-final checkoutProvider =
-    StateNotifierProvider<CheckoutNotifier, CheckoutState>(
+final checkoutProvider = StateNotifierProvider<CheckoutNotifier, CheckoutState>(
   (ref) => CheckoutNotifier(ref),
 );

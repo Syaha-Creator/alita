@@ -62,9 +62,6 @@ void main() {
           lineIsTakeAway: noTakeAway,
           isBonusTakeAwayChecked: noBonusTakeAway,
           currentTakeAwayQty: zeroTakeAwayQty,
-          selectedContactId: null,
-          shouldSaveCustomerContact: false,
-          newCustomerContact: const {},
           selectedCartItems: null,
           requiresSpvApproval: true,
         );
@@ -91,9 +88,6 @@ void main() {
           lineIsTakeAway: noTakeAway,
           isBonusTakeAwayChecked: noBonusTakeAway,
           currentTakeAwayQty: zeroTakeAwayQty,
-          selectedContactId: null,
-          shouldSaveCustomerContact: false,
-          newCustomerContact: const {},
           selectedCartItems: null,
           requiresManagerApproval: true,
         );
@@ -118,9 +112,6 @@ void main() {
           lineIsTakeAway: noTakeAway,
           isBonusTakeAwayChecked: noBonusTakeAway,
           currentTakeAwayQty: zeroTakeAwayQty,
-          selectedContactId: null,
-          shouldSaveCustomerContact: false,
-          newCustomerContact: const {},
           selectedCartItems: null,
         );
 

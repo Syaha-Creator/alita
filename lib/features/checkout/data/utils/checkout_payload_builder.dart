@@ -32,17 +32,19 @@ class CheckoutPayloadBuilder {
     required String customerEmail,
     required String note,
     required String salesCode,
+
     /// `true` hanya jika **semua** baris checkout bawa sendiri (header API).
     /// Campur kirim + bawa → `false` (`take_away` header null; per detail tetap di payload).
     required bool headerAllLinesTakeAway,
 
     /// Indirect: alamat toko cukup dari [customerAddress] (tanpa suffix EMSIFA).
     bool useCustomerAddressDetailOnly = false,
-
     bool isIndirectOrder = false,
+
     /// No. PO: untuk indirect = no. PO toko, untuk direct = no. PO leasing.
     /// `null` jika kosong (tidak dikirim ke backend).
     String indirectNoPoText = '',
+
     /// Indirect: `address_number` toko untuk field `customer_master` di `/order_letters`.
     int? indirectCustomerMaster,
 
@@ -132,9 +134,8 @@ class CheckoutPayloadBuilder {
     final noPoTrimmed = indirectNoPoText.trim();
     final noPoValue = noPoTrimmed.isEmpty ? null : noPoTrimmed;
 
-    final customerType = isIndirectOrder
-        ? resolveIndirectCustomerType(cartItems)
-        : null;
+    final customerType =
+        isIndirectOrder ? resolveIndirectCustomerType(cartItems) : null;
 
     return {
       'order_date': AppFormatters.apiDate(orderDate),
@@ -160,10 +161,12 @@ class CheckoutPayloadBuilder {
       'postage': finalPostage,
       'channel': channel,
       if (noPoValue != null) 'no_po': noPoValue,
-      if (isIndirectOrder && indirectCustomerMaster != null &&
+      if (isIndirectOrder &&
+          indirectCustomerMaster != null &&
           indirectCustomerMaster > 0)
         'customer_master': indirectCustomerMaster,
-      if (isIndirectOrder && indirectShipToCode != null &&
+      if (isIndirectOrder &&
+          indirectShipToCode != null &&
           indirectShipToCode > 0)
         'ship_to_code': indirectShipToCode,
       if (customerType != null) 'customer_type': customerType,
@@ -178,42 +181,6 @@ class CheckoutPayloadBuilder {
       if (raw.isNotEmpty) return raw;
     }
     return null;
-  }
-
-  static Map<String, dynamic> buildNewCustomerContactPayload({
-    required String customerName,
-    required String customerPhone,
-    required String customerEmail,
-    required String customerAddress,
-    required String regionText,
-    String? selectedKecamatan,
-    String? selectedKota,
-    String? selectedProvinsi,
-    String? customerPhone2,
-  }) {
-    final wilayah = regionText.trim().isNotEmpty
-        ? regionText.trim()
-        : [
-            if ((selectedKecamatan ?? '').isNotEmpty) 'Kec. $selectedKecamatan',
-            if ((selectedKota ?? '').isNotEmpty) selectedKota,
-            if ((selectedProvinsi ?? '').isNotEmpty) selectedProvinsi,
-          ].join(', ');
-
-    final payload = <String, dynamic>{
-      'name': customerName.trim(),
-      'phone': customerPhone.trim(),
-      'email': customerEmail.trim(),
-      'wilayah': wilayah,
-      'alamat_detail': customerAddress.trim(),
-      'address': customerAddress.trim(),
-      'provinsi': selectedProvinsi ?? '',
-      'kota': selectedKota ?? '',
-      'kecamatan': selectedKecamatan ?? '',
-    };
-
-    final phone2 = (customerPhone2 ?? '').trim();
-    if (phone2.isNotEmpty) payload['phone2'] = phone2;
-    return payload;
   }
 
   /// Kontak untuk `POST /order_letter_contacts`.

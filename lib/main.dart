@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:app_links/app_links.dart';
-import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -31,10 +30,6 @@ import 'features/pricelist/logic/product_provider.dart';
 import 'core/widgets/offline_banner.dart';
 import 'firebase_options.dart';
 
-/// Batasi tunggu startup: di iOS release App Check kadang lambat — tanpa timeout,
-/// [runApp] tidak jalan → user stuck di splash native.
-const Duration _firebaseStartupTimeout = Duration(seconds: 25);
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -60,35 +55,6 @@ void main() async {
   }
 
   if (firebaseCoreOk) {
-    try {
-      // Tanpa ini, log: "No AppCheckProvider installed" dan Data Connect yang
-      // enforce App Check mengembalikan UNAUTHENTICATED / "auth rejected".
-      //
-      // Pakai [!kReleaseMode], bukan [kDebugMode]: `flutter run --profile` punya
-      // kDebugMode false — kalau pakai Play Integrity / DeviceCheck di emulator,
-      // attestation gagal + retry → "Too many attempts" + placeholder token.
-      // Hanya `flutter run --release` / build rilis yang pakai provider produksi.
-      await FirebaseAppCheck.instance
-          .activate(
-            // ignore: deprecated_member_use — API enum masih dipakai; setara providerAndroid/Apple.
-            androidProvider: kReleaseMode
-                ? AndroidProvider.playIntegrity
-                : AndroidProvider.debug,
-            // ignore: deprecated_member_use
-            appleProvider:
-                kReleaseMode ? AppleProvider.deviceCheck : AppleProvider.debug,
-          )
-          .timeout(_firebaseStartupTimeout);
-      await FirebaseAppCheck.instance.setTokenAutoRefreshEnabled(true);
-    } catch (e, st) {
-      Log.error(
-        e,
-        st,
-        reason:
-            'Firebase App Check activate failed (Data Connect bisa ditolak)',
-      );
-    }
-
     try {
       NotificationHandlerService.setFirebaseReady();
       Log.enableCrashlytics();

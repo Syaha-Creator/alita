@@ -5,8 +5,6 @@ import '../../data/models/store_model.dart';
 import 'customer_info_section.dart';
 import 'shipping_info_section.dart';
 
-void _noopBool(bool _) {}
-
 /// Customer info + shipping card for checkout page.
 ///
 /// Wraps [CustomerInfoSection] and [ShippingInfoSection] in a styled container.
@@ -26,9 +24,6 @@ class CheckoutCustomerShippingCard extends StatelessWidget {
     this.indirectStoreOnly = false,
     this.showIndirectAlternateReceiverEmail = false,
     this.shippingEmailCtrl,
-    this.showIndirectSaveReceiverContact = false,
-    this.shouldSaveReceiverContact = true,
-    this.onToggleSaveReceiverContact = _noopBool,
     required this.customerNameCtrl,
     required this.customerEmailCtrl,
     required this.customerPhoneCtrl,
@@ -36,13 +31,8 @@ class CheckoutCustomerShippingCard extends StatelessWidget {
     required this.showBackupPhone,
     required this.onToggleBackupPhone,
     required this.isFromContactBook,
-    required this.shouldSaveCustomerContact,
-    required this.onToggleSaveContact,
-    required this.selectedContactId,
     required this.onContactFieldCleared,
     required this.onPickContact,
-    this.onCloudLookup,
-    this.isCloudLookupLoading = false,
     required this.customerAddressCtrl,
     required this.regionCtrl,
     required this.isShippingSameAsCustomer,
@@ -80,9 +70,6 @@ class CheckoutCustomerShippingCard extends StatelessWidget {
   final bool indirectStoreOnly;
   final bool showIndirectAlternateReceiverEmail;
   final TextEditingController? shippingEmailCtrl;
-  final bool showIndirectSaveReceiverContact;
-  final bool shouldSaveReceiverContact;
-  final ValueChanged<bool> onToggleSaveReceiverContact;
 
   final TextEditingController customerNameCtrl;
   final TextEditingController customerEmailCtrl;
@@ -91,13 +78,8 @@ class CheckoutCustomerShippingCard extends StatelessWidget {
   final bool showBackupPhone;
   final VoidCallback onToggleBackupPhone;
   final bool isFromContactBook;
-  final bool shouldSaveCustomerContact;
-  final ValueChanged<bool> onToggleSaveContact;
-  final String? selectedContactId;
   final VoidCallback onContactFieldCleared;
   final VoidCallback onPickContact;
-  final VoidCallback? onCloudLookup;
-  final bool isCloudLookupLoading;
 
   final TextEditingController customerAddressCtrl;
   final TextEditingController regionCtrl;
@@ -158,13 +140,8 @@ class CheckoutCustomerShippingCard extends StatelessWidget {
             showBackupPhone: showBackupPhone,
             onToggleBackupPhone: onToggleBackupPhone,
             isFromContactBook: isFromContactBook,
-            shouldSaveCustomerContact: shouldSaveCustomerContact,
-            onToggleSaveContact: onToggleSaveContact,
-            selectedContactId: selectedContactId,
             onContactFieldCleared: onContactFieldCleared,
             onPickContact: onPickContact,
-            onCloudLookup: onCloudLookup,
-            isCloudLookupLoading: isCloudLookupLoading,
           ),
           ShippingInfoSection(
             sectionTitle: shippingSectionTitle,
@@ -173,12 +150,9 @@ class CheckoutCustomerShippingCard extends StatelessWidget {
             useStoreAddressLabels: useStoreAddressLabels,
             hideCustomerRegionPicker: hideCustomerRegionPicker,
             receiverContactOptional: receiverContactOptional,
-            showIndirectAlternateReceiverEmail: showIndirectAlternateReceiverEmail,
+            showIndirectAlternateReceiverEmail:
+                showIndirectAlternateReceiverEmail,
             shippingEmailCtrl: shippingEmailCtrl,
-            showIndirectSaveReceiverContact: showIndirectSaveReceiverContact,
-            isFromContactBook: isFromContactBook,
-            shouldSaveReceiverContact: shouldSaveReceiverContact,
-            onToggleSaveReceiverContact: onToggleSaveReceiverContact,
             customerAddressCtrl: customerAddressCtrl,
             regionCtrl: regionCtrl,
             isShippingSameAsCustomer: isShippingSameAsCustomer,

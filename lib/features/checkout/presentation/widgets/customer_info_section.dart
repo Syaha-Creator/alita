@@ -3,18 +3,21 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_layout_tokens.dart';
 import '../../../../core/widgets/checkout_input_decoration.dart';
+import 'pick_contact_pill.dart';
 
 /// Customer information form section extracted from CheckoutPage.
 ///
-/// Contains: name, email, phone (+ optional backup), contact book picker,
-/// and "save to contact book" checkbox.
+/// Contains: name, email, phone (+ optional backup), and a server-side
+/// contact book picker (see `ContactPickerBottomSheet` / `/address_books`).
 class CustomerInfoSection extends StatelessWidget {
   const CustomerInfoSection({
     super.key,
     this.sectionTitle = 'Informasi Pelanggan',
     this.sectionSubtitle,
+
     /// Indirect: email & HP utama tidak wajib; hanya format jika diisi.
     this.storeContactOptional = false,
+
     /// Indirect: hanya nama toko — tanpa email/HP (nomor penerima hanya saat alamat beda).
     this.indirectStoreOnly = false,
     this.customerNameFieldLabel = 'Nama Pelanggan *',
@@ -25,13 +28,8 @@ class CustomerInfoSection extends StatelessWidget {
     required this.showBackupPhone,
     required this.onToggleBackupPhone,
     required this.isFromContactBook,
-    required this.shouldSaveCustomerContact,
-    required this.onToggleSaveContact,
-    required this.selectedContactId,
     required this.onContactFieldCleared,
     required this.onPickContact,
-    this.onCloudLookup,
-    this.isCloudLookupLoading = false,
   });
 
   /// Judul blok (mis. "Informasi Pelanggan (Toko)" untuk indirect).
@@ -51,13 +49,8 @@ class CustomerInfoSection extends StatelessWidget {
   final bool showBackupPhone;
   final VoidCallback onToggleBackupPhone;
   final bool isFromContactBook;
-  final bool shouldSaveCustomerContact;
-  final ValueChanged<bool> onToggleSaveContact;
-  final String? selectedContactId;
   final VoidCallback onContactFieldCleared;
   final VoidCallback onPickContact;
-  final VoidCallback? onCloudLookup;
-  final bool isCloudLookupLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -85,29 +78,7 @@ class CustomerInfoSection extends StatelessWidget {
                   color: AppColors.textPrimary,
                 ),
               ),
-              TextButton(
-                onPressed: onPickContact,
-                style: TextButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.import_contacts,
-                        size: 18, color: AppColors.accent),
-                    SizedBox(width: 6),
-                    Text(
-                      'Pilih Kontak',
-                      style: TextStyle(
-                        color: AppColors.accent,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              PickContactPill(onTap: onPickContact),
             ],
           ),
         if (sectionSubtitle != null && sectionSubtitle!.trim().isNotEmpty) ...[
@@ -122,70 +93,44 @@ class CustomerInfoSection extends StatelessWidget {
           ),
         ],
         const SizedBox(height: 16),
-
         _buildTextField(
           controller: customerNameCtrl,
           label: customerNameFieldLabel,
           onChanged: (value) {
-            if (value.trim().isEmpty && selectedContactId != null) {
+            if (value.trim().isEmpty && isFromContactBook) {
               onContactFieldCleared();
             }
           },
           isRequired: true,
         ),
         if (!indirectStoreOnly) ...[
-        const SizedBox(height: 16),
-        _buildTextField(
-          controller: customerEmailCtrl,
-          label: storeContactOptional ? 'Email' : 'Email *',
-          keyboardType: TextInputType.emailAddress,
-          validator: storeContactOptional
-              ? (value) {
-                  final t = value?.trim() ?? '';
-                  if (t.isEmpty) return null;
-                  if (!RegExp(r'^[\w.+-]+@[\w.-]+\.\w{2,}$').hasMatch(t)) {
-                    return 'Format email tidak valid';
-                  }
-                  return null;
-                }
-              : (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Field ini wajib diisi';
-                  }
-                  if (!RegExp(r'^[\w.+-]+@[\w.-]+\.\w{2,}$').hasMatch(value.trim())) {
-                    return 'Format email tidak valid';
-                  }
-                  return null;
-                },
-        ),
-        const SizedBox(height: 16),
-
-        _buildCustomerPhoneRow(contactOptional: storeContactOptional),
-
-        // Save contact checkbox (only when NOT from contact book)
-        if (!isFromContactBook) ...[
           const SizedBox(height: 16),
-          Row(
-            children: [
-              SizedBox(
-                width: 24,
-                height: 24,
-                child: Checkbox.adaptive(
-                  value: shouldSaveCustomerContact,
-                  onChanged: (v) => onToggleSaveContact(v ?? true),
-                ),
-              ),
-              const SizedBox(width: 8),
-              const Text(
-                'Simpan ke buku kontak',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
+          _buildTextField(
+            controller: customerEmailCtrl,
+            label: storeContactOptional ? 'Email' : 'Email *',
+            keyboardType: TextInputType.emailAddress,
+            validator: storeContactOptional
+                ? (value) {
+                    final t = value?.trim() ?? '';
+                    if (t.isEmpty) return null;
+                    if (!RegExp(r'^[\w.+-]+@[\w.-]+\.\w{2,}$').hasMatch(t)) {
+                      return 'Format email tidak valid';
+                    }
+                    return null;
+                  }
+                : (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Field ini wajib diisi';
+                    }
+                    if (!RegExp(r'^[\w.+-]+@[\w.-]+\.\w{2,}$')
+                        .hasMatch(value.trim())) {
+                      return 'Format email tidak valid';
+                    }
+                    return null;
+                  },
           ),
-        ],
+          const SizedBox(height: 16),
+          _buildCustomerPhoneRow(contactOptional: storeContactOptional),
         ],
       ],
     );
@@ -203,7 +148,7 @@ class CustomerInfoSection extends StatelessWidget {
             textInputAction: TextInputAction.next,
             onChanged: (value) {
               final isCleared = value.trim().isEmpty;
-              if (isCleared && selectedContactId != null) {
+              if (isCleared && isFromContactBook) {
                 onContactFieldCleared();
               }
             },
@@ -236,29 +181,6 @@ class CustomerInfoSection extends StatelessWidget {
                 size: 16,
                 color: AppColors.textTertiary,
               ),
-              suffixIcon: onCloudLookup == null
-                  ? null
-                  : isCloudLookupLoading
-                      ? const Padding(
-                          padding: EdgeInsets.all(12),
-                          child: SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppColors.accent,
-                            ),
-                          ),
-                        )
-                      : IconButton(
-                          tooltip: 'Cari di cloud',
-                          icon: const Icon(
-                            Icons.cloud_download_outlined,
-                            color: AppColors.accent,
-                            size: 22,
-                          ),
-                          onPressed: onCloudLookup,
-                        ),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 8,
                 vertical: 12,
@@ -274,8 +196,7 @@ class CustomerInfoSection extends StatelessWidget {
             child: DecoratedBox(
               decoration: BoxDecoration(
                 border: Border.all(color: AppColors.border),
-                borderRadius:
-                    BorderRadius.circular(AppLayoutTokens.radius8),
+                borderRadius: BorderRadius.circular(AppLayoutTokens.radius8),
               ),
               child: IconButton(
                 padding: EdgeInsets.zero,
