@@ -7,6 +7,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../router/app_router.dart';
 import '../utils/log.dart';
 
 /// iOS-only update checker menggunakan version manifest di Firebase Hosting.
@@ -45,10 +46,18 @@ class IosUpdateChecker {
   ///
   /// Aman dipanggil berkali-kali — request di-debounce 4 jam dan concurrent
   /// call diabaikan. Tidak melempar exception keluar.
-  static Future<void> checkAndShowIfNeeded(BuildContext context) async {
+  ///
+  /// **Tidak menerima [BuildContext] dari caller** — sengaja mengabaikan
+  /// context milik widget pemanggil (biasanya root App widget, yang berada
+  /// DI ATAS `Navigator`) dan selalu memakai [rootNavigatorKey] milik
+  /// GoRouter. Bug sebelumnya: `showCupertinoDialog(context: <root context>)`
+  /// selalu melempar "Navigator operation requested with a context that does
+  /// not include a Navigator" — ke-catch diam-diam oleh try/catch di bawah,
+  /// jadi dialog force-update TIDAK PERNAH tampil ke user sama sekali
+  /// (terverifikasi lewat test manual di iOS Simulator, Jul 2026).
+  static Future<void> checkAndShowIfNeeded() async {
     if (!Platform.isIOS) return;
     if (_isShowing) return;
-    if (!context.mounted) return;
 
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -87,10 +96,15 @@ class IosUpdateChecker {
 
       final releaseNotes = iosSection['release_notes'] as String?;
 
-      if (!context.mounted) return;
+      // Context selalu diambil ulang di sini (bukan diteruskan dari caller)
+      // supaya selalu berupa Navigator context yang masih hidup saat ini,
+      // bukan snapshot lama yang bisa sudah unmounted.
+      final navContext = rootNavigatorKey.currentContext;
+      if (navContext == null || !navContext.mounted) return;
+
       _isShowing = true;
       await _showUpdateDialog(
-        context: context,
+        context: navContext,
         installedVersion: installedVersion,
         minimumVersion: minimumVersion,
         updateUrl: updateUrl,
@@ -172,7 +186,8 @@ class IosUpdateChecker {
   static Future<void> _openUpdateUrl(String url) async {
     final uris = <Uri>[
       // Coba scheme itms-apps:// agar langsung buka App Store app
-      Uri.parse(url.replaceFirst('https://apps.apple.com', 'itms-apps://itunes.apple.com')),
+      Uri.parse(url.replaceFirst(
+          'https://apps.apple.com', 'itms-apps://itunes.apple.com')),
       // Fallback ke URL https asli (Safari → redirect ke App Store)
       Uri.parse(url),
     ];
@@ -198,8 +213,9 @@ class IosUpdateChecker {
   static bool _isManifestNewer(String manifestVer, String installedVer) {
     final manifest = _parseVersion(manifestVer);
     final installed = _parseVersion(installedVer);
-    final len =
-        manifest.length > installed.length ? manifest.length : installed.length;
+    final len = manifest.length > installed.length
+        ? manifest.length
+        : installed.length;
     for (var i = 0; i < len; i++) {
       final m = i < manifest.length ? manifest[i] : 0;
       final c = i < installed.length ? installed[i] : 0;
@@ -212,8 +228,7 @@ class IosUpdateChecker {
   static List<int> _parseVersion(String version) {
     return version
         .split('.')
-        .map((seg) =>
-            int.tryParse(seg.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0)
+        .map((seg) => int.tryParse(seg.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0)
         .toList();
   }
 }

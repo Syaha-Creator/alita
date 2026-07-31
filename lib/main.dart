@@ -162,7 +162,7 @@ class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp>
       // iOS: cek update App Store mandiri (tidak pakai upgrader — lihat
       // IosUpdateChecker untuk penjelasan kenapa upgrader bermasalah di iOS).
       if (Platform.isIOS) {
-        unawaited(IosUpdateChecker.checkAndShowIfNeeded(context));
+        unawaited(IosUpdateChecker.checkAndShowIfNeeded());
       }
     });
   }
@@ -235,8 +235,8 @@ class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp>
       unawaited(ForceUpdateService.checkAndForceUpdate());
       // iOS: cek ulang saat app kembali aktif (misal setelah kembali dari
       // App Store). Debounce 4 jam di dalam IosUpdateChecker mencegah spam.
-      if (Platform.isIOS && mounted) {
-        unawaited(IosUpdateChecker.checkAndShowIfNeeded(context));
+      if (Platform.isIOS) {
+        unawaited(IosUpdateChecker.checkAndShowIfNeeded());
       }
     }
   }
