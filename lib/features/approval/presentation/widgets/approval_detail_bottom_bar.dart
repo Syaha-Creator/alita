@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/platform_utils.dart';
 import '../../../../core/services/connectivity_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_layout_tokens.dart';
 import '../../../../core/widgets/offline_warning_row.dart';
 
 enum ApprovalBarState { pendingAction, completed, viewer, loading }
@@ -101,7 +102,7 @@ class ApprovalDetailBottomBar extends ConsumerWidget {
     final disabled = isLoading || isOffline;
     return SafeArea(
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: AppLayoutTokens.cardPadding,
         decoration: BoxDecoration(
           color: AppColors.surface,
           boxShadow: [

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_layout_tokens.dart';
 
 /// Skeleton loading placeholder that mirrors the Order Detail page layout.
 class OrderDetailSkeleton extends StatelessWidget {
@@ -87,7 +88,7 @@ class _ContactCardSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: AppLayoutTokens.cardPadding,
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
@@ -100,7 +101,8 @@ class _ContactCardSkeleton extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const CircleAvatar(radius: 20, backgroundColor: AppColors.surface),
+              const CircleAvatar(
+                  radius: 20, backgroundColor: AppColors.surface),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -128,7 +130,7 @@ class _ProductsSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: AppLayoutTokens.cardPadding,
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
@@ -197,7 +199,7 @@ class _TimelineSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: AppLayoutTokens.cardPadding,
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),

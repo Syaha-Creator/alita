@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_layout_tokens.dart';
 import '../utils/app_formatters.dart';
 import 'detail_contact_info_line.dart';
 import 'detail_contact_phone_row.dart';
@@ -41,7 +42,7 @@ class DetailShippingInfoCard extends StatelessWidget {
       container: true,
       label: 'Info pengiriman',
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: AppLayoutTokens.cardPadding,
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(12),
