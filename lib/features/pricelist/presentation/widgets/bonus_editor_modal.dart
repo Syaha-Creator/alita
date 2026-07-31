@@ -193,8 +193,7 @@ void showBonusEditorModal(
                 builder: (context, setModalState) {
                   final availableAcc = accAsync.value ?? [];
                   final filteredAcc = availableAcc.where((a) {
-                    final searchString =
-                        '${a.tipe} ${a.ukuran}'.toLowerCase();
+                    final searchString = '${a.tipe} ${a.ukuran}'.toLowerCase();
                     return searchString.contains(
                       searchQuery.toLowerCase(),
                     );
@@ -251,8 +250,18 @@ void showBonusEditorModal(
                     );
                   }
 
+                  // skipError: accessoryProvider already swallows its own
+                  // fetch errors internally (returns []), so this only ever
+                  // resolves to loading or data — never a reachable error.
+                  final isLoadingAcc = accAsync.when(
+                    skipError: true,
+                    loading: () => true,
+                    error: (_, __) => false,
+                    data: (_) => false,
+                  );
+
                   Widget accessorySection() {
-                    if (accAsync.isLoading) {
+                    if (isLoadingAcc) {
                       return const Center(
                         child: Padding(
                           padding: EdgeInsets.all(AppLayoutTokens.space16),
@@ -340,7 +349,8 @@ void showBonusEditorModal(
                                     vertical: AppLayoutTokens.space12,
                                   ),
                                   child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
                                     children: [
                                       Expanded(
                                         child: Column(
@@ -368,8 +378,8 @@ void showBonusEditorModal(
                                                   .textTheme
                                                   .bodySmall
                                                   ?.copyWith(
-                                                    color: AppColors
-                                                        .textSecondary,
+                                                    color:
+                                                        AppColors.textSecondary,
                                                     fontWeight: FontWeight.w500,
                                                   ),
                                             ),
@@ -553,10 +563,7 @@ void showBonusEditorModal(
                     children: [
                       Text(
                         'Sesuaikan Bonus',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleLarge
-                            ?.copyWith(
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
                       ),
@@ -614,7 +621,6 @@ void showBonusEditorModal(
   );
 }
 
-
 class _BonusRowCard extends StatelessWidget {
   const _BonusRowCard({
     required this.bonus,
@@ -667,7 +673,8 @@ class _BonusRowCard extends StatelessWidget {
                         height: 1.25,
                       ),
                 ),
-                if (pl != null && pl > 0) const SizedBox(height: AppLayoutTokens.space4),
+                if (pl != null && pl > 0)
+                  const SizedBox(height: AppLayoutTokens.space4),
                 if (pl != null && pl > 0)
                   Text(
                     'Senilai Rp ${AppFormatters.currencyIdrNoSymbol(pl)}',
@@ -722,9 +729,9 @@ class _BonusRowCard extends StatelessWidget {
                     child: Text(
                       maxQty != null ? '$qty / $maxQty' : '$qty',
                       style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            fontFeatures: const [FontFeature.tabularFigures()],
-                          ),
+                        fontWeight: FontWeight.w700,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
                     ),
                   ),
                   IconButton(
@@ -736,7 +743,8 @@ class _BonusRowCard extends StatelessWidget {
                           ? AppColors.textTertiary
                           : AppColors.accent,
                     ),
-                    onPressed: (maxQty != null && qty >= maxQty) ? null : onIncrement,
+                    onPressed:
+                        (maxQty != null && qty >= maxQty) ? null : onIncrement,
                     padding: EdgeInsets.zero,
                     visualDensity: VisualDensity.compact,
                     constraints: const BoxConstraints(
