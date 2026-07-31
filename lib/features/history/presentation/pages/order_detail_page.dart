@@ -157,7 +157,8 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
           senderName: profile?.name ?? 'Approver',
         ),
       );
-      unawaited(ref.read(approvalInboxProvider.notifier).fetchInbox(force: true));
+      unawaited(
+          ref.read(approvalInboxProvider.notifier).fetchInbox(force: true));
       await ref.read(orderDetailProvider(widget.order.id).notifier).refresh();
       if (!context.mounted) return;
       LoadingOverlay.dismiss(context);
@@ -260,417 +261,413 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
       canPop: !_voidingSp,
       onPopInvokedWithResult: (didPop, result) {},
       child: Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text(
-          'Detail Pesanan',
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            letterSpacing: -0.3,
-          ),
-        ),
         backgroundColor: AppColors.background,
-        elevation: 0,
-        scrolledUnderElevation: 0.5,
-        iconTheme: const IconThemeData(color: AppColors.textPrimary),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
-          tooltip: 'Kembali',
-          onPressed: _voidingSp
-              ? null
-              : () => GoRouterPopScope.handlePop(
-                  context,
-                  fallbackLocation: '/order_history',
-                ),
-        ),
-        actions: [
-          // Single entry point untuk semua "Edit": tap → adaptive sheet
-          // (iOS action sheet / Android modal bottom sheet) berisi opsi
-          // "Edit Informasi Pesanan" + "Edit Item Pesanan" sesuai permission.
-          // Bila hanya satu permission yang aktif, langsung jalankan tanpa sheet.
-          if (canEditHeader || canEditItems)
-            IconButton(
-              icon: const Icon(Icons.edit_outlined),
-              tooltip: 'Edit Pesanan',
-              onPressed: () => _onEditTapped(
-                context,
-                order: currentOrder,
-                canEditHeader: canEditHeader,
-                canEditItems: canEditItems,
-                editorName: myName,
-              ),
+        appBar: AppBar(
+          title: const Text(
+            'Detail Pesanan',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              letterSpacing: -0.3,
             ),
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Refresh',
-            onPressed: () {
-              if (ifOfflineShowFeedback(context, isOffline: isOffline)) return;
-              ref.read(orderDetailProvider(widget.order.id).notifier).refresh();
-            },
           ),
-          PopupMenuButton<String>(
-            icon: Icon(
-              Icons.picture_as_pdf_outlined,
-              color: isOffline ? AppColors.textTertiary : null,
+          backgroundColor: AppColors.background,
+          elevation: 0,
+          scrolledUnderElevation: 0.5,
+          iconTheme: const IconThemeData(color: AppColors.textPrimary),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            tooltip: 'Kembali',
+            onPressed: _voidingSp
+                ? null
+                : () => GoRouterPopScope.handlePop(
+                      context,
+                      fallbackLocation: '/order_history',
+                    ),
+          ),
+          actions: [
+            // Single entry point untuk semua "Edit": tap → adaptive sheet
+            // (iOS action sheet / Android modal bottom sheet) berisi opsi
+            // "Edit Informasi Pesanan" + "Edit Item Pesanan" sesuai permission.
+            // Bila hanya satu permission yang aktif, langsung jalankan tanpa sheet.
+            if (canEditHeader || canEditItems)
+              IconButton(
+                icon: const Icon(Icons.edit_outlined),
+                tooltip: 'Edit Pesanan',
+                onPressed: () => _onEditTapped(
+                  context,
+                  order: currentOrder,
+                  canEditHeader: canEditHeader,
+                  canEditItems: canEditItems,
+                  editorName: myName,
+                ),
+              ),
+            IconButton(
+              icon: const Icon(Icons.refresh_rounded),
+              tooltip: 'Refresh',
+              onPressed: () {
+                if (ifOfflineShowFeedback(context, isOffline: isOffline))
+                  return;
+                ref
+                    .read(orderDetailProvider(widget.order.id).notifier)
+                    .refresh();
+              },
             ),
-            enabled: !isOffline,
-            tooltip: isOffline ? 'Membutuhkan internet' : 'Cetak / Bagikan PDF',
-            position: PopupMenuPosition.under,
-            offset: const Offset(0, 4),
-            onSelected: (value) {
-              if (value != 'customer' && value != 'internal') return;
-              if (value == 'internal') {
-                final uid = ref.read(authProvider).userId;
-                final canBypass =
-                    InternalPdfAccess.bypassesItemDiscountApprovalGate(uid);
-                if (!canBypass &&
-                    !ApprovalDecisionService.orderHistoryAllItemDiscountsApproved(
-                      currentOrder,
-                    )) {
-                  showAdaptiveAlert<void>(
-                    context: context,
-                    title: 'Persetujuan belum lengkap',
-                    content:
-                        'Surat Pesanan (Internal) hanya dapat dibuka setelah '
-                        'semua level persetujuan diskon pada timeline berstatus '
-                        'disetujui, tanpa level yang masih menunggu atau ditolak.',
-                    actions: const [
-                      AdaptiveAction(
-                        label: 'Mengerti',
-                        isDefault: true,
-                        popResult: true,
+            PopupMenuButton<String>(
+              icon: Icon(
+                Icons.picture_as_pdf_outlined,
+                color: isOffline ? AppColors.textTertiary : null,
+              ),
+              enabled: !isOffline,
+              tooltip:
+                  isOffline ? 'Membutuhkan internet' : 'Cetak / Bagikan PDF',
+              position: PopupMenuPosition.under,
+              offset: const Offset(0, 4),
+              onSelected: (value) {
+                if (value != 'customer' && value != 'internal') return;
+                if (value == 'internal') {
+                  final uid = ref.read(authProvider).userId;
+                  final canBypass =
+                      InternalPdfAccess.bypassesItemDiscountApprovalGate(uid);
+                  if (!canBypass &&
+                      !ApprovalDecisionService
+                          .orderHistoryAllItemDiscountsApproved(
+                        currentOrder,
+                      )) {
+                    showAdaptiveAlert<void>(
+                      context: context,
+                      title: 'Persetujuan belum lengkap',
+                      content:
+                          'Surat Pesanan (Internal) hanya dapat dibuka setelah '
+                          'semua level persetujuan diskon pada timeline berstatus '
+                          'disetujui, tanpa level yang masih menunggu atau ditolak.',
+                      actions: const [
+                        AdaptiveAction(
+                          label: 'Mengerti',
+                          isDefault: true,
+                          popResult: true,
+                        ),
+                      ],
+                    );
+                    return;
+                  }
+                }
+                _showPdfActionSheet(
+                  context,
+                  order: currentOrder,
+                  isInternal: value == 'internal',
+                );
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem<String>(
+                  value: 'customer',
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: AppColors.accent.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.description_outlined,
+                            size: 18, color: AppColors.accent),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Surat Pesanan (Customer)',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            Text(
+                              'Versi untuk pelanggan',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textTertiary,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
-                  );
-                  return;
-                }
-              }
-              _showPdfActionSheet(
-                context,
-                order: currentOrder,
-                isInternal: value == 'internal',
-              );
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem<String>(
-                value: 'customer',
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        color: AppColors.accent.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(Icons.description_outlined,
-                          size: 18, color: AppColors.accent),
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Surat Pesanan (Customer)',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          Text(
-                            'Versi untuk pelanggan',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: AppColors.textTertiary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              PopupMenuItem<String>(
-                value: 'internal',
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(Icons.lock_outline,
-                          size: 18, color: AppColors.primary),
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Surat Pesanan (Internal)',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          Text(
-                            'Versi internal dengan harga',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: AppColors.textTertiary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(height: 1, color: AppColors.divider),
-        ),
-      ),
-      bottomNavigationBar: showVoidBottomBar
-          ? OrderDetailVoidBottomBar(
-              isLoading: _voidingSp,
-              onVoid: () => _onVoidSuratPesanan(context, currentOrder),
-            )
-          : null,
-      body: detailState.isLoading && !detailState.hasValue
-          ? const OrderDetailSkeleton()
-          : detailState.hasError && !detailState.hasValue
-              ? _ErrorBody(
-                  onRetry: () => ref
-                      .read(orderDetailProvider(widget.order.id).notifier)
-                      .refresh(),
-                  message: detailState.error.toString(),
-                  onGoHome: () => context.go('/order_history'),
-                )
-              : RefreshIndicator.adaptive(
-                  onRefresh: () => ref
-                      .read(orderDetailProvider(widget.order.id).notifier)
-                      .refresh(),
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        OrderStatusHeader(
-                          order: currentOrder,
-                          onCopySp: () => ContactActions.copyText(
-                            context,
-                            text: currentOrder.noSp,
-                            successMessage: 'No SP berhasil disalin',
-                            duration: const Duration(seconds: 2),
-                          ),
-                        ),
-                        if (needsDiscountApproval) ...[
-                          const SizedBox(height: 12),
-                          SectionCard(
-                            title: 'Persetujuan diskon',
-                            backgroundColor:
-                                AppColors.accent.withValues(alpha: 0.08),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'SP ini membutuhkan tindakan persetujuan diskon '
-                                  'dari Anda. Gunakan halaman khusus persetujuan '
-                                  'untuk menyetujui atau menolak.',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    height: 1.35,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                                const SizedBox(height: AppLayoutTokens.space12),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: FilledButton(
-                                    onPressed: () {
-                                      hapticTap();
-                                      context.push(
-                                        '/approval_detail',
-                                        extra: ApprovalDetailRouteArgs(
-                                          orderData: currentOrder
-                                              .toApprovalOrderDataMap(),
-                                        ),
-                                      );
-                                    },
-                                    style: FilledButton.styleFrom(
-                                      backgroundColor: AppColors.accent,
-                                      foregroundColor: AppColors.onPrimary,
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 12,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(
-                                          AppLayoutTokens.radius10,
-                                        ),
-                                      ),
-                                    ),
-                                    child: const Text(
-                                      'Buka halaman persetujuan diskon',
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                        const SizedBox(height: 12),
-                        Builder(
-                          builder: (context) {
-                            final customerPhones =
-                                OrderLetterContactUtils.customerPhoneList(
-                              currentOrder.orderLetterContacts,
-                              fallbackPhone: currentOrder.phone,
-                            );
-                            return DetailContactInfoCard(
-                              title: shippingDiffers
-                                  ? 'Informasi Pelanggan'
-                                  : 'Informasi Pelanggan & Pengiriman',
-                              name: currentOrder.customerName,
-                              phones: customerPhones,
-                              email: currentOrder.email,
-                              address: currentOrder.address,
-                              onCopyPhone: customerPhones.isEmpty
-                                  ? null
-                                  : (phone) => ContactActions.copyText(
-                                        context,
-                                        text: phone,
-                                        successMessage: 'Nomor HP disalin',
-                                        duration: const Duration(seconds: 1),
-                                      ),
-                              onCallPhone: customerPhones.isEmpty
-                                  ? null
-                                  : (phone) =>
-                                      _callPhone(context, phone),
-                              onOpenWhatsApp: customerPhones.isEmpty
-                                  ? null
-                                  : (phone) => _openWhatsApp(
-                                        context,
-                                        phone: phone,
-                                        customerName:
-                                            currentOrder.customerName,
-                                        noSp: currentOrder.noSp,
-                                        senderName: ref
-                                            .read(authProvider)
-                                            .userName,
-                                      ),
-                            );
-                          },
-                        ),
-                        if (shippingDiffers) ...[
-                          const SizedBox(height: 12),
-                          Builder(
-                            builder: (context) {
-                              final shipPhones =
-                                  OrderLetterContactUtils.recipientPhoneList(
-                                currentOrder.orderLetterContacts,
-                                fallbackPhone: currentOrder.phone,
-                              );
-                              final waName = currentOrder.shipToName
-                                      .trim()
-                                      .isNotEmpty
-                                  ? currentOrder.shipToName.trim()
-                                  : currentOrder.customerName;
-                              return DetailShippingInfoCard(
-                                name: currentOrder.shipToName.trim(),
-                                address: currentOrder.addressShipTo.trim(),
-                                phones: shipPhones,
-                                onCopyPhone: shipPhones.isEmpty
-                                    ? null
-                                    : (phone) => ContactActions.copyText(
-                                          context,
-                                          text: phone,
-                                          successMessage: 'Nomor HP disalin',
-                                          duration: const Duration(seconds: 1),
-                                        ),
-                                onCallPhone: shipPhones.isEmpty
-                                    ? null
-                                    : (phone) =>
-                                        _callPhone(context, phone),
-                                onOpenWhatsApp: shipPhones.isEmpty
-                                    ? null
-                                    : (phone) => _openWhatsApp(
-                                          context,
-                                          phone: phone,
-                                          customerName: waName,
-                                          noSp: currentOrder.noSp,
-                                          senderName: ref
-                                              .read(authProvider)
-                                              .userName,
-                                        ),
-                              );
-                            },
-                          ),
-                        ],
-                        if (currentOrder.note.isNotEmpty &&
-                            currentOrder.note != '-') ...[
-                          const SizedBox(height: 12),
-                          DetailNoteCard(
-                            note: currentOrder.note,
-                            borderRadius: 14,
-                            borderColor:
-                                AppColors.warning.withValues(alpha: 0.3),
-                            iconColor: AppColors.warning,
-                            titleColor: AppColors.warning,
-                            noteStyle: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.warning,
-                              height: 1.4,
-                            ),
-                          ),
-                        ],
-                        const SizedBox(height: 12),
-                        ProductItemsList(
-                          order: currentOrder,
-                          currencyFormatter: fmt,
-                        ),
-                        const SizedBox(height: 12),
-                        ApprovalTimelineWidget(order: currentOrder),
-                        if ((currentOrder.payments.isNotEmpty ||
-                                remainingPayment > 0) &&
-                            (currentOrder.channel?.trim().toUpperCase() !=
-                                'SO')) ...[
-                          const SizedBox(height: 12),
-                          PaymentInfoSection(
-                            order: currentOrder,
-                            currencyFormatter: fmt,
-                            onTapReceipt: (imageUrl) =>
-                                _showImageDialog(context, imageUrl),
-                            onTapAddPayment: () {
-                              _showAddPaymentBottomSheet(
-                                context,
-                                ref: ref,
-                                remainingPayment: remainingPayment,
-                                orderId: currentOrder.id,
-                              );
-                            },
-                          ),
-                        ],
-                      ],
-                    ),
                   ),
                 ),
+                PopupMenuItem<String>(
+                  value: 'internal',
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.lock_outline,
+                            size: 18, color: AppColors.primary),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Surat Pesanan (Internal)',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            Text(
+                              'Versi internal dengan harga',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textTertiary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(1),
+            child: Container(height: 1, color: AppColors.divider),
+          ),
+        ),
+        bottomNavigationBar: showVoidBottomBar
+            ? OrderDetailVoidBottomBar(
+                isLoading: _voidingSp,
+                onVoid: () => _onVoidSuratPesanan(context, currentOrder),
+              )
+            : null,
+        // skipError: keep showing stale data on a failed background refresh
+        // instead of replacing already-visible content with an error screen.
+        body: detailState.when(
+          skipError: true,
+          loading: () => const OrderDetailSkeleton(),
+          error: (error, _) => _ErrorBody(
+            onRetry: () => ref
+                .read(orderDetailProvider(widget.order.id).notifier)
+                .refresh(),
+            message: error.toString(),
+            onGoHome: () => context.go('/order_history'),
+          ),
+          data: (_) => RefreshIndicator.adaptive(
+            onRefresh: () => ref
+                .read(orderDetailProvider(widget.order.id).notifier)
+                .refresh(),
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  OrderStatusHeader(
+                    order: currentOrder,
+                    onCopySp: () => ContactActions.copyText(
+                      context,
+                      text: currentOrder.noSp,
+                      successMessage: 'No SP berhasil disalin',
+                      duration: const Duration(seconds: 2),
+                    ),
+                  ),
+                  if (needsDiscountApproval) ...[
+                    const SizedBox(height: 12),
+                    SectionCard(
+                      title: 'Persetujuan diskon',
+                      backgroundColor: AppColors.accent.withValues(alpha: 0.08),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'SP ini membutuhkan tindakan persetujuan diskon '
+                            'dari Anda. Gunakan halaman khusus persetujuan '
+                            'untuk menyetujui atau menolak.',
+                            style: TextStyle(
+                              fontSize: 13,
+                              height: 1.35,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: AppLayoutTokens.space12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton(
+                              onPressed: () {
+                                hapticTap();
+                                context.push(
+                                  '/approval_detail',
+                                  extra: ApprovalDetailRouteArgs(
+                                    orderData:
+                                        currentOrder.toApprovalOrderDataMap(),
+                                  ),
+                                );
+                              },
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppColors.accent,
+                                foregroundColor: AppColors.onPrimary,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(
+                                    AppLayoutTokens.radius10,
+                                  ),
+                                ),
+                              ),
+                              child: const Text(
+                                'Buka halaman persetujuan diskon',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  Builder(
+                    builder: (context) {
+                      final customerPhones =
+                          OrderLetterContactUtils.customerPhoneList(
+                        currentOrder.orderLetterContacts,
+                        fallbackPhone: currentOrder.phone,
+                      );
+                      return DetailContactInfoCard(
+                        title: shippingDiffers
+                            ? 'Informasi Pelanggan'
+                            : 'Informasi Pelanggan & Pengiriman',
+                        name: currentOrder.customerName,
+                        phones: customerPhones,
+                        email: currentOrder.email,
+                        address: currentOrder.address,
+                        onCopyPhone: customerPhones.isEmpty
+                            ? null
+                            : (phone) => ContactActions.copyText(
+                                  context,
+                                  text: phone,
+                                  successMessage: 'Nomor HP disalin',
+                                  duration: const Duration(seconds: 1),
+                                ),
+                        onCallPhone: customerPhones.isEmpty
+                            ? null
+                            : (phone) => _callPhone(context, phone),
+                        onOpenWhatsApp: customerPhones.isEmpty
+                            ? null
+                            : (phone) => _openWhatsApp(
+                                  context,
+                                  phone: phone,
+                                  customerName: currentOrder.customerName,
+                                  noSp: currentOrder.noSp,
+                                  senderName: ref.read(authProvider).userName,
+                                ),
+                      );
+                    },
+                  ),
+                  if (shippingDiffers) ...[
+                    const SizedBox(height: 12),
+                    Builder(
+                      builder: (context) {
+                        final shipPhones =
+                            OrderLetterContactUtils.recipientPhoneList(
+                          currentOrder.orderLetterContacts,
+                          fallbackPhone: currentOrder.phone,
+                        );
+                        final waName = currentOrder.shipToName.trim().isNotEmpty
+                            ? currentOrder.shipToName.trim()
+                            : currentOrder.customerName;
+                        return DetailShippingInfoCard(
+                          name: currentOrder.shipToName.trim(),
+                          address: currentOrder.addressShipTo.trim(),
+                          phones: shipPhones,
+                          onCopyPhone: shipPhones.isEmpty
+                              ? null
+                              : (phone) => ContactActions.copyText(
+                                    context,
+                                    text: phone,
+                                    successMessage: 'Nomor HP disalin',
+                                    duration: const Duration(seconds: 1),
+                                  ),
+                          onCallPhone: shipPhones.isEmpty
+                              ? null
+                              : (phone) => _callPhone(context, phone),
+                          onOpenWhatsApp: shipPhones.isEmpty
+                              ? null
+                              : (phone) => _openWhatsApp(
+                                    context,
+                                    phone: phone,
+                                    customerName: waName,
+                                    noSp: currentOrder.noSp,
+                                    senderName: ref.read(authProvider).userName,
+                                  ),
+                        );
+                      },
+                    ),
+                  ],
+                  if (currentOrder.note.isNotEmpty &&
+                      currentOrder.note != '-') ...[
+                    const SizedBox(height: 12),
+                    DetailNoteCard(
+                      note: currentOrder.note,
+                      borderRadius: 14,
+                      borderColor: AppColors.warning.withValues(alpha: 0.3),
+                      iconColor: AppColors.warning,
+                      titleColor: AppColors.warning,
+                      noteStyle: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.warning,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  ProductItemsList(
+                    order: currentOrder,
+                    currencyFormatter: fmt,
+                  ),
+                  const SizedBox(height: 12),
+                  ApprovalTimelineWidget(order: currentOrder),
+                  if ((currentOrder.payments.isNotEmpty ||
+                          remainingPayment > 0) &&
+                      (currentOrder.channel?.trim().toUpperCase() != 'SO')) ...[
+                    const SizedBox(height: 12),
+                    PaymentInfoSection(
+                      order: currentOrder,
+                      currencyFormatter: fmt,
+                      onTapReceipt: (imageUrl) =>
+                          _showImageDialog(context, imageUrl),
+                      onTapAddPayment: () {
+                        _showAddPaymentBottomSheet(
+                          context,
+                          ref: ref,
+                          remainingPayment: remainingPayment,
+                          orderId: currentOrder.id,
+                        );
+                      },
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -746,13 +743,11 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
           ),
           actions: [
             CupertinoActionSheetAction(
-              onPressed: () =>
-                  Navigator.of(ctx).pop(_EditChoice.header),
+              onPressed: () => Navigator.of(ctx).pop(_EditChoice.header),
               child: const Text('Edit Informasi Pesanan'),
             ),
             CupertinoActionSheetAction(
-              onPressed: () =>
-                  Navigator.of(ctx).pop(_EditChoice.items),
+              onPressed: () => Navigator.of(ctx).pop(_EditChoice.items),
               child: const Text('Edit Item Pesanan'),
             ),
           ],
@@ -815,16 +810,13 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                 title: 'Edit Informasi Pesanan',
                 subtitle:
                     'Pelanggan, alamat, pengiriman, catatan, dan diskon header',
-                onTap: () =>
-                    Navigator.of(ctx).pop(_EditChoice.header),
+                onTap: () => Navigator.of(ctx).pop(_EditChoice.header),
               ),
               _EditOptionTile(
                 icon: Icons.inventory_2_outlined,
                 title: 'Edit Item Pesanan',
-                subtitle:
-                    'Tambah, ubah, atau hapus produk dan diskon per item',
-                onTap: () =>
-                    Navigator.of(ctx).pop(_EditChoice.items),
+                subtitle: 'Tambah, ubah, atau hapus produk dan diskon per item',
+                onTap: () => Navigator.of(ctx).pop(_EditChoice.items),
               ),
             ],
           ),
