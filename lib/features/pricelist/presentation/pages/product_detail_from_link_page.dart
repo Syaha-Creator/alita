@@ -17,34 +17,44 @@ class ProductDetailFromLinkPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final productsAsync = ref.watch(productListProvider);
-    final products = productsAsync.valueOrNull?.products ?? [];
 
+    // skipError: on a failed background reload, keep resolving against the
+    // last-known product list instead of dropping straight to "not found".
+    return productsAsync.when(
+      skipError: true,
+      loading: () => _buildLoadingScaffold(context),
+      error: (_, __) => _buildResultScaffold(context, const []),
+      data: (result) => _buildResultScaffold(context, result.products),
+    );
+  }
+
+  Widget _buildLoadingScaffold(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text('Memuat…'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Kembali',
+          onPressed: () => GoRouterPopScope.handlePop(
+            context,
+            fallbackLocation: '/',
+          ),
+        ),
+      ),
+      body: const Center(
+        child: CircularProgressIndicator.adaptive(),
+      ),
+    );
+  }
+
+  Widget _buildResultScaffold(BuildContext context, List<Product> products) {
     Product? found;
     for (final p in products) {
       if (p.id == productId) {
         found = p;
         break;
       }
-    }
-
-    if (productsAsync.isLoading && products.isEmpty) {
-      return Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(
-          title: const Text('Memuat…'),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            tooltip: 'Kembali',
-            onPressed: () => GoRouterPopScope.handlePop(
-              context,
-              fallbackLocation: '/',
-            ),
-          ),
-        ),
-        body: const Center(
-          child: CircularProgressIndicator.adaptive(),
-        ),
-      );
     }
 
     if (found == null) {
