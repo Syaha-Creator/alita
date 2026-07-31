@@ -26,8 +26,6 @@ class FavoritesPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final productsAsync = ref.watch(productListProvider);
     final favoriteProducts = ref.watch(favoriteProductsProvider);
-    final isLoading = productsAsync.isLoading && favoriteProducts.isEmpty;
-    final hasError = productsAsync.hasError && favoriteProducts.isEmpty;
     final showStalePl = productsAsync.valueOrNull?.isFromStaleCache ?? false;
     final isOffline = ref.watch(isOfflineProvider);
 
@@ -91,15 +89,23 @@ class FavoritesPage extends ConsumerWidget {
                 ),
               ),
             ),
+          // skipError: once any product data has ever loaded (fresh or
+          // stale), a background reload failure shouldn't hide the favorites
+          // grid — only a genuine first load with no data yet shows the
+          // loading/error screens below.
           Expanded(
-            child: isLoading
-                ? _buildLoadingSkeleton(context)
-                : hasError
-                    ? _buildErrorState(context, ref, isOffline: isOffline)
-                    : favoriteProducts.isEmpty
-                        ? _buildEmptyState(context)
-                        : _buildFavoritesGrid(context, favoriteProducts,
-                            ref: ref),
+            child: productsAsync.when(
+              skipError: true,
+              loading: () => favoriteProducts.isEmpty
+                  ? _buildLoadingSkeleton(context)
+                  : _buildFavoritesGrid(context, favoriteProducts, ref: ref),
+              error: (_, __) => favoriteProducts.isEmpty
+                  ? _buildErrorState(context, ref, isOffline: isOffline)
+                  : _buildFavoritesGrid(context, favoriteProducts, ref: ref),
+              data: (_) => favoriteProducts.isEmpty
+                  ? _buildEmptyState(context)
+                  : _buildFavoritesGrid(context, favoriteProducts, ref: ref),
+            ),
           ),
         ],
       ),
@@ -131,53 +137,50 @@ class FavoritesPage extends ConsumerWidget {
       color: AppColors.accent,
       onRefresh: () async => ref.invalidate(productListProvider),
       child: CustomScrollView(
-      slivers: [
-        const SliverToBoxAdapter(
-          child: SizedBox(height: 16),
-        ),
-
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text(
-              '${products.length} produk favorit',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
+        slivers: [
+          const SliverToBoxAdapter(
+            child: SizedBox(height: 16),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                '${products.length} produk favorit',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
+              ),
             ),
           ),
-        ),
-
-        SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          sliver: SliverMasonryGrid.count(
-            crossAxisCount: AppLayoutTokens.gridColumnCountForWidth(
-              MediaQuery.of(context).size.width,
-            ),
-            mainAxisSpacing: 16,
-            crossAxisSpacing: 16,
-            childCount: products.length,
-            itemBuilder: (context, index) {
-              final product = products[index];
-              return AnimatedListItem(
-                index: index,
-                child: RepaintBoundary(
-                  child: ProductCard(
-                    product: product,
-                    onTap: () {
-                      context.push('/product/${product.id}', extra: product);
-                    },
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            sliver: SliverMasonryGrid.count(
+              crossAxisCount: AppLayoutTokens.gridColumnCountForWidth(
+                MediaQuery.of(context).size.width,
+              ),
+              mainAxisSpacing: 16,
+              crossAxisSpacing: 16,
+              childCount: products.length,
+              itemBuilder: (context, index) {
+                final product = products[index];
+                return AnimatedListItem(
+                  index: index,
+                  child: RepaintBoundary(
+                    child: ProductCard(
+                      product: product,
+                      onTap: () {
+                        context.push('/product/${product.id}', extra: product);
+                      },
+                    ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
-        ),
-
-        const SliverToBoxAdapter(
-          child: SizedBox(height: 16),
-        ),
-      ],
+          const SliverToBoxAdapter(
+            child: SizedBox(height: 16),
+          ),
+        ],
       ),
     );
   }
