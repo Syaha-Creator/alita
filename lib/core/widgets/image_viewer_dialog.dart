@@ -53,9 +53,8 @@ class ImageViewerDialog {
                     imageUrl: imageUrl,
                     fit: BoxFit.contain,
                     memCacheWidth: 800,
-                    loadingBuilder: loadingWidget == null
-                        ? null
-                        : (_, __) => loadingWidget,
+                    loadingBuilder:
+                        loadingWidget == null ? null : (_, __) => loadingWidget,
                     errorWidget: errorWidget ??
                         const Center(
                           child: Icon(Icons.broken_image,
@@ -78,6 +77,7 @@ class ImageViewerDialog {
                               color: closeIconColor,
                               size: closeIconSize,
                             ),
+                            tooltip: 'Tutup',
                             onPressed: () => Navigator.pop(ctx),
                           )
                         : GestureDetector(

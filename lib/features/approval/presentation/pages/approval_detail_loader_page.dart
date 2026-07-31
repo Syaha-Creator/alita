@@ -39,6 +39,7 @@ class ApprovalDetailLoaderPage extends ConsumerWidget {
             iconTheme: const IconThemeData(color: AppColors.textPrimary),
             leading: IconButton(
               icon: const Icon(Icons.arrow_back_rounded),
+              tooltip: 'Kembali',
               onPressed: () => GoRouterPopScope.handlePop(
                 context,
                 fallbackLocation: '/approval_inbox',
@@ -70,6 +71,7 @@ class ApprovalDetailLoaderPage extends ConsumerWidget {
             iconTheme: const IconThemeData(color: AppColors.textPrimary),
             leading: IconButton(
               icon: const Icon(Icons.arrow_back_rounded),
+              tooltip: 'Kembali',
               onPressed: () => GoRouterPopScope.handlePop(
                 context,
                 fallbackLocation: '/approval_inbox',
@@ -80,8 +82,7 @@ class ApprovalDetailLoaderPage extends ConsumerWidget {
             icon: Icons.error_outline_rounded,
             title: 'Gagal memuat',
             message: userFacingErrorMessage(error),
-            onRetry: () =>
-                ref.invalidate(approvalOrderWrapProvider(orderId)),
+            onRetry: () => ref.invalidate(approvalOrderWrapProvider(orderId)),
             iconColor: AppColors.error,
             buttonColor: AppColors.accent,
             buttonTextColor: AppColors.onPrimary,

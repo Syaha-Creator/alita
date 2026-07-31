@@ -231,6 +231,7 @@ class EditOrderHeaderSheetTopBar extends StatelessWidget {
               IconButton(
                 icon: const Icon(Icons.close_rounded,
                     size: 20, color: AppColors.textSecondary),
+                tooltip: 'Tutup',
                 onPressed: onClose,
                 visualDensity: VisualDensity.compact,
               ),
