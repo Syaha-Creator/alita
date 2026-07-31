@@ -116,7 +116,7 @@ class AppTheme {
         ),
         elevation: 3,
         color: AppColors.surface,
-        surfaceTintColor: Colors.transparent,
+        surfaceTintColor: AppColors.surface,
         textStyle: _text(14, FontWeight.w400, AppColors.textPrimary),
       ),
 
@@ -126,7 +126,7 @@ class AppTheme {
         ),
         elevation: 4,
         backgroundColor: AppColors.surface,
-        surfaceTintColor: Colors.transparent,
+        surfaceTintColor: AppColors.surface,
         titleTextStyle: _text(17, FontWeight.w600, AppColors.textPrimary),
         contentTextStyle: _text(
           14,
@@ -138,7 +138,7 @@ class AppTheme {
 
       datePickerTheme: DatePickerThemeData(
         backgroundColor: AppColors.surface,
-        surfaceTintColor: Colors.transparent,
+        surfaceTintColor: AppColors.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),

@@ -767,7 +767,7 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
 
     return showModalBottomSheet<_EditChoice>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
