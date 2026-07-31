@@ -43,7 +43,8 @@ class ProductDetailAppBar extends ConsumerWidget {
     final cartCount = ref.watch(cartTotalItemsProvider);
 
     return AppBar(
-      backgroundColor: isScrolled ? AppColors.background : Colors.transparent,
+      backgroundColor:
+          isScrolled ? AppColors.background : AppColors.transparent,
       elevation: isScrolled ? 2 : 0,
       scrolledUnderElevation: isScrolled ? 2 : 0,
       automaticallyImplyLeading: false,
@@ -53,8 +54,8 @@ class ProductDetailAppBar extends ConsumerWidget {
           child: Container(
             decoration: BoxDecoration(
               color: isScrolled
-                  ? Colors.transparent
-                  : Colors.white.withValues(alpha: 0.9),
+                  ? AppColors.transparent
+                  : AppColors.surface.withValues(alpha: 0.9),
               shape: BoxShape.circle,
             ),
             child: IconButton(
@@ -100,8 +101,8 @@ class ProductDetailAppBar extends ConsumerWidget {
           margin: const EdgeInsets.only(right: 8),
           decoration: BoxDecoration(
             color: isScrolled
-                ? Colors.transparent
-                : Colors.white.withValues(alpha: 0.9),
+                ? AppColors.transparent
+                : AppColors.surface.withValues(alpha: 0.9),
             shape: BoxShape.circle,
           ),
           child: ref.watch(sharingProvider)
@@ -110,8 +111,7 @@ class ProductDetailAppBar extends ConsumerWidget {
                   child: SizedBox(
                     width: 22,
                     height: 22,
-                    child:
-                        CircularProgressIndicator.adaptive(strokeWidth: 2),
+                    child: CircularProgressIndicator.adaptive(strokeWidth: 2),
                   ),
                 )
               : IconButton(
@@ -124,8 +124,7 @@ class ProductDetailAppBar extends ConsumerWidget {
                     size: 22,
                   ),
                   onPressed: () {
-                    if (ifOfflineShowFeedback(context,
-                        isOffline: isOffline)) {
+                    if (ifOfflineShowFeedback(context, isOffline: isOffline)) {
                       return;
                     }
                     onShareTap();
@@ -136,8 +135,8 @@ class ProductDetailAppBar extends ConsumerWidget {
           margin: const EdgeInsets.only(right: 12),
           decoration: BoxDecoration(
             color: isScrolled
-                ? Colors.transparent
-                : Colors.white.withValues(alpha: 0.9),
+                ? AppColors.transparent
+                : AppColors.surface.withValues(alpha: 0.9),
             shape: BoxShape.circle,
           ),
           child: Stack(
@@ -160,8 +159,7 @@ class ProductDetailAppBar extends ConsumerWidget {
                   top: 4,
                   child: Container(
                     decoration: BoxDecoration(
-                      border:
-                          Border.all(color: AppColors.surface, width: 1.5),
+                      border: Border.all(color: AppColors.surface, width: 1.5),
                       shape: BoxShape.circle,
                     ),
                     child: FloatingBadge(

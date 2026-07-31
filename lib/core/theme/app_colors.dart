@@ -18,6 +18,7 @@ class AppColors {
   /// Ice blue tint — scaffold & app bar (derived from massindo.com #E6F2FF)
   static const Color background = Color(0xFFEFF6FF);
   static const Color surface = Color(0xFFFFFFFF);
+
   /// Website body blue — used for light surface variant
   static const Color surfaceLight = Color(0xFFE6F2FF);
 
@@ -43,6 +44,10 @@ class AppColors {
   // Semantic tints (light backgrounds & borders for semantic colors)
   static const Color warningLight = Color(0xFFFFFBEB);
   static const Color warningBorder = Color(0xFFFFE082);
+
+  /// Fully transparent — formalized so `Colors.transparent` never needs to
+  /// be referenced directly outside the 2 exempted cases (see coding rules).
+  static const Color transparent = Colors.transparent;
 
   // Overlays & shadows
   static const Color shadow = Color(0x0F000000);
