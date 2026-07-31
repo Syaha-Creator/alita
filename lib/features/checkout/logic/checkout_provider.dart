@@ -25,7 +25,7 @@ import '../data/models/store_model.dart';
 import '../data/services/approval_service.dart';
 import '../data/models/checkout_models.dart';
 import '../data/services/checkout_order_service.dart';
-
+import '../data/utils/analyst_limit_auto_approver.dart';
 part 'checkout_provider.freezed.dart';
 
 // ─────────────────────────────────────────────────────────────────
@@ -439,6 +439,14 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         currentTakeAwayQty: currentTakeAwayQty,
         profileName: profile?.name ?? 'User',
       );
+
+      // Cek limit plafon Analis (`/order_letter_limits`) — kalau nominal
+      // diskon tambahan (d4) muat di sisa limit, baris approval Analis
+      // langsung di-set approved=true di sini (skip approval manual).
+      // Fail-safe: kalau API gagal/limit tidak cukup, baris dibiarkan
+      // pending seperti biasa — tidak pernah menggagalkan submit.
+      await AnalystLimitAutoApprover().apply(pendingDetails);
+
       prepSw.stop();
       AppTelemetry.event(
         'checkout_prep_completed',
@@ -1233,6 +1241,11 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         currentTakeAwayQty: currentTakeAwayQty,
         profileName: profile?.name ?? 'User',
       );
+
+      // Sama seperti submitOrder: cek limit plafon Analis sebelum baris
+      // discount lama dihapus & yang baru di-post (lihat dokumentasi di
+      // [AnalystLimitAutoApprover]).
+      await AnalystLimitAutoApprover().apply(pendingDetails);
 
       final orderLetterId = editOrder.id;
       final noSp = editOrder.noSp;
