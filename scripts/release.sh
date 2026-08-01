@@ -164,7 +164,7 @@ if [[ "$1" == "--deploy" ]]; then
   fi
   "${FIREBASE_CMD:-firebase}" deploy --only hosting --project alita-massindo
   echo ""
-  echo "✓ Live: https://alita-pricelist-12d76.web.app/version.json"
+  echo "✓ Live: https://alita-massindo.web.app/version.json"
   echo "  User iOS lama akan dapat notifikasi update ke $CURRENT."
   exit 0
 fi

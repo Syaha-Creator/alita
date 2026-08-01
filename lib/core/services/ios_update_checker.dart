@@ -33,8 +33,7 @@ import '../utils/log.dart';
 class IosUpdateChecker {
   IosUpdateChecker._();
 
-  static const _manifestUrl =
-      'https://alita-pricelist-12d76.web.app/version.json';
+  static const _manifestUrl = 'https://alita-massindo.web.app/version.json';
 
   static const _prefLastCheckKey = 'ios_upd_last_check_ms';
   static const _prefUpdateRequiredKey = 'ios_upd_required';
