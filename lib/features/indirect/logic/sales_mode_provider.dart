@@ -6,12 +6,14 @@ import '../../../core/enums/sales_mode.dart';
 const _prefsKey = 'sales_mode_v1';
 
 /// Mode pricelist: direct vs indirect (persist ringan di SharedPreferences).
-class SalesModeNotifier extends StateNotifier<SalesMode> {
-  SalesModeNotifier() : super(SalesMode.direct) {
-    _load();
-  }
-
+class SalesModeNotifier extends Notifier<SalesMode> {
   bool _loadComplete = false;
+
+  @override
+  SalesMode build() {
+    _load();
+    return SalesMode.direct;
+  }
 
   Future<void> _load() async {
     try {
@@ -50,7 +52,6 @@ class SalesModeNotifier extends StateNotifier<SalesMode> {
   }
 }
 
-final salesModeProvider =
-    StateNotifierProvider<SalesModeNotifier, SalesMode>((ref) {
-  return SalesModeNotifier();
-});
+final salesModeProvider = NotifierProvider<SalesModeNotifier, SalesMode>(
+  SalesModeNotifier.new,
+);
