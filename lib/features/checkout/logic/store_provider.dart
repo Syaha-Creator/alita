@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/models/store_model.dart';
 import '../data/services/store_repository.dart';
 
-final _storeRepositoryProvider = Provider<StoreRepository>((ref) {
+/// Exposed (not private) so tests can override it with a mock
+/// [StoreRepository] — see `store_provider_test.dart`.
+final storeRepositoryProvider = Provider<StoreRepository>((ref) {
   return StoreRepository();
 });
 
@@ -18,7 +20,7 @@ class StoreListNotifier extends AsyncNotifier<List<StoreModel>> {
 
   @override
   Future<List<StoreModel>> build() async {
-    return ref.read(_storeRepositoryProvider).getAllStores();
+    return ref.read(storeRepositoryProvider).getAllStores();
   }
 
   Future<void> refreshFromNetwork() async {
@@ -27,7 +29,7 @@ class StoreListNotifier extends AsyncNotifier<List<StoreModel>> {
     state = const AsyncLoading<List<StoreModel>>();
     try {
       state = await AsyncValue.guard(
-        () => ref.read(_storeRepositoryProvider).getAllStores(forceRefresh: true),
+        () => ref.read(storeRepositoryProvider).getAllStores(forceRefresh: true),
       );
     } finally {
       _refreshInFlight = false;
