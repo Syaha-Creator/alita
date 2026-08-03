@@ -46,7 +46,7 @@ void main() {
     container = ProviderContainer(
       overrides: [
         indirectSessionProvider.overrideWith(
-          (ref) => IndirectSessionNotifier(ref, discountService: mockService),
+          () => IndirectSessionNotifier(discountService: mockService),
         ),
       ],
     );

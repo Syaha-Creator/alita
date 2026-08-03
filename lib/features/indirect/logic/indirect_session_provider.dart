@@ -11,17 +11,18 @@ import 'indirect_session_state.dart';
 import 'sales_mode_provider.dart';
 
 final indirectSessionProvider =
-    StateNotifierProvider<IndirectSessionNotifier, IndirectSessionState>(
-  (ref) => IndirectSessionNotifier(ref),
+    NotifierProvider<IndirectSessionNotifier, IndirectSessionState>(
+  IndirectSessionNotifier.new,
 );
 
-class IndirectSessionNotifier extends StateNotifier<IndirectSessionState> {
-  IndirectSessionNotifier(this._ref, {IndirectStoreDiscountService? discountService})
-      : _discountService = discountService ?? IndirectStoreDiscountService(),
-        super(const IndirectSessionState());
+class IndirectSessionNotifier extends Notifier<IndirectSessionState> {
+  IndirectSessionNotifier({IndirectStoreDiscountService? discountService})
+      : _discountService = discountService ?? IndirectStoreDiscountService();
 
-  final Ref _ref;
   final IndirectStoreDiscountService _discountService;
+
+  @override
+  IndirectSessionState build() => const IndirectSessionState();
 
   // Track alamat toko yang sedang di-fetch. Jika user ganti toko sebelum
   // response tiba, hasilnya diabaikan (stale cancellation pattern).
@@ -42,7 +43,7 @@ class IndirectSessionNotifier extends StateNotifier<IndirectSessionState> {
       isLoadingDiscounts: true,
     );
 
-    final token = _ref.read(authProvider).accessToken;
+    final token = ref.read(authProvider).accessToken;
     if (token.isEmpty) {
       if (_pendingFetchAddressNumber != store.addressNumber) return;
       state = IndirectSessionState(
