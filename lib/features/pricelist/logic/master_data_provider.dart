@@ -48,20 +48,17 @@ class MasterDataState {
 //  Notifier
 // ─────────────────────────────────────────────────────────
 
-class MasterDataNotifier extends StateNotifier<MasterDataState> {
-  MasterDataNotifier() : super(const MasterDataState()) {
-    _loadFromCache();
-  }
-
+class MasterDataNotifier extends Notifier<MasterDataState> {
   static final ApiClient _api = ApiClient.instance;
   static const _staleDuration = Duration(hours: 6);
   bool _isDisposed = false;
   bool _isSyncing = false;
 
   @override
-  void dispose() {
-    _isDisposed = true;
-    super.dispose();
+  MasterDataState build() {
+    ref.onDispose(() => _isDisposed = true);
+    _loadFromCache();
+    return const MasterDataState();
   }
 
   /// Step 1: Read from local cache first (instant UI).
@@ -237,7 +234,6 @@ class MasterDataNotifier extends StateNotifier<MasterDataState> {
 //  Provider
 // ─────────────────────────────────────────────────────────
 
-final masterDataProvider =
-    StateNotifierProvider<MasterDataNotifier, MasterDataState>(
-  (ref) => MasterDataNotifier(),
+final masterDataProvider = NotifierProvider<MasterDataNotifier, MasterDataState>(
+  MasterDataNotifier.new,
 );
