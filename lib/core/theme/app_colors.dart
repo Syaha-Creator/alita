@@ -52,10 +52,23 @@ class AppColors {
   // Overlays & shadows
   static const Color shadow = Color(0x0F000000);
   static const Color shadowLight = Color(0x0A000000);
+  static const Color shadowSubtle = Color(0x0D000000); // black @ 5%
+  static const Color shadowSoft = Color(0x1A000000); // black @ 10%
   static const Color shadowMedium = Color(0x1F000000);
-  static const Color overlay = Color(0x8A000000);
+  static const Color shadowStrong = Color(0x42000000); // Colors.black26 equiv.
+  static const Color overlay = Color(0x8A000000); // Colors.black54 equiv.
+
+  /// Bottom scrim gradient over image carousels (black @ 35%).
+  static const Color scrimGradient = Color(0x59000000);
+
+  /// Full-screen loading barrier / dimming overlay (black @ 45%).
+  static const Color scrimBarrier = Color(0x73000000);
+
   static const Color onPrimaryHigh = Color(0xE6FFFFFF);
   static const Color onPrimaryMedium = Color(0xB3FFFFFF);
+
+  /// White overlay tint @ 35% — used over image content before text/icons.
+  static const Color onPrimaryLow = Color(0x59FFFFFF);
 
   // Checkout approval-reason badges — one hue per distinct reason so users
   // scan multiple simultaneous badges at a glance. Values match Flutter's
@@ -72,4 +85,31 @@ class AppColors {
   static const Color reasonKlaus = Color(0xFF3F51B5); // Colors.indigo
   static const Color reasonKlausIcon = Color(0xFF3949AB); // .shade600
   static const Color reasonKlausText = Color(0xFF303F9F); // .shade700
+
+  // Order status badges (OrderStatus enum) — distinct shades per status,
+  // used for detail pages (pill/badge) and list rows (compact text).
+  // Kept separate from the generic success/error/warning semantic colors
+  // above so status-badge visuals never silently drift if those generic
+  // tokens change for unrelated UI.
+  static const Color statusApprovedForeground = Color(0xFF1B8B4B);
+  static const Color statusApprovedBackground = Color(0xFFECFDF5);
+  static const Color statusApprovedListForeground = Color(0xFF2E7D32);
+
+  static const Color statusPendingForeground = Color(0xFFD97706);
+  static const Color statusPendingBackground = Color(0xFFFFFBEB);
+  /// Also reused for the "Sisa Tagihan" (shortage) accent on the checkout
+  /// edit-mode selisih card — same semantic meaning (pending/outstanding).
+  static const Color statusPendingListForeground = Color(0xFFE65100);
+
+  static const Color statusRejectedForeground = Color(0xFFDC2626);
+  static const Color statusRejectedBackground = Color(0xFFFEF2F2);
+  static const Color statusRejectedListForeground = Color(0xFFC62828);
+
+  static const Color statusUnknownForeground = Color(0xFF6B7280);
+  static const Color statusUnknownBackground = Color(0xFFF3F4F6);
+  static const Color statusUnknownListForeground = Color(0xFF9E9E9E); // Colors.grey
+
+  // Help/support footer gradient (profile → "Masih butuh bantuan?").
+  static const Color helpFooterGradientStart = Color(0xFFF0F7FF);
+  static const Color helpFooterGradientEnd = Color(0xFFE8F0FE);
 }

@@ -105,7 +105,7 @@ class ProductImageCarousel extends StatelessWidget {
                       },
                     ),
                   ),
-                  Positioned(
+                  const Positioned(
                     bottom: 0,
                     left: 0,
                     right: 0,
@@ -116,8 +116,8 @@ class ProductImageCarousel extends StatelessWidget {
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
-                            Colors.transparent,
-                            Colors.black.withValues(alpha: 0.35),
+                            AppColors.transparent,
+                            AppColors.scrimGradient,
                           ],
                         ),
                       ),
@@ -140,11 +140,11 @@ class ProductImageCarousel extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: isActive
                                   ? AppColors.accent
-                                  : Colors.white.withValues(alpha: 0.7),
+                                  : AppColors.onPrimaryMedium,
                               borderRadius: BorderRadius.circular(10),
                               boxShadow: const [
                                 BoxShadow(
-                                  color: Colors.black26,
+                                  color: AppColors.shadowStrong,
                                   blurRadius: 4,
                                   offset: Offset(0, 1),
                                 ),

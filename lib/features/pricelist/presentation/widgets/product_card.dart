@@ -120,15 +120,14 @@ class ProductCard extends ConsumerWidget {
                                 child: Container(
                                   width: 40,
                                   height: 40,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.9),
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.onPrimaryHigh,
                                     shape: BoxShape.circle,
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black
-                                            .withValues(alpha: 0.1),
+                                        color: AppColors.shadowSoft,
                                         blurRadius: 4,
-                                        offset: const Offset(0, 2),
+                                        offset: Offset(0, 2),
                                       ),
                                     ],
                                   ),

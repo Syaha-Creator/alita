@@ -15,7 +15,10 @@ class HelpContactFooter extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [Color(0xFFF0F7FF), Color(0xFFE8F0FE)],
+            colors: [
+              AppColors.helpFooterGradientStart,
+              AppColors.helpFooterGradientEnd,
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),

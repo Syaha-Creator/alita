@@ -289,15 +289,14 @@ class EditOrderHeaderSheetFooterButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.surface,
-        border:
-            const Border(top: BorderSide(color: AppColors.border, width: 1)),
+        border: Border(top: BorderSide(color: AppColors.border, width: 1)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: AppColors.shadowSubtle,
             blurRadius: 8,
-            offset: const Offset(0, -3),
+            offset: Offset(0, -3),
           ),
         ],
       ),
@@ -326,11 +325,12 @@ class EditOrderHeaderSheetFooterButton extends StatelessWidget {
                   width: 16,
                   height: 16,
                   child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.white),
+                      strokeWidth: 2, color: AppColors.onPrimary),
                 ),
                 const SizedBox(width: 10),
               ] else ...[
-                const Icon(Icons.check_rounded, size: 18, color: Colors.white),
+                const Icon(Icons.check_rounded,
+                    size: 18, color: AppColors.onPrimary),
                 const SizedBox(width: 8),
               ],
               Text(
@@ -338,7 +338,7 @@ class EditOrderHeaderSheetFooterButton extends StatelessWidget {
                 style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 15,
-                    color: Colors.white),
+                    color: AppColors.onPrimary),
               ),
             ],
           ),

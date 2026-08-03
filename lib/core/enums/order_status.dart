@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_colors.dart';
+
 /// Canonical order status enum to avoid repeated raw-string checks.
 enum OrderStatus { approved, pending, rejected, unknown }
 
@@ -52,23 +54,23 @@ extension OrderStatusX on OrderStatus {
   };
 
   Color get detailForegroundColor => switch (this) {
-    OrderStatus.approved => const Color(0xFF1B8B4B),
-    OrderStatus.pending => const Color(0xFFD97706),
-    OrderStatus.rejected => const Color(0xFFDC2626),
-    OrderStatus.unknown => const Color(0xFF6B7280),
+    OrderStatus.approved => AppColors.statusApprovedForeground,
+    OrderStatus.pending => AppColors.statusPendingForeground,
+    OrderStatus.rejected => AppColors.statusRejectedForeground,
+    OrderStatus.unknown => AppColors.statusUnknownForeground,
   };
 
   Color get detailBackgroundColor => switch (this) {
-    OrderStatus.approved => const Color(0xFFECFDF5),
-    OrderStatus.pending => const Color(0xFFFFFBEB),
-    OrderStatus.rejected => const Color(0xFFFEF2F2),
-    OrderStatus.unknown => const Color(0xFFF3F4F6),
+    OrderStatus.approved => AppColors.statusApprovedBackground,
+    OrderStatus.pending => AppColors.statusPendingBackground,
+    OrderStatus.rejected => AppColors.statusRejectedBackground,
+    OrderStatus.unknown => AppColors.statusUnknownBackground,
   };
 
   Color get listForegroundColor => switch (this) {
-    OrderStatus.approved => const Color(0xFF2E7D32),
-    OrderStatus.pending => const Color(0xFFE65100),
-    OrderStatus.rejected => const Color(0xFFC62828),
-    OrderStatus.unknown => Colors.grey,
+    OrderStatus.approved => AppColors.statusApprovedListForeground,
+    OrderStatus.pending => AppColors.statusPendingListForeground,
+    OrderStatus.rejected => AppColors.statusRejectedListForeground,
+    OrderStatus.unknown => AppColors.statusUnknownListForeground,
   };
 }

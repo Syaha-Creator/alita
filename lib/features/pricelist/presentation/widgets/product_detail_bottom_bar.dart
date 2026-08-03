@@ -31,14 +31,14 @@ class ProductDetailBottomBar extends StatelessWidget {
       right: 0,
       bottom: 0,
       child: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: AppColors.surface,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
+              color: AppColors.shadowSubtle,
               blurRadius: 20,
               spreadRadius: 0,
-              offset: const Offset(0, -4),
+              offset: Offset(0, -4),
             ),
           ],
         ),

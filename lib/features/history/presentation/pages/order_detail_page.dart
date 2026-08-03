@@ -307,8 +307,9 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
               icon: const Icon(Icons.refresh_rounded),
               tooltip: 'Refresh',
               onPressed: () {
-                if (ifOfflineShowFeedback(context, isOffline: isOffline))
+                if (ifOfflineShowFeedback(context, isOffline: isOffline)) {
                   return;
+                }
                 ref
                     .read(orderDetailProvider(widget.order.id).notifier)
                     .refresh();

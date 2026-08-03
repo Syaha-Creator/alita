@@ -29,7 +29,7 @@ class ImageViewerDialog {
     double closeIconSize = 20,
     IconData closeIcon = Icons.close_rounded,
     Color closeIconColor = AppColors.onPrimary,
-    Color closeBackgroundColor = Colors.black54,
+    Color closeBackgroundColor = AppColors.overlay,
     EdgeInsets closePadding = const EdgeInsets.all(6),
   }) {
     return showDialog<void>(

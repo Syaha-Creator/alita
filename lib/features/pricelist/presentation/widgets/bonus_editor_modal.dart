@@ -34,11 +34,11 @@ const double _kBonusRowHeight = 74;
 const double _kBonusPanelMaxHeight = 240;
 
 /// Bayangan sangat lembut untuk kartu bonus (Material 3–style elevation ringan).
-final List<BoxShadow> _kBonusCardShadow = [
+const List<BoxShadow> _kBonusCardShadow = [
   BoxShadow(
-    color: Colors.black.withValues(alpha: 0.12),
+    color: AppColors.shadowMedium,
     blurRadius: 8,
-    offset: const Offset(0, 2),
+    offset: Offset(0, 2),
   ),
 ];
 

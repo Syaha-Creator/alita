@@ -38,7 +38,7 @@ class LoadingOverlay extends StatelessWidget {
       context: context,
       barrierDismissible: false,
       barrierLabel: 'Loading',
-      barrierColor: Colors.black.withValues(alpha: 0.45),
+      barrierColor: AppColors.scrimBarrier,
       transitionDuration: const Duration(milliseconds: 200),
       transitionBuilder: (_, anim, __, child) {
         return FadeTransition(opacity: anim, child: child);
@@ -63,18 +63,18 @@ class LoadingOverlay extends StatelessWidget {
       label: title,
       liveRegion: true,
       child: Container(
-      color: Colors.black.withValues(alpha: 0.45),
+      color: AppColors.scrimBarrier,
       child: Center(
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 22),
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(16),
-            boxShadow: [
+            boxShadow: const [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.12),
+                color: AppColors.shadowMedium,
                 blurRadius: 20,
-                offset: const Offset(0, 8),
+                offset: Offset(0, 8),
               ),
             ],
           ),

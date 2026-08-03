@@ -2071,7 +2071,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     final String sisaLabel;
     final String? sisaHint;
     if (s.isShortage) {
-      sisaColor = const Color(0xFFE65100);
+      sisaColor = AppColors.statusPendingListForeground;
       sisaLabel = 'Sisa Tagihan';
       sisaHint = 'Anda dapat menambah pembayaran sekarang di bawah, '
           'atau nanti melalui halaman Detail Pesanan.';

@@ -240,13 +240,13 @@ class _ProgressLineState extends State<_ProgressLine>
             final width = constraints.maxWidth * _value.value;
             return Container(
               height: 3,
-              color: Colors.white.withValues(alpha: 0.35),
+              color: AppColors.onPrimaryLow,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   SizedBox(
                     width: width,
-                    child: Container(color: Colors.white.withValues(alpha: 0.9)),
+                    child: Container(color: AppColors.onPrimaryHigh),
                   ),
                 ],
               ),

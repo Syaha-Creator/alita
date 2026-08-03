@@ -491,14 +491,14 @@ class _SegmentChip extends StatelessWidget {
           alignment: Alignment.center,
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: selected ? AppColors.surface : Colors.transparent,
+            color: selected ? AppColors.surface : AppColors.transparent,
             borderRadius: BorderRadius.circular(_kDiscountSegmentRadius),
             boxShadow: selected
-                ? [
+                ? const [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
+                      color: AppColors.shadowSubtle,
                       blurRadius: 4,
-                      offset: const Offset(0, 2),
+                      offset: Offset(0, 2),
                     ),
                   ]
                 : const [],
