@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -73,12 +74,16 @@ void main() {
   });
 
   group('CartNotifier', () {
+    late ProviderContainer container;
     late CartNotifier notifier;
 
     setUp(() {
       SharedPreferences.setMockInitialValues({});
-      notifier = CartNotifier();
+      container = ProviderContainer();
+      notifier = container.read(cartProvider.notifier); // trigger build()
     });
+
+    tearDown(() => container.dispose());
 
     test('starts with empty state', () {
       expect(notifier.state, isEmpty);

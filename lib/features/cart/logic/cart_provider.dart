@@ -17,12 +17,14 @@ String cartItemKey(CartItem item) {
 }
 
 /// Cart state notifier with persistent storage
-class CartNotifier extends StateNotifier<List<CartItem>> {
-  CartNotifier() : super([]) {
-    _loadCartFuture = _loadCart();
-  }
-
+class CartNotifier extends Notifier<List<CartItem>> {
   late final Future<void> _loadCartFuture;
+
+  @override
+  List<CartItem> build() {
+    _loadCartFuture = _loadCart();
+    return [];
+  }
 
   /// Load cart from storage on init
   Future<void> _loadCart() async {
@@ -269,9 +271,9 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
 }
 
 /// Cart provider
-final cartProvider = StateNotifierProvider<CartNotifier, List<CartItem>>((ref) {
-  return CartNotifier();
-});
+final cartProvider = NotifierProvider<CartNotifier, List<CartItem>>(
+  CartNotifier.new,
+);
 
 /// Total items count provider
 final cartTotalItemsProvider = Provider<int>((ref) {
@@ -288,10 +290,9 @@ final cartTotalAmountProvider = Provider<double>((ref) {
 // ─── Selective checkout: which cart lines are selected ─────────────────────
 
 /// Tracks selected cart item keys. Empty = nothing selected (checkout disabled).
-class SelectedCartIdsNotifier extends StateNotifier<Set<String>> {
-  SelectedCartIdsNotifier(this._ref) : super({});
-
-  final Ref _ref;
+class SelectedCartIdsNotifier extends Notifier<Set<String>> {
+  @override
+  Set<String> build() => {};
 
   void toggleSelectItem(String id, bool isSelected) {
     if (isSelected) {
@@ -302,7 +303,7 @@ class SelectedCartIdsNotifier extends StateNotifier<Set<String>> {
   }
 
   void toggleSelectAll(bool isSelected) {
-    final cart = _ref.read(cartProvider);
+    final cart = ref.read(cartProvider);
     if (cart.isEmpty) {
       state = {};
       return;
@@ -326,9 +327,9 @@ class SelectedCartIdsNotifier extends StateNotifier<Set<String>> {
 }
 
 final selectedCartItemIdsProvider =
-    StateNotifierProvider<SelectedCartIdsNotifier, Set<String>>((ref) {
-  return SelectedCartIdsNotifier(ref);
-});
+    NotifierProvider<SelectedCartIdsNotifier, Set<String>>(
+  SelectedCartIdsNotifier.new,
+);
 
 /// True bila minimal satu **baris keranjang saat ini** terpilih.
 /// Tidak memakai [Set.isNotEmpty] mentah — ID bisa stale setelah edit/hapus baris.

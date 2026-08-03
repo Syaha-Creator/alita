@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
@@ -78,16 +79,20 @@ void main() {
     });
 
     testWidgets('cart FAB visible when cart has items', (tester) async {
-      await tester.pumpWidget(buildTestApp(
-        loggedIn: true,
-        extraOverrides: [
-          cartProvider.overrideWith((ref) {
-            final notifier = CartNotifier();
-            notifier.addItem(TestData.sampleCartItem);
-            return notifier;
-          }),
-        ],
-      ));
+      await tester.pumpWidget(buildTestApp(loggedIn: true));
+      await tester.pumpAndSettle();
+
+      // NotifierProvider.overrideWith factories are called BEFORE the
+      // framework attaches `ref`/calls build() — a Notifier can't have its
+      // methods (addItem) invoked synchronously inside that factory like a
+      // StateNotifier could. Instead, populate the cart via the live
+      // container after the widget tree is already built.
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(MaterialApp)),
+      );
+      await container
+          .read(cartProvider.notifier)
+          .addItem(TestData.sampleCartItem);
       await tester.pumpAndSettle();
 
       expect(find.byIcon(Icons.shopping_cart), findsOneWidget);

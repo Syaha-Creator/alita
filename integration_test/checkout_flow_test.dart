@@ -23,10 +23,7 @@ void main() {
       return buildTestApp(
         loggedIn: true,
         extraOverrides: [
-          cartProvider.overrideWith((ref) {
-            final notifier = CartNotifier();
-            return notifier;
-          }),
+          cartProvider.overrideWith(CartNotifier.new),
         ],
       );
     }
@@ -46,10 +43,7 @@ void main() {
       await tester.pumpWidget(buildTestApp(
         loggedIn: true,
         extraOverrides: [
-          cartProvider.overrideWith((ref) {
-            final notifier = CartNotifier();
-            return notifier;
-          }),
+          cartProvider.overrideWith(CartNotifier.new),
         ],
       ));
       await tester.pumpAndSettle();
