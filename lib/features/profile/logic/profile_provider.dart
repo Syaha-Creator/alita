@@ -16,7 +16,7 @@ final profileProvider = FutureProvider<UserProfile?>((ref) async {
   if (auth.userId == 0) return null;
 
   try {
-    final response = await ApiClient.instance.get(
+    final response = await ref.read(apiClientProvider).get(
       '/contact_work_experiences',
       queryParams: {'user_id': auth.userId.toString()},
       timeout: const Duration(seconds: 15),

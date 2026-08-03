@@ -68,7 +68,7 @@ final orderHistoryProvider = FutureProvider.autoDispose<List<OrderHistory>>((
   }
 
   final response = await retry(
-    () => ApiClient.instance.get(
+    () => ref.read(apiClientProvider).get(
       '/order_letters',
       queryParams: queryParams,
       timeout: const Duration(seconds: 15),

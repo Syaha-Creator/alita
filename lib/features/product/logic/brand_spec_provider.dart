@@ -17,11 +17,16 @@ final brandSpecProvider = FutureProvider<List<dynamic>>((ref) async {
       AppConfig.brandSpecApis.where((c) => c.isConfigured).toList();
   if (configs.isEmpty) return const [];
 
-  final results = await Future.wait(configs.map(_fetchOne));
+  final apiClient = ref.read(apiClientProvider);
+  final results =
+      await Future.wait(configs.map((c) => _fetchOne(c, apiClient)));
   return results.expand((list) => list).toList();
 });
 
-Future<List<dynamic>> _fetchOne(BrandSpecApiConfig config) async {
+Future<List<dynamic>> _fetchOne(
+  BrandSpecApiConfig config,
+  ApiClient apiClient,
+) async {
   final url = Uri.https(config.host, '/api/types_with_features', {
     'access_token': config.accessToken,
     'client_id': config.clientId,
@@ -30,7 +35,7 @@ Future<List<dynamic>> _fetchOne(BrandSpecApiConfig config) async {
 
   try {
     final response = await retry(
-      () => ApiClient.instance.getExternal(url),
+      () => apiClient.getExternal(url),
       maxAttempts: 2,
       tag: 'brandSpec_${config.brand}',
     );

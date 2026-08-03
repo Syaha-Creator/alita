@@ -15,7 +15,7 @@ final itemLookupProvider =
     FutureProvider<Map<String, List<ItemLookup>>>((ref) async {
   try {
     final response = await retry(
-      () => ApiClient.instance.get(
+      () => ref.read(apiClientProvider).get(
         '/pl_lookup_item_nums',
         timeout: const Duration(seconds: 15),
       ),

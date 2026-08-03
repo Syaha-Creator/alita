@@ -1,11 +1,20 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
 import '../config/app_config.dart';
 import '../utils/log.dart';
 import 'storage_service.dart';
+
+/// DI seam for [ApiClient.instance] — lets providers/notifiers depend on
+/// this provider instead of the hard singleton, so tests can override it
+/// with a mock (see e.g. `approval_inbox_provider_test.dart` for the
+/// constructor-injection equivalent used by class-based notifiers).
+/// Production code always resolves to the same singleton, so behavior is
+/// unchanged unless a test explicitly overrides it.
+final apiClientProvider = Provider<ApiClient>((ref) => ApiClient.instance);
 
 /// Centralised HTTP client that injects auth query params and handles
 /// global error codes (401/403/500+) in a single place.

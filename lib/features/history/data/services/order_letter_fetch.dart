@@ -7,11 +7,18 @@ import '../../../../core/utils/log.dart';
 
 /// Map hasil API (`order_letter` + `order_letter_details` + payments) untuk
 /// [OrderHistory.fromApiJson] atau [ApprovalDetailPage].
-Future<Map<String, dynamic>?> fetchOrderLetterResultWrap(int orderId) async {
+///
+/// [apiClient] defaults to the app-wide singleton; callers running inside a
+/// Riverpod provider/notifier should pass `ref.read(apiClientProvider)` so
+/// tests can inject a mock.
+Future<Map<String, dynamic>?> fetchOrderLetterResultWrap(
+  int orderId, {
+  ApiClient? apiClient,
+}) async {
   if (orderId <= 0) return null;
+  final api = apiClient ?? ApiClient.instance;
   try {
-    final directResponse =
-        await ApiClient.instance.get('/order_letters/$orderId');
+    final directResponse = await api.get('/order_letters/$orderId');
     if (directResponse.statusCode == 401 ||
         directResponse.statusCode == 403) {
       throw ApiSessionExpiredException('GET /order_letters/$orderId');
@@ -22,7 +29,7 @@ Future<Map<String, dynamic>?> fetchOrderLetterResultWrap(int orderId) async {
     }
 
     final userId = await StorageService.loadUserId();
-    final listResponse = await ApiClient.instance.get(
+    final listResponse = await api.get(
       '/order_letters',
       queryParams: {
         'user_id': userId.toString(),

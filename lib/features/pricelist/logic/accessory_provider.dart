@@ -10,7 +10,7 @@ import '../data/models/accessory.dart';
 /// Provider untuk aksesoris (pengganti bonus) dari API pl_accessories.
 final accessoryProvider = FutureProvider<List<Accessory>>((ref) async {
   try {
-    final response = await ApiClient.instance.get(
+    final response = await ref.read(apiClientProvider).get(
       '/pl_accessories',
       timeout: const Duration(seconds: 15),
     );

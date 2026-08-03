@@ -60,7 +60,7 @@ class OrderDetailNotifier extends AutoDisposeFamilyAsyncNotifier<OrderHistory, i
       receiptFile.path,
     );
 
-    final response = await ApiClient.instance.postMultipart(
+    final response = await ref.read(apiClientProvider).postMultipart(
       '/order_letter_payments',
       fields: fields,
       files: [file],
@@ -85,7 +85,7 @@ class OrderDetailNotifier extends AutoDisposeFamilyAsyncNotifier<OrderHistory, i
     final current = state.valueOrNull;
     if (current == null) return;
 
-    final response = await ApiClient.instance.put(
+    final response = await ref.read(apiClientProvider).put(
       '/order_letters/${current.id}',
       body: {
         'order_letter': {'status': status},
@@ -109,7 +109,10 @@ class OrderDetailNotifier extends AutoDisposeFamilyAsyncNotifier<OrderHistory, i
 
   Future<OrderHistory> _fetchOrderDetail(int orderId) async {
     try {
-      final wrap = await fetchOrderLetterResultWrap(orderId);
+      final wrap = await fetchOrderLetterResultWrap(
+        orderId,
+        apiClient: ref.read(apiClientProvider),
+      );
       if (wrap != null) {
         return OrderHistory.fromApiJson(wrap);
       }

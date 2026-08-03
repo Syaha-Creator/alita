@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/services/api_client.dart';
 import '../../../core/services/api_session_expired.dart';
 import '../../auth/logic/auth_provider.dart';
 import '../../history/data/services/order_letter_fetch.dart';
@@ -9,7 +10,10 @@ final approvalOrderWrapProvider =
     FutureProvider.autoDispose.family<Map<String, dynamic>, int>(
   (ref, orderId) async {
     try {
-      final wrap = await fetchOrderLetterResultWrap(orderId);
+      final wrap = await fetchOrderLetterResultWrap(
+        orderId,
+        apiClient: ref.read(apiClientProvider),
+      );
       if (wrap == null) {
         throw Exception('Tidak dapat memuat data surat pesanan.');
       }
