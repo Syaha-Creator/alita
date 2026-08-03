@@ -75,13 +75,14 @@ class CheckoutState with _$CheckoutState {
 // Notifier
 // ─────────────────────────────────────────────────────────────────
 
-class CheckoutNotifier extends StateNotifier<CheckoutState> {
-  CheckoutNotifier(this._ref) : super(const CheckoutState()) {
-    _orderService = CheckoutOrderService();
-  }
-
-  final Ref _ref;
+class CheckoutNotifier extends Notifier<CheckoutState> {
   late final CheckoutOrderService _orderService;
+
+  @override
+  CheckoutState build() {
+    _orderService = CheckoutOrderService();
+    return const CheckoutState();
+  }
 
   bool _fetchWorkPlaceInFlight = false;
   bool _fetchApproversInFlight = false;
@@ -164,7 +165,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       // Timeout jaga-jaga: mencegah kartu "Persetujuan Surat Pesanan" macet
       // loading selamanya jika profileProvider tergantung tanpa batas waktu
       // (mis. platform channel storage yang hang, di luar timeout HTTP-nya).
-      final profile = await _ref
+      final profile = await ref
           .read(profileProvider.future)
           .timeout(const Duration(seconds: 20));
       if (profile == null) {
@@ -417,7 +418,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       final leaderData = await _orderService.fetchLeaderByUser(userId, token);
       headerPayload['work_place_id'] = workPlaceId;
 
-      final rawLookup = await _ref.read(itemLookupProvider.future);
+      final rawLookup = await ref.read(itemLookupProvider.future);
       final lookupByItemNum = <String, ItemLookup>{};
       for (final list in rawLookup.values) {
         for (final entry in list) {
@@ -425,7 +426,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         }
       }
 
-      final profile = _ref.read(profileProvider).valueOrNull;
+      final profile = ref.read(profileProvider).valueOrNull;
 
       final pendingDetails = _orderService.buildPendingDetails(
         cartItems: cartItems,
@@ -655,15 +656,15 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       // ── Result ──
       if (failedDetails.isEmpty && failedDiscountDetails.isEmpty) {
         if (selectedCartItems != null && selectedCartItems.isNotEmpty) {
-          await _ref.read(cartProvider.notifier).removeItemsByIds(
+          await ref.read(cartProvider.notifier).removeItemsByIds(
                 selectedCartItems.map(cartItemKey).toSet(),
               );
         } else {
-          await _ref.read(cartProvider.notifier).clearCart();
+          await ref.read(cartProvider.notifier).clearCart();
         }
-        _ref.invalidate(orderHistoryProvider);
+        ref.invalidate(orderHistoryProvider);
         unawaited(
-            _ref.read(approvalInboxProvider.notifier).fetchInbox(force: true));
+            ref.read(approvalInboxProvider.notifier).fetchInbox(force: true));
 
         state = state.copyWith(
           isSubmitting: false,
@@ -1043,16 +1044,16 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
 
       if (stillFailed.isEmpty && failedDiscountDetails.isEmpty) {
         if (selectedCartItems != null && selectedCartItems.isNotEmpty) {
-          await _ref.read(cartProvider.notifier).removeItemsByIds(
+          await ref.read(cartProvider.notifier).removeItemsByIds(
                 selectedCartItems.map(cartItemKey).toSet(),
               );
         } else {
-          await _ref.read(cartProvider.notifier).clearCart();
+          await ref.read(cartProvider.notifier).clearCart();
         }
 
-        _ref.invalidate(orderHistoryProvider);
+        ref.invalidate(orderHistoryProvider);
         unawaited(
-            _ref.read(approvalInboxProvider.notifier).fetchInbox(force: true));
+            ref.read(approvalInboxProvider.notifier).fetchInbox(force: true));
 
         state = state.copyWith(
           isSubmitting: false,
@@ -1218,7 +1219,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       final token = await StorageService.loadAccessToken();
       final int userId = await StorageService.loadUserId();
 
-      final rawLookup = await _ref.read(itemLookupProvider.future);
+      final rawLookup = await ref.read(itemLookupProvider.future);
       final lookupByItemNum = <String, ItemLookup>{};
       for (final list in rawLookup.values) {
         for (final entry in list) {
@@ -1227,7 +1228,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       }
 
       final leaderData = await _orderService.fetchLeaderByUser(userId, token);
-      final profile = _ref.read(profileProvider).valueOrNull;
+      final profile = ref.read(profileProvider).valueOrNull;
 
       final pendingDetails = _orderService.buildPendingDetails(
         cartItems: cartItems,
@@ -1356,11 +1357,11 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       // setelah membaca editCtx untuk menentukan feedback & navigasi.
 
       // ── Clear cart & invalidate providers ──
-      await _ref.read(cartProvider.notifier).clearCart();
-      _ref.invalidate(orderHistoryProvider);
-      _ref.invalidate(orderDetailProvider(orderLetterId));
+      await ref.read(cartProvider.notifier).clearCart();
+      ref.invalidate(orderHistoryProvider);
+      ref.invalidate(orderDetailProvider(orderLetterId));
       unawaited(
-          _ref.read(approvalInboxProvider.notifier).fetchInbox(force: true));
+          ref.read(approvalInboxProvider.notifier).fetchInbox(force: true));
 
       sw.stop();
       AppTelemetry.event(
@@ -1441,6 +1442,6 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
 // Provider
 // ─────────────────────────────────────────────────────────────────
 
-final checkoutProvider = StateNotifierProvider<CheckoutNotifier, CheckoutState>(
-  (ref) => CheckoutNotifier(ref),
+final checkoutProvider = NotifierProvider<CheckoutNotifier, CheckoutState>(
+  CheckoutNotifier.new,
 );
