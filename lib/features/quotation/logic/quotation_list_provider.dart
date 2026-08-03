@@ -8,12 +8,14 @@ import '../data/quotation_model.dart';
 /// Manages the list of locally-saved quotation drafts.
 ///
 /// Data is persisted as JSON on disk ([StorageService]) to avoid huge SP channel payloads.
-class QuotationListNotifier extends StateNotifier<List<QuotationModel>> {
-  QuotationListNotifier() : super([]) {
-    _load();
-  }
-
+class QuotationListNotifier extends Notifier<List<QuotationModel>> {
   bool _loadComplete = false;
+
+  @override
+  List<QuotationModel> build() {
+    _load();
+    return [];
+  }
 
   Future<void> _load() async {
     try {
@@ -86,8 +88,8 @@ class QuotationListNotifier extends StateNotifier<List<QuotationModel>> {
 }
 
 final quotationListProvider =
-    StateNotifierProvider<QuotationListNotifier, List<QuotationModel>>(
-  (ref) => QuotationListNotifier(),
+    NotifierProvider<QuotationListNotifier, List<QuotationModel>>(
+  QuotationListNotifier.new,
 );
 
 /// Holds the quotation being edited so customer data survives
