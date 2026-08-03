@@ -176,7 +176,6 @@ Before writing ANY new widget, utility, style, or layout, you MUST check this in
 | `PaymentFormContent` | Payment method/bank/amount/receipt form | Payment entry forms |
 | `CheckoutInputDecoration` | Shared InputDecoration for checkout fields | Checkout form fields |
 | `OfflineBanner` / `OfflineWarningRow` | Offline indicator banner/row | Network-aware screens |
-| `WhatsappIcon` | WhatsApp icon asset widget | WA buttons |
 | `PdfActionSheet` | Share/print PDF action sheet | PDF actions |
 | `OrderListCardFrame` | Standard card frame for order lists | Order/history list cards |
 | **Detail page widgets:** | | |
