@@ -66,7 +66,7 @@ void main() {
         await tester.tap(profileIcon.first);
         await tester.pumpAndSettle();
 
-        expect(find.text('Mochammad Syahrul Azhar'), findsWidgets);
+        expect(find.text('Test Sales User'), findsWidgets);
       }
     });
 

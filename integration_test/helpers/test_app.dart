@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/test/test_flutter_secure_storage_platform.dart';
+import 'package:flutter_secure_storage_platform_interface/flutter_secure_storage_platform_interface.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -14,32 +15,57 @@ import 'package:alitapricelist/features/profile/logic/profile_provider.dart';
 
 import 'test_data.dart';
 
-/// Registers a no-op handler for FlutterSecureStorage's method channel
+/// Registers an in-memory fake for FlutterSecureStorage's platform interface
 /// so tests can run headlessly without MissingPluginException.
+///
+/// IMPORTANT: this must actually round-trip values (unlike a MethodChannel
+/// mock that just returns null for every call) because `StorageService`
+/// stores access_token/user_id/user_name/user_address_number in secure
+/// storage (PII hardening — see docs). A stateless null-returning mock made
+/// [initLoggedInState] silently ineffective: `AuthNotifier` would always see
+/// an empty token/profile and treat the session as logged out, regardless of
+/// what SharedPreferences held. Use [TestFlutterSecureStoragePlatform]
+/// (shipped by the plugin itself for exactly this purpose) with a real
+/// backing map instead.
 void mockSecureStorageChannel() {
-  const channel = MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
-  TestWidgetsFlutterBinding.instance.defaultBinaryMessenger
-      .setMockMethodCallHandler(channel, (call) async => null);
+  FlutterSecureStoragePlatform.instance =
+      TestFlutterSecureStoragePlatform(<String, String>{});
 }
 
 /// Sets up SharedPreferences for a logged-out user.
 void initLoggedOutState() {
   SharedPreferences.setMockInitialValues({
     'token_migrated_v1': true,
+    'email_migrated_v1': true,
+    'profile_fields_migrated_v1': true,
   });
+  FlutterSecureStoragePlatform.instance =
+      TestFlutterSecureStoragePlatform(<String, String>{});
 }
 
-/// Sets up SharedPreferences for a logged-in user (mirroring real API data).
+/// Sets up SharedPreferences + secure storage for a logged-in user (mirroring
+/// real API data). `access_token`/`user_id`/`user_name`/`user_email` live in
+/// secure storage in the real app (see [StorageService]) — seed them there
+/// directly and mark all migrations as already-done so `StorageService`
+/// never tries to read stale legacy values from SharedPreferences.
 void initLoggedInState() {
   SharedPreferences.setMockInitialValues({
     'is_logged_in': true,
-    'user_email': 'msyahrul090@gmail.com',
     'default_area': 'Jabodetabek',
-    'user_id': 5206,
-    'user_name': 'Mochammad Syahrul Azhar',
-    'user_image_url':
-        'https://alitav2.massindo.com/uploads/user/image/5206/Mochammad_Syahrul_Azhar.jpg',
+    'user_image_url': '',
     'token_migrated_v1': true,
+    'email_migrated_v1': true,
+    'profile_fields_migrated_v1': true,
+  });
+  // NOTE: user_id intentionally NOT a real user id — see [TestData.testUserId]
+  // for why (it used to be 5206, which silently collided with the real
+  // TelemetryAccess admin allowlist and redirected every logged-in test to
+  // /sales_hub instead of the product list).
+  FlutterSecureStoragePlatform.instance = TestFlutterSecureStoragePlatform({
+    'access_token': 'test-access-token',
+    'user_id': '900001',
+    'user_name': 'Test Sales User',
+    'user_email': 'test.sales@alita.test',
   });
 }
 

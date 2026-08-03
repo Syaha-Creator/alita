@@ -12,15 +12,20 @@ abstract final class TestData {
 
   static const loggedOutAuth = AuthState(isLoading: false);
 
+  // NOTE: userId intentionally NOT a real user id — 5206 used to be here and
+  // silently collided with TelemetryAccess._adminUserIds (the real admin
+  // allowlist), which redirected every logged-in test straight to
+  // /sales_hub instead of the product list. Keep this a clearly-fake id.
+  static const testUserId = 900001;
+
   static const loggedInAuth = AuthState(
     isLoggedIn: true,
-    userEmail: 'msyahrul090@gmail.com',
+    userEmail: 'test.sales@alita.test',
     defaultArea: 'Jabodetabek',
     accessToken: 'test-token-integration',
-    userId: 5206,
-    userName: 'Mochammad Syahrul Azhar',
-    userImageUrl:
-        'https://alitav2.massindo.com/uploads/user/image/5206/Mochammad_Syahrul_Azhar.jpg',
+    userId: testUserId,
+    userName: 'Test Sales User',
+    userImageUrl: '',
     isLoading: false,
   );
 

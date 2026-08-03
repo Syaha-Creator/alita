@@ -77,6 +77,10 @@ dev_dependencies:
     sdk: flutter
   integration_test:
     sdk: flutter
+  # Dipakai langsung di integration_test/helpers/test_app.dart untuk
+  # TestFlutterSecureStoragePlatform (mock secure storage yang benar-benar
+  # menyimpan nilai, bukan MethodChannel mock stateless).
+  flutter_secure_storage_platform_interface: ^2.0.2
 
   # Mocking
   mocktail: ^1.0.4
