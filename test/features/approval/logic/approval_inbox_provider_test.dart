@@ -123,8 +123,7 @@ void main() {
         overrides: [
           profileProvider.overrideWith((ref) async => _testProfile(id: 2)),
           approvalInboxProvider.overrideWith(
-            (ref) => ApprovalInboxNotifier(
-              ref,
+            () => ApprovalInboxNotifier(
               apiClient: mockApi,
               skipInitialFetch: false,
             ),
@@ -150,8 +149,7 @@ void main() {
         overrides: [
           profileProvider.overrideWith((ref) async => _testProfile()),
           approvalInboxProvider.overrideWith(
-            (ref) => ApprovalInboxNotifier(
-              ref,
+            () => ApprovalInboxNotifier(
               apiClient: mockApi,
               skipInitialFetch: true,
             ),
@@ -208,8 +206,7 @@ void main() {
         overrides: [
           profileProvider.overrideWith((ref) async => _testProfile(id: userId)),
           approvalInboxProvider.overrideWith(
-            (ref) => ApprovalInboxNotifier(
-              ref,
+            () => ApprovalInboxNotifier(
               apiClient: mockApi,
               skipInitialFetch: true,
             ),
@@ -266,8 +263,7 @@ void main() {
         overrides: [
           profileProvider.overrideWith((ref) async => _testProfile()),
           approvalInboxProvider.overrideWith(
-            (ref) => ApprovalInboxNotifier(
-              ref,
+            () => ApprovalInboxNotifier(
               apiClient: mockApi,
               skipInitialFetch: true,
             ),
@@ -306,8 +302,7 @@ void main() {
         overrides: [
           profileProvider.overrideWith((ref) async => _testProfile()),
           approvalInboxProvider.overrideWith(
-            (ref) => ApprovalInboxNotifier(
-              ref,
+            () => ApprovalInboxNotifier(
               apiClient: mockApi,
               skipInitialFetch: true,
             ),
@@ -375,8 +370,7 @@ void main() {
         overrides: [
           profileProvider.overrideWith((ref) async => _testProfile()),
           approvalInboxProvider.overrideWith(
-            (ref) => ApprovalInboxNotifier(
-              ref,
+            () => ApprovalInboxNotifier(
               apiClient: mockApi,
               skipInitialFetch: true,
             ),
@@ -465,8 +459,7 @@ void main() {
             (ref) async => _testProfile(id: userId),
           ),
           approvalInboxProvider.overrideWith(
-            (ref) => ApprovalInboxNotifier(
-              ref,
+            () => ApprovalInboxNotifier(
               apiClient: mockApi,
               skipInitialFetch: true,
             ),
@@ -494,8 +487,7 @@ void main() {
         overrides: [
           profileProvider.overrideWith((ref) async => _testProfile()),
           approvalInboxProvider.overrideWith(
-            (ref) => ApprovalInboxNotifier(
-              ref,
+            () => ApprovalInboxNotifier(
               apiClient: mockApi,
               skipInitialFetch: true,
             ),
@@ -537,8 +529,7 @@ void main() {
         overrides: [
           profileProvider.overrideWith((ref) async => _testProfile()),
           approvalInboxProvider.overrideWith(
-            (ref) => ApprovalInboxNotifier(
-              ref,
+            () => ApprovalInboxNotifier(
               apiClient: mockApi,
               skipInitialFetch: true,
             ),
@@ -569,8 +560,7 @@ void main() {
         overrides: [
           profileProvider.overrideWith((ref) async => _testProfile()),
           approvalInboxProvider.overrideWith(
-            (ref) => ApprovalInboxNotifier(
-              ref,
+            () => ApprovalInboxNotifier(
               apiClient: mockApi,
               skipInitialFetch: true,
             ),
@@ -633,8 +623,7 @@ void main() {
         overrides: [
           profileProvider.overrideWith((ref) async => _testProfile(id: userId)),
           approvalInboxProvider.overrideWith(
-            (ref) => ApprovalInboxNotifier(
-              ref,
+            () => ApprovalInboxNotifier(
               apiClient: mockApi,
               skipInitialFetch: true,
             ),
@@ -686,8 +675,7 @@ void main() {
         overrides: [
           profileProvider.overrideWith((ref) async => _testProfile(id: userId)),
           approvalInboxProvider.overrideWith(
-            (ref) => ApprovalInboxNotifier(
-              ref,
+            () => ApprovalInboxNotifier(
               apiClient: mockApi,
               skipInitialFetch: true,
             ),
@@ -740,8 +728,7 @@ void main() {
         overrides: [
           profileProvider.overrideWith((ref) async => _testProfile(id: userId)),
           approvalInboxProvider.overrideWith(
-            (ref) => ApprovalInboxNotifier(
-              ref,
+            () => ApprovalInboxNotifier(
               apiClient: mockApi,
               skipInitialFetch: true,
             ),
@@ -796,8 +783,7 @@ void main() {
         overrides: [
           profileProvider.overrideWith((ref) async => _testProfile(id: userId)),
           approvalInboxProvider.overrideWith(
-            (ref) => ApprovalInboxNotifier(
-              ref,
+            () => ApprovalInboxNotifier(
               apiClient: mockApi,
               skipInitialFetch: true,
             ),
@@ -851,8 +837,7 @@ void main() {
         overrides: [
           profileProvider.overrideWith((ref) async => _testProfile(id: userId)),
           approvalInboxProvider.overrideWith(
-            (ref) => ApprovalInboxNotifier(
-              ref,
+            () => ApprovalInboxNotifier(
               apiClient: mockApi,
               skipInitialFetch: true,
             ),
@@ -907,8 +892,7 @@ void main() {
         overrides: [
           profileProvider.overrideWith((ref) async => _testProfile(id: userId)),
           approvalInboxProvider.overrideWith(
-            (ref) => ApprovalInboxNotifier(
-              ref,
+            () => ApprovalInboxNotifier(
               apiClient: mockApi,
               skipInitialFetch: true,
             ),
@@ -946,8 +930,7 @@ void main() {
         overrides: [
           profileProvider.overrideWith((ref) async => _testProfile(id: 9)),
           approvalInboxProvider.overrideWith(
-            (ref) => ApprovalInboxNotifier(
-              ref,
+            () => ApprovalInboxNotifier(
               apiClient: mockApi,
               skipInitialFetch: true,
             ),
@@ -996,8 +979,7 @@ void main() {
         overrides: [
           profileProvider.overrideWith((ref) async => _testProfile(id: 3)),
           approvalInboxProvider.overrideWith(
-            (ref) => ApprovalInboxNotifier(
-              ref,
+            () => ApprovalInboxNotifier(
               apiClient: mockApi,
               skipInitialFetch: true,
             ),
@@ -1075,8 +1057,7 @@ void main() {
         overrides: [
           profileProvider.overrideWith((ref) async => _testProfile(id: userId)),
           approvalInboxProvider.overrideWith(
-            (ref) => ApprovalInboxNotifier(
-              ref,
+            () => ApprovalInboxNotifier(
               apiClient: mockApi,
               skipInitialFetch: true,
             ),
@@ -1125,8 +1106,7 @@ void main() {
         overrides: [
           profileProvider.overrideWith((ref) async => _testProfile()),
           approvalInboxProvider.overrideWith(
-            (ref) => ApprovalInboxNotifier(
-              ref,
+            () => ApprovalInboxNotifier(
               apiClient: mockApi,
               skipInitialFetch: true,
             ),
@@ -1165,8 +1145,7 @@ void main() {
         overrides: [
           profileProvider.overrideWith((ref) async => _testProfile()),
           approvalInboxProvider.overrideWith(
-            (ref) => ApprovalInboxNotifier(
-              ref,
+            () => ApprovalInboxNotifier(
               apiClient: mockApi,
               skipInitialFetch: true,
             ),
@@ -1195,8 +1174,7 @@ void main() {
         overrides: [
           profileProvider.overrideWith((ref) async => _testProfile()),
           approvalInboxProvider.overrideWith(
-            (ref) => ApprovalInboxNotifier(
-              ref,
+            () => ApprovalInboxNotifier(
               apiClient: mockApi,
               skipInitialFetch: true,
             ),
@@ -1229,8 +1207,7 @@ void main() {
         overrides: [
           profileProvider.overrideWith((ref) async => _testProfile()),
           approvalInboxProvider.overrideWith(
-            (ref) => ApprovalInboxNotifier(
-              ref,
+            () => ApprovalInboxNotifier(
               apiClient: mockApi,
               skipInitialFetch: true,
             ),
@@ -1263,8 +1240,7 @@ void main() {
         overrides: [
           profileProvider.overrideWith((ref) async => _testProfile()),
           approvalInboxProvider.overrideWith(
-            (ref) => ApprovalInboxNotifier(
-              ref,
+            () => ApprovalInboxNotifier(
               apiClient: mockApi,
               skipInitialFetch: true,
             ),
@@ -1311,8 +1287,7 @@ void main() {
         overrides: [
           profileProvider.overrideWith((ref) async => _testProfile()),
           approvalInboxProvider.overrideWith(
-            (ref) => ApprovalInboxNotifier(
-              ref,
+            () => ApprovalInboxNotifier(
               apiClient: mockApi,
               skipInitialFetch: true,
             ),
@@ -1357,8 +1332,7 @@ void main() {
         overrides: [
           profileProvider.overrideWith((ref) async => _testProfile()),
           approvalInboxProvider.overrideWith(
-            (ref) => ApprovalInboxNotifier(
-              ref,
+            () => ApprovalInboxNotifier(
               apiClient: mockApi,
               skipInitialFetch: true,
             ),
@@ -1388,8 +1362,7 @@ void main() {
         overrides: [
           profileProvider.overrideWith((ref) async => _testProfile()),
           approvalInboxProvider.overrideWith(
-            (ref) => ApprovalInboxNotifier(
-              ref,
+            () => ApprovalInboxNotifier(
               apiClient: mockApi,
               skipInitialFetch: true,
             ),
@@ -1420,8 +1393,7 @@ void main() {
         overrides: [
           profileProvider.overrideWith((ref) async => _testProfile()),
           approvalInboxProvider.overrideWith(
-            (ref) => ApprovalInboxNotifier(
-              ref,
+            () => ApprovalInboxNotifier(
               apiClient: mockApi,
               skipInitialFetch: true,
             ),
@@ -1462,8 +1434,7 @@ void main() {
         overrides: [
           profileProvider.overrideWith((ref) async => _testProfile()),
           approvalInboxProvider.overrideWith(
-            (ref) => ApprovalInboxNotifier(
-              ref,
+            () => ApprovalInboxNotifier(
               apiClient: mockApi,
               skipInitialFetch: true,
             ),

@@ -67,9 +67,7 @@ Widget buildTestApp({
       // Prevent API calls from providers that fire on navigation
       orderHistoryProvider.overrideWith((ref) async => []),
       profileProvider.overrideWith((ref) async => null),
-      approvalInboxProvider.overrideWith(
-        (ref) => _NoOpApprovalInboxNotifier(ref),
-      ),
+      approvalInboxProvider.overrideWith(_NoOpApprovalInboxNotifier.new),
       if (withProducts) ...[
         selectedChannelProvider.overrideWith((ref) => 'Indirect'),
         selectedBrandProvider.overrideWith((ref) => 'Comforta'),
@@ -102,8 +100,6 @@ class _TestApp extends ConsumerWidget {
 /// No-op approval inbox notifier that skips [fetchInbox] to avoid
 /// hitting real API in integration tests.
 class _NoOpApprovalInboxNotifier extends ApprovalInboxNotifier {
-  _NoOpApprovalInboxNotifier(super.ref);
-
   @override
   Future<void> fetchInbox({bool force = false}) async {}
 }

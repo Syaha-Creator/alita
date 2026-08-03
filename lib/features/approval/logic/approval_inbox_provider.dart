@@ -263,9 +263,15 @@ _ApprovalInboxParseResult _parseApprovalInboxEntryPoint(
 }
 
 // ── Notifier ──────────────────────────────────────────────────
-class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
-  final Ref ref;
+class ApprovalInboxNotifier extends Notifier<ApprovalInboxState> {
+  ApprovalInboxNotifier({
+    ApiClient? apiClient,
+    bool skipInitialFetch = false,
+  })  : _api = apiClient ?? ApiClient.instance,
+        _skipInitialFetch = skipInitialFetch;
+
   final ApiClient _api;
+  final bool _skipInitialFetch;
 
   /// Guard sinkron untuk mencegah fetch paralel.
   /// Dipakai sebagai pengganti state.isLoading agar tidak bentrok dengan
@@ -276,15 +282,17 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
   /// tidak menimpa state / tidak meng-clear flag milik fetch lebih baru.
   int _fetchGeneration = 0;
 
-  ApprovalInboxNotifier(
-    this.ref, {
-    ApiClient? apiClient,
-    bool skipInitialFetch = false,
-  })  : _api = apiClient ?? ApiClient.instance,
-        super(const ApprovalInboxState()) {
-    if (!skipInitialFetch) {
-      fetchInbox();
+  @override
+  ApprovalInboxState build() {
+    if (!_skipInitialFetch) {
+      // fetchInbox() mutates `state` synchronously before its first `await`
+      // (guard checks + the initial `isLoading: true` copyWith) — calling it
+      // directly here would touch `state` before build() has returned its
+      // initial value, throwing "Tried to read the state of an uninitialized
+      // provider". Defer to a microtask so build() finishes first.
+      Future.microtask(fetchInbox);
     }
+    return const ApprovalInboxState();
   }
 
   /// Update query pencarian no SP / nama customer (client-side, tanpa re-fetch).
@@ -684,6 +692,6 @@ class ApprovalInboxNotifier extends StateNotifier<ApprovalInboxState> {
 
 // ── Provider ──────────────────────────────────────────────────
 final approvalInboxProvider =
-    StateNotifierProvider<ApprovalInboxNotifier, ApprovalInboxState>((ref) {
-  return ApprovalInboxNotifier(ref);
-});
+    NotifierProvider<ApprovalInboxNotifier, ApprovalInboxState>(
+  ApprovalInboxNotifier.new,
+);
