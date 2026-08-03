@@ -7,6 +7,7 @@ import '../../../../core/utils/discount_formatter.dart';
 import '../../../../core/utils/number_input_formatter.dart';
 import '../../../../core/widgets/price_block.dart';
 import '../../data/models/product.dart';
+import '../../logic/product_detail_utils.dart';
 import 'bonus_editor_modal.dart';
 import 'indirect_store_discount_section.dart';
 import 'indirect_store_discount_sheet.dart';
@@ -347,8 +348,7 @@ class ProductPriceSection extends StatelessWidget {
     double targetTotal,
     double baseEup,
   ) {
-    if (targetTotal >= baseEup || targetTotal <= 0) return [];
-    final maxLimits = [
+    final maxLimits = ProductDetailUtils.collectMaxLimits([
       activeProduct.disc1,
       activeProduct.disc2,
       activeProduct.disc3,
@@ -357,17 +357,12 @@ class ProductPriceSection extends StatelessWidget {
       activeProduct.disc6,
       activeProduct.disc7,
       activeProduct.disc8,
-    ].where((d) => d > 0).toList();
-    if (maxLimits.isEmpty) return [];
-    final result = <double>[];
-    double base = baseEup;
-    for (final limit in maxLimits) {
-      final d = (1 - targetTotal / base).clamp(0.0, limit);
-      if (d < 1e-9) break;
-      result.add(d);
-      base = base * (1 - d);
-    }
-    return result;
+    ]);
+    return ProductDetailUtils.computeDiscountsFromTargetTotal(
+      targetTotal,
+      baseEup,
+      maxLimits,
+    );
   }
 
   Widget _buildBonusSection(BuildContext context) {

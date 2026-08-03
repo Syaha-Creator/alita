@@ -1,3 +1,4 @@
+import '../../../core/utils/log.dart';
 import '../data/models/item_lookup.dart';
 
 /// Pure utility functions extracted from [ProductDetailPage] to keep
@@ -22,6 +23,16 @@ abstract final class ProductDetailUtils {
       result.add(d);
       base = base * (1 - d);
     }
+    // TEMPORARY diagnostic log — remove once the "diskon tambahan splits
+    // into many tiny tiers" investigation is resolved. See discussion re:
+    // Lively Pedic 090x200 showing 0.22%+0.22%+0.23% instead of a single
+    // tier. Helps confirm whether maxLimits (disc1..disc8) are genuinely
+    // tiny for a given SKU, or something else is off.
+    Log.info(
+      'target=$targetTotal base=$baseTotalEup maxLimits=$maxLimits '
+      'result=$result',
+      tag: 'DiscountCascadeDebug',
+    );
     return result;
   }
 
