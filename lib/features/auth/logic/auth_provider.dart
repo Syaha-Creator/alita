@@ -79,21 +79,30 @@ class AuthState {
 //  Auth notifier
 // ─────────────────────────────────────────────────────────
 
-class AuthNotifier extends StateNotifier<AuthState> {
-  AuthNotifier(this._ref, {AuthService? authService})
-      : _authService = authService ?? AuthService(),
-        super(const AuthState()) {
-    _init();
-  }
+class AuthNotifier extends Notifier<AuthState> {
+  AuthNotifier({AuthService? authService})
+      : _authService = authService ?? AuthService();
 
   final AuthService _authService;
-  final Ref _ref;
 
   // Guards against a second login() firing (e.g. double-tap on a slow
   // network) while one is already in flight — without this, two concurrent
   // API calls race to write `state`, and whichever response arrives last
   // wins regardless of which attempt the user actually intended.
   bool _isLoggingIn = false;
+
+  // Notifier has no dispose() override of its own (unlike StateNotifier) —
+  // register the flip via ref.onDispose() instead. Replaces the old
+  // `mounted` getter StateNotifier exposed for the same early-return guard
+  // in `_init()`.
+  bool _isDisposed = false;
+
+  @override
+  AuthState build() {
+    ref.onDispose(() => _isDisposed = true);
+    _init();
+    return const AuthState();
+  }
 
   /// Read persisted session on startup.
   Future<void> _init() async {
@@ -137,7 +146,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       // overlap with Riverpod's vsync flush during the initial build frame.
       // Fixes ConcurrentModificationError in riverpod 2.6.1.
       await Future<void>.delayed(Duration.zero);
-      if (!mounted) return;
+      if (_isDisposed) return;
 
       state = AuthState(
         isLoggedIn: isLoggedIn,
@@ -157,7 +166,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     } catch (e, st) {
       Log.error(e, st, reason: 'Auth _init (restore session dari storage)');
       await Future<void>.delayed(Duration.zero);
-      if (!mounted) return;
+      if (_isDisposed) return;
       // Jangan biarkan isLoading true selamanya → user stuck di /auth_boot.
       state = const AuthState(isLoading: false);
     }
@@ -318,7 +327,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     // address_number — must not leak into the next account that logs in on
     // this device, otherwise a fresh login can be stuck showing the
     // previous user's mode with an empty/mismatched address_number.
-    await _ref.read(salesModeProvider.notifier).setMode(SalesMode.direct);
+    await ref.read(salesModeProvider.notifier).setMode(SalesMode.direct);
     state = const AuthState(isLoading: false);
 
     // Cancel FCM refresh listener first (fast, local) — hindari race token
@@ -348,6 +357,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
 //  Provider
 // ─────────────────────────────────────────────────────────
 
-final authProvider = StateNotifierProvider<AuthNotifier, AuthState>(
-  (ref) => AuthNotifier(ref),
+final authProvider = NotifierProvider<AuthNotifier, AuthState>(
+  AuthNotifier.new,
 );

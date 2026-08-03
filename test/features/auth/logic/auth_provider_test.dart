@@ -30,7 +30,7 @@ void main() {
     container = ProviderContainer(
       overrides: [
         authProvider.overrideWith(
-          (ref) => AuthNotifier(ref, authService: mockAuthService),
+          () => AuthNotifier(authService: mockAuthService),
         ),
       ],
     );
