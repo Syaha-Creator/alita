@@ -4,12 +4,14 @@ import '../../pricelist/data/models/product.dart';
 import '../../pricelist/logic/product_provider.dart';
 
 /// Favorites state notifier (stores product IDs only for efficiency)
-class FavoritesNotifier extends StateNotifier<List<String>> {
-  FavoritesNotifier() : super([]) {
-    _loadFavorites();
-  }
-
+class FavoritesNotifier extends Notifier<List<String>> {
   bool _loadComplete = false;
+
+  @override
+  List<String> build() {
+    _loadFavorites();
+    return [];
+  }
 
   /// Load favorites from storage on init
   Future<void> _loadFavorites() async {
@@ -61,10 +63,9 @@ class FavoritesNotifier extends StateNotifier<List<String>> {
   int get favoritesCount => state.length;
 }
 
-final favoritesProvider =
-    StateNotifierProvider<FavoritesNotifier, List<String>>((ref) {
-  return FavoritesNotifier();
-});
+final favoritesProvider = NotifierProvider<FavoritesNotifier, List<String>>(
+  FavoritesNotifier.new,
+);
 
 /// Check if specific product is favorite.
 ///
