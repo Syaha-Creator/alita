@@ -54,8 +54,15 @@ class AppTheme {
       scaffoldBackgroundColor: AppColors.background,
       appBarTheme: AppBarTheme(
         elevation: 0,
+        // Material 3 default: saat konten di-scroll di bawah AppBar, warnanya
+        // ikut berubah (surfaceTint overlay muncul mengikuti
+        // scrolledUnderElevation). Dikunci ke 0 + surfaceTintColor sama
+        // dengan backgroundColor agar AppBar benar-benar flat & konsisten,
+        // tidak "berubah warna" saat scroll (lihat screenshot bug report).
+        scrolledUnderElevation: 0,
         centerTitle: false,
         backgroundColor: AppColors.background,
+        surfaceTintColor: AppColors.background,
         foregroundColor: AppColors.textPrimary,
         titleTextStyle: _text(
           20,
