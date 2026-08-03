@@ -29,6 +29,41 @@ void main() {
         expect(d, lessThanOrEqualTo(0.5));
       }
     });
+
+    test(
+      'stays within tier 1 only when tier 1\'s own limit already covers '
+      'the required cut — does not spill into later tiers unnecessarily',
+      () {
+        // Reproduces a real device log: base=10,395,000, target=10,000,000,
+        // maxLimits=[10%, 5%, 5%, 50%]. Required cut is ~3.8%, comfortably
+        // under tier 1's 10% ceiling, so only tier 1 should populate.
+        final out = ProductDetailUtils.computeDiscountsFromTargetTotal(
+          10000000,
+          10395000,
+          [0.1, 0.05, 0.05, 0.5],
+        );
+        expect(out.length, 1);
+        expect(out.single, closeTo(0.038, 0.001));
+      },
+    );
+
+    test(
+      'spills into later tiers only once earlier tiers are exhausted, '
+      'reproducing manual entry of 10%+5%+5%+50% via a target price',
+      () {
+        // 10,395,000 * 0.9 * 0.95 * 0.95 * 0.5 = 4,221,669.375
+        final out = ProductDetailUtils.computeDiscountsFromTargetTotal(
+          4221669.375,
+          10395000,
+          [0.1, 0.05, 0.05, 0.5],
+        );
+        expect(out.length, 4);
+        expect(out[0], closeTo(0.1, 0.0001));
+        expect(out[1], closeTo(0.05, 0.0001));
+        expect(out[2], closeTo(0.05, 0.0001));
+        expect(out[3], closeTo(0.5, 0.0001));
+      },
+    );
   });
 
   group('ProductDetailUtils.calculateCascadingPrice', () {
