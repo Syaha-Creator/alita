@@ -10,11 +10,11 @@ import 'product_provider.dart' show effectiveAreaProvider;
 
 /// Provider untuk aksesoris (pengganti bonus) dari API pl_accessories.
 ///
-/// `/pl_accessories` **tidak** punya query param `area` di backend — endpoint
-/// ini selalu mengembalikan semua area sekaligus. Jadi filtering per
-/// [effectiveAreaProvider] (sama seperti produk utama di `filtered_pl`)
-/// dilakukan murni di klien terhadap field `area` yang ada di setiap baris
-/// response, bukan lewat query param.
+/// Difilter per [effectiveAreaProvider] (sama seperti produk utama di
+/// `filtered_pl`) karena pricelist aksesoris berbeda per area. Query param
+/// `area` dikirim ke server (backend sudah mendukungnya), dan hasilnya tetap
+/// difilter ulang di klien terhadap field `area` di tiap baris sebagai
+/// jaga-jaga bila server mengembalikan area lain.
 final accessoryProvider = FutureProvider<List<Accessory>>((ref) async {
   final area = ref.watch(effectiveAreaProvider);
   if (area.isEmpty) return [];
@@ -22,6 +22,7 @@ final accessoryProvider = FutureProvider<List<Accessory>>((ref) async {
   try {
     final response = await ref.read(apiClientProvider).get(
       '/pl_accessories',
+      queryParams: {'area': area},
       timeout: const Duration(seconds: 15),
     );
 
@@ -43,9 +44,9 @@ final accessoryProvider = FutureProvider<List<Accessory>>((ref) async {
       for (final e
           in safeMapList(rawList, fieldName: 'pl_accessories')) {
         final acc = Accessory.fromJson(e);
-        // Hanya terima baris yang benar-benar milik area sales aktif.
-        // Baris tanpa field `area` (bentuk respons lama) tetap diterima
-        // apa adanya.
+        // Jaga-jaga: hanya terima baris yang benar-benar milik area ini,
+        // meski server sudah difilter. Baris tanpa field `area` (bentuk
+        // respons lama) tetap diterima apa adanya.
         if (acc.area.isNotEmpty && acc.area.toLowerCase() != lowerArea) {
           continue;
         }
