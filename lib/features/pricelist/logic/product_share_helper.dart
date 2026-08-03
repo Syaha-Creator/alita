@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../../core/services/api_client.dart';
 import '../../../core/utils/app_feedback.dart';
+import '../../../core/utils/log.dart';
 import '../../../core/utils/product_image_utils.dart';
 import '../../../core/utils/app_formatters.dart';
 import '../../../core/utils/user_facing_error.dart';
@@ -63,7 +64,8 @@ class ProductShareHelper {
           sharePositionOrigin: origin,
         ),
       );
-    } catch (e) {
+    } catch (e, st) {
+      Log.error(e, st, reason: 'ProductShareHelper.share');
       if (context.mounted) {
         AppFeedback.show(
           context,

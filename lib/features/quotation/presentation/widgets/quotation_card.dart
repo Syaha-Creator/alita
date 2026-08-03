@@ -221,7 +221,8 @@ class QuotationCard extends ConsumerWidget {
           sharePositionOrigin: origin);
 
       _markQuotationSharedIfDraft(ref);
-    } catch (e) {
+    } catch (e, st) {
+      Log.error(e, st, reason: 'QuotationCard: share PDF');
       if (context.mounted) {
         AppFeedback.show(context,
             message: 'Gagal membuat PDF. ${userFacingErrorMessage(e)}',

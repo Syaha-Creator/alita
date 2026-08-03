@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_feedback.dart';
+import '../../../../core/utils/log.dart';
 import '../../../../core/utils/platform_utils.dart';
 import '../../../../core/widgets/image_source_sheet.dart';
 import '../../../../core/utils/app_formatters.dart';
@@ -195,7 +196,8 @@ class _AddPaymentBottomSheetState extends State<AddPaymentBottomSheet> {
       );
       if (!mounted) return;
       Navigator.of(context).pop();
-    } catch (e) {
+    } catch (e, st) {
+      Log.error(e, st, reason: 'AddPaymentBottomSheet.submit');
       if (!mounted) return;
       AppFeedback.show(
         context,
