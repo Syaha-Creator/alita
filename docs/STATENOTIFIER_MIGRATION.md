@@ -35,6 +35,64 @@ masih `extends StateNotifier<...>`.
    karena `Notifier` dipanggil Riverpod lewat constructor tanpa-argumen
    (`X.new`). Ini scope tambahan di luar file notifier itu sendiri.
 
+## Progress (3 Agu 2026)
+
+9 dari 10 notifier sudah dimigrasi (commit lokal di branch `feature/toko`,
+belum di-push — lihat instruksi user di chat). `CheckoutNotifier` (#10)
+**sengaja ditunda**, sesuai urutan yang sudah direncanakan di tabel di
+bawah (file terbesar & paling banyak business logic — kerjakan setelah
+pola migrasi matang dari 9 file lain).
+
+| # | Notifier | Status |
+|---|---|---|
+| 1 | `SalesModeNotifier` | ✅ Selesai |
+| 2 | `FavoritesNotifier` | ✅ Selesai |
+| 3 | `SelectedCartIdsNotifier` | ✅ Selesai |
+| 4 | `CartNotifier` | ✅ Selesai |
+| 5 | `QuotationListNotifier` | ✅ Selesai |
+| 6 | `IndirectSessionNotifier` | ✅ Selesai |
+| 7 | `MasterDataNotifier` | ✅ Selesai |
+| 8 | `ApprovalInboxNotifier` | ✅ Selesai |
+| 9 | `AuthNotifier` | ✅ Selesai |
+| 10 | `CheckoutNotifier` | ⏳ Belum — lihat catatan di bawah |
+
+### Temuan tambahan selama migrasi (di luar checklist awal)
+
+1. **Bug halus di `ApprovalInboxNotifier` (#8):** memanggil method yang
+   menyentuh `state` secara SINKRON sebelum `await` pertamanya (misal
+   `fetchInbox()` yang langsung `state = state.copyWith(isLoading: true)`
+   sebelum baris `await`) — aman di constructor `StateNotifier` (karena
+   `super(initial)` sudah men-set state lebih dulu), tapi melempar
+   `StateError: Tried to read the state of an uninitialized provider` kalau
+   dipanggil langsung dari `build()` pada `Notifier` (state belum di-`return`
+   dari `build()`). **Fix:** bungkus panggilan awal dengan
+   `Future.microtask(fetchInbox)` di dalam `build()`. Sebelum memanggil
+   method async apa pun langsung dari `build()`, periksa dulu apakah
+   statement PERTAMA method itu adalah `await` — kalau bukan, butuh
+   microtask wrapper ini.
+2. **Field `mounted` StateNotifier tidak ada penggantinya langsung di
+   `Notifier`** (juga tidak ada di `Ref` pada riverpod 2.6.1). Ganti dengan
+   flag manual `bool _isDisposed = false;` + `ref.onDispose(() => _isDisposed
+   = true);` didaftarkan di `build()` (dipakai di `MasterDataNotifier` #7
+   dan `AuthNotifier` #9).
+3. **Test yang instantiate notifier langsung** (`SalesModeNotifier()`, dst.)
+   harus direwrite ke `ProviderContainer().read(xProvider.notifier)` —
+   `Notifier` tidak boleh dipakai berdiri sendiri tanpa di-attach ke
+   provider/container (beda dari `StateNotifier` yang aktif sejak
+   konstruksi). Baca `.notifier` (atau provider-nya) sekali di awal test
+   untuk memicu `build()` yang lazy.
+4. **`NotifierProvider.overrideWith` menerima factory tanpa-`ref`**
+   (`Notifier<T> Function()`), beda dari `StateNotifierProvider.overrideWith`
+   yang meneruskan `ref` ke factory-nya (`(ref) => X(ref, ...)`). Semua
+   override di test (dan `integration_test/helpers/test_app.dart`) diupdate
+   ke pola `() => X(...)`.
+5. **Method pada `Notifier` tidak boleh dipanggil sebelum di-attach oleh
+   framework** — di integration test, `cartProvider.overrideWith((ref) {
+   final n = CartNotifier(); n.addItem(...); return n; })` tidak bisa lagi
+   dipakai (Notifier belum ter-`build()` saat itu). Populate state SETELAH
+   widget tree sudah di-pump, lewat
+   `ProviderScope.containerOf(...).read(xProvider.notifier).addItem(...)`.
+
 ## Urutan migrasi (mudah → sulit)
 
 Diurutkan dari LOC notifier + LOC test + ada/tidaknya constructor-mock-inject
