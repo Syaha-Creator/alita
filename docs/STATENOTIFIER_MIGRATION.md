@@ -35,13 +35,10 @@ masih `extends StateNotifier<...>`.
    karena `Notifier` dipanggil Riverpod lewat constructor tanpa-argumen
    (`X.new`). Ini scope tambahan di luar file notifier itu sendiri.
 
-## Progress (3 Agu 2026)
+## Progress (3 Agu 2026) — SELESAI 10/10
 
-9 dari 10 notifier sudah dimigrasi (commit lokal di branch `feature/toko`,
-belum di-push — lihat instruksi user di chat). `CheckoutNotifier` (#10)
-**sengaja ditunda**, sesuai urutan yang sudah direncanakan di tabel di
-bawah (file terbesar & paling banyak business logic — kerjakan setelah
-pola migrasi matang dari 9 file lain).
+Semua 10 notifier sudah dimigrasi (commit lokal di branch `feature/toko`,
+belum di-push — lihat instruksi user di chat).
 
 | # | Notifier | Status |
 |---|---|---|
@@ -54,7 +51,7 @@ pola migrasi matang dari 9 file lain).
 | 7 | `MasterDataNotifier` | ✅ Selesai |
 | 8 | `ApprovalInboxNotifier` | ✅ Selesai |
 | 9 | `AuthNotifier` | ✅ Selesai |
-| 10 | `CheckoutNotifier` | ⏳ Belum — lihat catatan di bawah |
+| 10 | `CheckoutNotifier` | ✅ Selesai — dikerjakan terakhir setelah pola matang di 9 file sebelumnya. Constructor lama TIDAK punya side-effect async (cuma bikin instance `CheckoutOrderService`), jadi tidak ada risiko bug microtask seperti item #8. Hanya 1 file berubah (`checkout_provider.dart`); test & caller lain tidak perlu diubah sama sekali. Diverifikasi dengan `flutter test test/features/checkout/` (285 lulus), full suite (845 lulus), dan `integration_test/checkout_flow_test.dart` (8 lulus) — tidak ada regresi. |
 
 ### Temuan tambahan selama migrasi (di luar checklist awal)
 
