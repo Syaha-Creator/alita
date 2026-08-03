@@ -4,6 +4,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_layout_tokens.dart';
 import '../../../../core/utils/app_feedback.dart';
 import '../../../../core/utils/app_formatters.dart';
+import '../../../../core/utils/number_input_formatter.dart';
 import '../../../../core/widgets/action_button_bar.dart';
 import '../../../../core/widgets/sheet_scaffold.dart';
 import '../../data/models/product.dart';
@@ -134,6 +135,21 @@ class _DiscountModalContentState extends State<DiscountModalContent> {
     super.dispose();
   }
 
+  /// Parses the raw text of controller [i] according to its current mode.
+  ///
+  /// Rp mode text is thousand-separator formatted (e.g. "1.500.000"), so it
+  /// must be stripped to digits-only before parsing. `%` mode keeps decimal
+  /// comma/dot support (e.g. "12,5").
+  double? _parseInputValue(int i) {
+    final raw = _controllers[i].text;
+    if (raw.isEmpty) return null;
+    if (_inputTypes[i] == 'Rp') {
+      final digits = ThousandsSeparatorInputFormatter.digitsOnly(raw);
+      return digits.isEmpty ? null : double.tryParse(digits);
+    }
+    return double.tryParse(raw.replaceAll(',', '.'));
+  }
+
   void _showToast(BuildContext context, String message) {
     AppFeedback.show(
       context,
@@ -146,9 +162,7 @@ class _DiscountModalContentState extends State<DiscountModalContent> {
   double _getRunningBaseBeforeTier(int tierIndex) {
     double runningTotal = widget.baseTotalEup;
     for (int j = 0; j < tierIndex && j < _controllers.length; j++) {
-      final text = _controllers[j].text.replaceAll(',', '.');
-      if (text.isEmpty) continue;
-      final val = double.tryParse(text);
+      final val = _parseInputValue(j);
       if (val == null || val <= 0) continue;
       if (_inputTypes[j] == '%') {
         runningTotal -= (runningTotal * (val / 100));
@@ -163,10 +177,9 @@ class _DiscountModalContentState extends State<DiscountModalContent> {
     double runningTotal = widget.baseTotalEup;
     for (int i = 0; i < widget.maxLimits.length; i++) {
       _errorMessages[i] = null;
-      final text = _controllers[i].text.replaceAll(',', '.');
-      if (text.isEmpty) continue;
+      if (_controllers[i].text.isEmpty) continue;
 
-      final inputValue = double.tryParse(text);
+      final inputValue = _parseInputValue(i);
       if (inputValue == null) {
         _errorMessages[i] = 'Input tidak valid';
         continue;
@@ -218,10 +231,7 @@ class _DiscountModalContentState extends State<DiscountModalContent> {
     double currentRunningBase = widget.baseTotalEup;
 
     for (int i = 0; i < widget.maxLimits.length; i++) {
-      final text = _controllers[i].text.replaceAll(',', '.');
-      if (text.isEmpty || text == '0') continue;
-
-      final val = double.tryParse(text);
+      final val = _parseInputValue(i);
       if (val == null || val <= 0) continue;
 
       if (_inputTypes[i] == '%') {
@@ -305,10 +315,14 @@ class _DiscountModalContentState extends State<DiscountModalContent> {
                           Expanded(
                             child: TextFormField(
                               controller: _controllers[i],
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                decimal: true,
-                              ),
+                              keyboardType: _inputTypes[i] == 'Rp'
+                                  ? TextInputType.number
+                                  : const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
+                              inputFormatters: _inputTypes[i] == 'Rp'
+                                  ? [ThousandsSeparatorInputFormatter()]
+                                  : null,
                               onTapOutside: (PointerDownEvent event) {
                                 dismissKeyboard();
                               },
@@ -357,9 +371,7 @@ class _DiscountModalContentState extends State<DiscountModalContent> {
                             onSelectPercent: () {
                               setState(() {
                                 if (_inputTypes[i] == 'Rp') {
-                                  final text =
-                                      _controllers[i].text.replaceAll(',', '.');
-                                  final nominal = double.tryParse(text);
+                                  final nominal = _parseInputValue(i);
                                   if (nominal != null && nominal > 0) {
                                     final base = _getRunningBaseBeforeTier(i);
                                     if (base > 0) {
@@ -377,14 +389,14 @@ class _DiscountModalContentState extends State<DiscountModalContent> {
                             onSelectRp: () {
                               setState(() {
                                 if (_inputTypes[i] == '%') {
-                                  final text =
-                                      _controllers[i].text.replaceAll(',', '.');
-                                  final percentVal = double.tryParse(text);
+                                  final percentVal = _parseInputValue(i);
                                   if (percentVal != null && percentVal > 0) {
                                     final base = _getRunningBaseBeforeTier(i);
                                     final nominal = base * (percentVal / 100);
                                     _controllers[i].text =
-                                        nominal.round().toString();
+                                        AppFormatters.currencyIdrNoSymbol(
+                                      nominal,
+                                    );
                                   }
                                 }
                                 _inputTypes[i] = 'Rp';
