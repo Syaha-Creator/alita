@@ -33,33 +33,32 @@ void main() {
     return container;
   }
 
-  void mockGet(http.Response response, {String area = 'Palembang'}) {
+  void mockGet(http.Response response) {
     when(
-      () => mockApi.get(
-        '/pl_accessories',
-        queryParams: {'area': area},
-        timeout: any(named: 'timeout'),
-      ),
+      () => mockApi.get('/pl_accessories', timeout: any(named: 'timeout')),
     ).thenAnswer((_) async => response);
   }
 
   group('accessoryProvider', () {
-    test('requests the effective area as a query param', () async {
-      mockGet(
-        http.Response(jsonEncode({'status': 'success', 'result': []}), 200),
-        area: 'Palembang',
-      );
+    test(
+      // /pl_accessories has no server-side area filter — it always returns
+      // every area, so the API call must NOT pass an `area` query param.
+      // Filtering happens purely client-side against each row's own `area`.
+      'calls the API without an area query param (server does not support '
+      'filtering by area)',
+      () async {
+        mockGet(
+          http.Response(jsonEncode({'status': 'success', 'result': []}), 200),
+        );
 
-      await buildContainer(area: 'Palembang').read(accessoryProvider.future);
+        await buildContainer(area: 'Palembang')
+            .read(accessoryProvider.future);
 
-      verify(
-        () => mockApi.get(
-          '/pl_accessories',
-          queryParams: {'area': 'Palembang'},
-          timeout: any(named: 'timeout'),
-        ),
-      ).called(1);
-    });
+        verify(
+          () => mockApi.get('/pl_accessories', timeout: any(named: 'timeout')),
+        ).called(1);
+      },
+    );
 
     test('returns empty list without calling the API when area is empty',
         () async {
@@ -67,9 +66,7 @@ void main() {
           await buildContainer(area: '').read(accessoryProvider.future);
 
       expect(result, isEmpty);
-      verifyNever(
-        () => mockApi.get(any(), queryParams: any(named: 'queryParams')),
-      );
+      verifyNever(() => mockApi.get(any(), timeout: any(named: 'timeout')));
     });
 
     test(
@@ -176,11 +173,7 @@ void main() {
 
     test('does not throw when the API call itself throws', () async {
       when(
-        () => mockApi.get(
-          '/pl_accessories',
-          queryParams: {'area': 'Palembang'},
-          timeout: any(named: 'timeout'),
-        ),
+        () => mockApi.get('/pl_accessories', timeout: any(named: 'timeout')),
       ).thenThrow(Exception('network down'));
 
       final result = await buildContainer().read(accessoryProvider.future);
