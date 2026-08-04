@@ -126,6 +126,7 @@ test/.test_runner.dart
 lib/firebase_options.dart
 android/app/google-services.json
 ios/Runner/GoogleService-Info.plist
+macos/Runner/GoogleService-Info.plist
 
 # Firebase project config (safe to track, no secrets)
 # firebase.json                      → tracked intentionally
