@@ -115,10 +115,19 @@ Future<void> _openIndirectStorePickerAsync(
             alphaName: s.alphaName,
             catcode27: s.catcode27,
           ),
-          onItemSelected: (s) {
-            unawaited(
-              ref.read(indirectSessionProvider.notifier).selectStore(s),
-            );
+          onItemSelected: (s) async {
+            final changed = await ref
+                .read(indirectSessionProvider.notifier)
+                .selectStore(s);
+            if (!changed && ctx.mounted) {
+              AppFeedback.show(
+                ctx,
+                message:
+                    'Kosongkan keranjang dulu untuk mengganti toko.',
+                type: AppFeedbackType.warning,
+                floating: true,
+              );
+            }
           },
         ),
       ),

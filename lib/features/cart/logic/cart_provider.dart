@@ -13,7 +13,9 @@ String cartItemKey(CartItem item) {
   final foc = item.isFocVoucherActive ? '|foc' : '';
   final bonus = item.bonusSnapshots.map((b) => '${b.name}:${b.qty}').join(',');
   final bonusSuffix = bonus.isEmpty ? '' : '|$bonus';
-  return '${item.product.id}|${item.kasurSku}|${item.divanSku}|${item.sandaranSku}|${item.sorongSku}$indirect$foc$bonusSuffix';
+  // Include ukuran so the same catalog product id with different sizes
+  // (or custom size) never collapses into one cart line.
+  return '${item.product.id}|${item.product.ukuran}|${item.kasurSku}|${item.divanSku}|${item.sandaranSku}|${item.sorongSku}$indirect$foc$bonusSuffix';
 }
 
 /// Cart state notifier with persistent storage
@@ -47,10 +49,11 @@ class CartNotifier extends Notifier<List<CartItem>> {
   }
 
   /// Returns true if [a] and [b] represent the same cart line:
-  /// same Product ID, component SKUs, store, FOC flag, AND bonus list.
-  /// Items with the same product but different bonuses become separate lines.
+  /// same Product ID, ukuran, component SKUs, store, FOC flag, AND bonus list.
+  /// Same product with different ukuran (or different bonuses) stay separate.
   static bool _isSameLine(CartItem a, CartItem b) =>
       a.product.id == b.product.id &&
+      a.product.ukuran == b.product.ukuran &&
       a.kasurSku == b.kasurSku &&
       a.divanSku == b.divanSku &&
       a.sandaranSku == b.sandaranSku &&

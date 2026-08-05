@@ -1,9 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/enums/sales_mode.dart';
 import '../../../core/utils/log.dart';
 import '../../../core/utils/store_discount_calculator.dart';
 import '../../auth/logic/auth_provider.dart';
-import '../../../core/enums/sales_mode.dart';
+import '../../cart/logic/cart_provider.dart';
 import '../data/models/assigned_store.dart';
 import '../data/services/indirect_assigned_stores_service.dart';
 import '../data/services/indirect_store_discount_service.dart';
@@ -28,11 +29,31 @@ class IndirectSessionNotifier extends Notifier<IndirectSessionState> {
   // response tiba, hasilnya diabaikan (stale cancellation pattern).
   int? _pendingFetchAddressNumber;
 
-  Future<void> selectStore(AssignedStore? store) async {
+  /// Returns `false` when the change is blocked because the cart already has
+  /// items for another store (caller should show user feedback).
+  ///
+  /// Re-selecting the same store, or selecting the first store while none is
+  /// set yet, is always allowed.
+  Future<bool> selectStore(AssignedStore? store) async {
+    final current = state.selectedStore;
+    final cartHasItems = ref.read(cartProvider).isNotEmpty;
+    if (cartHasItems && current != null) {
+      final isSameStore = store != null &&
+          store.addressNumber == current.addressNumber;
+      if (!isSameStore) {
+        Log.info(
+          'Blocked store change while cart has ${ref.read(cartProvider).length} '
+          'item(s); clear cart first',
+          tag: 'Indirect',
+        );
+        return false;
+      }
+    }
+
     if (store == null) {
       _pendingFetchAddressNumber = null;
       state = const IndirectSessionState();
-      return;
+      return true;
     }
 
     // Tandai fetch ini milik toko yang baru dipilih.
@@ -45,12 +66,12 @@ class IndirectSessionNotifier extends Notifier<IndirectSessionState> {
 
     final token = ref.read(authProvider).accessToken;
     if (token.isEmpty) {
-      if (_pendingFetchAddressNumber != store.addressNumber) return;
+      if (_pendingFetchAddressNumber != store.addressNumber) return true;
       state = IndirectSessionState(
         selectedStore: store,
         isLoadingDiscounts: false,
       );
-      return;
+      return true;
     }
 
     try {
@@ -60,7 +81,7 @@ class IndirectSessionNotifier extends Notifier<IndirectSessionState> {
       );
 
       // Abaikan hasil jika user sudah memilih toko lain.
-      if (_pendingFetchAddressNumber != store.addressNumber) return;
+      if (_pendingFetchAddressNumber != store.addressNumber) return true;
 
       final display = StoreDiscountCalculator.formatDisplay(result.discounts);
       state = IndirectSessionState(
@@ -76,7 +97,7 @@ class IndirectSessionNotifier extends Notifier<IndirectSessionState> {
         tag: 'Indirect',
       );
       Log.error(e, st, reason: 'IndirectSessionNotifier.selectStore');
-      if (_pendingFetchAddressNumber != store.addressNumber) return;
+      if (_pendingFetchAddressNumber != store.addressNumber) return true;
       state = IndirectSessionState(
         selectedStore: store,
         storeDiscounts: const [],
@@ -85,6 +106,7 @@ class IndirectSessionNotifier extends Notifier<IndirectSessionState> {
         discountCode: '',
       );
     }
+    return true;
   }
 
   void clear() {

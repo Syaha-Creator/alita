@@ -6,14 +6,19 @@ import 'package:alitapricelist/features/cart/logic/cart_provider.dart';
 import 'package:alitapricelist/features/cart/data/cart_item.dart';
 import 'package:alitapricelist/features/pricelist/data/models/product.dart';
 
-Product _product({String id = '1', double price = 1000}) => Product(
+Product _product({
+  String id = '1',
+  double price = 1000,
+  String ukuran = '160x200',
+}) =>
+    Product(
       id: id,
       name: 'Test $id',
       price: price,
       imageUrl: '',
       category: 'C',
       kasur: 'K',
-      ukuran: '160x200',
+      ukuran: ukuran,
       divan: '',
       headboard: '',
       sorong: '',
@@ -29,8 +34,16 @@ Product _product({String id = '1', double price = 1000}) => Product(
       plSorong: 0,
     );
 
-CartItem _item({String id = '1', double price = 1000, int qty = 1}) =>
-    CartItem(product: _product(id: id, price: price), quantity: qty);
+CartItem _item({
+  String id = '1',
+  double price = 1000,
+  int qty = 1,
+  String ukuran = '160x200',
+}) =>
+    CartItem(
+      product: _product(id: id, price: price, ukuran: ukuran),
+      quantity: qty,
+    );
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -40,7 +53,7 @@ void main() {
   });
 
   group('cartItemKey', () {
-    test('combines product id and SKUs', () {
+    test('combines product id, ukuran, and SKUs', () {
       final item = CartItem(
         product: _product(),
         kasurSku: 'K1',
@@ -48,12 +61,12 @@ void main() {
         sandaranSku: 'S1',
         sorongSku: 'SR1',
       );
-      expect(cartItemKey(item), '1|K1|D1|S1|SR1|d');
+      expect(cartItemKey(item), '1|160x200|K1|D1|S1|SR1|d');
     });
 
-    test('empty SKUs produce pipe-only suffix', () {
+    test('empty SKUs still include ukuran', () {
       final item = CartItem(product: _product());
-      expect(cartItemKey(item), '1|||||d');
+      expect(cartItemKey(item), '1|160x200|||||d');
     });
 
     test('FOC suffix only for indirect + voucher flag', () {
@@ -62,14 +75,20 @@ void main() {
         kasurSku: 'K1',
       );
       final focDirect = base.copyWith(isFocVoucher: true);
-      expect(cartItemKey(base), '1|K1||||d');
-      expect(cartItemKey(focDirect), '1|K1||||d');
+      expect(cartItemKey(base), '1|160x200|K1||||d');
+      expect(cartItemKey(focDirect), '1|160x200|K1||||d');
 
       final focIndirect = base.copyWith(
         isFocVoucher: true,
         indirectStoreAddressNumber: 7,
       );
-      expect(cartItemKey(focIndirect), '1|K1||||i7|foc');
+      expect(cartItemKey(focIndirect), '1|160x200|K1||||i7|foc');
+    });
+
+    test('different ukuran produces different keys for same product id', () {
+      final a = CartItem(product: _product(ukuran: '090x200'));
+      final b = CartItem(product: _product(ukuran: '100x200'));
+      expect(cartItemKey(a), isNot(cartItemKey(b)));
     });
   });
 
@@ -119,6 +138,28 @@ void main() {
         kasurSku: 'B',
       ));
       expect(notifier.state, hasLength(2));
+    });
+
+    test(
+      'addItem keeps separate lines for same product id with different '
+      'ukuran (regression: sizes used to merge because key ignored ukuran)',
+      () async {
+        await notifier.addItem(_item(id: '1', ukuran: '090x200', qty: 1));
+        await notifier.addItem(_item(id: '1', ukuran: '100x200', qty: 1));
+        expect(notifier.state, hasLength(2));
+        expect(
+          notifier.state.map((e) => e.product.ukuran).toSet(),
+          {'090x200', '100x200'},
+        );
+      },
+    );
+
+    test('addItem still merges identical product id + ukuran + SKUs', () async {
+      await notifier.addItem(_item(id: '1', ukuran: '090x200', qty: 1));
+      await notifier.addItem(_item(id: '1', ukuran: '090x200', qty: 2));
+      expect(notifier.state, hasLength(1));
+      expect(notifier.state.first.quantity, 3);
+      expect(notifier.state.first.product.ukuran, '090x200');
     });
 
     test('removeItemAt removes correct index', () async {

@@ -7,18 +7,57 @@ import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:alitapricelist/features/auth/logic/auth_provider.dart';
+import 'package:alitapricelist/features/cart/data/cart_item.dart';
+import 'package:alitapricelist/features/cart/logic/cart_provider.dart';
 import 'package:alitapricelist/features/indirect/data/models/assigned_store.dart';
 import 'package:alitapricelist/features/indirect/data/services/indirect_store_discount_service.dart';
 import 'package:alitapricelist/features/indirect/logic/indirect_session_provider.dart';
+import 'package:alitapricelist/features/pricelist/data/models/product.dart';
 
 class MockDiscountService extends Mock
     implements IndirectStoreDiscountService {}
+
+/// Seeds a fixed cart list so store-change guards can be tested without
+/// going through StorageService persistence. Does not call [CartNotifier.build]
+/// (which would async-load an empty cart from disk and wipe the seed).
+class _SeededCartNotifier extends CartNotifier {
+  _SeededCartNotifier(this._seed);
+  final List<CartItem> _seed;
+
+  @override
+  List<CartItem> build() => List<CartItem>.from(_seed);
+}
 
 AssignedStore _store({required int addressNumber, String name = 'Toko'}) =>
     AssignedStore(
       addressNumber: addressNumber,
       alphaName: name,
       address: 'Jl. Test',
+    );
+
+CartItem _cartLine() => CartItem(
+      product: Product(
+        id: 'p1',
+        name: 'Item',
+        price: 1000,
+        imageUrl: '',
+        category: 'C',
+        kasur: 'K',
+        ukuran: '160x200',
+        divan: '',
+        headboard: '',
+        sorong: '',
+        isSet: false,
+        pricelist: 1000,
+        eupKasur: 1000,
+        eupDivan: 0,
+        eupHeadboard: 0,
+        eupSorong: 0,
+        plKasur: 1000,
+        plDivan: 0,
+        plHeadboard: 0,
+        plSorong: 0,
+      ),
     );
 
 void main() {
@@ -118,6 +157,58 @@ void main() {
       final state = container.read(indirectSessionProvider);
       expect(state.selectedStore?.addressNumber, 222);
       expect(state.discountCode, 'DB');
+    });
+  });
+
+  group('IndirectSessionNotifier.selectStore — cart lock', () {
+    test('blocks changing/clearing store when cart has items', () async {
+      when(() => mockService.fetchDiscounts(
+            token: any(named: 'token'),
+            addressNumber: any(named: 'addressNumber'),
+          )).thenAnswer(
+        (_) async => (discounts: <double>[5.0], discountCode: 'D1'),
+      );
+
+      container.dispose();
+      container = ProviderContainer(
+        overrides: [
+          indirectSessionProvider.overrideWith(
+            () => IndirectSessionNotifier(discountService: mockService),
+          ),
+          cartProvider.overrideWith(() => _SeededCartNotifier([_cartLine()])),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(authProvider);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      final notifier = container.read(indirectSessionProvider.notifier);
+      final storeA = _store(addressNumber: 111, name: 'Toko A');
+      final storeB = _store(addressNumber: 222, name: 'Toko B');
+
+      // First select while none selected yet is allowed (recovery path).
+      expect(await notifier.selectStore(storeA), isTrue);
+      expect(
+        container.read(indirectSessionProvider).selectedStore?.addressNumber,
+        111,
+      );
+
+      // Changing to another store is blocked.
+      expect(await notifier.selectStore(storeB), isFalse);
+      expect(
+        container.read(indirectSessionProvider).selectedStore?.addressNumber,
+        111,
+      );
+
+      // Clearing is blocked.
+      expect(await notifier.selectStore(null), isFalse);
+      expect(
+        container.read(indirectSessionProvider).selectedStore?.addressNumber,
+        111,
+      );
+
+      // Re-selecting the same store is allowed.
+      expect(await notifier.selectStore(storeA), isTrue);
     });
   });
 }
