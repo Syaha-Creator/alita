@@ -11,8 +11,10 @@ import '../../../core/utils/app_formatters.dart';
 import '../../../core/utils/app_telemetry.dart';
 import '../../../core/utils/log.dart';
 import '../../../core/utils/retry.dart';
+import '../../../core/utils/name_matcher.dart';
 import '../../auth/logic/auth_provider.dart';
 import '../../profile/logic/profile_provider.dart';
+import 'approval_inbox_merge.dart';
 import 'approval_inbox_utils.dart';
 import 'approval_prior_check.dart';
 
@@ -52,6 +54,9 @@ class ApprovalInboxState {
   /// Filter tab **Selesai** menurut `work_place_name` (null = semua lokasi).
   final String? historyWorkPlaceFilter;
 
+  /// Filter menurut pembuat SP (null = semua pembuat) — kedua tab.
+  final String? creatorFilter;
+
   /// Query pencarian teks bebas (no SP atau nama customer).
   final String searchQuery;
 
@@ -66,6 +71,7 @@ class ApprovalInboxState {
     this.startDate,
     this.endDate,
     this.historyWorkPlaceFilter,
+    this.creatorFilter,
     this.searchQuery = '',
     this.lastFetchedAt,
   });
@@ -81,6 +87,8 @@ class ApprovalInboxState {
     bool clearDateRange = false,
     bool updateHistoryWorkPlaceFilter = false,
     String? historyWorkPlaceFilter,
+    bool updateCreatorFilter = false,
+    String? creatorFilter,
     String? searchQuery,
     DateTime? lastFetchedAt,
   }) {
@@ -94,6 +102,8 @@ class ApprovalInboxState {
       historyWorkPlaceFilter: updateHistoryWorkPlaceFilter
           ? historyWorkPlaceFilter
           : this.historyWorkPlaceFilter,
+      creatorFilter:
+          updateCreatorFilter ? creatorFilter : this.creatorFilter,
       searchQuery: searchQuery ?? this.searchQuery,
       lastFetchedAt: lastFetchedAt ?? this.lastFetchedAt,
     );
@@ -103,17 +113,31 @@ class ApprovalInboxState {
   List<String> get historyWorkPlaceOptions =>
       approvalHistoryWorkPlaceOptions(historyApprovals);
 
-  /// Pending setelah filter pencarian.
-  List<dynamic> get filteredPendingApprovals =>
-      approvalFilteredByQuery(pendingApprovals, searchQuery);
+  /// Daftar unik pembuat dari antrean Menunggu.
+  List<String> get pendingCreatorOptions =>
+      approvalCreatorOptions(pendingApprovals);
 
-  /// Riwayat setelah filter lokasi + pencarian.
+  /// Daftar unik pembuat dari riwayat Selesai.
+  List<String> get historyCreatorOptions =>
+      approvalCreatorOptions(historyApprovals);
+
+  /// Pending setelah filter pembuat + pencarian.
+  List<dynamic> get filteredPendingApprovals {
+    final byCreator = approvalFilteredByCreator(
+      pendingApprovals,
+      creatorFilter,
+    );
+    return approvalFilteredByQuery(byCreator, searchQuery);
+  }
+
+  /// Riwayat setelah filter lokasi + pembuat + pencarian.
   List<dynamic> get filteredHistoryApprovals {
     final byWorkPlace = approvalHistoryFilteredByWorkPlace(
       historyApprovals,
       historyWorkPlaceFilter,
     );
-    return approvalFilteredByQuery(byWorkPlace, searchQuery);
+    final byCreator = approvalFilteredByCreator(byWorkPlace, creatorFilter);
+    return approvalFilteredByQuery(byCreator, searchQuery);
   }
 }
 
@@ -129,9 +153,16 @@ class ApprovalInboxState {
 /// satu argumen top-level function.
 @immutable
 class _ApprovalInboxParseParams {
-  const _ApprovalInboxParseParams(this.body, this.currentUserIdStr);
+  const _ApprovalInboxParseParams(
+    this.body,
+    this.currentUserIds,
+    this.currentUserName,
+  );
   final String body;
-  final String currentUserIdStr;
+
+  /// Candidate user ids (auth + profile) — stringified.
+  final Set<String> currentUserIds;
+  final String currentUserName;
 }
 
 /// Hasil klasifikasi: dua daftar wrap mentah (`pending` / `history`), sudah
@@ -152,7 +183,8 @@ _ApprovalInboxParseResult _parseApprovalInboxEntryPoint(
 ) {
   final data = jsonDecode(params.body) as Map<String, dynamic>;
   final rawOrders = data['result'] as List<dynamic>? ?? [];
-  final currentUserIdStr = params.currentUserIdStr;
+  final currentUserIds = params.currentUserIds;
+  final currentUserName = params.currentUserName.trim();
 
   // Validasi tiap item (cegah silent crash)
   final List<dynamic> rawOrdersSafe = [];
@@ -169,20 +201,21 @@ _ApprovalInboxParseResult _parseApprovalInboxEntryPoint(
     }
   }
 
-  // ── Grouping: deduplikasi SP berdasarkan order_letter_id ──────
-  final Map<dynamic, Map<String, dynamic>> grouped = {};
-  for (final wrap in rawOrdersSafe) {
-    final letter = wrap['order_letter'] as Map<String, dynamic>? ?? {};
-    final key = letter['id'] ?? letter['no_sp'] ?? Object.hash(wrap, null);
-
-    if (!grouped.containsKey(key)) {
-      grouped[key] = Map<String, dynamic>.from(wrap);
-    }
-  }
-  final List<dynamic> allOrders = grouped.values.toList();
+  // ── Grouping: merge semua wrap per SP (jangan keep-first) ─────
+  final List<dynamic> allOrders = mergeApprovalInboxWraps(rawOrdersSafe);
 
   final List<dynamic> pending = [];
   final List<dynamic> history = [];
+
+  bool isMeApprover(Map<String, dynamic> disc) {
+    final approverId = discountApproverId(disc);
+    if (approverId.isNotEmpty && currentUserIds.contains(approverId)) {
+      return true;
+    }
+    if (currentUserName.isEmpty) return false;
+    final approverName = disc['approver_name']?.toString() ?? '';
+    return NameMatcher.softMatch(approverName, currentUserName);
+  }
 
   for (var orderIndex = 0; orderIndex < allOrders.length; orderIndex++) {
     final orderWrap = allOrders[orderIndex];
@@ -201,13 +234,28 @@ _ApprovalInboxParseResult _parseApprovalInboxEntryPoint(
 
     bool hasRejectedDiscount = false;
 
+    // Kumpulkan SEMUA baris discount di SP ini — prior RSM harus lihat SPV
+    // meski ada di detail/komponen lain atau urutan array API acak (1,3,4,2).
+    final allDiscountMaps = <Map<String, dynamic>>[];
+    for (final detail in details) {
+      final discounts =
+          (detail as Map<String, dynamic>)['order_letter_discount']
+                  as List<dynamic>? ??
+              [];
+      for (final d in discounts) {
+        if (d is Map) {
+          allDiscountMaps.add(Map<String, dynamic>.from(d));
+        }
+      }
+    }
+
     for (final detail in details) {
       final discounts =
           (detail as Map<String, dynamic>)['order_letter_discount']
                   as List<dynamic>? ??
               [];
       final discountMaps =
-          discounts.map((d) => d as Map<String, dynamic>).toList();
+          discounts.map((d) => Map<String, dynamic>.from(d as Map)).toList();
 
       for (int i = 0; i < discountMaps.length; i++) {
         final disc = discountMaps[i];
@@ -217,10 +265,7 @@ _ApprovalInboxParseResult _parseApprovalInboxEntryPoint(
           hasRejectedDiscount = true;
         }
 
-        final approverId = disc['approver_id']?.toString() ?? '';
-        if (approverId.isEmpty || approverId != currentUserIdStr) {
-          continue;
-        }
+        if (!isMeApprover(disc)) continue;
 
         isMyApproval = true;
 
@@ -228,10 +273,17 @@ _ApprovalInboxParseResult _parseApprovalInboxEntryPoint(
             discEnum == OrderStatus.rejected) {
           isMyApprovalDone = true;
         } else if (discEnum == OrderStatus.pending) {
-          if (arePriorApprovalsSatisfied(
-            discounts: discountMaps,
-            myIndex: i,
-          )) {
+          final myLevel = resolveApproverLevel(disc);
+          final priorsOk = myLevel > 0
+              ? areLowerApprovalLevelsSatisfied(
+                  allDiscounts: allDiscountMaps,
+                  myLevel: myLevel,
+                )
+              : arePriorApprovalsSatisfied(
+                  discounts: discountMaps,
+                  myIndex: i,
+                );
+          if (priorsOk) {
             hasActionablePending = true;
           }
         }
@@ -247,6 +299,8 @@ _ApprovalInboxParseResult _parseApprovalInboxEntryPoint(
     } else if (isMyApprovalDone) {
       history.add(orderWrap);
     }
+    // else: baris saya Pending tapi tunggu prior (mis. RSM menunggu SPV)
+    // → sengaja tidak masuk Menunggu maupun Selesai.
   }
 
   // Urutkan terbaru di atas berdasarkan created_at
@@ -321,6 +375,14 @@ class ApprovalInboxNotifier extends Notifier<ApprovalInboxState> {
     state = state.copyWith(
       updateHistoryWorkPlaceFilter: true,
       historyWorkPlaceFilter: workPlace,
+    );
+  }
+
+  /// Filter pembuat SP (kedua tab). `null` = semua pembuat.
+  void setCreatorFilter(String? creator) {
+    state = state.copyWith(
+      updateCreatorFilter: true,
+      creatorFilter: creator,
     );
   }
 
@@ -597,12 +659,21 @@ class ApprovalInboxNotifier extends Notifier<ApprovalInboxState> {
     final sw = Stopwatch()..start();
 
     try {
+      final authUserId = ref.read(authProvider).userId;
       final profile = await ref.read(profileProvider.future);
       if (generation != _fetchGeneration) return;
-      final currentUserIdStr = profile?.id.toString() ?? '';
+
+      // Samakan dengan halaman detail/approve: utamakan auth.userId.
+      // Profile.id (user nested di CWE) ikut sebagai candidate match.
+      final queryUserId = authUserId > 0 ? authUserId : (profile?.id ?? 0);
+      final currentUserIds = <String>{
+        if (authUserId > 0) authUserId.toString(),
+        if (profile != null && profile.id > 0) profile.id.toString(),
+      };
+      final currentUserName = profile?.name ?? '';
 
       final queryParams = <String, String>{
-        'user_id': profile?.id.toString() ?? '0',
+        'user_id': queryUserId.toString(),
       };
 
       // Filter tanggal server-side (bukan page/limit).
@@ -628,7 +699,11 @@ class ApprovalInboxNotifier extends Notifier<ApprovalInboxState> {
       if (response.statusCode == 200) {
         final parsed = await compute(
           _parseApprovalInboxEntryPoint,
-          _ApprovalInboxParseParams(response.body, currentUserIdStr),
+          _ApprovalInboxParseParams(
+            response.body,
+            currentUserIds,
+            currentUserName,
+          ),
         );
         if (generation != _fetchGeneration) return;
 

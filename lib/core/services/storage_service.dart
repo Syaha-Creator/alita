@@ -342,6 +342,10 @@ class StorageService {
   }
 
   /// Save master data JSON to disk (not SharedPreferences) + timestamp in prefs.
+  ///
+  /// [lastSync] hanya di-update jika minimal satu file berhasil ditulis.
+  /// Kalau semua endpoint gagal, jangan cap stale — supaya sync berikutnya
+  /// (install baru / offline) tetap mencoba lagi, bukan diam 6 jam.
   static Future<void> saveMasterData({
     String? areas,
     String? channels,
@@ -349,18 +353,23 @@ class StorageService {
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final dir = await _ensureMasterCacheDir();
+    var wroteAny = false;
     if (areas != null) {
       await File('${dir.path}/areas.json').writeAsString(areas, flush: true);
       await prefs.remove(_areasCacheKey);
+      wroteAny = true;
     }
     if (channels != null) {
       await File('${dir.path}/channels.json').writeAsString(channels, flush: true);
       await prefs.remove(_channelsCacheKey);
+      wroteAny = true;
     }
     if (brands != null) {
       await File('${dir.path}/brands.json').writeAsString(brands, flush: true);
       await prefs.remove(_brandsCacheKey);
+      wroteAny = true;
     }
+    if (!wroteAny) return;
     await prefs.setInt(
       _masterDataLastSyncKey,
       DateTime.now().millisecondsSinceEpoch,

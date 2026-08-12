@@ -139,58 +139,68 @@ class ApprovalDecisionService {
   ///
   /// Matches by [myUserId] (primary, exact) or [myName] (fallback, fuzzy)
   /// so no discount is missed even if one matcher fails.
+  ///
+  /// Prior dicek **lintas seluruh detail** (kasur/divan/headboard/FOC) supaya
+  /// satu tap approve men-cover semua baris milik user yang sudah giliran —
+  /// bukan hanya satu komponen.
   static List<Map<String, dynamic>> collectPendingDiscounts({
     required Map<String, dynamic> orderData,
     required String myName,
     int myUserId = 0,
   }) {
     final details = orderData['order_letter_details'] as List<dynamic>? ?? [];
-    final result = <Map<String, dynamic>>[];
-    final seenIds = <int>{};
-
+    final allDiscountMaps = <Map<String, dynamic>>[];
     for (final detail in details) {
       final discounts =
           (detail as Map<String, dynamic>)['order_letter_discount']
                   as List<dynamic>? ??
               [];
-      final discountMaps = discounts
-          .map((d) => d as Map<String, dynamic>)
-          .toList()
-        ..sort((a, b) => parseLevel(a['approver_level_id'])
-            .compareTo(parseLevel(b['approver_level_id'])));
-
-      // Track discount IDs that will be approved in this batch,
-      // so cascading same-user levels (e.g. SPV + RSM = 1 person)
-      // are all collected in a single pass.
-      final batchIds = <int>{};
-
-      for (int i = 0; i < discountMaps.length; i++) {
-        final discMap = discountMaps[i];
-        final discountId =
-            (discMap['order_letter_discount_id'] as num?)?.toInt() ?? 0;
-        final approverId = discMap['approver_id']?.toString() ?? '';
-        final approverName = discMap['approver_name'] as String? ?? '';
-        final status = discMap['approved'];
-        final isPending =
-            OrderStatusX.fromDynamic(status) == OrderStatus.pending;
-
-        if (!isPending) continue;
-
-        final isMe = (myUserId > 0 && approverId == myUserId.toString()) ||
-            (myName.isNotEmpty && NameMatcher.softMatch(approverName, myName));
-
-        if (!isMe || discountId <= 0 || !seenIds.add(discountId)) continue;
-
-        // Check all prior discounts: must be approved OR already
-        // collected in this batch (same user, will be approved together).
-        if (arePriorApprovalsSatisfied(
-          discounts: discountMaps,
-          myIndex: i,
-          treatedAsApprovedIds: batchIds,
-        )) {
-          result.add(discMap);
-          batchIds.add(discountId);
+      for (final d in discounts) {
+        if (d is Map) {
+          allDiscountMaps.add(Map<String, dynamic>.from(d));
         }
+      }
+    }
+
+    // Urutkan by level supaya L2 masuk batch sebelum FOC (90) / level lebih tinggi
+    // milik user yang sama (cascade satu tap).
+    allDiscountMaps.sort(
+      (a, b) => resolveApproverLevel(a).compareTo(resolveApproverLevel(b)),
+    );
+
+    final result = <Map<String, dynamic>>[];
+    final seenIds = <int>{};
+    final batchIds = <int>{};
+
+    for (final discMap in allDiscountMaps) {
+      final discountId = discountRowId(discMap);
+      final approverId = discountApproverId(discMap);
+      final approverName = discMap['approver_name'] as String? ?? '';
+      final isPending =
+          OrderStatusX.fromDynamic(discMap['approved']) == OrderStatus.pending;
+
+      if (!isPending) continue;
+
+      final isMe = (myUserId > 0 && approverId == myUserId.toString()) ||
+          (myName.isNotEmpty && NameMatcher.softMatch(approverName, myName));
+
+      if (!isMe || discountId <= 0 || !seenIds.add(discountId)) continue;
+
+      final myLevel = resolveApproverLevel(discMap);
+      final priorsOk = myLevel > 0
+          ? areLowerApprovalLevelsSatisfied(
+              allDiscounts: allDiscountMaps,
+              myLevel: myLevel,
+              treatedAsApprovedIds: batchIds,
+            )
+          : true;
+
+      if (priorsOk) {
+        // Pastikan id ter-normalisasi untuk PUT/POST berikutnya.
+        final normalized = Map<String, dynamic>.from(discMap);
+        normalized['order_letter_discount_id'] = discountId;
+        result.add(normalized);
+        batchIds.add(discountId);
       }
     }
 
@@ -243,9 +253,15 @@ class ApprovalDecisionService {
     double? latitude,
     double? longitude,
   }) async {
-    final int discountId =
-        (disc['order_letter_discount_id'] as num?)?.toInt() ?? 0;
-    final int levelId = parseLevel(disc['approver_level_id'], 2);
+    final int discountId = discountRowId(disc);
+    if (discountId <= 0) {
+      throw Exception(
+        'ID baris diskon tidak valid — persetujuan dibatalkan agar tidak '
+        'tertulis sebagian ke database.',
+      );
+    }
+    final int levelId = resolveApproverLevel(disc);
+    final jobLevelId = levelId > 0 ? levelId : parseLevel(disc['approver_level_id'], 2);
 
     final locText = locationText;
 
@@ -253,7 +269,7 @@ class ApprovalDecisionService {
     final postBody = <String, dynamic>{
       'order_letter_discount_id': discountId,
       'leader': userId,
-      'job_level_id': levelId,
+      'job_level_id': jobLevelId,
       'location': locText,
       'lokasi_approval': locText,
     };
@@ -278,9 +294,13 @@ class ApprovalDecisionService {
       );
     }
 
-    // 2) PUT discount status
+    // 2) PUT discount status — WAJIB string API ('Approved'/'Rejected'),
+    // bukan bool; beberapa backend mengabaikan `true`/`false` sehingga UI
+    // terlihat sukses sementara kolom `approved` di DB tetap null.
     final putBody = <String, dynamic>{
-      'approved': isApproved,
+      'approved': isApproved
+          ? OrderStatus.approved.apiValue
+          : OrderStatus.rejected.apiValue,
       'lokasi_approval': locText,
     };
     if (latitude != null && longitude != null) {

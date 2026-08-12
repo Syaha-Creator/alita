@@ -13,7 +13,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 /// akan memuat `.env` di runtime; makanya urutan dibalik eksplisit di [_fromEnv].
 ///
 /// Untuk build yang **tidak** meng-bundle `.env`, wajib pass secrets via
-/// `--dart-define` (lihat `scripts/build_release.sh` untuk Android).
+/// `--dart-define` (lihat `scripts/release.sh`).
 ///
 /// Client credentials are platform-aware: Android and iOS each have their own
 /// `client_id` / `client_secret` pair registered on the backend.

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_core/firebase_core.dart';
 
+import '../../../../core/enums/order_status.dart';
 import '../../../../core/services/api_client.dart';
 import '../../../../core/services/api_session_expired.dart';
 import '../../../../core/utils/app_telemetry.dart';
@@ -12,8 +13,8 @@ import '../models/order_history.dart';
 /// Service untuk edit header [order_letters].
 ///
 /// **Direct:** update header + reset approval discount (L2+) + notifikasi.
-/// **Indirect (SO):** update header saja — status tetap Approved, tidak reset
-/// baris approval, tidak kirim notifikasi re-edit.
+/// **Indirect (SO):** update header; status `Approved` hanya jika tidak ada
+/// baris ASM/RSM/Analyst yang masih Pending — kalau masih pending → `Pending`.
 class EditOrderHeaderService {
   EditOrderHeaderService({ApiClient? client})
       : _api = client ?? ApiClient.instance;
@@ -25,6 +26,39 @@ class EditOrderHeaderService {
   /// Order indirect (channel SO) — edit header tidak menyentuh approval chain.
   static bool isIndirectOrder(OrderHistory order) =>
       (order.channel?.trim().toUpperCase() ?? '') == 'SO';
+
+  /// True jika masih ada baris approval L2+ (ASM/SPV/RSM/Analyst/FOC) Pending.
+  /// User (L1) dan Diskon Toko diabaikan (auto-approved).
+  static bool hasPendingApproverChain(OrderHistory order) {
+    for (final detail in order.details) {
+      for (final disc in detail.discounts) {
+        final level = disc.approverLevel.toLowerCase().trim();
+        if (level == 'user' || level.startsWith('diskon toko')) continue;
+        if (disc.approverLevelId == 1) continue;
+        if (OrderStatusX.fromRaw(disc.approvedStatus) == OrderStatus.pending) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /// Status header setelah edit informasi.
+  ///
+  /// - Ada chain approver masih Pending → selalu `Pending` (Direct & Indirect).
+  /// - Indirect tanpa pending chain → `Approved` (auto-approve SO).
+  /// - Direct tanpa pending (sebelum reset) → `Pending` (akan di-reset L2+).
+  static String resolveEditHeaderStatus({
+    required OrderHistory order,
+    required bool isIndirect,
+  }) {
+    if (hasPendingApproverChain(order)) {
+      return OrderStatus.pending.apiValue;
+    }
+    return isIndirect
+        ? OrderStatus.approved.apiValue
+        : OrderStatus.pending.apiValue;
+  }
 
   // ── Payload builder ──────────────────────────────────────────────
 

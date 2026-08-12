@@ -91,6 +91,7 @@ void main() {
       bool anyLineNeedsFactoryDelivery = false,
       DateTime? orderDate,
       DateTime? requestDate,
+      bool requiresSpv = true,
       bool hasSelectedSpv = true,
       bool requiresManager = false,
       bool hasSelectedManager = false,
@@ -123,6 +124,7 @@ void main() {
         anyLineNeedsFactoryDelivery: anyLineNeedsFactoryDelivery,
         orderDate: orderDate ?? OrderLetterDateUtils.today(),
         requestDate: requestDate,
+        requiresSpv: requiresSpv,
         hasSelectedSpv: hasSelectedSpv,
         requiresManager: requiresManager,
         hasSelectedManager: hasSelectedManager,
@@ -258,6 +260,16 @@ void main() {
       final result = validate(hasSelectedSpv: false);
       expect(result.key, approvalKey);
       expect(result.label, 'Persetujuan');
+    });
+
+    test('indirect RSM-only: skips SPV when requiresSpv is false', () {
+      final result = validate(
+        requiresSpv: false,
+        hasSelectedSpv: false,
+        requiresManager: true,
+        hasSelectedManager: true,
+      );
+      expect(result.label, isNot('Persetujuan'));
     });
 
     test('returns approval section when manager required but not selected', () {

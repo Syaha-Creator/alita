@@ -172,22 +172,9 @@ class ProductItemsList extends StatelessWidget {
     );
   }
 
+  /// Urutan = `line_number` saat input (sudah di-sort di [OrderHistory.fromApiJson]).
   List<OrderDetail> _buildSortedItems() =>
-      List<OrderDetail>.from(order.mainItems)
-        ..sort((a, b) {
-          final brandCompare = a.brand.compareTo(b.brand);
-          if (brandCompare != 0) return brandCompare;
-          return _typeWeight(a.itemType).compareTo(_typeWeight(b.itemType));
-        });
-
-  static int _typeWeight(String? type) {
-    if (type == null || type.isEmpty) return 99;
-    final lower = type.toLowerCase();
-    if (lower.contains('mattress') || lower.contains('kasur')) return 1;
-    if (lower.contains('divan')) return 2;
-    if (lower.contains('headboard') || lower.contains('sandaran')) return 3;
-    return 4;
-  }
+      List<OrderDetail>.from(order.mainItems);
 }
 
 // ── Collapsible Bonus ──────────────────────────────────────────

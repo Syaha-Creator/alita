@@ -409,6 +409,89 @@ void main() {
       expect(letter['id'], 99);
     });
 
+    test(
+      'DB order 1,3,4,2: SPV enters Menunggu, RSM does not until SPV approves',
+      () async {
+        const spvId = 787;
+        const rsmId = 6235;
+        final discounts = [
+          {
+            'approver_id': '5757',
+            'approver_level_id': 1,
+            'approver_level': 'User',
+            'approved': 'Approved',
+          },
+          {
+            'approver_id': '$rsmId',
+            'approver_level_id': 3,
+            'approver_level': 'RSM',
+            'approved': null,
+          },
+          {
+            'approver_id': '420',
+            'approver_level_id': 4,
+            'approver_level': 'Analyst',
+            'approved': null,
+          },
+          {
+            'approver_id': '$spvId',
+            'approver_level_id': 2,
+            'approver_level': 'SPV',
+            'approved': null,
+          },
+        ];
+        final wrap = {
+          'work_place_name': 'Toko',
+          'order_letter': {
+            'id': 2611,
+            'status': 'Pending',
+            'created_at': '2026-08-08T12:31:36.000Z',
+          },
+          'order_letter_details': [
+            {'order_letter_discount': discounts},
+          ],
+        };
+
+        Future<void> expectPendingFor(int userId, {required bool visible}) async {
+          when(
+            () => mockApi.get(
+              any(),
+              queryParams: any(named: 'queryParams'),
+              token: null,
+              timeout: _apiTimeout,
+            ),
+          ).thenAnswer(
+            (_) async => http.Response(jsonEncode({'result': [wrap]}), 200),
+          );
+          final container = ProviderContainer(
+            overrides: [
+              profileProvider
+                  .overrideWith((ref) async => _testProfile(id: userId)),
+              approvalInboxProvider.overrideWith(
+                () => ApprovalInboxNotifier(
+                  apiClient: mockApi,
+                  skipInitialFetch: true,
+                ),
+              ),
+            ],
+          );
+          addTearDown(container.dispose);
+          await container.read(approvalInboxProvider.notifier).fetchInbox();
+          await _waitUntilNotLoading(container);
+          final pending =
+              container.read(approvalInboxProvider).pendingApprovals;
+          if (visible) {
+            expect(pending, hasLength(1));
+          } else {
+            expect(pending, isEmpty);
+          }
+        }
+
+        await expectPendingFor(spvId, visible: true);
+        await expectPendingFor(rsmId, visible: false);
+      },
+    );
+
     test('level-based prior: out-of-order discounts still actionable', () async {
       const userId = 7;
       when(
@@ -637,6 +720,97 @@ void main() {
 
       expect(container.read(approvalInboxProvider).pendingApprovals, hasLength(1));
     });
+
+    test(
+      'merges wraps: ASM on wrap #2 enters Menunggu when User on wrap #1 Approved',
+      () async {
+        const asmId = 787;
+        final wrap1UserOnly = {
+          'work_place_name': 'Toko',
+          'order_letter': {
+            'id': 9901,
+            'status': 'Pending',
+            'created_at': '2026-08-10T10:00:00.000Z',
+          },
+          'order_letter_details': [
+            {
+              'id': 1,
+              'order_letter_discount': [
+                {
+                  'id': 101,
+                  'approver_id': '5757',
+                  'approver_level_id': 1,
+                  'approver_level': 'User',
+                  'approved': 'Approved',
+                },
+              ],
+            },
+          ],
+        };
+        final wrap2AsmPending = {
+          'work_place_name': 'Toko',
+          'order_letter': {
+            'id': 9901,
+            'status': 'Pending',
+            'created_at': '2026-08-10T10:00:00.000Z',
+          },
+          'order_letter_details': [
+            {
+              'id': 1,
+              'order_letter_discount': [
+                {
+                  'id': 102,
+                  'approver_id': '$asmId',
+                  'approver_level_id': 2,
+                  'approver_level': 'ASM',
+                  'approved': 'Pending',
+                },
+              ],
+            },
+          ],
+        };
+
+        when(
+          () => mockApi.get(
+            any(),
+            queryParams: any(named: 'queryParams'),
+            token: null,
+            timeout: _apiTimeout,
+          ),
+        ).thenAnswer(
+          (_) async => http.Response(
+            jsonEncode({
+              'result': [wrap1UserOnly, wrap2AsmPending],
+            }),
+            200,
+          ),
+        );
+
+        final container = ProviderContainer(
+          overrides: [
+            profileProvider.overrideWith(
+              (ref) async => _testProfile(id: asmId),
+            ),
+            approvalInboxProvider.overrideWith(
+              () => ApprovalInboxNotifier(
+                apiClient: mockApi,
+                skipInitialFetch: true,
+              ),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        await container.read(approvalInboxProvider.notifier).fetchInbox();
+        await _waitUntilNotLoading(container);
+
+        final pending =
+            container.read(approvalInboxProvider).pendingApprovals;
+        expect(pending, hasLength(1));
+        final letter = (pending.first as Map)['order_letter'] as Map;
+        expect(letter['id'], 9901);
+      },
+    );
 
     test('rejected discount moves row to history', () async {
       const userId = 13;
@@ -1596,6 +1770,48 @@ void main() {
       final out = approvalHistoryFilteredByWorkPlace(history, 'Two');
       expect(out, hasLength(1));
       expect(approvalOrderWrapWorkPlace(out.single), 'Two');
+    });
+  });
+
+  group('approvalCreatorOptions / approvalFilteredByCreator', () {
+    test('options sorted A–Z and filter keeps matching creator', () {
+      final wraps = <dynamic>[
+        {
+          'order_letter': {'id': 1, 'creator_name': 'Budi'},
+        },
+        {
+          'order_letter': {'id': 2, 'creator_name': 'Ani'},
+        },
+        {
+          'order_letter': {'id': 3, 'creator_name': 'Budi'},
+        },
+      ];
+      expect(approvalCreatorOptions(wraps), ['Ani', 'Budi']);
+      final onlyBudi = approvalFilteredByCreator(wraps, 'Budi');
+      expect(onlyBudi, hasLength(2));
+      expect(approvalFilteredByCreator(wraps, null), wraps);
+    });
+
+    test('empty creator maps to Tanpa nama pembuat', () {
+      final wraps = <dynamic>[
+        {'order_letter': {'id': 1}},
+      ];
+      expect(approvalCreatorOptions(wraps), ['Tanpa nama pembuat']);
+      expect(
+        approvalFilteredByCreator(wraps, 'Tanpa nama pembuat'),
+        hasLength(1),
+      );
+    });
+  });
+
+  group('sortOrderLetterDetailsByLineNumber', () {
+    test('orders by line_number then id', () {
+      final sorted = sortOrderLetterDetailsByLineNumber([
+        {'id': 3, 'line_number': 3, 'desc_1': 'C'},
+        {'id': 1, 'line_number': 1, 'desc_1': 'A'},
+        {'id': 2, 'line_number': 2, 'desc_1': 'B'},
+      ]);
+      expect(sorted.map((d) => d['desc_1']).toList(), ['A', 'B', 'C']);
     });
   });
 }

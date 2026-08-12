@@ -7,6 +7,7 @@ import '../../../core/services/api_client.dart';
 import '../../../core/services/storage_service.dart';
 import '../../../core/utils/log.dart';
 import '../../../core/utils/network_error.dart';
+import '../../../core/utils/safe_json_list.dart';
 
 // ─────────────────────────────────────────────────────────
 //  State
@@ -178,9 +179,17 @@ class MasterDataNotifier extends Notifier<MasterDataState> {
   }
 
   /// Syncs master data only if the cached version is older than [_staleDuration].
-  /// Safe to call frequently — skips if already syncing or data is still fresh.
+  ///
+  /// Selalu sync ulang jika channel (atau master lain) masih kosong — kasus
+  /// install baru / sync gagal yang tidak boleh “diam” sampai stale window habis.
   Future<void> syncIfStale() async {
     if (_isSyncing || _isDisposed) return;
+    final current = _readStateOrNull();
+    final cacheMissingChannels = current != null && current.channels.isEmpty;
+    if (cacheMissingChannels) {
+      await syncMasterData();
+      return;
+    }
     final lastSync = await StorageService.loadMasterDataLastSync();
     if (lastSync != null &&
         DateTime.now().difference(lastSync) < _staleDuration) {
@@ -197,26 +206,24 @@ class MasterDataNotifier extends Notifier<MasterDataState> {
       final decoded = jsonDecode(jsonStr);
 
       if (decoded is List) {
-        return decoded.whereType<Map<String, dynamic>>().toList();
+        return safeMapList(decoded, fieldName: 'master_list');
       }
 
-      if (decoded is Map<String, dynamic>) {
+      if (decoded is Map) {
+        final map = Map<String, dynamic>.from(decoded);
         // Top-level keys
         for (final key in ['data', 'pl_areas', 'pl_channels', 'pl_brands']) {
-          if (decoded[key] is List) {
-            return (decoded[key] as List)
-                .whereType<Map<String, dynamic>>()
-                .toList();
+          if (map[key] is List) {
+            return safeMapList(map[key], fieldName: key);
           }
         }
         // Nested under "result" (e.g. {"status":"success","result":{"data":[...]}})
-        final result = decoded['result'];
-        if (result is Map<String, dynamic>) {
+        final result = map['result'];
+        if (result is Map) {
+          final nested = Map<String, dynamic>.from(result);
           for (final key in ['data', 'pl_areas', 'pl_channels', 'pl_brands']) {
-            if (result[key] is List) {
-              return (result[key] as List)
-                  .whereType<Map<String, dynamic>>()
-                  .toList();
+            if (nested[key] is List) {
+              return safeMapList(nested[key], fieldName: 'result.$key');
             }
           }
         }

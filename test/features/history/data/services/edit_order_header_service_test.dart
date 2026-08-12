@@ -1,7 +1,100 @@
+import 'package:alitapricelist/core/enums/order_status.dart';
+import 'package:alitapricelist/features/history/data/models/order_history.dart';
 import 'package:alitapricelist/features/history/data/services/edit_order_header_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+OrderHistory _orderWithDiscounts(List<OrderDiscount> discounts) {
+  return OrderHistory(
+    id: 1,
+    noSp: 'SP-1',
+    orderDate: '-',
+    requestDate: '-',
+    note: '',
+    customerName: 'A',
+    phone: '-',
+    address: '-',
+    email: '',
+    channel: 'SO',
+    isTakeAway: false,
+    workPlaceName: '-',
+    companyName: '-',
+    totalAmount: 0,
+    status: 'Approved',
+    details: [
+      OrderDetail(
+        id: 1,
+        itemNumber: 'X',
+        itemDescription: 'Item',
+        desc1: 'Item',
+        desc2: '',
+        pricelistType: '',
+        pricelistArea: '',
+        itemType: 'Mattress',
+        qty: 1,
+        customerPrice: 0,
+        netPrice: 0,
+        brand: '',
+        unitPrice: 0,
+        extendedPrice: 0,
+        discounts: discounts,
+      ),
+    ],
+  );
+}
+
 void main() {
+  group('EditOrderHeaderService.resolveEditHeaderStatus', () {
+    test('Indirect + pending ASM → Pending (jangan paksa Approved)', () {
+      final order = _orderWithDiscounts([
+        const OrderDiscount(
+          id: 1,
+          discountVal: '0',
+          approverName: 'Sales',
+          approverLevel: 'User',
+          approverLevelId: 1,
+          approvedStatus: 'Approved',
+        ),
+        const OrderDiscount(
+          id: 2,
+          discountVal: '0',
+          approverName: 'ASM A',
+          approverLevel: 'ASM',
+          approverLevelId: 2,
+          approvedStatus: 'Pending',
+        ),
+      ]);
+
+      expect(
+        EditOrderHeaderService.resolveEditHeaderStatus(
+          order: order,
+          isIndirect: true,
+        ),
+        OrderStatus.pending.apiValue,
+      );
+    });
+
+    test('Indirect tanpa pending chain → Approved', () {
+      final order = _orderWithDiscounts([
+        const OrderDiscount(
+          id: 1,
+          discountVal: '0',
+          approverName: 'Sales',
+          approverLevel: 'User',
+          approverLevelId: 1,
+          approvedStatus: 'Approved',
+        ),
+      ]);
+
+      expect(
+        EditOrderHeaderService.resolveEditHeaderStatus(
+          order: order,
+          isIndirect: true,
+        ),
+        OrderStatus.approved.apiValue,
+      );
+    });
+  });
+
   group('EditOrderHeaderService.buildHeaderPayload', () {
     test('includes extended_amount so grand total stays in sync with ongkir',
         () {

@@ -307,9 +307,14 @@ void main() {
         expect(l3['discount_extra_price'], 200_000.0);
       });
 
-      test('no RSM row when all discounts = 0 and bonus not customized', () {
+      test(
+          'RSM acknowledgment row (discount=0) when manager selected '
+          'without discounts — covers bonus, Klaus, and manual + RSM', () {
         final rows = _build(isIndirect: true, manager: _manager());
-        expect(rows.where((r) => r['approver_level_id'] == 3), isEmpty);
+        final l3 = rows.where((r) => r['approver_level_id'] == 3).toList();
+        expect(l3, hasLength(1));
+        expect(l3.first['discount'], '0.0');
+        expect(l3.first['approver_level'], 'RSM');
       });
 
       test('one RSM row with discount=0 when bonus customized, no discounts',
@@ -323,6 +328,11 @@ void main() {
         expect(l3, hasLength(1));
         // 0.0.toString() = '0.0' — production sends '0.0' to server for zero discount
         expect(l3.first['discount'], '0.0');
+      });
+
+      test('no RSM row when manager is null', () {
+        final rows = _build(isIndirect: true, manager: null);
+        expect(rows.where((r) => r['approver_level_id'] == 3), isEmpty);
       });
     });
 

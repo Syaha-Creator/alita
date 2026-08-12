@@ -113,7 +113,8 @@ class OrderHistory with _$OrderHistory {
     final detailsList = safeMapList(
       json['order_letter_details'],
       fieldName: 'order_letter_details',
-    ).map((detail) => {...detail, 'no_sp': parentNoSp}).toList();
+    ).map((detail) => {...detail, 'no_sp': parentNoSp}).toList()
+      ..sort(_compareDetailJsonInputOrder);
 
     final paymentsList = safeMapList(
       json['order_letter_payments'],
@@ -158,6 +159,25 @@ class OrderHistory with _$OrderHistory {
   }
 }
 
+/// Urutan input dari API `line_number`; fallback `id` untuk data lama.
+int _compareDetailJsonInputOrder(
+  Map<String, dynamic> a,
+  Map<String, dynamic> b,
+) {
+  final la = (a['line_number'] as num?)?.toInt() ?? 0;
+  final lb = (b['line_number'] as num?)?.toInt() ?? 0;
+  if (la > 0 && lb > 0 && la != lb) return la.compareTo(lb);
+  if (la > 0 && lb <= 0) return -1;
+  if (la <= 0 && lb > 0) return 1;
+  final ida = (a['order_letter_detail_id'] as num?)?.toInt() ??
+      (a['id'] as num?)?.toInt() ??
+      0;
+  final idb = (b['order_letter_detail_id'] as num?)?.toInt() ??
+      (b['id'] as num?)?.toInt() ??
+      0;
+  return ida.compareTo(idb);
+}
+
 extension OrderHistoryX on OrderHistory {
   int get mainItemsCount =>
       details.where((d) => d.itemType.toLowerCase() != 'bonus').length;
@@ -169,13 +189,12 @@ extension OrderHistoryX on OrderHistory {
       ? details.firstWhere((d) => d.itemType.toLowerCase() != 'bonus').desc1
       : 'Pesanan';
 
+  /// Urutan mengikuti `line_number` saat parse (lihat [OrderHistory.fromApiJson]).
   List<OrderDetail> get mainItems =>
-      (details.where((d) => d.itemType.toLowerCase() != 'bonus').toList()
-        ..sort((a, b) => a.id.compareTo(b.id)));
+      details.where((d) => d.itemType.toLowerCase() != 'bonus').toList();
 
   List<OrderDetail> get bonusItems =>
-      (details.where((d) => d.itemType.toLowerCase() == 'bonus').toList()
-        ..sort((a, b) => a.id.compareTo(b.id)));
+      details.where((d) => d.itemType.toLowerCase() == 'bonus').toList();
 
   /// Bentuk map seperti response API untuk [ApprovalDetailPage] (dari data ter-parse).
   Map<String, dynamic> toApprovalOrderDataMap() {

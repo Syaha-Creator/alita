@@ -199,18 +199,100 @@ function headerIsRejected(letter) {
   return normalizeApproved(letter.status) === "rejected";
 }
 
+function detailRowId(detail) {
+  const raw = detail.id ?? detail.order_letter_detail_id;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+function discountRowId(disc) {
+  const raw = disc.order_letter_discount_id ?? disc.id;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+function discountMergeKey(disc) {
+  const id = discountRowId(disc);
+  if (id > 0) return `id:${id}`;
+  const approver = String(disc.approver_id ?? disc.approver ?? "").trim();
+  const level = Number(disc.approver_level_id) || 0;
+  return `a:${approver}_l:${level}`;
+}
+
+function mergeDiscountLists(existing, incoming) {
+  const byKey = new Map();
+  const noKey = [];
+  for (const source of [existing || [], incoming || []]) {
+    for (const d of source) {
+      if (!d || typeof d !== "object") continue;
+      const key = discountMergeKey(d);
+      if (key === "a:_l:0") {
+        noKey.push(d);
+        continue;
+      }
+      if (!byKey.has(key)) byKey.set(key, d);
+    }
+  }
+  return [...byKey.values(), ...noKey];
+}
+
+function mergeDetailsIntoShell(shell, incomingDetails) {
+  const existing = Array.isArray(shell.order_letter_details) ?
+    shell.order_letter_details.filter((d) => d && typeof d === "object") :
+    [];
+  const byId = new Map();
+  const withoutId = [];
+  for (const detail of existing) {
+    const id = detailRowId(detail);
+    if (id > 0) byId.set(id, {...detail});
+    else withoutId.push({...detail});
+  }
+  for (const raw of incomingDetails || []) {
+    if (!raw || typeof raw !== "object") continue;
+    const detail = {...raw};
+    const id = detailRowId(detail);
+    if (id > 0 && byId.has(id)) {
+      const target = byId.get(id);
+      target.order_letter_discount = mergeDiscountLists(
+          target.order_letter_discount,
+          detail.order_letter_discount,
+      );
+    } else if (id > 0) {
+      byId.set(id, detail);
+    } else {
+      withoutId.push(detail);
+    }
+  }
+  shell.order_letter_details = [...byId.values(), ...withoutId];
+}
+
 /**
- * Mirrors Flutter ApprovalInboxNotifier inbox split: actionable pending SP count.
+ * Merge wraps that share order_letter.id / no_sp.
+ * Keep-first drops ASM/RSM rows that live on later wraps.
  */
-function countActionablePendingForUser(rawOrders, currentUserIdStr) {
+function mergeApprovalInboxWraps(rawOrders) {
   const grouped = new Map();
   for (const wrap of rawOrders) {
     if (!wrap || typeof wrap !== "object") continue;
     const letter = wrap.order_letter || {};
     const key = letter.id ?? letter.no_sp ?? JSON.stringify(wrap);
-    if (!grouped.has(key)) grouped.set(key, wrap);
+    const incoming = wrap.order_letter_details || [];
+    if (!grouped.has(key)) {
+      const shell = {...wrap, order_letter_details: []};
+      mergeDetailsIntoShell(shell, incoming);
+      grouped.set(key, shell);
+    } else {
+      mergeDetailsIntoShell(grouped.get(key), incoming);
+    }
   }
-  const allOrders = Array.from(grouped.values());
+  return Array.from(grouped.values());
+}
+
+/**
+ * Mirrors Flutter ApprovalInboxNotifier inbox split: actionable pending SP count.
+ */
+function countActionablePendingForUser(rawOrders, currentUserIdStr) {
+  const allOrders = mergeApprovalInboxWraps(rawOrders);
   let pendingSpCount = 0;
 
   for (const orderWrap of allOrders) {

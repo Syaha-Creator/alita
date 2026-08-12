@@ -140,7 +140,36 @@ CLIENT_SECRET_IOS=test-sec
   });
 
   group('MasterDataNotifier — syncIfStale', () {
-    test('skips sync when last sync is within stale window', () async {
+    test('skips sync when last sync is within stale window and channels present',
+        () async {
+      SharedPreferences.setMockInitialValues({
+        'token_migrated_v1': true,
+        'master_areas_cache': jsonEncode([
+          {'name': 'Jakarta'},
+        ]),
+        'master_channels_cache': jsonEncode([
+          {'id': 1, 'channel': 'Direct'},
+        ]),
+        'master_brands_cache': jsonEncode([
+          {'brand': 'Comforta', 'pl_channel_id': 1},
+        ]),
+        'master_data_last_sync': DateTime.now().millisecondsSinceEpoch,
+      });
+
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      await _untilMasterDataReady(container);
+
+      await container.read(masterDataProvider.notifier).syncIfStale();
+
+      final s = container.read(masterDataProvider);
+      expect(s.isLoading, false);
+      expect(s.areas, isNotEmpty);
+      expect(s.channels, isNotEmpty);
+    });
+
+    test('retries sync when channels cache empty even if lastSync fresh',
+        () async {
       SharedPreferences.setMockInitialValues({
         'token_migrated_v1': true,
         'master_areas_cache': jsonEncode([
@@ -154,12 +183,30 @@ CLIENT_SECRET_IOS=test-sec
       final container = ProviderContainer();
       addTearDown(container.dispose);
       await _untilMasterDataReady(container);
+      expect(container.read(masterDataProvider).channels, isEmpty);
 
+      // Harus jalan (bukan skip stale) — HTTP stub non-200, tapi flag loading
+      // selesai dan channel tetap bisa di-retry berikutnya.
       await container.read(masterDataProvider.notifier).syncIfStale();
+      expect(container.read(masterDataProvider).isLoading, false);
+    });
+  });
 
-      final s = container.read(masterDataProvider);
-      expect(s.isLoading, false);
-      expect(s.areas, isNotEmpty);
+  group('StorageService.saveMasterData', () {
+    test('does not stamp lastSync when nothing was written', () async {
+      SharedPreferences.setMockInitialValues({'token_migrated_v1': true});
+      await StorageService.saveMasterData();
+      expect(await StorageService.loadMasterDataLastSync(), isNull);
+    });
+
+    test('stamps lastSync when channels JSON written', () async {
+      SharedPreferences.setMockInitialValues({'token_migrated_v1': true});
+      await StorageService.saveMasterData(
+        channels: jsonEncode([
+          {'id': 1, 'channel': 'Direct'},
+        ]),
+      );
+      expect(await StorageService.loadMasterDataLastSync(), isNotNull);
     });
   });
 
@@ -175,7 +222,7 @@ CLIENT_SECRET_IOS=test-sec
     });
 
     test(
-        'non-200 from binding keeps previous lists; saveMasterData still runs',
+        'non-200 from binding keeps previous lists; does not stamp lastSync',
         () async {
       SharedPreferences.setMockInitialValues({
         'token_migrated_v1': true,
@@ -202,8 +249,9 @@ CLIENT_SECRET_IOS=test-sec
       expect(s.areas.any((e) => e['name'] == 'CachedArea'), isTrue);
       expect(s.channels.any((e) => e['channel'] == 'Retail'), isTrue);
 
+      // Semua endpoint stub non-200 → tidak ada file ditulis → lastSync tetap null.
       final last = await StorageService.loadMasterDataLastSync();
-      expect(last, isNotNull);
+      expect(last, isNull);
     });
 
     test('concurrent syncMasterData second call is ignored via _isSyncing',

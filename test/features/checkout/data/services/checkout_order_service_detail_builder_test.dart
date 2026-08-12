@@ -386,6 +386,28 @@ void main() {
     });
   });
 
+  group('line_number follows input order', () {
+    test('assigns sequential line_number 1..N matching pending order', () {
+      final p1 = _product(
+        id: 'P1',
+        name: 'Item 1 160',
+        isSet: true,
+        divan: 'Divan A',
+        plDivan: 400_000,
+        eupDivan: 360_000,
+      );
+      final p2 = _product(id: 'P2', name: 'Item 2 160');
+      final details = _build(items: [
+        _item(product: p1, divanSku: 'DV1'),
+        _item(product: p2),
+      ]);
+      expect(
+        details.map((d) => d.payload['line_number']).toList(),
+        [1, 2, 3],
+      );
+    });
+  });
+
   // ── Discount rows per detail ─────────────────────────────────────────────
   group('discount rows attached to each detail', () {
     test('kasur detail has non-empty discounts (at least Level 1)', () {

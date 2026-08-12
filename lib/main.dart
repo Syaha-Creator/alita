@@ -281,6 +281,11 @@ class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp>
         Future.microtask(() {
           if (!mounted) return;
           ref.invalidate(masterDataProvider);
+          // Install baru / login: paksa sync channel/area/brand — jangan
+          // mengandalkan cache kosong + stale window.
+          unawaited(
+            ref.read(masterDataProvider.notifier).syncMasterData(),
+          );
         });
       }
       if (prev?.isLoggedIn == true && !next.isLoggedIn) {

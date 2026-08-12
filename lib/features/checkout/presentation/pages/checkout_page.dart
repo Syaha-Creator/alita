@@ -871,8 +871,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   if (!isEditMode) const SizedBox(height: 16),
 
                   // ── Card 3: Approval ──────────────────────────────
-                  // Disembunyikan jika tidak ada diskon tambahan & bonus tidak diubah.
-                  if (_requiresSpvApproval(cartItems) ||
+                  // Direct: hanya jika SPV/Manager wajib.
+                  // Indirect: selalu tampil (tombol + untuk tambah ASM/RSM manual).
+                  if (isIndirectCheckout ||
+                      _requiresSpvApproval(cartItems) ||
                       _requiresManagerApproval(cartItems)) ...[
                     Consumer(
                       builder: (context, ref, _) {
@@ -888,6 +890,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                             ),
                           ),
                         );
+                        final manualAsm =
+                            ref.watch(manualAsmRequestedProvider);
+                        final manualRsm =
+                            ref.watch(manualRsmRequestedProvider);
                         return CheckoutApprovalCard(
                           key: _approvalSectionKey,
                           isLoading: approvalData.$1,
@@ -905,15 +911,15 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                             requiresSpv: _requiresSpvApproval(cartItems),
                             requiresManager:
                                 _requiresManagerApproval(cartItems),
-                            isIndirectCheckout:
-                                cartItems.any((e) => e.isIndirectSale),
+                            manualAsmRequested: manualAsm,
+                            manualRsmRequested: manualRsm,
+                            isIndirectCheckout: isIndirectCheckout,
                             hasBonusCustomizedItem:
                                 _hasBonusCustomizedItem(cartItems),
                             hasCustomSizeItem:
                                 cartItems.any((e) => e.isCustomSize),
                             hasFocVoucherItem: _hasFocVoucherItem(cartItems),
-                            isCustomerBaru: cartItems
-                                    .any((e) => e.isIndirectSale) &&
+                            isCustomerBaru: isIndirectCheckout &&
                                 (_isCustomerBaruShippingForApproval() ||
                                     cartItems.any((e) => e.isNewCustomerStore)),
                             isKlausManagerAutoAssigned: ref
@@ -925,6 +931,36 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                             onManagerChanged: (v) => ref
                                 .read(checkoutProvider.notifier)
                                 .selectManager(v),
+                            onManualLevelAdded: (level) {
+                              switch (level) {
+                                case ManualApproverLevel.asm:
+                                  ref
+                                      .read(
+                                          manualAsmRequestedProvider.notifier)
+                                      .state = true;
+                                case ManualApproverLevel.rsm:
+                                  ref
+                                      .read(
+                                          manualRsmRequestedProvider.notifier)
+                                      .state = true;
+                              }
+                            },
+                            onRemoveManualAsm: () {
+                              ref
+                                  .read(manualAsmRequestedProvider.notifier)
+                                  .state = false;
+                              ref
+                                  .read(checkoutProvider.notifier)
+                                  .clearSelectedSpv();
+                            },
+                            onRemoveManualRsm: () {
+                              ref
+                                  .read(manualRsmRequestedProvider.notifier)
+                                  .state = false;
+                              ref
+                                  .read(checkoutProvider.notifier)
+                                  .clearSelectedManager();
+                            },
                           ),
                         );
                       },
@@ -1426,11 +1462,15 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     final profile = ref.read(profileProvider).valueOrNull;
     final isIndirect = cartItems.any((e) => e.isIndirectSale);
 
-    // Indirect tanpa Diskon Tambahan & tanpa perubahan bonus → tidak ada row
-    // approval pending → langsung set Approved agar tidak stuck di Pending.
+    // Indirect tanpa trigger approval otomatis DAN tanpa slot ASM/RSM manual
+    // → auto-approve. Kalau sales menambah ASM/RSM via +, jangan auto-approve.
+    final manualAsm = ref.read(manualAsmRequestedProvider);
+    final manualRsm = ref.read(manualRsmRequestedProvider);
     final autoApprove = isIndirect &&
         !_requiresSpvApproval(cartItems) &&
-        !_requiresManagerApproval(cartItems);
+        !_requiresManagerApproval(cartItems) &&
+        !manualAsm &&
+        !manualRsm;
 
     final headerPayload = CheckoutPayloadBuilder.buildHeaderPayload(
       workPlaceId: null,
@@ -1543,8 +1583,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           currentTakeAwayQty: _currentTakeAwayQty,
           selectedCartItems: widget.selectedCartItems,
           requiresApproval: !autoApprove,
-          requiresSpvApproval: _requiresSpvApproval(cartItems),
-          requiresManagerApproval: _requiresManagerApproval(cartItems),
+          requiresSpvApproval:
+              _requiresSpvApproval(cartItems) || manualAsm,
+          requiresManagerApproval:
+              _requiresManagerApproval(cartItems) || manualRsm,
         ));
   }
 
@@ -1567,10 +1609,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     _syncLineTakeAwayToItemCount(cartItems.length);
     final isIndirect = cartItems.any((e) => e.isIndirectSale);
 
-    // Mirror create: indirect tanpa trigger approval → autoApprove.
+    // Mirror create: indirect tanpa trigger + tanpa slot manual → autoApprove.
+    final manualAsm = ref.read(manualAsmRequestedProvider);
+    final manualRsm = ref.read(manualRsmRequestedProvider);
     final autoApprove = isIndirect &&
         !_requiresSpvApproval(cartItems) &&
-        !_requiresManagerApproval(cartItems);
+        !_requiresManagerApproval(cartItems) &&
+        !manualAsm &&
+        !manualRsm;
 
     // Kumpulkan payload pembayaran kekurangan (hanya direct + shortage).
     final shortagePayloads = <Map<String, dynamic>>[];
@@ -1606,8 +1652,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           shortagePaymentPayloads: shortagePayloads,
           shortageReceiptImages: shortageReceipts,
           requiresApproval: !autoApprove,
-          requiresSpvApproval: _requiresSpvApproval(cartItems),
-          requiresManagerApproval: _requiresManagerApproval(cartItems),
+          requiresSpvApproval:
+              _requiresSpvApproval(cartItems) || manualAsm,
+          requiresManagerApproval:
+              _requiresManagerApproval(cartItems) || manualRsm,
         ));
   }
 
@@ -1692,22 +1740,26 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       return false;
     }
     final cartItems = _effectiveCartItems(ref);
-    if (_requiresSpvApproval(cartItems) && checkoutState.selectedSpv == null) {
-      final hasBonusChanged = _hasBonusCustomizedItem(cartItems);
+    final needAsm = _requiresSpvApproval(cartItems) ||
+        ref.read(manualAsmRequestedProvider);
+    final needRsm = _requiresManagerApproval(cartItems) ||
+        ref.read(manualRsmRequestedProvider);
+    if (needAsm && checkoutState.selectedSpv == null) {
       _showErrorAndScroll(
         isIndirectCart
-            ? (hasBonusChanged
-                ? 'Bonus diubah dari bundle default — pilih ASM untuk menyetujui.'
-                : 'Pilih Area Sales Manager (ASM).')
+            ? 'Pilih Area Sales Manager (ASM).'
             : 'Pilih Supervisor (SPV).',
         _approvalSectionKey,
       );
       return false;
     }
-    if (_requiresManagerApproval(cartItems) &&
-        checkoutState.selectedManager == null) {
+    if (needRsm && checkoutState.selectedManager == null) {
       _showErrorAndScroll(
-          'Pesanan ini memerlukan persetujuan Manager.', _approvalSectionKey);
+        isIndirectCart
+            ? 'Pesanan ini memerlukan persetujuan RSM.'
+            : 'Pesanan ini memerlukan persetujuan Manager.',
+        _approvalSectionKey,
+      );
       return false;
     }
     if (!isIndirectCart) {
@@ -1739,22 +1791,26 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     final cartItems = _effectiveCartItems(ref);
     final isIndirectCart = cartItems.any((e) => e.isIndirectSale);
 
-    if (_requiresSpvApproval(cartItems) && checkoutState.selectedSpv == null) {
-      final hasBonusChanged = _hasBonusCustomizedItem(cartItems);
+    final needAsm = _requiresSpvApproval(cartItems) ||
+        ref.read(manualAsmRequestedProvider);
+    final needRsm = _requiresManagerApproval(cartItems) ||
+        ref.read(manualRsmRequestedProvider);
+    if (needAsm && checkoutState.selectedSpv == null) {
       _showErrorAndScroll(
         isIndirectCart
-            ? (hasBonusChanged
-                ? 'Bonus diubah dari bundle default — pilih ASM untuk menyetujui.'
-                : 'Pilih Area Sales Manager (ASM).')
+            ? 'Pilih Area Sales Manager (ASM).'
             : 'Pilih Supervisor (SPV).',
         _approvalSectionKey,
       );
       return false;
     }
-    if (_requiresManagerApproval(cartItems) &&
-        checkoutState.selectedManager == null) {
+    if (needRsm && checkoutState.selectedManager == null) {
       _showErrorAndScroll(
-          'Pesanan ini memerlukan persetujuan Manager.', _approvalSectionKey);
+        isIndirectCart
+            ? 'Pesanan ini memerlukan persetujuan RSM.'
+            : 'Pesanan ini memerlukan persetujuan Manager.',
+        _approvalSectionKey,
+      );
       return false;
     }
 
@@ -1831,8 +1887,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           _anyLineNeedsFactoryDelivery(_effectiveCartItems(ref)),
       orderDate: _orderDate,
       requestDate: _requestDate,
+      requiresSpv: _requiresSpvApproval(_effectiveCartItems(ref)) ||
+          ref.read(manualAsmRequestedProvider),
       hasSelectedSpv: checkoutState.selectedSpv != null,
-      requiresManager: _requiresManagerApproval(_effectiveCartItems(ref)),
+      requiresManager: _requiresManagerApproval(_effectiveCartItems(ref)) ||
+          ref.read(manualRsmRequestedProvider),
       hasSelectedManager: checkoutState.selectedManager != null,
       payments: _payments,
       customerSectionKey: _customerSectionKey,

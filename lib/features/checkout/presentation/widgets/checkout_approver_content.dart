@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_layout_tokens.dart';
 import '../../../../core/widgets/form_field_label.dart';
+import '../../../../core/widgets/selection_bottom_sheet.dart';
 import '../../data/models/approver_model.dart';
+import 'checkout_payment_card.dart';
 import 'searchable_dropdown_field.dart';
 
-/// Inner content of the Approval card: SPV (direct) atau ASM (indirect) + opsional Manager.
+/// Level yang bisa ditambah manual lewat tombol + (mode Indirect).
+enum ManualApproverLevel { asm, rsm }
+
+/// Inner content of the Approval card: SPV (direct) / ASM (indirect) + RSM/Manager.
 ///
-/// Extracted from [CheckoutPage] build method to reduce file size.
-/// Receives all data via constructor — no implicit state access.
+/// Mode Indirect: tombol + untuk menambah slot ASM atau RSM secara manual.
 class CheckoutApproverContent extends StatelessWidget {
   final List<Approver> approvers;
   final Approver? selectedSpv;
@@ -19,35 +24,25 @@ class CheckoutApproverContent extends StatelessWidget {
   final bool isIndirectCheckout;
 
   /// True jika ASM/SPV diperlukan untuk pesanan ini.
-  ///
-  /// Indirect: true untuk customer baru, FOC, Medan, ukuran custom.
-  /// **Diskon tambahan (d1–d3) hanya memicu RSM**, bukan ASM.
-  /// Direct: selalu true.
-  /// Ketika false, seluruh section ASM disembunyikan.
   final bool requiresSpv;
 
-  /// True jika ada item yang bonusnya diubah dari bundle default — akan menampilkan
-  /// badge peringatan (RSM diperlukan).
+  /// Indirect: slot ASM ditampilkan karena tombol + (bukan karena aturan otomatis).
+  final bool manualAsmRequested;
+
+  /// Indirect: slot RSM ditampilkan karena tombol +.
+  final bool manualRsmRequested;
+
   final bool hasBonusCustomizedItem;
-
-  /// True jika ada item dengan ukuran custom — ASM diperlukan (indirect).
   final bool hasCustomSizeItem;
-
-  /// True jika ada item dengan FOC voucher aktif — ASM wajib menyetujui karena
-  /// harga item menjadi 0 (gratis).
   final bool hasFocVoucherItem;
-
-  /// True jika indirect dan:
-  ///   - receiver mode adalah "Customer Baru" (bukan cabang/gudang), ATAU
-  ///   - toko ditandai sebagai customer baru oleh API (search_type).
   final bool isCustomerBaru;
-
-  /// True saat aturan Klaus aktif: workplace 1937/6015 + SPV 4147/1019.
-  /// Pak Klaus (5247) auto-assign sebagai RSM — ditampilkan di badge info.
   final bool isKlausManagerAutoAssigned;
 
   final ValueChanged<Approver?> onSpvChanged;
   final ValueChanged<Approver?> onManagerChanged;
+  final ValueChanged<ManualApproverLevel>? onManualLevelAdded;
+  final VoidCallback? onRemoveManualAsm;
+  final VoidCallback? onRemoveManualRsm;
 
   const CheckoutApproverContent({
     super.key,
@@ -57,6 +52,8 @@ class CheckoutApproverContent extends StatelessWidget {
     required this.requiresManager,
     this.isIndirectCheckout = false,
     this.requiresSpv = true,
+    this.manualAsmRequested = false,
+    this.manualRsmRequested = false,
     this.hasBonusCustomizedItem = false,
     this.hasCustomSizeItem = false,
     this.hasFocVoucherItem = false,
@@ -64,14 +61,39 @@ class CheckoutApproverContent extends StatelessWidget {
     this.isKlausManagerAutoAssigned = false,
     required this.onSpvChanged,
     required this.onManagerChanged,
+    this.onManualLevelAdded,
+    this.onRemoveManualAsm,
+    this.onRemoveManualRsm,
   });
+
+  bool get _showAsm => requiresSpv || manualAsmRequested;
+  bool get _showRsm => requiresManager || manualRsmRequested;
+  bool get _canRemoveAsm =>
+      isIndirectCheckout && manualAsmRequested && !requiresSpv;
+  bool get _canRemoveRsm =>
+      isIndirectCheckout && manualRsmRequested && !requiresManager;
+  bool get _canAddAsm => isIndirectCheckout && !_showAsm;
+  bool get _canAddRsm => isIndirectCheckout && !_showRsm;
+  bool get _showAddChip =>
+      isIndirectCheckout && (_canAddAsm || _canAddRsm) && onManualLevelAdded != null;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (requiresSpv) ...[
+        if (!_showAsm && !_showRsm && isIndirectCheckout) ...[
+          Text(
+            'Belum ada persetujuan. Tap Tambah untuk memilih ASM atau RSM.',
+            style: TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary.withValues(alpha: 0.9),
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: AppLayoutTokens.space12),
+        ],
+        if (_showAsm) ...[
           SearchableDropdownField<Approver>(
             label: isIndirectCheckout
                 ? 'Area Sales Manager (ASM)'
@@ -82,132 +104,62 @@ class CheckoutApproverContent extends StatelessWidget {
             itemAsString: (a) => a.displayLabel,
             onChanged: onSpvChanged,
           ),
+          if (_canRemoveAsm) ...[
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: onRemoveManualAsm,
+                child: const Text('Hapus ASM'),
+              ),
+            ),
+          ],
         ],
         if (hasBonusCustomizedItem) ...[
           const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: AppColors.reasonBonus.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: AppColors.reasonBonus.withValues(alpha: 0.3),
-              ),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.card_giftcard_outlined,
-                    size: 14, color: AppColors.reasonBonusIcon),
-                SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    'Ada bonus yang diubah dari bundle default — RSM wajib menyetujui.',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppColors.reasonBonusText,
-                      height: 1.4,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          const _ReasonBanner(
+            icon: Icons.card_giftcard_outlined,
+            iconColor: AppColors.reasonBonusIcon,
+            bg: AppColors.reasonBonus,
+            textColor: AppColors.reasonBonusText,
+            message:
+                'Ada bonus yang diubah dari bundle default — RSM wajib menyetujui.',
           ),
         ],
         if (hasCustomSizeItem && isIndirectCheckout) ...[
           const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: AppColors.reasonCustomSize.withValues(alpha: 0.07),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: AppColors.reasonCustomSize.withValues(alpha: 0.25),
-              ),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.straighten_outlined,
-                    size: 14, color: AppColors.reasonCustomSizeIcon),
-                SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    'Ada item dengan ukuran custom — ASM wajib menyetujui.',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppColors.reasonCustomSizeText,
-                      height: 1.4,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          const _ReasonBanner(
+            icon: Icons.straighten_outlined,
+            iconColor: AppColors.reasonCustomSizeIcon,
+            bg: AppColors.reasonCustomSize,
+            textColor: AppColors.reasonCustomSizeText,
+            message: 'Ada item dengan ukuran custom — ASM wajib menyetujui.',
           ),
         ],
         if (hasFocVoucherItem) ...[
           const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: AppColors.success.withValues(alpha: 0.07),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: AppColors.success.withValues(alpha: 0.3),
-              ),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.card_giftcard_outlined,
-                    size: 14, color: AppColors.success),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    'Ada item FOC (gratis) — ASM wajib menyetujui.',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppColors.success.withValues(alpha: 0.9),
-                      height: 1.4,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          _ReasonBanner(
+            icon: Icons.card_giftcard_outlined,
+            iconColor: AppColors.success,
+            bg: AppColors.success,
+            textColor: AppColors.success.withValues(alpha: 0.9),
+            message: 'Ada item FOC (gratis) — ASM wajib menyetujui.',
           ),
         ],
         if (isCustomerBaru) ...[
           const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: AppColors.accent.withValues(alpha: 0.07),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: AppColors.accent.withValues(alpha: 0.25),
-              ),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.person_outline,
-                    size: 14, color: AppColors.accent),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    'Customer baru — ASM & RSM wajib menyetujui.',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppColors.accent.withValues(alpha: 0.85),
-                      height: 1.4,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          _ReasonBanner(
+            icon: Icons.person_outline,
+            iconColor: AppColors.accent,
+            bg: AppColors.accent,
+            textColor: AppColors.accent.withValues(alpha: 0.85),
+            message: 'Customer baru — ASM wajib menyetujui.',
           ),
         ],
-        if (requiresManager) ...[
+        if (_showRsm) ...[
           const SizedBox(height: 16),
           Row(
             children: [
-              const FormFieldLabel('Manager'),
+              FormFieldLabel(isIndirectCheckout ? 'RSM' : 'Manager'),
               const SizedBox(width: 6),
               Container(
                 padding: const EdgeInsets.symmetric(
@@ -221,11 +173,11 @@ class CheckoutApproverContent extends StatelessWidget {
                 child: Text(
                   isKlausManagerAutoAssigned
                       ? 'Auto RSM — Lokasi khusus'
-                      : isIndirectCheckout
-                          ? (isCustomerBaru
-                              ? 'Customer baru terdeteksi'
-                              : 'Diskon / bonus terdeteksi')
-                          : 'Diskon 3 terdeteksi',
+                      : !requiresManager
+                          ? 'Ditambahkan manual'
+                          : isIndirectCheckout
+                              ? 'Diskon / bonus terdeteksi'
+                              : 'Diskon 3 terdeteksi',
                   style: const TextStyle(
                     fontSize: 10,
                     color: AppColors.accent,
@@ -237,45 +189,108 @@ class CheckoutApproverContent extends StatelessWidget {
           ),
           if (isKlausManagerAutoAssigned) ...[
             const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppColors.reasonKlaus.withValues(alpha: 0.07),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: AppColors.reasonKlaus.withValues(alpha: 0.25),
-                ),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.person_pin_outlined,
-                      size: 14, color: AppColors.reasonKlausIcon),
-                  SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'Lokasi toko ini memerlukan persetujuan RSM Klaus secara otomatis.',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: AppColors.reasonKlausText,
-                        height: 1.4,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+            const _ReasonBanner(
+              icon: Icons.person_pin_outlined,
+              iconColor: AppColors.reasonKlausIcon,
+              bg: AppColors.reasonKlaus,
+              textColor: AppColors.reasonKlausText,
+              message:
+                  'Lokasi toko ini memerlukan persetujuan RSM Klaus secara otomatis.',
             ),
           ],
           const SizedBox(height: 8),
           SearchableDropdownField<Approver>(
-            label: 'Manager',
-            hint: 'Pilih Manager',
+            label: isIndirectCheckout ? 'RSM' : 'Manager',
+            hint: isIndirectCheckout ? 'Pilih RSM' : 'Pilih Manager',
             selectedValue: selectedManager,
             items: approvers,
             itemAsString: (a) => a.displayLabel,
             onChanged: onManagerChanged,
           ),
+          if (_canRemoveRsm) ...[
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: onRemoveManualRsm,
+                child: const Text('Hapus RSM'),
+              ),
+            ),
+          ],
+        ],
+        if (_showAddChip) ...[
+          const SizedBox(height: AppLayoutTokens.space12),
+          AddPaymentChip(
+            onTap: () => _openAddLevelSheet(context),
+          ),
         ],
       ],
+    );
+  }
+
+  Future<void> _openAddLevelSheet(BuildContext context) async {
+    final options = <ManualApproverLevel>[
+      if (_canAddAsm) ManualApproverLevel.asm,
+      if (_canAddRsm) ManualApproverLevel.rsm,
+    ];
+    if (options.isEmpty || onManualLevelAdded == null) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => SelectionBottomSheet<ManualApproverLevel>(
+        title: 'Tambah persetujuan',
+        items: options,
+        selectedItem: null,
+        labelBuilder: (level) => switch (level) {
+          ManualApproverLevel.asm => 'Area Sales Manager (ASM)',
+          ManualApproverLevel.rsm => 'Regional Sales Manager (RSM)',
+        },
+        onItemSelected: onManualLevelAdded!,
+      ),
+    );
+  }
+}
+
+class _ReasonBanner extends StatelessWidget {
+  const _ReasonBanner({
+    required this.icon,
+    required this.iconColor,
+    required this.bg,
+    required this.textColor,
+    required this.message,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final Color bg;
+  final Color textColor;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: bg.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: bg.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: iconColor),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                fontSize: 11,
+                color: textColor,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

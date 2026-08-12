@@ -1512,6 +1512,11 @@ class CheckoutOrderService {
         }
       }
     }
+
+    // Urutan input (cart → komponen → bonus) → line_number 1…N untuk API.
+    for (var i = 0; i < pending.length; i++) {
+      pending[i].payload['line_number'] = i + 1;
+    }
     return pending;
   }
 }

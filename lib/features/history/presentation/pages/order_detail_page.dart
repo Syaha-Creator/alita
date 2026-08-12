@@ -38,6 +38,7 @@ import '../../../auth/logic/auth_provider.dart';
 import '../../../cart/logic/cart_provider.dart';
 import '../../../profile/logic/profile_provider.dart';
 import '../../data/models/order_history.dart';
+import '../../data/utils/order_creator_match.dart';
 import '../../logic/edit_order_context_provider.dart';
 import '../../logic/order_detail_provider.dart';
 import '../widgets/add_payment_bottom_sheet.dart';
@@ -214,7 +215,8 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
       customerAddress: currentOrder.address,
     );
     final fmt = AppFormatters.currencyIdr;
-    final myName = ref.watch(profileProvider).valueOrNull?.name ?? '';
+    final profile = ref.watch(profileProvider).valueOrNull;
+    final myName = profile?.name ?? '';
     final userId = ref.watch(authProvider).userId;
     final needsDiscountApproval =
         ApprovalDecisionService.orderHistoryNeedsMyApproval(
@@ -232,7 +234,14 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
     final currentStatus = OrderStatusX.fromRaw(currentOrder.status);
     final isSoChannel =
         (currentOrder.channel?.trim().toUpperCase() ?? '') == 'SO';
-    final isCreator = currentOrder.creator == userId.toString();
+    // Checkout mengisi creator = profile.id; auth.userId bisa beda → cocokkan keduanya.
+    final isCreator = isOrderCreator(
+      orderCreator: currentOrder.creator,
+      orderCreatorName: currentOrder.creatorName,
+      authUserId: userId,
+      profileId: profile?.id ?? 0,
+      profileName: myName,
+    );
     // Approver (dari konteks inbox persetujuan) bisa void order Approved.
     final showVoidBottomBar = !isOffline &&
         ((widget.allowVoidFromApprovalContext &&
@@ -244,8 +253,8 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
 
     // Kondisi dasar: pemilik SP, tidak offline, status bukan rejected.
     final canEditBase = !isOffline &&
-        currentOrder.creator == userId.toString() &&
-        OrderStatusX.fromRaw(currentOrder.status) != OrderStatus.rejected;
+        isCreator &&
+        currentStatus != OrderStatus.rejected;
     // Edit informasi (header): berlaku untuk semua channel. Hanya field
     // header (nama, kontak, alamat, tanggal kirim, PO, ongkir, dll) yang
     // diubah — data harga/diskon per item tidak tersentuh sama sekali.

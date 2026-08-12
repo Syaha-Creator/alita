@@ -99,8 +99,9 @@ class CheckoutDiscountBuilder {
         if (discount3 > 0) {
           discounts.add(managerRow(discount3, discount3NominalLine));
         }
-        // Bonus customized tanpa diskon → RSM approval dengan discount=0.
-        if (!hasAnyDiscount && isBonusCustomized) {
+        // Tanpa diskon: tetap kirim baris RSM acknowledgment (0%) — dipakai
+        // untuk bonus customized, Klaus, dan RSM yang ditambah manual via +.
+        if (!hasAnyDiscount) {
           discounts.add(managerRow(0, null));
         }
       }

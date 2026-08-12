@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../../core/enums/order_status.dart';
 import '../../../core/services/storage_service.dart';
 import '../../../core/utils/app_telemetry.dart';
 import '../../../core/utils/log.dart';
@@ -331,6 +332,16 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
 
   void selectManager(Approver? approver) {
     state = state.copyWith(selectedManager: approver);
+  }
+
+  /// Hapus pilihan ASM (dipakai saat sales menghapus slot yang ditambah manual).
+  void clearSelectedSpv() {
+    state = state.copyWith(selectedSpv: null);
+  }
+
+  /// Hapus pilihan RSM/Manager (slot manual dihapus).
+  void clearSelectedManager() {
+    state = state.copyWith(selectedManager: null);
   }
 
   // ── Submit Order ──────────────────────────────────────────────
@@ -1307,12 +1318,17 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
       }
       final extendedAmount = grandTotal + editOrder.postage;
 
-      // Jika semua discount rows sudah auto-approved (tidak ada yang null),
-      // tidak ada chain approval yang perlu ditunggu — set status langsung Approved.
+      // Discount yang perlu approval (ASM/RSM/SPV/FOC/…) → status Pending.
+      // Jangan hanya cek `== null`: nilai 'Pending'/false juga belum selesai.
       final hasAnyPendingApproval = pendingDetails.any(
-        (pd) => pd.discounts.any((d) => d['approved'] == null),
+        (pd) => pd.discounts.any(
+          (d) =>
+              OrderStatusX.fromDynamic(d['approved']) == OrderStatus.pending,
+        ),
       );
-      final orderStatus = hasAnyPendingApproval ? 'Pending' : 'Approved';
+      final orderStatus = hasAnyPendingApproval
+          ? OrderStatus.pending.apiValue
+          : OrderStatus.approved.apiValue;
 
       await editService.patchOrderTotals(
         orderId: orderLetterId,
@@ -1445,3 +1461,10 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
 final checkoutProvider = NotifierProvider<CheckoutNotifier, CheckoutState>(
   CheckoutNotifier.new,
 );
+
+/// Indirect checkout: sales menekan + untuk menampilkan slot ASM
+/// (meski aturan otomatis belum mewajibkan). Ephemeral UI flag.
+final manualAsmRequestedProvider = StateProvider.autoDispose<bool>((ref) => false);
+
+/// Indirect checkout: sales menekan + untuk menampilkan slot RSM.
+final manualRsmRequestedProvider = StateProvider.autoDispose<bool>((ref) => false);

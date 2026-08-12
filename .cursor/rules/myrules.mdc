@@ -243,16 +243,20 @@ Before writing ANY new widget, utility, style, or layout, you MUST check this in
 # RELEASE BUILD — SECRETS VIA --dart-define (MANDATORY)
 Rahasia tidak di-bundle dari .env. Untuk release build, WAJIB pass secrets lewat `--dart-define`.
 
-**Script:** `scripts/build_release.sh` — otomatis baca .env di project root.
+**Script:** `scripts/release.sh` — otomatis baca .env di project root (+ generate `ios/Flutter/DartSecrets.xcconfig` untuk iOS).
 ```bash
-./scripts/build_release.sh appbundle   # AAB untuk Play Store
-./scripts/build_release.sh apk        # APK
+./scripts/release.sh android       # AAB untuk Play Store
+./scripts/release.sh android apk   # APK
+./scripts/release.sh ios           # IPA
 ```
-Tanpa export manual: script load API_BASE_URL, CLIENT_ID, CLIENT_SECRET, COMFORTA_*/SPRINGAIR_*/THERAPEDIC_* dari .env.
+Tanpa export manual: script load API_BASE_URL, CLIENT_ID_*/CLIENT_SECRET_*, COMFORTA_*/SPRINGAIR_*/THERAPEDIC_*/ISLEEP_*, INDIRECT_* dari .env.
 
-**Wajib (Alita API):** API_BASE_URL, CLIENT_ID, CLIENT_SECRET  
-**Opsional (Brand Spec — Comforta/Spring Air/Therapedic):** `<BRAND>_ACCESS_TOKEN`, `<BRAND>_CLIENT_ID`, `<BRAND>_CLIENT_SECRET`  
+**Wajib (Alita API):** API_BASE_URL, CLIENT_ID_ANDROID/IOS, CLIENT_SECRET_ANDROID/IOS
+**Wajib (Indirect toko):** INDIRECT_STORES_BASE_URL, INDIRECT_API_KEY, INDIRECT_CLIENT_KEY
+**Opsional (Brand Spec — Comforta/Spring Air/Therapedic/iSleep):** `<BRAND>_ACCESS_TOKEN`, `<BRAND>_CLIENT_ID`, `<BRAND>_CLIENT_SECRET`
 **Punya default (tidak perlu):** `<BRAND>_API_HOST`, REGION_API_BASE_URL
+
+**iOS caveat:** `Release.xcconfig` include `DartSecrets.xcconfig` setelah `Generated.xcconfig` — DartSecrets menimpa DART_DEFINES. Pastikan `gen_xcconfig` di `release.sh` selalu menyertakan INDIRECT_*.
 
 **Saat build release, SELALU gunakan script ini** — jangan pakai `flutter build` tanpa --dart-define untuk secrets.
 

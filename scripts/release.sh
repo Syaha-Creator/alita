@@ -82,6 +82,7 @@ gen_xcconfig() {
   local SPRINGAIR_ACCESS_TOKEN SPRINGAIR_CLIENT_ID SPRINGAIR_CLIENT_SECRET
   local THERAPEDIC_ACCESS_TOKEN THERAPEDIC_CLIENT_ID THERAPEDIC_CLIENT_SECRET
   local ISLEEP_ACCESS_TOKEN ISLEEP_CLIENT_ID ISLEEP_CLIENT_SECRET
+  local INDIRECT_STORES_BASE_URL INDIRECT_API_KEY INDIRECT_CLIENT_KEY
 
   API_BASE_URL=$(read_env API_BASE_URL)
   CLIENT_ID_IOS=$(read_env CLIENT_ID_IOS)
@@ -98,9 +99,19 @@ gen_xcconfig() {
   ISLEEP_ACCESS_TOKEN=$(read_env ISLEEP_ACCESS_TOKEN)
   ISLEEP_CLIENT_ID=$(read_env ISLEEP_CLIENT_ID)
   ISLEEP_CLIENT_SECRET=$(read_env ISLEEP_CLIENT_SECRET)
+  INDIRECT_STORES_BASE_URL=$(read_env INDIRECT_STORES_BASE_URL)
+  INDIRECT_API_KEY=$(read_env INDIRECT_API_KEY)
+  INDIRECT_CLIENT_KEY=$(read_env INDIRECT_CLIENT_KEY)
 
   if [[ -z "$API_BASE_URL" || -z "$CLIENT_ID_IOS" || -z "$CLIENT_SECRET_IOS" ]]; then
     echo "Error: API_BASE_URL / CLIENT_ID_IOS / CLIENT_SECRET_IOS kosong di .env"
+    exit 1
+  fi
+  # Release.xcconfig include DartSecrets SETELAH Generated.xcconfig — jadi
+  # DART_DEFINES di sini menimpa --dart-define dari `flutter build ipa`.
+  # INDIRECT_* wajib ikut, kalau tidak binary release iOS tetap "config kosong".
+  if [[ -z "$INDIRECT_STORES_BASE_URL" || -z "$INDIRECT_API_KEY" || -z "$INDIRECT_CLIENT_KEY" ]]; then
+    echo "Error: INDIRECT_STORES_BASE_URL / INDIRECT_API_KEY / INDIRECT_CLIENT_KEY kosong di .env"
     exit 1
   fi
 
@@ -121,6 +132,9 @@ gen_xcconfig() {
   append ISLEEP_ACCESS_TOKEN     "$ISLEEP_ACCESS_TOKEN"
   append ISLEEP_CLIENT_ID        "$ISLEEP_CLIENT_ID"
   append ISLEEP_CLIENT_SECRET    "$ISLEEP_CLIENT_SECRET"
+  append INDIRECT_STORES_BASE_URL "$INDIRECT_STORES_BASE_URL"
+  append INDIRECT_API_KEY         "$INDIRECT_API_KEY"
+  append INDIRECT_CLIENT_KEY      "$INDIRECT_CLIENT_KEY"
 
   cat > "$XCCONFIG" <<EOF
 // AUTO-GENERATED — JANGAN DI-COMMIT
@@ -217,7 +231,21 @@ require_android_keys() {
     exit 1
   fi
 }
+
+# Host toko assign (indirect) — release scrub `.env` asset, jadi wajib lewat
+# --dart-define. Tanpa ini chip "Pilih toko" tampil "config kosong".
+require_indirect_keys() {
+  local missing=""
+  for k in INDIRECT_STORES_BASE_URL INDIRECT_API_KEY INDIRECT_CLIENT_KEY; do
+    [[ -z "$(read_env "$k")" ]] && missing="$missing $k"
+  done
+  if [[ -n "$missing" ]]; then
+    echo "Error: key host indirect kosong di .env:$missing"
+    exit 1
+  fi
+}
 [[ "$PLATFORM" == "android" || "$PLATFORM" == "all" ]] && require_android_keys
+require_indirect_keys
 
 # ════════════════════════════════════════════════════════════════════════════
 # Konfirmasi & bump versi

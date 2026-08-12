@@ -24,7 +24,8 @@ import 'edit_order_header_sections.dart';
 /// tersentuh sama sekali oleh sheet ini.
 ///
 /// **Direct:** reset semua baris approval L2+ ke pending + notifikasi approver.
-/// **Indirect (SO):** header saja — status tetap Approved, tidak reset approval.
+/// **Indirect (SO):** header saja (tanpa reset row); status `Approved` hanya
+/// jika tidak ada ASM/RSM/Analyst Pending — kalau masih pending → `Pending`.
 class EditOrderHeaderSheet extends ConsumerStatefulWidget {
   const EditOrderHeaderSheet({
     super.key,
@@ -204,7 +205,10 @@ class _EditOrderHeaderSheetState extends ConsumerState<EditOrderHeaderSheet> {
         postage: postage,
         extendedAmount: extendedAmount,
         hargaAwal: hargaAwal,
-        status: isIndirect ? 'Approved' : 'Pending',
+        status: EditOrderHeaderService.resolveEditHeaderStatus(
+          order: widget.order,
+          isIndirect: isIndirect,
+        ),
       );
 
       await _service.editAndReset(
@@ -214,9 +218,9 @@ class _EditOrderHeaderSheetState extends ConsumerState<EditOrderHeaderSheet> {
         resetApprovals: !isIndirect,
       );
 
+      // Notifikasi ulang hanya Direct (reset L2+). Indirect: kalau masih
+      // pending chain, status sudah Pending — manajer lihat dari inbox.
       if (!isIndirect) {
-        // Notifikasi ke approver pertama (SPV/ASM) — fire-and-forget,
-        // tidak boleh block UI atau gagalkan proses utama.
         unawaited(
           EditOrderHeaderService.triggerReEditNotification(
             order: widget.order,

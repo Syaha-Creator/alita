@@ -89,7 +89,7 @@ List<dynamic> approvalHistoryFilteredByWorkPlace(
 }
 
 /// Filter list approval (pending atau history) berdasarkan query teks.
-/// Cocokkan terhadap: no_sp, customer_name, work_place, dan nama item pertama.
+/// Cocokkan terhadap: no_sp, customer_name, work_place, creator, item pertama.
 List<dynamic> approvalFilteredByQuery(List<dynamic> items, String query) {
   if (query.isEmpty) return items;
   final q = query.toLowerCase().trim();
@@ -98,6 +98,7 @@ List<dynamic> approvalFilteredByQuery(List<dynamic> items, String query) {
     final order = (wrap['order_letter'] as Map<String, dynamic>? ?? {});
     final noSp = (order['no_sp'] as String? ?? '').toLowerCase();
     final customer = (order['customer_name'] as String? ?? '').toLowerCase();
+    final creator = approvalOrderWrapCreatorLabel(wrap).toLowerCase();
     final workPlace = approvalOrderWrapWorkPlace(wrap).toLowerCase();
     final details = wrap['order_letter_details'] as List<dynamic>? ?? [];
     var itemName = '';
@@ -112,7 +113,78 @@ List<dynamic> approvalFilteredByQuery(List<dynamic> items, String query) {
     }
     return noSp.contains(q) ||
         customer.contains(q) ||
+        creator.contains(q) ||
         workPlace.contains(q) ||
         itemName.contains(q);
   }).toList();
+}
+
+/// Label pembuat SP dari wrap approval (nama → sales → id).
+String approvalOrderWrapCreatorLabel(dynamic wrap) {
+  if (wrap is! Map) return '';
+  final order = wrap['order_letter'] as Map<String, dynamic>? ?? {};
+  for (final v in <dynamic>[
+    order['creator_name'],
+    order['sales_name'],
+    wrap['creator_name'],
+    order['creator'],
+    order['user_id'],
+  ]) {
+    final s = v?.toString().trim() ?? '';
+    if (s.isNotEmpty) return s;
+  }
+  return '';
+}
+
+/// Label filter creator (kosong → "Tanpa nama pembuat").
+String approvalOrderWrapCreatorFilterLabel(dynamic wrap) {
+  final label = approvalOrderWrapCreatorLabel(wrap);
+  return label.isEmpty ? 'Tanpa nama pembuat' : label;
+}
+
+/// Daftar unik pembuat SP (urut A–Z) — pola sama [approvalHistoryWorkPlaceOptions].
+List<String> approvalCreatorOptions(List<dynamic> wraps) {
+  final set = <String>{};
+  for (final w in wraps) {
+    set.add(approvalOrderWrapCreatorFilterLabel(w));
+  }
+  final out = set.toList()
+    ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+  return out;
+}
+
+/// Filter klien menurut pembuat SP (null/empty = semua).
+List<dynamic> approvalFilteredByCreator(
+  List<dynamic> wraps,
+  String? creator,
+) {
+  if (creator == null || creator.isEmpty) return wraps;
+  return wraps
+      .where((w) => approvalOrderWrapCreatorFilterLabel(w) == creator)
+      .toList();
+}
+
+/// Sort baris detail API menurut `line_number` (urutan input).
+List<Map<String, dynamic>> sortOrderLetterDetailsByLineNumber(
+  List<dynamic> details,
+) {
+  final maps = details
+      .whereType<Map<dynamic, dynamic>>()
+      .map(Map<String, dynamic>.from)
+      .toList();
+  maps.sort((a, b) {
+    final la = (a['line_number'] as num?)?.toInt() ?? 0;
+    final lb = (b['line_number'] as num?)?.toInt() ?? 0;
+    if (la > 0 && lb > 0 && la != lb) return la.compareTo(lb);
+    if (la > 0 && lb <= 0) return -1;
+    if (la <= 0 && lb > 0) return 1;
+    final ida = (a['order_letter_detail_id'] as num?)?.toInt() ??
+        (a['id'] as num?)?.toInt() ??
+        0;
+    final idb = (b['order_letter_detail_id'] as num?)?.toInt() ??
+        (b['id'] as num?)?.toInt() ??
+        0;
+    return ida.compareTo(idb);
+  });
+  return maps;
 }

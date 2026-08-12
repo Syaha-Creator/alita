@@ -11,6 +11,7 @@ import '../../../../core/widgets/detail_pricelist_tags.dart';
 import '../../../../core/widgets/detail_section_label.dart';
 import '../../../../core/widgets/detail_surface_card.dart';
 import '../../../../core/widgets/detail_totals_summary_section.dart';
+import '../../logic/approval_inbox_utils.dart';
 
 /// Products & discount approval card for the approval detail page.
 ///
@@ -40,10 +41,11 @@ class ApprovalProductsCard extends StatelessWidget {
     // `order_letter_details` menandai bonus lewat `item_type: 'bonus'` — bukan
     // field `bonus_N`/`qty_bonusN` (itu field katalog produk, beda payload).
     // Baris bonus harus dipisah dari daftar utama, bukan ikut dinomori.
+    // Urutan utama mengikuti `line_number` (urutan input checkout).
     final mainDetails = <Map<String, dynamic>>[];
     final List<Map<String, dynamic>> bonusItems = [];
-    for (final detail in details) {
-      final d = detail as Map<String, dynamic>;
+    for (final detail in sortOrderLetterDetailsByLineNumber(details)) {
+      final d = detail;
       if (_isBonusRow(d)) {
         final name = (d['item_description']?.toString().trim().isNotEmpty ??
                 false)

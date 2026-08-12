@@ -51,6 +51,8 @@ abstract final class CheckoutFormValidator {
     required bool anyLineNeedsFactoryDelivery,
     required DateTime orderDate,
     required DateTime? requestDate,
+    /// False untuk indirect yang hanya butuh RSM (tanpa ASM/SPV).
+    bool requiresSpv = true,
     required bool hasSelectedSpv,
     required bool requiresManager,
     required bool hasSelectedManager,
@@ -116,7 +118,7 @@ abstract final class CheckoutFormValidator {
       return (key: deliverySectionKey, label: 'Informasi Pengiriman');
     }
 
-    if (!hasSelectedSpv) {
+    if (requiresSpv && !hasSelectedSpv) {
       return (key: approvalSectionKey, label: 'Persetujuan');
     }
     if (requiresManager && !hasSelectedManager) {

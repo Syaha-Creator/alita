@@ -167,32 +167,39 @@ Gunakan `-d <device_id>` untuk perangkat tertentu.
 
 **Jangan** mengandalkan `.env` yang ikut ter-bundle untuk rahasia production. `AppConfig` membaca **`--dart-define` dulu**, lalu fallback `.env`.
 
-**Disarankan:** script yang membaca variabel dari environment / `.env` lokal Anda dan memanggil Flutter dengan `--dart-define`:
+**Disarankan:** script release yang baca `.env` lokal lalu pass `--dart-define` (dan untuk iOS generate `DartSecrets.xcconfig`):
 
 ```bash
-# Pastikan .env terisi, lalu:
-./scripts/build_release.sh appbundle   # AAB (Play Store)
-./scripts/build_release.sh apk         # APK
+# Pastikan .env terisi (termasuk INDIRECT_*), lalu:
+./scripts/release.sh android       # AAB (Play Store)
+./scripts/release.sh android apk   # APK
+./scripts/release.sh ios           # IPA
 ```
 
-Atau manual:
+Atau manual (Android):
 
 ```bash
 flutter build appbundle --release \
   --dart-define=API_BASE_URL=https://... \
-  --dart-define=CLIENT_ID=... \
-  --dart-define=CLIENT_SECRET=...
+  --dart-define=CLIENT_ID_ANDROID=... \
+  --dart-define=CLIENT_SECRET_ANDROID=... \
+  --dart-define=INDIRECT_STORES_BASE_URL=https://... \
+  --dart-define=INDIRECT_API_KEY=... \
+  --dart-define=INDIRECT_CLIENT_KEY=...
 ```
 
 | Kategori | Variabel | Wajib `--dart-define` di release? |
 |----------|----------|-------------------------------------|
-| Alita API | `API_BASE_URL`, `CLIENT_ID`, `CLIENT_SECRET` | Ya |
+| Alita API | `API_BASE_URL`, `CLIENT_ID_ANDROID` / `CLIENT_ID_IOS`, `CLIENT_SECRET_*` | Ya |
+| Indirect (toko assign) | `INDIRECT_STORES_BASE_URL`, `INDIRECT_API_KEY`, `INDIRECT_CLIENT_KEY` | Ya (mode Indirect) |
 | Comforta | `COMFORTA_ACCESS_TOKEN`, `COMFORTA_CLIENT_ID`, `COMFORTA_CLIENT_SECRET` | Ya jika dipakai |
 | Spring Air | `SPRINGAIR_ACCESS_TOKEN`, `SPRINGAIR_CLIENT_ID`, `SPRINGAIR_CLIENT_SECRET` | Ya jika dipakai |
 | Therapedic | `THERAPEDIC_ACCESS_TOKEN`, `THERAPEDIC_CLIENT_ID`, `THERAPEDIC_CLIENT_SECRET` | Ya jika dipakai |
 | iSleep | `ISLEEP_ACCESS_TOKEN`, `ISLEEP_CLIENT_ID`, `ISLEEP_CLIENT_SECRET` | Ya jika dipakai |
 | Default di kode | `COMFORTA_API_HOST`, `SPRINGAIR_API_HOST`, `THERAPEDIC_API_HOST`, `ISLEEP_API_HOST`, `REGION_API_BASE_URL` | Tidak |
 | Firebase client | — | Pakai `firebase_options.dart`, bukan `.env` untuk app |
+
+**Catatan iOS:** `ios/Flutter/Release.xcconfig` memuat `DartSecrets.xcconfig` *setelah* `Generated.xcconfig`, sehingga `DART_DEFINES` di DartSecrets **menimpa** `--dart-define` dari CLI. Script `release.sh` wajib menulis ulang DartSecrets (termasuk `INDIRECT_*`) sebelum archive.
 
 ---
 
