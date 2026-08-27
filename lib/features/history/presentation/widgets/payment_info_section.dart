@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_layout_tokens.dart';
 import '../../../../core/widgets/detail_payment_item_row.dart';
 import '../../../../core/widgets/detail_payments_section.dart';
 import '../../../../core/widgets/detail_surface_card.dart';
@@ -13,6 +14,7 @@ class PaymentInfoSection extends StatelessWidget {
     required this.onTapAddPayment,
     required this.onTapReceipt,
     required this.currencyFormatter,
+    this.onTapPayPaper,
   });
 
   final OrderHistory order;
@@ -20,17 +22,21 @@ class PaymentInfoSection extends StatelessWidget {
   final void Function(String imageUrl) onTapReceipt;
   final String Function(num) currencyFormatter;
 
+  /// Opens Paper.id invoice for an unpaid Paper payment row.
+  final void Function(OrderPayment payment)? onTapPayPaper;
+
   @override
   Widget build(BuildContext context) {
-    // Baris `verified == false` (ditolak/duplikat/invalid) disembunyikan dari
-    // riwayat — sama seperti PDF — supaya tidak terlihat seolah "dobel".
+    // Paper unpaid tetap tampil (status + tombol bayar). Legacy rejected
+    // (`verified == false`) tetap disembunyikan.
     final visiblePayments =
-        order.payments.where((p) => p.countsTowardTotal).toList();
-    final totalPaid = visiblePayments.fold<double>(
-      0,
-      (sum, payment) => sum + payment.amount,
-    );
-    final remaining = (order.totalAmount - totalPaid).clamp(0.0, double.infinity);
+        order.payments.where((p) => p.isVisibleInPaymentHistory).toList();
+    final totalPaid = visiblePayments
+        .where((p) => p.countsTowardTotal)
+        .fold<double>(0, (sum, payment) => sum + payment.amount);
+    final remaining =
+        (order.totalAmount - totalPaid).clamp(0.0, double.infinity);
+    final hasUnpaidPaper = visiblePayments.any((p) => p.isPaperUnpaid);
 
     if (visiblePayments.isEmpty && remaining <= 0) {
       return const SizedBox.shrink();
@@ -40,17 +46,20 @@ class PaymentInfoSection extends StatelessWidget {
       if (visiblePayments.isEmpty)
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+          padding: const EdgeInsets.symmetric(
+            vertical: AppLayoutTokens.space20 + AppLayoutTokens.space4,
+            horizontal: AppLayoutTokens.space16,
+          ),
           decoration: BoxDecoration(
             color: AppColors.surfaceLight,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(AppLayoutTokens.radius16 - 2),
             border: Border.all(color: AppColors.border),
           ),
           child: const Column(
             children: [
               Icon(Icons.account_balance_wallet_outlined,
                   size: 32, color: AppColors.textTertiary),
-              SizedBox(height: 10),
+              SizedBox(height: AppLayoutTokens.space10),
               Text(
                 'Belum ada riwayat pembayaran',
                 style: TextStyle(
@@ -74,6 +83,12 @@ class PaymentInfoSection extends StatelessWidget {
           amountText: currencyFormatter(payment.amount),
           receiptImageUrl: payment.image,
           verified: payment.verified ?? false,
+          paperStatusLabel:
+              payment.isPaperPayment ? payment.paperStatusLabel : null,
+          paperStatusPaid: payment.isPaperPaid,
+          onPayViaPaper: payment.canPayViaPaper && onTapPayPaper != null
+              ? () => onTapPayPaper!(payment)
+              : null,
           onTapReceipt: payment.image.isNotEmpty
               ? () => onTapReceipt(payment.image)
               : null,
@@ -85,7 +100,10 @@ class PaymentInfoSection extends StatelessWidget {
       totalPaid: totalPaid,
       remaining: remaining,
       currencyFormatter: currencyFormatter,
-      onTapAddPayment: remaining > 0 ? onTapAddPayment : null,
+      // Saat masih ada invoice Paper unpaid, arahkan user ke Paper dulu —
+      // jangan buka form multipart "Tambah Pembayaran".
+      onTapAddPayment:
+          remaining > 0 && !hasUnpaidPaper ? onTapAddPayment : null,
     );
 
     return DetailSurfaceCard(
@@ -117,12 +135,12 @@ class _PaymentSummaryFooter extends StatelessWidget {
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(AppLayoutTokens.space14),
           decoration: BoxDecoration(
             color: isFullyPaid
                 ? AppColors.success.withValues(alpha: 0.06)
                 : AppColors.warning.withValues(alpha: 0.06),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppLayoutTokens.radius10 + 2),
             border: Border.all(
               color: isFullyPaid
                   ? AppColors.success.withValues(alpha: 0.2)
@@ -146,15 +164,17 @@ class _PaymentSummaryFooter extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: isFullyPaid ? AppColors.success : AppColors.textPrimary,
+                      color:
+                          isFullyPaid ? AppColors.success : AppColors.textPrimary,
                     ),
                   ),
                 ],
               ),
               if (!isFullyPaid) ...[
-                const SizedBox(height: 8),
-                Container(height: 1, color: AppColors.border.withValues(alpha: 0.5)),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppLayoutTokens.space8),
+                Container(
+                    height: 1, color: AppColors.border.withValues(alpha: 0.5)),
+                const SizedBox(height: AppLayoutTokens.space8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -177,13 +197,13 @@ class _PaymentSummaryFooter extends StatelessWidget {
                 ),
               ],
               if (isFullyPaid) ...[
-                const SizedBox(height: 6),
+                const SizedBox(height: AppLayoutTokens.space6),
                 const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(Icons.check_circle_rounded,
                         size: 14, color: AppColors.success),
-                    SizedBox(width: 4),
+                    SizedBox(width: AppLayoutTokens.space4),
                     Text(
                       'Lunas',
                       style: TextStyle(
@@ -198,21 +218,23 @@ class _PaymentSummaryFooter extends StatelessWidget {
             ],
           ),
         ),
-
         if (onTapAddPayment != null) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: AppLayoutTokens.space12),
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
               onPressed: onTapAddPayment,
-              icon: const Icon(Icons.add_circle_outline_rounded, size: 18),
+              icon: const Icon(Icons.add_rounded, size: 18),
               label: const Text('Tambah Pembayaran'),
               style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(46),
                 foregroundColor: AppColors.accent,
-                side: BorderSide(color: AppColors.accent.withValues(alpha: 0.3)),
+                side: const BorderSide(color: AppColors.accent),
+                padding: const EdgeInsets.symmetric(
+                  vertical: AppLayoutTokens.space12,
+                ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius:
+                      BorderRadius.circular(AppLayoutTokens.radius10 + 2),
                 ),
               ),
             ),

@@ -27,6 +27,7 @@ import '../../features/favorites/presentation/pages/favorites_page.dart';
 import '../../features/cart/data/cart_item.dart';
 import '../../features/checkout/presentation/pages/checkout_page.dart';
 import '../../features/checkout/presentation/pages/order_success_page.dart';
+import '../../features/checkout/presentation/order_success_route_args.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
 import '../../features/profile/presentation/pages/help_center_page.dart';
 import '../../features/profile/presentation/pages/telemetry_debug_page.dart';
@@ -408,8 +409,14 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/success',
             name: 'order-success',
-            pageBuilder: (context, state) => _adaptivePage(
-                child: const OrderSuccessPage(), name: 'order-success'),
+            pageBuilder: (context, state) {
+              final extra = state.extra;
+              final args = extra is OrderSuccessRouteArgs ? extra : null;
+              return _adaptivePage(
+                child: OrderSuccessPage(args: args),
+                name: 'order-success',
+              );
+            },
           ),
           GoRoute(
             path: '/profile',

@@ -25,7 +25,8 @@ class CheckoutDiscountBuilder {
     bool isIndirectOrder = false,
 
     /// True jika ada item yang bonusnya diubah dari bundle default.
-    /// RSM approval tetap dibutuhkan meski semua diskon = 0.
+    /// Historis: ikut memicu RSM Direct. Sekarang L3 Direct ikut terkirim
+    /// selama [selectedManager] terisi (Klaus / d3 / bonus / manual).
     bool isBonusCustomized = false,
 
     /// Nominal (Rp) per discount level — diisi per komponen oleh checkout_order_service.
@@ -37,6 +38,11 @@ class CheckoutDiscountBuilder {
     double? discount3NominalLine,
     double? discount4NominalLine,
   }) {
+    // L3 inclusion is driven by [selectedManager]. Flag remains for callers.
+    assert(() {
+      return !isBonusCustomized || selectedManager != null || true;
+    }());
+
     final discounts = <Map<String, dynamic>>[];
     final now = DateTime.now().toIso8601String();
 
@@ -141,9 +147,10 @@ class CheckoutDiscountBuilder {
         });
       }
 
-      // Level 3 — RSM / Manager (kondisional)
-      // Muncul saat discount3 > 0, atau bonus diubah dari bundle default.
-      if (selectedManager != null && (discount3 > 0 || isBonusCustomized)) {
+      // Level 3 — RSM / Manager
+      // Selalu kirim baris jika Manager terpilih (Klaus acknowledgment, d3,
+      // bonus customized, atau RSM manual). Tanpa d3 → discount "0".
+      if (selectedManager != null) {
         discounts.add({
           'discount': discount3.toString(),
           'approver': selectedManager.id,

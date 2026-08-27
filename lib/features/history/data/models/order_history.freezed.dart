@@ -1795,6 +1795,14 @@ mixin _$OrderPayment {
   @JsonKey(fromJson: _parseBoolNullable)
   bool? get verified => throw _privateConstructorUsedError;
 
+  /// Paper.id invoice status from Alita (`UNPAID`, `PAID`, …). Empty for
+  /// legacy multipart payments.
+  String get paperIdStatus => throw _privateConstructorUsedError;
+
+  /// Checkout / pay URL from Paper.id. Used to reopen payment from detail.
+  String get paperIdInvoiceUrl => throw _privateConstructorUsedError;
+  String get paperIdInvoiceId => throw _privateConstructorUsedError;
+
   /// Serializes this OrderPayment to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
 
@@ -1818,7 +1826,10 @@ abstract class $OrderPaymentCopyWith<$Res> {
       String image,
       String paymentDate,
       String createdAt,
-      @JsonKey(fromJson: _parseBoolNullable) bool? verified});
+      @JsonKey(fromJson: _parseBoolNullable) bool? verified,
+      String paperIdStatus,
+      String paperIdInvoiceUrl,
+      String paperIdInvoiceId});
 }
 
 /// @nodoc
@@ -1843,6 +1854,9 @@ class _$OrderPaymentCopyWithImpl<$Res, $Val extends OrderPayment>
     Object? paymentDate = null,
     Object? createdAt = null,
     Object? verified = freezed,
+    Object? paperIdStatus = null,
+    Object? paperIdInvoiceUrl = null,
+    Object? paperIdInvoiceId = null,
   }) {
     return _then(_value.copyWith(
       method: null == method
@@ -1873,6 +1887,18 @@ class _$OrderPaymentCopyWithImpl<$Res, $Val extends OrderPayment>
           ? _value.verified
           : verified // ignore: cast_nullable_to_non_nullable
               as bool?,
+      paperIdStatus: null == paperIdStatus
+          ? _value.paperIdStatus
+          : paperIdStatus // ignore: cast_nullable_to_non_nullable
+              as String,
+      paperIdInvoiceUrl: null == paperIdInvoiceUrl
+          ? _value.paperIdInvoiceUrl
+          : paperIdInvoiceUrl // ignore: cast_nullable_to_non_nullable
+              as String,
+      paperIdInvoiceId: null == paperIdInvoiceId
+          ? _value.paperIdInvoiceId
+          : paperIdInvoiceId // ignore: cast_nullable_to_non_nullable
+              as String,
     ) as $Val);
   }
 }
@@ -1892,7 +1918,10 @@ abstract class _$$OrderPaymentImplCopyWith<$Res>
       String image,
       String paymentDate,
       String createdAt,
-      @JsonKey(fromJson: _parseBoolNullable) bool? verified});
+      @JsonKey(fromJson: _parseBoolNullable) bool? verified,
+      String paperIdStatus,
+      String paperIdInvoiceUrl,
+      String paperIdInvoiceId});
 }
 
 /// @nodoc
@@ -1915,6 +1944,9 @@ class __$$OrderPaymentImplCopyWithImpl<$Res>
     Object? paymentDate = null,
     Object? createdAt = null,
     Object? verified = freezed,
+    Object? paperIdStatus = null,
+    Object? paperIdInvoiceUrl = null,
+    Object? paperIdInvoiceId = null,
   }) {
     return _then(_$OrderPaymentImpl(
       method: null == method
@@ -1945,6 +1977,18 @@ class __$$OrderPaymentImplCopyWithImpl<$Res>
           ? _value.verified
           : verified // ignore: cast_nullable_to_non_nullable
               as bool?,
+      paperIdStatus: null == paperIdStatus
+          ? _value.paperIdStatus
+          : paperIdStatus // ignore: cast_nullable_to_non_nullable
+              as String,
+      paperIdInvoiceUrl: null == paperIdInvoiceUrl
+          ? _value.paperIdInvoiceUrl
+          : paperIdInvoiceUrl // ignore: cast_nullable_to_non_nullable
+              as String,
+      paperIdInvoiceId: null == paperIdInvoiceId
+          ? _value.paperIdInvoiceId
+          : paperIdInvoiceId // ignore: cast_nullable_to_non_nullable
+              as String,
     ));
   }
 }
@@ -1959,7 +2003,10 @@ class _$OrderPaymentImpl implements _OrderPayment {
       required this.image,
       this.paymentDate = '',
       this.createdAt = '',
-      @JsonKey(fromJson: _parseBoolNullable) this.verified});
+      @JsonKey(fromJson: _parseBoolNullable) this.verified,
+      this.paperIdStatus = '',
+      this.paperIdInvoiceUrl = '',
+      this.paperIdInvoiceId = ''});
 
   factory _$OrderPaymentImpl.fromJson(Map<String, dynamic> json) =>
       _$$OrderPaymentImplFromJson(json);
@@ -1988,9 +2035,23 @@ class _$OrderPaymentImpl implements _OrderPayment {
   @JsonKey(fromJson: _parseBoolNullable)
   final bool? verified;
 
+  /// Paper.id invoice status from Alita (`UNPAID`, `PAID`, …). Empty for
+  /// legacy multipart payments.
+  @override
+  @JsonKey()
+  final String paperIdStatus;
+
+  /// Checkout / pay URL from Paper.id. Used to reopen payment from detail.
+  @override
+  @JsonKey()
+  final String paperIdInvoiceUrl;
+  @override
+  @JsonKey()
+  final String paperIdInvoiceId;
+
   @override
   String toString() {
-    return 'OrderPayment(method: $method, bank: $bank, amount: $amount, image: $image, paymentDate: $paymentDate, createdAt: $createdAt, verified: $verified)';
+    return 'OrderPayment(method: $method, bank: $bank, amount: $amount, image: $image, paymentDate: $paymentDate, createdAt: $createdAt, verified: $verified, paperIdStatus: $paperIdStatus, paperIdInvoiceUrl: $paperIdInvoiceUrl, paperIdInvoiceId: $paperIdInvoiceId)';
   }
 
   @override
@@ -2007,13 +2068,29 @@ class _$OrderPaymentImpl implements _OrderPayment {
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.verified, verified) ||
-                other.verified == verified));
+                other.verified == verified) &&
+            (identical(other.paperIdStatus, paperIdStatus) ||
+                other.paperIdStatus == paperIdStatus) &&
+            (identical(other.paperIdInvoiceUrl, paperIdInvoiceUrl) ||
+                other.paperIdInvoiceUrl == paperIdInvoiceUrl) &&
+            (identical(other.paperIdInvoiceId, paperIdInvoiceId) ||
+                other.paperIdInvoiceId == paperIdInvoiceId));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, method, bank, amount, image,
-      paymentDate, createdAt, verified);
+  int get hashCode => Object.hash(
+      runtimeType,
+      method,
+      bank,
+      amount,
+      image,
+      paymentDate,
+      createdAt,
+      verified,
+      paperIdStatus,
+      paperIdInvoiceUrl,
+      paperIdInvoiceId);
 
   /// Create a copy of OrderPayment
   /// with the given fields replaced by the non-null parameter values.
@@ -2033,14 +2110,16 @@ class _$OrderPaymentImpl implements _OrderPayment {
 
 abstract class _OrderPayment implements OrderPayment {
   const factory _OrderPayment(
-          {required final String method,
-          required final String bank,
-          @JsonKey(fromJson: _parseDouble) required final double amount,
-          required final String image,
-          final String paymentDate,
-          final String createdAt,
-          @JsonKey(fromJson: _parseBoolNullable) final bool? verified}) =
-      _$OrderPaymentImpl;
+      {required final String method,
+      required final String bank,
+      @JsonKey(fromJson: _parseDouble) required final double amount,
+      required final String image,
+      final String paymentDate,
+      final String createdAt,
+      @JsonKey(fromJson: _parseBoolNullable) final bool? verified,
+      final String paperIdStatus,
+      final String paperIdInvoiceUrl,
+      final String paperIdInvoiceId}) = _$OrderPaymentImpl;
 
   factory _OrderPayment.fromJson(Map<String, dynamic> json) =
       _$OrderPaymentImpl.fromJson;
@@ -2066,6 +2145,17 @@ abstract class _OrderPayment implements OrderPayment {
   @override
   @JsonKey(fromJson: _parseBoolNullable)
   bool? get verified;
+
+  /// Paper.id invoice status from Alita (`UNPAID`, `PAID`, …). Empty for
+  /// legacy multipart payments.
+  @override
+  String get paperIdStatus;
+
+  /// Checkout / pay URL from Paper.id. Used to reopen payment from detail.
+  @override
+  String get paperIdInvoiceUrl;
+  @override
+  String get paperIdInvoiceId;
 
   /// Create a copy of OrderPayment
   /// with the given fields replaced by the non-null parameter values.

@@ -25,6 +25,7 @@ import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
 import 'features/approval/logic/approval_inbox_provider.dart';
 import 'features/auth/logic/auth_provider.dart';
+import 'features/indirect/logic/indirect_session_provider.dart';
 import 'features/pricelist/logic/master_data_provider.dart';
 import 'features/pricelist/logic/product_provider.dart';
 import 'core/widgets/offline_banner.dart';
@@ -275,14 +276,12 @@ class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp>
         }
       }
       if (prev?.isLoggedIn != true && next.isLoggedIn) {
-        // Jangan invalidate sinkron di dalam listener: Riverpod sedang flush
-        // dependensi auth; invalidate memicu ConcurrentModificationError saat
-        // visitAncestors (riverpod 2.6.x).
+        // Jangan invalidate masterDataProvider di sini.
+        // Invalidate mengosongkan list area/channel/brand di memory; reload
+        // async bisa macet (_isDisposed / race) sehingga filter tetap kosong
+        // sampai app di-kill. Disk cache tetap ada — cukup sync di background.
         Future.microtask(() {
           if (!mounted) return;
-          ref.invalidate(masterDataProvider);
-          // Install baru / login: paksa sync channel/area/brand — jangan
-          // mengandalkan cache kosong + stale window.
           unawaited(
             ref.read(masterDataProvider.notifier).syncMasterData(),
           );
@@ -296,6 +295,7 @@ class _AlitaPricelistAppState extends ConsumerState<AlitaPricelistApp>
           ref.invalidate(selectedAreaProvider);
           ref.read(searchQueryProvider.notifier).state = '';
           ref.read(sortOptionProvider.notifier).state = SortOption.newest;
+          ref.read(indirectSessionProvider.notifier).clear();
         });
       }
     });

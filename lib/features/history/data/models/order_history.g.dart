@@ -167,6 +167,9 @@ _$OrderPaymentImpl _$$OrderPaymentImplFromJson(Map<String, dynamic> json) =>
       paymentDate: json['paymentDate'] as String? ?? '',
       createdAt: json['createdAt'] as String? ?? '',
       verified: _parseBoolNullable(json['verified']),
+      paperIdStatus: json['paperIdStatus'] as String? ?? '',
+      paperIdInvoiceUrl: json['paperIdInvoiceUrl'] as String? ?? '',
+      paperIdInvoiceId: json['paperIdInvoiceId'] as String? ?? '',
     );
 
 Map<String, dynamic> _$$OrderPaymentImplToJson(_$OrderPaymentImpl instance) =>
@@ -178,4 +181,7 @@ Map<String, dynamic> _$$OrderPaymentImplToJson(_$OrderPaymentImpl instance) =>
       'paymentDate': instance.paymentDate,
       'createdAt': instance.createdAt,
       'verified': instance.verified,
+      'paperIdStatus': instance.paperIdStatus,
+      'paperIdInvoiceUrl': instance.paperIdInvoiceUrl,
+      'paperIdInvoiceId': instance.paperIdInvoiceId,
     };

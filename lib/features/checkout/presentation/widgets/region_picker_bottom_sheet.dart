@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_search_field.dart';
 import '../../data/models/region_result.dart';
 import '../../data/services/region_service.dart';
+import '../../data/utils/region_api_parser.dart';
 
-/// 3-step region picker (Provinsi → Kota/Kab → Kecamatan).
-/// Pop with a [RegionResult] on success, or null if dismissed.
+/// 4-step region picker (Provinsi → Kota → Kecamatan → Kelurahan + kode pos).
 class RegionPickerBottomSheet extends StatefulWidget {
   const RegionPickerBottomSheet({super.key});
 
@@ -18,16 +19,27 @@ class _RegionPickerBottomSheetState extends State<RegionPickerBottomSheet> {
   final RegionService _service = RegionService();
   final TextEditingController _searchCtrl = TextEditingController();
 
-  int _step = 1; // 1 = Provinsi, 2 = Kota, 3 = Kecamatan
+  /// 1=Provinsi, 2=Kota, 3=Kecamatan, 4=Kelurahan
+  int _step = 1;
   bool _isLoading = true;
   String _error = '';
 
-  List<Map<String, dynamic>> _fullList = [];
-  List<Map<String, dynamic>> _filteredList = [];
+  List<RegionItem> _fullList = const [];
+  List<RegionItem> _filteredList = const [];
 
-  String? _selectedProvId;
+  String? _selectedProvKode;
   String? _selectedProvName;
+  String? _selectedKotaKode;
   String? _selectedKotaName;
+  String? _selectedKecKode;
+  String? _selectedKecName;
+
+  static const _titles = [
+    'Pilih Provinsi',
+    'Pilih Kota / Kabupaten',
+    'Pilih Kecamatan',
+    'Pilih Kelurahan / Desa',
+  ];
 
   @override
   void initState() {
@@ -41,8 +53,6 @@ class _RegionPickerBottomSheetState extends State<RegionPickerBottomSheet> {
     super.dispose();
   }
 
-  // ─────────────────────── Data loaders ────────────────────────
-
   Future<void> _loadProvinces() async {
     _resetSearch();
     setState(() {
@@ -55,46 +65,55 @@ class _RegionPickerBottomSheetState extends State<RegionPickerBottomSheet> {
     _setList(data);
   }
 
-  Future<void> _loadRegencies(String provId) async {
+  Future<void> _loadRegencies(String provKode) async {
     _resetSearch();
     setState(() {
       _isLoading = true;
       _error = '';
       _step = 2;
     });
-    final data = await _service.getRegencies(provId);
+    final data = await _service.getRegencies(provKode);
     if (!mounted) return;
     _setList(data);
   }
 
-  Future<void> _loadDistricts(String kotaId) async {
+  Future<void> _loadDistricts(String kotaKode) async {
     _resetSearch();
     setState(() {
       _isLoading = true;
       _error = '';
       _step = 3;
     });
-    final data = await _service.getDistricts(kotaId);
+    final data = await _service.getDistricts(kotaKode);
     if (!mounted) return;
     _setList(data);
   }
 
-  void _setList(List<Map<String, dynamic>> data) {
+  Future<void> _loadVillages(String kecKode) async {
+    _resetSearch();
+    setState(() {
+      _isLoading = true;
+      _error = '';
+      _step = 4;
+    });
+    final data = await _service.getVillages(kecKode);
+    if (!mounted) return;
+    _setList(data);
+  }
+
+  void _setList(List<RegionItem> data) {
     setState(() {
       _isLoading = false;
       _fullList = data;
       _filteredList = data;
       if (data.isEmpty) {
-        _error = 'Gagal memuat data wilayah.\nPeriksa koneksi internet dan coba lagi.';
+        _error =
+            'Gagal memuat data wilayah.\nPeriksa koneksi internet dan coba lagi.';
       }
     });
   }
 
-  void _resetSearch() {
-    _searchCtrl.clear();
-  }
-
-  // ─────────────────────── Interactions ────────────────────────
+  void _resetSearch() => _searchCtrl.clear();
 
   void _onSearch(String query) {
     final q = query.trim().toLowerCase();
@@ -102,29 +121,32 @@ class _RegionPickerBottomSheetState extends State<RegionPickerBottomSheet> {
       _filteredList = q.isEmpty
           ? _fullList
           : _fullList
-              .where(
-                  (item) => (item['name']?.toString() ?? '').toLowerCase().contains(q))
+              .where((item) => item.nama.toLowerCase().contains(q))
               .toList();
     });
   }
 
-  void _onItemTap(Map<String, dynamic> item) {
-    final id = item['id']?.toString() ?? '';
-    final name = item['name']?.toString() ?? '';
-
+  void _onItemTap(RegionItem item) {
     if (_step == 1) {
-      _selectedProvId = id;
-      _selectedProvName = name;
-      _loadRegencies(id);
+      _selectedProvKode = item.kode;
+      _selectedProvName = item.nama;
+      _loadRegencies(item.kode);
     } else if (_step == 2) {
-      _selectedKotaName = name;
-      _loadDistricts(id);
+      _selectedKotaKode = item.kode;
+      _selectedKotaName = item.nama;
+      _loadDistricts(item.kode);
+    } else if (_step == 3) {
+      _selectedKecKode = item.kode;
+      _selectedKecName = item.nama;
+      _loadVillages(item.kode);
     } else {
       Navigator.of(context).pop(
         RegionResult(
           provinsi: _selectedProvName ?? '',
           kota: _selectedKotaName ?? '',
-          kecamatan: name,
+          kecamatan: _selectedKecName ?? '',
+          kelurahan: item.nama,
+          kodepos: item.kodepos ?? '',
         ),
       );
     }
@@ -134,32 +156,32 @@ class _RegionPickerBottomSheetState extends State<RegionPickerBottomSheet> {
     if (_step == 2) {
       _loadProvinces();
     } else if (_step == 3) {
-      final provId = _selectedProvId;
-      if (provId != null) _loadRegencies(provId);
+      final kode = _selectedProvKode;
+      if (kode != null) _loadRegencies(kode);
+    } else if (_step == 4) {
+      final kode = _selectedKotaKode;
+      if (kode != null) _loadDistricts(kode);
     }
   }
 
   void _retryCurrentStep() {
-    final provId = _selectedProvId;
+    final prov = _selectedProvKode;
+    final kota = _selectedKotaKode;
+    final kec = _selectedKecKode;
     if (_step == 1) {
       _loadProvinces();
-    } else if (_step == 2 && provId != null) {
-      _loadRegencies(provId);
-    } else if (_step == 3 && provId != null) {
-      _loadRegencies(provId);
+    } else if (_step == 2 && prov != null) {
+      _loadRegencies(prov);
+    } else if (_step == 3 && kota != null) {
+      _loadDistricts(kota);
+    } else if (_step == 4 && kec != null) {
+      _loadVillages(kec);
     }
   }
 
-  // ─────────────────────── Build ───────────────────────────────
-
   @override
   Widget build(BuildContext context) {
-    final titles = [
-      'Pilih Provinsi',
-      'Pilih Kota / Kabupaten',
-      'Pilih Kecamatan'
-    ];
-    final title = titles[_step - 1];
+    final title = _titles[_step - 1];
     final hintText = 'Cari ${title.replaceAll('Pilih ', '')}...';
 
     return Container(
@@ -170,7 +192,6 @@ class _RegionPickerBottomSheetState extends State<RegionPickerBottomSheet> {
       ),
       child: Column(
         children: [
-          // ── Handle bar ─────────────────────────────────────────
           const SizedBox(height: 8),
           Center(
             child: Container(
@@ -183,13 +204,10 @@ class _RegionPickerBottomSheetState extends State<RegionPickerBottomSheet> {
             ),
           ),
           const SizedBox(height: 8),
-
-          // ── Header ────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Row(
               children: [
-                // Back / spacer
                 if (_step > 1)
                   IconButton(
                     tooltip: 'Kembali',
@@ -199,8 +217,6 @@ class _RegionPickerBottomSheetState extends State<RegionPickerBottomSheet> {
                   )
                 else
                   const SizedBox(width: 48),
-
-                // Title + step indicator
                 Expanded(
                   child: Column(
                     children: [
@@ -217,8 +233,6 @@ class _RegionPickerBottomSheetState extends State<RegionPickerBottomSheet> {
                     ],
                   ),
                 ),
-
-                // Close
                 IconButton(
                   icon: const Icon(Icons.close_rounded, size: 20),
                   onPressed: () => Navigator.of(context).pop(),
@@ -227,8 +241,6 @@ class _RegionPickerBottomSheetState extends State<RegionPickerBottomSheet> {
               ],
             ),
           ),
-
-          // ── Search bar ────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
             child: AppSearchField(
@@ -251,11 +263,8 @@ class _RegionPickerBottomSheetState extends State<RegionPickerBottomSheet> {
               contentPadding: const EdgeInsets.symmetric(vertical: 0),
             ),
           ),
-
           const SizedBox(height: 8),
           const Divider(height: 1),
-
-          // ── List ─────────────────────────────────────────────
           Expanded(child: _buildBody()),
         ],
       ),
@@ -265,7 +274,7 @@ class _RegionPickerBottomSheetState extends State<RegionPickerBottomSheet> {
   Widget _buildStepIndicator() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(3, (i) {
+      children: List.generate(4, (i) {
         final active = i < _step;
         final current = i + 1 == _step;
         return Container(
@@ -286,7 +295,9 @@ class _RegionPickerBottomSheetState extends State<RegionPickerBottomSheet> {
     if (_isLoading) {
       content = const Center(
         key: ValueKey('loading'),
-        child: CircularProgressIndicator.adaptive(valueColor: AlwaysStoppedAnimation(AppColors.accent)),
+        child: CircularProgressIndicator.adaptive(
+          valueColor: AlwaysStoppedAnimation(AppColors.accent),
+        ),
       );
     } else if (_error.isNotEmpty) {
       content = Center(
@@ -296,13 +307,18 @@ class _RegionPickerBottomSheetState extends State<RegionPickerBottomSheet> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.wifi_off_rounded,
-                  size: 40, color: AppColors.textTertiary),
+              const Icon(
+                Icons.wifi_off_rounded,
+                size: 40,
+                color: AppColors.textTertiary,
+              ),
               const SizedBox(height: 12),
               Text(
                 _error,
                 style: const TextStyle(
-                    color: AppColors.textTertiary, fontSize: 14),
+                  color: AppColors.textTertiary,
+                  fontSize: 14,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
@@ -326,33 +342,40 @@ class _RegionPickerBottomSheetState extends State<RegionPickerBottomSheet> {
       );
     } else {
       content = ListView.builder(
-      itemCount: _filteredList.length,
-      itemExtent: 52,
-      itemBuilder: (context, index) {
-        final item = _filteredList[index];
-        return RepaintBoundary(
-          child: ListTile(
-          dense: true,
-          title: Text(
-            item['name']?.toString() ?? '',
-            style: const TextStyle(fontSize: 14),
-          ),
-          trailing: _step < 3
-              ? const Icon(
-                  Icons.chevron_right,
-                  size: 20,
-                  color: AppColors.textTertiary,
-                )
-              : const Icon(
-                  Icons.check_circle_outline,
-                  size: 18,
-                  color: AppColors.accent,
-                ),
-          onTap: () => _onItemTap(item),
-        ),
-        );
-      },
-    );
+        itemCount: _filteredList.length,
+        itemExtent: _step == 4 ? 64 : 52,
+        itemBuilder: (context, index) {
+          final item = _filteredList[index];
+          final pos = item.kodepos;
+          return RepaintBoundary(
+            child: ListTile(
+              dense: true,
+              title: Text(item.nama, style: const TextStyle(fontSize: 14)),
+              subtitle: _step == 4 && pos != null && pos.isNotEmpty
+                  ? Text(
+                      'Kode pos $pos',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    )
+                  : null,
+              trailing: _step < 4
+                  ? const Icon(
+                      Icons.chevron_right,
+                      size: 20,
+                      color: AppColors.textTertiary,
+                    )
+                  : const Icon(
+                      Icons.check_circle_outline,
+                      size: 18,
+                      color: AppColors.accent,
+                    ),
+              onTap: () => _onItemTap(item),
+            ),
+          );
+        },
+      );
     }
 
     return AnimatedSwitcher(

@@ -154,9 +154,16 @@ void main() {
         expect(l3['approved'], isNull);
       });
 
-      test('NOT included when discount3 = 0 and bonus not customized', () {
+      test(
+          'included when manager selected even without d3/bonus '
+          '(Klaus / acknowledgment Direct)', () {
         final rows = _build(d3: 0, manager: _manager());
-        expect(rows.where((r) => r['approver_level_id'] == 3), isEmpty);
+        final l3 = rows.where((r) => r['approver_level_id'] == 3).toList();
+        expect(l3, hasLength(1));
+        expect(l3.first['discount'], '0.0');
+        expect(l3.first['approver'], _manager().id);
+        expect(l3.first['approver_level'], 'RSM');
+        expect(l3.first['approved'], isNull);
       });
 
       test('included when isBonusCustomized = true even if d3 = 0', () {

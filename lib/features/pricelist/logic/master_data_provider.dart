@@ -57,6 +57,10 @@ class MasterDataNotifier extends Notifier<MasterDataState> {
 
   @override
   MasterDataState build() {
+    // Reset on every (re)build — invalidate/rebuild can reuse this instance;
+    // leaving `_isDisposed == true` makes all later `_setState` no-ops and
+    // leaves area/channel/brand empty until the process is killed.
+    _isDisposed = false;
     ref.onDispose(() => _isDisposed = true);
     _loadFromCache();
     return const MasterDataState();

@@ -162,4 +162,20 @@ abstract final class PdfHelpers {
       ],
     );
   }
+
+  /// Line-3 meta under item name in PDF: `Tipe: X · Area: Y`.
+  ///
+  /// Empty when both [type] and [area] are blank.
+  static String formatPricelistMetaLine({
+    String? type,
+    String? area,
+  }) {
+    final t = type?.trim() ?? '';
+    final a = area?.trim() ?? '';
+    final parts = <String>[
+      if (t.isNotEmpty) 'Tipe: $t',
+      if (a.isNotEmpty) 'Area: $a',
+    ];
+    return parts.join(' · ');
+  }
 }

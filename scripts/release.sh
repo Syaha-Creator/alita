@@ -4,11 +4,19 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Usage:
 #   ./scripts/release.sh             → menu interaktif (pilih iOS/Android/keduanya)
-#   ./scripts/release.sh ios         → iOS saja
+#   ./scripts/release.sh ios         → iOS saja (default --env=production)
 #   ./scripts/release.sh android     → Android AAB saja
 #   ./scripts/release.sh android apk → Android APK saja
 #   ./scripts/release.sh all         → iOS + Android sekaligus
+#   ./scripts/release.sh --env=staging android apk
+#       → build release yang sengaja mengarah ke staging (QA internal)
 #   ./scripts/release.sh --deploy    → deploy version.json setelah app live
+#
+# Env files (JANGAN commit secrets):
+#   .env.staging / .env.production  → sumber secrets per environment
+#   .env                            → aktif untuk `flutter run` (pakai use-env.sh)
+#
+# Default release = production → mustahil "lupa ganti" dari staging URL.
 # ─────────────────────────────────────────────────────────────────────────────
 
 set -e
@@ -19,7 +27,33 @@ cd "$PROJECT_ROOT"
 
 PUBSPEC="$PROJECT_ROOT/pubspec.yaml"
 VERSION_JSON="$PROJECT_ROOT/hosting/version.json"
-ENV_FILE="$PROJECT_ROOT/.env"
+# Asset yang di-bundle Flutter (di-scrub saat release).
+ACTIVE_ENV_FILE="$PROJECT_ROOT/.env"
+
+# ── Parse --env=… (default: production) ──────────────────────────────────────
+APP_ENV_NAME="production"
+_ARGS=()
+for _arg in "$@"; do
+  case "$_arg" in
+    --env=staging|--env=stage|--env=dev)
+      APP_ENV_NAME="staging"
+      ;;
+    --env=production|--env=prod)
+      APP_ENV_NAME="production"
+      ;;
+    --env=*)
+      echo "Error: --env tidak dikenal: '${_arg#--env=}' (pilih: staging | production)"
+      exit 1
+      ;;
+    *)
+      _ARGS+=("$_arg")
+      ;;
+  esac
+done
+set -- "${_ARGS[@]}"
+
+# Sumber secrets untuk --dart-define (bukan .env aktif daily).
+ENV_FILE="$PROJECT_ROOT/.env.$APP_ENV_NAME"
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 get_version() { grep '^version:' "$PUBSPEC" | sed 's/version: //' | cut -d+ -f1; }
@@ -34,7 +68,42 @@ read_env() {
 
 encode_kv() { echo -n "$1" | base64 | tr -d '\n'; }
 
-# ── Cegah .env asli ikut ter-bundle ke artifact release ──────────────────────
+assert_env_file() {
+  if [[ ! -f "$ENV_FILE" ]]; then
+    echo "Error: $ENV_FILE tidak ditemukan."
+    echo "Buat dengan:"
+    echo "  cp .env.example .env.$APP_ENV_NAME"
+    echo "  # isi secrets, set APP_ENV=$APP_ENV_NAME + API_BASE_URL yang cocok"
+    echo "Atau: ./scripts/use-env.sh $APP_ENV_NAME  (setelah file .env.$APP_ENV_NAME ada)"
+    exit 1
+  fi
+}
+
+# Cegah store build mengarah ke host yang salah.
+assert_env_matches_url() {
+  local base
+  base=$(read_env API_BASE_URL)
+  local lower
+  lower=$(echo "$base" | tr '[:upper:]' '[:lower:]')
+  if [[ -z "$base" ]]; then
+    echo "Error: API_BASE_URL kosong di $ENV_FILE"
+    exit 1
+  fi
+  if [[ "$APP_ENV_NAME" == "production" && "$lower" == *staging* ]]; then
+    echo "Error: APP_ENV=production tapi API_BASE_URL mengandung staging:"
+    echo "  $base"
+    echo "Perbaiki .env.production → https://alitav2.massindo.com/api"
+    exit 1
+  fi
+  if [[ "$APP_ENV_NAME" == "staging" && "$lower" != *staging* ]]; then
+    echo "Error: APP_ENV=staging tapi API_BASE_URL tidak mengandung staging:"
+    echo "  $base"
+    echo "Perbaiki .env.staging → https://staging.alitav2.massindo.com/api"
+    exit 1
+  fi
+}
+
+# ── Cegah .env aktif ikut ter-bundle ke artifact release ─────────────────────
 # pubspec.yaml wajib mendaftarkan `.env` sebagai asset (flutter_dotenv baca lewat
 # asset bundle, bukan filesystem host) supaya `flutter run` lokal tanpa
 # --dart-define tetap bisa baca config. Tapi itu berarti isi .env asli (secret
@@ -47,29 +116,33 @@ _ENV_BACKUP=""
 scrub_env_for_build() {
   [[ -n "$_ENV_BACKUP" ]] && return 0 # sudah di-scrub, jangan timpa backup
   _ENV_BACKUP="$(mktemp)"
-  cp "$ENV_FILE" "$_ENV_BACKUP"
+  if [[ -f "$ACTIVE_ENV_FILE" ]]; then
+    cp "$ACTIVE_ENV_FILE" "$_ENV_BACKUP"
+  else
+    echo "# placeholder" > "$_ENV_BACKUP"
+  fi
   # File 0 byte bikin flutter_dotenv melempar EmptyEnvFileError (unhandled).
-  echo "# scrubbed for release build — secrets dikirim via --dart-define" > "$ENV_FILE"
+  echo "# scrubbed for release build — secrets dikirim via --dart-define" > "$ACTIVE_ENV_FILE"
 }
 restore_env_after_build() {
   if [[ -n "$_ENV_BACKUP" && -f "$_ENV_BACKUP" ]]; then
-    cp "$_ENV_BACKUP" "$ENV_FILE"
+    cp "$_ENV_BACKUP" "$ACTIVE_ENV_FILE"
     rm -f "$_ENV_BACKUP"
     _ENV_BACKUP=""
   fi
 }
 
-# ── Load .env untuk dart-define ───────────────────────────────────────────────
+# ── Load env file untuk dart-define ──────────────────────────────────────────
 load_dart_defines() {
-  local keys="API_BASE_URL CLIENT_ID_ANDROID CLIENT_SECRET_ANDROID CLIENT_ID_IOS CLIENT_SECRET_IOS COMFORTA_ACCESS_TOKEN COMFORTA_CLIENT_ID COMFORTA_CLIENT_SECRET SPRINGAIR_ACCESS_TOKEN SPRINGAIR_CLIENT_ID SPRINGAIR_CLIENT_SECRET THERAPEDIC_ACCESS_TOKEN THERAPEDIC_CLIENT_ID THERAPEDIC_CLIENT_SECRET ISLEEP_ACCESS_TOKEN ISLEEP_CLIENT_ID ISLEEP_CLIENT_SECRET INDIRECT_STORES_BASE_URL INDIRECT_API_KEY INDIRECT_CLIENT_KEY"
-  DART_DEFINES=()
+  local keys="API_BASE_URL CLIENT_ID_ANDROID CLIENT_SECRET_ANDROID CLIENT_ID_IOS CLIENT_SECRET_IOS COMFORTA_ACCESS_TOKEN COMFORTA_CLIENT_ID COMFORTA_CLIENT_SECRET SPRINGAIR_ACCESS_TOKEN SPRINGAIR_CLIENT_ID SPRINGAIR_CLIENT_SECRET THERAPEDIC_ACCESS_TOKEN THERAPEDIC_CLIENT_ID THERAPEDIC_CLIENT_SECRET ISLEEP_ACCESS_TOKEN ISLEEP_CLIENT_ID ISLEEP_CLIENT_SECRET INDIRECT_STORES_BASE_URL INDIRECT_API_KEY INDIRECT_CLIENT_KEY PAPER_PAYMENT_PATH"
+  DART_DEFINES=(--dart-define="APP_ENV=$APP_ENV_NAME")
   for k in $keys; do
     local v
     v=$(read_env "$k")
     [[ -n "$v" ]] && DART_DEFINES+=(--dart-define="$k=$v")
   done
-  if [[ ${#DART_DEFINES[@]} -eq 0 ]]; then
-    echo "Error: .env tidak ditemukan atau kosong. Isi .env terlebih dahulu."
+  if [[ ${#DART_DEFINES[@]} -le 1 ]]; then
+    echo "Error: $ENV_FILE kosong / tidak punya key yang dibutuhkan."
     exit 1
   fi
 }
@@ -83,6 +156,7 @@ gen_xcconfig() {
   local THERAPEDIC_ACCESS_TOKEN THERAPEDIC_CLIENT_ID THERAPEDIC_CLIENT_SECRET
   local ISLEEP_ACCESS_TOKEN ISLEEP_CLIENT_ID ISLEEP_CLIENT_SECRET
   local INDIRECT_STORES_BASE_URL INDIRECT_API_KEY INDIRECT_CLIENT_KEY
+  local PAPER_PAYMENT_PATH
 
   API_BASE_URL=$(read_env API_BASE_URL)
   CLIENT_ID_IOS=$(read_env CLIENT_ID_IOS)
@@ -102,21 +176,29 @@ gen_xcconfig() {
   INDIRECT_STORES_BASE_URL=$(read_env INDIRECT_STORES_BASE_URL)
   INDIRECT_API_KEY=$(read_env INDIRECT_API_KEY)
   INDIRECT_CLIENT_KEY=$(read_env INDIRECT_CLIENT_KEY)
+  PAPER_PAYMENT_PATH=$(read_env PAPER_PAYMENT_PATH)
 
   if [[ -z "$API_BASE_URL" || -z "$CLIENT_ID_IOS" || -z "$CLIENT_SECRET_IOS" ]]; then
-    echo "Error: API_BASE_URL / CLIENT_ID_IOS / CLIENT_SECRET_IOS kosong di .env"
+    echo "Error: API_BASE_URL / CLIENT_ID_IOS / CLIENT_SECRET_IOS kosong di $ENV_FILE"
     exit 1
   fi
   # Release.xcconfig include DartSecrets SETELAH Generated.xcconfig — jadi
   # DART_DEFINES di sini menimpa --dart-define dari `flutter build ipa`.
   # INDIRECT_* wajib ikut, kalau tidak binary release iOS tetap "config kosong".
   if [[ -z "$INDIRECT_STORES_BASE_URL" || -z "$INDIRECT_API_KEY" || -z "$INDIRECT_CLIENT_KEY" ]]; then
-    echo "Error: INDIRECT_STORES_BASE_URL / INDIRECT_API_KEY / INDIRECT_CLIENT_KEY kosong di .env"
+    echo "Error: INDIRECT_STORES_BASE_URL / INDIRECT_API_KEY / INDIRECT_CLIENT_KEY kosong di $ENV_FILE"
     exit 1
   fi
 
   local DEFINES=""
-  append() { [[ -n "$2" ]] && DEFINES="${DEFINES:+$DEFINES,}$(encode_kv "$1=$2")"; }
+  # Pakai if (bukan `[[ ]] && …`): di bawah `set -e`, `[[ -n "$2" ]]` yang
+  # gagal (key opsional kosong) mengembalikan status 1 dan membunuh script.
+  append() {
+    if [[ -n "${2:-}" ]]; then
+      DEFINES="${DEFINES:+$DEFINES,}$(encode_kv "$1=$2")"
+    fi
+  }
+  append APP_ENV                 "$APP_ENV_NAME"
   append API_BASE_URL          "$API_BASE_URL"
   append CLIENT_ID_IOS         "$CLIENT_ID_IOS"
   append CLIENT_SECRET_IOS     "$CLIENT_SECRET_IOS"
@@ -135,6 +217,7 @@ gen_xcconfig() {
   append INDIRECT_STORES_BASE_URL "$INDIRECT_STORES_BASE_URL"
   append INDIRECT_API_KEY         "$INDIRECT_API_KEY"
   append INDIRECT_CLIENT_KEY      "$INDIRECT_CLIENT_KEY"
+  append PAPER_PAYMENT_PATH       "$PAPER_PAYMENT_PATH"
 
   cat > "$XCCONFIG" <<EOF
 // AUTO-GENERATED — JANGAN DI-COMMIT
@@ -227,7 +310,7 @@ require_android_keys() {
     [[ -z "$(read_env "$k")" ]] && missing="$missing $k"
   done
   if [[ -n "$missing" ]]; then
-    echo "Error: key wajib kosong di .env untuk build Android:$missing"
+    echo "Error: key wajib kosong di $ENV_FILE untuk build Android:$missing"
     exit 1
   fi
 }
@@ -240,10 +323,13 @@ require_indirect_keys() {
     [[ -z "$(read_env "$k")" ]] && missing="$missing $k"
   done
   if [[ -n "$missing" ]]; then
-    echo "Error: key host indirect kosong di .env:$missing"
+    echo "Error: key host indirect kosong di $ENV_FILE:$missing"
     exit 1
   fi
 }
+
+assert_env_file
+assert_env_matches_url
 [[ "$PLATFORM" == "android" || "$PLATFORM" == "all" ]] && require_android_keys
 require_indirect_keys
 
@@ -253,10 +339,13 @@ require_indirect_keys
 OLD_VERSION=$(get_version); OLD_BUILD=$(get_build)
 IFS='.' read -r MA MI PA <<< "$OLD_VERSION"
 PREVIEW="$MA.$MI.$((PA+1))+$((OLD_BUILD+1))"
+API_BASE_PREVIEW=$(read_env API_BASE_URL)
 
 echo ""
-echo "  Platform : $PLATFORM"
-echo "  Versi    : $OLD_VERSION+$OLD_BUILD → $PREVIEW"
+echo "  Environment : $APP_ENV_NAME  (file: .env.$APP_ENV_NAME)"
+echo "  API_BASE_URL: $API_BASE_PREVIEW"
+echo "  Platform    : $PLATFORM"
+echo "  Versi       : $OLD_VERSION+$OLD_BUILD → $PREVIEW"
 echo ""
 read -p "  Lanjutkan? (y/N) " CONFIRM
 [[ "$CONFIRM" != "y" && "$CONFIRM" != "Y" ]] && echo "Dibatalkan." && exit 0
@@ -292,9 +381,9 @@ build_ios() {
   cd ios && pod install && cd ..
   echo "▸ Generate DartSecrets.xcconfig..."
   gen_xcconfig
-  echo "▸ Kosongkan .env sementara (jangan ikut ke IPA)..."
+  echo "▸ Kosongkan .env aktif sementara (jangan ikut ke IPA)..."
   scrub_env_for_build
-  echo "▸ flutter build ipa --release..."
+  echo "▸ flutter build ipa --release (APP_ENV=$APP_ENV_NAME)..."
   flutter build ipa --release "${DART_DEFINES[@]}"
   IOS_DONE=1
 }
@@ -305,14 +394,14 @@ build_ios() {
 build_android() {
   echo ""
   echo "══════════ Android ══════════"
-  echo "▸ Kosongkan .env sementara (jangan ikut ke APK/AAB)..."
+  echo "▸ Kosongkan .env aktif sementara (jangan ikut ke APK/AAB)..."
   scrub_env_for_build
   if [[ "$SUBTYPE" == "apk" ]]; then
-    echo "▸ flutter build apk --release..."
+    echo "▸ flutter build apk --release (APP_ENV=$APP_ENV_NAME)..."
     flutter build apk --release "${DART_DEFINES[@]}"
     ANDROID_OUT="build/app/outputs/flutter-apk/app-release.apk"
   else
-    echo "▸ flutter build appbundle --release..."
+    echo "▸ flutter build appbundle --release (APP_ENV=$APP_ENV_NAME)..."
     flutter build appbundle --release "${DART_DEFINES[@]}"
     ANDROID_OUT="build/app/outputs/bundle/release/app-release.aab"
   fi

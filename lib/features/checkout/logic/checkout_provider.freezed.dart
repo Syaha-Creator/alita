@@ -45,6 +45,18 @@ mixin _$CheckoutState {
   bool get submitSuccess => throw _privateConstructorUsedError;
   String? get successNoSp => throw _privateConstructorUsedError;
 
+  /// Direct (S1) Paper.id invoice URL after successful create; null for MM/SO.
+  String? get successPaperInvoiceUrl => throw _privateConstructorUsedError;
+
+  /// regenerated marker
+  /// Direct (S1): SP path expected a Paper invoice (even if create soft-failed).
+  bool get successExpectPaperPayment => throw _privateConstructorUsedError;
+
+  /// Retry context when [successExpectPaperPayment] and URL is empty.
+  int? get successOrderLetterId => throw _privateConstructorUsedError;
+  double get successPaperPaymentAmount => throw _privateConstructorUsedError;
+  int get successPaperCreatorId => throw _privateConstructorUsedError;
+
   /// Create a copy of CheckoutState
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -80,7 +92,12 @@ abstract class $CheckoutStateCopyWith<$Res> {
       int retryPaymentStartIndex,
       List<SucceededDetail> retryDiscountDetails,
       bool submitSuccess,
-      String? successNoSp});
+      String? successNoSp,
+      String? successPaperInvoiceUrl,
+      bool successExpectPaperPayment,
+      int? successOrderLetterId,
+      double successPaperPaymentAmount,
+      int successPaperCreatorId});
 
   $StoreModelCopyWith<$Res>? get selectedStore;
 }
@@ -122,6 +139,11 @@ class _$CheckoutStateCopyWithImpl<$Res, $Val extends CheckoutState>
     Object? retryDiscountDetails = null,
     Object? submitSuccess = null,
     Object? successNoSp = freezed,
+    Object? successPaperInvoiceUrl = freezed,
+    Object? successExpectPaperPayment = null,
+    Object? successOrderLetterId = freezed,
+    Object? successPaperPaymentAmount = null,
+    Object? successPaperCreatorId = null,
   }) {
     return _then(_value.copyWith(
       isLoadingWorkPlace: null == isLoadingWorkPlace
@@ -212,6 +234,26 @@ class _$CheckoutStateCopyWithImpl<$Res, $Val extends CheckoutState>
           ? _value.successNoSp
           : successNoSp // ignore: cast_nullable_to_non_nullable
               as String?,
+      successPaperInvoiceUrl: freezed == successPaperInvoiceUrl
+          ? _value.successPaperInvoiceUrl
+          : successPaperInvoiceUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
+      successExpectPaperPayment: null == successExpectPaperPayment
+          ? _value.successExpectPaperPayment
+          : successExpectPaperPayment // ignore: cast_nullable_to_non_nullable
+              as bool,
+      successOrderLetterId: freezed == successOrderLetterId
+          ? _value.successOrderLetterId
+          : successOrderLetterId // ignore: cast_nullable_to_non_nullable
+              as int?,
+      successPaperPaymentAmount: null == successPaperPaymentAmount
+          ? _value.successPaperPaymentAmount
+          : successPaperPaymentAmount // ignore: cast_nullable_to_non_nullable
+              as double,
+      successPaperCreatorId: null == successPaperCreatorId
+          ? _value.successPaperCreatorId
+          : successPaperCreatorId // ignore: cast_nullable_to_non_nullable
+              as int,
     ) as $Val);
   }
 
@@ -260,7 +302,12 @@ abstract class _$$CheckoutStateImplCopyWith<$Res>
       int retryPaymentStartIndex,
       List<SucceededDetail> retryDiscountDetails,
       bool submitSuccess,
-      String? successNoSp});
+      String? successNoSp,
+      String? successPaperInvoiceUrl,
+      bool successExpectPaperPayment,
+      int? successOrderLetterId,
+      double successPaperPaymentAmount,
+      int successPaperCreatorId});
 
   @override
   $StoreModelCopyWith<$Res>? get selectedStore;
@@ -301,6 +348,11 @@ class __$$CheckoutStateImplCopyWithImpl<$Res>
     Object? retryDiscountDetails = null,
     Object? submitSuccess = null,
     Object? successNoSp = freezed,
+    Object? successPaperInvoiceUrl = freezed,
+    Object? successExpectPaperPayment = null,
+    Object? successOrderLetterId = freezed,
+    Object? successPaperPaymentAmount = null,
+    Object? successPaperCreatorId = null,
   }) {
     return _then(_$CheckoutStateImpl(
       isLoadingWorkPlace: null == isLoadingWorkPlace
@@ -391,6 +443,26 @@ class __$$CheckoutStateImplCopyWithImpl<$Res>
           ? _value.successNoSp
           : successNoSp // ignore: cast_nullable_to_non_nullable
               as String?,
+      successPaperInvoiceUrl: freezed == successPaperInvoiceUrl
+          ? _value.successPaperInvoiceUrl
+          : successPaperInvoiceUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
+      successExpectPaperPayment: null == successExpectPaperPayment
+          ? _value.successExpectPaperPayment
+          : successExpectPaperPayment // ignore: cast_nullable_to_non_nullable
+              as bool,
+      successOrderLetterId: freezed == successOrderLetterId
+          ? _value.successOrderLetterId
+          : successOrderLetterId // ignore: cast_nullable_to_non_nullable
+              as int?,
+      successPaperPaymentAmount: null == successPaperPaymentAmount
+          ? _value.successPaperPaymentAmount
+          : successPaperPaymentAmount // ignore: cast_nullable_to_non_nullable
+              as double,
+      successPaperCreatorId: null == successPaperCreatorId
+          ? _value.successPaperCreatorId
+          : successPaperCreatorId // ignore: cast_nullable_to_non_nullable
+              as int,
     ));
   }
 }
@@ -422,7 +494,12 @@ class _$CheckoutStateImpl
       this.retryPaymentStartIndex = 0,
       final List<SucceededDetail> retryDiscountDetails = const [],
       this.submitSuccess = false,
-      this.successNoSp})
+      this.successNoSp,
+      this.successPaperInvoiceUrl,
+      this.successExpectPaperPayment = false,
+      this.successOrderLetterId,
+      this.successPaperPaymentAmount = 0,
+      this.successPaperCreatorId = 0})
       : _approvers = approvers,
         _retryDetails = retryDetails,
         _retryCompletedSteps = retryCompletedSteps,
@@ -520,9 +597,29 @@ class _$CheckoutStateImpl
   @override
   final String? successNoSp;
 
+  /// Direct (S1) Paper.id invoice URL after successful create; null for MM/SO.
+  @override
+  final String? successPaperInvoiceUrl;
+
+  /// regenerated marker
+  /// Direct (S1): SP path expected a Paper invoice (even if create soft-failed).
+  @override
+  @JsonKey()
+  final bool successExpectPaperPayment;
+
+  /// Retry context when [successExpectPaperPayment] and URL is empty.
+  @override
+  final int? successOrderLetterId;
+  @override
+  @JsonKey()
+  final double successPaperPaymentAmount;
+  @override
+  @JsonKey()
+  final int successPaperCreatorId;
+
   @override
   String toString({DiagnosticLevel minLevel = DiagnosticLevel.info}) {
-    return 'CheckoutState(isLoadingWorkPlace: $isLoadingWorkPlace, attendanceWorkPlaceId: $attendanceWorkPlaceId, attendanceWorkPlaceName: $attendanceWorkPlaceName, useAttendanceStore: $useAttendanceStore, selectedStore: $selectedStore, approvers: $approvers, isLoadingApprovers: $isLoadingApprovers, approversError: $approversError, approversErrorTitle: $approversErrorTitle, selectedSpv: $selectedSpv, selectedManager: $selectedManager, isSubmitting: $isSubmitting, submitError: $submitError, retryOrderId: $retryOrderId, retryNoSp: $retryNoSp, retryDetails: $retryDetails, retryCompletedSteps: $retryCompletedSteps, retryContactStartIndex: $retryContactStartIndex, retryPaymentStartIndex: $retryPaymentStartIndex, retryDiscountDetails: $retryDiscountDetails, submitSuccess: $submitSuccess, successNoSp: $successNoSp)';
+    return 'CheckoutState(isLoadingWorkPlace: $isLoadingWorkPlace, attendanceWorkPlaceId: $attendanceWorkPlaceId, attendanceWorkPlaceName: $attendanceWorkPlaceName, useAttendanceStore: $useAttendanceStore, selectedStore: $selectedStore, approvers: $approvers, isLoadingApprovers: $isLoadingApprovers, approversError: $approversError, approversErrorTitle: $approversErrorTitle, selectedSpv: $selectedSpv, selectedManager: $selectedManager, isSubmitting: $isSubmitting, submitError: $submitError, retryOrderId: $retryOrderId, retryNoSp: $retryNoSp, retryDetails: $retryDetails, retryCompletedSteps: $retryCompletedSteps, retryContactStartIndex: $retryContactStartIndex, retryPaymentStartIndex: $retryPaymentStartIndex, retryDiscountDetails: $retryDiscountDetails, submitSuccess: $submitSuccess, successNoSp: $successNoSp, successPaperInvoiceUrl: $successPaperInvoiceUrl, successExpectPaperPayment: $successExpectPaperPayment, successOrderLetterId: $successOrderLetterId, successPaperPaymentAmount: $successPaperPaymentAmount, successPaperCreatorId: $successPaperCreatorId)';
   }
 
   @override
@@ -554,7 +651,16 @@ class _$CheckoutStateImpl
           DiagnosticsProperty('retryPaymentStartIndex', retryPaymentStartIndex))
       ..add(DiagnosticsProperty('retryDiscountDetails', retryDiscountDetails))
       ..add(DiagnosticsProperty('submitSuccess', submitSuccess))
-      ..add(DiagnosticsProperty('successNoSp', successNoSp));
+      ..add(DiagnosticsProperty('successNoSp', successNoSp))
+      ..add(
+          DiagnosticsProperty('successPaperInvoiceUrl', successPaperInvoiceUrl))
+      ..add(DiagnosticsProperty(
+          'successExpectPaperPayment', successExpectPaperPayment))
+      ..add(DiagnosticsProperty('successOrderLetterId', successOrderLetterId))
+      ..add(DiagnosticsProperty(
+          'successPaperPaymentAmount', successPaperPaymentAmount))
+      ..add(
+          DiagnosticsProperty('successPaperCreatorId', successPaperCreatorId));
   }
 
   @override
@@ -566,8 +672,7 @@ class _$CheckoutStateImpl
                 other.isLoadingWorkPlace == isLoadingWorkPlace) &&
             (identical(other.attendanceWorkPlaceId, attendanceWorkPlaceId) ||
                 other.attendanceWorkPlaceId == attendanceWorkPlaceId) &&
-            (identical(
-                    other.attendanceWorkPlaceName, attendanceWorkPlaceName) ||
+            (identical(other.attendanceWorkPlaceName, attendanceWorkPlaceName) ||
                 other.attendanceWorkPlaceName == attendanceWorkPlaceName) &&
             (identical(other.useAttendanceStore, useAttendanceStore) ||
                 other.useAttendanceStore == useAttendanceStore) &&
@@ -606,7 +711,19 @@ class _$CheckoutStateImpl
             (identical(other.submitSuccess, submitSuccess) ||
                 other.submitSuccess == submitSuccess) &&
             (identical(other.successNoSp, successNoSp) ||
-                other.successNoSp == successNoSp));
+                other.successNoSp == successNoSp) &&
+            (identical(other.successPaperInvoiceUrl, successPaperInvoiceUrl) ||
+                other.successPaperInvoiceUrl == successPaperInvoiceUrl) &&
+            (identical(other.successExpectPaperPayment,
+                    successExpectPaperPayment) ||
+                other.successExpectPaperPayment == successExpectPaperPayment) &&
+            (identical(other.successOrderLetterId, successOrderLetterId) ||
+                other.successOrderLetterId == successOrderLetterId) &&
+            (identical(other.successPaperPaymentAmount,
+                    successPaperPaymentAmount) ||
+                other.successPaperPaymentAmount == successPaperPaymentAmount) &&
+            (identical(other.successPaperCreatorId, successPaperCreatorId) ||
+                other.successPaperCreatorId == successPaperCreatorId));
   }
 
   @override
@@ -633,7 +750,12 @@ class _$CheckoutStateImpl
         retryPaymentStartIndex,
         const DeepCollectionEquality().hash(_retryDiscountDetails),
         submitSuccess,
-        successNoSp
+        successNoSp,
+        successPaperInvoiceUrl,
+        successExpectPaperPayment,
+        successOrderLetterId,
+        successPaperPaymentAmount,
+        successPaperCreatorId
       ]);
 
   /// Create a copy of CheckoutState
@@ -668,7 +790,12 @@ abstract class _CheckoutState implements CheckoutState {
       final int retryPaymentStartIndex,
       final List<SucceededDetail> retryDiscountDetails,
       final bool submitSuccess,
-      final String? successNoSp}) = _$CheckoutStateImpl;
+      final String? successNoSp,
+      final String? successPaperInvoiceUrl,
+      final bool successExpectPaperPayment,
+      final int? successOrderLetterId,
+      final double successPaperPaymentAmount,
+      final int successPaperCreatorId}) = _$CheckoutStateImpl;
 
 // Workplace / Store
   @override
@@ -717,6 +844,23 @@ abstract class _CheckoutState implements CheckoutState {
   bool get submitSuccess;
   @override
   String? get successNoSp;
+
+  /// Direct (S1) Paper.id invoice URL after successful create; null for MM/SO.
+  @override
+  String? get successPaperInvoiceUrl;
+
+  /// regenerated marker
+  /// Direct (S1): SP path expected a Paper invoice (even if create soft-failed).
+  @override
+  bool get successExpectPaperPayment;
+
+  /// Retry context when [successExpectPaperPayment] and URL is empty.
+  @override
+  int? get successOrderLetterId;
+  @override
+  double get successPaperPaymentAmount;
+  @override
+  int get successPaperCreatorId;
 
   /// Create a copy of CheckoutState
   /// with the given fields replaced by the non-null parameter values.

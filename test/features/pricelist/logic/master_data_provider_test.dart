@@ -119,6 +119,42 @@ CLIENT_SECRET_IOS=test-sec
       expect(s.brands, hasLength(1));
     });
 
+    test(
+        'invalidate + rebuild still hydrates from cache '
+        '(logout→login must not leave filters empty)', () async {
+      final areasJson = jsonEncode([
+        {'name': 'Kalimantan Timur'},
+      ]);
+      final channelsJson = jsonEncode([
+        {'id': 1, 'channel': 'Direct'},
+      ]);
+      final brandsJson = jsonEncode([
+        {'brand': 'Comforta', 'pl_channel_id': 1},
+      ]);
+      SharedPreferences.setMockInitialValues({
+        'token_migrated_v1': true,
+        'master_areas_cache': areasJson,
+        'master_channels_cache': channelsJson,
+        'master_brands_cache': brandsJson,
+      });
+
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      await _untilMasterDataReady(container);
+      expect(container.read(masterDataProvider).areas, isNotEmpty);
+
+      // Mimic old login path that wiped memory via invalidate.
+      container.invalidate(masterDataProvider);
+      await _untilMasterDataReady(container);
+
+      final s = container.read(masterDataProvider);
+      expect(s.isLoading, false);
+      expect(s.areas, isNotEmpty);
+      expect(s.channels, isNotEmpty);
+      expect(s.brands, isNotEmpty);
+    });
+
     test('invalid JSON in cache yields empty list for that dimension',
         () async {
       SharedPreferences.setMockInitialValues({

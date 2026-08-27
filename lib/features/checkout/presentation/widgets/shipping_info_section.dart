@@ -3,15 +3,16 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_layout_tokens.dart';
 import '../../../../core/widgets/checkout_input_decoration.dart';
-import '../../../../core/widgets/form_field_label.dart';
 import '../../../../core/widgets/segmented_toggle.dart';
 import '../../data/models/store_model.dart';
+import 'checkout_address_line_fields.dart';
+import 'checkout_region_fields.dart';
 import 'pick_contact_pill.dart';
 
 /// Shipping address section extracted from CheckoutPage.
 ///
-/// Includes the "Kirim ke alamat pelanggan" toggle, the address/region
-/// fields for customer, and the optional receiver (dropship) sub-form.
+/// Includes the "Kirim ke alamat pelanggan" toggle, wilayah (3 field) +
+/// alamat line 1/2/3 for customer, and the optional receiver (dropship) form.
 class ShippingInfoSection extends StatelessWidget {
   const ShippingInfoSection({
     super.key,
@@ -19,30 +20,39 @@ class ShippingInfoSection extends StatelessWidget {
     this.sameAsCustomerLabel = 'Kirim ke alamat pelanggan di atas',
     this.receiverBlockTitle = 'Informasi Penerima (Dropship / Lokasi Lain)',
     this.useStoreAddressLabels = false,
-
-    /// Indirect: nama & no. HP penerima/gudang opsional (format dicek jika diisi).
     this.receiverContactOptional = false,
-
-    /// Indirect: sembunyikan pemilih wilayah toko; cukup detail alamat.
     this.hideCustomerRegionPicker = false,
-
-    /// Indirect + alamat beda: email penerima (opsional).
     this.showIndirectAlternateReceiverEmail = false,
     this.shippingEmailCtrl,
-    required this.customerAddressCtrl,
-    required this.regionCtrl,
+    required this.customerProvinsi,
+    required this.customerKota,
+    required this.customerKecamatan,
+    this.customerKelurahan,
+    this.customerKodepos,
+    required this.onPickCustomerRegion,
+    required this.customerAddressLine1Ctrl,
+    required this.customerAddressLine2Ctrl,
+    required this.customerAddressLine3Ctrl,
+    required this.showCustomerAddressLine3,
+    required this.onShowCustomerAddressLine3,
     required this.isShippingSameAsCustomer,
     required this.onToggleSameAddress,
-    required this.onPickCustomerRegion,
-    // Receiver fields
     required this.shippingNameCtrl,
     required this.shippingPhoneCtrl,
     required this.shippingPhone2Ctrl,
     required this.showReceiverBackupPhone,
     required this.onToggleReceiverBackupPhone,
-    required this.shippingAddressCtrl,
-    required this.shippingRegionCtrl,
+    required this.shippingProvinsi,
+    required this.shippingKota,
+    required this.shippingKecamatan,
+    this.shippingKelurahan,
+    this.shippingKodepos,
     required this.onPickShippingRegion,
+    required this.shippingAddressLine1Ctrl,
+    required this.shippingAddressLine2Ctrl,
+    required this.shippingAddressLine3Ctrl,
+    required this.showShippingAddressLine3,
+    required this.onShowShippingAddressLine3,
     this.isReceiverBranchMode = true,
     this.onToggleReceiverBranchMode,
     this.availableStores = const [],
@@ -63,36 +73,45 @@ class ShippingInfoSection extends StatelessWidget {
   final bool showIndirectAlternateReceiverEmail;
   final TextEditingController? shippingEmailCtrl;
 
-  final TextEditingController customerAddressCtrl;
-  final TextEditingController regionCtrl;
+  final String? customerProvinsi;
+  final String? customerKota;
+  final String? customerKecamatan;
+  final String? customerKelurahan;
+  final String? customerKodepos;
+  final VoidCallback onPickCustomerRegion;
+  final TextEditingController customerAddressLine1Ctrl;
+  final TextEditingController customerAddressLine2Ctrl;
+  final TextEditingController customerAddressLine3Ctrl;
+  final bool showCustomerAddressLine3;
+  final VoidCallback onShowCustomerAddressLine3;
+
   final bool isShippingSameAsCustomer;
   final ValueChanged<bool> onToggleSameAddress;
-  final VoidCallback onPickCustomerRegion;
 
   final TextEditingController shippingNameCtrl;
   final TextEditingController shippingPhoneCtrl;
   final TextEditingController shippingPhone2Ctrl;
   final bool showReceiverBackupPhone;
   final VoidCallback onToggleReceiverBackupPhone;
-  final TextEditingController shippingAddressCtrl;
-  final TextEditingController shippingRegionCtrl;
+  final String? shippingProvinsi;
+  final String? shippingKota;
+  final String? shippingKecamatan;
+  final String? shippingKelurahan;
+  final String? shippingKodepos;
   final VoidCallback onPickShippingRegion;
+  final TextEditingController shippingAddressLine1Ctrl;
+  final TextEditingController shippingAddressLine2Ctrl;
+  final TextEditingController shippingAddressLine3Ctrl;
+  final bool showShippingAddressLine3;
+  final VoidCallback onShowShippingAddressLine3;
 
-  /// Indirect only: mode toggle untuk penerima.
-  /// true = cabang/gudang (pilih dari store list); false = customer baru (form bebas).
   final bool isReceiverBranchMode;
   final ValueChanged<bool>? onToggleReceiverBranchMode;
   final List<StoreModel> availableStores;
   final StoreModel? selectedReceiverStore;
   final ValueChanged<StoreModel>? onReceiverStorePicked;
-
-  /// Customer Baru mode: callback untuk pilih kontak dari buku kontak.
   final VoidCallback? onPickReceiverContact;
-
-  /// True jika penerima sudah dipilih dari buku kontak server.
   final bool isFromReceiverContactBook;
-
-  /// Refresh daftar toko (all stores API).
   final VoidCallback? onRefreshStores;
   final bool isRefreshingStores;
 
@@ -112,31 +131,31 @@ class ShippingInfoSection extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         if (!hideCustomerRegionPicker) ...[
-          FormFieldLabel(
-            useStoreAddressLabels ? 'Wilayah Toko' : 'Wilayah Pelanggan',
-          ),
-          const SizedBox(height: 8),
-          _buildRegionSelector(
-            controller: regionCtrl,
-            label: 'Provinsi, Kota/Kab, Kecamatan *',
-            onTap: onPickCustomerRegion,
+          CheckoutRegionFields(
+            sectionLabel:
+                useStoreAddressLabels ? 'Wilayah Toko' : 'Wilayah Pelanggan',
+            provinsi: customerProvinsi,
+            kota: customerKota,
+            kecamatan: customerKecamatan,
+            kelurahan: customerKelurahan,
+            kodepos: customerKodepos,
+            onPick: onPickCustomerRegion,
           ),
           const SizedBox(height: 16),
         ],
-        FormFieldLabel(
-          useStoreAddressLabels
+        CheckoutAddressLineFields(
+          sectionLabel: useStoreAddressLabels
               ? 'Detail Alamat Toko'
               : 'Detail Alamat Pelanggan',
+          line1Ctrl: customerAddressLine1Ctrl,
+          line2Ctrl: customerAddressLine2Ctrl,
+          line3Ctrl: customerAddressLine3Ctrl,
+          showLine3: showCustomerAddressLine3,
+          onShowLine3: onShowCustomerAddressLine3,
+          line2Required: !useStoreAddressLabels,
+          line2Label:
+              useStoreAddressLabels ? 'Alamat Line 2' : 'Alamat Line 2 *',
         ),
-        const SizedBox(height: 8),
-        _buildTextField(
-          controller: customerAddressCtrl,
-          label: 'Detail Alamat (Nama Jalan, Blok, RT/RW, Patokan) *',
-          maxLines: 2,
-          alignLabelWithHint: true,
-          isRequired: true,
-        ),
-
         const SizedBox(height: 16),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -161,8 +180,6 @@ class ShippingInfoSection extends StatelessWidget {
             ),
           ],
         ),
-
-        // Receiver sub-form
         AnimatedSize(
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
@@ -184,16 +201,12 @@ class ShippingInfoSection extends StatelessWidget {
                                 ?.copyWith(fontWeight: FontWeight.w600),
                           ),
                         ),
-                        // Hanya relevan saat Customer Baru (form bebas) —
-                        // mode Cabang/Gudang mengisi dari daftar toko, bukan
-                        // buku kontak.
                         if (onPickReceiverContact != null &&
                             (onToggleReceiverBranchMode == null ||
                                 !isReceiverBranchMode))
                           PickContactPill(onTap: onPickReceiverContact!),
                       ],
                     ),
-                    // Mode toggle: hanya tampil untuk indirect (onToggleReceiverBranchMode != null)
                     if (onToggleReceiverBranchMode != null) ...[
                       const SizedBox(height: 12),
                       _ReceiverModeToggle(
@@ -202,7 +215,6 @@ class ShippingInfoSection extends StatelessWidget {
                       ),
                     ],
                     const SizedBox(height: 12),
-                    // Branch mode: store picker
                     if (onToggleReceiverBranchMode != null &&
                         isReceiverBranchMode) ...[
                       _StorePicker(
@@ -218,10 +230,6 @@ class ShippingInfoSection extends StatelessWidget {
                       ],
                       const SizedBox(height: 8),
                     ] else ...[
-                      // Customer baru / non-indirect: form bebas.
-                      // Tombol pilih dari kontak sudah dipindah ke baris
-                      // judul (`PickContactPill` di atas), jadi tidak perlu
-                      // tombol full-width duplikat di sini lagi.
                       _buildTextField(
                         controller: shippingNameCtrl,
                         label: receiverContactOptional
@@ -229,9 +237,6 @@ class ShippingInfoSection extends StatelessWidget {
                             : 'Nama Penerima *',
                         isRequired: !receiverContactOptional,
                       ),
-                      // Urutan Nama → Email → No. HP disamakan dengan blok
-                      // "Informasi Pelanggan" (`CustomerInfoSection`) supaya
-                      // konsisten di seluruh form checkout.
                       if (showIndirectAlternateReceiverEmail &&
                           shippingEmailCtrl != null) ...[
                         const SizedBox(height: 16),
@@ -253,19 +258,27 @@ class ShippingInfoSection extends StatelessWidget {
                       const SizedBox(height: 16),
                       _buildReceiverPhoneRow(),
                       const SizedBox(height: 16),
-                      _buildRegionSelector(
-                        controller: shippingRegionCtrl,
-                        label: 'Provinsi, Kota/Kab, Kecamatan Penerima *',
-                        onTap: onPickShippingRegion,
+                      CheckoutRegionFields(
+                        sectionLabel: 'Wilayah Penerima',
+                        provinsi: shippingProvinsi,
+                        kota: shippingKota,
+                        kecamatan: shippingKecamatan,
+                        kelurahan: shippingKelurahan,
+                        kodepos: shippingKodepos,
+                        onPick: onPickShippingRegion,
+                        provinsiLabel: 'Provinsi Penerima *',
+                        kotaLabel: 'Kota / Kabupaten Penerima *',
+                        kecamatanLabel: 'Kecamatan Penerima *',
+                        kelurahanLabel: 'Kelurahan / Desa Penerima *',
                       ),
                       const SizedBox(height: 16),
-                      _buildTextField(
-                        controller: shippingAddressCtrl,
-                        label:
-                            'Detail Alamat Penerima (Jalan, Blok, Patokan) *',
-                        maxLines: 2,
-                        alignLabelWithHint: true,
-                        isRequired: true,
+                      CheckoutAddressLineFields(
+                        sectionLabel: 'Detail Alamat Penerima',
+                        line1Ctrl: shippingAddressLine1Ctrl,
+                        line2Ctrl: shippingAddressLine2Ctrl,
+                        line3Ctrl: shippingAddressLine3Ctrl,
+                        showLine3: showShippingAddressLine3,
+                        onShowLine3: onShowShippingAddressLine3,
                       ),
                       const SizedBox(height: 8),
                     ],
@@ -276,7 +289,6 @@ class ShippingInfoSection extends StatelessWidget {
     );
   }
 
-  /// HP penerima utama + tambah / HP kedua (layout sama seperti blok pelanggan).
   Widget _buildReceiverPhoneRow() {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -369,39 +381,6 @@ class ShippingInfoSection extends StatelessWidget {
     );
   }
 
-  Widget _buildRegionSelector({
-    required TextEditingController controller,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: AbsorbPointer(
-        child: TextFormField(
-          readOnly: true,
-          controller: controller,
-          decoration: CheckoutInputDecoration.form(
-            labelText: label,
-            labelStyle: const TextStyle(fontSize: 13),
-            hintText: 'Pilih Wilayah',
-            floatingLabelBehavior: FloatingLabelBehavior.always,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 12,
-            ),
-            suffixIcon: const Icon(
-              Icons.location_on_outlined,
-              color: AppColors.textSecondary,
-              size: 20,
-            ),
-            fillColor: AppColors.surfaceLight,
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
@@ -443,6 +422,7 @@ class ShippingInfoSection extends StatelessWidget {
     );
   }
 }
+
 
 // ── Private helper widgets ─────────────────────────────────────────────────
 

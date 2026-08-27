@@ -189,7 +189,7 @@ Before writing ANY new widget, utility, style, or layout, you MUST check this in
 | `DetailItemIndexBadge` | Numbered index badge for items | Detail item lists |
 | `DetailBonusItemsSection` | Bonus items section (wraps `DetailBonusChip` pills) | Order/approval detail |
 | `DetailPricelistTags` | Tipe/Area Pricelist pill pair | Order/approval item rows |
-| `DetailPaymentItemRow` | Single payment row | Payment sections |
+| `DetailPaymentItemRow` | Single payment row (+ optional Paper status/pay CTA) | Payment sections |
 | `DetailPaymentsSection` | Full payments section | Order/approval detail |
 | `DetailTotalsSummarySection` | Totals breakdown section | Order/approval detail |
 
@@ -238,25 +238,43 @@ Before writing ANY new widget, utility, style, or layout, you MUST check this in
 ## Config (`lib/core/config/`)
 | Config | Purpose |
 |--------|---------|
-| `AppConfig` | `.env` reader: `apiBaseUrl`, `clientId`, `clientSecret`, `comforta*`, `regionApiBaseUrl`, `assertConfigured()` |
+| `AppConfig` | `.env` / dart-define: `appEnv`, `apiBaseUrl`, `paperPaymentPath`, `regionApiBaseUrl` (`geo.velrox.cloud`), `clientId`, `clientSecret`, brand APIs, `assertConfigured()` |
+| `AppEnv` | Pure helpers: resolve staging/production, Paper path, URL↔env guards |
 
 # RELEASE BUILD — SECRETS VIA --dart-define (MANDATORY)
 Rahasia tidak di-bundle dari .env. Untuk release build, WAJIB pass secrets lewat `--dart-define`.
 
-**Script:** `scripts/release.sh` — otomatis baca .env di project root (+ generate `ios/Flutter/DartSecrets.xcconfig` untuk iOS).
+**Env files (lokal, jangan commit):**
+| File | Dipakai untuk |
+|---|---|
+| `.env.staging` | Dev + `flutter run` (via `./scripts/use-env.sh staging`) |
+| `.env.production` | Store release (default `release.sh`) |
+| `.env` | Aktif untuk Flutter asset / daily run (hasil copy dari use-env.sh) |
+
 ```bash
-./scripts/release.sh android       # AAB untuk Play Store
-./scripts/release.sh android apk   # APK
-./scripts/release.sh ios           # IPA
+./scripts/use-env.sh staging              # aktifkan staging untuk flutter run
+./scripts/use-env.sh production           # (jarang) uji lokal ke prod API
+./scripts/use-env.sh status               # cek APP_ENV + API_BASE_URL aktif
+
+./scripts/release.sh android              # SELALU .env.production
+./scripts/release.sh android apk
+./scripts/release.sh ios
+./scripts/release.sh --env=staging android apk   # sengaja build staging
 ```
-Tanpa export manual: script load API_BASE_URL, CLIENT_ID_*/CLIENT_SECRET_*, COMFORTA_*/SPRINGAIR_*/THERAPEDIC_*/ISLEEP_*, INDIRECT_* dari .env.
 
-**Wajib (Alita API):** API_BASE_URL, CLIENT_ID_ANDROID/IOS, CLIENT_SECRET_ANDROID/IOS
-**Wajib (Indirect toko):** INDIRECT_STORES_BASE_URL, INDIRECT_API_KEY, INDIRECT_CLIENT_KEY
+Hosts:
+- staging: `https://staging.alitav2.massindo.com/api` + Paper `paper_id_staging`
+- production: `https://alitav2.massindo.com/api` + Paper `payper_id`
+
+Script menolak production yang URL-nya mengandung `staging` (dan sebaliknya).
+
+**Wajib (Alita API):** `APP_ENV`, `API_BASE_URL`, `CLIENT_ID_ANDROID/IOS`, `CLIENT_SECRET_ANDROID/IOS`
+**Wajib (Indirect toko):** `INDIRECT_STORES_BASE_URL`, `INDIRECT_API_KEY`, `INDIRECT_CLIENT_KEY`
 **Opsional (Brand Spec — Comforta/Spring Air/Therapedic/iSleep):** `<BRAND>_ACCESS_TOKEN`, `<BRAND>_CLIENT_ID`, `<BRAND>_CLIENT_SECRET`
-**Punya default (tidak perlu):** `<BRAND>_API_HOST`, REGION_API_BASE_URL
+**Opsional:** `PAPER_PAYMENT_PATH` (override path Paper)
+**Punya default (tidak perlu):** `<BRAND>_API_HOST`, `REGION_API_BASE_URL`
 
-**iOS caveat:** `Release.xcconfig` include `DartSecrets.xcconfig` setelah `Generated.xcconfig` — DartSecrets menimpa DART_DEFINES. Pastikan `gen_xcconfig` di `release.sh` selalu menyertakan INDIRECT_*.
+**iOS caveat:** `Release.xcconfig` include `DartSecrets.xcconfig` setelah `Generated.xcconfig` — DartSecrets menimpa DART_DEFINES. Pastikan `gen_xcconfig` di `release.sh` selalu menyertakan `APP_ENV` + `INDIRECT_*`.
 
 **Saat build release, SELALU gunakan script ini** — jangan pakai `flutter build` tanpa --dart-define untuk secrets.
 

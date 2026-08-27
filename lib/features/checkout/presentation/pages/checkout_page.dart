@@ -31,13 +31,16 @@ import '../../data/models/region_result.dart';
 import '../../data/models/store_model.dart';
 import '../../data/models/address_book_contact.dart';
 import '../../logic/address_book_provider.dart';
+import '../../data/utils/checkout_address_lines.dart';
 import '../../data/utils/checkout_payload_builder.dart';
+import '../../data/utils/checkout_channel_resolver.dart';
 import '../../data/utils/indirect_approval_rules.dart';
 import '../../logic/bonus_takeaway_state.dart';
 import '../../logic/checkout_form_validator.dart';
 import '../../logic/checkout_provider.dart';
 import '../../logic/store_provider.dart';
 import '../../logic/quotation_save_handler.dart';
+import '../order_success_route_args.dart';
 import '../widgets/active_draft_banner.dart';
 import '../widgets/checkout_approval_card.dart';
 import '../widgets/checkout_bottom_bar.dart';
@@ -49,6 +52,7 @@ import '../widgets/delivery_info_section.dart';
 import '../widgets/checkout_approver_content.dart';
 import '../widgets/checkout_order_summary.dart';
 import '../widgets/checkout_payment_info_section.dart';
+import '../widgets/checkout_direct_payment_mode_panel.dart';
 import '../widgets/region_picker_bottom_sheet.dart';
 import '../widgets/searchable_store_bottom_sheet.dart';
 import '../../logic/checkout_performance_reporter.dart';
@@ -112,6 +116,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
   // ── Payment (multi-payment) ─────────────────────────────────────
   bool _isLunas = true;
+  /// Direct (S1): default manual form; user may opt into Paper.id.
+  bool _directUsePaperPayment = false;
   final List<PaymentEntry> _payments = [];
   final ImagePicker _picker = ImagePicker();
 
@@ -158,13 +164,17 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   final _customerEmailCtrl = TextEditingController();
   final _customerPhoneCtrl = TextEditingController();
   final _customerPhone2Ctrl = TextEditingController();
-  final _customerAddressCtrl = TextEditingController();
+  final _customerAddressLine1Ctrl = TextEditingController();
+  final _customerAddressLine2Ctrl = TextEditingController();
+  final _customerAddressLine3Ctrl = TextEditingController();
+  bool _showCustomerAddressLine3 = false;
 
   // ── Region ─────────────────────────────────────────────────────
   String? _selectedProvinsi;
   String? _selectedKota;
   String? _selectedKecamatan;
-  final _regionCtrl = TextEditingController();
+  String? _selectedKelurahan;
+  String? _selectedKodepos;
 
   // ── Receiver mode (indirect only) ──────────────────────────────
   /// True = pilih dari daftar cabang/gudang (store API); False = isi manual.
@@ -175,11 +185,15 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   final _shippingNameCtrl = TextEditingController();
   final _shippingPhoneCtrl = TextEditingController();
   final _shippingPhone2Ctrl = TextEditingController();
-  final _shippingAddressCtrl = TextEditingController();
-  final _shippingRegionCtrl = TextEditingController();
+  final _shippingAddressLine1Ctrl = TextEditingController();
+  final _shippingAddressLine2Ctrl = TextEditingController();
+  final _shippingAddressLine3Ctrl = TextEditingController();
+  bool _showShippingAddressLine3 = false;
   String? _shippingProvinsi;
   String? _shippingKota;
   String? _shippingKecamatan;
+  String? _shippingKelurahan;
+  String? _shippingKodepos;
 
   /// Indirect + alamat penerima beda.
   final _shippingEmailCtrl = TextEditingController();
@@ -190,6 +204,64 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
   /// Indirect: No. PO untuk field `no_po` pada POST `/order_letters`.
   final _noPoCtrl = TextEditingController();
+
+  String get _customerAddressCombined => CheckoutAddressLines.join(
+        _customerAddressLine1Ctrl.text,
+        _customerAddressLine2Ctrl.text,
+        _customerAddressLine3Ctrl.text,
+      );
+
+  String get _shippingAddressCombined => CheckoutAddressLines.join(
+        _shippingAddressLine1Ctrl.text,
+        _shippingAddressLine2Ctrl.text,
+        _shippingAddressLine3Ctrl.text,
+      );
+
+  String get _customerRegionText {
+    final parts = [
+      if ((_selectedKelurahan ?? '').trim().isNotEmpty)
+        _selectedKelurahan!.trim(),
+      if ((_selectedKecamatan ?? '').trim().isNotEmpty)
+        'Kec. ${_selectedKecamatan!.trim()}',
+      if ((_selectedKota ?? '').trim().isNotEmpty) _selectedKota!.trim(),
+      if ((_selectedProvinsi ?? '').trim().isNotEmpty)
+        _selectedProvinsi!.trim(),
+      if ((_selectedKodepos ?? '').trim().isNotEmpty)
+        _selectedKodepos!.trim(),
+    ];
+    return parts.join(', ');
+  }
+
+  String get _shippingRegionText {
+    final parts = [
+      if ((_shippingKelurahan ?? '').trim().isNotEmpty)
+        _shippingKelurahan!.trim(),
+      if ((_shippingKecamatan ?? '').trim().isNotEmpty)
+        'Kec. ${_shippingKecamatan!.trim()}',
+      if ((_shippingKota ?? '').trim().isNotEmpty) _shippingKota!.trim(),
+      if ((_shippingProvinsi ?? '').trim().isNotEmpty)
+        _shippingProvinsi!.trim(),
+      if ((_shippingKodepos ?? '').trim().isNotEmpty)
+        _shippingKodepos!.trim(),
+    ];
+    return parts.join(', ');
+  }
+
+  void _applyCustomerAddressLines(String raw) {
+    final split = CheckoutAddressLines.split(raw);
+    _customerAddressLine1Ctrl.text = split.line1;
+    _customerAddressLine2Ctrl.text = split.line2;
+    _customerAddressLine3Ctrl.text = split.line3;
+    _showCustomerAddressLine3 = split.line3.isNotEmpty;
+  }
+
+  void _applyShippingAddressLines(String raw) {
+    final split = CheckoutAddressLines.split(raw);
+    _shippingAddressLine1Ctrl.text = split.line1;
+    _shippingAddressLine2Ctrl.text = split.line2;
+    _shippingAddressLine3Ctrl.text = split.line3;
+    _showShippingAddressLine3 = split.line3.isNotEmpty;
+  }
 
   static String _priceFmt(num value) => AppFormatters.currencyIdr(value);
 
@@ -245,13 +317,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       _customerPhone2Ctrl.text = q.customerPhone2;
       _showBackupPhone = true;
     }
-    _customerAddressCtrl.text = q.customerAddress;
+    _applyCustomerAddressLines(q.customerAddress);
 
     // ── Region ──
     if (q.regionProvinsi.isNotEmpty) _selectedProvinsi = q.regionProvinsi;
     if (q.regionKota.isNotEmpty) _selectedKota = q.regionKota;
     if (q.regionKecamatan.isNotEmpty) _selectedKecamatan = q.regionKecamatan;
-    if (q.regionText.isNotEmpty) _regionCtrl.text = q.regionText;
 
     // ── Shipping ──
     _isShippingSameAsCustomer = q.isShippingSameAsCustomer;
@@ -262,7 +333,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         _shippingPhone2Ctrl.text = q.shippingPhone2;
         _showReceiverBackupPhone = true;
       }
-      _shippingAddressCtrl.text = q.shippingAddress;
+      _applyShippingAddressLines(q.shippingAddress);
       if (q.shippingRegionProvinsi.isNotEmpty) {
         _shippingProvinsi = q.shippingRegionProvinsi;
       }
@@ -271,9 +342,6 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       }
       if (q.shippingRegionKecamatan.isNotEmpty) {
         _shippingKecamatan = q.shippingRegionKecamatan;
-      }
-      if (q.shippingRegionText.isNotEmpty) {
-        _shippingRegionCtrl.text = q.shippingRegionText;
       }
     }
 
@@ -361,11 +429,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           _customerNameCtrl.text = name;
         }
       }
-      if (_customerAddressCtrl.text.trim().isEmpty) {
+      if (_customerAddressCombined.isEmpty) {
         final addr =
             addrFromSession.isNotEmpty ? addrFromSession : addrFromCart;
         if (addr.isNotEmpty) {
-          _customerAddressCtrl.text = addr;
+          _applyCustomerAddressLines(addr);
           setShippingSame = true;
         }
       }
@@ -430,13 +498,15 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     _customerEmailCtrl.dispose();
     _customerPhoneCtrl.dispose();
     _customerPhone2Ctrl.dispose();
-    _customerAddressCtrl.dispose();
-    _regionCtrl.dispose();
+    _customerAddressLine1Ctrl.dispose();
+    _customerAddressLine2Ctrl.dispose();
+    _customerAddressLine3Ctrl.dispose();
     _shippingNameCtrl.dispose();
     _shippingPhoneCtrl.dispose();
     _shippingPhone2Ctrl.dispose();
-    _shippingAddressCtrl.dispose();
-    _shippingRegionCtrl.dispose();
+    _shippingAddressLine1Ctrl.dispose();
+    _shippingAddressLine2Ctrl.dispose();
+    _shippingAddressLine3Ctrl.dispose();
     _shippingEmailCtrl.dispose();
     _notesController.dispose();
     _scCodeCtrl.dispose();
@@ -531,6 +601,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         }
       }
       if (next.submitSuccess && next.successNoSp != null) {
+        final successNoSp = next.successNoSp!;
+        final paperInvoiceUrl = next.successPaperInvoiceUrl;
+        final expectPaper = next.successExpectPaperPayment;
+        final successOrderLetterId = next.successOrderLetterId;
+        final successPaperAmount = next.successPaperPaymentAmount;
+        final successPaperCreator = next.successPaperCreatorId;
         ref.read(checkoutProvider.notifier).clearSubmitResult();
 
         final editCtx = ref.read(editOrderContextProvider);
@@ -540,7 +616,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           AppFeedback.show(
             context,
             message:
-                'Perubahan item pesanan SP ${next.successNoSp} berhasil diperbarui!',
+                'Perubahan item pesanan SP $successNoSp berhasil diperbarui!',
             type: AppFeedbackType.success,
             floating: true,
             duration: const Duration(seconds: 3),
@@ -572,12 +648,22 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
         AppFeedback.show(
           context,
-          message: 'Surat Pesanan ${next.successNoSp} Berhasil Dibuat!',
+          message: 'Surat Pesanan $successNoSp Berhasil Dibuat!',
           type: AppFeedbackType.success,
           floating: true,
           duration: const Duration(seconds: 3),
         );
-        context.pushReplacement('/success');
+        context.pushReplacement(
+          '/success',
+          extra: OrderSuccessRouteArgs(
+            noSp: successNoSp,
+            paperInvoiceUrl: paperInvoiceUrl,
+            expectPaperPayment: expectPaper,
+            orderLetterId: successOrderLetterId,
+            paperPaymentAmount: successPaperAmount,
+            paperCreatorId: successPaperCreator,
+          ),
+        );
       }
       final submitError = next.submitError;
       if (submitError != null && prev?.submitError != submitError) {
@@ -597,6 +683,17 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     final isIndirectCheckout = cartItems.any((e) => e.isIndirectSale) ||
         (isEditMode && (editOrder.channel?.trim().toUpperCase() ?? '') == 'SO');
 
+    final checkoutChannel = CheckoutChannelResolver.resolve(
+      divisions: ref.watch(profileProvider).valueOrNull?.divisions ?? const [],
+      userAddressNumber: ref.watch(authProvider).addressNumber,
+    );
+    // MM: always manual form. Direct S1: section shown; default manual, opt-in Paper.
+    // TODO(paper-shortage): edit Direct shortage — Paper vs legacy form TBD.
+    final showPaymentSection = !isIndirectCheckout &&
+        CheckoutChannelResolver.showsCheckoutPaymentSection(checkoutChannel);
+    final canOptInPaper = !isIndirectCheckout &&
+        CheckoutChannelResolver.canOptInPaperIdPayment(checkoutChannel);
+    final usePaperMode = canOptInPaper && _directUsePaperPayment;
     // Edit mode: begitu daftar approver selesai fetch, prefill SPV/Manager dari
     // order yang sedang di-edit supaya user tidak perlu memilih ulang.
     ref.listen<List<Approver>>(
@@ -611,9 +708,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
     // Edit mode + shortage: isi amount pembayaran pertama dengan nominal
     // kekurangan — hanya sekali, agar user bebas mengubah jika perlu.
+    // TODO(paper-shortage): Direct shortage via Paper — pending backend.
     if (isEditMode && !_didPrefillShortageAmount) {
-      final isIndirect = cartItems.any((e) => e.isIndirectSale);
-      if (!isIndirect) {
+      if (showPaymentSection && !usePaperMode) {
         final summary = _computeEditSelisih(editOrder);
         if (summary.isShortage) {
           _didPrefillShortageAmount = true;
@@ -766,23 +863,41 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                               _isFromContactBook = false;
                             }),
                             onPickContact: _pickContact,
-                            customerAddressCtrl: _customerAddressCtrl,
-                            regionCtrl: _regionCtrl,
+                            customerProvinsi: _selectedProvinsi,
+                            customerKota: _selectedKota,
+                            customerKecamatan: _selectedKecamatan,
+                            customerKelurahan: _selectedKelurahan,
+                            customerKodepos: _selectedKodepos,
+                            onPickCustomerRegion: () =>
+                                _pickRegion(isShipping: false),
+                            customerAddressLine1Ctrl: _customerAddressLine1Ctrl,
+                            customerAddressLine2Ctrl: _customerAddressLine2Ctrl,
+                            customerAddressLine3Ctrl: _customerAddressLine3Ctrl,
+                            showCustomerAddressLine3: _showCustomerAddressLine3,
+                            onShowCustomerAddressLine3: () => setState(
+                                () => _showCustomerAddressLine3 = true),
                             isShippingSameAsCustomer: _isShippingSameAsCustomer,
                             onToggleSameAddress: (v) =>
                                 setState(() => _isShippingSameAsCustomer = v),
-                            onPickCustomerRegion: () =>
-                                _pickRegion(isShipping: false),
                             shippingNameCtrl: _shippingNameCtrl,
                             shippingPhoneCtrl: _shippingPhoneCtrl,
                             shippingPhone2Ctrl: _shippingPhone2Ctrl,
                             showReceiverBackupPhone: _showReceiverBackupPhone,
                             onToggleReceiverBackupPhone: () =>
                                 setState(() => _showReceiverBackupPhone = true),
-                            shippingAddressCtrl: _shippingAddressCtrl,
-                            shippingRegionCtrl: _shippingRegionCtrl,
+                            shippingProvinsi: _shippingProvinsi,
+                            shippingKota: _shippingKota,
+                            shippingKecamatan: _shippingKecamatan,
+                            shippingKelurahan: _shippingKelurahan,
+                            shippingKodepos: _shippingKodepos,
                             onPickShippingRegion: () =>
                                 _pickRegion(isShipping: true),
+                            shippingAddressLine1Ctrl: _shippingAddressLine1Ctrl,
+                            shippingAddressLine2Ctrl: _shippingAddressLine2Ctrl,
+                            shippingAddressLine3Ctrl: _shippingAddressLine3Ctrl,
+                            showShippingAddressLine3: _showShippingAddressLine3,
+                            onShowShippingAddressLine3: () => setState(
+                                () => _showShippingAddressLine3 = true),
                             isReceiverBranchMode: isIndirectCheckout
                                 ? _isReceiverBranchMode
                                 : false,
@@ -794,11 +909,15 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                                       _shippingNameCtrl.clear();
                                       _shippingPhoneCtrl.clear();
                                       _shippingPhone2Ctrl.clear();
-                                      _shippingAddressCtrl.clear();
-                                      _shippingRegionCtrl.clear();
+                                      _shippingAddressLine1Ctrl.clear();
+                                      _shippingAddressLine2Ctrl.clear();
+                                      _shippingAddressLine3Ctrl.clear();
+                                      _showShippingAddressLine3 = false;
                                       _shippingProvinsi = null;
                                       _shippingKota = null;
                                       _shippingKecamatan = null;
+                                      _shippingKelurahan = null;
+                                      _shippingKodepos = null;
                                     })
                                 : null,
                             availableStores: allStores,
@@ -998,12 +1117,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   ),
 
                   // ── Card 5: Payment Info ──────────────────────────
-                  // Direct non-edit       : selalu tampil.
-                  // Direct edit + shortage: tampil ("Tambah Pembayaran").
-                  // Direct edit + lunas   : disembunyikan (tidak perlu bayar lagi).
-                  // Direct edit + overpaid: disembunyikan (info kelebihan ada di Ringkasan).
+                  // MM                    : selalu tampil (non-edit).
+                  // Direct (S1)           : tampil; default manual, opt-in Paper.
+                  // MM/Direct edit + shortage : tampil ("Tambah Pembayaran").
                   // Indirect              : selalu disembunyikan.
-                  if (!isIndirectCheckout &&
+                  // TODO(paper-shortage): Direct edit shortage path TBD w/ backend.
+                  if (showPaymentSection &&
                       (!isEditMode ||
                           _computeEditSelisih(editOrder).isShortage)) ...[
                     const SizedBox(height: 16),
@@ -1012,12 +1131,34 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                       title: isEditMode
                           ? 'Tambah Pembayaran (Opsional)'
                           : 'Informasi Pembayaran',
-                      trailing: isEditMode ? null : _buildAddPaymentChip(),
-                      child: CheckoutPaymentInfoSection(
-                        paymentCount: _payments.length,
-                        isMultiPayment: _isMultiPayment,
-                        paymentCardBuilder: (_, i) => _buildPaymentCard(i),
-                        paymentSummary: _buildPaymentSummary(),
+                      trailing: (isEditMode || usePaperMode)
+                          ? null
+                          : _buildAddPaymentChip(),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (canOptInPaper && !isEditMode) ...[
+                            CheckoutDirectPaymentModePanel(
+                              usePaper: usePaperMode,
+                              onSelectPaper: () => setState(
+                                () => _directUsePaperPayment = true,
+                              ),
+                              onSelectManual: () => setState(
+                                () => _directUsePaperPayment = false,
+                              ),
+                            ),
+                            if (!usePaperMode)
+                              const SizedBox(height: 12),
+                          ],
+                          if (!usePaperMode)
+                            CheckoutPaymentInfoSection(
+                              paymentCount: _payments.length,
+                              isMultiPayment: _isMultiPayment,
+                              paymentCardBuilder: (_, i) =>
+                                  _buildPaymentCard(i),
+                              paymentSummary: _buildPaymentSummary(),
+                            ),
+                        ],
                       ),
                     ),
                   ],
@@ -1287,14 +1428,16 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         _shippingProvinsi = result.provinsi;
         _shippingKota = result.kota;
         _shippingKecamatan = result.kecamatan;
-        _shippingRegionCtrl.text =
-            'Kec. ${result.kecamatan}, ${result.kota}, ${result.provinsi}';
+        _shippingKelurahan = result.kelurahan;
+        _shippingKodepos =
+            result.kodepos.trim().isEmpty ? null : result.kodepos.trim();
       } else {
         _selectedProvinsi = result.provinsi;
         _selectedKota = result.kota;
         _selectedKecamatan = result.kecamatan;
-        _regionCtrl.text =
-            'Kec. ${result.kecamatan}, ${result.kota}, ${result.provinsi}';
+        _selectedKelurahan = result.kelurahan;
+        _selectedKodepos =
+            result.kodepos.trim().isEmpty ? null : result.kodepos.trim();
       }
     });
   }
@@ -1315,13 +1458,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       _selectedReceiverStore = store;
       _shippingNameCtrl.text = store.name;
       _shippingPhoneCtrl.text = store.phone;
-      _shippingAddressCtrl.text = store.address;
-      // Region dari data store: area · city · state
-      final parts = [store.area, store.city, store.state]
-          .map((s) => s.trim())
-          .where((s) => s.isNotEmpty)
-          .toList();
-      _shippingRegionCtrl.text = parts.join(', ');
+      _applyShippingAddressLines(store.address);
       _shippingProvinsi =
           store.state.trim().isEmpty ? null : store.state.trim();
       _shippingKota = store.city.trim().isEmpty ? null : store.city.trim();
@@ -1408,21 +1545,21 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               ? _customerPhone2Ctrl.text.trim()
               : _shippingPhone2Ctrl.text.trim())
           : _customerPhone2Ctrl.text.trim(),
-      customerAddress: _customerAddressCtrl.text.trim(),
+      customerAddress: _customerAddressCombined,
       regionProvinsi: _selectedProvinsi,
       regionKota: _selectedKota,
       regionKecamatan: _selectedKecamatan,
-      regionText: _regionCtrl.text.trim(),
+      regionText: _customerRegionText,
       isShippingSameAsCustomer: _isShippingSameAsCustomer,
       shippingName: _shippingNameCtrl.text.trim(),
       shippingPhone: _shippingPhoneCtrl.text.trim(),
       shippingPhone2:
           _isShippingSameAsCustomer ? '' : _shippingPhone2Ctrl.text.trim(),
-      shippingAddress: _shippingAddressCtrl.text.trim(),
+      shippingAddress: _shippingAddressCombined,
       shippingRegionProvinsi: _shippingProvinsi,
       shippingRegionKota: _shippingKota,
       shippingRegionKecamatan: _shippingKecamatan,
-      shippingRegionText: _shippingRegionCtrl.text.trim(),
+      shippingRegionText: _shippingRegionText,
       orderDate: _orderDate,
       requestDate: _requestDate,
       lineTakeAway: List<bool>.generate(
@@ -1474,14 +1611,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
     final headerPayload = CheckoutPayloadBuilder.buildHeaderPayload(
       workPlaceId: null,
-      customerAddress: _customerAddressCtrl.text,
+      customerAddress: _customerAddressCombined,
       selectedKecamatan: _selectedKecamatan,
       selectedKota: _selectedKota,
       selectedProvinsi: _selectedProvinsi,
       isShippingSameAsCustomer: _isShippingSameAsCustomer,
       customerName: _customerNameCtrl.text,
       shippingName: _shippingNameCtrl.text,
-      shippingAddress: _shippingAddressCtrl.text,
+      shippingAddress: _shippingAddressCombined,
       shippingKecamatan: _shippingKecamatan,
       shippingKota: _shippingKota,
       shippingProvinsi: _shippingProvinsi,
@@ -1520,6 +1657,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           : null,
       autoApprove: autoApprove,
       userAddressNumber: ref.read(authProvider).addressNumber,
+      soldtoAddress1: _customerAddressLine1Ctrl.text,
+      soldtoAddress2: _customerAddressLine2Ctrl.text,
+      soldtoAddress3: _customerAddressLine3Ctrl.text,
+      shiptoAddress1: _shippingAddressLine1Ctrl.text,
+      shiptoAddress2: _shippingAddressLine2Ctrl.text,
+      shiptoAddress3: _shippingAddressLine3Ctrl.text,
+      soldtoPostalCode: _selectedKodepos ?? '',
+      shiptoPostalCode: _shippingKodepos ?? '',
     );
 
     final contactsPayload =
@@ -1539,7 +1684,18 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     final paymentPayloads = <Map<String, dynamic>>[];
     final receiptImages = <File?>[];
 
-    if (!isIndirect) {
+    final checkoutChannel = CheckoutChannelResolver.resolve(
+      divisions: profile?.divisions ?? const [],
+      userAddressNumber: ref.read(authProvider).addressNumber,
+    );
+    final canOptInPaper = !isIndirect &&
+        CheckoutChannelResolver.canOptInPaperIdPayment(checkoutChannel);
+    final usePaperPayment = canOptInPaper && _directUsePaperPayment;
+    final useManualPayment = !isIndirect &&
+        CheckoutChannelResolver.showsCheckoutPaymentSection(checkoutChannel) &&
+        !usePaperPayment;
+
+    if (useManualPayment) {
       if (!_isMultiPayment) {
         // Single payment — use original builder for backward compatibility
         paymentPayloads.add(CheckoutPayloadBuilder.buildPaymentPayload(
@@ -1587,6 +1743,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               _requiresSpvApproval(cartItems) || manualAsm,
           requiresManagerApproval:
               _requiresManagerApproval(cartItems) || manualRsm,
+          usePaperPayment: usePaperPayment,
+          paperPaymentAmount: _totalAkhir,
+          paperCreatorId: userId,
         ));
   }
 
@@ -1618,10 +1777,17 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         !manualAsm &&
         !manualRsm;
 
-    // Kumpulkan payload pembayaran kekurangan (hanya direct + shortage).
+    // Kumpulkan payload pembayaran kekurangan (MM + Direct manual).
+    // TODO(paper-shortage): Direct shortage via Paper — pending backend.
     final shortagePayloads = <Map<String, dynamic>>[];
     final shortageReceipts = <File?>[];
-    if (!isIndirect) {
+    final editChannel = CheckoutChannelResolver.resolve(
+      divisions: ref.read(profileProvider).valueOrNull?.divisions ?? const [],
+      userAddressNumber: ref.read(authProvider).addressNumber,
+    );
+    final useManualShortagePayment = !isIndirect &&
+        CheckoutChannelResolver.showsCheckoutPaymentSection(editChannel);
+    if (useManualShortagePayment) {
       final s = _computeEditSelisih(editOrder);
       if (s.isShortage) {
         final profile = ref.read(profileProvider).valueOrNull;
@@ -1719,14 +1885,16 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     if (!isIndirectCart &&
         (_selectedProvinsi == null ||
             _selectedKota == null ||
-            _selectedKecamatan == null)) {
+            _selectedKecamatan == null ||
+            _selectedKelurahan == null)) {
       _showErrorAndScroll('Pilih wilayah pelanggan.', _customerSectionKey);
       return false;
     }
     if (!_isShippingSameAsCustomer &&
         (_shippingProvinsi == null ||
             _shippingKota == null ||
-            _shippingKecamatan == null)) {
+            _shippingKecamatan == null ||
+            _shippingKelurahan == null)) {
       _showErrorAndScroll('Pilih wilayah penerima.', _customerSectionKey);
       return false;
     }
@@ -1762,7 +1930,18 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       );
       return false;
     }
-    if (!isIndirectCart) {
+    // Manual payment (receipt/DP) for MM + Direct when not opting into Paper.
+    final checkoutChannel = CheckoutChannelResolver.resolve(
+      divisions: ref.read(profileProvider).valueOrNull?.divisions ?? const [],
+      userAddressNumber: ref.read(authProvider).addressNumber,
+    );
+    final canOptInPaper = !isIndirectCart &&
+        CheckoutChannelResolver.canOptInPaperIdPayment(checkoutChannel);
+    final usePaperMode = canOptInPaper && _directUsePaperPayment;
+    final requireManualPayment = !isIndirectCart &&
+        CheckoutChannelResolver.showsCheckoutPaymentSection(checkoutChannel) &&
+        !usePaperMode;
+    if (requireManualPayment) {
       for (int i = 0; i < _payments.length; i++) {
         final p = _payments[i];
         if (p.receiptImage == null) {
@@ -1869,17 +2048,24 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   ({GlobalKey key, String label}) _findFirstFormError() {
     final checkoutState = ref.read(checkoutProvider);
     final isIndirect = _effectiveCartItems(ref).any((e) => e.isIndirectSale);
+    final channel = CheckoutChannelResolver.resolve(
+      divisions: ref.read(profileProvider).valueOrNull?.divisions ?? const [],
+      userAddressNumber: ref.read(authProvider).addressNumber,
+    );
+    final skipPaymentValidation = isIndirect ||
+        (CheckoutChannelResolver.canOptInPaperIdPayment(channel) &&
+            _directUsePaperPayment);
     return CheckoutFormValidator.findFirstFormError(
       customerName: _customerNameCtrl.text,
       customerEmail: _customerEmailCtrl.text,
       customerPhone: _customerPhoneCtrl.text,
       customerPhone2: _customerPhone2Ctrl.text,
-      customerAddress: _customerAddressCtrl.text,
+      customerAddress: _customerAddressCombined,
       isShippingSameAsCustomer: _isShippingSameAsCustomer,
       shippingName: _shippingNameCtrl.text,
       shippingPhone: _shippingPhoneCtrl.text,
       shippingPhone2: _shippingPhone2Ctrl.text,
-      shippingAddress: _shippingAddressCtrl.text,
+      shippingAddress: _shippingAddressCombined,
       indirectStoreContactOptional: isIndirect,
       indirectReceiverContactOptional: isIndirect,
       indirectAlternateReceiverEmail: _shippingEmailCtrl.text,
@@ -1898,7 +2084,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       deliverySectionKey: _deliverySectionKey,
       approvalSectionKey: _approvalSectionKey,
       paymentSectionKey: _paymentSectionKey,
-      indirectSkipPaymentValidation: isIndirect,
+      indirectSkipPaymentValidation: skipPaymentValidation,
     );
   }
 

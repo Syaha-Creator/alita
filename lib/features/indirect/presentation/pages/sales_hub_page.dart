@@ -10,6 +10,8 @@ import '../../../../core/theme/app_layout_tokens.dart';
 import '../../../../core/utils/telemetry_access.dart';
 import '../../../auth/logic/auth_provider.dart';
 import '../../../cart/logic/cart_provider.dart';
+import '../../../checkout/data/utils/checkout_channel_resolver.dart';
+import '../../../profile/logic/profile_provider.dart';
 import '../../logic/indirect_session_provider.dart';
 import '../../logic/sales_mode_bootstrap.dart';
 import '../../logic/sales_mode_provider.dart';
@@ -89,6 +91,8 @@ class _SalesHubPageState extends ConsumerState<SalesHubPage> {
                   color: AppColors.textSecondary,
                 ),
               ),
+              const SizedBox(height: AppLayoutTokens.space12),
+              const _AdminChannelDebugBanner(),
               const SizedBox(height: AppLayoutTokens.space20),
               Expanded(
                 child: LayoutBuilder(
@@ -233,6 +237,76 @@ class _ModeCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Admin-only: shows profile division → order channel (MM / S1 / SO).
+class _AdminChannelDebugBanner extends ConsumerWidget {
+  const _AdminChannelDebugBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profileAsync = ref.watch(profileProvider);
+    final addressNumber = ref.watch(authProvider).addressNumber;
+
+    return profileAsync.when(
+      loading: () => Text(
+        'Memuat profil channel…',
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.textSecondary,
+            ),
+      ),
+      error: (e, _) => Text(
+        'Gagal memuat profil: $e',
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.error,
+            ),
+      ),
+      data: (profile) {
+        if (profile == null) {
+          return Text(
+            'Profil kosong — tidak bisa resolve channel.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+          );
+        }
+        final divIds = profile.divisions.map((d) => d['id']).toList();
+        final channel = CheckoutChannelResolver.resolve(
+          divisions: profile.divisions,
+          userAddressNumber: addressNumber,
+        );
+        final paymentHint = CheckoutChannelResolver.usesManualCheckoutPayment(channel)
+            ? 'checkout → form payment manual (MM)'
+            : CheckoutChannelResolver.usesPaperIdPayment(channel)
+                ? 'checkout Direct → Paper.id (form payment disembunyikan)'
+                : 'checkout → tanpa payment form';
+        final addrLabel = (addressNumber == null ||
+                addressNumber.trim().isEmpty ||
+                addressNumber.trim().toLowerCase() == 'null')
+            ? 'kosong'
+            : 'ada';
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(AppLayoutTokens.space12),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppLayoutTokens.radius10),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Text(
+            'IT · user ${profile.id} · divisions $divIds · '
+            'address_number $addrLabel → channel ${channel.isEmpty ? "(empty)" : channel}\n'
+            '$paymentHint',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textPrimary,
+                  height: 1.4,
+                ),
+          ),
+        );
+      },
     );
   }
 }

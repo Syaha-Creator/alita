@@ -219,6 +219,119 @@ void main() {
       });
     });
 
+    group('soldto / shipto structured fields (incl. county)', () {
+      test('soldto maps lines + city/state/county/country', () {
+        final p = CheckoutPayloadBuilder.buildHeaderPayload(
+          workPlaceId: 1,
+          customerAddress: 'ignored-when-lines-set',
+          selectedKecamatan: 'Menteng',
+          selectedKota: 'Jakarta Pusat',
+          selectedProvinsi: 'DKI Jakarta',
+          isShippingSameAsCustomer: true,
+          customerName: 'Budi',
+          shippingName: '',
+          shippingAddress: '',
+          shippingKecamatan: null,
+          shippingKota: null,
+          shippingProvinsi: null,
+          postageText: '',
+          creatorId: 9,
+          divisions: [
+            {'id': 26}
+          ],
+          cartItems: [
+            _cartItem(product: _product(plKasur: 1_000_000)),
+          ],
+          grandTotal: 800_000,
+          orderDate: _orderDate,
+          requestDate: null,
+          customerPhone: '0812',
+          customerEmail: 'a@b.c',
+          note: '',
+          salesCode: '',
+          headerAllLinesTakeAway: false,
+          soldtoAddress1: 'Jl. Melati 1',
+          soldtoAddress2: 'Blok A',
+          soldtoAddress3: 'RT 02',
+          soldtoPostalCode: '10310',
+        );
+
+        expect(p['soldto_address1'], 'Jl. Melati 1');
+        expect(p['soldto_address2'], 'Blok A');
+        expect(p['soldto_address3'], 'RT 02');
+        expect(p['soldto_city'], 'Jakarta Pusat');
+        expect(p['soldto_state'], 'DKI Jakarta');
+        expect(p['soldto_county'], 'Menteng');
+        expect(p['soldto_country'], 'Indonesia');
+        expect(p['soldto_postal_code'], '10310');
+        // same address → shipto mirrors soldto (incl. county)
+        expect(p['shipto_address1'], 'Jl. Melati 1');
+        expect(p['shipto_county'], 'Menteng');
+        expect(p['shipto_city'], 'Jakarta Pusat');
+        expect(p['shipto_state'], 'DKI Jakarta');
+        expect(p['shipto_country'], 'Indonesia');
+        expect(p['shipto_postal_code'], '10310');
+        expect(
+          p['address'],
+          'Jl. Melati 1, Blok A, RT 02, Kec. Menteng, Jakarta Pusat, DKI Jakarta',
+        );
+      });
+
+      test('different ship-to uses its own lines + county', () {
+        final p = CheckoutPayloadBuilder.buildHeaderPayload(
+          workPlaceId: 1,
+          customerAddress: '',
+          selectedKecamatan: 'Menteng',
+          selectedKota: 'Jakarta Pusat',
+          selectedProvinsi: 'DKI Jakarta',
+          isShippingSameAsCustomer: false,
+          customerName: 'Budi',
+          shippingName: 'Siti',
+          shippingAddress: '',
+          shippingKecamatan: 'Cilandak',
+          shippingKota: 'Jakarta Selatan',
+          shippingProvinsi: 'DKI Jakarta',
+          postageText: '',
+          creatorId: 9,
+          divisions: [
+            {'id': 26}
+          ],
+          cartItems: [
+            _cartItem(product: _product(plKasur: 1_000_000)),
+          ],
+          grandTotal: 800_000,
+          orderDate: _orderDate,
+          requestDate: null,
+          customerPhone: '0812',
+          customerEmail: 'a@b.c',
+          note: '',
+          salesCode: '',
+          headerAllLinesTakeAway: false,
+          soldtoAddress1: 'Jl. Melati 1',
+          soldtoAddress2: 'Blok A',
+          soldtoPostalCode: '10310',
+          shiptoAddress1: 'Jl. Anggrek 9',
+          shiptoAddress2: 'Tower B',
+          shiptoAddress3: 'Lantai 3',
+          shiptoPostalCode: '12430',
+        );
+
+        expect(p['soldto_county'], 'Menteng');
+        expect(p['soldto_postal_code'], '10310');
+        expect(p['shipto_address1'], 'Jl. Anggrek 9');
+        expect(p['shipto_address2'], 'Tower B');
+        expect(p['shipto_address3'], 'Lantai 3');
+        expect(p['shipto_city'], 'Jakarta Selatan');
+        expect(p['shipto_state'], 'DKI Jakarta');
+        expect(p['shipto_county'], 'Cilandak');
+        expect(p['shipto_postal_code'], '12430');
+        expect(
+          p['address_ship_to'],
+          'Jl. Anggrek 9, Tower B, Lantai 3, Kec. Cilandak, Jakarta Selatan, DKI Jakarta',
+        );
+      });
+    });
+
     group('channel selection (S1 > S0 > MM > empty)', () {
       test('S1 when divisionId 25 present', () {
         final p = _defaultHeader(

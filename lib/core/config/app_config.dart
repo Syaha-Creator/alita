@@ -2,6 +2,8 @@ import 'dart:io' show Platform;
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+import 'app_env.dart';
+
 /// Single source of truth for all environment-based configuration.
 ///
 /// Reads credentials in this order:
@@ -17,6 +19,9 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 ///
 /// Client credentials are platform-aware: Android and iOS each have their own
 /// `client_id` / `client_secret` pair registered on the backend.
+///
+/// **Staging vs production:** pakai `APP_ENV` + file `.env.staging` /
+/// `.env.production` (lihat `scripts/use-env.sh` dan `scripts/release.sh`).
 class AppConfig {
   AppConfig._();
 
@@ -40,6 +45,24 @@ class AppConfig {
 
   static const _apiBaseUrlDefine = String.fromEnvironment('API_BASE_URL');
   static String get apiBaseUrl => _pick(_apiBaseUrlDefine, 'API_BASE_URL');
+
+  /// `staging` | `production` — dari `APP_ENV`, atau infer dari [apiBaseUrl].
+  static const _appEnvDefine = String.fromEnvironment('APP_ENV');
+  static String get appEnv => AppEnv.resolve(
+        explicit: _pick(_appEnvDefine, 'APP_ENV'),
+        apiBaseUrl: apiBaseUrl,
+      );
+
+  static bool get isProduction => appEnv == AppEnv.production;
+  static bool get isStaging => appEnv == AppEnv.staging;
+
+  /// Optional override for Paper Alita path (default from [appEnv]).
+  static const _paperPaymentPathDefine =
+      String.fromEnvironment('PAPER_PAYMENT_PATH');
+  static String get paperPaymentPath => AppEnv.paperPaymentPath(
+        appEnv: appEnv,
+        overridePath: _pick(_paperPaymentPathDefine, 'PAPER_PAYMENT_PATH'),
+      );
 
   static const _clientIdAndroidDefine =
       String.fromEnvironment('CLIENT_ID_ANDROID');
@@ -89,6 +112,7 @@ class AppConfig {
         'client_secret) dikirim lewat query string, wajib terenkripsi TLS.',
       );
     }
+    AppEnv.assertConsistent(appEnv: appEnv, apiBaseUrl: apiBaseUrl);
     if (clientId.isEmpty || clientSecret.isEmpty) {
       final platformKeys = Platform.isAndroid
           ? 'CLIENT_ID_ANDROID dan CLIENT_SECRET_ANDROID'
@@ -213,7 +237,7 @@ class AppConfig {
   static String get regionApiBaseUrl => _pick(
         _regionApiBaseUrlDefine,
         'REGION_API_BASE_URL',
-        'https://www.emsifa.com/api-wilayah-indonesia/api',
+        'https://geo.velrox.cloud',
       );
 
   // ── Indirect sales: assigned toko (host terpisah + header API key) ──

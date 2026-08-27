@@ -3,6 +3,8 @@ import '../../../../core/utils/app_formatters.dart';
 import '../../../../core/utils/number_input_formatter.dart';
 import '../../../cart/data/cart_item.dart';
 import '../checkout_config.dart';
+import 'checkout_address_lines.dart';
+import 'checkout_channel_resolver.dart';
 
 /// Centralized payload builders for checkout feature.
 class CheckoutPayloadBuilder {
@@ -64,40 +66,120 @@ class CheckoutPayloadBuilder {
     /// untuk menentukan channel: indirect division + punya address_number → SO;
     /// direct/indirect division + tidak punya address_number → S1.
     String? userAddressNumber,
+
+    /// Structured sold-to address lines (pelanggan). Empty → derive from
+    /// [customerAddress] as line1 only (legacy callers / tests).
+    String soldtoAddress1 = '',
+    String soldtoAddress2 = '',
+    String soldtoAddress3 = '',
+
+    /// Structured ship-to address lines (pengiriman). Ignored when
+    /// [isShippingSameAsCustomer] (copied from sold-to).
+    String shiptoAddress1 = '',
+    String shiptoAddress2 = '',
+    String shiptoAddress3 = '',
+
+    /// Kode pos dari pilihan kelurahan (geo.velrox.cloud).
+    String soldtoPostalCode = '',
+    String shiptoPostalCode = '',
   }) {
-    final fullCustomerAddress = useCustomerAddressDetailOnly
-        ? customerAddress.trim()
-        : '${customerAddress.trim()}, Kec. $selectedKecamatan, $selectedKota, $selectedProvinsi';
+    // Prefer explicit line fields; fall back to single customerAddress as line1.
+    final sold1 = soldtoAddress1.trim().isNotEmpty ||
+            soldtoAddress2.trim().isNotEmpty ||
+            soldtoAddress3.trim().isNotEmpty
+        ? soldtoAddress1
+        : customerAddress;
+    final sold2 = soldtoAddress1.trim().isNotEmpty ||
+            soldtoAddress2.trim().isNotEmpty ||
+            soldtoAddress3.trim().isNotEmpty
+        ? soldtoAddress2
+        : '';
+    final sold3 = soldtoAddress1.trim().isNotEmpty ||
+            soldtoAddress2.trim().isNotEmpty ||
+            soldtoAddress3.trim().isNotEmpty
+        ? soldtoAddress3
+        : '';
+
+    final soldDetail = CheckoutAddressLines.join(sold1, sold2, sold3);
+    final fullCustomerAddress = CheckoutAddressLines.legacyCombined(
+      detailJoined: soldDetail.isNotEmpty ? soldDetail : customerAddress.trim(),
+      kecamatan: selectedKecamatan,
+      kota: selectedKota,
+      provinsi: selectedProvinsi,
+      detailOnly: useCustomerAddressDetailOnly,
+    );
+
     final shipToName =
         isShippingSameAsCustomer ? customerName.trim() : shippingName.trim();
+
+    final String ship1;
+    final String ship2;
+    final String ship3;
+    final String? shipKec;
+    final String? shipKota;
+    final String? shipProv;
+    final String shipPostal;
+    if (isShippingSameAsCustomer) {
+      ship1 = sold1;
+      ship2 = sold2;
+      ship3 = sold3;
+      shipKec = selectedKecamatan;
+      shipKota = selectedKota;
+      shipProv = selectedProvinsi;
+      shipPostal = soldtoPostalCode;
+    } else {
+      final hasShipLines = shiptoAddress1.trim().isNotEmpty ||
+          shiptoAddress2.trim().isNotEmpty ||
+          shiptoAddress3.trim().isNotEmpty;
+      ship1 = hasShipLines ? shiptoAddress1 : shippingAddress;
+      ship2 = hasShipLines ? shiptoAddress2 : '';
+      ship3 = hasShipLines ? shiptoAddress3 : '';
+      shipKec = shippingKecamatan;
+      shipKota = shippingKota;
+      shipProv = shippingProvinsi;
+      shipPostal = shiptoPostalCode;
+    }
+
+    final shipDetail = CheckoutAddressLines.join(ship1, ship2, ship3);
     final addressShipTo = isShippingSameAsCustomer
         ? fullCustomerAddress
-        : '${shippingAddress.trim()}, Kec. $shippingKecamatan, $shippingKota, $shippingProvinsi';
+        : CheckoutAddressLines.legacyCombined(
+            detailJoined:
+                shipDetail.isNotEmpty ? shipDetail : shippingAddress.trim(),
+            kecamatan: shipKec,
+            kota: shipKota,
+            provinsi: shipProv,
+          );
+
+    final soldtoBlock = CheckoutAddressLines.structuredBlock(
+      prefix: 'soldto',
+      address1: sold1,
+      address2: sold2,
+      address3: sold3,
+      city: selectedKota,
+      state: selectedProvinsi,
+      county: selectedKecamatan,
+      postalCode: soldtoPostalCode,
+    );
+    final shiptoBlock = CheckoutAddressLines.structuredBlock(
+      prefix: 'shipto',
+      address1: ship1,
+      address2: ship2,
+      address3: ship3,
+      city: shipKota,
+      state: shipProv,
+      county: shipKec,
+      postalCode: shipPostal,
+    );
+
     final finalPostage = double.tryParse(
             ThousandsSeparatorInputFormatter.digitsOnly(postageText)) ??
         0.0;
 
-    // Channel ditentukan berdasarkan division DAN kepemilikan address_number user:
-    //   MM  → division id 26 (tidak berubah).
-    //   S1  → division id 25 (direct) atau 24 (indirect), tapi user TIDAK punya address_number.
-    //   SO  → division id 24 (indirect) DAN user punya address_number.
-    String channel = '';
-    final hasMM = divisions.any((d) => d['id'] == 26);
-    final hasS1Division = divisions.any((d) => d['id'] == 25);
-    final hasIndirectDivision = divisions.any((d) => d['id'] == 24);
-    final trimmedAddr = userAddressNumber?.trim() ?? '';
-    final userHasAddressNumber =
-        trimmedAddr.isNotEmpty && trimmedAddr.toLowerCase() != 'null';
-
-    if (hasIndirectDivision && userHasAddressNumber) {
-      channel = 'SO';
-    } else if (hasS1Division || hasIndirectDivision) {
-      channel = 'S1';
-    } else if (hasMM) {
-      channel = 'MM';
-    } else {
-      channel = '';
-    }
+    final channel = CheckoutChannelResolver.resolve(
+      divisions: divisions,
+      userAddressNumber: userAddressNumber,
+    );
 
     // Harga awal = total harga PL semua komponen sebelum diskon.
     double hargaAwal = 0;
@@ -148,6 +230,8 @@ class CheckoutPayloadBuilder {
       'address': fullCustomerAddress,
       'ship_to_name': shipToName,
       'address_ship_to': addressShipTo,
+      ...soldtoBlock,
+      ...shiptoBlock,
       'extended_amount': grandTotal + finalPostage,
       'harga_awal': hargaAwal,
       'discount': discountPercentage,

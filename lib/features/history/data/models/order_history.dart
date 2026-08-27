@@ -28,6 +28,14 @@ bool? _parseBoolNullable(dynamic value) {
   return s == 'true' || s == '1';
 }
 
+String _firstNonEmptyString(Map<String, dynamic> json, List<String> keys) {
+  for (final key in keys) {
+    final raw = json[key]?.toString().trim() ?? '';
+    if (raw.isNotEmpty && raw.toLowerCase() != 'null') return raw;
+  }
+  return '';
+}
+
 List<Map<String, dynamic>> _orderLetterContactsFromJson(dynamic json) =>
     safeMapList(json, fieldName: 'order_letter_contacts');
 
@@ -275,6 +283,12 @@ extension OrderHistoryX on OrderHistory {
               'payment_date': p.paymentDate,
               'created_at': p.createdAt,
               'verified': p.verified,
+              if (p.paperIdStatus.isNotEmpty)
+                'paper_id_status': p.paperIdStatus,
+              if (p.paperIdInvoiceUrl.isNotEmpty)
+                'paper_id_invoice_url': p.paperIdInvoiceUrl,
+              if (p.paperIdInvoiceId.isNotEmpty)
+                'paper_id_invoice_id': p.paperIdInvoiceId,
             },
           )
           .toList(),
@@ -439,6 +453,15 @@ class OrderPayment with _$OrderPayment {
     /// direview. Jangan collapse `null` ke `false` — lihat
     /// [paymentCountsTowardTotal] untuk cara menghitung total yang benar.
     @JsonKey(fromJson: _parseBoolNullable) bool? verified,
+
+    /// Paper.id invoice status from Alita (`UNPAID`, `PAID`, …). Empty for
+    /// legacy multipart payments.
+    @Default('') String paperIdStatus,
+
+    /// Checkout / pay URL from Paper.id. Used to reopen payment from detail.
+    @Default('') String paperIdInvoiceUrl,
+
+    @Default('') String paperIdInvoiceId,
   }) = _OrderPayment;
 
   factory OrderPayment.fromJson(Map<String, dynamic> json) =>
@@ -453,12 +476,84 @@ class OrderPayment with _$OrderPayment {
       paymentDate: json['payment_date']?.toString() ?? '',
       createdAt: json['created_at']?.toString() ?? '',
       verified: _parseBoolNullable(json['verified']),
+      paperIdStatus: _firstNonEmptyString(json, const [
+        'paper_id_status',
+        'paper_status',
+        'paperIdStatus',
+      ]),
+      paperIdInvoiceUrl: _firstNonEmptyString(json, const [
+        'paper_id_invoice_url',
+        'paper_invoice_url',
+        'invoice_url',
+        'paper_id_url',
+        'paper_id_pdf_url_short',
+        'paperIdInvoiceUrl',
+      ]),
+      paperIdInvoiceId: _firstNonEmptyString(json, const [
+        'paper_id_invoice_id',
+        'paper_invoice_id',
+        'paperIdInvoiceId',
+      ]),
     );
   }
 }
 
 extension OrderPaymentX on OrderPayment {
+  /// Paper.id row (by method/bank or presence of Paper fields).
+  bool get isPaperPayment {
+    final methodLower = method.trim().toLowerCase();
+    final bankLower = bank.trim().toLowerCase();
+    if (methodLower.contains('paper') || bankLower.contains('paper')) {
+      return true;
+    }
+    return paperIdStatus.trim().isNotEmpty ||
+        paperIdInvoiceUrl.trim().isNotEmpty ||
+        paperIdInvoiceId.trim().isNotEmpty;
+  }
+
+  /// Paper invoice considered settled/paid.
+  bool get isPaperPaid {
+    if (!isPaperPayment) return false;
+    final s = paperIdStatus.trim().toUpperCase();
+    if (s == 'PAID' ||
+        s == 'SUCCESS' ||
+        s == 'SETTLED' ||
+        s == 'COMPLETED' ||
+        s == 'PAID_OUT') {
+      return true;
+    }
+    return verified == true;
+  }
+
+  /// Unpaid / pending Paper invoice that can still be paid.
+  bool get isPaperUnpaid => isPaperPayment && !isPaperPaid;
+
+  /// Prefer showing pay CTA whenever Paper is unpaid (URL may load after refresh).
+  bool get canPayViaPaper => isPaperUnpaid;
+
+  /// True when we already have a launchable invoice URL.
+  bool get hasPaperInvoiceUrl => paperIdInvoiceUrl.trim().isNotEmpty;
+
+  /// Human label for Paper status chip.
+  String get paperStatusLabel {
+    if (!isPaperPayment) return '';
+    if (isPaperPaid) return 'Sudah bayar';
+    final raw = paperIdStatus.trim();
+    if (raw.isEmpty) return 'Belum bayar';
+    if (raw.toUpperCase() == 'UNPAID') return 'Belum bayar';
+    return raw;
+  }
+
+  /// Show in payment history (Paper unpaid stays visible; rejected legacy hidden).
+  bool get isVisibleInPaymentHistory {
+    if (isPaperPayment) return true;
+    return verified != false;
+  }
+
   /// `true` kecuali `verified` eksplisit `false` (ditolak/duplikat/invalid).
-  /// Pakai ini — bukan `verified` mentah — saat menjumlahkan Total Dibayar.
-  bool get countsTowardTotal => paymentCountsTowardTotal(verified);
+  /// Paper unpaid tidak dihitung sampai status paid.
+  bool get countsTowardTotal {
+    if (isPaperPayment) return isPaperPaid;
+    return paymentCountsTowardTotal(verified);
+  }
 }

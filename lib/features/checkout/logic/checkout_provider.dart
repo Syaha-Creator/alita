@@ -10,6 +10,7 @@ import '../../../core/services/storage_service.dart';
 import '../../../core/utils/app_telemetry.dart';
 import '../../../core/utils/log.dart';
 import '../../../core/utils/network_error.dart';
+import '../../../core/utils/retry.dart';
 import '../../cart/data/cart_item.dart';
 import '../../cart/logic/cart_provider.dart';
 import '../../profile/logic/profile_provider.dart';
@@ -26,7 +27,11 @@ import '../data/models/store_model.dart';
 import '../data/services/approval_service.dart';
 import '../data/models/checkout_models.dart';
 import '../data/services/checkout_order_service.dart';
+import '../data/services/paper_id_payment_service.dart';
 import '../data/utils/analyst_limit_auto_approver.dart';
+import '../data/utils/checkout_channel_resolver.dart';
+import '../data/utils/klaus_approval_rules.dart';
+import '../../auth/logic/auth_provider.dart';
 part 'checkout_provider.freezed.dart';
 
 // ─────────────────────────────────────────────────────────────────
@@ -69,6 +74,17 @@ class CheckoutState with _$CheckoutState {
     // Result
     @Default(false) bool submitSuccess,
     String? successNoSp,
+
+    /// Direct (S1) Paper.id invoice URL after successful create; null for MM/SO.
+    String? successPaperInvoiceUrl,
+
+    /// Direct (S1): SP path expected a Paper invoice (even if create soft-failed).
+    @Default(false) bool successExpectPaperPayment,
+
+    /// Retry context when [successExpectPaperPayment] and URL is empty.
+    int? successOrderLetterId,
+    @Default(0) double successPaperPaymentAmount,
+    @Default(0) int successPaperCreatorId,
   }) = _CheckoutState;
 }
 
@@ -78,10 +94,12 @@ class CheckoutState with _$CheckoutState {
 
 class CheckoutNotifier extends Notifier<CheckoutState> {
   late final CheckoutOrderService _orderService;
+  late final PaperIdPaymentService _paperPaymentService;
 
   @override
   CheckoutState build() {
     _orderService = CheckoutOrderService();
+    _paperPaymentService = PaperIdPaymentService();
     return const CheckoutState();
   }
 
@@ -104,11 +122,13 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
           attendanceWorkPlaceId: wp.$1,
           attendanceWorkPlaceName: wp.$2,
         );
+        _syncKlausManagerAssignment();
       } else {
         state = state.copyWith(
           isLoadingWorkPlace: false,
           useAttendanceStore: false,
         );
+        _syncKlausManagerAssignment();
       }
     } catch (e, st) {
       Log.error(e, st, reason: 'CheckoutNotifier.fetchAttendanceWorkPlace');
@@ -126,6 +146,7 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
       useAttendanceStore: value,
       selectedStore: value ? null : state.selectedStore,
     );
+    _syncKlausManagerAssignment();
   }
 
   void updateStore(StoreModel store) {
@@ -133,6 +154,7 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
       selectedStore: store,
       useAttendanceStore: false,
     );
+    _syncKlausManagerAssignment();
   }
 
   /// Returns the effective `work_place_id` to be sent in the header payload.
@@ -262,47 +284,60 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
 
   // ── Aturan Klaus (auto-assign RSM) ────────────────────────────
   // Jika work_place_id 1937/6015 DAN SPV yang dipilih 4147/1019,
-  // Pak Klaus (5247) otomatis menjadi RSM (Manager) di approval chain.
-  static const int _klausUserId = 5247;
-  static const Set<int> _klausWorkPlaceIds = {1937, 6015};
-  static const Set<int> _klausSpvIds = {4147, 1019};
+  // Pak Klaus (5247) otomatis menjadi RSM (Manager) di approval chain —
+  // termasuk tanpa diskon / tanpa bonus (lihat CheckoutDiscountBuilder).
 
-  /// True saat aturan Klaus aktif: workplace 1937/6015 + SPV 4147/1019.
+  /// True saat aturan Klaus aktif: **Direct S1** + workplace 1937/6015 +
+  /// SPV 4147/1019. Tidak berlaku untuk Indirect (SO) maupun MM.
   bool get isKlausRuleActive {
-    final wpId = effectiveWorkPlaceId ?? 0;
-    final spvId = state.selectedSpv?.id ?? 0;
-    return _klausWorkPlaceIds.contains(wpId) && _klausSpvIds.contains(spvId);
+    final cart = ref.read(cartProvider);
+    final isIndirectSale = cart.any((e) => e.isIndirectSale);
+    final profile = ref.read(profileProvider).valueOrNull;
+    final channel = CheckoutChannelResolver.resolve(
+      divisions: profile?.divisions ?? const [],
+      userAddressNumber: ref.read(authProvider).addressNumber,
+    );
+    return KlausApprovalRules.isActive(
+      workPlaceId: effectiveWorkPlaceId,
+      spvId: state.selectedSpv?.id,
+      orderChannel: channel,
+      isIndirectSale: isIndirectSale,
+    );
   }
 
   /// Bangun Approver untuk Pak Klaus — cari dari list approvers yang sudah
   /// di-fetch; jika tidak ada (beda area/company), gunakan data minimal
   /// karena server mengenali Klaus berdasarkan ID.
   Approver get _klausApprover {
-    return state.approvers.where((a) => a.id == _klausUserId).firstOrNull ??
+    return state.approvers
+            .where((a) => a.id == KlausApprovalRules.klausUserId)
+            .firstOrNull ??
         const Approver(
-          id: _klausUserId,
+          id: KlausApprovalRules.klausUserId,
           userName: 'pak_klaus',
           fullName: 'Klaus',
           jobLevelName: 'RSM',
         );
   }
 
-  void selectSpv(Approver? approver) {
-    final wpId = effectiveWorkPlaceId ?? 0;
-    final klausTriggered = approver != null &&
-        _klausSpvIds.contains(approver.id) &&
-        _klausWorkPlaceIds.contains(wpId);
-
-    Approver? newManager = state.selectedManager;
-    if (klausTriggered) {
-      // Auto-assign Klaus sebagai RSM.
-      newManager = _klausApprover;
-    } else if (state.selectedManager?.id == _klausUserId) {
-      // SPV berganti ke non-trigger → hapus Klaus yang sebelumnya auto-set.
-      newManager = null;
+  /// Re-evaluate Klaus setelah SPV / lokasi berubah (absensi load, ganti toko).
+  void _syncKlausManagerAssignment() {
+    final active = isKlausRuleActive;
+    if (active) {
+      final klaus = _klausApprover;
+      if (state.selectedManager?.id != klaus.id) {
+        state = state.copyWith(selectedManager: klaus);
+      }
+      return;
     }
+    if (state.selectedManager?.id == KlausApprovalRules.klausUserId) {
+      state = state.copyWith(selectedManager: null);
+    }
+  }
 
-    state = state.copyWith(selectedSpv: approver, selectedManager: newManager);
+  void selectSpv(Approver? approver) {
+    state = state.copyWith(selectedSpv: approver);
+    _syncKlausManagerAssignment();
   }
 
   /// Defense-in-depth: page-level `_validateForm()`/`_validateApprovalOnly()`
@@ -331,16 +366,23 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
   }
 
   void selectManager(Approver? approver) {
+    // Aturan Klaus aktif → RSM terkunci ke Klaus (tidak boleh diganti).
+    if (isKlausRuleActive) {
+      state = state.copyWith(selectedManager: _klausApprover);
+      return;
+    }
     state = state.copyWith(selectedManager: approver);
   }
 
   /// Hapus pilihan ASM (dipakai saat sales menghapus slot yang ditambah manual).
   void clearSelectedSpv() {
     state = state.copyWith(selectedSpv: null);
+    _syncKlausManagerAssignment();
   }
 
   /// Hapus pilihan RSM/Manager (slot manual dihapus).
   void clearSelectedManager() {
+    if (isKlausRuleActive) return;
     state = state.copyWith(selectedManager: null);
   }
 
@@ -372,6 +414,11 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
     // belum mengirim flag ini tidak berubah perilakunya.
     bool requiresSpvApproval = false,
     bool requiresManagerApproval = false,
+
+    /// Direct (S1): after order steps succeed, create Paper.id payment/invoice.
+    bool usePaperPayment = false,
+    double paperPaymentAmount = 0,
+    int paperCreatorId = 0,
   }) async {
     if (state.isSubmitting) return; // Reentrancy guard
 
@@ -391,6 +438,11 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
       submitError: null,
       submitSuccess: false,
       successNoSp: null,
+      successPaperInvoiceUrl: null,
+      successExpectPaperPayment: false,
+      successOrderLetterId: null,
+      successPaperPaymentAmount: 0,
+      successPaperCreatorId: 0,
     );
 
     // Deklarasikan di luar try agar catch block bisa akses untuk reconciliation.
@@ -399,9 +451,12 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
     var completedSteps = Set<int>.from(state.retryCompletedSteps);
 
     try {
+      // Pastikan Klaus ter-assign ulang sebelum guard/payload (race lokasi absensi).
+      _syncKlausManagerAssignment();
+
       _assertApprovalNotSilentlyDropped(
         requiresSpvApproval: requiresSpvApproval,
-        requiresManagerApproval: requiresManagerApproval,
+        requiresManagerApproval: requiresManagerApproval || isKlausRuleActive,
       );
 
       final prepSw = Stopwatch()..start();
@@ -439,13 +494,18 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
 
       final profile = ref.read(profileProvider).valueOrNull;
 
+      final klausActive = isKlausRuleActive;
+      final effectiveRequiresApproval = requiresApproval || klausActive;
+
       final pendingDetails = _orderService.buildPendingDetails(
         cartItems: cartItems,
         userId: userId,
         leaderData: leaderData,
         lookupByItemNum: lookupByItemNum,
-        selectedSpv: requiresApproval ? state.selectedSpv : null,
-        selectedManager: requiresApproval ? state.selectedManager : null,
+        selectedSpv: effectiveRequiresApproval ? state.selectedSpv : null,
+        selectedManager: klausActive
+            ? _klausApprover
+            : (effectiveRequiresApproval ? state.selectedManager : null),
         lineIsTakeAway: lineIsTakeAway,
         isBonusTakeAwayChecked: isBonusTakeAwayChecked,
         currentTakeAwayQty: currentTakeAwayQty,
@@ -666,6 +726,38 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
 
       // ── Result ──
       if (failedDetails.isEmpty && failedDiscountDetails.isEmpty) {
+        // Direct (S1): create Paper.id payment after order is fully persisted.
+        // Soft-fail: order remains success even if Paper fails; success screen
+        // offers recreate with the same inputs.
+        String? paperInvoiceUrl;
+        final paperCreator =
+            paperCreatorId > 0 ? paperCreatorId : userId;
+        if (usePaperPayment) {
+          try {
+            final paper = await retry(
+              () => _paperPaymentService.createPaperPayment(
+                orderLetterId: orderLetterId,
+                noSp: noSp,
+                paymentAmount: paperPaymentAmount,
+                creatorId: paperCreator,
+                token: token,
+              ),
+              maxAttempts: 3,
+              tag: 'CheckoutPaper',
+            );
+            paperInvoiceUrl = paper.paperIdInvoiceUrl;
+            if (paperInvoiceUrl.trim().isEmpty) {
+              paperInvoiceUrl = null;
+            }
+          } on Object catch (e, st) {
+            Log.error(
+              e,
+              st,
+              reason: 'Paper.id payment gagal setelah SP $noSp sukses',
+            );
+          }
+        }
+
         if (selectedCartItems != null && selectedCartItems.isNotEmpty) {
           await ref.read(cartProvider.notifier).removeItemsByIds(
                 selectedCartItems.map(cartItemKey).toSet(),
@@ -688,6 +780,12 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
           retryPaymentStartIndex: 0,
           submitSuccess: true,
           successNoSp: noSp,
+          successPaperInvoiceUrl: paperInvoiceUrl,
+          successExpectPaperPayment: usePaperPayment,
+          successOrderLetterId: usePaperPayment ? orderLetterId : null,
+          successPaperPaymentAmount:
+              usePaperPayment ? paperPaymentAmount : 0,
+          successPaperCreatorId: usePaperPayment ? paperCreator : 0,
         );
 
         unawaited(_notifyFirstApprover(
@@ -1222,9 +1320,11 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
 
     final sw = Stopwatch()..start();
     try {
+      _syncKlausManagerAssignment();
+
       _assertApprovalNotSilentlyDropped(
         requiresSpvApproval: requiresSpvApproval,
-        requiresManagerApproval: requiresManagerApproval,
+        requiresManagerApproval: requiresManagerApproval || isKlausRuleActive,
       );
 
       final token = await StorageService.loadAccessToken();
@@ -1241,13 +1341,18 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
       final leaderData = await _orderService.fetchLeaderByUser(userId, token);
       final profile = ref.read(profileProvider).valueOrNull;
 
+      final klausActive = isKlausRuleActive;
+      final effectiveRequiresApproval = requiresApproval || klausActive;
+
       final pendingDetails = _orderService.buildPendingDetails(
         cartItems: cartItems,
         userId: userId,
         leaderData: leaderData,
         lookupByItemNum: lookupByItemNum,
-        selectedSpv: requiresApproval ? state.selectedSpv : null,
-        selectedManager: requiresApproval ? state.selectedManager : null,
+        selectedSpv: effectiveRequiresApproval ? state.selectedSpv : null,
+        selectedManager: klausActive
+            ? _klausApprover
+            : (effectiveRequiresApproval ? state.selectedManager : null),
         lineIsTakeAway: lineIsTakeAway,
         isBonusTakeAwayChecked: isBonusTakeAwayChecked,
         currentTakeAwayQty: currentTakeAwayQty,
@@ -1450,6 +1555,11 @@ class CheckoutNotifier extends Notifier<CheckoutState> {
       submitSuccess: false,
       submitError: null,
       successNoSp: null,
+      successPaperInvoiceUrl: null,
+      successExpectPaperPayment: false,
+      successOrderLetterId: null,
+      successPaperPaymentAmount: 0,
+      successPaperCreatorId: 0,
     );
   }
 }

@@ -1,22 +1,24 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/config/app_config.dart';
 import '../../../../core/services/api_client.dart';
 import '../../../../core/utils/log.dart';
-import '../../../../core/utils/safe_json_list.dart';
+import '../utils/region_api_parser.dart';
 
-/// Fetches Indonesian administrative region data from the Emsifa open API
-/// and caches each endpoint on disk (not SharedPreferences) to avoid large
-/// platform-channel payloads / OOM on low-memory devices.
+/// Fetches Indonesian administrative regions from Wilayah ID
+/// ([AppConfig.regionApiBaseUrl], default `https://geo.velrox.cloud`)
+/// and caches each endpoint on disk.
 ///
-/// Uses [ApiClient.getExternal] because this is a third-party public API
-/// (no auth required, different host from the main backend).
+/// Uses [ApiClient.getExternal] (public API, no Alita auth).
 class RegionService {
-  static final ApiClient _api = ApiClient.instance;
+  RegionService({ApiClient? api}) : _api = api ?? ApiClient.instance;
+
+  final ApiClient _api;
+
+  /// Bump when response shape changes so stale EMSIFA caches are ignored.
+  static const _cachePrefix = 'geo_v1_';
 
   Future<Directory> _ensureCacheDir() async {
     final root = await getApplicationSupportDirectory();
@@ -30,90 +32,71 @@ class RegionService {
     return File('${dir.path}/$cacheKey.json');
   }
 
-  Future<void> _writeFile(String cacheKey, String body) async {
+  Future<void> _writeFile(String cacheKey, List<RegionItem> items) async {
     try {
       final f = await _cacheFile(cacheKey);
-      await f.writeAsString(body, flush: true);
+      await f.writeAsString(RegionApiParser.toCacheJson(items), flush: true);
     } catch (e, st) {
       Log.error(e, st, reason: 'RegionService._writeFile');
     }
   }
 
-  Future<List<Map<String, dynamic>>> _fetchAndCache(
-    String endpoint,
-    String cacheKey,
-  ) async {
+  Future<List<RegionItem>> _fetchAndCache({
+    required String path,
+    required String cacheKey,
+  }) async {
+    final key = '$_cachePrefix$cacheKey';
     try {
-      final f = await _cacheFile(cacheKey);
+      final f = await _cacheFile(key);
       if (f.existsSync()) {
         final cached = await f.readAsString();
         if (cached.isNotEmpty) {
-          final decoded = json.decode(cached);
-          if (decoded is List) {
-            return safeMapList(decoded);
-          }
+          final items = RegionApiParser.parseListBody(cached);
+          if (items.isNotEmpty) return items;
         }
       }
     } catch (e, st) {
       Log.error(e, st, reason: 'RegionService read file cache');
     }
 
-    final prefs = await SharedPreferences.getInstance();
-    final legacy = prefs.getString(cacheKey);
-    if (legacy != null && legacy.isNotEmpty) {
-      try {
-        final decoded = json.decode(legacy);
-        if (decoded is List) {
-          final list = safeMapList(decoded);
-          await _writeFile(cacheKey, legacy);
-          try {
-            await prefs.remove(cacheKey);
-          } catch (e, st) {
-            Log.error(e, st, reason: 'RegionService remove legacy prefs key');
-          }
-          return list;
-        }
-      } catch (e, st) {
-        Log.error(e, st, reason: 'RegionService legacy prefs decode');
-      }
-    }
-
     try {
+      final base = AppConfig.regionApiBaseUrl.replaceAll(RegExp(r'/+$'), '');
       final response = await _api.getExternal(
-        '${AppConfig.regionApiBaseUrl}/$endpoint',
+        '$base/$path',
         timeout: const Duration(seconds: 10),
       );
 
       if (response.statusCode == 200) {
-        final decoded = json.decode(response.body);
-        if (decoded is List) {
-          await _writeFile(cacheKey, response.body);
-          try {
-            await prefs.remove(cacheKey);
-          } catch (e, st) {
-            Log.error(e, st, reason: 'RegionService remove stale prefs key');
-          }
-          return safeMapList(decoded);
+        final items = RegionApiParser.parseListBody(response.body);
+        if (items.isNotEmpty) {
+          await _writeFile(key, items);
+          return items;
         }
       }
     } catch (e, st) {
       Log.error(e, st, reason: 'RegionService._fetchAndCache');
     }
-    return [];
+    return const [];
   }
 
-  Future<List<Map<String, dynamic>>> getProvinces() =>
-      _fetchAndCache('provinces.json', 'cache_provinces');
-
-  Future<List<Map<String, dynamic>>> getRegencies(String provinceId) =>
-      _fetchAndCache(
-        'regencies/$provinceId.json',
-        'cache_regencies_$provinceId',
+  Future<List<RegionItem>> getProvinces() => _fetchAndCache(
+        path: 'api/provinsi',
+        cacheKey: 'provinsi',
       );
 
-  Future<List<Map<String, dynamic>>> getDistricts(String regencyId) =>
+  Future<List<RegionItem>> getRegencies(String provinceKode) =>
       _fetchAndCache(
-        'districts/$regencyId.json',
-        'cache_districts_$regencyId',
+        path: 'api/kabupaten?provinsi=$provinceKode',
+        cacheKey: 'kabupaten_$provinceKode',
+      );
+
+  Future<List<RegionItem>> getDistricts(String regencyKode) => _fetchAndCache(
+        path: 'api/kecamatan?kabupaten=$regencyKode',
+        cacheKey: 'kecamatan_$regencyKode',
+      );
+
+  Future<List<RegionItem>> getVillages(String districtKode) => _fetchAndCache(
+        path: 'api/desa?kecamatan=$districtKode',
+        cacheKey: 'desa_$districtKode',
       );
 }

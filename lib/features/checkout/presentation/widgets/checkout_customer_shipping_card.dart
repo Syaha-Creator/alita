@@ -33,19 +33,35 @@ class CheckoutCustomerShippingCard extends StatelessWidget {
     required this.isFromContactBook,
     required this.onContactFieldCleared,
     required this.onPickContact,
-    required this.customerAddressCtrl,
-    required this.regionCtrl,
+    required this.customerProvinsi,
+    required this.customerKota,
+    required this.customerKecamatan,
+    this.customerKelurahan,
+    this.customerKodepos,
+    required this.onPickCustomerRegion,
+    required this.customerAddressLine1Ctrl,
+    required this.customerAddressLine2Ctrl,
+    required this.customerAddressLine3Ctrl,
+    required this.showCustomerAddressLine3,
+    required this.onShowCustomerAddressLine3,
     required this.isShippingSameAsCustomer,
     required this.onToggleSameAddress,
-    required this.onPickCustomerRegion,
     required this.shippingNameCtrl,
     required this.shippingPhoneCtrl,
     required this.shippingPhone2Ctrl,
     required this.showReceiverBackupPhone,
     required this.onToggleReceiverBackupPhone,
-    required this.shippingAddressCtrl,
-    required this.shippingRegionCtrl,
+    required this.shippingProvinsi,
+    required this.shippingKota,
+    required this.shippingKecamatan,
+    this.shippingKelurahan,
+    this.shippingKodepos,
     required this.onPickShippingRegion,
+    required this.shippingAddressLine1Ctrl,
+    required this.shippingAddressLine2Ctrl,
+    required this.shippingAddressLine3Ctrl,
+    required this.showShippingAddressLine3,
+    required this.onShowShippingAddressLine3,
     this.isReceiverBranchMode = true,
     this.onToggleReceiverBranchMode,
     this.availableStores = const [],
@@ -81,22 +97,38 @@ class CheckoutCustomerShippingCard extends StatelessWidget {
   final VoidCallback onContactFieldCleared;
   final VoidCallback onPickContact;
 
-  final TextEditingController customerAddressCtrl;
-  final TextEditingController regionCtrl;
+  final String? customerProvinsi;
+  final String? customerKota;
+  final String? customerKecamatan;
+  final String? customerKelurahan;
+  final String? customerKodepos;
+  final VoidCallback onPickCustomerRegion;
+  final TextEditingController customerAddressLine1Ctrl;
+  final TextEditingController customerAddressLine2Ctrl;
+  final TextEditingController customerAddressLine3Ctrl;
+  final bool showCustomerAddressLine3;
+  final VoidCallback onShowCustomerAddressLine3;
+
   final bool isShippingSameAsCustomer;
   final ValueChanged<bool> onToggleSameAddress;
-  final VoidCallback onPickCustomerRegion;
 
   final TextEditingController shippingNameCtrl;
   final TextEditingController shippingPhoneCtrl;
   final TextEditingController shippingPhone2Ctrl;
   final bool showReceiverBackupPhone;
   final VoidCallback onToggleReceiverBackupPhone;
-  final TextEditingController shippingAddressCtrl;
-  final TextEditingController shippingRegionCtrl;
+  final String? shippingProvinsi;
+  final String? shippingKota;
+  final String? shippingKecamatan;
+  final String? shippingKelurahan;
+  final String? shippingKodepos;
   final VoidCallback onPickShippingRegion;
+  final TextEditingController shippingAddressLine1Ctrl;
+  final TextEditingController shippingAddressLine2Ctrl;
+  final TextEditingController shippingAddressLine3Ctrl;
+  final bool showShippingAddressLine3;
+  final VoidCallback onShowShippingAddressLine3;
 
-  /// Indirect receiver mode toggle (cabang/gudang vs customer baru).
   final bool isReceiverBranchMode;
   final ValueChanged<bool>? onToggleReceiverBranchMode;
   final List<StoreModel> availableStores;
@@ -153,19 +185,35 @@ class CheckoutCustomerShippingCard extends StatelessWidget {
             showIndirectAlternateReceiverEmail:
                 showIndirectAlternateReceiverEmail,
             shippingEmailCtrl: shippingEmailCtrl,
-            customerAddressCtrl: customerAddressCtrl,
-            regionCtrl: regionCtrl,
+            customerProvinsi: customerProvinsi,
+            customerKota: customerKota,
+            customerKecamatan: customerKecamatan,
+            customerKelurahan: customerKelurahan,
+            customerKodepos: customerKodepos,
+            onPickCustomerRegion: onPickCustomerRegion,
+            customerAddressLine1Ctrl: customerAddressLine1Ctrl,
+            customerAddressLine2Ctrl: customerAddressLine2Ctrl,
+            customerAddressLine3Ctrl: customerAddressLine3Ctrl,
+            showCustomerAddressLine3: showCustomerAddressLine3,
+            onShowCustomerAddressLine3: onShowCustomerAddressLine3,
             isShippingSameAsCustomer: isShippingSameAsCustomer,
             onToggleSameAddress: onToggleSameAddress,
-            onPickCustomerRegion: onPickCustomerRegion,
             shippingNameCtrl: shippingNameCtrl,
             shippingPhoneCtrl: shippingPhoneCtrl,
             shippingPhone2Ctrl: shippingPhone2Ctrl,
             showReceiverBackupPhone: showReceiverBackupPhone,
             onToggleReceiverBackupPhone: onToggleReceiverBackupPhone,
-            shippingAddressCtrl: shippingAddressCtrl,
-            shippingRegionCtrl: shippingRegionCtrl,
+            shippingProvinsi: shippingProvinsi,
+            shippingKota: shippingKota,
+            shippingKecamatan: shippingKecamatan,
+            shippingKelurahan: shippingKelurahan,
+            shippingKodepos: shippingKodepos,
             onPickShippingRegion: onPickShippingRegion,
+            shippingAddressLine1Ctrl: shippingAddressLine1Ctrl,
+            shippingAddressLine2Ctrl: shippingAddressLine2Ctrl,
+            shippingAddressLine3Ctrl: shippingAddressLine3Ctrl,
+            showShippingAddressLine3: showShippingAddressLine3,
+            onShowShippingAddressLine3: onShowShippingAddressLine3,
             isReceiverBranchMode: isReceiverBranchMode,
             onToggleReceiverBranchMode: onToggleReceiverBranchMode,
             availableStores: availableStores,

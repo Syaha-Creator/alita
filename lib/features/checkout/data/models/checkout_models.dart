@@ -17,6 +17,14 @@ class CheckoutEndpoints {
 
   /// GET diskon toko by `kode_toko` (address_number toko, query param).
   static String get storeDiscounts => '$_base/store_discounts';
+
+  /// Direct (S1): create `order_letter_payments` + Paper.id invoice.
+  ///
+  /// Path ikut [AppConfig.paperPaymentPath]:
+  /// staging → `paper_id_staging`, production → `payper_id`
+  /// (override: `PAPER_PAYMENT_PATH`).
+  static String get orderLetterPaymentPaperId =>
+      '$_base/order_letter_payment/${AppConfig.paperPaymentPath}';
 }
 
 /// A single pending detail row (used for retry flow).

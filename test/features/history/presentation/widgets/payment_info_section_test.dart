@@ -83,5 +83,93 @@ void main() {
       // Row + footer Total Dibayar keduanya menampilkan nominal yang sama.
       expect(find.text(_fmt(250000)), findsNWidgets(2));
     });
+
+    testWidgets('shows Paper unpaid status and Bayar via Paper.id CTA',
+        (tester) async {
+      OrderPayment? opened;
+      final order = _orderWithPayments([
+        {
+          'payment_method': 'Paper.id',
+          'payment_bank': 'Paper.id',
+          'payment_amount': 1000000,
+          'paper_id_status': 'UNPAID',
+          'paper_id_invoice_url': 'https://stg-v2.paper.id/abc',
+        },
+      ]);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: PaymentInfoSection(
+              order: order,
+              onTapAddPayment: () {},
+              onTapReceipt: (_) {},
+              onTapPayPaper: (payment) => opened = payment,
+              currencyFormatter: _fmt,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Belum bayar'), findsOneWidget);
+      expect(find.text('Bayar via Paper.id'), findsOneWidget);
+      // Unpaid Paper tidak dihitung → Total Dibayar 0, Sisa 1000000
+      expect(find.text(_fmt(0)), findsOneWidget);
+      expect(find.text(_fmt(1000000)), findsNWidgets(2)); // row amount + sisa
+      expect(find.text('Tambah Pembayaran'), findsNothing);
+
+      await tester.tap(find.text('Bayar via Paper.id'));
+      await tester.pump();
+      expect(opened?.paperIdInvoiceUrl, 'https://stg-v2.paper.id/abc');
+    });
+
+    testWidgets(
+        'shows Bayar CTA for unpaid Paper even when invoice URL missing',
+        (tester) async {
+      final order = _orderWithPayments([
+        {
+          'payment_method': 'Paper.id',
+          'payment_bank': 'Paper.id',
+          'payment_amount': 3069000,
+          'paper_id_status': 'UNPAID',
+        },
+      ]);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: PaymentInfoSection(
+              order: order,
+              onTapAddPayment: () {},
+              onTapReceipt: (_) {},
+              onTapPayPaper: (_) {},
+              currencyFormatter: _fmt,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Belum bayar'), findsOneWidget);
+      expect(find.text('Bayar via Paper.id'), findsOneWidget);
+      expect(find.text('Tambah Pembayaran'), findsNothing);
+    });
+
+    testWidgets('Paper PAID shows Sudah bayar without pay CTA', (tester) async {
+      final order = _orderWithPayments([
+        {
+          'payment_method': 'Paper.id',
+          'payment_bank': 'Paper.id',
+          'payment_amount': 1000000,
+          'paper_id_status': 'PAID',
+          'paper_id_invoice_url': 'https://stg-v2.paper.id/abc',
+        },
+      ]);
+
+      await _pump(tester, order);
+
+      expect(find.text('Sudah bayar'), findsOneWidget);
+      expect(find.text('Bayar via Paper.id'), findsNothing);
+      expect(find.text('Lunas'), findsOneWidget);
+    });
   });
 }

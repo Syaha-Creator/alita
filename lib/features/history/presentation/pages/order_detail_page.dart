@@ -3,9 +3,10 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/utils/platform_utils.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/utils/platform_utils.dart';
 import '../../../../core/enums/order_status.dart';
 import '../../../../core/services/api_session_expired.dart';
 import '../../../../core/services/connectivity_service.dart';
@@ -217,7 +218,8 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
     final fmt = AppFormatters.currencyIdr;
     final profile = ref.watch(profileProvider).valueOrNull;
     final myName = profile?.name ?? '';
-    final userId = ref.watch(authProvider).userId;
+    final auth = ref.watch(authProvider);
+    final userId = auth.userId;
     final needsDiscountApproval =
         ApprovalDecisionService.orderHistoryNeedsMyApproval(
       order: currentOrder,
@@ -234,13 +236,18 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
     final currentStatus = OrderStatusX.fromRaw(currentOrder.status);
     final isSoChannel =
         (currentOrder.channel?.trim().toUpperCase() ?? '') == 'SO';
-    // Checkout mengisi creator = profile.id; auth.userId bisa beda → cocokkan keduanya.
+    // Checkout mengisi creator = profile.id; auth.userId bisa beda → cocokkan
+    // keduanya. Nama di SP sering dari users.name (login) sementara profile
+    // dari CWE bisa beda — cocokkan auth.userName + sales_code juga.
     final isCreator = isOrderCreator(
       orderCreator: currentOrder.creator,
       orderCreatorName: currentOrder.creatorName,
       authUserId: userId,
       profileId: profile?.id ?? 0,
       profileName: myName,
+      authUserName: auth.userName,
+      orderSalesCode: currentOrder.salesCode,
+      userSalesCode: auth.addressNumber ?? '',
     );
     // Approver (dari konteks inbox persetujuan) bisa void order Approved.
     final showVoidBottomBar = !isOffline &&
@@ -663,6 +670,8 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                       currencyFormatter: fmt,
                       onTapReceipt: (imageUrl) =>
                           _showImageDialog(context, imageUrl),
+                      onTapPayPaper: (payment) =>
+                          unawaited(_openPaperInvoice(payment)),
                       onTapAddPayment: () {
                         _showAddPaymentBottomSheet(
                           context,
@@ -1010,6 +1019,78 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
   }
 
   // ── Image Viewer ────────────────────────────────────────────
+
+  Future<void> _openPaperInvoice(OrderPayment payment) async {
+    var url = payment.paperIdInvoiceUrl.trim();
+
+    if (url.isEmpty) {
+      // GET order detail kadang belum mengirim URL — refresh lalu cari ulang.
+      await ref.read(orderDetailProvider(widget.order.id).notifier).refresh();
+      if (!mounted) return;
+      final refreshed =
+          ref.read(orderDetailProvider(widget.order.id)).valueOrNull;
+      OrderPayment? match;
+      for (final p in refreshed?.payments ?? const <OrderPayment>[]) {
+        if (!p.isPaperUnpaid) continue;
+        final sameInvoiceId = payment.paperIdInvoiceId.isNotEmpty &&
+            p.paperIdInvoiceId == payment.paperIdInvoiceId;
+        final sameAmountRow = p.amount == payment.amount &&
+            p.method.toLowerCase().contains('paper');
+        if (sameInvoiceId || sameAmountRow) {
+          match = p;
+          break;
+        }
+      }
+      url = match?.paperIdInvoiceUrl.trim() ?? '';
+    }
+
+    if (url.isEmpty) {
+      if (!mounted) return;
+      AppFeedback.show(
+        context,
+        message:
+            'Link pembayaran Paper.id belum tersedia dari server. '
+            'Coba refresh halaman, atau hubungi IT jika tetap kosong.',
+        type: AppFeedbackType.warning,
+        floating: true,
+        duration: const Duration(seconds: 4),
+      );
+      return;
+    }
+
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      if (!mounted) return;
+      AppFeedback.show(
+        context,
+        message: 'Link pembayaran Paper.id tidak valid.',
+        type: AppFeedbackType.error,
+        floating: true,
+      );
+      return;
+    }
+    try {
+      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!ok && mounted) {
+        AppFeedback.show(
+          context,
+          message: 'Tidak bisa membuka link Paper.id.',
+          type: AppFeedbackType.error,
+          floating: true,
+        );
+      }
+    } on Object catch (e, s) {
+      Log.error(e, s, reason: 'OrderDetailPage.openPaperInvoice');
+      if (mounted) {
+        AppFeedback.show(
+          context,
+          message: 'Gagal membuka link Paper.id.',
+          type: AppFeedbackType.error,
+          floating: true,
+        );
+      }
+    }
+  }
 
   static void _showImageDialog(BuildContext context, String imageUrl) {
     ImageViewerDialog.show(

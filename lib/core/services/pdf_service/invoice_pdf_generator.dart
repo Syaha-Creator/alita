@@ -463,6 +463,10 @@ class InvoicePdfGenerator {
         'id': d.id,
         'order_letter_detail_id': d.id,
         if (d.itemNumber.trim().isNotEmpty) 'item_number': d.itemNumber.trim(),
+        if (d.pricelistType.trim().isNotEmpty)
+          'pricelist_type': d.pricelistType.trim(),
+        if (d.pricelistArea.trim().isNotEmpty)
+          'pricelist_area': d.pricelistArea.trim(),
       };
     }).toList();
 

@@ -98,14 +98,21 @@ abstract final class PdfItemsTable {
 
       // Baris 1: item_description (fallback ke desc_1 jika kosong).
       // Baris 2: item_number sebagai caption kecil.
+      // Baris 3: pricelist_type · pricelist_area.
       final displayName = takeAway ? '$name (BAWA PULANG)' : name;
       final itemNumberRaw = d['item_number']?.toString().trim() ?? '';
       final itemNumberCaption = itemNumberRaw.isNotEmpty ? itemNumberRaw : null;
+      final pricelistMeta = PdfHelpers.formatPricelistMetaLine(
+        type: d['pricelist_type']?.toString(),
+        area: d['pricelist_area']?.toString(),
+      );
 
       final nameWidget = _buildNameCell(
         displayName,
         isBold: isLeadItem,
         itemNumber: itemNumberCaption,
+        pricelistMeta:
+            pricelistMeta.isNotEmpty ? pricelistMeta : null,
       );
 
       if (isInternal) {
@@ -209,6 +216,7 @@ abstract final class PdfItemsTable {
     String name, {
     required bool isBold,
     String? itemNumber,
+    String? pricelistMeta,
   }) {
     const padding = pw.EdgeInsets.all(6);
 
@@ -221,6 +229,10 @@ abstract final class PdfItemsTable {
       color: PdfColors.grey600,
       fontStyle: pw.FontStyle.italic,
     );
+    final metaStyle = const pw.TextStyle(
+      fontSize: 6.5,
+      color: PdfColors.grey700,
+    );
 
     final children = <pw.Widget>[
       pw.Text(name, style: nameStyle),
@@ -229,6 +241,12 @@ abstract final class PdfItemsTable {
     if (itemNumber != null && itemNumber.isNotEmpty) {
       children.add(pw.SizedBox(height: 2));
       children.add(pw.Text(itemNumber, style: itemNumStyle));
+    }
+
+    final meta = pricelistMeta?.trim() ?? '';
+    if (meta.isNotEmpty) {
+      children.add(pw.SizedBox(height: 2));
+      children.add(pw.Text(meta, style: metaStyle));
     }
 
     if (children.length == 1) {

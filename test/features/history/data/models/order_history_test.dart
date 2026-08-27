@@ -404,6 +404,51 @@ void main() {
       expect(payment.verified, isFalse);
       expect(payment.countsTowardTotal, isFalse);
     });
+
+    test('parses Paper.id fields and unpaid does not count toward total', () {
+      final payment = OrderPayment.fromApiJson(const <String, dynamic>{
+        'payment_method': 'Paper.id',
+        'payment_bank': 'Paper.id',
+        'payment_amount': 5000000,
+        'paper_id_status': 'UNPAID',
+        'paper_id_invoice_url': 'https://stg-v2.paper.id/Vkh1ws1',
+        'paper_id_invoice_id': 'ebd63024-ed2d-475a-88af-dc34f46eeb6e',
+      });
+      expect(payment.isPaperPayment, isTrue);
+      expect(payment.isPaperUnpaid, isTrue);
+      expect(payment.isPaperPaid, isFalse);
+      expect(payment.canPayViaPaper, isTrue);
+      expect(payment.hasPaperInvoiceUrl, isTrue);
+      expect(payment.paperStatusLabel, 'Belum bayar');
+      expect(payment.countsTowardTotal, isFalse);
+      expect(payment.isVisibleInPaymentHistory, isTrue);
+    });
+
+    test('unpaid Paper without invoice URL still allows pay CTA', () {
+      final payment = OrderPayment.fromApiJson(const <String, dynamic>{
+        'payment_method': 'Paper.id',
+        'payment_bank': 'Paper.id',
+        'payment_amount': 3069000,
+        'paper_id_status': 'UNPAID',
+      });
+      expect(payment.canPayViaPaper, isTrue);
+      expect(payment.hasPaperInvoiceUrl, isFalse);
+      expect(payment.paperStatusLabel, 'Belum bayar');
+    });
+
+    test('Paper PAID counts toward total and hides pay CTA', () {
+      final payment = OrderPayment.fromApiJson(const <String, dynamic>{
+        'payment_method': 'Paper.id',
+        'payment_bank': 'Paper.id',
+        'payment_amount': 5000000,
+        'paper_id_status': 'PAID',
+        'paper_id_invoice_url': 'https://stg-v2.paper.id/Vkh1ws1',
+      });
+      expect(payment.isPaperPaid, isTrue);
+      expect(payment.canPayViaPaper, isFalse);
+      expect(payment.paperStatusLabel, 'Sudah bayar');
+      expect(payment.countsTowardTotal, isTrue);
+    });
   });
 
   group('OrderDiscount.fromApiJson', () {

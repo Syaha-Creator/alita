@@ -58,5 +58,53 @@ void main() {
         isFalse,
       );
     });
+
+    test(
+        'matches auth login name when CWE profile name differs from creator',
+        () {
+      // creator di SP sering dari users.name (login), sementara profile.name
+      // dari contact_work_experiences bisa beda ejaan/format.
+      expect(
+        isOrderCreator(
+          orderCreator: 'Agnes Rossi',
+          orderCreatorName: 'Agnes Rossi',
+          authUserId: 42,
+          profileId: 99,
+          profileName: 'Agnes R. Trisna Lestari', // CWE — tidak soft-match
+          authUserName: 'Agnes Rossi', // login — cocok
+        ),
+        isTrue,
+      );
+    });
+
+    test('matches sales_code when names differ', () {
+      expect(
+        isOrderCreator(
+          orderCreator: 'Nama Di SP',
+          authUserId: 42,
+          profileId: 99,
+          profileName: 'Nama Dari CWE',
+          authUserName: 'Nama Login Lain',
+          orderSalesCode: 'JKT-001',
+          userSalesCode: 'jkt-001',
+        ),
+        isTrue,
+      );
+    });
+
+    test('rejects when names and sales_code all differ', () {
+      expect(
+        isOrderCreator(
+          orderCreator: 'Nama Di SP',
+          authUserId: 42,
+          profileId: 99,
+          profileName: 'Nama Dari CWE',
+          authUserName: 'Nama Login Lain',
+          orderSalesCode: 'JKT-001',
+          userSalesCode: 'BDG-999',
+        ),
+        isFalse,
+      );
+    });
   });
 }
